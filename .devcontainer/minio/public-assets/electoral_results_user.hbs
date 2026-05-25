@@ -12,7 +12,7 @@
     {{/if}}
     <div style="margin: 12px 0;">
       {{#if report.election_results}}
-        <h2 style="margin: 0;">Election:{{{report.election_name}}}</h2>
+        <h2 style="margin: 0;">Election: {{ sanitize_html report.election_name}}</h2>
       {{else}}
       {{#if report.contest}}
         <h2 style="margin: 0;">Contest: {{ sanitize_html report.contest.name }}</h2>

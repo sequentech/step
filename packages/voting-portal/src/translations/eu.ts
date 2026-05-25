@@ -62,7 +62,7 @@ const basqueTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Berretsi bozkatzeari uko egitea",
                 content:
-                    "Ziur zaude bozkatzeari uko egin nahi diozula?</br>Zuzenean berrikuspen pantailara joango zara, eta zure parte-hartze egoera <b>Bozkatzeari uko egina</b> bezala gordeko da.",
+                    "Ziur zaude bozkatzeari uko egin nahi diozula?<br />Zuzenean berrikuspen pantailara joango zara, eta zure parte-hartze egoera <b>Bozkatzeari uko egina</b> bezala gordeko da.",
                 continue: "Bozkatzeari uko egin",
                 cancel: "Utzi",
             },

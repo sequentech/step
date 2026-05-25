@@ -903,6 +903,7 @@ struct InputConfigAreaContest<'a> {
     contests: Vec<&'a InputContestConfig>,
 }
 
+/// Helper function to calculate percentage of a number
 #[allow(clippy::cast_precision_loss, clippy::arithmetic_side_effects)]
 fn percentage_of(count: u64, base: u64) -> f64 {
     let safe_base = cmp::max(1, base);
@@ -1125,30 +1126,33 @@ impl Pipe for GenerateReports {
                     total_decline_to_vote,
                     percentage_total_decline_to_vote,
                 };
-                let contest = contest_reports
+
+                let summary_election_report = contest_reports
                     .first()
-                    .map(|r| r.contest.clone().unwrap())
-                    .expect("area_contests_reports is empty");
+                    .and_then(|r| r.contest.clone())
+                    .map(|contest| ReportData {
+                        election_name: election_input.name.clone(),
+                        election_alias: election_input.alias.clone(),
+                        election_id: election_input.id.to_string(),
+                        tenant_id: contest.tenant_id.clone(),
+                        election_event_id: contest.election_event_id.clone(),
+                        election_description: election_input.description.to_string(),
+                        election_dates: election_input.dates.clone(),
+                        election_annotations: election_input.annotations.clone(),
+                        election_event_annotations: election_input
+                            .election_event_annotations
+                            .clone(),
+                        contest: None,
+                        contest_result: None,
+                        area: None,
+                        winners: vec![],
+                        channel_type: None,
+                        election_results: Some(election_results),
+                    });
 
-                let summary_election_report = ReportData {
-                    election_name: election_input.name.clone(),
-                    election_alias: election_input.alias.clone(),
-                    election_id: election_input.id.to_string(),
-                    tenant_id: contest.tenant_id.clone(),
-                    election_event_id: contest.election_event_id.clone(),
-                    election_description: election_input.description.to_string(),
-                    election_dates: election_input.dates.clone(),
-                    election_annotations: election_input.annotations.clone(),
-                    election_event_annotations: election_input.election_event_annotations.clone(),
-                    contest: None,
-                    contest_result: None,
-                    area: None,
-                    winners: vec![],
-                    channel_type: None,
-                    election_results: Some(election_results),
-                };
-
-                contest_reports.push(summary_election_report);
+                if (summary_election_report.is_some()) {
+                    contest_reports.push(summary_election_report.unwrap());
+                }
 
                 // write report for the current election (remains sequential for this election_input task)
                 let result_hash = self.write_report(
@@ -1247,42 +1251,6 @@ impl Pipe for GenerateReports {
                     .collect(); // End of par_iter().try_for_each over area_contests_map
 
                 if (is_consolidated_report && area_contests_reports.len() > 0) {
-                    // let election_census = election_input.clone().census;
-                    // let total_votes = election_input.total_votes.clone();
-                    // let census_base = cmp::max(1, election_census) as f64;
-
-                    // let election_results = ElectionResultReport {
-                    //     census: election_census.clone(),
-                    //     total_votes: total_votes.clone(),
-                    //     percentage_total_votes: (total_votes as f64) * 100.0 / census_base,
-                    //     total_decline_to_vote: None,
-                    // };
-
-                    // let contest = area_contests_reports
-                    //     .first()
-                    //     .map(|r| r.contest.clone().unwrap())
-                    //     .expect("area_contests_reports is empty");
-
-                    // let summary_election_report = ReportData {
-                    //     election_name: election_input.name.clone(),
-                    //     election_alias: election_input.alias.clone(),
-                    //     election_id: election_input.id.to_string(),
-                    //     tenant_id: contest.tenant_id.clone(),
-                    //     election_event_id: contest.election_event_id.clone(),
-                    //     election_description: election_input.description.to_string(),
-                    //     election_dates: election_input.dates.clone(),
-                    //     election_annotations: election_input.annotations.clone(),
-                    //     election_event_annotations: election_input
-                    //         .election_event_annotations
-                    //         .clone(),
-                    //     contest: None,
-                    //     contest_result: None,
-                    //     area: None,
-                    //     winners: vec![],
-                    //     channel_type: None,
-                    //     election_results: Some(election_results),
-                    // };
-                    // area_contests_reports.push(summary_election_report);
                     area_contests_reports.extend(contest_reports);
 
                     let result_hash = self.write_report(

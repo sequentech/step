@@ -1263,7 +1263,7 @@ pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
     let policy: DeclineToVotePolicy = DeclineToVotePolicy::default();
     serde_wasm_bindgen::to_value(&policy).map_err(|err| {
         JsValue::from_str(&format!(
-            "Error serializing default consolidated report policy: {err}"
+            "Error serializing default decline to vote policy: {err}"
         ))
     })
 }

@@ -62,7 +62,7 @@ const spanishTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Confirmar declinación de voto",
                 content:
-                    "¿Estás seguro de que deseas declinar votar?</br>Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
+                    "¿Estás seguro de que deseas declinar votar?<br />Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
                 continue: "Declinar votar",
                 cancel: "Cancelar",
             },

@@ -198,7 +198,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
 
     const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const errorSelectionState = useMemo(() => {
         if (!ballotSelectionState) {

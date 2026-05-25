@@ -60,7 +60,7 @@ const englishTranslation = {
             declineToVoteDialog: {
                 title: "Confirm decline to vote",
                 content:
-                    "Are you sure you want to decline to vote?</br>You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
+                    "Are you sure you want to decline to vote?<br />You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
                 continue: "Decline to vote",
                 cancel: "Cancel",
             },

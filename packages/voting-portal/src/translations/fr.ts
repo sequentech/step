@@ -62,7 +62,7 @@ const frenchTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Confirmer l’abstention de vote",
                 content:
-                    "Êtes-vous sûr de vouloir vous abstenir de voter ?</br>Vous accéderez directement à la révision et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
+                    "Êtes-vous sûr de vouloir vous abstenir de voter ?<br />Vous accéderez directement à la révision et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
                 continue: "S’abstenir de voter",
                 cancel: "Annuler",
             },

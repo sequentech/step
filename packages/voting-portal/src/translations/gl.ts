@@ -63,7 +63,7 @@ const galegoTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Confirmar abstención de voto",
                 content:
-                    "Seguro que queres absterte de votar?</br>Irás directamente á revisión e o teu estado de participación gardarase como <b>Abstívose de votar</b>.",
+                    "Seguro que queres absterte de votar?<br />Irás directamente á revisión e o teu estado de participación gardarase como <b>Abstívose de votar</b>.",
                 continue: "Absterse de votar",
                 cancel: "Cancelar",
             },
