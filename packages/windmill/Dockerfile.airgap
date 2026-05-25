@@ -18,8 +18,11 @@ RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 WORKDIR /app/windmill
 
-# Use the pre-installed nightly Rust toolchain for windmill
-RUN rustup default nightly
+# Use the stable Rust toolchain for windmill to avoid issues with nightly-only features in dependencies
+RUN rustup default 1.90.0
+
+# Use libc backend for rustix to avoid issues with reserved attributes on newer compilers
+ENV RUSTFLAGS="--cfg rustix_use_libc"
 
 RUN cargo build
 
