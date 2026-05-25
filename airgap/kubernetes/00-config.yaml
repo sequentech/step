@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: step-env
+  namespace: step-apps
+data:
+  AMQP_ADDR: "amqp://rabbitmq.step-infra.svc.cluster.local:5672"
+  KEYCLOAK_URL: "http://keycloak.step-infra.svc.cluster.local:8090"
+  HASURA_ENDPOINT: "http://hasura.step-apps.svc.cluster.local:8080/v1/graphql"
+  POSTGRES_HOST: "postgres.step-infra.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "password"
+  RUSTFS_URL: "http://rustfs.step-infra.svc.cluster.local:9000"
+  AWS_S3_PRIVATE_URI: "http://rustfs.step-infra.svc.cluster.local:9000"
+  AWS_S3_PUBLIC_URI: "http://rustfs.step-infra.svc.cluster.local:9000"
+  AWS_S3_ACCESS_KEY: "admin"
+  AWS_S3_ACCESS_SECRET: "password"
+  AWS_REGION: "us-east-1"
+  LOG_LEVEL: "info"

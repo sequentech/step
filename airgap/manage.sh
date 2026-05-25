@@ -42,8 +42,14 @@ mirrors:
   "gitea.local:3000":
     endpoint:
       - "http://gitea.gitea:3000"
+  "gitea.gitea:3000":
+    endpoint:
+      - "http://gitea.gitea:3000"
 configs:
   "gitea.local:3000":
+    tls:
+      insecure_skip_verify: true
+  "gitea.gitea:3000":
     tls:
       insecure_skip_verify: true
 EOF
@@ -75,6 +81,8 @@ EOF
         
         echo "--- Applying Kubernetes Manifests ---"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/01-namespaces.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/07-rbac.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/00-config.yaml"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/02-ingress.yaml"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/03-gitea.yaml"
         
@@ -87,6 +95,13 @@ EOF
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/04-infra.yaml"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/05-apps.yaml"
         
+        echo "--- Configuring Internal DNS Resolution for Kubelet ---"
+        GITEA_IP=$(sudo k3s kubectl get svc -n gitea gitea -o jsonpath='{.spec.clusterIP}')
+        if [ -n "$GITEA_IP" ]; then
+            sudo sh -c "grep -q 'gitea.gitea' /etc/hosts || echo '$GITEA_IP gitea.gitea' >> /etc/hosts"
+            echo "Mapped gitea.gitea to $GITEA_IP in /etc/hosts"
+        fi
+
         echo "Stack is deploying! Use 'kubectl get pods -A' to monitor."
         ;;
 

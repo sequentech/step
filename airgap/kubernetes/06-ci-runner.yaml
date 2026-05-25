@@ -29,6 +29,7 @@ spec:
       labels:
         app: gitea-runner
     spec:
+      serviceAccountName: gitea-runner-sa
       tolerations:
         - key: "node-role.kubernetes.io/master"
           operator: "Exists"
@@ -59,7 +60,7 @@ spec:
               value: ""
           securityContext:
             privileged: true
-          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & sleep 10; for f in /images/*.tar; do docker load -i $f; done; wait"]
+          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then for f in /images/*.tar; do if [ -f \"$f\" ]; then echo \"Loading $f...\"; docker load -i \"$f\"; fi; done; fi; wait"]
           volumeMounts:
             - name: docker-storage
               mountPath: /var/lib/docker

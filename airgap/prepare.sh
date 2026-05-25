@@ -30,9 +30,10 @@ K3S_SUFFIX=""
 if [ "$ARCH" = "arm64" ]; then K3S_SUFFIX="-arm64"; fi
 
 curl -Lo "$OUTPUT_DIR/k3s/$ARCH/k3s" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s${K3S_SUFFIX}"
+curl -Lo "$OUTPUT_DIR/k3s/$ARCH/kubectl" "https://dl.k8s.io/release/v1.30.0/bin/linux/$ARCH/kubectl"
 curl -Lo "$OUTPUT_DIR/k3s/$ARCH/k3s-airgap-images-${ARCH}.tar.zst" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s-airgap-images-${ARCH}.tar.zst"
 curl -Lo "$OUTPUT_DIR/k3s/install.sh" "https://get.k3s.io"
-chmod +x "$OUTPUT_DIR/k3s/$ARCH/k3s" "$OUTPUT_DIR/k3s/install.sh"
+chmod +x "$OUTPUT_DIR/k3s/$ARCH/k3s" "$OUTPUT_DIR/k3s/$ARCH/kubectl" "$OUTPUT_DIR/k3s/install.sh"
 
 echo "--- [3/7] Downloading Debian Packages (Git/SSH for $ARCH) ---"
 # Detect OS version for the target (default to jammy if not on linux)
