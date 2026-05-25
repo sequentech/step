@@ -1160,15 +1160,24 @@ export function DiagnosticsPage(): JSX.Element {
             </p>
             <BuildStatusCard />
             <LiftedSourceDriftSection />
-            <div style={diagnosticsCardStyle}>
-                <div style={diagnosticsCardHeaderStyle}>
+            <details style={diagnosticsCardStyle}>
+                <summary
+                    style={{
+                        ...diagnosticsCardHeaderStyle,
+                        cursor: "pointer",
+                        marginBottom: 0,
+                    }}
+                >
                     <strong>Current workbench state</strong>
-                </div>
+                    <span style={{color: "#888", fontSize: "0.8rem"}}>
+                        click to expand
+                    </span>
+                </summary>
                 <p
                     style={{
                         color: "#666",
                         fontSize: "0.85rem",
-                        margin: "0 0 0.5rem 0",
+                        margin: "0.5rem 0",
                     }}
                 >
                     Paste into <em>Import snapshot JSON…</em> on the
@@ -1180,7 +1189,7 @@ export function DiagnosticsPage(): JSX.Element {
                     <code>parentId</code> first for a root bundled fixture).
                 </p>
                 <CopyJsonBlock json={currentSnapshotJson} />
-            </div>
+            </details>
         </div>
     )
 }
