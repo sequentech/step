@@ -11,4 +11,5 @@ select_permissions:
       filter:
         tenant_id:
           _eq: X-Hasura-Tenant-Id
+      allow_aggregations: true
     role: phone-blacklist-read
