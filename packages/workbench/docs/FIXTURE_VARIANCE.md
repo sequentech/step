@@ -275,7 +275,33 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 ### 10. Per-Contest Presentation Policies
 
-#### 10.1 InvalidVotePolicy
+This section groups two distinct families of contest-level policy fields that both live in `ContestPresentation`:
+
+- **10.A Vote validation policies** — policies that define what *is* (or is not) an allowed vote. They are consulted both (a) by the voting portal while the user is constructing the ballot (to surface warnings / errors / disable controls and to gate submission) and (b) by velvet's codec during the cast-and-tally pipeline (`raw_ballot::decode`, `multi_ballot::decode`, which call the per-policy checkers in [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs)). The 1:1 TypeScript mirror lives in [`packages/ui-core/src/types/ContestPresentation.ts`](packages/ui-core/src/types/ContestPresentation.ts).
+- **10.B Presentation / layout policies** — policies that affect rendering, ordering, or post-tally tie resolution. They never appear in `checker.rs` and `raw_ballot::decode` never branches on them; a vote is equally "allowed" or "disallowed" regardless of their value.
+
+The split matters for fixture coverage: validation policies must be exercised through both the booth gating layer *and* the tally decode layer (and ideally with edge selections that actually trip each branch), whereas presentation policies only need rendering coverage.
+
+#### 10.A Vote validation policies
+
+The six policies below are the complete set of `ContestPresentation` fields that meet the criterion above. Plurality contests reach the first four; preferential contests (IRV / Borda*) reach all six.
+
+| Policy | Checker (`ballot_codec/checker.rs`) | Booth-side gating (encode path) | Tally decode path |
+|---|---|---|---|
+| `InvalidVotePolicy` | [`check_invalid_vote_policy` L281](packages/sequent-core/src/ballot_codec/checker.rs#L281) | [`InvalidErrorsList.tsx` L75 / L158](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L75); [`voting_screen.rs` L121 / L180](packages/sequent-core/src/util/voting_screen.rs#L121) | [`raw_ballot.rs` L343](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L343); [`multi_ballot.rs` L648](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L648) |
+| `EOverVotePolicy` | [`check_over_vote_policy` L137](packages/sequent-core/src/ballot_codec/checker.rs#L137) | [`InvalidErrorsList.tsx` L77 / L161](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L77); [`Question.tsx` L210](packages/voting-portal/src/components/Question/Question.tsx#L210) (`NOT_ALLOWED_WITH_MSG_AND_DISABLE` disables checkboxes) | [`raw_ballot.rs` L359](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L359); [`multi_ballot.rs` L657](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L657) |
+| `EUnderVotePolicy` | [`check_under_vote_policy` L197](packages/sequent-core/src/ballot_codec/checker.rs#L197) | [`InvalidErrorsList.tsx` L71 / L114](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L71); [`voting_screen.rs` L140](packages/sequent-core/src/util/voting_screen.rs#L140) | [`raw_ballot.rs` L372](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L372); [`multi_ballot.rs` L670](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L670) |
+| `EBlankVotePolicy` | [`check_blank_vote_policy` L103](packages/sequent-core/src/ballot_codec/checker.rs#L103) | [`InvalidErrorsList.tsx` L73 / L165](packages/voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx#L73); [`voting_screen.rs` L127](packages/sequent-core/src/util/voting_screen.rs#L127) | [`raw_ballot.rs` L381](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L381); [`multi_ballot.rs` L679](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L679) |
+| `EDuplicatedRankPolicy` (preferential only) | [`check_duplicated_rank_policy` L235](packages/sequent-core/src/ballot_codec/checker.rs#L235) | [`voting_screen.rs` L40 / L88](packages/sequent-core/src/util/voting_screen.rs#L40); default surfaced via [`getDefaultDuplicatedRankPolicy()` in ui-core/wasm.ts L425](packages/ui-core/src/services/wasm.ts#L425) | [`raw_ballot.rs` L401](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L401) (preferential branch only) |
+| `EPreferenceGapsPolicy` (preferential only) | [`check_preference_gaps_policy` L258](packages/sequent-core/src/ballot_codec/checker.rs#L258) | [`voting_screen.rs` L47 / L98](packages/sequent-core/src/util/voting_screen.rs#L47); default surfaced via [`getDefaultPreferenceGapsPolicy()` in ui-core/wasm.ts L434](packages/ui-core/src/services/wasm.ts#L434) | [`raw_ballot.rs` L396](packages/sequent-core/src/ballot_codec/raw_ballot.rs#L396) (preferential branch only) |
+
+Notes on the encode/decode surfaces:
+
+- `multi_ballot::decode` invokes only the four non-preferential checkers (it rejects non-Plurality contests up-front at [`multi_ballot.rs` L719–L742](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L719)); IRV / Borda* ballots therefore travel the `raw_ballot::decode` path, which is where `check_duplicated_rank_policy` and `check_preference_gaps_policy` run.
+- `min_votes` / `max_votes` / `winning_candidates_num` are the numeric thresholds these six policies branch against (catalogued separately in §7); they are not themselves "policies."
+- The booth's submission-gate predicate in [`voting_screen.rs::can_submit`](packages/sequent-core/src/util/voting_screen.rs#L76) treats `NOT_ALLOWED` / `NOT_ALLOWED_WITH_MSG_AND_ALERT` / `NOT_ALLOWED_WARN_AND_DIALOG` as hard blockers across all six policies — these are the variants where (a) and (b) can disagree (booth refuses to submit) versus the various `WARN*` and `ALLOWED*` variants (booth admits, codec decoder still annotates / errors per policy).
+
+#### 10.A.1 InvalidVotePolicy
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L833`](packages/sequent-core/src/ballot.rs#L833) (`pub enum InvalidVotePolicy`)
 - **Value space**: 4 variants
@@ -290,7 +316,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
 - **Coverage gap assessment**: WARN, WARN_INVALID_IMPLICIT_AND_EXPLICIT, NOT_ALLOWED never tested.
 
-#### 10.2 UnderVotePolicy
+#### 10.A.2 UnderVotePolicy
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1128`](packages/sequent-core/src/ballot.rs#L1128) (`pub enum EUnderVotePolicy`)
 - **Value space**: 4 variants
@@ -305,7 +331,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED.
 - **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, WARN_AND_ALERT never tested.
 
-#### 10.3 OverVotePolicy
+#### 10.A.3 OverVotePolicy
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1192`](packages/sequent-core/src/ballot.rs#L1192) (`pub enum EOverVotePolicy`)
 - **Value space**: 5 variants
@@ -321,7 +347,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: `get_contest_1()` sets ALLOWED_WITH_MSG_AND_ALERT.
 - **Coverage gap assessment**: ALLOWED, ALLOWED_WITH_MSG, NOT_ALLOWED_WITH_MSG_AND_ALERT, NOT_ALLOWED_WITH_MSG_AND_DISABLE rarely tested; strict checkbox-disable UX (NOT_ALLOWED_WITH_MSG_AND_DISABLE) never exercised.
 
-#### 10.4 BlankVotePolicy
+#### 10.A.4 BlankVotePolicy
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1160`](packages/sequent-core/src/ballot.rs#L1160) (`pub enum EBlankVotePolicy`)
 - **Value space**: 4 variants
@@ -336,7 +362,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: Not set in generators.
 - **Coverage gap assessment**: WARN, WARN_ONLY_IN_REVIEW, NOT_ALLOWED never tested.
 
-#### 10.5 DuplicatedRankPolicy (Preferential Voting)
+#### 10.A.5 DuplicatedRankPolicy (Preferential Voting)
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1243`](packages/sequent-core/src/ballot.rs#L1243) (`pub enum EDuplicatedRankPolicy`)
 - **Value space**: 2 variants
@@ -349,7 +375,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: Not set; no IRV fixtures to test.
 - **Coverage gap assessment**: Both values untested; dependence on preferential-only semantics untested.
 
-#### 10.6 PreferenceGapsPolicy (Preferential Voting)
+#### 10.A.6 PreferenceGapsPolicy (Preferential Voting)
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1267`](packages/sequent-core/src/ballot.rs#L1267) (`pub enum EPreferenceGapsPolicy`)
 - **Value space**: 2 variants
@@ -362,7 +388,11 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: Both variants untested; gap validation untested.
 
-#### 10.7 CandidatesOrder
+#### 10.B Presentation / layout policies
+
+The remaining `ContestPresentation` (and per-contest) fields below influence rendering, candidate ordering, list layout, or post-tally tie resolution. None of them are read by [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs), and `raw_ballot::decode` / `multi_ballot::decode` never branch on them — flipping their values cannot change whether a given selection counts as a valid vote. Fixture coverage for these is a rendering-test concern, not a validation-correctness concern.
+
+#### 10.B.1 CandidatesOrder
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L575`](packages/sequent-core/src/ballot.rs#L575) (`pub enum CandidatesOrder`)
 - **Value space**: 3 variants
@@ -376,7 +406,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: Random and Custom never exercised; only Alphabetical (default) present.
 
-#### 10.8 CandidatesSelectionPolicy
+#### 10.B.2 CandidatesSelectionPolicy
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1001`](packages/sequent-core/src/ballot.rs#L1001) (`pub enum CandidatesSelectionPolicy`)
 - **Value space**: 2 variants
@@ -389,7 +419,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: Radio selection (single-choice) never tested.
 
-#### 10.9 CandidatesIconCheckboxPolicy
+#### 10.B.3 CandidatesIconCheckboxPolicy
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1055`](packages/sequent-core/src/ballot.rs#L1055) (`pub enum CandidatesIconCheckboxPolicy`)
 - **Value space**: 2 variants
@@ -402,7 +432,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 - **Velvet upstream variants**: Not set.
 - **Coverage gap assessment**: RoundCheckbox never tested.
 
-#### 10.10 EnableCheckableLists, CollapsibleLists, ShuffleCategories, Columns, Pagination, Show/CumulativeCheckboxes
+#### 10.B.4 EnableCheckableLists, CollapsibleLists, ShuffleCategories, Columns, Pagination, Show/CumulativeCheckboxes
 
 - **Fields**: [`packages/sequent-core/src/ballot.rs:L1408-L1432`](packages/sequent-core/src/ballot.rs#L1408)
 - **Value spaces**:
@@ -431,7 +461,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Pagination policy never exercised.
   - Show_points (display vote counts) never exercised.
 
-#### 10.11 TieBreakingPolicy (on Contest, not Presentation)
+#### 10.B.5 TieBreakingPolicy (on Contest, not Presentation)
 
 - **Field / type**: [`packages/sequent-core/src/ballot.rs:L1482`](packages/sequent-core/src/ballot.rs#L1482) (`Contest.tie_breaking_policy: Option<TieBreakingPolicy>`)
 - **Value space**: 2 variants
@@ -529,8 +559,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
    - ✅ `mixed-3contests.json` bundled: plurality + IRV on the same ballot — exercises per-contest algorithm dispatch in the booth.
    - Borda/Desborda/Cumulative/Pairwise fixtures are blocked: velvet's `create_tally()` only dispatches PluralityAtLarge and InstantRunoff and errors on the rest (see [packages/velvet/src/pipes/do_tally/tally.rs](packages/velvet/src/pipes/do_tally/tally.rs#L109-L115)). Defer until velvet tally support lands.
 
-2. **Priority 2: Vote validation policies**
-   - Extend velvet fixtures to exercise all combinations of (invalid_vote_policy, under_vote_policy, over_vote_policy, blank_vote_policy) in a small matrix.
+2. **Priority 2: Vote validation policies** (see §10.A for the canonical set and surface map)
+   - Scope is the six policies that branch in [`packages/sequent-core/src/ballot_codec/checker.rs`](packages/sequent-core/src/ballot_codec/checker.rs) and are consulted by both the booth gating layer (encode path) and `raw_ballot::decode` / `multi_ballot::decode` (tally decode path): `InvalidVotePolicy`, `EOverVotePolicy`, `EUnderVotePolicy`, `EBlankVotePolicy`, plus the preferential-only `EDuplicatedRankPolicy` and `EPreferenceGapsPolicy`.
+   - Plurality fixture: exercise non-default variants of the first four in a small matrix, with selections crafted to trip each checker branch (under, over, blank, and an explicit-invalid candidate).
+   - Preferential fixture: extend the IRV bundle to non-default `duplicated_rank_policy` and `preference_gaps_policy`, with ranked selections that actually contain a duplicate and a gap.
+   - For each policy include at least one `NOT_ALLOWED*` variant so the booth's hard-block path in [`voting_screen.rs::can_submit`](packages/sequent-core/src/util/voting_screen.rs#L76) is reachable.
+   - Excluded from this priority (catalogued under §10.B): `CandidatesOrder`, `CandidatesSelectionPolicy`, `CandidatesIconCheckboxPolicy`, the list/layout/pagination fields in §10.B.4, and `TieBreakingPolicy` — none of them affect vote validity.
 
 3. **Priority 3: Multi-ballot-style scenarios**
    - ✅ `multi-bs-shared-contest.json` bundled: 2 BSes with one shared contest + per-area contests; exercises `workbench.assignments` + per-voter BS swap.
