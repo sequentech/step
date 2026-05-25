@@ -979,8 +979,22 @@ export function SnapshotOverviewPage(): JSX.Element {
                                             type="button"
                                             style={{
                                                 ...secondaryButtonStyle,
-                                                color: "#b22222",
-                                                borderColor: "#b22222",
+                                                color:
+                                                    row.id === parentId
+                                                        ? "#999"
+                                                        : "#b22222",
+                                                borderColor:
+                                                    row.id === parentId
+                                                        ? "#ccc"
+                                                        : "#b22222",
+                                                opacity:
+                                                    row.id === parentId
+                                                        ? 0.6
+                                                        : 1,
+                                                cursor:
+                                                    row.id === parentId
+                                                        ? "not-allowed"
+                                                        : "pointer",
                                             }}
                                             disabled={row.id === parentId}
                                             title={
