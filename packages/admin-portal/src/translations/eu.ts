@@ -664,9 +664,9 @@ const basqueTranslation: TranslationType = {
                 },
             },
             declineToVotePolicy: {
-                label: "Bozkatu ezaren politika",
+                label: "Bozkatzeari uko egiteko politika",
                 options: {
-                    "election-level": "Hauteskundearen maila",
+                    "election-level": "Hauteskunde maila",
                     "disabled": "Desgaituta",
                 },
             },

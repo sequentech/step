@@ -664,10 +664,10 @@ const catalanTranslation: TranslationType = {
                 },
             },
             declineToVotePolicy: {
-                label: "Política de rebuig de vot",
+                label: "Política de declinació de vot",
                 options: {
-                    "election-level": "Nivell d'elecció",
-                    "disabled": "Deshabilitat",
+                    "election-level": "Nivell d’elecció",
+                    "disabled": "Desactivat",
                 },
             },
         },

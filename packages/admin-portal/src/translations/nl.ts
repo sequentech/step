@@ -660,9 +660,9 @@ const dutchTranslation: TranslationType = {
                 },
             },
             declineToVotePolicy: {
-                label: "Beleid voor afwijzen van stemmen",
+                label: "Beleid voor afzien van stemmen",
                 options: {
-                    "election-level": "Verkiezingniveau",
+                    "election-level": "Verkiezingsniveau",
                     "disabled": "Uitgeschakeld",
                 },
             },

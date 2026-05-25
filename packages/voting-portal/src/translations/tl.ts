@@ -58,12 +58,12 @@ const tagalogTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
-            declineToVoteButton: "I-decline ang pagboto",
+            declineToVoteButton: "Tumangging bumoto",
             declineToVoteDialog: {
-                title: "Kumpirmahin ang pag-decline sa pagboto",
+                title: "Kumpirmahin ang pagtangging bumoto",
                 content:
-                    "Sigurado ka bang gusto mong i-decline ang pagboto?</br>Direkta kang mapupunta sa review at ang iyong participation status ay ise-save bilang <b>Declined to vote</b>.",
-                continue: "Oo, gusto kong I-DECLINE ang pagboto",
+                    "Sigurado ka bang nais mong tumangging bumoto?</br>Dadalhin ka diretso sa review at mase-save ang iyong status ng partisipasyon bilang <b>Tumangging bumoto</b>.",
+                continue: "Tumangging bumoto",
                 cancel: "Kanselahin",
             },
             instructionsTitle: "Mga Tagubilin",
@@ -202,7 +202,7 @@ const tagalogTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
-            declineToVote: "I-decline ang pagboto",
+            declineToVote: "Tumangging bumoto",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
