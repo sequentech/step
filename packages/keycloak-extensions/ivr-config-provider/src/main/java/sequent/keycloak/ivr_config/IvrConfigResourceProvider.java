@@ -31,7 +31,7 @@ import org.keycloak.services.resource.RealmResourceProvider;
  * collect via DTMF.
  *
  * <p>Authentication: requires a bearer token issued to a client carrying the {@code
- * can_read_ivr_config} realm role.
+ * ivr-config-read} realm role.
  *
  * <p>Failure semantics: an authenticator that is neither in {@link #STOCK_AUTHENTICATORS} nor
  * backed by an {@link AuthenticatorConfigModel} declaring the IVR metadata keys is a
@@ -47,7 +47,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
   static final String IVR_VOTING_CLIENT_ID = "ivr-voting";
 
   /** Realm role required on the caller's token. */
-  static final String REQUIRED_ROLE = "can_read_ivr_config";
+  static final String REQUIRED_ROLE = "ivr-config-read";
 
   /**
    * Lookup table for the stock Keycloak authenticators we currently support. Anything else either

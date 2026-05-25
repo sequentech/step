@@ -89,7 +89,7 @@
       },
       {
         "id": "bb8c9da3-1f1d-4360-97ec-a8675d84cd53",
-        "name": "can_read_ivr_config",
+        "name": "ivr-config-read",
         "description": "Allow reading IVR configuration, primarily auth steps.",
         "composite": false,
         "clientRole": false,
@@ -516,7 +516,7 @@
       "requiredActions": [],
       "realmRoles": [
         "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
-        "can_read_ivr_config"
+        "ivr-config-read"
       ],
       "notBefore": 0,
       "groups": []
