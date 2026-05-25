@@ -19,7 +19,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: harvest
-          image: gitea.local:3000/step/harvest:latest
+          image: gitea.local:3000/admin/harvest:latest
           envFrom:
             - configMapRef:
                 name: step-env
@@ -45,7 +45,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: windmill
-          image: gitea.local:3000/step/windmill:latest
+          image: gitea.local:3000/admin/windmill:latest
           envFrom:
             - configMapRef:
                 name: step-env
@@ -71,7 +71,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: admin-portal
-          image: gitea.local:3000/step/admin-portal:latest
+          image: gitea.local:3000/admin/admin-portal:latest
           ports:
             - containerPort: 80
 ---
@@ -107,7 +107,7 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: hasura
-          image: gitea.local:3000/step/hasura:latest
+          image: gitea.local:3000/admin/hasura:latest
           ports:
             - containerPort: 8080
           envFrom:

@@ -104,9 +104,9 @@ EOF
         echo "Domains configured."
         echo ""
         echo "To start developing:"
-        echo "1. Log in to Gitea at http://gitea.local"
+        echo "1. Log in to Gitea at http://gitea.local (admin/admin123)"
         echo "2. Create your 'step' repo and push source:"
-        echo "   cd source && git remote add origin http://gitea.local/user/step.git"
+        echo "   cd source && git remote add origin http://gitea.local/admin/step.git"
         echo "   git push -u origin main"
         ;;
 
