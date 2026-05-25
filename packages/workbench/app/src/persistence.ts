@@ -61,6 +61,7 @@ import {addCastVotes, removeCastVotes} from "voting-portal/src/store/castVotes/c
 import {
     setBypassChooser,
     setIsVoted,
+    clearIsVoted,
 } from "voting-portal/src/store/extra/extraSlice"
 
 import {
@@ -292,8 +293,16 @@ export function hydrateFromSnapshot(
             if (typeof state.extra.bypassChooser === "boolean") {
                 store.dispatch(setBypassChooser(state.extra.bypassChooser))
             }
-            if (typeof state.extra.isVoted === "boolean") {
-                store.dispatch(setIsVoted(state.extra.isVoted))
+            // `isVoted` is a map `{[electionId]: true}`, not a boolean.
+            // Reset the slice first so saved-false entries don't get
+            // shadowed by leftover live state, then mark each voted
+            // election individually (the reducer only sets, never unsets).
+            store.dispatch(clearIsVoted())
+            const isVoted = state.extra.isVoted
+            if (isVoted && typeof isVoted === "object") {
+                for (const [electionId, voted] of Object.entries(isVoted)) {
+                    if (voted) store.dispatch(setIsVoted(electionId))
+                }
             }
         }
     } finally {
