@@ -10,6 +10,7 @@ import topLevelAwait from "vite-plugin-top-level-await"
 import {fileURLToPath} from "node:url"
 import path from "node:path"
 import fs from "node:fs"
+import {execFileSync} from "node:child_process"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const pkgs = path.resolve(here, "../..")
@@ -296,6 +297,321 @@ function workbenchBuildInfo(): Plugin {
         }
     }
 
+    /**
+     * Spawn `git` with the given args, return stdout as utf-8 or
+     * `null` if anything goes wrong (binary missing, non-zero exit,
+     * not a git checkout, etc.). Diff-style invocations need a
+     * generous buffer cap.
+     */
+    function runGit(args: string[]): string | null {
+        try {
+            return execFileSync("git", args, {
+                cwd: repoRoot,
+                encoding: "utf8",
+                maxBuffer: 16 * 1024 * 1024,
+                stdio: ["ignore", "pipe", "ignore"],
+            })
+        } catch {
+            return null
+        }
+    }
+
+    /**
+     * The "branch base" commit — i.e. the most-recent ancestor that
+     * this branch shares with `origin/main`. Equivalent to GitHub's
+     * "X commits ahead of main" semantics. Falls back to whichever
+     * upstream ref exists if `origin/main` isn't fetched (e.g. on a
+     * branch forked from a release line).
+     *
+     * On a shallow CI clone the merge-base will resolve to whatever
+     * the truncated history terminates at, which is usually wrong;
+     * the `baseUnavailableReason` field is populated so the UI can
+     * say "shallow clone — base may be misleading" instead of
+     * silently showing the wrong commit.
+     */
+    function readBranchBase(): {
+        base: {
+            sha: string
+            subject: string
+            author: string
+            date: string
+        } | null
+        baseUnavailableReason: string | null
+    } {
+        const candidateRefs = ["origin/main", "origin/master", "main", "master"]
+        let baseSha: string | null = null
+        let chosenRef: string | null = null
+        for (const ref of candidateRefs) {
+            const refExists = runGit(["rev-parse", "--verify", "--quiet", ref])
+            if (refExists == null) continue
+            const merged = runGit(["merge-base", "HEAD", ref])
+            if (merged == null) continue
+            baseSha = merged.trim()
+            chosenRef = ref
+            break
+        }
+        if (baseSha == null) {
+            return {
+                base: null,
+                baseUnavailableReason:
+                    "no `origin/main` (or equivalent) ref reachable from " +
+                    "this checkout — try `git fetch origin main` and reload",
+            }
+        }
+        const meta = runGit([
+            "log",
+            "-1",
+            "--format=%H%n%s%n%an%n%aI",
+            baseSha,
+        ])
+        if (meta == null) {
+            return {
+                base: null,
+                baseUnavailableReason: `merge-base with \`${chosenRef}\` produced ${baseSha.slice(0, 12)} but \`git log\` could not describe it`,
+            }
+        }
+        const [fullSha, subject, author, date] = meta.split("\n")
+        // Shallow-clone heuristic: a single-commit-deep clone has
+        // exactly one entry in `git rev-list --all`. We don't gate
+        // on it (the data is still useful), just annotate.
+        const shallow = fs.existsSync(path.join(repoRoot, ".git/shallow"))
+        return {
+            base: {
+                sha: fullSha.slice(0, 12),
+                subject: subject ?? "",
+                author: author ?? "",
+                date: date ?? "",
+            },
+            baseUnavailableReason: shallow
+                ? "shallow clone — base SHA may be the clone boundary rather than the real fork point"
+                : null,
+        }
+    }
+
+    /**
+     * Lifted-source drift surfaces. Each entry produces a unified
+     * diff that appears under the Diagnostics page so an operator
+     * can see *exactly* how the workbench's view of a lifted file
+     * has drifted from its production counterpart.
+     *
+     * Two flavours:
+     *   - {@link readVotingPortalDiff}: HEAD vs branch-base for the
+     *     entire `voting-portal/src/` tree. Catches the section-L
+     *     concessions in LIFTING.md (currently `ReviewScreen.tsx`),
+     *     plus any future ones — without manual curation.
+     *   - {@link readTallyLiftDiffs}: file-system diff between
+     *     admin-portal Tally originals and the ui-essentials
+     *     TallyResults copies. There is no shared git ancestor
+     *     because the copies were re-hosted with adaptations baked
+     *     in, so we diff paths against paths at HEAD instead.
+     */
+    function readVotingPortalDiff(baseSha: string | null): {
+        stat: string
+        patch: string
+        dirty: boolean
+    } | null {
+        if (baseSha == null) return null
+        const subtree = "packages/voting-portal/src/"
+        const stat = runGit(["diff", "--stat", baseSha, "--", subtree])
+        const patch = runGit(["diff", baseSha, "--", subtree])
+        if (stat == null || patch == null) return null
+        const status = runGit(["status", "--porcelain", "--", subtree])
+        return {
+            stat: stat.trimEnd(),
+            patch: patch.trimEnd(),
+            dirty: status != null && status.trim().length > 0,
+        }
+    }
+
+    /**
+     * Pairing table for the tally-lift drift section. The
+     * authoritative mapping lives in `LIFTING-TALLY.md` (the
+     * adaptation tables L, T, U, C, P, I, V); this array is the
+     * machine-readable counterpart. Adding a new pair here is part
+     * of the refresh PR for that document.
+     *
+     * `kind: "modified"` — original lives at `orig`, lifted copy at
+     * `copy`; we diff one against the other.
+     * `kind: "added"` — the lifted file has no admin-portal
+     * counterpart (the i18n shim, the workbench-flavoured composition
+     * root, the barrel, the GraphQL-stripped types module). We list
+     * it for transparency but skip the diff (it would be the entire
+     * file vs `/dev/null`, which is noise).
+     */
+    interface TallyPair {
+        label: string
+        kind: "modified" | "added"
+        orig?: string // workspace-relative, only when kind = modified
+        copy: string // workspace-relative
+    }
+    const tallyPairs: TallyPair[] = [
+        {
+            label: "TallyResultsCharts.tsx (C1–C2)",
+            kind: "modified",
+            orig: "packages/admin-portal/src/resources/Tally/TallyResultsCharts.tsx",
+            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsCharts.tsx",
+        },
+        {
+            label: "TallyResultsCandidatesPlurality.tsx (P1–P3)",
+            kind: "modified",
+            orig: "packages/admin-portal/src/resources/Tally/TallyResultsCandidatesPlurality.tsx",
+            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsCandidatesPlurality.tsx",
+        },
+        {
+            label: "TallyResultsCandidatesIRV.tsx (I1–I2)",
+            kind: "modified",
+            orig: "packages/admin-portal/src/resources/Tally/TallyResultsCandidatesIRV.tsx",
+            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsCandidatesIRV.tsx",
+        },
+        {
+            label: "utils.ts (U1, U2)",
+            kind: "modified",
+            orig: "packages/admin-portal/src/resources/Tally/utils.ts",
+            copy: "packages/ui-essentials/src/components/TallyResults/utils.ts",
+        },
+        {
+            label: "types.ts (T1, T2) — new, GraphQL types replaced with plain TS",
+            kind: "added",
+            copy: "packages/ui-essentials/src/components/TallyResults/types.ts",
+        },
+        {
+            label: "strings.ts (L1) — new, i18n shim",
+            kind: "added",
+            copy: "packages/ui-essentials/src/components/TallyResults/strings.ts",
+        },
+        {
+            label: "TallyResultsView.tsx (V1) — new, workbench composition root",
+            kind: "added",
+            copy: "packages/ui-essentials/src/components/TallyResults/TallyResultsView.tsx",
+        },
+        {
+            label: "index.ts — new, barrel",
+            kind: "added",
+            copy: "packages/ui-essentials/src/components/TallyResults/index.ts",
+        },
+    ]
+
+    function readTallyLiftDiffs(): Array<{
+        label: string
+        kind: "modified" | "added"
+        origPath: string | null
+        copyPath: string
+        stat: string | null
+        patch: string | null
+        note: string | null
+    }> {
+        return tallyPairs.map((p) => {
+            const copyAbs = path.resolve(repoRoot, p.copy)
+            if (!fs.existsSync(copyAbs)) {
+                return {
+                    label: p.label,
+                    kind: p.kind,
+                    origPath: p.orig ?? null,
+                    copyPath: p.copy,
+                    stat: null,
+                    patch: null,
+                    note: "lifted copy missing — refresh PR likely renamed it",
+                }
+            }
+            if (p.kind === "added") {
+                const bytes = fs.statSync(copyAbs).size
+                return {
+                    label: p.label,
+                    kind: p.kind,
+                    origPath: null,
+                    copyPath: p.copy,
+                    stat: `${p.copy} | ${bytes} bytes (no admin-portal original)`,
+                    patch: null,
+                    note: null,
+                }
+            }
+            const origAbs = path.resolve(repoRoot, p.orig!)
+            if (!fs.existsSync(origAbs)) {
+                return {
+                    label: p.label,
+                    kind: p.kind,
+                    origPath: p.orig!,
+                    copyPath: p.copy,
+                    stat: null,
+                    patch: null,
+                    note: "admin-portal original missing — refresh PR likely renamed or deleted it",
+                }
+            }
+            // `git diff --no-index` exits non-zero when files differ
+            // (which is the common case here), so `runGit` would
+            // return null. Use a direct call that tolerates exit
+            // code 1 specifically.
+            const patch = runGitDiffNoIndex(origAbs, copyAbs)
+            const stat = runGitDiffNoIndexStat(origAbs, copyAbs)
+            return {
+                label: p.label,
+                kind: p.kind,
+                origPath: p.orig!,
+                copyPath: p.copy,
+                stat: stat,
+                patch: patch,
+                note: null,
+            }
+        })
+    }
+
+    /**
+     * `git diff --no-index` returns exit code 1 when the two files
+     * differ — that's the normal, expected outcome here, not an
+     * error. `runGit` would swallow it as a failure, so this variant
+     * captures stdout regardless of exit status (treating only 0/1
+     * as success and everything else as failure).
+     */
+    function runGitDiffNoIndex(a: string, b: string): string | null {
+        try {
+            return execFileSync(
+                "git",
+                ["diff", "--no-index", "--", a, b],
+                {
+                    cwd: repoRoot,
+                    encoding: "utf8",
+                    maxBuffer: 16 * 1024 * 1024,
+                    stdio: ["ignore", "pipe", "ignore"],
+                }
+            )
+        } catch (err) {
+            // execFileSync throws on non-zero exit; for diff that
+            // includes the "files differ" case (exit code 1), which
+            // is exactly what we want to render. The error object
+            // still carries stdout.
+            const e = err as {status?: number; stdout?: string | Buffer}
+            if (e.status === 1 && e.stdout != null) {
+                return Buffer.isBuffer(e.stdout)
+                    ? e.stdout.toString("utf8")
+                    : e.stdout
+            }
+            return null
+        }
+    }
+
+    function runGitDiffNoIndexStat(a: string, b: string): string | null {
+        try {
+            return execFileSync(
+                "git",
+                ["diff", "--no-index", "--stat", "--", a, b],
+                {
+                    cwd: repoRoot,
+                    encoding: "utf8",
+                    maxBuffer: 4 * 1024 * 1024,
+                    stdio: ["ignore", "pipe", "ignore"],
+                }
+            )
+        } catch (err) {
+            const e = err as {status?: number; stdout?: string | Buffer}
+            if (e.status === 1 && e.stdout != null) {
+                return Buffer.isBuffer(e.stdout)
+                    ? e.stdout.toString("utf8")
+                    : e.stdout
+            }
+            return null
+        }
+    }
+
     function snapshot(): string {
         const lockPackages = readLockPackages()
         const rows = artifacts.map((a) => {
@@ -328,10 +644,25 @@ function workbenchBuildInfo(): Plugin {
                 externalDepCount,
             }
         })
+        const baseInfo = readBranchBase()
+        const git = readGitInfo()
+        // The base SHA lookup uses *full* SHAs internally so
+        // `git diff <base>` resolves cleanly; the UI receives the
+        // short form via `base.sha`. We re-derive the full SHA
+        // here for the diff calls.
+        const fullBaseSha = baseInfo.base
+            ? runGit(["merge-base", "HEAD", "origin/main"])?.trim() ?? null
+            : null
         return JSON.stringify(
             {
                 generatedAt: new Date().toISOString(),
-                git: readGitInfo(),
+                git: {
+                    sha: git?.sha ?? null,
+                    base: baseInfo.base,
+                    baseUnavailableReason: baseInfo.baseUnavailableReason,
+                    votingPortalDiff: readVotingPortalDiff(fullBaseSha),
+                    tallyLiftDiffs: readTallyLiftDiffs(),
+                },
                 artifacts: rows,
             },
             null,
@@ -358,6 +689,16 @@ function workbenchBuildInfo(): Plugin {
             // want the build-info card to refresh in that case so the
             // "internal deps" line stays in sync without a restart.
             watched.push(cargoLockPath)
+            // Lifted-source trees: edits here change the drift diffs
+            // surfaced on the Diagnostics page, so a re-render is
+            // warranted. We watch the source directories; chokidar
+            // recurses into them. `.git/HEAD` covers branch switches
+            // and commit-on-current-branch (which change the
+            // merge-base + voting-portal diff).
+            watched.push(path.resolve(repoRoot, "packages/voting-portal/src"))
+            watched.push(path.resolve(repoRoot, "packages/admin-portal/src/resources/Tally"))
+            watched.push(path.resolve(repoRoot, "packages/ui-essentials/src/components/TallyResults"))
+            watched.push(path.resolve(repoRoot, ".git/HEAD"))
             for (const w of watched) {
                 if (fs.existsSync(w)) server.watcher.add(w)
             }

@@ -67,7 +67,9 @@ import {decodeBigIntToDecodedVoteContest} from "./tally"
 import {setActiveVoter} from "./workbenchStore"
 import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
 import {importVelvetElection} from "./import/velvetElectionImport"
-import buildInfo from "virtual:workbench-build-info"
+import buildInfo, {
+    type WorkbenchBuildInfo,
+} from "virtual:workbench-build-info"
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
@@ -1157,6 +1159,7 @@ export function DiagnosticsPage(): JSX.Element {
                 the live workbench state in importable JSON form.
             </p>
             <BuildStatusCard />
+            <LiftedSourceDriftSection />
             <details style={{marginTop: "1.5rem"}}>
                 <summary style={{cursor: "pointer", color: "#444"}}>
                     Current workbench state (paste into{" "}
@@ -1294,7 +1297,7 @@ function BuildStatusCard(): JSX.Element {
                     ))}
                 </tbody>
             </table>
-            {buildInfo.git && (
+            {buildInfo.git.sha && (
                 <div
                     style={{
                         color: "#888",
@@ -1307,6 +1310,252 @@ function BuildStatusCard(): JSX.Element {
             )}
         </div>
     )
+}
+
+/**
+ * Drift surface for the two "lifts" documented in
+ * `packages/workbench/LIFTING.md` (voting-portal embed) and
+ * `packages/workbench/LIFTING-TALLY.md` (admin-portal tally
+ * re-host). Lives under the Diagnostics page so the operator can
+ * see, without leaving the browser, exactly how the workbench's
+ * view of these sources has diverged from production:
+ *
+ *   - **voting-portal** is consumed *in place* via Vite aliases —
+ *     no copy on disk — but section L of LIFTING.md whitelists a
+ *     handful of demo-only edits to `voting-portal/src/`. The diff
+ *     here is `HEAD vs branch-base` over that subtree, so the
+ *     concessions show up automatically and any *future* edits
+ *     become impossible to hide.
+ *   - **tally components** were re-hosted into
+ *     `ui-essentials/src/components/TallyResults/` with GraphQL/i18n
+ *     adaptations baked into the copies. The diffs here pair each
+ *     lifted file against its admin-portal counterpart at HEAD, so
+ *     refresh PRs can be reviewed by *visibly shrinking* the diff
+ *     blocks until only the documented adaptations remain.
+ *
+ * All build-time data; the plugin watches the relevant trees plus
+ * `.git/HEAD` and invalidates this virtual module on change.
+ */
+function LiftedSourceDriftSection(): JSX.Element {
+    const git = buildInfo.git
+    return (
+        <section
+            style={{
+                marginTop: "1.5rem",
+                paddingTop: "1.25rem",
+                borderTop: "1px solid #eee",
+            }}
+        >
+            <h2 style={{margin: "0 0 0.5rem 0", fontSize: "1.05rem"}}>
+                Lifted-source drift
+            </h2>
+            <BranchBaseLine />
+            <VotingPortalDriftBlock
+                base={git.base}
+                diff={git.votingPortalDiff}
+            />
+            <TallyLiftDriftBlock diffs={git.tallyLiftDiffs} />
+        </section>
+    )
+}
+
+function BranchBaseLine(): JSX.Element {
+    const git = buildInfo.git
+    if (git.base == null) {
+        return (
+            <p style={diagnosticsHintStyle}>
+                <strong>Branch base:</strong>{" "}
+                <span style={{color: "#a33"}}>
+                    unavailable
+                    {git.baseUnavailableReason
+                        ? ` — ${git.baseUnavailableReason}`
+                        : ""}
+                </span>
+            </p>
+        )
+    }
+    const {sha, subject, author, date} = git.base
+    return (
+        <p style={diagnosticsHintStyle}>
+            <strong>Branch base:</strong> <code>{sha}</code> — &ldquo;
+            {subject}&rdquo; ({author}, {date.slice(0, 10)})
+            {git.baseUnavailableReason && (
+                <span
+                    style={{
+                        color: "#a33",
+                        marginLeft: "0.4rem",
+                        fontStyle: "italic",
+                    }}
+                >
+                    ({git.baseUnavailableReason})
+                </span>
+            )}
+        </p>
+    )
+}
+
+function VotingPortalDriftBlock({
+    base,
+    diff,
+}: {
+    base: WorkbenchBuildInfo["git"]["base"]
+    diff: WorkbenchBuildInfo["git"]["votingPortalDiff"]
+}): JSX.Element | null {
+    if (base == null) return null
+    if (diff == null) {
+        return (
+            <p style={diagnosticsHintStyle}>
+                <strong>voting-portal/src/:</strong>{" "}
+                <span style={{color: "#a33"}}>
+                    diff unavailable (git probe failed)
+                </span>
+            </p>
+        )
+    }
+    const empty = diff.patch.trim().length === 0
+    return (
+        <details style={{marginTop: "0.75rem"}}>
+            <summary style={{cursor: "pointer", color: "#444"}}>
+                voting-portal/src/ drift vs branch base
+                {empty
+                    ? " — clean (matches base byte-for-byte)"
+                    : ""}
+                {diff.dirty && (
+                    <span
+                        style={{
+                            color: "#a33",
+                            marginLeft: "0.4rem",
+                            fontStyle: "italic",
+                        }}
+                    >
+                        (uncommitted edits present — patch below is
+                        committed-only)
+                    </span>
+                )}
+            </summary>
+            <p style={diagnosticsHintStyle}>
+                Section L of <code>LIFTING.md</code> whitelists demo-only
+                concessions to <code>voting-portal/src/</code>. Anything
+                here that <em>isn&rsquo;t</em> in section L is a new
+                concession and needs the doc updated.
+            </p>
+            {empty ? (
+                <p style={{...diagnosticsHintStyle, color: "#888"}}>
+                    No diff against branch base.
+                </p>
+            ) : (
+                <>
+                    <pre style={diffStatPreStyle}>
+                        <code>{diff.stat}</code>
+                    </pre>
+                    <CopyJsonBlock
+                        json={diff.patch}
+                        copyLabel="Copy diff"
+                    />
+                </>
+            )}
+        </details>
+    )
+}
+
+function TallyLiftDriftBlock({
+    diffs,
+}: {
+    diffs: WorkbenchBuildInfo["git"]["tallyLiftDiffs"]
+}): JSX.Element {
+    return (
+        <details style={{marginTop: "0.75rem"}}>
+            <summary style={{cursor: "pointer", color: "#444"}}>
+                Tally lift drift vs admin-portal originals ({diffs.length}{" "}
+                file{diffs.length === 1 ? "" : "s"})
+            </summary>
+            <p style={diagnosticsHintStyle}>
+                File-system diff between each ui-essentials lifted file
+                and its admin-portal counterpart at HEAD. Adaptation
+                inventory in{" "}
+                <code>packages/workbench/LIFTING-TALLY.md</code> — diffs
+                should reduce to those documented adaptations only.
+            </p>
+            {diffs.map((d) => (
+                <TallyLiftDriftRow key={d.copyPath} diff={d} />
+            ))}
+        </details>
+    )
+}
+
+function TallyLiftDriftRow({
+    diff,
+}: {
+    diff: WorkbenchBuildInfo["git"]["tallyLiftDiffs"][number]
+}): JSX.Element {
+    return (
+        <div
+            style={{
+                marginTop: "0.5rem",
+                paddingLeft: "0.5rem",
+                borderLeft: "3px solid #d0d0d0",
+            }}
+        >
+            <details>
+                <summary
+                    style={{
+                        cursor: "pointer",
+                        color: diff.kind === "added" ? "#666" : "#222",
+                        fontSize: "0.9rem",
+                    }}
+                >
+                    {diff.label}{" "}
+                    <span style={{color: "#888", fontSize: "0.8rem"}}>
+                        [{diff.kind}]
+                    </span>
+                </summary>
+                {diff.origPath && (
+                    <p style={diagnosticsHintStyle}>
+                        original: <code>{diff.origPath}</code>
+                        <br />
+                        lifted: <code>{diff.copyPath}</code>
+                    </p>
+                )}
+                {!diff.origPath && (
+                    <p style={diagnosticsHintStyle}>
+                        lifted: <code>{diff.copyPath}</code> — no
+                        admin-portal counterpart, this file is part of
+                        the lift itself
+                    </p>
+                )}
+                {diff.note && (
+                    <p style={{...diagnosticsHintStyle, color: "#a33"}}>
+                        {diff.note}
+                    </p>
+                )}
+                {diff.stat && (
+                    <pre style={diffStatPreStyle}>
+                        <code>{diff.stat}</code>
+                    </pre>
+                )}
+                {diff.patch && (
+                    <CopyJsonBlock
+                        json={diff.patch}
+                        copyLabel="Copy diff"
+                    />
+                )}
+            </details>
+        </div>
+    )
+}
+
+const diagnosticsHintStyle: React.CSSProperties = {
+    color: "#666",
+    fontSize: "0.85rem",
+    margin: "0.5rem 0",
+}
+const diffStatPreStyle: React.CSSProperties = {
+    background: "#f4f4f4",
+    padding: "0.4rem 0.6rem",
+    borderRadius: 4,
+    fontSize: "0.75rem",
+    margin: "0.5rem 0 0.25rem 0",
+    overflow: "auto",
 }
 
 function humanAge(ms: number): string {
@@ -1540,7 +1789,18 @@ export function SnapshotDetailPage(): JSX.Element {
     )
 }
 
-export function CopyJsonBlock({json}: {json: string}): JSX.Element {
+export function CopyJsonBlock({
+    json,
+    copyLabel = "Copy JSON",
+}: {
+    json: string
+    /**
+     * Override the button label for non-JSON payloads (e.g. unified
+     * diffs). The clipboard write is always the raw `json` string —
+     * the label is purely cosmetic.
+     */
+    copyLabel?: string
+}): JSX.Element {
     const [copied, setCopied] = useState(false)
     return (
         <>
@@ -1558,7 +1818,7 @@ export function CopyJsonBlock({json}: {json: string}): JSX.Element {
                         })
                     }}
                 >
-                    {copied ? "Copied." : "Copy JSON"}
+                    {copied ? "Copied." : copyLabel}
                 </button>
             </div>
             <pre
