@@ -1953,22 +1953,37 @@ function SnapshotDetailPageBody({
                 <DlRow label="Cast votes">{stateCounts.castVotes}</DlRow>
             </dl>
             <div style={{marginTop: "1.5rem"}}>
-                <button
-                    type="button"
-                    style={primaryButtonStyle}
-                    onClick={() => {
-                        // Wipe + reload via the auto-resume slot.
-                        loadSnapshotViaReload(snapshot, id)
-                    }}
-                    disabled={isActive && !isDirty}
-                    title={
-                        isActive && !isDirty
-                            ? "This snapshot is already loaded and the working copy matches it."
-                            : undefined
-                    }
-                >
-                    {isActive ? "Reload (discard working changes)" : "Load"}
-                </button>
+                {/* Button visibility/labelling matrix:
+                    - active + clean: disabled "Reload" (nothing to do)
+                    - active + dirty: "Reload (discard working changes)"
+                    - !active + clean: "Load" — usually transient, the
+                      auto-load effect above fires on mount
+                    - !active + dirty: hidden; the divergence banner
+                      above owns the discard-and-load action so we
+                      don't offer two buttons with the same effect
+                      but only one of them warns about data loss. */}
+                {(isActive || !isDirty) && (
+                    <button
+                        type="button"
+                        style={primaryButtonStyle}
+                        onClick={() => {
+                            // Wipe + reload via the auto-resume slot.
+                            loadSnapshotViaReload(snapshot, id)
+                        }}
+                        disabled={isActive && !isDirty}
+                        title={
+                            isActive && !isDirty
+                                ? "This snapshot is already loaded and the working copy matches it."
+                                : undefined
+                        }
+                    >
+                        {isActive
+                            ? isDirty
+                                ? "Reload (discard working changes)"
+                                : "Reload"
+                            : "Load"}
+                    </button>
+                )}
             </div>
             <details style={{marginTop: "1.5rem"}}>
                 <summary style={{cursor: "pointer", color: "#444"}}>
