@@ -982,8 +982,11 @@ export function SnapshotOverviewPage(): JSX.Element {
                                                 color: "#b22222",
                                                 borderColor: "#b22222",
                                             }}
+                                            disabled={row.id === parentId}
                                             title={
-                                                row.kind === "bundled"
+                                                row.id === parentId
+                                                    ? "Can't delete the active snapshot — load a different one first."
+                                                    : row.kind === "bundled"
                                                     ? "Hide for this session (reload restores)"
                                                     : "Permanently delete from localStorage"
                                             }
@@ -3205,7 +3208,10 @@ function useCurrentParentId(): string | null {
  * Returns `false` when the active snapshot cannot be resolved
  * (legacy `parentId == null`, or a checkpoint that was deleted from
  * under the working copy). "Unknown" defaults to "not dirty" so we
- * never spuriously gate the auto-load behavior on this hook.
+ * never spuriously gate the auto-load behavior on this hook — the
+ * /wb table's Delete button is disabled on the active row precisely
+ * so this unresolved state stays impossible in practice; if it ever
+ * does occur we want loud breakage rather than a silent bypass.
  */
 function useIsWorkingDirty(): boolean {
     const store = useStore()
