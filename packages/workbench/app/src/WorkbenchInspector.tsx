@@ -1448,13 +1448,77 @@ function VotingPortalDriftBlock({
                     <pre style={diffStatPreStyle}>
                         <code>{diff.stat}</code>
                     </pre>
-                    <CopyJsonBlock
-                        json={diff.patch}
-                        copyLabel="Copy diff"
-                    />
+                    <PerFileDiffList patch={diff.patch} />
+                    <details style={{marginTop: "0.5rem"}}>
+                        <summary
+                            style={{cursor: "pointer", color: "#666", fontSize: "0.85rem"}}
+                        >
+                            Full combined diff
+                        </summary>
+                        <CopyJsonBlock
+                            json={diff.patch}
+                            copyLabel="Copy diff"
+                        />
+                    </details>
                 </>
             )}
         </details>
+    )
+}
+
+/**
+ * Split a multi-file unified diff into per-file blocks. Each block in
+ * a `git diff` output starts with a line of the form
+ * `diff --git a/<path> b/<path>`, so splitting on `\ndiff --git ` gives
+ * us one chunk per file (with the leading `diff --git ` re-prepended).
+ *
+ * Renders each file with its own header + Copy button so the boundary
+ * between, e.g., `ReviewScreen.tsx` and `castVotesSlice.ts` is
+ * visually unmistakable instead of getting lost in one wall of text.
+ */
+function PerFileDiffList({patch}: {patch: string}): JSX.Element {
+    const trimmed = patch.replace(/^\s+/, "")
+    const chunks = trimmed
+        .split(/\n(?=diff --git )/g)
+        .map((c) => (c.startsWith("diff --git ") ? c : `diff --git ${c}`))
+        .filter((c) => c.trim().length > 0)
+    return (
+        <>
+            {chunks.map((chunk, i) => {
+                const match = /^diff --git a\/(\S+) b\/(\S+)/.exec(chunk)
+                const path = match ? match[2] : `file ${i + 1}`
+                return (
+                    <div
+                        key={`${path}-${i}`}
+                        style={{
+                            marginTop: "0.75rem",
+                            border: "1px solid #e0e0e0",
+                            borderRadius: 4,
+                        }}
+                    >
+                        <div
+                            style={{
+                                padding: "0.4rem 0.6rem",
+                                background: "#fafafa",
+                                borderBottom: "1px solid #e0e0e0",
+                                fontFamily:
+                                    "ui-monospace, SFMono-Regular, Menlo, monospace",
+                                fontSize: "0.8rem",
+                                color: "#333",
+                            }}
+                        >
+                            {path}
+                        </div>
+                        <div style={{padding: "0.25rem 0.5rem"}}>
+                            <CopyJsonBlock
+                                json={chunk}
+                                copyLabel="Copy file diff"
+                            />
+                        </div>
+                    </div>
+                )
+            })}
+        </>
     )
 }
 
