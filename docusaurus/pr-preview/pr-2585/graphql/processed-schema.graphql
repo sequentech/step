@@ -185,7 +185,7 @@ type DataListPgAudit {
 }
 
 type DeleteCertificateAuthorityOutput {
-  deleted: Boolean!
+  deleted_count: Int!
 }
 
 type DeleteElectionEvent {
@@ -295,6 +295,11 @@ type ExportBallotPublicationOutput {
   task_execution: tasks_execution_type
 }
 
+type ExportCertificateAuthorityOutput {
+  document_id: String!
+  task_execution: tasks_execution_type
+}
+
 type ExportElectionEventOutput {
   document_id: String!
   password: String
@@ -310,6 +315,7 @@ input ExportOptions {
   activity_logs: Boolean
   applications: Boolean
   bulletin_board: Boolean
+  include_certificates: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
   password: String
@@ -860,6 +866,10 @@ type UpdateEventVotingStatusOutput {
   election_event_id: uuid
 }
 
+type UpdateRealmAttributesOutput {
+  updated: Boolean!
+}
+
 type UpsertAreaOutput {
   id: String!
 }
@@ -1040,7 +1050,7 @@ type mutation_root {
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
   create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
   """Delete a certificate authority by id"""
-  delete_certificate_authority(election_event_id: uuid!, id: uuid!): DeleteCertificateAuthorityOutput
+  delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
@@ -1483,6 +1493,8 @@ type mutation_root {
   exportTrustees(password: String!): ExportTrusteesOutput
   export_application(election_event_id: String, election_id: String, tenant_id: String!): ExportApplicationOutput
   export_ballot_publication(ballot_publication_id: String!, election_event_id: String!, election_id: String, tenant_id: String!): ExportBallotPublicationOutput
+  """Export certificate authorities as a PEM bundle for an election event"""
+  export_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): ExportCertificateAuthorityOutput
   export_election_event(election_event_id: String, export_configurations: ExportOptions): ExportElectionEventOutput
   export_election_event_logs(election_event_id: String!, format: String!): ExportLogsOutput
   export_election_event_tasks(election_event_id: String): ExportTasksOutput
@@ -2240,6 +2252,7 @@ type mutation_root {
   submit_tally_resolution(election_event_id: uuid!, resolutions: [TallyResolutionInput!]!, tally_session_id: uuid!): SubmitTallyResolutionOutput
   update_election_voting_status(election_event_id: uuid!, election_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateElectionVotingStatusOutput
   update_event_voting_status(election_event_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateEventVotingStatusOutput
+  update_realm_attributes(attributes: jsonb!, election_event_id: String!): UpdateRealmAttributesOutput
   """
   update data of the table: "sequent_backend.applications"
   """
@@ -8300,7 +8313,7 @@ enum certificate_authority_constraint {
   """
   unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id"
   """
-  certificate_authority_tenant_id_election_event_id_fingerprint_s
+  certificate_authority_tenant_id_election_event_id_fingerpri_key
 }
 
 """
