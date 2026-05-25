@@ -106,6 +106,15 @@
         "attributes": {}
       },
       {
+        "id": "eca4e6a6-6ef8-4f0c-b471-aacfcb0bc328",
+        "name": "ivr-service",
+        "description": "Fallback role for the ivr-service, provides no access.",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
+        "attributes": {}
+      },
+      {
         "id": "5334f260-242a-4f02-8ea4-1fa27d60541b",
         "name": "offline_access",
         "description": "${role_offline-access}",
@@ -523,10 +532,16 @@
       "serviceAccountClientId": "ivr-service",
       "disableableCredentialTypes": [],
       "requiredActions": [],
+      "attributes": {
+        "tenant-id": [
+          "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+        ]
+      },
       "realmRoles": [
         "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
         "ivr-config-read",
-        "phone-blacklist-read"
+        "phone-blacklist-read",
+        "ivr-service"
       ],
       "notBefore": 0,
       "groups": []
@@ -862,6 +877,77 @@
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
       "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "id": "26654878-9d42-476a-b316-6abc711e79ee",
+          "name": "x-hasura-allowed-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "a5280d08-b7d3-4ee4-bd36-815bd2a536cf",
+          "name": "x-hasura-tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "c959a8ea-413f-4632-ba62-9e3546166afb",
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "8207d491-8cc7-4d72-ac03-56fb2a0f9b52",
+          "name": "x-hasura-default-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "claim.value": "ivr-service",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-default-role",
+            "jsonType.label": "String",
+            "access.tokenResponse.claim": "false"
+          }
+        }
+      ],
       "defaultClientScopes": [
         "web-origins",
         "service_account",
