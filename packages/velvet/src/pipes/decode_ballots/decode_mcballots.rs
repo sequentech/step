@@ -154,11 +154,9 @@ impl Pipe for DecodeMCBallots {
                         // accumulate per-contest ballots
 
                         for dbc in decoded_ballots {
-                            let decoded_contests = map_decoded_ballot_choices_to_decoded_contests(
-                                dbc.clone(),
-                                &contests,
-                            )
-                            .map_err(|err| Error::UnexpectedError(err))?;
+                            let decoded_contests =
+                                map_decoded_ballot_choices_to_decoded_contests(&dbc, &contests)
+                                    .map_err(|err| Error::UnexpectedError(err))?;
 
                             for decoded_contest in decoded_contests {
                                 if !output_map.contains_key(&decoded_contest.contest_id) {

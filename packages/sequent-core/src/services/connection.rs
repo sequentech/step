@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::jwt::*;
+use crate::services::jwt::{decode_jwt, JwtClaims};
 use crate::services::keycloak::{
     get_third_party_client_access_token, KeycloakAdminClient,
     PubKeycloakAdminToken,
@@ -19,10 +19,14 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
+/// Header for tenant ID
 const TENANT_ID_HEADER: &str = "tenant-id";
+/// Header for event ID
 const EVENT_ID_HEADER: &str = "event-id";
+/// Header for authorization
 const AUTHORIZATION_HEADER: &str = "authorization";
 pub const PRE_EXPIRATION_SECS: i64 = 5;
+/// Authentication headers extracted from a request.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
     pub key: String,
@@ -37,18 +41,15 @@ impl<'r> FromRequest<'r> for AuthHeaders {
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
         let headers = request.headers().clone();
-        if headers.contains("X-Hasura-Admin-Secret") {
+        if let Some(value) = headers.get_one("X-Hasura-Admin-Secret") {
             Outcome::Success(AuthHeaders {
                 key: "X-Hasura-Admin-Secret".to_string(),
-                value: headers
-                    .get_one("X-Hasura-Admin-Secret")
-                    .unwrap()
-                    .to_string(),
+                value: value.to_string(),
             })
-        } else if headers.contains("authorization") {
+        } else if let Some(value) = headers.get_one("authorization") {
             Outcome::Success(AuthHeaders {
                 key: "authorization".to_string(),
-                value: headers.get_one("authorization").unwrap().to_string(),
+                value: value.to_string(),
             })
         } else {
             warn!("AuthHeaders guard: headers: {headers:?}");
@@ -65,31 +66,29 @@ impl<'r> FromRequest<'r> for JwtClaims {
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
         let headers = request.headers().clone();
-        match headers.get_one("authorization") {
-            Some(authorization) => {
-                match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match decode_jwt(token) {
-                        Ok(jwt) => Outcome::Success(jwt),
-                        Err(err) => {
-                            warn!("JwtClaims guard: decode_jwt error {err:?}");
-                            Outcome::Error((Status::Unauthorized, ()))
-                        }
-                    },
-                    None => {
-                        warn!("JwtClaims guard: not a bearer token: {authorization:?}");
+        if let Some(authorization) = headers.get_one("authorization") {
+            if let Some(token) = authorization.strip_prefix("Bearer ") {
+                match decode_jwt(token) {
+                    Ok(jwt) => Outcome::Success(jwt),
+                    Err(err) => {
+                        warn!("JwtClaims guard: decode_jwt error {err:?}");
                         Outcome::Error((Status::Unauthorized, ()))
                     }
                 }
-            }
-            None => {
-                warn!("JwtClaims guard: headers: {headers:?}");
+            } else {
+                warn!("JwtClaims guard: not a bearer token: {authorization:?}");
                 Outcome::Error((Status::Unauthorized, ()))
             }
+        } else {
+            warn!("JwtClaims guard: headers: {headers:?}");
+            Outcome::Error((Status::Unauthorized, ()))
         }
     }
 }
 
+/// User location information extracted from headers.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct UserLocation {
     pub ip: Option<IpAddr>,
     pub country_code: Option<String>,
@@ -111,13 +110,15 @@ impl<'r> FromRequest<'r> for UserLocation {
         let country_code = request
             .headers()
             .get_one("CF-IPCountry")
-            .map(|s| s.to_string());
+            .map(str::to_string);
 
         Outcome::Success(UserLocation { ip, country_code })
     }
 }
 
+/// Datafix claims extracted from JWT and headers.
 #[derive(Debug)]
+#[allow(missing_docs)]
 pub struct DatafixClaims {
     pub jwt_claims: JwtClaims,
     pub tenant_id: String,
@@ -125,16 +126,25 @@ pub struct DatafixClaims {
     pub datafix_event_id: String,
 }
 
+/// Datafix credentials for authorization.
 #[derive(Debug)]
+#[allow(missing_docs)]
 struct DatafixCredentials {
+    /// Client ID
     client_id: String,
+    /// Client secret
     client_secret: String,
 }
 
+/// Datafix headers extracted from the request.
 #[derive(Debug)]
+#[allow(missing_docs)]
 struct DatafixHeaders {
+    /// Tenant ID
     tenant_id: String,
+    /// Event ID
     event_id: String,
+    /// Authorization credentials
     authorization: DatafixCredentials,
 }
 
@@ -166,18 +176,14 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
         tenant_id, event_id, authorization
     );
 
-    let mut auth_collection = authorization.split(":");
-    let client_id = auth_collection.nth(0); // get the first item and consumes it
-    let client_secret = auth_collection.nth(0);
+    let mut auth_collection = authorization.split(':');
+    let client_id = auth_collection.next();
+    let client_secret = auth_collection.next();
     info!("{:?}:{:?}", client_id, client_secret);
-    let (client_id, client_secret) =
-        if let (Some(client_id), Some(client_secret)) =
-            (client_id, client_secret)
-        {
-            (client_id, client_secret)
-        } else {
-            return None;
-        };
+    let (Some(client_id), Some(client_secret)) = (client_id, client_secret)
+    else {
+        return None;
+    };
 
     Some(DatafixHeaders {
         tenant_id: tenant_id.to_string(),
@@ -189,14 +195,19 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     })
 }
 
-/// TokenResponse, timestamp before sending the request and the credentials to
+/// `TokenResponse`, timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
+    /// Access token response from Keycloak
     token_resp: PubKeycloakAdminToken,
+    /// Timestamp when the token was requested
     stamp: Instant,
+    /// Client ID used to request the token
     client_id: String,
+    /// Client secret used to request the token
     client_secret: String,
+    /// Tenant ID used to request the token
     tenant_id: String,
 }
 
@@ -213,7 +224,9 @@ struct TokenResponseExtended {
 pub struct LastDatafixAccessToken(RwLock<Option<TokenResponseExtended>>);
 
 impl LastDatafixAccessToken {
-    pub fn init() -> Self {
+    /// Initialize a new `LastDatafixAccessToken`.
+    #[must_use]
+    pub const fn init() -> Self {
         LastDatafixAccessToken(RwLock::new(None))
     }
 }
@@ -236,15 +249,17 @@ async fn read_access_token(
     };
 
     if let Some(data) = token_resp_ext_opt {
-        let pre_expiration_time: i64 =
-            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
+        let expires_in = i64::try_from(data.token_resp.expires_in)
+            .expect("expires_in is too large");
+        let pre_expiration_time =
+            expires_in.saturating_sub(PRE_EXPIRATION_SECS);
 
         if data.client_id.eq(client_id)
             && data.client_secret.eq(client_secret)
             && data.tenant_id.eq(tenant_id)
             && pre_expiration_time.is_positive()
             && data.stamp.elapsed()
-                < Duration::from_secs(pre_expiration_time as u64)
+                < Duration::from_secs(pre_expiration_time.unsigned_abs())
         {
             return Some(data.token_resp);
         }
@@ -295,16 +310,17 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
         let (tenant_id, datafix_event_id, authorization) =
-            match parse_datafix_headers(request.headers()) {
-                Some(datafix_headers) => (
+            if let Some(datafix_headers) =
+                parse_datafix_headers(request.headers())
+            {
+                (
                     datafix_headers.tenant_id,
                     datafix_headers.event_id,
                     datafix_headers.authorization,
-                ),
-                None => {
-                    error!("DatafixClaims guard: Missing headers!");
-                    return Outcome::Error((Status::BadRequest, ()));
-                }
+                )
+            } else {
+                error!("DatafixClaims guard: Missing headers!");
+                return Outcome::Error((Status::BadRequest, ()));
             };
 
         // Try to read the access token from the cache, if it´s not there or
@@ -316,7 +332,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             &authorization.client_id,
             &authorization.client_secret,
             &tenant_id,
-            &lst_acc_tkn,
+            lst_acc_tkn,
         )
         .await
         {
@@ -326,7 +342,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                     authorization.client_id,
                     authorization.client_secret,
                     tenant_id.clone(),
-                    &lst_acc_tkn,
+                    lst_acc_tkn,
                 )
                 .await
                 {

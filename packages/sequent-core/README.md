@@ -24,6 +24,15 @@ cd packages/sequent-core
 cargo build
 ```
 
+## Generate Rust API docs
+
+Build the full `rustdoc` output with every feature enabled:
+
+```bash
+cd packages/sequent-core
+cargo doc --all-features --no-deps
+```
+
 ## Generate javascript package
 
 ```bash

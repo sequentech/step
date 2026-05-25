@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
-use crate::plaintext::*;
+use crate::ballot::Contest;
+use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use crate::types::ceremonies::CountingAlgType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// Enum representing the different states of the contest UI.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[allow(missing_docs)]
 pub enum ContestState {
     ElectionChooserScreen,
     ReceivingElection,
@@ -30,13 +32,19 @@ pub enum ContestState {
     ShowPdf,
 }
 
+/// Struct representing the layout properties of a contest, including its state and whether it is sorted or ordered.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestLayoutProperties {
+    /// The state of the contest UI.
     state: ContestState,
+    /// Whether the contest is sorted.
     sorted: bool,
+    /// Whether the contest is ordered.
     ordered: bool,
 }
 
+#[must_use]
+/// Determines the layout properties of a contest based on its counting algorithm.
 pub fn get_layout_properties(
     contest: &Contest,
 ) -> Option<ContestLayoutProperties> {
@@ -66,43 +74,19 @@ pub fn get_layout_properties(
             sorted: true,
             ordered: false,
         }),
-        CountingAlgType::InstantRunoff => Some(ContestLayoutProperties {
-            state: ContestState::MultiContest,
-            sorted: true,
-            ordered: true,
-        }),
-        CountingAlgType::BordaNauru => Some(ContestLayoutProperties {
-            state: ContestState::MultiContest,
-            sorted: true,
-            ordered: true,
-        }),
-        CountingAlgType::Borda => Some(ContestLayoutProperties {
-            state: ContestState::MultiContest,
-            sorted: true,
-            ordered: true,
-        }),
-        CountingAlgType::BordaMasMadrid => Some(ContestLayoutProperties {
+        CountingAlgType::InstantRunoff
+        | CountingAlgType::BordaNauru
+        | CountingAlgType::Borda
+        | CountingAlgType::BordaMasMadrid
+        | CountingAlgType::Desborda3
+        | CountingAlgType::Desborda2
+        | CountingAlgType::Desborda => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
         CountingAlgType::PairwiseBeta => Some(ContestLayoutProperties {
             state: ContestState::PairwiseBeta,
-            sorted: true,
-            ordered: true,
-        }),
-        CountingAlgType::Desborda3 => Some(ContestLayoutProperties {
-            state: ContestState::MultiContest,
-            sorted: true,
-            ordered: true,
-        }),
-        CountingAlgType::Desborda2 => Some(ContestLayoutProperties {
-            state: ContestState::MultiContest,
-            sorted: true,
-            ordered: true,
-        }),
-        CountingAlgType::Desborda => Some(ContestLayoutProperties {
-            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
@@ -117,6 +101,7 @@ pub fn get_layout_properties(
 /**
  * @returns number of points this ballot is giving to this option
  */
+#[must_use]
 pub fn get_points(
     contest: &Contest,
     candidate: &DecodedVoteChoice,
@@ -130,13 +115,14 @@ pub fn get_points(
     match contest.get_counting_algorithm() {
         CountingAlgType::PluralityAtLarge => Some(1),
         CountingAlgType::Borda => {
-            Some((contest.max_votes as i64) - candidate.selected)
+            contest.max_votes.checked_sub(candidate.selected)
         }
         // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
-        CountingAlgType::BordaNauru => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
+        CountingAlgType::BordaNauru | CountingAlgType::Cumulative => {
+            candidate.selected.checked_add(1)
+        } /* 1 / (1 + candidate. */
         // selected)
-        CountingAlgType::PairwiseBeta => None,
         /*"desborda3" => Some(cmp::max(
             1,
             (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
@@ -147,13 +133,14 @@ pub fn get_points(
             (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
         )),*/
-        CountingAlgType::Desborda => Some(80 - candidate.selected),
-        CountingAlgType::Cumulative => Some(candidate.selected + 1),
+        CountingAlgType::Desborda => 80i64.checked_sub(candidate.selected),
         _ => None,
     }
 }
 
-pub fn check_is_blank(decoded_contest: DecodedVoteContest) -> bool {
+/// Checks if the given decoded contest is blank, meaning it has no explicit invalidity and all choices are unselected.
+#[must_use]
+pub fn check_is_blank(decoded_contest: &DecodedVoteContest) -> bool {
     !decoded_contest.is_explicit_invalid
         && decoded_contest
             .choices

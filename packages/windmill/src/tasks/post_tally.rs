@@ -238,7 +238,7 @@ pub async fn post_tally_task_impl(
     .await?
     .ok_or(anyhow!("Could not find options."))?;
 
-    let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(pdf_options);
+    let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(&pdf_options);
 
     // Search for all html reports that do not have pdf and generate it
     find_and_process_html_reports_parallel(tally_path.path(), pdf_options)?;

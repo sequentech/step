@@ -37,6 +37,33 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
             'https://github.com/sequentech/step/edit/main/docs/docusaurus',
+          async sidebarItemsGenerator({
+            defaultSidebarItemsGenerator,
+            ...args
+          }) {
+            const sidebarItems = await defaultSidebarItemsGenerator(args);
+  
+            function removeDoc(items) {
+              return items
+                .filter((item) => {
+                  if (item.type === 'doc' && item.id === 'rust_docs') {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((item) => {
+                  if (item.type === 'category' && item.items) {
+                    return {
+                      ...item,
+                      items: removeDoc(item.items),
+                    };
+                  }
+                  return item;
+                });
+            }
+  
+            return removeDoc(sidebarItems);
+          },
         },
         // completely remove the blog
         blog: false,
@@ -77,6 +104,12 @@ const config = {
             label: 'GraphQL API',
             position: 'left',
             target: '_blank',
+          },
+          {
+            type: 'doc',
+            docId: 'rust_docs',
+            label: 'Rust Docs',
+            position: 'left',
           },
           {
             href: 'https://github.com/sequentech',

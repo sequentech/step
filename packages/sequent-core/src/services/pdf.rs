@@ -81,15 +81,23 @@ pub mod sync {
     }
 
     impl PdfRenderer {
+        /// Renders a PDF from HTML and options.
+        ///
+        /// # Errors
+        /// Returns an error if PDF rendering fails or the backend is misconfigured.
         pub fn render_pdf(
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
         ) -> Result<Vec<u8>> {
             let _html_sha256 = sha256::digest(&html);
             // We call our synchronous do_render_pdf
-            Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
+            PdfRenderer::new()?.do_render_pdf(html, pdf_options)
         }
 
+        /// Creates a new `PdfRenderer` instance.
+        ///
+        /// # Errors
+        /// Returns an error if the backend is misconfigured or environment variables are missing.
         pub fn new() -> Result<Self> {
             info!("PdfRenderer::new() [sync] - Starting initialization");
 
@@ -115,7 +123,7 @@ pub mod sync {
                 }
                 "openwhisk" => {
                     let mut openwhisk_endpoint = std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT");
-                    if !openwhisk_endpoint.is_ok() {
+                    if openwhisk_endpoint.is_err() {
                         let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST");
                         if let Ok(host) = openwhisk_api_host {
                             openwhisk_endpoint = Ok(format!("{host}/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true"));
@@ -135,28 +143,32 @@ pub mod sync {
             Ok(PdfRenderer { transport })
         }
 
-        /// Synchronous send_request using reqwest::blocking and our own retry
+        /// Synchronous `send_request` using `reqwest::blocking` and our own retry
         /// loop.
+        #[allow(clippy::unused_self)]
         fn send_request(
             &self,
             endpoint: &str,
-            payload: serde_json::Value,
-            basic_auth: Option<String>,
+            payload: &serde_json::Value,
+            basic_auth: Option<&String>,
         ) -> Result<reqwest::blocking::Response> {
             let client = reqwest::blocking::Client::builder()
                 .pool_idle_timeout(None)
                 .build()?;
-            let mut retries = 3;
+            let mut retries: i32 = 3;
             let mut delay = Duration::from_millis(100);
 
             loop {
                 let mut builder = client.post(endpoint.clone()).json(&payload);
-                if let Some(ref basic_auth) = basic_auth {
+                if let Some(basic_auth) = basic_auth {
                     let parts: Vec<&str> = basic_auth.split(':').collect();
-                    if parts.len() != 2 {
+                    if let (Some(user), Some(pass)) =
+                        (parts.first(), parts.get(1))
+                    {
+                        builder = builder.basic_auth(user, Some(pass));
+                    } else {
                         return Err(anyhow!("Invalid basic auth provided"));
                     }
-                    builder = builder.basic_auth(parts[0], Some(parts[1]));
                 }
 
                 match builder.send() {
@@ -169,13 +181,21 @@ pub mod sync {
                             "Request failed: {e:?}. Retrying in {delay:?}..."
                         );
                         thread::sleep(delay);
-                        delay *= 2;
-                        retries -= 1;
+                        delay = delay.saturating_mul(2);
+                        retries = retries.saturating_sub(1);
                     }
                 }
             }
         }
 
+        /// Renders HTML to PDF using the configured options.
+        ///
+        /// # Errors
+        /// Returns an error if the HTTP request fails, or PDF generation fails.
+        ///
+        /// # Panics
+        /// Panics if index calculations overflow or if file operations fail unexpectedly.
+        #[allow(clippy::too_many_lines)]
         pub fn do_render_pdf(
             &self,
             html: String,
@@ -241,8 +261,11 @@ pub mod sync {
                         })
                     };
 
-                    let response =
-                        self.send_request(&endpoint, payload, basic_auth)?;
+                    let response = self.send_request(
+                        &endpoint,
+                        &payload,
+                        basic_auth.as_ref(),
+                    )?;
 
                     if !response.status().is_success() {
                         let error = response.text()?;
@@ -254,12 +277,11 @@ pub mod sync {
                             return Err(anyhow!(
                                 "AWS Lambda request failed: {error:?}"
                             ));
-                        } else {
-                            error!("OpenWhisk request failed: {error:?}");
-                            return Err(anyhow!(
-                                "OpenWhisk request failed: {error:?}"
-                            ));
                         }
+                        error!("OpenWhisk request failed: {error:?}");
+                        return Err(anyhow!(
+                            "OpenWhisk request failed: {error:?}"
+                        ));
                     }
 
                     match &self.transport {
@@ -282,8 +304,9 @@ pub mod sync {
                         PdfTransport::OpenWhisk { .. } => {
                             let response_json =
                                 response.json::<serde_json::Value>()?;
-                            let pdf_base64 = response_json["pdf_base64"]
-                                .as_str()
+                            let pdf_base64 = response_json
+                                .get("pdf_base64")
+                                .and_then(|v| v.as_str())
                                 .ok_or_else(|| {
                                     anyhow!("Missing pdf_base64 in response")
                                 })?;
@@ -291,7 +314,7 @@ pub mod sync {
                                 .decode(pdf_base64)
                                 .map_err(|e| anyhow!("{e:?}"))
                         }
-                        _ => unreachable!(),
+                        PdfTransport::InPlace => unreachable!(),
                     }
                 }
                 PdfTransport::InPlace => {
@@ -327,15 +350,22 @@ pub mod sync {
 
 /// --- ASYNC VERSION ---
 impl PdfRenderer {
-    /// Public async render_pdf that preserves the async signature.
+    /// Public async `render_pdf` that preserves the async signature.
+    /// Async wrapper for rendering HTML to PDF.
+    ///
+    /// # Errors
+    /// Returns an error if PDF rendering fails.
     pub async fn render_pdf(
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
-        Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
+        PdfRenderer::new()?.do_render_pdf(html, pdf_options).await
     }
 
-    /// Creates a new PdfRenderer based on environment configuration.
+    /// Creates a new `PdfRenderer` based on environment configuration.
+    ///
+    /// # Errors
+    /// Returns an error if the backend is misconfigured or environment variables are missing.
     pub fn new() -> Result<Self> {
         info!("PdfRenderer::new() [async] - Starting initialization");
 
@@ -359,7 +389,7 @@ impl PdfRenderer {
             },
             "openwhisk" => {
                 let mut openwhisk_endpoint = std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT");
-                if !openwhisk_endpoint.is_ok() {
+                if openwhisk_endpoint.is_err() {
                     let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST");
                     if let Ok(host) = openwhisk_api_host {
                         openwhisk_endpoint = Ok(format!("{host}/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true"));
@@ -380,8 +410,15 @@ impl PdfRenderer {
         Ok(PdfRenderer { transport })
     }
 
-    /// Async do_render_pdf uses retry_with_exponential_backoff for the HTTP
+    /// Async `do_render_pdf` uses `retry_with_exponential_backoff` for the HTTP
     /// request.
+    ///
+    /// # Errors
+    /// Returns an error if the backend fails, the HTTP request fails, or PDF generation fails.
+    ///
+    /// # Panics
+    /// Panics if index calculations overflow or if file operations fail unexpectedly.
+    #[allow(clippy::too_many_lines)]
     pub async fn do_render_pdf(
         &self,
         html: String,
@@ -462,11 +499,14 @@ impl PdfRenderer {
                     client.post(endpoint.clone()).json(&payload);
                 if let Some(basic_auth) = basic_auth {
                     let parts: Vec<&str> = basic_auth.split(':').collect();
-                    if parts.len() != 2 {
+                    if let (Some(user), Some(pass)) =
+                        (parts.first(), parts.get(1))
+                    {
+                        request_builder =
+                            request_builder.basic_auth(user, Some(pass));
+                    } else {
                         return Err(anyhow!("Invalid basic auth provided"));
                     }
-                    request_builder =
-                        request_builder.basic_auth(parts[0], Some(parts[1]));
                 }
 
                 let response = retry_with_exponential_backoff(
@@ -501,12 +541,9 @@ impl PdfRenderer {
                         return Err(anyhow!(
                             "AWS Lambda request failed: {error:?}"
                         ));
-                    } else {
-                        error!("OpenWhisk request failed: {error:?}");
-                        return Err(anyhow!(
-                            "OpenWhisk request failed: {error:?}"
-                        ));
                     }
+                    error!("OpenWhisk request failed: {error:?}");
+                    return Err(anyhow!("OpenWhisk request failed: {error:?}"));
                 }
 
                 match &self.transport {
@@ -532,13 +569,15 @@ impl PdfRenderer {
                     PdfTransport::OpenWhisk { .. } => {
                         let response_json =
                             response.json::<serde_json::Value>().await?;
-                        let pdf_base64 =
-                            response_json["pdf_base64"].as_str().ok_or_else(
-                                || anyhow!("Missing pdf_base64 in response"),
-                            )?;
+                        let pdf_base64 = response_json
+                            .get("pdf_base64")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                                anyhow!("Missing pdf_base64 in response")
+                            })?;
                         BASE64.decode(pdf_base64).map_err(|e| anyhow!("{e:?}"))
                     }
-                    _ => unreachable!(),
+                    PdfTransport::InPlace => unreachable!(),
                 }
             }
             PdfTransport::InPlace => {
@@ -573,31 +612,40 @@ impl PdfRenderer {
 /// S3 helper functions.
 cfg_if::cfg_if! {
     if #[cfg(feature = "s3")] {
+        /// Returns the private S3 bucket name, or None if unavailable.
         fn s3_private_bucket() -> Option<String> {
             s3::get_private_bucket().ok()
         }
-        fn s3_bucket_path(path: String) -> Option<String> {
-            Some(path)
+        /// Returns the S3 bucket path as a string.
+        const fn s3_bucket_path(path: String) -> String {
+            path
         }
+        /// Retrieves a file from S3 as bytes.
         async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
             s3::get_file_from_s3(bucket, output_filename)
                 .await
                 .map_err(|err| anyhow!("could not retrieve file from S3: {err:?}"))
         }
     } else {
+        /// Returns None for private S3 bucket when S3 is not enabled.
         fn s3_private_bucket() -> Option<String> {
             None
         }
-        fn s3_bucket_path(path: String) -> Option<String> {
-            None
+        /// Returns an empty string for S3 bucket path when S3 is not enabled.
+        fn s3_bucket_path(_path: String) -> String {
+            String::new()
         }
+        /// Unimplemented: S3 file retrieval is not available without S3 feature.
         async fn get_file_from_s3(_bucket: String, _output_filename: String) -> Result<Vec<u8>> {
             unimplemented!()
         }
     }
 }
 
-/// Converts HTML to PDF using headless_chrome.
+/// Converts HTML to PDF using `headless_chrome`.
+///
+/// # Errors
+/// Returns an error if file creation, writing, or PDF generation fails.
 #[instrument(skip_all, err)]
 pub fn html_to_pdf(
     html: String,
@@ -607,14 +655,16 @@ pub fn html_to_pdf(
     let dir = tempdir()?;
     let file_path = dir.path().join("index.html");
     let mut file = File::create(file_path.clone())?;
-    let file_path_str = file_path.to_str().unwrap();
+    let file_path_str = file_path
+        .to_str()
+        .ok_or_else(|| anyhow!("Failed to convert file path to string"))?;
     file.write_all(html.as_bytes())?;
-    let url_path = format!("file://{}", file_path_str);
+    let url_path = format!("file://{file_path_str}");
 
     info!("html_to_pdf: {url_path:?}");
     debug!("options: {options:#?}");
 
-    let pdf_options = options.unwrap_or_else(|| PrintToPdfOptions {
+    let pdf_options = options.unwrap_or(PrintToPdfOptions {
         landscape: None,
         display_header_footer: None,
         print_background: Some(true),
@@ -638,8 +688,8 @@ pub fn html_to_pdf(
     print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
-/// Uses headless_chrome to print the file to PDF, with retry on transient
-/// failures.
+/// Uses `headless_chrome` to print the file to PDF, with retry on transient
+///  failures.
 #[instrument(skip_all, err)]
 fn print_to_pdf(
     file_path: &str,
@@ -672,7 +722,7 @@ fn print_to_pdf(
                      retrying in {delay:?}"
                 );
                 sleep(delay);
-                delay *= 2;
+                delay = delay.checked_mul(2).expect("delay overflow");
             }
             Err(e) => return Err(e),
         }
@@ -680,7 +730,7 @@ fn print_to_pdf(
     unreachable!()
 }
 
-/// One attempt at printing via headless Chrome.
+/// One attempt at printing via `headless_chrome`.
 #[instrument(skip_all, err)]
 fn print_to_pdf_once(
     file_path: &str,
@@ -695,7 +745,7 @@ fn print_to_pdf_once(
         .headless(true)
         // </WTF>
         .enable_logging(true)
-        .idle_browser_timeout(Duration::from_secs(99999999))
+        .idle_browser_timeout(Duration::from_secs(99_999_999))
         .args(vec![
             std::ffi::OsStr::new("--disable-setuid-sandbox"),
             std::ffi::OsStr::new("--disable-dev-shm-usage"),
@@ -703,7 +753,7 @@ fn print_to_pdf_once(
             std::ffi::OsStr::new("--no-zygote"),
         ])
         .build()
-        .expect("Default should not panic");
+        .map_err(|_| anyhow!("Default LaunchOptionsBuilder failed"))?;
 
     info!("1. Opening browser");
     let browser =
@@ -712,7 +762,7 @@ fn print_to_pdf_once(
     info!("2. Opening tab");
     let tab = browser.new_tab()?;
 
-    tab.set_default_timeout(Duration::from_secs(99999999));
+    tab.set_default_timeout(Duration::from_secs(99_999_999));
     info!("3. Navigating to tab");
     tab.navigate_to(file_path)?
         .wait_until_navigated()
@@ -747,8 +797,7 @@ mod tests {
         let bytes = html_to_pdf(
             "<body><h1>Hello, world!</h1></body>".to_string(),
             None,
-        )
-        .unwrap();
+        )?;
 
         let file_path = Path::new("./res.pdf");
         let mut file = OpenOptions::new()

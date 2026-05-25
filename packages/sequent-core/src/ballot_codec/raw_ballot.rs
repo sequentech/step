@@ -1,9 +1,18 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
-use crate::ballot_codec::*;
-use crate::plaintext::*;
+use crate::ballot::{Candidate, Contest};
+use crate::ballot_codec::{
+    check_blank_vote_policy, check_duplicated_rank_policy,
+    check_invalid_vote_policy, check_max_min_votes_policy,
+    check_min_vote_policy, check_over_vote_policy,
+    check_preference_gaps_policy, check_under_vote_policy, BasesCodec,
+    CharacterMap,
+};
+use crate::plaintext::{
+    DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
+    InvalidPlaintextErrorType, PreferencialOrderErrorType,
+};
 use crate::types::ceremonies::CountingAlgType;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
@@ -16,22 +25,43 @@ pub struct RawBallotContest {
 impl RawBallotContest {
     // FIXME add validation (eg all values within range)
     // FIXME ensure this struct is always created with via RawBallotContest::new
-    pub fn new(bases: Vec<u64>, choices: Vec<u64>) -> Self {
+    #[must_use]
+    pub const fn new(bases: Vec<u64>, choices: Vec<u64>) -> Self {
         RawBallotContest { bases, choices }
     }
 }
 
 pub trait RawBallotCodec {
+    /// Helper function to update all policy checks and error/alert fields for a
+    /// decoded contest. This is used in the `decode_from_raw_ballot`.
+    fn update_decoded_contest_policies(
+        &self,
+        decoded_contest: &mut DecodedVoteContest,
+        is_explicit_invalid: bool,
+    );
+
+    /// Encodes the contest to a raw ballot.
+    ///
+    /// # Errors
+    /// Returns an error if encoding fails.
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String>;
 
+    /// Decodes a raw ballot to a `DecodedVoteContest`.
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails.
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String>;
 
+    /// Estimates available write-in characters.
+    ///
+    /// # Errors
+    /// Returns an error if estimation fails.
     fn available_write_in_characters_estimate(
         &self,
         plaintext: &DecodedVoteContest,
@@ -43,29 +73,56 @@ impl RawBallotCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<i32, String> {
-        let raw_ballot = self.encode_to_raw_ballot(&plaintext)?;
+        let raw_ballot = self.encode_to_raw_ballot(plaintext)?;
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_precision_loss
+        )]
         let used_bits = raw_ballot
             .bases
             .iter()
             .map(|el| (*el as f64).log2().ceil() as u64)
-            .sum::<u64>() as i32;
-        // we have a maximum of 29 bytes and each character takes 5 bits
-        let remaining_bits: i32 = 29 * 8 - used_bits;
+            .sum::<u64>();
+        let remaining_bits: i32 = 29_i32
+            .checked_mul(8)
+            .and_then(|v| {
+                v.checked_sub(
+                    i32::try_from(used_bits)
+                        .map_err(|_| "used_bits too large for i32".to_string())
+                        .ok()?,
+                )
+            })
+            .ok_or_else(|| {
+                "Overflow in remaining_bits calculation".to_string()
+            })?;
 
         let char_map = self.get_char_map();
+        #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
         let base_bits = (char_map.base() as f64).log2().ceil() as i32;
 
+        if base_bits == 0 {
+            return Err("Base bits cannot be zero".to_string());
+        }
+
         if remaining_bits > 0 {
-            // div_ceil: round up for positive numbers
-            Ok((remaining_bits as u32).div_ceil(base_bits as u32) as i32)
+            // div_ceil for positive numbers
+            let rem = u32::try_from(remaining_bits).map_err(|_| {
+                "remaining_bits negative in div_ceil".to_string()
+            })?;
+            let base = u32::try_from(base_bits)
+                .map_err(|_| "base_bits negative in div_ceil".to_string())?;
+            #[allow(clippy::cast_possible_wrap)]
+            {
+                Ok(rem.div_ceil(base) as i32)
+            }
         } else {
-            // div_floor: round toward negative infinity for negative numbers
-            Ok((remaining_bits / base_bits)
-                - if remaining_bits % base_bits != 0 {
-                    1
-                } else {
-                    0
-                })
+            #[allow(clippy::arithmetic_side_effects)]
+            let div = remaining_bits / base_bits;
+            #[allow(clippy::arithmetic_side_effects)]
+            let needs_adjust = remaining_bits % base_bits != 0;
+            #[allow(clippy::arithmetic_side_effects)]
+            Ok(div - i32::from(needs_adjust))
         }
     }
 
@@ -92,11 +149,10 @@ impl RawBallotCodec for Contest {
         // - Invalid vote candidate (if any)
         // - Write-ins (if any)
         // - Valid candidates (normal candidates + write-ins if any)
-        let invalid_vote: u64 =
-            if plaintext.is_explicit_invalid { 1 } else { 0 };
+        let invalid_vote: u64 = u64::from(plaintext.is_explicit_invalid);
         choices.push(invalid_vote);
 
-        for choice in sorted_choices.iter() {
+        for choice in &sorted_choices {
             let candidate =
                 candidates_map.get(&choice.id).ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
@@ -104,24 +160,24 @@ impl RawBallotCodec for Contest {
             if candidate.is_explicit_invalid() {
                 continue;
             }
-            match self.get_counting_algorithm() {
-                CountingAlgType::PluralityAtLarge => {
-                    // We just flag if the candidate was selected or not with 1
-                    // for selected and 0 otherwise
-                    choices.push(u64::from(choice.selected > -1));
-                }
-                _ => {
-                    // we add 1 because the counting starts with 1, as zero
-                    // means this candidate was not voted /
-                    // ranked (selected was -1). This should work for IRV and
-                    // other preferencial counting algorithms
-                    let value =
-                        (choice.selected + 1).to_u64().ok_or_else(|| {
-                            "selected value must be positive or zero"
-                                .to_string()
-                        })?;
-                    choices.push(value);
-                }
+            let alg = self.get_counting_algorithm();
+            if alg == CountingAlgType::PluralityAtLarge {
+                // We just flag if the candidate was selected or not with 1
+                // for selected and 0 otherwise
+                choices.push(u64::from(choice.selected > -1));
+            } else {
+                // we add 1 because the counting starts with 1, as zero
+                // means this candidate was not voted /
+                // ranked (selected was -1). This should work for IRV and
+                // other preferencial counting algorithms
+                let sel_plus_1 = choice
+                    .selected
+                    .checked_add(1)
+                    .ok_or_else(|| "Overflow in selected+1".to_string())?;
+                let value = sel_plus_1.to_u64().ok_or_else(|| {
+                    "selected value must be positive or zero".to_string()
+                })?;
+                choices.push(value);
             }
         }
         // Populate the bases and the raw_ballot values with the write-ins
@@ -130,7 +186,7 @@ impl RawBallotCodec for Contest {
         // each byte a specific value with base 256 and end each write-in
         // with a \0 byte. Note that even write-ins.
         if self.allow_writeins() {
-            for choice in sorted_choices.iter() {
+            for choice in &sorted_choices {
                 let candidate =
                     candidates_map.get(&choice.id).ok_or_else(|| {
                         "choice id is not a valid candidate".to_string()
@@ -141,25 +197,26 @@ impl RawBallotCodec for Contest {
                     // getBases() to end it with a zero
                     choices.push(0);
                 }
-                if choice.write_in_text.is_some() && is_write_in {
-                    let text = choice.write_in_text.clone().unwrap();
-                    if text.is_empty() {
-                        // we don't do a bases.push_back(256) as this is done in
-                        // getBases() to end it with a zero
-                        choices.push(0);
-                    } else {
-                        // MAPPER
-                        let base = char_map.base();
-                        let bytes = char_map.to_bytes(&text)?;
-                        for byte in bytes {
-                            choices.push(byte as u64);
-                            bases.push(base);
-                        }
+                if let Some(text) = choice.write_in_text.clone() {
+                    if is_write_in {
+                        if text.is_empty() {
+                            // we don't do a bases.push_back(256) as this is done in
+                            // getBases() to end it with a zero
+                            choices.push(0);
+                        } else {
+                            // MAPPER
+                            let base = char_map.base();
+                            let bytes = char_map.to_bytes(&text)?;
+                            for byte in bytes {
+                                choices.push(u64::from(byte));
+                                bases.push(base);
+                            }
 
-                        // End it with a zero. we don't do a
-                        // bases.push_back(256) as this is
-                        // done in getBases()
-                        choices.push(0);
+                            // End it with a zero. we don't do a
+                            // bases.push_back(256) as this is
+                            // done in getBases()
+                            choices.push(0);
+                        }
                     }
                 }
             }
@@ -181,7 +238,8 @@ impl RawBallotCodec for Contest {
         // the end of the function
 
         let choices = raw_ballot.choices.clone();
-        let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
+        let is_explicit_invalid: bool =
+            !choices.is_empty() && choices.first().is_some_and(|v| *v > 0);
 
         // Prepare the return value to pass it around, its values can still be
         // modified.
@@ -209,7 +267,7 @@ impl RawBallotCodec for Contest {
             .collect();
         // 4. Do some verifications on the number of choices: Checking that the
         //    raw_ballot has as many choices as required
-        if choices.len() < valid_candidates.len() + 1 {
+        if choices.len() < valid_candidates.len().saturating_add(1) {
             // Invalid Ballot: Not enough choices to decode
             decoded_contest.invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
@@ -231,113 +289,47 @@ impl RawBallotCodec for Contest {
             }
             // TODO: here we do return an error, because it's difficult to
             // recover from this one
-            let choice_value = choices[index]
-                .clone()
+            let choice_value = choices
+                .get(index)
+                .ok_or_else(|| "choice index out of range".to_string())?
                 .to_i64()
                 .ok_or_else(|| "choice out of range".to_string())?;
 
             decoded_contest.choices.push(DecodedVoteChoice {
                 id: candidate.id.clone(),
-                selected: choice_value - 1,
+                selected: choice_value
+                    .checked_sub(1)
+                    .ok_or_else(|| "Overflow in selected-1".to_string())?,
                 write_in_text: None,
             });
 
-            index += 1;
-        }
-        // 6. Decode the write-in texts into UTF-8 and split by the \0
-        // character,    finally the text for the write-ins.
-        let mut write_in_index = index;
-        for candidate in &write_in_candidates {
-            if write_in_index >= choices.len() {
-                break;
-            }
-            // collect the string bytes
-            let mut write_in_bytes: Vec<u8> = vec![];
-
-            while write_in_index < choices.len() && choices[write_in_index] != 0
-            {
-                let value_res = choices[write_in_index]
-                    .to_u8()
-                    .ok_or_else(|| "Write-in choice out of range".to_string());
-
-                if let Ok(new_value) = value_res {
-                    write_in_bytes.push(new_value);
-                } else {
-                    decoded_contest.invalid_errors.push(
-                        InvalidPlaintextError {
-                            error_type:
-                                InvalidPlaintextErrorType::EncodingError,
-                            candidate_id: Some(candidate.id.clone()),
-                            message: Some(
-                                "errors.encoding.writeInChoiceOutOfRange"
-                                    .to_string(),
-                            ),
-                            message_map: HashMap::from([(
-                                "index".to_string(),
-                                write_in_index.to_string(),
-                            )]),
-                        },
-                    );
-                }
-
-                write_in_index += 1;
-            }
-
-            // check index is not out of bounds
-            if write_in_index >= choices.len() {
-                decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::EncodingError,
-                    candidate_id: Some(candidate.id.clone()),
-                    message: Some(
-                        "errors.encoding.writeInNotEndInZero".to_string(),
-                    ),
-                    message_map: HashMap::new(),
-                });
-            }
-            // skip the 0 character
-            else if choices[write_in_index] == 0 {
-                write_in_index += 1;
-            }
-
-            // MAPPER
-            let write_in_str_res = char_map.to_string(&write_in_bytes);
-
-            if write_in_str_res.is_err() {
-                decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::EncodingError,
-                    candidate_id: Some(candidate.id.clone()),
-                    message: Some(
-                        "errors.encoding.bytesToUtf8Conversion".to_string(),
-                    ),
-                    message_map: HashMap::from([(
-                        "errorMessage".to_string(),
-                        write_in_str_res.clone().unwrap_err(),
-                    )]),
-                });
-            }
-
-            let write_in_str = write_in_str_res.map(Some).unwrap_or(None);
-
-            // add write_in to choice
-            let n = decoded_contest
-                .choices
-                .iter()
-                .position(|choice| choice.id == candidate.id)
-                .unwrap();
-            let mut choice = decoded_contest.choices[n].clone();
-            choice.write_in_text = write_in_str;
-            decoded_contest.choices[n] = choice;
+            index = index
+                .checked_add(1)
+                .ok_or_else(|| "Overflow in index+1".to_string())?;
         }
 
-        if write_in_index < choices.len() {
-            decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::EncodingError,
-                candidate_id: None,
-                message: Some("errors.encoding.ballotTooLarge".to_string()),
-                message_map: HashMap::new(),
-            });
-        }
+        // 6. Decode the write-in texts into UTF-8 and split by the \0 character
+        decode_write_ins(
+            &write_in_candidates,
+            &mut decoded_contest,
+            &choices,
+            char_map.as_ref(),
+            index,
+        );
 
+        self.update_decoded_contest_policies(
+            &mut decoded_contest,
+            is_explicit_invalid,
+        );
+        Ok(decoded_contest)
+    }
+
+    /// Updates all policy checks and error/alert fields for a decoded contest.
+    fn update_decoded_contest_policies(
+        &self,
+        decoded_contest: &mut DecodedVoteContest,
+        is_explicit_invalid: bool,
+    ) {
         let presentation = self.presentation.clone().unwrap_or_default();
 
         let invalid_vote_policy_errors =
@@ -355,7 +347,7 @@ impl RawBallotCodec for Contest {
             check_max_min_votes_policy(self.max_votes, self.min_votes);
         decoded_contest.update(maxmin_errors);
 
-        if let Some(max_votes) = max_votes.clone() {
+        if let Some(max_votes) = max_votes {
             let overvote_check = check_over_vote_policy(
                 &presentation,
                 num_selected_candidates,
@@ -363,7 +355,7 @@ impl RawBallotCodec for Contest {
             );
             decoded_contest.update(overvote_check);
         }
-        if let Some(min_votes) = min_votes.clone() {
+        if let Some(min_votes) = min_votes {
             let min_check =
                 check_min_vote_policy(num_selected_candidates, min_votes);
             decoded_contest.update(min_check);
@@ -372,8 +364,8 @@ impl RawBallotCodec for Contest {
         let under_vote_check = check_under_vote_policy(
             &presentation,
             num_selected_candidates,
-            max_votes.clone(),
-            min_votes.clone(),
+            max_votes,
+            min_votes,
         );
         decoded_contest.update(under_vote_check);
 
@@ -406,16 +398,110 @@ impl RawBallotCodec for Contest {
                 }
             }
         }
-
-        Ok(decoded_contest)
     }
 }
 
+/// Helper to decode write-in candidates for `decode_from_raw_ballot`
+fn decode_write_ins(
+    write_in_candidates: &[&Candidate],
+    decoded_contest: &mut DecodedVoteContest,
+    choices: &[u64],
+    char_map: &dyn CharacterMap,
+    mut write_in_index: usize,
+) {
+    for candidate in write_in_candidates {
+        if write_in_index >= choices.len() {
+            break;
+        }
+        // collect the string bytes
+        let mut write_in_bytes: Vec<u8> = vec![];
+
+        while write_in_index < choices.len()
+            && choices.get(write_in_index).is_some_and(|v| *v != 0)
+        {
+            let value_res = choices
+                .get(write_in_index)
+                .ok_or_else(|| "write_in_index out of range".to_string())
+                .and_then(|v| {
+                    v.to_u8().ok_or_else(|| {
+                        "Write-in choice out of range".to_string()
+                    })
+                });
+
+            if let Ok(new_value) = value_res {
+                write_in_bytes.push(new_value);
+            } else {
+                decoded_contest.invalid_errors.push(InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::EncodingError,
+                    candidate_id: Some(candidate.id.clone()),
+                    message: Some(
+                        "errors.encoding.writeInChoiceOutOfRange".to_string(),
+                    ),
+                    message_map: HashMap::from([(
+                        "index".to_string(),
+                        write_in_index.to_string(),
+                    )]),
+                });
+            }
+
+            write_in_index =
+                write_in_index.checked_add(1).unwrap_or(choices.len());
+        }
+
+        // check index is not out of bounds
+        if write_in_index >= choices.len() {
+            decoded_contest.invalid_errors.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::EncodingError,
+                candidate_id: Some(candidate.id.clone()),
+                message: Some(
+                    "errors.encoding.writeInNotEndInZero".to_string(),
+                ),
+                message_map: HashMap::new(),
+            });
+        }
+        // skip the 0 character
+        else if choices.get(write_in_index).is_some_and(|v| *v == 0) {
+            write_in_index =
+                write_in_index.checked_add(1).unwrap_or(choices.len());
+        }
+
+        // MAPPER
+        let write_in_str_res = char_map.to_string(&write_in_bytes);
+
+        if write_in_str_res.is_err() {
+            decoded_contest.invalid_errors.push(InvalidPlaintextError {
+                error_type: InvalidPlaintextErrorType::EncodingError,
+                candidate_id: Some(candidate.id.clone()),
+                message: Some(
+                    "errors.encoding.bytesToUtf8Conversion".to_string(),
+                ),
+                message_map: HashMap::from([(
+                    "errorMessage".to_string(),
+                    write_in_str_res
+                        .clone()
+                        .expect_err("Expected error in write_in_str_res"),
+                )]),
+            });
+        }
+
+        let write_in_str = write_in_str_res.ok();
+
+        // add write_in to choice
+        let n = decoded_contest
+            .choices
+            .iter()
+            .position(|choice| choice.id == candidate.id)
+            .expect("Choice for write-in candidate not found");
+        if let Some(choice_mut) = decoded_contest.choices.get_mut(n) {
+            choice_mut.write_in_text = write_in_str;
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
-    use raw_ballot::EUnderVotePolicy;
 
     use crate::ballot;
+    use crate::ballot::EUnderVotePolicy;
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::mixed_radix::encode;

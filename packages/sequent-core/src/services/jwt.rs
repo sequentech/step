@@ -74,23 +74,33 @@ pub struct JwtClaims {
 }
 
 #[instrument(err, skip_all)]
+/// Decodes a JWT token string into `JwtClaims`.
+///
+/// # Errors
+/// Returns an error if the token is malformed, cannot be base64 decoded, is not valid UTF-8, or cannot be deserialized into `JwtClaims`.
+#[allow(clippy::arithmetic_side_effects)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
     let bytes = general_purpose::URL_SAFE_NO_PAD
         .decode(part)
-        .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
+        .map_err(|err| anyhow!("Error decoding string: {err:?}"))?;
     let json = String::from_utf8(bytes)
-        .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
-    debug!("json: {:?}", json);
+        .map_err(|err| anyhow!("Error decoding bytes to utf8: {err:?}"))?;
+    debug!("json: {json:?}");
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
-        anyhow!("Error decoding string into formatted json: {:?}", err)
+        anyhow!("Error decoding string into formatted json: {err:?}")
     })?;
 
     Ok(claims)
 }
 
+/// Decodes the permission labels from the JWT claims.
+///
+/// # Errors
+/// Returns an empty vector if no permission labels are present.
 #[instrument(skip_all, ret)]
+#[allow(clippy::arithmetic_side_effects)]
 pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
         return vec![];
@@ -109,7 +119,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     // Process each item: trim whitespace and surrounding quotes
     let keys: Vec<String> = items
         .map(|item| item.trim().trim_matches('"').to_string())
-        .filter(|item| item.len() > 0)
+        .filter(|item| !item.is_empty())
         .collect();
     keys
 }
@@ -119,6 +129,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
  * authentication is fresh, i.e. performed less than 60 seconds ago.
  */
 #[instrument(skip_all)]
+#[allow(clippy::arithmetic_side_effects)]
 pub fn has_gold_permission(claims: &JwtClaims) -> bool {
     let auth_time_local: DateTime<Local> =
         if let Some(auth_time_int) = claims.auth_time {

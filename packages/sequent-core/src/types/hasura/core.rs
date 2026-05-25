@@ -22,6 +22,8 @@ use crate::{
     },
 };
 
+/// Election event preview url and metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Preview {
     pub id: String,
@@ -34,6 +36,8 @@ pub struct Preview {
     pub annotations: Option<Value>,
 }
 
+/// Ballot publication metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {
     pub id: String,
@@ -50,6 +54,8 @@ pub struct BallotPublication {
     pub election_id: Option<String>,
 }
 
+/// Ballot style metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotStyle {
     pub id: String,
@@ -68,6 +74,8 @@ pub struct BallotStyle {
     pub ballot_publication_id: String,
 }
 
+/// Electoral area or district.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Area {
     pub id: String,
@@ -84,6 +92,8 @@ pub struct Area {
     pub presentation: Option<Value>,
 }
 
+/// Election event metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionEvent {
     pub id: String,
@@ -107,6 +117,8 @@ pub struct ElectionEvent {
     pub external_id: Option<String>,
 }
 
+/// Election within an event.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Election {
     pub id: String,
@@ -134,6 +146,8 @@ pub struct Election {
     pub keys_ceremony_id: Option<String>,
 }
 
+/// Contest within an election.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Contest {
     pub id: String,
@@ -160,6 +174,8 @@ pub struct Contest {
     pub external_id: Option<String>,
 }
 
+/// Candidate standing in a contest.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Candidate {
     pub id: String,
@@ -178,6 +194,8 @@ pub struct Candidate {
     pub external_id: Option<String>,
 }
 
+/// Stored document metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
     pub id: String,
@@ -193,6 +211,8 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
+/// Support material attached to an event.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct SupportMaterial {
     pub id: String,
@@ -208,6 +228,8 @@ pub struct SupportMaterial {
     pub is_hidden: Option<bool>,
 }
 
+/// Store if voting is enabled in each channel.
+#[allow(missing_docs)]
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
@@ -229,6 +251,8 @@ impl Default for VotingChannels {
     }
 }
 
+/// Minimal metadata for an election.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct ElectionType {
     pub id: String,
@@ -258,6 +282,8 @@ pub struct CastVote {
 }
 */
 
+/// Template for generated reports or communications.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
     pub alias: String,
@@ -272,6 +298,8 @@ pub struct Template {
     pub r#type: String,
 }
 
+/// Application submitted by a voter.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Application {
     pub id: String,
@@ -288,6 +316,8 @@ pub struct Application {
     pub status: String,
 }
 
+/// Mapping between area and contest.
+#[allow(missing_docs)]
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct AreaContest {
     pub id: String,
@@ -295,6 +325,8 @@ pub struct AreaContest {
     pub contest_id: String,
 }
 
+/// Tally sheet contents and metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySheet {
     pub id: String,
@@ -315,6 +347,8 @@ pub struct TallySheet {
     pub created_by_user_id: String,
 }
 
+/// Keys ceremony configuration and state.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct KeysCeremony {
     pub id: String,
@@ -335,34 +369,44 @@ pub struct KeysCeremony {
 }
 
 impl KeysCeremony {
+    /// Returns true if this is the default ceremony.
+    #[must_use]
     pub fn is_default(&self) -> bool {
-        self.is_default.clone().unwrap_or(true)
+        self.is_default.unwrap_or(true)
     }
 
+    /// Returns the execution status.
+    ///
+    /// # Errors
+    /// Returns an error if the status string cannot be parsed.
     pub fn execution_status(&self) -> Result<KeysCeremonyExecutionStatus> {
         let execution_status_str =
-            self.execution_status.clone().unwrap_or_default();
-        KeysCeremonyExecutionStatus::from_str(&execution_status_str)
-            .map_err(|err| anyhow!("{:?}", err))
+            self.execution_status.as_deref().unwrap_or("");
+        KeysCeremonyExecutionStatus::from_str(execution_status_str)
+            .map_err(|err| anyhow!("{err:?}"))
     }
 
+    /// # Errors
+    /// Returns an error if the status value cannot be deserialized.
     pub fn status(&self) -> Result<KeysCeremonyStatus> {
         deserialize_value(self.status.clone().unwrap_or_default())
-            .map_err(|err| anyhow!("{:?}", err))
+            .map_err(|err| anyhow!("{err:?}"))
     }
 
+    /// Returns the ceremonies policy, defaulting to manual ceremonies if not set or invalid.
+    #[must_use]
     pub fn policy(&self) -> CeremoniesPolicy {
         let settings = self.settings.as_ref().unwrap_or(&Value::Null);
         settings
             .get("policy")
-            .and_then(|value: &Value| value.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
-            .parse::<CeremoniesPolicy>()
+            .and_then(|value| value.as_str())
+            .and_then(|s| s.parse::<CeremoniesPolicy>().ok())
             .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
     }
 }
 
+/// Tally session configuration options.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TallySessionConfiguration {
     pub report_content_template_id: Option<String>,
@@ -373,22 +417,32 @@ pub struct TallySessionConfiguration {
 }
 
 impl TallySessionConfiguration {
+    /// Returns the contest encryption policy.
+    #[must_use]
     pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
         self.contest_encryption_policy.clone().unwrap_or_default()
     }
+    /// Returns the delegated voting policy.
+    #[must_use]
     pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
         self.delegated_voting_policy.clone().unwrap_or_default()
     }
+    /// Returns the decoded ballots inclusion policy.
+    #[must_use]
     pub fn get_decoded_ballots_policy(&self) -> DecodedBallotsInclusionPolicy {
         self.decoded_ballots_inclusion_policy
             .clone()
             .unwrap_or_default()
     }
+    /// Returns the consolidated report policy.
+    #[must_use]
     pub fn get_consolidated_report_policy(&self) -> ConsolidatedReportPolicy {
         self.consolidated_report_policy.clone().unwrap_or_default()
     }
 }
 
+/// Tally session record.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySession {
     pub id: String,
@@ -408,6 +462,8 @@ pub struct TallySession {
     pub tally_type: Option<String>,
     pub permission_label: Option<Vec<String>>,
 }
+/// Aggregate annotations for a session contest.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
@@ -415,6 +471,8 @@ pub struct TallySessionContestAnnotations {
     pub casted_ballots: u64,
 }
 
+/// Contest entry for a tally session.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySessionContest {
     pub id: String,
@@ -431,6 +489,8 @@ pub struct TallySessionContest {
     pub election_id: String,
 }
 
+/// Execution details for a tally session.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySessionExecution {
     pub id: String,
@@ -448,6 +508,8 @@ pub struct TallySessionExecution {
     pub documents: Option<Value>,
 }
 
+/// Task execution record for background tasks.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TasksExecution {
     pub id: String,
@@ -465,6 +527,8 @@ pub struct TasksExecution {
     pub executed_by_user: String,
 }
 
+/// Trustee (key holder) information.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Trustee {
     pub id: String,
@@ -477,6 +541,8 @@ pub struct Trustee {
     pub tenant_id: String,
 }
 
+/// Tenant configuration and metadata.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Tenant {
     pub id: String,

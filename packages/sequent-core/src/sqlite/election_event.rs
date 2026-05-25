@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_election_event_sqlite(
+/// Creates an election event in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_election_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     election_event: ElectionEvent,
 ) -> Result<()> {

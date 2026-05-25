@@ -9,7 +9,11 @@ use rusqlite::{params, Transaction};
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_area_contest_sqlite(
+/// Creates area contests in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_area_contest_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_area_sqlite(
+/// Creates areas in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     areas: Vec<Area>,
 ) -> Result<()> {
@@ -45,8 +49,12 @@ pub async fn create_area_sqlite(
             area.id,
             area.tenant_id,
             area.election_event_id,
-            area.created_at.as_ref().map(|dt| dt.to_string()),
-            area.last_updated_at.as_ref().map(|dt| dt.to_string()),
+            area.created_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
+            area.last_updated_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
             area.labels.as_ref().and_then(|v| to_string(v).ok()),
             area.annotations.as_ref().and_then(|v| to_string(v).ok()),
             area.name,

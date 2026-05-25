@@ -4,19 +4,19 @@
 use anyhow::{anyhow, Result};
 use ordered_float::NotNan;
 
-// Newtype wrapper for f64
+/// Newtype wrapper for f64.
 pub struct FloatWrapper(pub f64);
 
-// Implement TryFrom for the wrapper type
+/// Implements `TryFrom` for the wrapper type.
 impl TryFrom<FloatWrapper> for NotNan<f64> {
     type Error = anyhow::Error;
 
     fn try_from(wrapper: FloatWrapper) -> Result<Self> {
-        NotNan::new(wrapper.0).map_err(|err| anyhow!("{:?}", err))
+        NotNan::new(wrapper.0).map_err(|err| anyhow!("{err:?}"))
     }
 }
 
-// Optional: Implement From<f64> for FloatWrapper for convenience
+/// Implements `From<f64>` for `FloatWrapper` for convenience.
 impl From<f64> for FloatWrapper {
     fn from(value: f64) -> Self {
         FloatWrapper(value)

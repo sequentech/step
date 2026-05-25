@@ -10,6 +10,10 @@ use std::io::{self, BufWriter, Read, Seek, Write};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 
+/// Gets the public assets path from the environment variable.
+///
+/// # Errors
+/// Returns an error if the environment variable is not set or invalid.
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
         Ok(path) => Ok(path),
@@ -18,25 +22,30 @@ pub fn get_public_assets_path_env_var() -> Result<String> {
     }
 }
 
+/// Gets the file size for the given file path.
+///
+/// # Errors
+/// Returns an error if the file does not exist or cannot be accessed.
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata =
         fs::metadata(filepath).with_context(|| "Error get file size")?;
     Ok(metadata.len())
 }
 
-/*
- * Writes data into a named temp file. The temp file will have the
- * specificed prefix and suffix.
- *
- * Returns the TempPath of the file, the stringified version of the path to
- * the file and the bytes size of the file.
- *
- * NOTE: The file will be dropped when the TempPath goes out of the scope.
- * Returning the TempPath, even if the variable goes unused, allows the
- * caller to control the lifetime of the created temp file.
- */
+/// Writes data into a named temp file. The temp file will have the
+/// specificed prefix and suffix.
+///
+/// Returns the `TempPath` of the file, the stringified version of the path to
+/// the file and the bytes size of the file.
+///
+/// NOTE: The file will be dropped when the `TempPath` goes out of the scope.
+/// Returning the `TempPath`, even if the variable goes unused, allows the
+/// caller to control the lifetime of the created temp file.
+///
+/// # Errors
+/// Returns an error if the file cannot be created or written.
 pub fn write_into_named_temp_file(
-    data: &Vec<u8>,
+    data: &[u8],
     prefix: &str,
     suffix: &str,
 ) -> Result<(TempPath, String, u64)> {
@@ -48,7 +57,7 @@ pub fn write_into_named_temp_file(
             .with_context(|| "Couldn't reopen file for writing")?;
         let mut buf_writer = BufWriter::new(file2);
         buf_writer
-            .write(&data)
+            .write(data)
             .with_context(|| "Error writing into named temp file")?;
         buf_writer
             .flush()
@@ -61,6 +70,10 @@ pub fn write_into_named_temp_file(
     Ok((temp_path, temp_path_string, file_size))
 }
 
+/// Generates a named temporary file with the given prefix and suffix.
+///
+/// # Errors
+/// Returns an error if the file cannot be created.
 pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
@@ -78,6 +91,10 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     Ok(temp_file)
 }
 
+/// Reads the contents of a named temporary file.
+///
+/// # Errors
+/// Returns an error if the file cannot be read.
 pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
     temp_file
@@ -92,6 +109,10 @@ pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     Ok(file_bytes)
 }
 
+/// Reads the contents of a temporary file path.
+///
+/// # Errors
+/// Returns an error if the file cannot be read.
 pub fn read_temp_path(temp_path: &TempPath) -> Result<Vec<u8>> {
     let mut file =
         File::open(temp_path).with_context(|| "Error opening temp file")?;

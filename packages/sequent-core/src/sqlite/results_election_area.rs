@@ -7,8 +7,13 @@ use rusqlite::{params, Transaction};
 use serde_json::to_string;
 use tracing::instrument;
 
+/// Creates results election area in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
 #[instrument(err, skip_all)]
-pub async fn create_results_election_area_sqlite(
+#[allow(clippy::too_many_arguments)]
+pub fn create_results_election_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     results_event_id: &str,
@@ -46,7 +51,7 @@ pub async fn create_results_election_area_sqlite(
     )?;
 
     let docs_json = to_string(documents)
-        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {}", e))?;
+        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {e}"))?;
 
     insert.execute(params![
         tenant_id,

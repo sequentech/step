@@ -12,6 +12,11 @@ use std::env;
 use tracing::{error, info, instrument};
 
 #[instrument(skip(claims))]
+#[allow(clippy::needless_pass_by_value)]
+/// Authorizes a user based on JWT claims, tenant, and permissions.
+///
+/// # Errors
+/// Returns an error if the user is not authorized or required environment variables are missing.
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
@@ -31,7 +36,7 @@ pub fn authorize(
                 .map_err(|_| {
                     (
                         Status::Unauthorized,
-                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                        "SUPER_ADMIN_TENANT_ID must be set".to_string(),
                     )
                 })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");
@@ -46,7 +51,7 @@ pub fn authorize(
             tenant_id_opt: {tenant_id_opt:?}, claims tenant_id: {}",
             claims.hasura_claims.tenant_id
         );
-        return Err((Status::Unauthorized, format!("Unathorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
+        return Err((Status::Unauthorized, format!("Unauthorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
     }
 
     let perms_str: Vec<String> = permissions
@@ -58,18 +63,22 @@ pub fn authorize(
     let all_contained =
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
-    if !all_contained {
+    if all_contained {
+        Ok(())
+    } else {
         Err((
             Status::Unauthorized,
             format!("Unathorized: {perms_str:?} not in {permissions_set:?}"),
         ))
-    } else {
-        Ok(())
     }
 }
 
-// returns area_id
 #[instrument(skip(claims))]
+/// Authorizes a voter for an election based on JWT claims and permissions.
+// / Returns area_id
+///
+/// # Errors
+/// Returns an error if the voter is not authorized for the election or required claims are missing.
 pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
@@ -85,7 +94,7 @@ pub fn authorize_voter_election(
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
-        return Err((Status::Unauthorized, "".into()));
+        return Err((Status::Unauthorized, String::new()));
     }
 
     let Some(area_id) = claims.hasura_claims.area_id.clone() else {

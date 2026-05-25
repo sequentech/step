@@ -6,13 +6,21 @@ use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::REALM_ATTR_VOTER_CERTIFICATE_POLICY;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::str::FromStr;
 use tracing::{info, instrument, warn};
 
-pub async fn update_realm_attributes(
+/// Updates custom attributes on the Keycloak realm for the given election event.
+//
+///
+/// # Errors
+///
+/// Returns an error if the Keycloak admin client cannot be created, if fetching or
+/// updating the realm fails, or if the underlying HTTP client reports an error.
+pub async fn update_realm_attributes<S: BuildHasher + Send>(
     tenant_id: &str,
     election_event_id: &str,
-    attributes: HashMap<String, String>,
+    attributes: HashMap<String, String, S>,
 ) -> Result<()> {
     KeycloakAdminClient::new()
         .await
@@ -26,17 +34,22 @@ pub async fn update_realm_attributes(
 }
 
 impl KeycloakAdminClient {
+    /// Update `attributes` into the realm's existing Keycloak realm attributes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the realm cannot be read or updated via the Keycloak Admin API.
     #[instrument(skip(self), err)]
-    pub async fn update_realm_attributes(
+    pub async fn update_realm_attributes<S: BuildHasher + Send>(
         self,
         realm: &str,
-        attributes: HashMap<String, String>,
+        attributes: HashMap<String, String, S>,
     ) -> Result<()> {
         let mut current_realm = self
             .client
             .realm_get(realm)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         let mut current_attributes =
             current_realm.attributes.unwrap_or_default();
@@ -65,7 +78,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_put(realm, current_realm)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         Ok(())
     }

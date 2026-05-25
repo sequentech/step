@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_election_sqlite(
+/// Creates elections in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_election_sqlite(
     sqlite_transaction: &Transaction<'_>,
     elections: Vec<Election>,
 ) -> Result<()> {
@@ -67,9 +71,15 @@ pub async fn create_election_sqlite(
             // 3
             election.election_event_id,
             // 4
-            election.created_at.as_ref().map(|dt| dt.to_string()),
+            election
+                .created_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
             // 5
-            election.last_updated_at.as_ref().map(|dt| dt.to_string()),
+            election
+                .last_updated_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
             // 6
             election.labels.as_ref().and_then(|v| to_string(v).ok()),
             // 7

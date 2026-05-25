@@ -19,6 +19,9 @@ on:
       - 'docs/docusaurus/**'
       - 'docs/api/graphql/**'
       - 'packages/graphql.schema.json'
+      - 'packages/**'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
     branches:
       - main
       - release/*
@@ -32,6 +35,9 @@ permissions:
 jobs:
   build:
     runs-on: gcp-selfhosted-ubuntu24
+    env:
+      CARGO_TARGET_DIR: rust-local-target
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +47,18 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 22.x
-          
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate cargo docs (Rust crates)
+        working-directory: ./packages
+        run: |
+          cargo doc -p sequent-core --all-features --no-deps
+          cargo doc -p velvet --all-features --no-deps
+          cargo doc -p harvest --all-features --no-deps
+          cargo doc -p step-cli --all-features --no-deps
+
       - name: Set BASE_URL and Build Docusaurus Preview
         id: build_docusaurus
         working-directory: ./docs/docusaurus
@@ -64,7 +81,14 @@ jobs:
           yarn install --frozen-lockfile
           yarn generate-full-docs
           ls -lah docs/
-          cp -r docs ../../docusaurus/build/graphql
+          mkdir -p ../../docusaurus/build/graphql
+          cp -r docs/* ../../docusaurus/build/graphql/
+
+      - name: Copy cargo doc output into published site
+        run: |
+          mkdir -p ./docs/docusaurus/build/rust
+          cp -r ./packages/${CARGO_TARGET_DIR}/doc/* ./docs/docusaurus/build/rust/
+          ls -lah ./docs/docusaurus/build/rust
 
       - name: Install rsync
         run: sudo apt-get update && sudo apt-get install -y rsync

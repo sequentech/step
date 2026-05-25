@@ -1,11 +1,16 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
+use crate::ballot::Contest;
 use phf::phf_map;
 use std::str;
 
 impl Contest {
+    /// Returns the appropriate character map for this contest.
+    ///
+    /// # Returns
+    /// A boxed trait object implementing `CharacterMap`.
+    #[must_use]
     pub fn get_char_map(&self) -> Box<dyn CharacterMap> {
         if self.base32_writeins() {
             Box::new(Base32Map)
@@ -15,62 +20,93 @@ impl Contest {
     }
 }
 
+/// Trait for mapping between characters and bytes for ballot encoding.
 pub trait CharacterMap {
+    /// Converts a string to a vector of bytes according to the map.
+    ///
+    /// # Errors
+    /// Returns an error if the string contains characters that cannot be mapped.
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String>;
+
+    /// Converts a byte slice to a string according to the map.
+    ///
+    /// # Errors
+    /// Returns an error if the byte slice contains bytes that cannot be mapped.
     fn to_string(&self, bytes: &[u8]) -> Result<String, String>;
+
+    /// Returns the base (number of possible values) for this character map.
     fn base(&self) -> u64;
 }
 
+/// UTF-8 character map for ballot encoding.
 pub struct Utf8Map;
+/// Base32 character map for ballot encoding.
 pub struct Base32Map;
 
 impl CharacterMap for Utf8Map {
+    /// Converts a string to a vector of UTF-8 bytes.
+    ///
+    /// # Errors
+    /// This implementation never returns an error.
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String> {
         Ok(s.as_bytes().to_vec())
     }
+
+    /// Converts a UTF-8 byte slice to a string.
+    ///
+    /// # Errors
+    /// Returns an error if the bytes are not valid UTF-8.
     fn to_string(&self, bytes: &[u8]) -> Result<String, String> {
-        str::from_utf8(&bytes)
-            .map_err(|e| format!("{}", e))
-            .map(|s| s.to_string())
+        str::from_utf8(bytes)
+            .map_err(|e| e.to_string())
+            .map(str::to_string)
     }
+
+    /// Returns the base for UTF-8 (256).
     fn base(&self) -> u64 {
         256u64
     }
 }
 
 impl CharacterMap for Base32Map {
+    /// Converts a string to a vector of Base32-mapped bytes.
+    ///
+    /// # Errors
+    /// Returns an error if the string contains characters that cannot be mapped.
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String> {
         s.to_uppercase()
             .chars()
             .map(|c| {
-                TO_BYTE
-                    .get(&c)
-                    .ok_or(format!(
-                        "Character '{}' cannot be mapped to byte",
-                        c
-                    ))
-                    .copied()
+                TO_BYTE.get(&c).copied().ok_or_else(|| {
+                    format!("Character '{c}' cannot be mapped to byte")
+                })
             })
             .collect()
     }
+
+    /// Converts a Base32-mapped byte slice to a string.
+    ///
+    /// # Errors
+    /// Returns an error if the bytes cannot be mapped to characters.
     fn to_string(&self, bytes: &[u8]) -> Result<String, String> {
         let chars: Result<Vec<char>, String> = bytes
             .iter()
-            .map(|b| {
-                TO_CHAR
-                    .get(&b)
-                    .ok_or(format!("Byte '{}' cannot be mapped to char", b))
-                    .copied()
+            .map(|&b| {
+                TO_CHAR.get(&b).copied().ok_or_else(|| {
+                    format!("Byte '{b}' cannot be mapped to char")
+                })
             })
             .collect();
-
         Ok(String::from_iter(chars?))
     }
+
+    /// Returns the base for Base32 (32).
     fn base(&self) -> u64 {
         32u64
     }
 }
 
+/// PHF map from characters to bytes for Base32 encoding.
 pub static TO_BYTE: phf::Map<char, u8> = phf_map! {
     // 0 is reserved for null terminator
     'A' => 1u8,
@@ -105,6 +141,7 @@ pub static TO_BYTE: phf::Map<char, u8> = phf_map! {
     '.' => 30u8,
     ',' => 31u8,
 };
+/// PHF map from bytes to characters for Base32 encoding.
 pub static TO_CHAR: phf::Map<u8, char> = phf_map! {
     // 0 is reserved for null terminator
     1u8 => 'A',

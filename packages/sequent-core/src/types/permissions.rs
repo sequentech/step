@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
-
+#[allow(missing_docs)]
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -380,6 +380,7 @@ pub enum Permissions {
 }
 
 #[allow(non_camel_case_types)]
+#[allow(missing_docs)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]

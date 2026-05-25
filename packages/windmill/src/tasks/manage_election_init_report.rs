@@ -76,7 +76,7 @@ async fn manage_election_init_report_wrapped(
 
     // Update init_report based on event_payload
     let updated_status = ElectionStatus {
-        init_report: if event_payload.allow_init == Some(true) {
+        init_report: if event_payload.allow_init == true {
             InitReport::ALLOWED
         } else {
             InitReport::DISALLOWED

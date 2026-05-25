@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[allow(clippy::too_many_lines)]
+#[must_use]
 /// Maps an ISO 639-2/T three-letter code to its ISO 639-1 two-letter equivalent.
 ///
 /// Keycloak (and BCP 47 in general) uses ISO 639-1 codes where they exist. The
@@ -10,7 +12,7 @@
 /// three-letter ISO 639-2/T codes that have a different two-letter form need
 /// mapping.
 ///
-/// Reference: https://www.loc.gov/standards/iso639-2/php/code_list.php
+/// Reference: <https://www.loc.gov/standards/iso639-2/php/code_list.php>
 pub fn iso_639_2t_to_bcp47(lang: &str) -> &str {
     match lang {
         "aar" => "aa", // Afar
@@ -195,6 +197,7 @@ pub fn iso_639_2t_to_bcp47(lang: &str) -> &str {
     }
 }
 
+#[must_use]
 /// Normalizes an external locale representation into the internal language code
 /// used by the web frontends.
 ///

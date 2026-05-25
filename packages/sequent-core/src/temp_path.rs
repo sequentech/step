@@ -10,26 +10,48 @@ use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, instrument, Level};
 
-pub const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
-pub const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
-pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
-pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
-pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &'static str =
+/// The template for the QR code in the public assets.
+pub const QR_CODE_TEMPLATE: &str = "<div id=\"qrcode\"></div>";
+/// The template html for the logo in the public assets.
+pub const LOGO_TEMPLATE: &str = "<div class=\"logo\"></div>";
+/// The filename for the logo image in the public assets.
+pub const PUBLIC_ASSETS_LOGO_IMG: &str = "sequent-logo.svg";
+/// The filename for the QR code library in the public assets.
+pub const PUBLIC_ASSETS_QRCODE_LIB: &str = "qrcode.min.js";
+/// The template for the ballot images page for the ballot images report.
+pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &str =
     "ballot_images_user.hbs";
-pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM: &'static str =
-    "ballot_images_system.hbs";
-pub const PUBLIC_ASSETS_VELVET_MC_BALLOT_IMAGES_TEMPLATE: &'static str =
-    "mc_ballot_images_user.hbs";
-pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
-pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &'static str =
-    "Ballot images - Sequentech";
-pub const PUBLIC_ASSETS_I18N_DEFAULTS: &'static str = "i18n_defaults.json";
 
-pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM: &'static str =
+/// The system template for the ballot images page for the ballot images report.
+pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM: &str =
+    "ballot_images_system.hbs";
+
+/// The template for the ballot images page for the MC ballot images report.
+pub const PUBLIC_ASSETS_VELVET_MC_BALLOT_IMAGES_TEMPLATE: &str =
+    "mc_ballot_images_user.hbs";
+
+/// The base template for EML documents.
+pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &str = "eml_base.hbs";
+
+/// The title for the ballot images template.
+pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &str =
+    "Ballot images - Sequentech";
+
+/// The default i18n JSON file for public assets.
+pub const PUBLIC_ASSETS_I18N_DEFAULTS: &str = "i18n_defaults.json";
+
+/// The system template for the initialization report.
+pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM: &str =
     "initialization_report_system.hbs";
-pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &'static str =
+
+/// The system template for the electoral results report.
+pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &str =
     "electoral_results_system.hbs";
 
+/// Gets the public assets path from the environment variable.
+///
+/// # Errors
+/// Returns an error if the environment variable is not set or invalid.
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
         Ok(path) => Ok(path),
@@ -37,7 +59,10 @@ pub fn get_public_assets_path_env_var() -> Result<String> {
             .with_context(|| "Error fetching PUBLIC_ASSETS_PATH env var")?,
     }
 }
-
+/// Gets the file size for the given file path.
+///
+/// # Errors
+/// Returns an error if the file does not exist or cannot be accessed.
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata = fs::metadata(filepath)?;
     Ok(metadata.len())
@@ -55,8 +80,10 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
  * caller to control the lifetime of the created temp file.
  */
 #[instrument(skip(data), err)]
+/// # Errors
+/// Returns an error if the file cannot be created or written.
 pub fn write_into_named_temp_file(
-    data: &Vec<u8>,
+    data: &[u8],
     prefix: &str,
     suffix: &str,
 ) -> Result<(TempPath, String, u64)> {
@@ -68,7 +95,7 @@ pub fn write_into_named_temp_file(
             .with_context(|| "Couldn't reopen file for writing")?;
         let mut buf_writer = BufWriter::new(file2);
         buf_writer
-            .write(&data)
+            .write(data)
             .with_context(|| "Error writing into named temp file")?;
         buf_writer
             .flush()
@@ -82,6 +109,10 @@ pub fn write_into_named_temp_file(
 }
 
 // #[instrument(ret)]
+/// Generates a named temporary file with the given prefix and suffix.
+///
+/// # Errors
+/// Returns an error if the file cannot be created.
 pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
@@ -100,6 +131,10 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
 }
 
 #[instrument(err)]
+/// Reads the contents of a named temporary file.
+///
+/// # Errors
+/// Returns an error if the file cannot be read.
 pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
     temp_file.rewind()?;
@@ -111,6 +146,10 @@ pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
 }
 
 #[instrument(err)]
+/// Reads the contents of a temporary file path.
+///
+/// # Errors
+/// Returns an error if the file cannot be read.
 pub fn read_temp_path(temp_path: &TempPath) -> Result<Vec<u8>> {
     let mut file = File::open(temp_path)?;
     let mut buffer = Vec::new();

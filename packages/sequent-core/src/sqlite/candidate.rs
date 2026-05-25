@@ -10,7 +10,11 @@ use rusqlite::{params, Transaction as SqliteTransaction};
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_candidate_sqlite(
+/// Creates candidates in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
 ) -> Result<()> {
     sqlite_transaction.execute_batch(
@@ -37,11 +41,22 @@ pub async fn create_candidate_sqlite(
 }
 
 #[instrument(err, skip_all)]
-pub async fn import_candidate_sqlite(
+/// Imports candidates from a CSV file into a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the CSV cannot be read or insertion fails.
+pub fn import_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
     contests_csv: &Path,
 ) -> Result<()> {
     tokio::task::block_in_place(|| -> anyhow::Result<()> {
+        fn opt(i: &str) -> Option<String> {
+            if i.is_empty() {
+                None
+            } else {
+                Some(i.to_string())
+            }
+        }
         let mut insert = sqlite_transaction.prepare(
             "INSERT INTO candidate (
                 id, tenant_id, election_event_id, contest_id, created_at, last_updated_at,
@@ -52,19 +67,11 @@ pub async fn import_candidate_sqlite(
 
         let mut rdr = ReaderBuilder::new()
             .has_headers(true)
-            .from_path(&contests_csv)
+            .from_path(contests_csv)
             .context("opening candidate CSV")?;
 
         for record in rdr.records() {
             let rec = record.context("CSV parse error")?;
-
-            fn opt(i: &str) -> Option<String> {
-                if i.is_empty() {
-                    None
-                } else {
-                    Some(i.to_string())
-                }
-            }
 
             let is_public = match rec.get(13).unwrap_or("") {
                 "t" | "true" => Some(true),
@@ -72,8 +79,7 @@ pub async fn import_candidate_sqlite(
                 _ if rec.get(13).unwrap_or("").is_empty() => None,
                 other => {
                     return Err(anyhow!(
-                        "Invalid boolean in is_public column: {}",
-                        other
+                        "Invalid boolean in is_public column: {other}"
                     ));
                 }
             };

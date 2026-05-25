@@ -13,6 +13,7 @@ interface IUserArea {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a user's area.
     #[wasm_bindgen(typescript_type = "IUserArea")]
     pub type IUserArea;
 }
@@ -28,6 +29,7 @@ interface IVotesInfo {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a user's voting information for a specific election.
     #[wasm_bindgen(typescript_type = "IVotesInfo")]
     pub type IVotesInfo;
 }
@@ -51,6 +53,7 @@ interface IUser {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a Keycloak user.
     #[wasm_bindgen(typescript_type = "IUser")]
     pub type IUser;
 }
@@ -68,6 +71,7 @@ interface IPermission {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a Keycloak permission.
     #[wasm_bindgen(typescript_type = "IPermission")]
     pub type IPermission;
 }
@@ -86,6 +90,7 @@ interface IRole {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a Keycloak role.
     #[wasm_bindgen(typescript_type = "IRole")]
     pub type IRole;
 }

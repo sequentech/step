@@ -360,9 +360,7 @@ pub async fn generate_results_id_if_necessary(
         tenant_id,
         election_event_id,
         &results_event_id,
-    )
-    .await
-    .context("Failed to create results event table")?;
+    )?;
     Ok(results_event_id)
 }
 
@@ -570,20 +568,18 @@ pub async fn save_results(
         }
     }
 
-    create_results_contest_sqlite(sqlite_transaction, results_contests).await?;
+    create_results_contest_sqlite(sqlite_transaction, results_contests)?;
 
-    create_results_area_contests_sqlite(sqlite_transaction, results_area_contests).await?;
+    create_results_area_contests_sqlite(sqlite_transaction, results_area_contests)?;
 
-    create_results_election_sqlite(sqlite_transaction, results_elections).await?;
+    create_results_election_sqlite(sqlite_transaction, results_elections)?;
 
-    create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)
-        .await?;
+    create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)?;
 
     create_results_area_contest_candidates_sqlite(
         sqlite_transaction,
         results_area_contest_candidates,
-    )
-    .await?;
+    )?;
 
     Ok(())
 }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
-use crate::types::keycloak::*;
+use crate::types::keycloak::Role;
 use anyhow::{anyhow, Result};
 use keycloak::types::GroupRepresentation;
 use std::convert::From;
@@ -39,6 +39,10 @@ impl From<Role> for GroupRepresentation {
 }
 
 impl KeycloakAdminClient {
+    /// Lists roles in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn list_roles(
         self,
@@ -60,25 +64,32 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         let count = group_representations.len();
         let start = offset.unwrap_or(0);
         let end = match limit {
-            Some(num) => usize::min(count, start + num),
+            Some(num) => count.min(start.saturating_add(num)),
             None => count,
         };
-        let slized_group_representations = &group_representations[start..end];
+        let slized_group_representations =
+            group_representations.get(start..end).ok_or_else(|| {
+                anyhow!("Invalid slice range for group representations")
+            })?;
         let roles = slized_group_representations
-            .into_iter()
+            .iter()
             .map(|role| role.clone().into())
             .collect();
         Ok((roles, count))
     }
 
+    /// Lists user roles in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn list_user_roles(
-        self,
+        self: &KeycloakAdminClient,
         realm: &str,
         user_id: &str,
     ) -> Result<Vec<Role>> {
@@ -93,11 +104,15 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
-        let roles = groups.into_iter().map(|group| group.into()).collect();
+            .map_err(|err| anyhow!("{err:?}"))?;
+        let roles = groups.into_iter().map(std::convert::Into::into).collect();
         Ok(roles)
     }
 
+    /// Sets a user role in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn set_user_role(
         self: &KeycloakAdminClient,
@@ -110,10 +125,14 @@ impl KeycloakAdminClient {
                 realm, user_id, role_id,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
+    /// Deletes a user role in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn delete_user_role(
         self,
@@ -126,28 +145,40 @@ impl KeycloakAdminClient {
                 realm, user_id, role_id,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
+    /// Deletes a role in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
         self.client
             .realm_groups_with_group_id_delete(realm, role_id)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
+    /// Creates a role in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
         self.client
             .realm_groups_post(realm, role.clone().into())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(role.clone())
     }
 
+    /// Gets a role by name in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn get_role_by_name(
         self,

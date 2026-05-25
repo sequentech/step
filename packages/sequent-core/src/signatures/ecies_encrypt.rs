@@ -15,14 +15,22 @@ use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 
+/// The path to the ECIES tool JAR file.
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Represents an ECIES key pair.
 pub struct EciesKeyPair {
+    /// The private key in PEM format.
     pub private_key_pem: String,
+    /// The public key in PEM format.
     pub public_key_pem: String,
 }
 
 #[instrument(skip(password), err)]
+/// Encrypts a string using ECIES with the given public key and password.
+///
+/// # Errors
+/// Returns an error if encryption fails or file operations fail.
 pub fn ecies_encrypt_string(
     public_key_pem: &str,
     password: &str,
@@ -42,19 +50,22 @@ pub fn ecies_encrypt_string(
     // Encode the &[u8] to a Base64 string
 
     let command = format!(
-        "java -jar {} encrypt {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, password
+        "java -jar {ECIES_TOOL_PATH} encrypt {temp_pem_file_string} {password}"
     );
-    info!("command: '{}'", command);
+    info!("command: '{command}'");
 
-    let result = run_shell_command(&command)?.replace("\n", "");
+    let result = run_shell_command(&command)?.replace('\n', "");
 
-    info!("ecies_encrypt_string: '{}'", result);
+    info!("ecies_encrypt_string: '{result}'");
 
     Ok(result)
 }
 
 #[instrument(err)]
+/// Generates an ECIES key pair.
+///
+/// # Errors
+/// Returns an error if key generation fails or file operations fail.
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_private_pem_file_path = temp_private_pem_file.path();
@@ -67,10 +78,7 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
         temp_public_pem_file_path.to_string_lossy().to_string();
 
     let command = format!(
-        "java -jar {} create-keys {} {}",
-        ECIES_TOOL_PATH,
-        temp_public_pem_file_string,
-        temp_private_pem_file_string
+        "java -jar {ECIES_TOOL_PATH} create-keys {temp_public_pem_file_string} {temp_private_pem_file_string}"
     );
     run_shell_command(&command)?;
 
@@ -80,12 +88,16 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     info!("generate_ecies_key_pair(): public_key_pem: {public_key_pem:?}");
 
     Ok(EciesKeyPair {
-        private_key_pem: private_key_pem,
-        public_key_pem: public_key_pem,
+        private_key_pem,
+        public_key_pem,
     })
 }
 
 #[instrument(skip(data), err)]
+/// Signs data using ECIES.
+///
+/// # Errors
+/// Returns an error if signing fails or file operations fail.
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
     data: &str,
@@ -119,24 +131,29 @@ pub fn ecies_sign_data(
     }
 
     let command = format!(
-        "java -jar {} sign {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, temp_data_file_string
+        "java -jar {ECIES_TOOL_PATH} sign {temp_pem_file_string} {temp_data_file_string}"
     );
 
-    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+    let encrypted_base64 = run_shell_command(&command)?.replace('\n', "");
 
-    info!("ecies_sign_data: '{}'", encrypted_base64);
+    info!("ecies_sign_data: '{encrypted_base64}'");
 
     Ok(encrypted_base64)
 }
 
-// A struct you can use to keep track of each item you want to sign
+/// A struct you can use to keep track of each item you want to sign
 pub struct SignRequest {
-    pub id: String,   // or any key you want, to correlate back
-    pub data: String, // the sign_data string
+    /// or any key you want, to correlate back
+    pub id: String,
+    /// the sign data string
+    pub data: String,
 }
 
 #[instrument(skip_all, err)]
+/// Signs multiple data items using ECIES in bulk.
+///
+/// # Errors
+/// Returns an error if signing fails or file operations fail.
 pub fn ecies_sign_data_bulk(
     acm_key_pair: &EciesKeyPair,
     requests: &[SignRequest],
@@ -164,14 +181,14 @@ pub fn ecies_sign_data_bulk(
     //    to track (id -> filename).
     let mut file_map: HashMap<String, PathBuf> = HashMap::new();
     for (i, req) in requests.iter().enumerate() {
-        let filename = format!("sign_{:04}.txt", i);
+        let filename = format!("sign_{i:04}.txt");
         let path = tmp_dir.path().join(&filename);
 
         {
             let mut f = File::create(&path)
-                .with_context(|| format!("Failed to create {}", filename))?;
+                .with_context(|| format!("Failed to create {filename}"))?;
             f.write_all(req.data.as_bytes())
-                .with_context(|| format!("Failed to write {}", filename))?;
+                .with_context(|| format!("Failed to write {filename}"))?;
         }
 
         file_map.insert(req.id.clone(), path);
@@ -188,7 +205,7 @@ pub fn ecies_sign_data_bulk(
         key = private_key_path.to_string_lossy(),
         folder = tmp_dir.path().to_string_lossy(),
     );
-    info!("Running sign-bulk => {}", cmd);
+    info!("Running sign-bulk => {cmd}");
 
     // 5. Execute the shell command (similar to your run_shell_command).
     run_shell_command(&cmd)?;
@@ -197,7 +214,7 @@ pub fn ecies_sign_data_bulk(
     //    sign_xxxx.txt, the tool should have produced sign_xxxx.txt.sign We'll
     //    read them into a map of (id -> signature_base64)
     let mut signature_map = HashMap::new();
-    for (id, path) in file_map.iter() {
+    for (id, path) in &file_map {
         // the Java tool will create the file with .sign appended
         let sign_file = path.with_extension("txt.sign");
         if !sign_file.exists() {

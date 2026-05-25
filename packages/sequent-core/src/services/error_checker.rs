@@ -11,14 +11,17 @@ use crate::{
     },
 };
 
+/// Checks the maximum selections per candidate type in a contest.
+///
+/// # Panics
+/// Panics if the count overflows when incrementing selections per type.
+#[must_use]
 pub fn check_max_selections_per_type(
     contest: &Contest,
     decoded_vote: &DecodedVoteContest,
 ) -> Vec<InvalidPlaintextError> {
-    let presentation =
-        contest.presentation.clone().unwrap_or(Default::default());
-    let Some(max_selections_per_type) =
-        presentation.max_selections_per_type.clone()
+    let presentation = contest.presentation.clone().unwrap_or_default();
+    let Some(max_selections_per_type) = presentation.max_selections_per_type
     else {
         return vec![];
     };
@@ -37,19 +40,20 @@ pub fn check_max_selections_per_type(
         if selection.selected < 0 {
             continue;
         }
-        let Some(candidate_type) =
-            candidates_type_map.get(&selection.id).clone()
+        let Some(candidate_type) = candidates_type_map.get(&selection.id)
         else {
             continue;
         };
-        let current_count =
-            type_count.get(candidate_type).clone().unwrap_or(&0);
-        type_count.insert(candidate_type.clone(), current_count + 1);
+        let current_count = type_count.get(candidate_type).unwrap_or(&0);
+        let count_to_insert = current_count
+            .checked_add(1)
+            .expect("Overflow when counting selections per type");
+        type_count.insert(candidate_type.clone(), count_to_insert);
     }
 
     let mut invalid_errors = vec![];
 
-    for (key, value) in type_count.iter() {
+    for (key, value) in &type_count {
         if *value > max_selections_per_type {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::Implicit,
@@ -69,6 +73,7 @@ pub fn check_max_selections_per_type(
     invalid_errors
 }
 
+#[must_use]
 pub fn check_contest(
     contest: &Contest,
     decoded_vote: &DecodedVoteContest,

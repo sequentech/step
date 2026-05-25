@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(missing_docs)]
 pub mod convert_vec;
 pub mod date;
 pub mod date_time;

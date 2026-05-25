@@ -12,6 +12,10 @@ pub const ENV_VAR_APP_HASH: &str = "APP_HASH";
 pub const VERSION_KEY: &str = "version";
 pub const HISTORICAL_DEFAULT_VERSION: &str = "9.0.0";
 
+/// Checks if the imported version is compatible with the current version.
+///
+/// # Errors
+/// Returns an error if the imported version is not compatible with the current version.
 pub fn check_version_compatibility(
     imported_version: &str,
     current_version: &str,
@@ -32,7 +36,7 @@ pub fn check_version_compatibility(
     if imported_version == DEV_APP_VERSION {
         #[cfg(feature = "log")]
         info!("Imported version is 'dev' while system is not in dev mode, rejecting import");
-        return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
+        return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {current_version}. Please use a different version."));
     }
 
     let (current_major, current_minor, _) = extract_semver(current_version)
@@ -42,9 +46,7 @@ pub fn check_version_compatibility(
 
     if (current_major != imported_major) || (current_minor < imported_minor) {
         return Err(anyhow!(
-            "Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.",
-            imported_version,
-            current_version
+            "Version mismatch: Imported version {imported_version} is not compatible with current version {current_version}. Please upgrade your system."
         ));
     }
     Ok(())

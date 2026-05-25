@@ -753,7 +753,6 @@ async fn populate_sqlite_election_event_data(
                     .await
                     .context("Failed to get election event by ID")?;
             create_election_event_sqlite(&sqlite_transaction, election_event)
-                .await
                 .context("Failed to create election event table")?;
 
             let elections = match election_ids.clone() {
@@ -766,7 +765,6 @@ async fn populate_sqlite_election_event_data(
             .context("Failed to get elections")?;
 
             create_election_sqlite(&sqlite_transaction, elections)
-                .await
                 .context("Failed to create election table")?;
 
             let contests = match election_ids {
@@ -784,7 +782,6 @@ async fn populate_sqlite_election_event_data(
             };
 
             create_contest_sqlite(&sqlite_transaction, contests.clone())
-                .await
                 .context("Failed to create contest table")?;
 
             let contests_ids: Vec<String> = contests.iter().map(|c| c.id.clone()).collect();
@@ -792,7 +789,6 @@ async fn populate_sqlite_election_event_data(
             // TODO Create csv with candidates
 
             create_candidate_sqlite(&sqlite_transaction)
-                .await
                 .context("Failed to create candidate table")?;
 
             let contests_csv_temp = NamedTempFile::new()
@@ -811,7 +807,6 @@ async fn populate_sqlite_election_event_data(
             .context("Failed exporting candidates to csv")?;
 
             import_candidate_sqlite(&sqlite_transaction, contests_csv)
-                .await
                 .context("Failed importing candidates to sqlite database")?;
 
             let areas = match areas_ids.clone() {
@@ -826,7 +821,6 @@ async fn populate_sqlite_election_event_data(
             };
 
             create_area_sqlite(&sqlite_transaction, areas)
-                .await
                 .context("Failed to create area table")?;
 
             let area_contests = match areas_ids {
@@ -850,7 +844,6 @@ async fn populate_sqlite_election_event_data(
                 election_event_id,
                 area_contests,
             )
-            .await
             .context("Failed to create area contest table")?;
 
             sqlite_transaction.commit()?;

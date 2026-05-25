@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
-use crate::types::keycloak::*;
+use crate::types::keycloak::{
+    UPAttributePermissions, UPAttributeRequired, UPAttributeSelector, User,
+    UserProfileAttribute, VotesInfo, AREA_ID_ATTR_NAME,
+    AUTHORIZED_ELECTION_IDS_NAME, FIRST_NAME, LAST_NAME,
+    MOBILE_PHONE_ATTR_NAME, PERMISSION_TO_EDIT, TENANT_ID_ATTR_NAME,
+};
 use crate::util::convert_vec::convert_map;
 use anyhow::{anyhow, Result};
 use keycloak::{
@@ -27,6 +32,10 @@ pub struct GroupInfo {
     pub group_name: String,
 }
 
+/// Checks the error response from Keycloak and returns a `KeycloakError` if not successful.
+///
+/// # Errors
+/// Returns a `KeycloakError` if the response status is not successful.
 async fn error_check(
     response: reqwest::Response,
 ) -> Result<reqwest::Response, KeycloakError> {
@@ -44,26 +53,32 @@ async fn error_check(
 }
 
 impl User {
+    /// Get the user's mobile phone number from their attributes, if it exists.
+    #[must_use]
     pub fn get_mobile_phone(&self) -> Option<String> {
         Some(
             self.attributes
                 .as_ref()?
                 .get(MOBILE_PHONE_ATTR_NAME)?
-                .get(0)?
-                .to_string(),
+                .first()?
+                .clone(),
         )
     }
 
+    /// Get User's attribute value by attribute name, if it exists.
+    #[must_use]
     pub fn get_attribute_val(&self, attribute_name: &String) -> Option<String> {
         Some(
             self.attributes
                 .as_ref()?
                 .get(attribute_name)?
-                .get(0)?
-                .to_string(),
+                .first()?
+                .clone(),
         )
     }
 
+    /// Get User's attribute which has multiple values by attribute name, if it exists.
+    #[must_use]
     pub fn get_attribute_multival(
         &self,
         attribute_name: &String,
@@ -73,10 +88,12 @@ impl User {
                 .as_ref()?
                 .get(attribute_name)?
                 .join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
-                .to_string(),
+                .clone(),
         )
     }
 
+    /// Get the user's authorized election ids from their attributes, if they exist.
+    #[must_use]
     pub fn get_authorized_election_ids(&self) -> Option<Vec<String>> {
         let result = self
             .attributes
@@ -84,34 +101,36 @@ impl User {
             .get(AUTHORIZED_ELECTION_IDS_NAME)
             .cloned();
 
-        info!("get_authorized_election_ids: {:?}", result);
+        info!("get_authorized_election_ids: {result:?}");
         info!("attributes: {:?}", self.attributes);
 
         result
     }
 
+    /// Get the user's area id from their attributes, if it exists.
+    #[must_use]
     pub fn get_area_id(&self) -> Option<String> {
         Some(
             self.attributes
                 .as_ref()?
                 .get(AREA_ID_ATTR_NAME)?
-                .get(0)?
-                .to_string(),
+                .first()?
+                .clone(),
         )
     }
 
+    /// Get the user's votes info.
+    #[must_use]
     pub fn get_votes_info_by_election_id(
         &self,
     ) -> Option<HashMap<String, VotesInfo>> {
-        self.votes_info.as_ref().and_then(|votes_info_vec| {
-            Some(
-                votes_info_vec
-                    .iter()
-                    .map(|votes_info| {
-                        (votes_info.election_id.clone(), votes_info.clone())
-                    })
-                    .collect::<HashMap<String, VotesInfo>>(),
-            )
+        self.votes_info.as_ref().map(|votes_info_vec| {
+            votes_info_vec
+                .iter()
+                .map(|votes_info| {
+                    (votes_info.election_id.clone(), votes_info.clone())
+                })
+                .collect::<HashMap<String, VotesInfo>>()
         })
     }
 }
@@ -143,8 +162,8 @@ impl From<UserRepresentation> for User {
             id: item.id.clone(),
             attributes: item.attributes.clone(),
             email: item.email.clone(),
-            email_verified: item.email_verified.clone(),
-            enabled: item.enabled.clone(),
+            email_verified: item.email_verified,
+            enabled: item.enabled,
             first_name: item.first_name.clone(),
             last_name: item.last_name.clone(),
             username: item.username.clone(),
@@ -165,8 +184,8 @@ impl From<User> for UserRepresentation {
             credentials: None,
             disableable_credential_types: None,
             email: item.email.clone(),
-            email_verified: item.email_verified.clone(),
-            enabled: item.enabled.clone(),
+            email_verified: item.email_verified,
+            enabled: item.enabled,
             federated_identities: None,
             federation_link: None,
             first_name: item.first_name.clone(),
@@ -189,7 +208,12 @@ impl From<User> for UserRepresentation {
 }
 
 impl KeycloakAdminClient {
+    /// Lists users in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
+    #[allow(clippy::too_many_arguments)]
     pub async fn list_users(
         self,
         tenant_id: &str,
@@ -209,44 +233,53 @@ impl KeycloakAdminClient {
                 None,
                 None,
                 None,
-                offset.clone(),
+                offset,
                 None,
                 None,
                 None,
                 None,
-                limit.clone(),
+                limit,
                 None,
                 search.clone(),
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         let count: i32 = self
             .client
             .realm_users_count_get(
                 realm, email, None, None, None, None, search, None, None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         let users = user_representations
             .clone()
             .into_iter()
-            .map(|user| user.into())
+            .map(std::convert::Into::into)
             .collect();
         Ok((users, count))
     }
 
+    /// Gets a user by id and given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self), err)]
     pub async fn get_user(&self, realm: &str, user_id: &str) -> Result<User> {
         let current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(current_user.into())
     }
 
+    /// Edits a user in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     #[instrument(skip(self, password), err)]
+    #[allow(clippy::too_many_arguments)]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -260,24 +293,17 @@ impl KeycloakAdminClient {
         password: Option<String>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        let credentials = match password {
-            Some(val) => Some(
-                [
-                    // the new credential
-                    vec![CredentialRepresentation {
-                        type_: Some("password".to_string()),
-                        temporary: match temporary {
-                            Some(temportay) => Some(temportay),
-                            _ => Some(true),
-                        },
-                        value: Some(val),
-                        ..Default::default()
-                    }],
-                ]
-                .concat(),
-            ),
-            None => None,
-        };
+        let credentials = password.map(|val| {
+            vec![CredentialRepresentation {
+                type_: Some("password".to_string()),
+                temporary: match temporary {
+                    Some(temportay) => Some(temportay),
+                    _ => Some(true),
+                },
+                value: Some(val),
+                ..Default::default()
+            }]
+        });
 
         self.edit_user_with_credentials(
             realm,
@@ -295,6 +321,11 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self, credentials), err)]
+    #[allow(clippy::too_many_arguments)]
+    /// Edits a user with credentials in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     pub async fn edit_user_with_credentials(
         self,
         realm: &str,
@@ -308,12 +339,12 @@ impl KeycloakAdminClient {
         credentials: Option<Vec<CredentialRepresentation>>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        info!("Editing user in keycloak ?: {:?}", attributes);
+        info!("Editing user in keycloak ?: {attributes:?}");
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         current_user.enabled = match enabled {
             Some(val) => Some(val),
@@ -323,8 +354,8 @@ impl KeycloakAdminClient {
         current_user.attributes = match attributes {
             Some(val) => {
                 let mut new_attributes =
-                    current_user.attributes.unwrap_or(HashMap::new());
-                for (key, value) in val.iter() {
+                    current_user.attributes.unwrap_or_default();
+                for (key, value) in &val {
                     new_attributes.insert(key.clone(), value.clone());
                 }
                 Some(new_attributes)
@@ -358,7 +389,7 @@ impl KeycloakAdminClient {
                     // the new credential
                     val,
                     // the filtered list, without password
-                    current_user.credentials.unwrap_or(vec![]).clone(),
+                    current_user.credentials.unwrap_or_default().clone(),
                 ]
                 .concat(),
             ),
@@ -368,21 +399,29 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_with_user_id_put(realm, user_id, current_user.clone())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         Ok(current_user.into())
     }
 
     #[instrument(skip(self), err)]
+    /// Deletes a user in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
             .realm_users_with_user_id_delete(realm, user_id)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
     #[instrument(skip(self), err)]
+    /// Creates a user in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     pub async fn create_user(
         self: &KeycloakAdminClient,
         realm: &str,
@@ -391,14 +430,14 @@ impl KeycloakAdminClient {
         groups: Option<Vec<String>>,
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
-        new_user_keycloak.attributes = attributes.clone();
-        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
-        new_user_keycloak.groups = groups.clone();
+        new_user_keycloak.attributes.clone_from(&attributes);
+        info!("Creating user in keycloak ?: {new_user_keycloak:?}");
+        new_user_keycloak.groups.clone_from(&groups);
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
             .map_err(|err| {
-                anyhow!("Failed to create user in keycloak: {:?}", err)
+                anyhow!("Failed to create user in keycloak: {err:?}")
             })?;
         let found_users = self
             .client
@@ -421,7 +460,7 @@ impl KeycloakAdminClient {
             )
             .await
             .map_err(|err| {
-                anyhow!("Failed to find user in keycloak: {:?}", err)
+                anyhow!("Failed to find user in keycloak: {err:?}")
             })?;
 
         match found_users.first() {
@@ -431,24 +470,30 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self), err)]
+    /// Gets user profile attributes in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     pub async fn get_user_profile_attributes(
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<Vec<UserProfileAttribute>> {
         let response: UPConfig = self
             .client
-            .realm_users_profile_get(&realm)
+            .realm_users_profile_get(realm)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         match response.attributes {
-            Some(attributes) => {
-                Ok(Self::get_formatted_attributes(&attributes.clone().into()))
-            }
+            Some(attributes) => Ok(Self::get_formatted_attributes(&attributes)),
             None => Ok(vec![]),
         }
     }
 
     #[instrument(skip(self), err)]
+    /// Gets user groups for a user in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the API call is unsuccessful.
     pub async fn get_user_groups(
         self: &KeycloakAdminClient,
         realm: &str,
@@ -457,10 +502,10 @@ impl KeycloakAdminClient {
         let response: Vec<GroupRepresentation> = self
             .client
             .realm_users_with_user_id_groups_get(
-                &realm, user_id, None, None, None, None,
+                realm, user_id, None, None, None, None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         // Map to custom struct
         let groups: Vec<GroupInfo> = response
             .into_iter()
@@ -479,6 +524,7 @@ impl KeycloakAdminClient {
         Ok(groups)
     }
 
+    #[must_use]
     pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
         match name.as_deref() {
             Some(FIRST_NAME) => Some("first_name".to_string()),
@@ -488,24 +534,22 @@ impl KeycloakAdminClient {
         }
     }
 
+    #[must_use]
     pub fn get_formatted_attributes(
-        attributes_res: &Vec<UPAttribute>,
+        attributes_res: &[UPAttribute],
     ) -> Vec<UserProfileAttribute> {
-        let formatted_attributes: Vec<UserProfileAttribute> = attributes_res
+        attributes_res
             .iter()
             .filter(|attr| match (&attr.permissions, &attr.name) {
                 (Some(permissions), Some(name)) => {
                     let has_permission =
-                        permissions.edit.as_ref().map_or(true, |edit| {
+                        permissions.edit.as_ref().is_none_or(|edit| {
                             edit.contains(&PERMISSION_TO_EDIT.to_string())
                         });
-
                     let is_not_tenant_id =
                         !name.contains(&TENANT_ID_ATTR_NAME.to_string());
-
                     let is_not_area_id =
                         !name.contains(&AREA_ID_ATTR_NAME.to_string());
-
                     has_permission && is_not_tenant_id && is_not_area_id
                 }
                 _ => false,
@@ -516,29 +560,25 @@ impl KeycloakAdminClient {
                 group: attr.group.clone(),
                 multivalued: attr.multivalued,
                 name: Self::get_attribute_name(&attr.name),
-                required: match attr.required.clone() {
-                    Some(required) => Some(UPAttributeRequired {
+                required: attr.required.clone().map(|required| {
+                    UPAttributeRequired {
                         roles: required.roles,
                         scopes: required.scopes,
-                    }),
-                    None => None,
-                },
+                    }
+                }),
                 validations: attr.validations.clone(),
-                permissions: match attr.permissions.clone() {
-                    Some(permissions) => Some(UPAttributePermissions {
+                permissions: attr.permissions.clone().map(|permissions| {
+                    UPAttributePermissions {
                         edit: permissions.edit,
                         view: permissions.view,
-                    }),
-                    None => None,
-                },
-                selector: match attr.selector.clone() {
-                    Some(selector) => Some(UPAttributeSelector {
+                    }
+                }),
+                selector: attr.selector.clone().map(|selector| {
+                    UPAttributeSelector {
                         scopes: selector.scopes,
-                    }),
-                    None => None,
-                },
+                    }
+                }),
             })
-            .collect();
-        formatted_attributes
+            .collect()
     }
 }

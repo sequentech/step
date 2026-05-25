@@ -7,11 +7,21 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 use crate::error::BallotError;
 
+/// Trait for serializing a type to a base64 string.
 pub trait Base64Serialize {
+    /// Serializes the type to a base64 string.
+    ///
+    /// # Errors
+    /// Returns `BallotError` if serialization fails.
     fn serialize(&self) -> Result<String, BallotError>;
 }
 
+/// Trait for deserializing a type from a base64 string.
 pub trait Base64Deserialize {
+    /// Deserializes the type from a base64 string.
+    ///
+    /// # Errors
+    /// Returns `BallotError` if decoding or deserialization fails.
     fn deserialize(value: String) -> Result<Self, BallotError>
     where
         Self: Sized;
@@ -35,17 +45,13 @@ impl<T: StrandDeserialize> Base64Deserialize for T {
             .decode(value)
             .map_err(|error| {
                 BallotError::Serialization(format!(
-                    "Error decoding base64 string: {}",
-                    error
+                    "Error decoding base64 string: {error}"
                 ))
             })?;
-        StrandDeserialize::strand_deserialize(&bytes_vec.as_slice()).map_err(
-            |error| {
-                BallotError::Serialization(format!(
-                    "Error deserializing borsh/strand bytes: {}",
-                    error
-                ))
-            },
-        )
+        StrandDeserialize::strand_deserialize(&bytes_vec).map_err(|error| {
+            BallotError::Serialization(format!(
+                "Error deserializing borsh/strand bytes: {error}"
+            ))
+        })
     }
 }

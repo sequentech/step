@@ -5,7 +5,7 @@ use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
-use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
+use crate::types::keycloak::TENANT_ID_ATTR_NAME;
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
     AuthenticationExecutionInfoRepresentation, GroupRepresentation,
@@ -33,14 +33,30 @@ pub enum RoleAction {
 }
 
 impl RoleAction {
-    fn is_delete(&self) -> bool {
+    /// Returns true if this action is a delete (remove) action.
+    #[must_use]
+    pub const fn is_delete(self) -> bool {
         matches!(self, RoleAction::Remove)
     }
 }
 
+/// Returns the event realm string for a tenant and election event.
+///
+/// # Must Use
+/// The returned string should be used as a Keycloak realm identifier.
+#[must_use]
 pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
-    format!("tenant-{}-event-{}", tenant_id, election_event_id)
+    format!("tenant-{tenant_id}-event-{election_event_id}")
 }
+
+/// Parses a Keycloak realm string into tenant and optional event ID.
+///
+/// # Must Use
+/// Returns `Some((tenant_id, Some(event_id)))` for event realms, or `Some((tenant_id, None))` for tenant realms.
+///
+/// # Panics
+/// Panics if the expected tenant or event ID is not present in the realm string.
+#[must_use]
 pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     let parts: Vec<&str> = realm.split('-').collect();
 
@@ -48,43 +64,55 @@ pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     // - Tenant realm: "tenant-{tenant_id}"
     // - Event realm: "tenant-{tenant_id}-event-{election_event_id}"
 
-    if parts.len() >= 2 && parts[0] == "tenant" {
+    if parts.len() >= 2 && parts.first() == Some(&"tenant") {
         // Check if this is an event realm
         if let Some(event_idx) = parts.iter().position(|&p| p == "event") {
-            if event_idx > 1 && event_idx < parts.len() - 1 {
-                let tenant_id = parts[1..event_idx].join("-");
-                let election_event_id = parts[event_idx + 1..].join("-");
+            #[allow(clippy::arithmetic_side_effects)]
+            if event_idx > 1 && event_idx < parts.len().saturating_sub(1) {
+                let tenant_id = parts
+                    .get(1..event_idx)
+                    .map(|s| s.join("-"))
+                    .expect("Tenant ID should be present");
+                let election_event_id = parts
+                    .get(event_idx + 1..)
+                    .map(|s| s.join("-"))
+                    .expect("Election Event ID should be present");
                 return Some((tenant_id, Some(election_event_id)));
             }
         } else {
             // This is a tenant realm (no "event" found)
-            let tenant_id = parts[1..].join("-");
+            let tenant_id = parts
+                .get(1..)
+                .map(|s| s.join("-"))
+                .expect("Tenant ID should be present");
             return Some((tenant_id, None));
         }
     }
-
     None
 }
 
+#[must_use]
 pub fn get_tenant_realm(tenant_id: &str) -> String {
-    format!("tenant-{}", tenant_id)
+    format!("tenant-{tenant_id}")
 }
 
-/// Extracts tenant_id and election_event_id replacements from a realm config.
+/// Extracts `tenant_id` and `election_event_id` replacements from a realm config.
 ///
-/// This function parses the realm name to extract the old tenant_id and
-/// election_event_id, and compares them with the new values to determine if
+/// This function parses the realm name to extract the old `tenant_id` and
+/// `election_event_id`, and compares them with the new values to determine if
 /// replacements are needed.
 ///
 /// # Arguments
 /// * `realm_config` -  Realm config
-/// * `new_tenant_id` - The new tenant_id to use
-/// * `new_election_event_id` - Optional new election_event_id to use
+/// * `new_tenant_id` - The new `tenant_id` to use
+/// * `new_election_event_id` - Optional new `election_event_id` to use
 ///
 /// # Returns
 /// A tuple of:
-/// * Optional (old_tenant_id, new_tenant_id) for replacement
-/// * Optional (old_event_id, new_event_id) for replacement
+/// * Optional (`old_tenant_id`, `new_tenant_id`) for replacement
+/// * Optional (`old_event_id`, `new_event_id`) for replacement
+#[must_use]
+#[allow(clippy::type_complexity)]
 pub fn extract_realm_replacements(
     realm_config: &RealmRepresentation,
     new_tenant_id: &str,
@@ -131,15 +159,18 @@ pub fn extract_realm_replacements(
 /// * `json_realm_config` - The original JSON string representation of the realm
 ///   configuration
 /// * `keep` - A list of UUID strings that should NOT be replaced with new ones
-/// * `tenant_id_replacement` - Optional tuple of (old_tenant_id, new_tenant_id)
+/// * `tenant_id_replacement` - Optional tuple of (`old_tenant_id`, `new_tenant_id`)
 ///   for explicit replacement
-/// * `election_event_id_replacement` - Optional tuple of (old_event_id,
-///   new_event_id) for explicit replacement
+/// * `election_event_id_replacement` - Optional tuple of (`old_event_id`,
+///   `new_event_id`) for explicit replacement
 ///
 /// # Returns
 /// A tuple containing:
 /// * The modified JSON string with replaced UUIDs
-/// * A HashMap mapping old UUIDs to their new replacements
+/// * A `HashMap` mapping old UUIDs to their new replacements
+///
+/// # Errors
+/// Returns an error if the realm config cannot be deserialized or if replacements fail.
 #[instrument(err, skip(json_realm_config))]
 pub fn replace_realm_ids(
     json_realm_config: &str,
@@ -179,7 +210,7 @@ pub fn replace_realm_ids(
     // Replace all UUIDs in the JSON string except those in the 'keep' list
     // Returns the modified JSON string and a map of old UUID -> new UUID
     let (mut new_data, replacement_map) =
-        replace_uuids(json_realm_config, keep);
+        replace_uuids(json_realm_config, &keep);
 
     // Apply explicit tenant_id replacement if provided
     if let Some((old_tenant_id, new_tenant_id)) = tenant_id_replacement {
@@ -206,6 +237,7 @@ pub fn generate_client_secret() -> String {
         .collect()
 }
 
+/// Checks the response for errors and returns a `KeycloakError` if not successful.
 async fn error_check(
     response: reqwest::Response,
 ) -> Result<reqwest::Response, KeycloakError> {
@@ -223,6 +255,10 @@ async fn error_check(
 }
 
 impl KeycloakAdminClient {
+    /// Gets the realm representation for a board.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn get_realm(
         self,
         client: &PubKeycloakAdmin,
@@ -232,7 +268,7 @@ impl KeycloakAdminClient {
         // see https://docs.rs/keycloak/latest/src/keycloak/rest/generated_rest.rs.html#6315-6334
         let mut builder = client
             .client
-            .post(&format!(
+            .post(format!(
                 "{}/admin/realms/{board_name}/partial-export",
                 client.url
             ))
@@ -240,7 +276,7 @@ impl KeycloakAdminClient {
                 client.token_supplier.get(&client.url).await.map_err(
                     |error| {
                         error!("error obtaining token: {error:?}");
-                        return error;
+                        error
                     },
                 )?,
             );
@@ -248,24 +284,28 @@ impl KeycloakAdminClient {
         builder = builder.query(&[("exportGroupsAndRoles", true)]);
         let response = builder.send().await.map_err(|error| {
             error!("error sending built query: {error:?}");
-            return error;
+            error
         })?;
         Ok(
             error_check(response)
             .await
             .map_err(|error| {
                 error!("error checking response for realm name {board_name:?}: {error:?}");
-                return error;
+                error
             })?
             .json()
             .await
             .map_err(|error| {
                 error!("error mapping to json: {error:?}");
-                return error;
+                error
             })?
         )
     }
 
+    /// Gets the flow executions for a board and execution name.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn get_flow_executions(
         &self,
         client: &PubKeycloakAdmin,
@@ -289,6 +329,10 @@ impl KeycloakAdminClient {
         Ok(error_check(response).await?.json().await?)
     }
 
+    /// Upserts a flow execution for a board.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn upsert_flow_execution(
         &self,
         client: &PubKeycloakAdmin,
@@ -316,7 +360,7 @@ impl KeycloakAdminClient {
             .send()
             .await
             .with_context(|| {
-                format!("Error sending update request to '{}'", req_url)
+                format!("Error sending update request to '{req_url}'")
             })?;
 
         error_check(response).await?;
@@ -324,6 +368,10 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Partially imports a realm with cleanup.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn partial_import_realm_with_cleanup(
         &self,
         client: &PubKeycloakAdmin,
@@ -333,7 +381,7 @@ impl KeycloakAdminClient {
         realm_roles: Vec<RoleRepresentation>,
         if_resource_exists: &str,
     ) -> Result<()> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
 
         // Proceed with partial import
         let req_url =
@@ -361,6 +409,10 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Deletes a realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn realm_delete(
         &self,
         client: &PubKeycloakAdmin,
@@ -368,7 +420,7 @@ impl KeycloakAdminClient {
         delete_by: &str,
         id: &str,
     ) -> Result<(), KeycloakError> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let req_url = format!(
             "{}/admin/realms/{}/{}/{}",
             client.url, realm, delete_by, id
@@ -386,13 +438,17 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates a new group in the realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn create_new_group(
         &self,
         tenant_id: &str,
         group_name: &str,
         keycloak_client: &PubKeycloakAdmin,
     ) -> Result<Option<String>, KeycloakError> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let url =
             format!("{}/admin/realms/{}/groups", keycloak_client.url, realm);
 
@@ -422,7 +478,7 @@ impl KeycloakAdminClient {
                 }
             })?;
             // The ID is the trailing part of the URL
-            if let Some(id) = location_str.split('/').last() {
+            if let Some(id) = location_str.split('/').next_back() {
                 return Ok(Some(id.to_string()));
             }
         }
@@ -430,15 +486,19 @@ impl KeycloakAdminClient {
         Ok(None)
     }
 
+    /// Adds roles to a group in the realm.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn add_roles_to_group(
         &self,
         tenant_id: &str,
         keycloak_client: &PubKeycloakAdmin,
         group_id: &str,
-        roles: &Vec<RoleRepresentation>,
+        roles: &[RoleRepresentation],
         action: RoleAction,
     ) -> Result<(), KeycloakError> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm",
             keycloak_client.url, realm, group_id
@@ -483,13 +543,17 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Gets the roles assigned to a group in Keycloak.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn get_group_assigned_roles(
         &self,
         tenant_id: &str,
         group_id: &str,
         keycloak_client: &PubKeycloakAdmin,
     ) -> Result<Vec<RoleRepresentation>, Box<dyn std::error::Error>> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm",
             keycloak_client.url, realm, group_id
@@ -511,19 +575,29 @@ impl KeycloakAdminClient {
         Ok(roles)
     }
 
+    /// Updates a group in Keycloak.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
+    ///
+    /// # Panics
+    /// Panics if `group.id` is `None`.
     pub async fn update_group(
         &self,
         tenant_id: &str,
         group: &GroupRepresentation,
     ) -> Result<()> {
         let client = &KeycloakAdminClient::pub_new().await?;
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
 
         let req_url = format!(
             "{}/admin/realms/{}/groups/{}",
             client.url,
             realm,
-            group.id.as_ref().unwrap()
+            group
+                .id
+                .as_ref()
+                .expect("group.id must be Some for update_group")
         );
         let response = client
             .client
@@ -541,6 +615,10 @@ impl KeycloakAdminClient {
         }
     }
 
+    /// Updates localization texts from imported data in Keycloak.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     pub async fn update_localization_texts_from_import(
         &self,
         imported_localization_texts: Option<
@@ -549,11 +627,11 @@ impl KeycloakAdminClient {
         keycloak_client: &PubKeycloakAdmin,
         tenant_id: &str,
     ) -> Result<()> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
 
         if let Some(localization_texts) = imported_localization_texts {
             for (locale, locale_texts) in localization_texts {
-                println!("Processing locale: {}", locale);
+                info!("Processing locale: {locale}");
 
                 let url = format!(
                     "{}/admin/realms/{}/localization/{}",
@@ -567,13 +645,17 @@ impl KeycloakAdminClient {
                 .json(&locale_texts)
                 .send()
                 .await
-                .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+                .context(format!("Failed to send request to update localization texts for locale '{locale}'"))?;
             }
         }
 
         Ok(())
     }
 
+    /// Upserts a realm in Keycloak.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails or the token cannot be obtained.
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,
@@ -587,7 +669,7 @@ impl KeycloakAdminClient {
         let realm_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
-                deserialize_str(&json_realm_config)?;
+                deserialize_str(json_realm_config)?;
             let (tenant_id_replacement, election_event_id_replacement) =
                 extract_realm_replacements(
                     &realm_config,
@@ -617,11 +699,9 @@ impl KeycloakAdminClient {
 
         let voting_portal_url_env = env::var("VOTING_PORTAL_URL")
             .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
-        let login_url = if let Some(election_event_id) = election_event_id {
-            Some(format!("{voting_portal_url_env}/tenant/{tenant_id}/event/{election_event_id}/login"))
-        } else {
-            None
-        };
+        let login_url = election_event_id.map(|election_event_id| format!(
+            "{voting_portal_url_env}/tenant/{tenant_id}/event/{election_event_id}/login"
+        ));
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
 
@@ -637,7 +717,7 @@ impl KeycloakAdminClient {
                             == Some(String::from("onsite-voting-portal"))
                     {
                         client.root_url = Some(voting_portal_url_env.clone());
-                        client.base_url = login_url.clone();
+                        client.base_url.clone_from(&login_url);
                         client.redirect_uris = Some(vec![
                             "/*".to_string(),
                             format!("{}/*", ballot_verifier_url),
@@ -654,13 +734,13 @@ impl KeycloakAdminClient {
                     if client.client_id == Some(String::from("account"))
                         && login_url.is_some()
                     {
-                        client.base_url = login_url.clone();
+                        client.base_url.clone_from(&login_url);
                     }
                     Ok(client) // Return the modified client
                 })
                 .collect::<Result<Vec<_>>>()
                 .map_err(|err| {
-                    anyhow!("Error setting the voting portal urls: {:?}", err)
+                    anyhow!("Error setting the voting portal urls: {err:?}")
                 })?,
         );
 
@@ -689,14 +769,14 @@ impl KeycloakAdminClient {
         match realm_get_result {
             Ok(_) => self
                 .client
-                .realm_put(&board_name, realm)
+                .realm_put(board_name, realm)
                 .await
-                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+                .map_err(|err| anyhow!("Keycloak error: {err:?}")),
             Err(_) => self
                 .client
                 .post(realm)
                 .await
-                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+                .map_err(|err| anyhow!("Keycloak error: {err:?}")),
         }
     }
 }

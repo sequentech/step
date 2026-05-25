@@ -14,6 +14,7 @@ enum IInvalidPlaintextErrorType {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the type of an invalid plaintext error.
     #[wasm_bindgen(typescript_type = "IInvalidPlaintextErrorType")]
     pub type IInvalidPlaintextErrorType;
 }
@@ -30,6 +31,7 @@ interface IInvalidPlaintextError {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing an invalid plaintext error.
     #[wasm_bindgen(typescript_type = "IInvalidPlaintextError")]
     pub type IInvalidPlaintextError;
 }
@@ -47,6 +49,7 @@ interface IDecodedVoteContest {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a decoded vote contest.
     #[wasm_bindgen(typescript_type = "IDecodedVoteContest")]
     pub type IDecodedVoteContest;
 }
@@ -62,6 +65,7 @@ interface IDecodedVoteChoice {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing a decoded vote choice.
     #[wasm_bindgen(typescript_type = "IDecodedVoteChoice")]
     pub type IDecodedVoteChoice;
 }

@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 
+/// Parse an i18n field.
+#[must_use]
 pub fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
     field: &str,
@@ -30,94 +32,93 @@ pub fn parse_i18n_field(
     for (lang, details) in i18n {
         if let Some(field_value) = details.get(field) {
             content.insert(lang.clone(), field_value.clone());
-        };
+        }
     }
 
     Some(content)
 }
 
+/// Create a ballot style from the provided parameters.
+///
+/// # Errors
+/// Returns an error if the ballot style cannot be created due to missing or invalid data.
+#[allow(clippy::too_many_arguments)]
 pub fn create_ballot_style(
     id: String,
-    area: hasura_types::Area,                    // Area
-    election_event: hasura_types::ElectionEvent, // Election Event
-    election: hasura_types::Election,            // Election
-    contests: Vec<hasura_types::Contest>,        // Contest
-    candidates: Vec<hasura_types::Candidate>,    // Candidate
-    election_dates: StringifiedPeriodDates,      // Election Dates
-    public_key: Option<String>,                  // public key
+    area: &hasura_types::Area, // Area
+    election_event: &hasura_types::ElectionEvent, // Election Event
+    election: &hasura_types::Election, // Election
+    contests: &[hasura_types::Contest], // Contest
+    candidates: &[hasura_types::Candidate], // Candidate
+    election_dates: StringifiedPeriodDates, // Election Dates
+    public_key: Option<String>, // public key
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
-        .clone()
-        .into_iter()
+        .iter()
         .filter(|contest| contest.election_id == election.id)
+        .cloned()
         .collect::<Vec<hasura_types::Contest>>();
     sorted_contests.sort_by_key(|k| k.id.clone());
     let demo_public_key_env = env::var("DEMO_PUBLIC_KEY")
         .with_context(|| "DEMO_PUBLIC_KEY env var not found")?;
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
-        .clone()
-        .map(|presentation| deserialize_value(presentation))
+        .as_ref()
+        .map(|v| deserialize_value(v.clone()))
         .transpose()
         .map_err(|err| {
-            anyhow!("Error parsing election Event presentation {:?}", err)
+            anyhow!("Error parsing election Event presentation {err:?}")
         })?
         .unwrap_or_default();
 
     let election_event_annotations: HashMap<String, String> = election_event
         .annotations
-        .clone()
-        .map(|annotations| deserialize_value(annotations))
+        .as_ref()
+        .map(|v| deserialize_value(v.clone()))
         .transpose()
         .map_err(|err| {
-            anyhow!("Error parsing election Event annotations {:?}", err)
+            anyhow!("Error parsing election Event annotations {err:?}")
         })?
         .unwrap_or_default();
 
     let election_presentation: ElectionPresentation = election
         .presentation
-        .clone()
-        .map(|presentation| deserialize_value(presentation))
+        .as_ref()
+        .map(|v| deserialize_value(v.clone()))
         .transpose()
-        .map_err(|err| {
-            anyhow!("Error parsing election presentation {:?}", err)
-        })?
+        .map_err(|err| anyhow!("Error parsing election presentation {err:?}"))?
         .unwrap_or_default();
 
     let election_annotations: HashMap<String, String> = election
         .annotations
-        .clone()
-        .map(|annotations| deserialize_value(annotations))
+        .as_ref()
+        .map(|v| deserialize_value(v.clone()))
         .transpose()
-        .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
+        .map_err(|err| anyhow!("Error parsing election annotations {err:?}"))?
         .unwrap_or_default();
 
     let default_language = election.get_default_language();
 
-    let contests: Vec<ballot::Contest> = sorted_contests
+    let ballot_contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
         .map(|contest| {
             let election_candidates = candidates
-                .clone()
-                .into_iter()
+                .iter()
                 .filter(|c| c.contest_id == Some(contest.id.clone()))
+                .cloned()
                 .collect::<Vec<hasura_types::Candidate>>();
 
-            create_contest(
-                contest,
-                election_candidates,
-                default_language.clone(),
-            )
+            create_contest(contest, &election_candidates, &default_language)
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    let area_annotations = area.clone().read_annotations()?;
+    let area_annotations = area.read_annotations()?;
     let area_presentation: AreaPresentation = area
         .presentation
-        .clone()
+        .as_ref()
         .map(|presentation| {
-            deserialize_value(presentation).map_err(|err| {
-                anyhow!("Error parsing area presentation: {}", err)
+            deserialize_value(presentation.clone()).map_err(|err| {
+                anyhow!("Error parsing area presentation: {err}")
             })
         })
         .transpose()?
@@ -125,25 +126,28 @@ pub fn create_ballot_style(
 
     Ok(ballot::BallotStyle {
         id,
-        tenant_id: election.tenant_id,
-        election_event_id: election.election_event_id,
-        election_id: election.id,
+        tenant_id: election.tenant_id.clone(),
+        election_event_id: election.election_event_id.clone(),
+        election_id: election.id.clone(),
         num_allowed_revotes: election.num_allowed_revotes,
-        description: election.description,
+        description: election.description.clone(),
         public_key: Some(
             public_key
                 .map(|key| ballot::PublicKeyConfig {
                     public_key: key,
                     is_demo: false,
                 })
-                .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: demo_public_key_env.to_string(),
-                    is_demo: true,
-                }),
+                .map_or(
+                    ballot::PublicKeyConfig {
+                        public_key: demo_public_key_env,
+                        is_demo: true,
+                    },
+                    |cfg| cfg,
+                ),
         ),
-        area_id: area.id,
+        area_id: area.id.clone(),
         area_presentation: Some(area_presentation),
-        contests,
+        contests: ballot_contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
         election_dates: Some(election_dates),
@@ -153,68 +157,73 @@ pub fn create_ballot_style(
     })
 }
 
+/// Create a contest from receiving data.
+///
+/// # Errors
+/// Returns an error if deserialization or parsing fails.
+#[allow(clippy::too_many_lines)]
 fn create_contest(
     contest: hasura_types::Contest,
-    candidates: Vec<hasura_types::Candidate>,
-    default_language: String,
+    candidates: &[hasura_types::Candidate],
+    default_language: &str,
 ) -> Result<ballot::Contest> {
-    let mut sorted_candidates = candidates.clone();
+    let mut sorted_candidates = candidates.to_owned();
     sorted_candidates.sort_by_key(|k| k.id.clone());
 
     let contest_presentation = contest
         .presentation
-        .clone()
-        .map(|presentation_value| deserialize_value(presentation_value))
-        .unwrap_or(Ok(ContestPresentation::new()))?;
+        .as_ref()
+        .map(|v| deserialize_value(v.clone()))
+        .map_or(Ok(ContestPresentation::new()), |r| r)?;
     let name_i18n = parse_i18n_field(&contest_presentation.i18n, "name");
     let description_i18n =
         parse_i18n_field(&contest_presentation.i18n, "description");
     let alias_i18n = parse_i18n_field(&contest_presentation.i18n, "alias");
 
-    let candidates: Vec<ballot::Candidate> = sorted_candidates
+    let ballot_candidates: Vec<ballot::Candidate> = sorted_candidates
         .iter()
-        .enumerate()
-        .map(|(_i, candidate)| {
+        .map(|candidate| {
             let candidate_presentation = candidate
                 .presentation
-                .clone()
-                .map(|presentation_value| deserialize_value(presentation_value))
-                .unwrap_or(Ok(CandidatePresentation::new()))?;
+                .as_ref()
+                .map(|value| deserialize_value(value.clone()))
+                .map_or(Ok(CandidatePresentation::new()), |r| r)?;
 
-            let name_i18n =
+            let cand_name_i18n =
                 parse_i18n_field(&candidate_presentation.i18n, "name");
-            let description_i18n =
+            let cand_description_i18n =
                 parse_i18n_field(&candidate_presentation.i18n, "description");
-            let alias_i18n =
+            let cand_alias_i18n =
                 parse_i18n_field(&candidate_presentation.i18n, "alias");
 
-            let candidate_name = name_i18n
+            let candidate_name = cand_name_i18n
                 .as_ref()
-                .and_then(|i18n| i18n.get(&default_language))
-                .and_then(|name| name.clone());
-            let candidate_alias = alias_i18n
+                .and_then(|i18n| i18n.get(default_language))
+                .and_then(Clone::clone);
+
+            let candidate_alias = cand_alias_i18n
                 .as_ref()
-                .and_then(|i18n| i18n.get(&default_language))
-                .and_then(|alias| alias.clone());
+                .and_then(|i18n| i18n.get(default_language))
+                .and_then(Clone::clone);
 
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
-                tenant_id: (candidate.tenant_id.clone()),
-                election_event_id: (candidate.election_event_id.clone()),
-                election_id: (contest.election_id.clone()),
-                contest_id: (contest.id.clone()),
-                name: candidate_name.clone(),
-                name_i18n,
+                tenant_id: candidate.tenant_id.clone(),
+                election_event_id: candidate.election_event_id.clone(),
+                election_id: contest.election_id.clone(),
+                contest_id: contest.id.clone(),
+                name: candidate_name,
+                name_i18n: cand_name_i18n,
                 description: candidate.description.clone(),
-                description_i18n,
-                alias: candidate_alias.clone(),
-                alias_i18n: alias_i18n,
+                description_i18n: cand_description_i18n,
+                alias: candidate_alias,
+                alias_i18n: cand_alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
                 annotations: candidate
                     .annotations
-                    .clone()
-                    .map(|value| deserialize_value(value))
+                    .as_ref()
+                    .map(|value| deserialize_value(value.clone()))
                     .transpose()?,
             })
         })
@@ -232,12 +241,13 @@ fn create_contest(
 
     let contest_name = name_i18n
         .as_ref()
-        .and_then(|i18n| i18n.get(&default_language))
-        .and_then(|name| name.clone());
+        .and_then(|i18n| i18n.get(default_language))
+        .and_then(Clone::clone);
+
     let contest_alias = alias_i18n
         .as_ref()
-        .and_then(|i18n| i18n.get(&default_language))
-        .and_then(|alias| alias.clone());
+        .and_then(|i18n| i18n.get(default_language))
+        .and_then(Clone::clone);
 
     // Extract tie_breaking_policy from tally_configuration JSON
     let tie_breaking_policy = contest
@@ -250,28 +260,28 @@ fn create_contest(
 
     Ok(ballot::Contest {
         id: contest.id.clone(),
-        tenant_id: (contest.tenant_id),
-        election_event_id: (contest.election_event_id),
-        election_id: (contest.election_id.clone()),
+        tenant_id: contest.tenant_id,
+        election_event_id: contest.election_event_id,
+        election_id: contest.election_id.clone(),
         name: contest_name,
         name_i18n,
         description: contest.description,
         description_i18n,
-        alias: contest_alias.clone(),
+        alias: contest_alias,
         alias_i18n,
-        max_votes: (contest.max_votes.unwrap_or(0)),
-        min_votes: (contest.min_votes.unwrap_or(0)),
+        max_votes: contest.max_votes.unwrap_or(0),
+        min_votes: contest.min_votes.unwrap_or(0),
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),
         voting_type: contest.voting_type,
         counting_algorithm: Some(counting_algorithm),
-        is_encrypted: (contest.is_encrypted.unwrap_or(false)),
-        candidates,
+        is_encrypted: contest.is_encrypted.unwrap_or(false),
+        candidates: ballot_candidates,
         presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),
         annotations: contest
             .annotations
-            .clone()
-            .map(|value| deserialize_value(value))
+            .as_ref()
+            .map(|value| deserialize_value(value.clone()))
             .transpose()?,
         tie_breaking_policy,
     })

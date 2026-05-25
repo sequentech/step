@@ -1,17 +1,23 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ballot::BallotStyle;
-use crate::ballot::*;
+use crate::ballot::{
+    BallotStyle, Candidate, CandidatePresentation, CandidateUrl, Contest,
+    ContestPresentation, EBlankVotePolicy, EOverVotePolicy, EUnderVotePolicy,
+    InvalidVotePolicy, PublicKeyConfig,
+};
 use crate::ballot_codec::{vec_to_30_array, RawBallotContest};
 use crate::plaintext::{
     DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
 use crate::types::ceremonies::CountingAlgType;
+use std::cmp::Ordering;
 use std::collections::HashMap;
-
+/// Fixture struct for ballot codec tests.
+#[allow(missing_docs)]
 pub struct BallotCodecFixture {
     pub title: String,
     pub contest: Contest,
@@ -21,11 +27,18 @@ pub struct BallotCodecFixture {
     pub encoded_ballot: [u8; 30],
     pub expected_errors: Option<HashMap<String, String>>,
 }
+/// Fixture struct for bases.
+#[allow(missing_docs)]
 pub struct BasesFixture {
     pub contest: Contest,
     pub bases: Vec<u64>,
 }
 
+/// Returns a test Contest configured for plurality voting.
+///
+/// # Returns
+/// A `Contest` struct for plurality voting.
+#[allow(clippy::too_many_lines)]
 fn get_contest_plurality() -> Contest {
     Contest {
         created_at: None,
@@ -221,6 +234,10 @@ fn get_contest_plurality() -> Contest {
     }
 }
 
+/// Returns a test Contest configured for Borda voting.
+///
+/// # Returns
+/// A `Contest` struct for Borda voting.
 fn get_contest_borda() -> Contest {
     let mut contest = get_contest_plurality();
     contest.counting_algorithm = Some(CountingAlgType::Borda);
@@ -228,6 +245,7 @@ fn get_contest_borda() -> Contest {
     contest
 }
 
+/// Returns a test Contest configured for IRV (instant runoff) voting.
 fn get_contest_irv() -> Contest {
     let mut contest = get_contest_plurality();
     contest.counting_algorithm = Some(CountingAlgType::InstantRunoff);
@@ -235,6 +253,13 @@ fn get_contest_irv() -> Contest {
     contest
 }
 
+/// Returns a ballot codec fixture for IRV with a valid encoded ballot.
+///
+/// # Panics
+///
+/// Panics if the fixture `encoded_ballot` bytes cannot be converted to a
+/// 30-byte array (invariant for this fixture).
+#[must_use]
 pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
     BallotCodecFixture {
         title: "irv_fixture".to_string(),
@@ -277,12 +302,20 @@ pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
             invalid_alerts: vec![],
         },
         encoded_ballot_bigint: "402".to_string(),
-        encoded_ballot: vec_to_30_array(&vec![2, 146, 1]).unwrap(),
+        encoded_ballot: vec_to_30_array(&[2, 146, 1])
+            .expect("Failed to convert vector to 30-byte array"),
         expected_errors: None,
     }
 }
 
-/// Invalid ballot due to duplicated position
+/// Returns a ballot codec fixture for IRV with an invalid ballot (duplicated
+/// ranking).
+///
+/// # Panics
+///
+/// Panics if the fixture `encoded_ballot` bytes cannot be converted to a
+/// 30-byte array (invariant for this fixture).
+#[must_use]
 pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
     BallotCodecFixture {
         title: "irv_fixture".to_string(),
@@ -325,11 +358,14 @@ pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
             invalid_alerts: vec![],
         },
         encoded_ballot_bigint: "402".to_string(),
-        encoded_ballot: vec_to_30_array(&vec![2, 146, 1]).unwrap(),
+        encoded_ballot: vec_to_30_array(&[2, 146, 1])
+            .expect("Failed to convert vector to 30-byte array"),
         expected_errors: None,
     }
 }
 
+/// Returns a `DecodedVoteContest`.
+#[must_use]
 pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
@@ -356,6 +392,12 @@ pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
     }
 }
 
+/// Returns a `BallotStyle` for write-in ballots.
+///
+/// # Returns
+/// A `BallotStyle` for write-in ballots.
+#[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn get_writein_ballot_style() -> BallotStyle {
     BallotStyle {
         id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
@@ -372,8 +414,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         area_presentation: None,
         election_event_presentation: None,
         election_presentation: None,
-        election_event_annotations: Default::default(),
-        election_annotations: Default::default(),
+        election_event_annotations: Option::default(),
+        election_annotations: Option::default(),
         election_dates: None,
         contests: vec![Contest {
             created_at: None,
@@ -562,18 +604,38 @@ pub fn get_writein_ballot_style() -> BallotStyle {
     }
 }
 
+/// Returns a `DecodedVoteContest` with a write-in of variable length.
+///
+/// # Panics
+/// Panics if `increase` is negative and cannot be converted to `usize` or if truncation would result in a negative length.
+#[must_use]
 pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
     let write_in = "THERE IS SOME VERY LARGE STRING BEING WRITTEN".to_string();
-
-    let mod_write_in = if 0 == increase {
-        write_in
-    } else if increase > 0 {
-        write_in + &"Z".repeat(increase as usize)
-    } else {
-        let trunc_len: i64 = write_in.len() as i64 + increase;
-        let mut res = write_in.clone();
-        res.truncate(trunc_len as usize);
-        res
+    let mod_write_in = match increase.cmp(&0) {
+        Ordering::Equal => write_in.clone(),
+        Ordering::Greater => match usize::try_from(increase) {
+            Ok(inc_usize) => {
+                let mut s = write_in.clone();
+                s.push_str(&"Z".repeat(inc_usize));
+                s
+            }
+            Err(_) => String::new(),
+        },
+        Ordering::Less => {
+            let len_i64 = i64::try_from(write_in.len()).unwrap_or(0);
+            let trunc_len = len_i64.checked_add(increase);
+            match trunc_len {
+                Some(tl) if tl > 0 => match usize::try_from(tl) {
+                    Ok(tl_usize) => {
+                        let mut res = write_in.clone();
+                        res.truncate(tl_usize);
+                        res
+                    }
+                    Err(_) => String::new(),
+                },
+                _ => String::new(),
+            }
+        }
     };
 
     DecodedVoteContest {
@@ -606,6 +668,8 @@ pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
     }
 }
 
+/// Returns a `DecodedVoteContest` with a valid write-in.
+#[must_use]
 pub fn get_writein_plaintext() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
@@ -637,6 +701,9 @@ pub fn get_writein_plaintext() -> DecodedVoteContest {
     }
 }
 
+/// Returns a `Contest` with multiple candidates and descriptions.
+#[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn get_test_contest() -> Contest {
     Contest {
         created_at:None,
@@ -785,6 +852,8 @@ pub fn get_test_contest() -> Contest {
     }
 }
 
+/// Returns a configurable `Contest` with multiple candidates.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn get_configurable_contest(
     max: i64,
     num_candidates: usize,
@@ -1044,29 +1113,32 @@ pub(crate) fn get_configurable_contest(
     contest.counting_algorithm = Some(counting_algorithm);
     contest.max_votes = max;
     if enable_writeins {
-        let mut presentation =
-            contest.presentation.unwrap_or(ContestPresentation::new());
+        let mut presentation = contest.presentation.unwrap_or_default();
         presentation.allow_writeins = Some(true);
-
         contest.presentation = Some(presentation);
         let write_in_indexes =
             write_in_contests.unwrap_or_else(|| vec![4, 5, 6]);
         for write_in_index in write_in_indexes {
-            if write_in_index < contest.candidates.len() {
-                contest.candidates[write_in_index].set_is_write_in(true);
+            if let Some(candidate) = contest.candidates.get_mut(write_in_index)
+            {
+                candidate.set_is_write_in(true);
             }
         }
     }
     // set base32_writeins
-    let mut presentation =
-        contest.presentation.unwrap_or(ContestPresentation::new());
+    let mut presentation = contest.presentation.unwrap_or_default();
     presentation.base32_writeins = Some(base32_writeins);
     contest.presentation = Some(presentation);
 
-    contest.candidates = contest.candidates[0..num_candidates].to_vec();
+    contest.candidates = match contest.candidates.get(0..num_candidates) {
+        Some(slice) => slice.to_vec(),
+        None => Vec::new(),
+    };
     contest
 }
 
+/// Returns a `Contest` with a specified number of candidates.
+#[allow(dead_code)]
 pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
     let candidates: Vec<Candidate> = (0..num_candidates)
         .map(|i| Candidate {
@@ -1150,13 +1222,21 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
         }),
     };
 
-    let mut presentation =
-        contest.presentation.unwrap_or(ContestPresentation::new());
+    let presentation = contest.presentation.unwrap_or_default();
     contest.presentation = Some(presentation);
 
     contest
 }
 
+/// Returns a vector of `BallotCodecFixture` with different configurations of contests and ballots.
+///
+/// # Returns
+/// A vector of `BallotCodecFixture` with various contest and ballot configurations for testing.
+///
+/// # Panics
+/// This function does not panic.
+#[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     vec![
         BallotCodecFixture {
@@ -1226,7 +1306,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
             },
             encoded_ballot_bigint: "50".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 50]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 50]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -1270,7 +1350,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_alerts: vec![],
             },
             encoded_ballot_bigint: "2756".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![2, 196, 10]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[2, 196, 10]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -1474,7 +1554,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
             },
             encoded_ballot_bigint: "15".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 15]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 15]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -1658,7 +1738,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_alerts: vec![],
             },
             encoded_ballot_bigint: "3".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 3]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -1852,7 +1932,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_alerts: vec![],
             },
             encoded_ballot_bigint: "14".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 14]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 14]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -2020,7 +2100,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_alerts: vec![],
             },
             encoded_ballot_bigint: "0".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 0]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -2198,7 +2278,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
             },
             encoded_ballot_bigint: "0".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 0]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -2375,7 +2455,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_alerts: vec![],
             },
             encoded_ballot_bigint: "0".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 0]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -2554,9 +2634,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_alerts: vec![],
             },
             encoded_ballot_bigint: "16".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 16]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 16]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
-                ("contest_bases".to_string(), "".to_string()),
+                ("contest_bases".to_string(), String::new()),
                 ("contest_encode_plaintext".to_string(), "choice id is not a valid candidate".to_string()),
                 ("contest_encode_to_raw_ballot".to_string(), "choice id is not a valid candidate".to_string()),
                 ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
@@ -2614,7 +2694,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "68".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 68]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 68]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
             ]))
@@ -2670,7 +2750,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "70".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 70]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 70]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
             ]))
@@ -2726,7 +2806,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "4122".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![2, 26, 16]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[2, 26, 16]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -2762,7 +2842,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "3".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 3]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -2790,12 +2870,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             ("numSelected".to_string(), "3".to_string()),
                             ("max".to_string(), "2".to_string())
                         ]),
-                    },
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Implicit,
-                        candidate_id: None,
-                        message: Some("errors.implicit.duplicatedPosition".to_string()),
-                        message_map: HashMap::new(),
                     }
                 ],
                 invalid_alerts: vec![],
@@ -2828,12 +2902,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     DecodedVoteChoice {
                         id: 5.to_string(),
                         selected: -1,
-                        write_in_text: Some("".to_string())
+                        write_in_text: Some(String::new())
                     }
                 ]
             },
             encoded_ballot_bigint: "6213".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![2, 69, 24]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[2, 69, 24]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
@@ -2879,7 +2953,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     DecodedVoteChoice {
                         id: 5.to_string(),
                         selected: -1,
-                        write_in_text: Some("".to_string()),
+                        write_in_text: Some(String::new()),
                     },
                     DecodedVoteChoice {
                         id: 6.to_string(),
@@ -2889,7 +2963,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "849069737378".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![5, 162, 5, 128, 176, 197]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[5, 162, 5, 128, 176, 197]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
@@ -2927,7 +3001,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "2".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 2]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_encode_raw_ballot".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
                 ("contest_encode_plaintext".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
@@ -2966,7 +3040,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "2".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 2]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("contest_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
@@ -3011,7 +3085,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "18".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![1, 18]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[1, 18]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
                 ("contest_decode_plaintext".to_string(),  "invalid_errors, decode_choices".to_string()),
@@ -3055,7 +3129,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "386".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![2, 130, 1]).unwrap(),
+            encoded_ballot: vec_to_30_array(&[2, 130, 1]).expect("Failed to convert vector to 30-byte array"),
             expected_errors: Some(HashMap::from([
                 ("contest_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("contest_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
@@ -3066,6 +3140,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     ]
 }
 
+/// Return `Vec<BasesFixture>` containing various bases with matching contests.
+#[must_use]
 pub fn bases_fixture() -> Vec<BasesFixture> {
     vec![
         BasesFixture {

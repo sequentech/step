@@ -10,24 +10,29 @@ use chrono::{
 
 pub const PHILIPPINO_TIMEZONE: TimeZone = TimeZone::Offset(8);
 
+/// Get the current system time zone.
+#[must_use]
 pub fn get_system_timezone() -> TimeZone {
     let now = Local::now();
     let offset = now.offset();
-    let duration = Duration::seconds(offset.local_minus_utc() as i64);
-    let hours = duration.num_hours() as i32;
+    let duration = Duration::seconds(i64::from(offset.local_minus_utc()));
+    let Ok(hours) = i32::try_from(duration.num_hours()) else {
+        return TimeZone::UTC;
+    };
     if hours == 0 {
         TimeZone::UTC
     } else {
         TimeZone::Offset(hours)
     }
 }
-
+/// Get the current date and time in RFC 3339 format.
+#[must_use]
 pub fn get_date_and_time() -> String {
-    let current_date_time = Local::now();
-    let printed_datetime = current_date_time.to_rfc3339();
-    printed_datetime
+    Local::now().to_rfc3339()
 }
 
+/// Generate a timestamp string based on the provided time zone, date format, and date time.
+#[must_use]
 pub fn generate_timestamp(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
@@ -41,9 +46,10 @@ pub fn generate_timestamp(
     match time_zone {
         TimeZone::UTC => now.format(&date_format).to_string(),
         TimeZone::Offset(offset) => {
-            let duration = Duration::hours(offset as i64);
-            let fixed_offset =
-                FixedOffset::east_opt(duration.num_seconds() as i32);
+            let duration = Duration::hours(i64::from(offset));
+            let fixed_offset = i32::try_from(duration.num_seconds())
+                .ok()
+                .and_then(FixedOffset::east_opt);
             match fixed_offset {
                 Some(fixed) => fixed
                     .from_utc_datetime(&now.naive_utc())
@@ -57,16 +63,27 @@ pub fn generate_timestamp(
 
 /// Check if the date is correct, format must be YYYY-MM-DD.
 /// Date in the future is not valid.
+///
+/// # Errors
+/// Returns an error if the date format is invalid, or if the date is in the future.
 pub fn verify_date_format_ymd(date_str: &str) -> Result<DateTime<Utc>, String> {
     let parts: Vec<&str> = date_str.split('-').collect();
     if parts.len() != 3 {
         return Err("Invalid date format".to_string());
     }
 
-    let year: i32 = parts[0].parse().map_err(|_| "Invalid year".to_string())?;
-    let month: u32 =
-        parts[1].parse().map_err(|_| "Invalid month".to_string())?;
-    let day: u32 = parts[2].parse().map_err(|_| "Invalid day".to_string())?;
+    let year: i32 = match parts.first() {
+        Some(y) => y.parse().map_err(|_| "Invalid year".to_string())?,
+        None => return Err("Invalid year".to_string()),
+    };
+    let month: u32 = match parts.get(1) {
+        Some(m) => m.parse().map_err(|_| "Invalid month".to_string())?,
+        None => return Err("Invalid month".to_string()),
+    };
+    let day: u32 = match parts.get(2) {
+        Some(d) => d.parse().map_err(|_| "Invalid day".to_string())?,
+        None => return Err("Invalid day".to_string()),
+    };
 
     let naive_date = NaiveDate::from_ymd_opt(year, month, day)
         .ok_or_else(|| "Invalid date".to_string())?;
