@@ -1,0 +1,14 @@
+table:
+  name: phone_blacklist
+  schema: sequent_backend
+select_permissions:
+  - comment: ""
+    permission:
+      columns:
+        - election_event_id
+        - phone_e164
+        - tenant_id
+      filter:
+        tenant_id:
+          _eq: X-Hasura-Tenant-Id
+    role: phone-blacklist-read
