@@ -156,6 +156,16 @@ PARENT_FLOWS = [
 EMAIL_OTP_CFG_ALIASES = {cfg for _, _, cfg, _ in PARENT_FLOWS}
 CHILD_SUBFLOW_ALIASES = {child for _, child, _, _ in PARENT_FLOWS}
 
+# Keys that the message-otp-authenticator code (Java + FTL) dereferences
+# without null-checks. Any message-otp execution config that is missing any
+# of these keys will cause a FreeMarker InvalidReferenceException at render
+# time. heal_stale_message_otp_configs() backfills these with sane defaults.
+REQUIRED_MSG_OTP_KEYS = {
+    "length": "6",
+    "resendCoudActivationTimer": "60",
+    "ttl": "300",
+}
+
 
 # ----------------------------- APPLY helpers -----------------------------
 
@@ -262,6 +272,51 @@ def ensure_email_otp_config(base, token, realm, execution_id, config_alias):
         http("POST",
             f"{base}/admin/realms/{realm}/authentication/executions/{execution_id}/config",
             token, {"alias": config_alias, "config": EMAIL_OTP_CONFIG})
+
+
+def heal_stale_message_otp_configs(base, token, realm):
+    """Backfill missing keys in every message-otp-authenticator config in the realm.
+
+    `ResetMessageOTPRequiredAction.Utils.getConfig` returns the FIRST
+    message-otp-authenticator execution found across all flows in the realm,
+    in non-deterministic stream order. If that execution's config is missing
+    `length`, `resendCoudActivationTimer`, or `ttl`, the FreeMarker template
+    `message-otp.login.ftl` blows up with InvalidReferenceException at render
+    time and the user sees a 500 error during the required-action flow.
+
+    The silver/gold sub-flows we create are fine because we attach the full
+    EMAIL_OTP_CONFIG to them. But pre-existing message-otp executions in OTHER
+    flows (e.g. "browser customized", "sequent browser flow" top-level) may
+    have stale configs from prior setups. This function audits every flow,
+    finds every message-otp-authenticator execution, and adds any missing
+    required keys to its attached config (leaving present keys untouched).
+    """
+    print("[2c/4] Healing stale message-otp-authenticator configs")
+    flows = http("GET", f"{base}/admin/realms/{realm}/authentication/flows", token) or []
+    seen_config_ids = set()
+    for f in flows:
+        execs = fetch_flow_executions(base, token, realm, f["alias"])
+        for e in execs:
+            if e.get("providerId") != "message-otp-authenticator":
+                continue
+            cfg_id = e.get("authenticationConfig")
+            if not cfg_id or cfg_id in seen_config_ids:
+                continue
+            seen_config_ids.add(cfg_id)
+            cfg = http("GET",
+                f"{base}/admin/realms/{realm}/authentication/config/{cfg_id}",
+                token, ignore_404=True)
+            if not cfg:
+                continue
+            cfg_map = dict(cfg.get("config") or {})
+            missing = {k: v for k, v in REQUIRED_MSG_OTP_KEYS.items() if k not in cfg_map}
+            if not missing:
+                continue
+            print(f"    backfilling {list(missing)} into config '{cfg.get('alias')}' (flow '{f['alias']}')")
+            cfg_map.update(missing)
+            http("PUT",
+                f"{base}/admin/realms/{realm}/authentication/config/{cfg_id}",
+                token, {"id": cfg_id, "alias": cfg.get("alias"), "config": cfg_map})
 
 
 def ensure_smtp_from(base, token, realm):
@@ -522,6 +577,7 @@ def do_apply(base, token, realm):
     ensure_smtp_from(base, token, realm)
     enable_passkey_policy(base, token, realm)
     configure_subflows(base, token, realm)
+    heal_stale_message_otp_configs(base, token, realm)
     enable_required_action(base, token, realm)
     apply_required_action_to_users(base, token, realm)
     print("Done.")
