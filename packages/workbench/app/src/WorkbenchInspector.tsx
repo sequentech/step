@@ -1160,27 +1160,27 @@ export function DiagnosticsPage(): JSX.Element {
             </p>
             <BuildStatusCard />
             <LiftedSourceDriftSection />
-            <details style={{marginTop: "1.5rem"}}>
-                <summary style={{cursor: "pointer", color: "#444"}}>
-                    Current workbench state (paste into{" "}
-                    <em>Import snapshot JSON…</em> on the snapshots page
-                    to reproduce)
-                </summary>
+            <div style={diagnosticsCardStyle}>
+                <div style={diagnosticsCardHeaderStyle}>
+                    <strong>Current workbench state</strong>
+                </div>
                 <p
                     style={{
                         color: "#666",
                         fontSize: "0.85rem",
-                        margin: "0.5rem 0",
+                        margin: "0 0 0.5rem 0",
                     }}
                 >
-                    Same shape as a bundled snapshot's <em>Bundled JSON</em>{" "}
-                    block, except <code>parentId</code> is preserved so the
-                    receiving workbench can re-attach the lineage. Drops
-                    into <code>src/fixtures/snapshots/</code> too (strip{" "}
+                    Paste into <em>Import snapshot JSON…</em> on the
+                    snapshots page to reproduce. Same shape as a bundled
+                    snapshot's <em>Bundled JSON</em> block, except{" "}
+                    <code>parentId</code> is preserved so the receiving
+                    workbench can re-attach the lineage. Drops into{" "}
+                    <code>src/fixtures/snapshots/</code> too (strip{" "}
                     <code>parentId</code> first for a root bundled fixture).
                 </p>
                 <CopyJsonBlock json={currentSnapshotJson} />
-            </details>
+            </div>
         </div>
     )
 }
@@ -1339,16 +1339,10 @@ function BuildStatusCard(): JSX.Element {
 function LiftedSourceDriftSection(): JSX.Element {
     const git = buildInfo.git
     return (
-        <section
-            style={{
-                marginTop: "1.5rem",
-                paddingTop: "1.25rem",
-                borderTop: "1px solid #eee",
-            }}
-        >
-            <h2 style={{margin: "0 0 0.5rem 0", fontSize: "1.05rem"}}>
-                Lifted-source drift
-            </h2>
+        <section style={diagnosticsCardStyle}>
+            <div style={diagnosticsCardHeaderStyle}>
+                <strong>Lifted-source drift</strong>
+            </div>
             <BranchBaseLine />
             <VotingPortalDriftBlock
                 base={git.base}
@@ -1634,19 +1628,26 @@ function humanAge(ms: number): string {
     return `${d}d ${h % 24}h`
 }
 
-const buildStatusCardStyle: React.CSSProperties = {
+// Shared card style for every section on the Diagnostics page (build
+// status, lifted-source drift, current workbench state). Giving every
+// section the same grey-boxed frame turns the page into a visually
+// scannable stack instead of one long flow with subtle dividers.
+const diagnosticsCardStyle: React.CSSProperties = {
     border: "1px solid #ddd",
     borderRadius: 4,
     padding: "0.6rem 0.9rem",
     marginTop: "1.5rem",
     background: "#fafafa",
 }
-const buildStatusHeaderStyle: React.CSSProperties = {
+const diagnosticsCardHeaderStyle: React.CSSProperties = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "baseline",
     marginBottom: "0.4rem",
 }
+const buildStatusCardStyle: React.CSSProperties = diagnosticsCardStyle
+const buildStatusHeaderStyle: React.CSSProperties =
+    diagnosticsCardHeaderStyle
 const buildStatusTableStyle: React.CSSProperties = {
     width: "100%",
     borderCollapse: "collapse",
