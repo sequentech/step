@@ -40,7 +40,7 @@
 import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
-import {useCallback, useMemo, useState, useSyncExternalStore} from "react"
+import {Fragment, useCallback, useMemo, useState, useSyncExternalStore} from "react"
 import {getWorkbenchState, subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
     buildCurrentSnapshot,
@@ -2644,13 +2644,7 @@ export function VoterDetailPage(): JSX.Element {
                                 >
                                     {buttonLabel}
                                 </button>{" "}
-                                <NavLink
-                                    to={`/wb/ballot-style/${bs.id}`}
-                                    style={{...inlineLinkStyle, color: "#888"}}
-                                    title="Open this ballot style's detail page"
-                                >
-                                    <code>{bs.id}</code>
-                                </NavLink>
+                                <BallotStyleContestLinks bs={bs} />
                             </li>
                         )
                     })}
@@ -2678,6 +2672,67 @@ export function VoterDetailPage(): JSX.Element {
                 </ul>
             )}
         </>
+    )
+}
+
+/**
+ * Inline summary of the contests that the given ballot style entitles
+ * a voter to vote in. Rendered next to each "Cast a ballot…" button
+ * on the voter page in place of the raw ballot-style UUID, which
+ * carried no operator-meaningful information.
+ *
+ * Each contest is a `NavLink` into `/wb/contest/:id` so the operator
+ * can jump straight to the contest detail page (selections, tally
+ * stage cells, etc.). The ballot-style UUID is kept reachable via a
+ * trailing `(style)` link so anyone who actually wanted that detail
+ * page can still get there in one click.
+ *
+ * Falls back to just the ballot-style link if `ballot_eml.contests`
+ * is missing or empty — better to show nothing extra than to render
+ * an empty `Contests:` label.
+ */
+function BallotStyleContestLinks({
+    bs,
+}: {
+    bs: {
+        id: string
+        ballot_eml: {
+            contests?: ReadonlyArray<{
+                id: string
+                name?: string | null
+            }>
+        }
+    }
+}): JSX.Element {
+    const contests = bs.ballot_eml.contests ?? []
+    return (
+        <span style={{color: "#666", fontSize: "0.85rem"}}>
+            {contests.length > 0 && (
+                <>
+                    Contests:{" "}
+                    {contests.map((c, i) => (
+                        <Fragment key={c.id}>
+                            {i > 0 ? ", " : ""}
+                            <NavLink
+                                to={`/wb/contest/${c.id}`}
+                                style={inlineLinkStyle}
+                                title={c.id}
+                            >
+                                {c.name || c.id}
+                            </NavLink>
+                        </Fragment>
+                    ))}
+                    {" \u00b7 "}
+                </>
+            )}
+            <NavLink
+                to={`/wb/ballot-style/${bs.id}`}
+                style={{...inlineLinkStyle, color: "#888"}}
+                title={`Ballot style ${bs.id}`}
+            >
+                style
+            </NavLink>
+        </span>
     )
 }
 
