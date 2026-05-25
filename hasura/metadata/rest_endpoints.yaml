@@ -6,4 +6,4 @@
   methods:
     - GET
   name: IvrIsPhoneBlacklisted
-  url: ivr/phone_blacklist/:event_id/:phone
+  url: ivr/phone-blacklist/:event_id/:phone
