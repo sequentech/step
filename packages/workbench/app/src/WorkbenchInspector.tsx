@@ -58,11 +58,7 @@ import {
     type CheckpointMeta,
     type PersistedSnapshot,
 } from "./persistence"
-import {
-    BUNDLED_SNAPSHOTS,
-    deleteBundledSnapshot,
-    subscribeBundledSnapshots,
-} from "./fixtures/bundledSnapshots"
+import {BUNDLED_SNAPSHOTS} from "./fixtures/bundledSnapshots"
 import type {PipelineSeed, PipelineSeedRow} from "./BallotPipeline"
 import type {TallySeed} from "./TallyPage"
 import {decodeBigIntToDecodedVoteContest} from "./tally"
@@ -223,7 +219,7 @@ function SnapshotsSection(): JSX.Element {
     const checkpoints = useCheckpointList()
     const currentParent = useCurrentParentId()
     const isDirty = useIsWorkingDirty()
-    const bundled = useBundledIds()
+    const bundled = Object.keys(BUNDLED_SNAPSHOTS).sort()
     const {roots, orphans} = buildProvenanceForest(bundled, checkpoints)
     return (
         <section>
@@ -750,21 +746,6 @@ export function SnapshotOverviewPage(): JSX.Element {
         if (!snapshot) return
         loadSnapshotViaReload(snapshot, checkpointId(name))
     }
-    const onDeleteBundled = (name: string): void => {
-        // Session-only: clears the entry from BUNDLED_SNAPSHOTS for
-        // this tab. Source JSON and build artifact are untouched; a
-        // reload restores it. Confirm to guard misclicks.
-        if (
-            !window.confirm(
-                `Hide bundled snapshot "${name}" for this session?\n\n` +
-                    `The source JSON file on disk is not touched — ` +
-                    `reload the page to restore it.`
-            )
-        ) {
-            return
-        }
-        deleteBundledSnapshot(name)
-    }
     const onDeleteCheckpoint = (name: string): void => {
         // Permanent: removes the checkpoint from localStorage. The
         // workbench overlay's parent pointer is left alone, so any
@@ -781,11 +762,10 @@ export function SnapshotOverviewPage(): JSX.Element {
         deleteCheckpoint(name)
     }
 
-    // Bundled-id subscription drives table re-renders after a
-    // session-only delete; iterate the live keys rather than
-    // `Object.entries(BUNDLED_SNAPSHOTS)` directly so the hook's
-    // store contract is honoured.
-    const bundledIds = useBundledIds()
+    // Bundled snapshots are immutable in-memory: the dictionary is
+    // built once at module load from `import.meta.glob` and never
+    // mutated, so a plain sorted key list is fine.
+    const bundledIds = Object.keys(BUNDLED_SNAPSHOTS).sort()
 
     // Build the unified row list. The working copy is always first;
     // bundled snapshots follow (alphabetical), then checkpoints
@@ -975,49 +955,45 @@ export function SnapshotOverviewPage(): JSX.Element {
                                         >
                                             Load
                                         </button>
-                                        <button
-                                            type="button"
-                                            style={{
-                                                ...secondaryButtonStyle,
-                                                color:
+                                        {row.kind === "checkpoint" && (
+                                            <button
+                                                type="button"
+                                                style={{
+                                                    ...secondaryButtonStyle,
+                                                    color:
+                                                        row.id === parentId
+                                                            ? "#999"
+                                                            : "#b22222",
+                                                    borderColor:
+                                                        row.id === parentId
+                                                            ? "#ccc"
+                                                            : "#b22222",
+                                                    opacity:
+                                                        row.id === parentId
+                                                            ? 0.6
+                                                            : 1,
+                                                    cursor:
+                                                        row.id === parentId
+                                                            ? "not-allowed"
+                                                            : "pointer",
+                                                }}
+                                                disabled={
                                                     row.id === parentId
-                                                        ? "#999"
-                                                        : "#b22222",
-                                                borderColor:
+                                                }
+                                                title={
                                                     row.id === parentId
-                                                        ? "#ccc"
-                                                        : "#b22222",
-                                                opacity:
-                                                    row.id === parentId
-                                                        ? 0.6
-                                                        : 1,
-                                                cursor:
-                                                    row.id === parentId
-                                                        ? "not-allowed"
-                                                        : "pointer",
-                                            }}
-                                            disabled={row.id === parentId}
-                                            title={
-                                                row.id === parentId
-                                                    ? "Can't delete the active snapshot — load a different one first."
-                                                    : row.kind === "bundled"
-                                                    ? "Hide for this session (reload restores)"
-                                                    : "Permanently delete from localStorage"
-                                            }
-                                            onClick={() => {
-                                                if (row.kind === "bundled") {
-                                                    onDeleteBundled(
-                                                        row.name
-                                                    )
-                                                } else {
+                                                        ? "Can't delete the active snapshot — load a different one first."
+                                                        : "Permanently delete from localStorage"
+                                                }
+                                                onClick={() =>
                                                     onDeleteCheckpoint(
                                                         row.name
                                                     )
                                                 }
-                                            }}
-                                        >
-                                            Delete
-                                        </button>
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </td>
@@ -3307,27 +3283,9 @@ function useCheckpointList(): CheckpointMeta[] {
 
 // --- Bundled-snapshot list -----------------------------------------------
 //
-// Bundled snapshots are mutable in-memory: the inspector's Snapshots
-// table exposes a Delete button that removes the entry from
-// `BUNDLED_SNAPSHOTS` for the current session (the source JSON on
-// disk and the build artifact are untouched; a page reload restores
-// it). Views that list bundled ids must subscribe so they re-render
-// after a deletion.
-let cachedBundledIds: string[] = Object.keys(BUNDLED_SNAPSHOTS).sort()
-let cachedBundledIdsKey = cachedBundledIds.join("\u241F")
-function getBundledIdsCached(): string[] {
-    const next = Object.keys(BUNDLED_SNAPSHOTS).sort()
-    const key = next.join("\u241F")
-    if (key !== cachedBundledIdsKey) {
-        cachedBundledIdsKey = key
-        cachedBundledIds = next
-    }
-    return cachedBundledIds
-}
-function useBundledIds(): string[] {
-    return useSyncExternalStore(
-        (cb) => subscribeBundledSnapshots(cb),
-        getBundledIdsCached,
-        getBundledIdsCached
-    )
-}
+// Bundled snapshots are immutable: the dictionary in
+// `fixtures/bundledSnapshots.ts` is built once at module load from
+// `import.meta.glob` and never mutated. Components that need the id
+// list compute `Object.keys(BUNDLED_SNAPSHOTS).sort()` inline (5
+// entries, microseconds per render); there's no reactive subscription
+// hook because nothing changes after boot.
