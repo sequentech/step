@@ -41,12 +41,12 @@ spec:
       serviceAccountName: gitea-runner-sa
       initContainers:
         - name: wait-for-token
-          image: sequentech.local/ci-builder:latest
+          image: sequentech.local/runner-ubuntu:22.04
           imagePullPolicy: IfNotPresent
           command:
             - sh
             - -c
-            - "until kubectl get secret gitea-runner-token -n gitea; do echo waiting for secret; sleep 5; done"
+            - "until /usr/local/bin/kubectl get secret gitea-runner-token -n gitea; do echo waiting for secret; sleep 5; done"
       tolerations:
         - key: "node-role.kubernetes.io/master"
           operator: "Exists"
