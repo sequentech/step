@@ -7,6 +7,10 @@ data:
   config.yaml: |
     runner:
       capacity: 1
+      # Use the internal Kubernetes DNS name for portability
+      envs:
+        KUBERNETES_SERVICE_HOST: kubernetes.default.svc.cluster.local
+        KUBERNETES_SERVICE_PORT: "443"
       # Map all standard labels to our custom local image that includes kubectl
       labels:
         - "ubuntu-latest:docker://sequentech.local/runner-ubuntu:22.04"
@@ -14,6 +18,7 @@ data:
         - "ubuntu-22.04:docker://sequentech.local/runner-ubuntu:22.04"
     container:
       workdir_parent: /workspace
+      # Allow mounting the service account into build containers
       valid_volumes: ["/var/run/secrets/kubernetes.io/serviceaccount"]
 ---
 apiVersion: apps/v1
@@ -86,6 +91,9 @@ spec:
               readOnly: true
             - name: dind-socket
               mountPath: /var/run
+            - name: kube-api-access
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
       volumes:
         - name: runner-data
           persistentVolumeClaim:
@@ -102,6 +110,24 @@ spec:
             name: runner-config
         - name: dind-socket
           emptyDir: {}
+        - name: kube-api-access
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  expirationSeconds: 3607
+                  path: token
+              - configMap:
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+                  name: kube-root-ca.crt
+              - downwardAPI:
+                  items:
+                    - fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.namespace
+                      path: namespace
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
