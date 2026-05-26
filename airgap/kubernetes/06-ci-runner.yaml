@@ -62,6 +62,7 @@ spec:
             - -c
             - |
               until [ -S /var/run/docker.sock ]; do echo 'Waiting for docker socket...'; sleep 2; done
+              until docker images | grep -q "runner-images"; do echo 'Waiting for runner image...'; sleep 5; done
               if [ ! -f .runner ]; then
                 echo "Registering runner with Gitea..."
                 /sbin/tini -- act_runner register --no-interactive --instance "${GITEA_INSTANCE_URL}" --token "${GITEA_RUNNER_REGISTRATION_TOKEN}" --config /config/config.yaml
