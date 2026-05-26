@@ -55,7 +55,19 @@ spec:
         - name: runner
           image: gitea/act_runner:latest
           imagePullPolicy: IfNotPresent
-          command: ["sh", "-c", "until [ -S /var/run/docker.sock ]; do echo 'Waiting for docker socket...'; sleep 2; done; /sbin/tini -- act_runner daemon --config /config/config.yaml"]
+          command:
+            - sh
+            - -c
+            - |
+              until [ -S /var/run/docker.sock ]; do echo 'Waiting for docker socket...'; sleep 2; done
+              if [ ! -f /data/.runner ]; then
+                echo "Registering runner with Gitea..."
+                /sbin/tini -- act_runner register --no-interactive --instance "${GITEA_INSTANCE_URL}" --token "${GITEA_RUNNER_REGISTRATION_TOKEN}" --config /config/config.yaml
+                # Ensure the registration file is moved to persistent storage if not already there
+                [ -f .runner ] && mv .runner /data/.runner
+              fi
+              echo "Starting runner daemon..."
+              /sbin/tini -- act_runner daemon --config /config/config.yaml
           env:
             - name: GITEA_INSTANCE_URL
               value: http://gitea.gitea:3000
