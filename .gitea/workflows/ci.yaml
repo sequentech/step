@@ -33,7 +33,4 @@ jobs:
 
       - name: Rollout Update
         run: |
-          docker run --rm \
-            -v /var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro \
-            sequentech.local/ci-builder:latest \
-            /usr/local/bin/kubectl rollout restart deployment/harvest deployment/windmill deployment/admin-portal -n step-apps
+          kubectl rollout restart deployment/harvest deployment/windmill deployment/admin-portal -n step-apps

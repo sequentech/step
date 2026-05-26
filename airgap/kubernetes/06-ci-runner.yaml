@@ -11,6 +11,8 @@ data:
         A_TEST_ENV_NAME_1: a_test_env_value_1
     container:
       workdir_parent: /workspace
+      # Use a local custom image that includes kubectl
+      image: sequentech.local/runner-ubuntu:22.04
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -89,6 +89,9 @@ docker build -t sequentech.local/keycloak -f "$PROJECT_ROOT/packages/Dockerfile.
 echo "Building custom CI builder base image..."
 docker build -t sequentech.local/ci-builder:latest -f "$PROJECT_ROOT/packages/Dockerfile.ci-builder" "$PROJECT_ROOT/packages"
 
+echo "Building custom Gitea runner base image..."
+docker build -t sequentech.local/runner-ubuntu:22.04 -f "$PROJECT_ROOT/packages/Dockerfile.gitea-runner" "$PROJECT_ROOT/packages"
+
 echo "Building offline dependencies base image..."
 docker build -t sequentech.local/offline-dependencies:latest -f "$PROJECT_ROOT/packages/Dockerfile.offline-dependencies" "$PROJECT_ROOT/packages"
 
@@ -100,6 +103,7 @@ ALL_IMAGES=(
     "sequentech.local/postgresql" 
     "sequentech.local/keycloak"
     "sequentech.local/ci-builder:latest"
+    "sequentech.local/runner-ubuntu:22.04"
     "sequentech.local/offline-dependencies:latest"
 )
 docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
