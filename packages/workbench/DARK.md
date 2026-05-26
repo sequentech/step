@@ -201,11 +201,10 @@ Common substitutions applied across all files:
 
 ## Revert
 
-All dark-theme changes were applied in a single atomic commit
-`73bef7edec`. To revert:
+All dark-theme changes were applied in commit `800dcdbec5`. To revert:
 
 ```bash
-git revert 73bef7edec
+git revert 800dcdbec5
 ```
 
 This will cleanly undo every color change across all 5 files and restore the
@@ -216,6 +215,6 @@ If you need to partially revert (e.g. keep one file dark), cherry-pick the
 revert commit and then re-apply the changes for the files you want to keep:
 
 ```bash
-git revert 73bef7edec
-git checkout 73bef7edec -- app/src/WorkbenchInspector.tsx  # re-apply dark to this file
+git revert 800dcdbec5
+git checkout 800dcdbec5 -- app/src/WorkbenchInspector.tsx  # re-apply dark to this file
 ```
