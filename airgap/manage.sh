@@ -36,15 +36,16 @@ case "$1" in
         sh "$PROJECT_ROOT/k3s/install.sh"
         
         echo "--- Configuring Internal Registry Trust ---"
+        # We use a static ClusterIP (10.43.10.10) for Gitea to avoid host-level DNS resolution
         sudo mkdir -p /etc/rancher/k3s
         sudo tee /etc/rancher/k3s/registries.yaml > /dev/null <<EOF
 mirrors:
   "gitea.local:3000":
     endpoint:
-      - "http://gitea.gitea:3000"
+      - "http://10.43.10.10:3000"
   "gitea.gitea:3000":
     endpoint:
-      - "http://gitea.gitea:3000"
+      - "http://10.43.10.10:3000"
 configs:
   "gitea.local:3000":
     tls:
@@ -74,34 +75,14 @@ EOF
         ;;
 
     --deploy)
-        echo "--- Loading Infrastructure Images into K3s ---"
-        sudo mkdir -p /var/lib/rancher/k3s/agent/images/infra/
-        sudo cp "$PROJECT_ROOT/images/step-airgap-infra.tar" /var/lib/rancher/k3s/agent/images/infra/
-        sudo k3s ctr images import /var/lib/rancher/k3s/agent/images/infra/step-airgap-infra.tar
+        echo "--- Loading Infrastructure Images into K3s (Background) ---"
+        sudo mkdir -p /var/lib/rancher/k3s/agent/images/
+        sudo cp "$PROJECT_ROOT/images/step-airgap-infra.tar" /var/lib/rancher/k3s/agent/images/
         
         echo "--- Applying Kubernetes Manifests ---"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/01-namespaces.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/07-rbac.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/00-config.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/02-ingress.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/03-gitea.yaml"
+        # Fully declarative. Kubernetes Jobs and InitContainers handle the state.
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/"
         
-        echo "Waiting for Gitea to start so we can generate a runner token..."
-        sudo k3s kubectl rollout status deployment/gitea -n gitea
-        TOKEN=$(sudo k3s kubectl exec -n gitea deploy/gitea -- su git -c "gitea actions generate-runner-token")
-        echo "Registering runner with token: $TOKEN"
-        sed "s/YOUR_TOKEN_HERE/$TOKEN/g" "$PROJECT_ROOT/kubernetes/06-ci-runner.yaml" | sudo k3s kubectl apply -f -
-        
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/04-infra.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/05-apps.yaml"
-        
-        echo "--- Configuring Internal DNS Resolution for Kubelet ---"
-        GITEA_IP=$(sudo k3s kubectl get svc -n gitea gitea -o jsonpath='{.spec.clusterIP}')
-        if [ -n "$GITEA_IP" ]; then
-            sudo sh -c "grep -q 'gitea.gitea' /etc/hosts || echo '$GITEA_IP gitea.gitea' >> /etc/hosts"
-            echo "Mapped gitea.gitea to $GITEA_IP in /etc/hosts"
-        fi
-
         echo "Stack is deploying! Use 'kubectl get pods -A' to monitor."
         ;;
 

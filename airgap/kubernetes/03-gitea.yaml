@@ -4,6 +4,7 @@ metadata:
   name: gitea
   namespace: gitea
 spec:
+  clusterIP: 10.43.10.10
   selector:
     app: gitea
   ports:

@@ -30,6 +30,13 @@ spec:
         app: gitea-runner
     spec:
       serviceAccountName: gitea-runner-sa
+      initContainers:
+        - name: wait-for-token
+          image: sequentech.local/ci-builder:latest
+          command:
+            - sh
+            - -c
+            - "until kubectl get secret gitea-runner-token -n gitea; do echo waiting for secret; sleep 5; done"
       tolerations:
         - key: "node-role.kubernetes.io/master"
           operator: "Exists"
@@ -41,7 +48,10 @@ spec:
             - name: GITEA_INSTANCE_URL
               value: http://gitea.gitea:3000
             - name: GITEA_RUNNER_REGISTRATION_TOKEN
-              value: "YOUR_TOKEN_HERE"
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-runner-token
+                  key: token
             - name: DOCKER_HOST
               value: unix:///var/run/docker.sock
             - name: CONFIG_FILE

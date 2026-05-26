@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitea-setup
+  namespace: gitea
+spec:
+  template:
+    spec:
+      serviceAccountName: gitea-runner-sa
+      containers:
+        - name: setup
+          image: sequentech.local/ci-builder:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Gitea to be ready..."
+              kubectl rollout status deployment/gitea -n gitea --timeout=300s
+              
+              echo "Generating runner registration token..."
+              # Try to get the token, retrying if the pod is not fully ready for exec
+              for i in $(seq 1 10); do
+                TOKEN=$(kubectl exec -n gitea deploy/gitea -- su git -c "gitea actions generate-runner-token" 2>/dev/null)
+                if [ -n "$TOKEN" ]; then
+                  break
+                fi
+                echo "Retrying token generation ($i/10)..."
+                sleep 5
+              done
+
+              if [ -z "$TOKEN" ]; then
+                echo "Failed to generate token"
+                exit 1
+              fi
+
+              echo "Registering runner with token into secret..."
+              kubectl create secret generic gitea-runner-token \
+                -n gitea \
+                --from-literal=token="$TOKEN" \
+                --dry-run=client -o yaml | kubectl apply -f -
+              
+              echo "Setup complete!"
+      restartPolicy: OnFailure
+  backoffLimit: 4
