@@ -7,12 +7,14 @@ data:
   config.yaml: |
     runner:
       capacity: 1
-      envs:
-        A_TEST_ENV_NAME_1: a_test_env_value_1
+      # Map all standard labels to our custom local image that includes kubectl
+      labels:
+        - "ubuntu-latest:docker://sequentech.local/runner-ubuntu:22.04"
+        - "ubuntu-24.04:docker://sequentech.local/runner-ubuntu:22.04"
+        - "ubuntu-22.04:docker://sequentech.local/runner-ubuntu:22.04"
     container:
       workdir_parent: /workspace
-      # Use a local custom image that includes kubectl
-      image: sequentech.local/runner-ubuntu:22.04
+      valid_volumes: ["/var/run/secrets/kubernetes.io/serviceaccount"]
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -75,7 +77,7 @@ spec:
               value: ""
           securityContext:
             privileged: true
-          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then for f in /images/*.tar; do if [ -f \"$f\" ]; then echo \"Loading $f...\"; docker load -i \"$f\"; fi; done; fi; wait"]
+          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then find /images -name \"*.tar\" -exec echo \"Loading {}...\" \\; -exec docker load -i {} \\;; fi; wait"]
           volumeMounts:
             - name: docker-storage
               mountPath: /var/lib/docker
