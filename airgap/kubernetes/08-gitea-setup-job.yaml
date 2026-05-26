@@ -4,6 +4,7 @@ metadata:
   name: gitea-setup
   namespace: gitea
 spec:
+  ttlSecondsAfterFinished: 100
   template:
     spec:
       serviceAccountName: gitea-runner-sa
