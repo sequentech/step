@@ -33,6 +33,7 @@ spec:
       initContainers:
         - name: wait-for-token
           image: sequentech.local/ci-builder:latest
+          imagePullPolicy: IfNotPresent
           command:
             - sh
             - -c
@@ -44,6 +45,7 @@ spec:
       containers:
         - name: runner
           image: gitea/act_runner:latest
+          imagePullPolicy: IfNotPresent
           env:
             - name: GITEA_INSTANCE_URL
               value: http://gitea.gitea:3000
@@ -65,6 +67,7 @@ spec:
               mountPath: /var/run
         - name: dind
           image: docker:24-dind
+          imagePullPolicy: IfNotPresent
           env:
             - name: DOCKER_TLS_CERTDIR
               value: ""

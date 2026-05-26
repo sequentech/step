@@ -38,6 +38,7 @@ spec:
       containers:
         - name: harvest
           image: gitea.gitea:3000/admin/harvest:latest
+          imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: step-env
@@ -66,6 +67,7 @@ spec:
       containers:
         - name: windmill
           image: gitea.gitea:3000/admin/windmill:latest
+          imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: step-env
@@ -94,6 +96,7 @@ spec:
       containers:
         - name: admin-portal
           image: gitea.gitea:3000/admin/admin-portal:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
 ---
@@ -132,6 +135,7 @@ spec:
       containers:
         - name: hasura
           image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           envFrom:

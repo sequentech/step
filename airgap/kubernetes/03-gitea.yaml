@@ -37,6 +37,7 @@ spec:
       containers:
         - name: gitea
           image: gitea/gitea:latest
+          imagePullPolicy: IfNotPresent
           env:
             - name: GITEA__database__DB_TYPE
               value: sqlite3

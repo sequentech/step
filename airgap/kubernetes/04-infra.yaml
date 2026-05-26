@@ -99,6 +99,7 @@ spec:
       initContainers:
         - name: fix-permissions
           image: debian:bookworm
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "chmod 777 /data"]
           volumeMounts:
             - name: storage
@@ -106,6 +107,7 @@ spec:
       containers:
         - name: rustfs
           image: rustfs/rustfs:latest
+          imagePullPolicy: IfNotPresent
           args: ["server", "--console-address", ":9001", "/data"]
           env:
             - name: RUSTFS_ROOT_USER
@@ -159,6 +161,7 @@ spec:
       containers:
         - name: rabbitmq
           image: rabbitmq:3.12.11-management
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5672
             - containerPort: 15672
