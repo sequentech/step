@@ -42,13 +42,13 @@ import {
 } from "@sequentech/ui-core"
 
 import {
+    BOUNDS_KEYS,
     clearContestOverrides,
     setPolicyOverride,
     useContestPolicyOverlay,
     type ContestPolicyKey,
     type ContestPolicyOverlay,
 } from "./policyOverridesStore"
-
 interface PolicyMeta<K extends ContestPolicyKey> {
     key: K
     label: string
@@ -175,6 +175,12 @@ interface ContestForPanel {
     counting_algorithm?: string | null
     voting_type?: string | null
     presentation?: Record<string, unknown> | null
+    /** Contest-level bounds. The policies above are dead code in
+     *  zones the bounds make empty (e.g. `blank_vote_policy` is
+     *  inert unless `min_votes == 0`), so they're exposed here as
+     *  first-class dials alongside the policies. */
+    min_votes?: number | null
+    max_votes?: number | null
 }
 
 export interface ContestPolicyOverridesPanelProps {
@@ -236,13 +242,29 @@ export function ContestPolicyOverridesPanel(
             </header>
             <p style={styles.intro}>
                 Ephemeral, per-tab overrides for the six vote-
-                validation policies. Applied at booth open (when you
-                click <strong>Cast vote</strong> on a voter page) and
-                at tally run (when you click <strong>Run tally</strong>
+                validation policies plus the two contest bounds
+                (<code>min_votes</code>, <code>max_votes</code>) that
+                frame them. Applied at booth open (when you click{" "}
+                <strong>Cast vote</strong> on a voter page) and at
+                tally run (when you click <strong>Run tally</strong>{" "}
                 in the sandbox). Not saved with snapshots or
                 checkpoints; revert by clicking <em>reset</em> or
                 reloading the page.
             </p>
+            <BoundsEditor
+                contestId={contest.id}
+                baselineMin={
+                    typeof contest.min_votes === "number"
+                        ? contest.min_votes
+                        : undefined
+                }
+                baselineMax={
+                    typeof contest.max_votes === "number"
+                        ? contest.max_votes
+                        : undefined
+                }
+                overlay={overlay}
+            />
             <table style={styles.table}>
                 <tbody>
                     {visible.map((meta) => {
@@ -282,6 +304,90 @@ export function ContestPolicyOverridesPanel(
                 </p>
             ) : null}
         </section>
+    )
+}
+
+/** Numeric editor for the two contest-level bounds. They live on the
+ *  contest, not on `presentation`, so we render them above the
+ *  policy table to make the coupling explicit: most policies are
+ *  inert outside specific (min, max) ranges (e.g.
+ *  `blank_vote_policy` only fires when `min_votes == 0`;
+ *  `under_vote_policy` only fires when `max_votes - min_votes >= 2`).
+ *  Exposing the bounds keeps the operator out of the "I flipped a
+ *  policy and nothing happened" no-man's-land. */
+function BoundsEditor({
+    contestId,
+    baselineMin,
+    baselineMax,
+    overlay,
+}: {
+    contestId: string
+    baselineMin: number | undefined
+    baselineMax: number | undefined
+    overlay: ContestPolicyOverlay
+}): ReactElement {
+    return (
+        <div style={styles.boundsRow}>
+            {BOUNDS_KEYS.map((key) => {
+                const baseline =
+                    key === "min_votes" ? baselineMin : baselineMax
+                const override = overlay[key] as number | undefined
+                const isOverridden = override !== undefined
+                const effective = isOverridden ? override : baseline
+                return (
+                    <label key={key} style={styles.boundsCell}>
+                        <span style={styles.boundsLabel}>
+                            <code>{key}</code>
+                        </span>
+                        <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={effective ?? ""}
+                            placeholder={
+                                baseline === undefined
+                                    ? "(unset)"
+                                    : `baseline ${baseline}`
+                            }
+                            onChange={(e) => {
+                                const raw = e.target.value
+                                if (raw === "") {
+                                    setPolicyOverride(
+                                        contestId,
+                                        key,
+                                        undefined
+                                    )
+                                    return
+                                }
+                                const n = Number.parseInt(raw, 10)
+                                if (!Number.isFinite(n) || n < 0) return
+                                setPolicyOverride(contestId, key, n)
+                            }}
+                            style={styles.boundsInput}
+                            aria-label={`${key} override`}
+                        />
+                        {isOverridden ? (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setPolicyOverride(
+                                        contestId,
+                                        key,
+                                        undefined
+                                    )
+                                }
+                                style={styles.resetButton}
+                                title="Revert to baseline"
+                            >
+                                reset
+                            </button>
+                        ) : (
+                            <span style={styles.baselineHint}>baseline</span>
+                        )}
+                    </label>
+                )
+            })}
+        </div>
     )
 }
 
@@ -452,5 +558,29 @@ const styles: Record<string, CSSProperties> = {
         margin: "0.75rem 0 0 0",
         fontSize: "0.78rem",
         color: "#777",
+    },
+    boundsRow: {
+        display: "flex",
+        gap: "1rem",
+        margin: "0 0 0.85rem 0",
+        padding: "0.55rem 0.65rem",
+        background: "#f4f6f8",
+        border: "1px solid #e1e6ea",
+        borderRadius: 4,
+        flexWrap: "wrap",
+    },
+    boundsCell: {
+        display: "flex",
+        alignItems: "center",
+        gap: "0.4rem",
+        fontSize: "0.82rem",
+    },
+    boundsLabel: {
+        color: "#444",
+    },
+    boundsInput: {
+        width: "5.5rem",
+        fontSize: "0.85rem",
+        padding: "0.2rem 0.35rem",
     },
 }

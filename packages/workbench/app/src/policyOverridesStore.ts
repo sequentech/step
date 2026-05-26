@@ -54,8 +54,22 @@ import type {
     EUnderVotePolicy,
 } from "@sequentech/ui-core"
 
-/** The six fields that may be overridden. All optional: a missing
- *  field means "use the contest's baseline value". */
+/** The fields that may be overridden. All optional: a missing field
+ *  means "use the contest's baseline value".
+ *
+ *  Two flavours coexist here:
+ *
+ *    - **Policy keys** (`POLICY_KEYS`): the six vote-validation
+ *      policies that live on `Contest.presentation`. Overlay merges
+ *      into the presentation object.
+ *    - **Bounds keys** (`BOUNDS_KEYS`): `min_votes` / `max_votes`.
+ *      They aren't policies — they're the *frame* (the valid range)
+ *      that makes most of the policies reachable in the first place
+ *      (e.g. `blank_vote_policy` is inert unless `min_votes == 0`;
+ *      `under_vote_policy` is inert unless `max_votes - min_votes
+ *      >= 2`). Without exposing them, flipping a policy often looks
+ *      like a no-op. Overlay applies them at the contest level, not
+ *      inside `presentation`. */
 export interface ContestPolicyOverlay {
     invalid_vote_policy?: EInvalidVotePolicy
     over_vote_policy?: EOverVotePolicy
@@ -66,11 +80,17 @@ export interface ContestPolicyOverlay {
     duplicated_rank_policy?: EDuplicatedRankPolicy
     /** Preferential contests only. */
     preference_gaps_policy?: EPreferenceGapsPolicy
+    /** Contest-level bound. Non-negative integer. */
+    min_votes?: number
+    /** Contest-level bound. Non-negative integer; should be >=
+     *  `min_votes`. */
+    max_votes?: number
 }
 
 /** Union of the keys above. Useful for typed control wiring. */
 export type ContestPolicyKey = keyof ContestPolicyOverlay
 
+/** The six presentation-level policy keys, in display order. */
 export const POLICY_KEYS: ReadonlyArray<ContestPolicyKey> = [
     "invalid_vote_policy",
     "over_vote_policy",
@@ -78,6 +98,14 @@ export const POLICY_KEYS: ReadonlyArray<ContestPolicyKey> = [
     "blank_vote_policy",
     "duplicated_rank_policy",
     "preference_gaps_policy",
+]
+
+/** The two contest-level bounds. They live on the contest object
+ *  itself, not on `presentation`, so the apply helpers splice them
+ *  separately from `POLICY_KEYS`. */
+export const BOUNDS_KEYS: ReadonlyArray<ContestPolicyKey> = [
+    "min_votes",
+    "max_votes",
 ]
 
 /** Preferential-only subset — used to gate UI on plurality contests. */
@@ -214,21 +242,38 @@ export function applyPolicyOverlayToContest<T extends ContestLike>(
     overlay: ContestPolicyOverlay | undefined
 ): T {
     if (!overlay) return contest
-    const merged: Record<string, unknown> = {}
-    let any = false
+    // Presentation-level merge for the six policies.
+    const mergedPolicies: Record<string, unknown> = {}
+    let anyPolicy = false
     for (const k of POLICY_KEYS) {
         const v = overlay[k]
         if (v !== undefined) {
-            merged[k] = v
-            any = true
+            mergedPolicies[k] = v
+            anyPolicy = true
         }
     }
-    if (!any) return contest
-    const presentation = {
-        ...(contest.presentation ?? {}),
-        ...merged,
+    // Contest-level splice for min_votes / max_votes. These don't
+    // belong inside `presentation`; the booth and the tally read them
+    // from the contest object directly (see
+    // `check_min_vote_policy`, `check_over_vote_policy`).
+    const mergedBounds: Record<string, unknown> = {}
+    let anyBound = false
+    for (const k of BOUNDS_KEYS) {
+        const v = overlay[k]
+        if (v !== undefined) {
+            mergedBounds[k] = v
+            anyBound = true
+        }
     }
-    return {...contest, presentation}
+    if (!anyPolicy && !anyBound) return contest
+    const next: ContestLike = {...contest, ...mergedBounds}
+    if (anyPolicy) {
+        next.presentation = {
+            ...(contest.presentation ?? {}),
+            ...mergedPolicies,
+        }
+    }
+    return next as T
 }
 
 /** Walk a ballot-style row's contests and apply the per-contest

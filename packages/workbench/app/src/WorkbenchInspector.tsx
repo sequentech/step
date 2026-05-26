@@ -2597,6 +2597,14 @@ export function ContestDetailPage(): JSX.Element {
                         | Record<string, unknown>
                         | null
                         | undefined,
+                    min_votes:
+                        typeof contest.min_votes === "number"
+                            ? contest.min_votes
+                            : undefined,
+                    max_votes:
+                        typeof contest.max_votes === "number"
+                            ? contest.max_votes
+                            : undefined,
                 }}
             />
             <div
