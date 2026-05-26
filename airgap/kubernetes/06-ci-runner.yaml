@@ -91,7 +91,7 @@ spec:
             claimName: docker-storage-pvc
         - name: image-cache
           hostPath:
-            path: /var/lib/rancher/k3s/agent/images/infra
+            path: /var/lib/rancher/k3s/agent/images
             type: DirectoryOrCreate
         - name: config-volume
           configMap:
