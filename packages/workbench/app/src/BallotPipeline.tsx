@@ -173,20 +173,15 @@ export function BallotPipeline() {
         return new Set()
     })
 
-    // Collapse state for the two non-row textareas: Setup's Contest
-    // JSON and Tally's ballots array. Same motivation as the per-row
-    // stage textareas \u2014 these blobs (a multi-kilobyte contest, a
-    // BigUint array) dominate vertical space and the operator rarely
-    // needs to read them once the page is configured.
+    // Collapse state for the Tally ballots-array textarea. Same
+    // motivation as the per-row stage textareas — the BigUint
+    // array dominates vertical space and the operator rarely needs
+    // to read it once the page is configured.
     //
-    // Contest JSON: in standalone mode the bootstrap fixture is the
-    // most common starting point the operator wants to *change*
-    // (pick a different contest shape before encoding), so we land
-    // expanded. When seeded from a contest the JSON is fixed by the
-    // upstream cast votes and is rarely re-read \u2014 land collapsed.
-    const [contestJsonOpen, setContestJsonOpen] = useState<boolean>(
-        () => !seed
-    )
+    // (Setup's contest JSON used to live behind its own disclosure
+    // here, but now that the whole Setup section is collapsible the
+    // inner one was just an extra click; the textarea below renders
+    // directly inside Setup.)
 
     /** Set membership flip for `expansionKey(rowId, stageIndex)`. */
     const toggleExpanded = useCallback(
@@ -484,19 +479,14 @@ export function BallotPipeline() {
                               .join(" · ")
                 }
             >
-                <CollapsibleField
-                    label="Contest JSON"
-                    value={contestJson}
-                    open={contestJsonOpen}
-                    onToggle={() => setContestJsonOpen((v) => !v)}
-                >
+                <Field label="Contest JSON">
                     <textarea
                         value={contestJson}
                         onChange={(e) => setContestJson(e.target.value)}
                         style={{...styles.textarea, height: "12rem"}}
                         spellCheck={false}
                     />
-                </CollapsibleField>
+                </Field>
                 <Field label="Public key (base64-no-pad)">
                     <input
                         value={pkB64}
@@ -1067,53 +1057,6 @@ function Field({
         <div style={{marginBottom: "0.5rem"}}>
             <label style={styles.label}>{label}</label>
             {children}
-        </div>
-    )
-}
-
-/** A `Field` whose label doubles as a disclosure button: the body
- *  (typically a bulky textarea) is hidden until the operator clicks
- *  the header. Mirrors the per-row stage collapse pattern for the
- *  two large non-row textareas on the page (Setup contest JSON and
- *  Tally ballots array). `value` is consulted only to render the
- *  char-count breadcrumb \u2014 the actual textarea inside `children`
- *  remains the source of truth. */
-function CollapsibleField({
-    label,
-    value,
-    open,
-    onToggle,
-    children,
-}: {
-    label: string
-    value: string
-    open: boolean
-    onToggle: () => void
-    children: React.ReactNode
-}) {
-    return (
-        <div style={{marginBottom: "0.5rem"}}>
-            <button
-                type="button"
-                onClick={onToggle}
-                aria-expanded={open}
-                style={{
-                    ...styles.disclosure,
-                    marginBottom: "0.2rem",
-                }}
-                title={open ? "Collapse" : "Expand"}
-            >
-                <span aria-hidden="true" style={styles.chevron}>
-                    {open ? "▾" : "▸"}
-                </span>
-                <span style={{fontSize: "0.8rem", color: "#333"}}>
-                    {label}
-                </span>
-                <span style={styles.charCount}>
-                    {formatCharCount(value.length)}
-                </span>
-            </button>
-            {open && children}
         </div>
     )
 }
