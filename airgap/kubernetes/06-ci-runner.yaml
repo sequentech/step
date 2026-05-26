@@ -77,7 +77,7 @@ spec:
               value: ""
           securityContext:
             privileged: true
-          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then find /images -name \"*.tar\" -exec echo \"Loading {}...\" \\; -exec docker load -i {} \\;; fi; wait"]
+          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then find /images -name \"*.tar\" -exec echo \"Loading {}...\" \\; -exec docker load -i {} \\;; fi; docker tag sequentech.local/runner-ubuntu:22.04 docker.gitea.com/runner-images:ubuntu-22.04 || true; wait"]
           volumeMounts:
             - name: docker-storage
               mountPath: /var/lib/docker
