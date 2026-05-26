@@ -16,7 +16,7 @@ use axum::http::{header::AUTHORIZATION, StatusCode};
 use b4::api_types::{InitiateMessageRequest, InitiateMessageResponse};
 use common::TestServer;
 use sequent_core::services::test_utils::{
-    TestTokenBuilder, TEST_ELECTION_EVENT_ID, TEST_TENANT_ID,
+    create_test_board_name, TestTokenBuilder, TEST_ELECTION_EVENT_ID, TEST_SLUG, TEST_TENANT_ID,
 };
 use sequent_core::types::permissions::Permissions;
 use serial_test::serial;
@@ -465,23 +465,26 @@ async fn test_all_endpoints_require_auth() {
 // ============================================================================
 // Browser Trustee Board Verification Tests
 // ============================================================================
-// These tests verify that browser trustees can only access boards matching
-// their tenant_id and authorized_election_ids from JWT claims.
-// Browser trustees do NOT have the "server" default_role, so they are
-// subject to board access validation via BoardAccessValidator.
+// These tests verify that browser trustees can only access boards listed in
+// their authorized_boards JWT claim. Browser trustees do NOT have the
+// "server" default_role, so they are subject to board access validation
+// via BoardAccessValidator.
 
 #[tokio::test]
 #[serial]
-async fn test_browser_trustee_wrong_tenant_id_should_fail() {
+async fn test_browser_trustee_wrong_board_should_fail() {
     let server = TestServer::new().await;
     server.cleanup().await;
 
-    // Create board with default test tenant
     server.create_board(&server.board_name).await;
 
-    // Token has DIFFERENT tenant - should be rejected
-    let wrong_tenant = "12345678-1234-1234-1234-123456789012";
-    let token = server.create_browser_trustee_token(wrong_tenant, &[TEST_ELECTION_EVENT_ID]);
+    // Token has a different board in authorized_boards - should be rejected
+    let wrong_board = create_test_board_name(
+        "12345678-1234-1234-1234-123456789012",
+        TEST_ELECTION_EVENT_ID,
+        TEST_SLUG,
+    );
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[wrong_board.as_str()]);
 
     let resp = server
         .server
@@ -489,47 +492,19 @@ async fn test_browser_trustee_wrong_tenant_id_should_fail() {
         .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .await;
 
-    // Returns 403 Forbidden due to tenant mismatch
     resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
 #[serial]
-async fn test_browser_trustee_wrong_event_id_should_fail() {
+async fn test_browser_trustee_correct_board_should_succeed() {
     let server = TestServer::new().await;
     server.cleanup().await;
 
-    // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
 
-    // Token has correct tenant but DIFFERENT event - should be rejected
-    let wrong_event = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[wrong_event]);
-
-    let resp = server
-        .server
-        .get(&format!("/boards/{}", server.board_name))
-        .add_header(AUTHORIZATION, format!("Bearer {token}"))
-        .await;
-
-    // TODO: Event authorization is currently bypassed (Trustee Dashboard is
-    // not tied to an election event), so access is granted as long as the
-    // tenant matches. Update this assertion to expect FORBIDDEN when the
-    // check is re-enabled.
-    resp.assert_status(StatusCode::OK);
-}
-
-#[tokio::test]
-#[serial]
-async fn test_browser_trustee_correct_tenant_and_event_should_succeed() {
-    let server = TestServer::new().await;
-    server.cleanup().await;
-
-    // Create board with default test tenant and event
-    server.create_board(&server.board_name).await;
-
-    // Token has CORRECT tenant and event - should succeed
-    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[TEST_ELECTION_EVENT_ID]);
+    // Token has the exact board name in authorized_boards - should succeed
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[server.board_name.as_str()]);
 
     let resp = server
         .server

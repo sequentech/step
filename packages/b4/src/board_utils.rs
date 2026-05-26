@@ -88,14 +88,6 @@ pub fn tenant_id_to_prefix(tenant_id: &str) -> String {
     tenant_id.chars().filter(|&c| c != '-').take(17).collect()
 }
 
-/// Converts an election event UUID to its board name format.
-///
-/// Removes all dashes.
-#[instrument(level = "trace")]
-pub fn event_id_to_board_format(event_id: &str) -> String {
-    event_id.chars().filter(|&c| c != '-').collect()
-}
-
 /// Verifies that a board name matches the given tenant ID.
 ///
 /// # Arguments
@@ -120,78 +112,6 @@ pub fn verify_board_tenant(board_name: &str, tenant_id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Verifies that a board name matches the given election event ID.
-///
-/// # Arguments
-/// * `board_name` - The board name to verify
-/// * `event_id` - The election event UUID (with dashes)
-///
-/// # Returns
-/// * `Ok(())` - If the board name's event ID matches
-/// * `Err` - If there's a mismatch or the board name is invalid
-#[instrument(level = "trace", err)]
-pub fn verify_board_event(board_name: &str, event_id: &str) -> Result<()> {
-    let parts = extract_board_name_parts(board_name)?;
-    let expected_event = event_id_to_board_format(event_id);
-
-    if parts.event_id != expected_event {
-        return Err(anyhow!(
-            "Event mismatch: board event ID '{}' does not match expected '{expected_event}' from event ID '{event_id}'",
-            parts.event_id
-        ));
-    }
-
-    Ok(())
-}
-
-/// Verifies that a board name matches both tenant ID and one of the authorized election event IDs.
-///
-/// This is the main verification function for browser trustees. It checks:
-/// 1. The tenant prefix in the board name matches the JWT's tenant_id
-/// 2. The event ID in the board name matches one of the JWT's authorized_election_ids
-///
-/// # Arguments
-/// * `board_name` - The board name to verify
-/// * `tenant_id` - The tenant UUID from JWT claims (with dashes)
-/// * `authorized_event_ids` - List of authorized election event UUIDs (with dashes)
-///
-/// # Returns
-/// * `Ok(())` - If the board name matches tenant and one of the authorized events
-/// * `Err` - If there's a mismatch, no matching event, or the board name is invalid
-#[instrument(level = "trace", skip(authorized_event_ids), err)]
-pub fn verify_board_access(
-    board_name: &str,
-    tenant_id: &str,
-    authorized_event_ids: &[String],
-) -> Result<()> {
-    let parts = extract_board_name_parts(board_name)?;
-
-    // Verify tenant
-    let expected_tenant_prefix = tenant_id_to_prefix(tenant_id);
-    if parts.tenant_prefix != expected_tenant_prefix {
-        return Err(anyhow!(
-            "Tenant mismatch: board tenant prefix '{}' does not match expected '{expected_tenant_prefix}'",
-            parts.tenant_prefix
-        ));
-    }
-
-    // Verify event is in authorized list
-    let authorized = true; // TODO: Currently the Trustee Dashboard is not tied to an election event.
-
-    // let authorized: bool = authorized_event_ids.iter().any(|event_id| {
-    //     let expected_event = event_id_to_board_format(event_id);
-    //     parts.event_id == expected_event
-    // });
-
-    if !authorized {
-        return Err(anyhow!(
-            "Event not authorized: board event ID '{}' is not in the authorized election IDs list",
-            parts.event_id
-        ));
-    }
-
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {
@@ -258,12 +178,6 @@ mod tests {
     }
 
     #[test]
-    fn test_event_id_to_board_format() {
-        let event = event_id_to_board_format(TEST_EVENT_ID);
-        assert_eq!(event, "388b3effe5834a5682b70ad15eaa409a");
-    }
-
-    #[test]
     fn test_verify_board_tenant_valid() {
         let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
         let result = verify_board_tenant(board_name, TEST_TENANT_ID);
@@ -280,72 +194,5 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("Tenant mismatch"));
     }
 
-    #[test]
-    fn test_verify_board_event_valid() {
-        let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
-        let result = verify_board_event(board_name, TEST_EVENT_ID);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_verify_board_event_mismatch() {
-        let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
-        let wrong_event = "11111111-2222-3333-4444-555555555555";
-        let result = verify_board_event(board_name, wrong_event);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Event mismatch"));
-    }
-
-    #[test]
-    fn test_verify_board_access_valid() {
-        let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
-        let authorized_events = vec![
-            "11111111-2222-3333-4444-555555555555".to_string(),
-            TEST_EVENT_ID.to_string(),
-            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string(),
-        ];
-        let result = verify_board_access(board_name, TEST_TENANT_ID, &authorized_events);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_verify_board_access_event_not_authorized() {
-        let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
-        let authorized_events = vec![
-            "11111111-2222-3333-4444-555555555555".to_string(),
-            "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string(),
-        ];
-        let result = verify_board_access(board_name, TEST_TENANT_ID, &authorized_events);
-
-        // TODO: Event authorization is currently bypassed (Trustee Dashboard
-        // is not tied to an election event), so access is always granted when
-        // the tenant matches. Update this assertion when the check is
-        // re-enabled.
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_verify_board_access_tenant_mismatch() {
-        let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
-        let wrong_tenant = "12345678-1234-1234-1234-123456789012";
-        let authorized_events = vec![TEST_EVENT_ID.to_string()];
-        let result = verify_board_access(board_name, wrong_tenant, &authorized_events);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Tenant mismatch"));
-    }
-
-    #[test]
-    fn test_verify_board_access_empty_authorized_list() {
-        let board_name = "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a";
-        let authorized_events: Vec<String> = vec![];
-        let result = verify_board_access(board_name, TEST_TENANT_ID, &authorized_events);
-
-        // TODO: Event authorization is currently bypassed (Trustee Dashboard
-        // is not tied to an election event), so access is always granted when
-        // the tenant matches. Update this assertion when the check is
-        // re-enabled.
-        assert!(result.is_ok());
-    }
 }
+

@@ -30,6 +30,8 @@ pub struct JwtHasuraClaims {
     pub area_id: Option<String>,
     #[serde(rename = "authorized-election-ids")]
     pub authorized_election_ids: Option<Vec<String>>,
+    #[serde(rename = "authorized-boards")]
+    pub authorized_boards: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
     #[serde(rename = "x-hasura-permission-labels")]

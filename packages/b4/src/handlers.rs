@@ -904,7 +904,7 @@ pub struct GetSessionsQuery {
 #[tracing::instrument(skip(state, claims), err)]
 pub async fn post_heartbeat(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Json(req): Json<HeartbeatRequest>,
 ) -> Result<StatusCode, StatusCode> {
     tracing::info!(

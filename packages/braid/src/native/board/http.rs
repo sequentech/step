@@ -658,7 +658,7 @@ impl HttpB3BoardParams {
         trustee_name: &str,
         trustee_mode: TrusteeModePolicy,
     ) -> anyhow::Result<()> {
-        let url = format!("{}/sessions/heartbeat", self.base_url);
+        let url = format!("{}/boards/{}/sessions/heartbeat", self.base_url, board_name);
         let access_token = self
             .access_token
             .read()

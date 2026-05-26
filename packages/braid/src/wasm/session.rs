@@ -896,7 +896,7 @@ impl WasmSession {
             .as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
 
-        let url = format!("{}/sessions/heartbeat", self.b4_url);
+        let url = format!("{}/boards/{}/sessions/heartbeat", self.b4_url, board_name);
         let access_token = self
             .access_token
             .read()
