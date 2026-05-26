@@ -297,7 +297,7 @@ function ProvenanceTreeNode(props: {
                     <span
                         style={{
                             marginLeft: "0.3rem",
-                            color: isDirty ? "#ef4444" : "#4ade80",
+                            color: isDirty ? "#f0c200" : "#4ade80",
                         }}
                         aria-label={
                             isDirty
