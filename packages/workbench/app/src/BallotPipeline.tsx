@@ -458,7 +458,32 @@ export function BallotPipeline() {
                 each stage replays that stage across every row.
             </p>
 
-            <Section title="Setup">
+            <Section
+                title="Setup"
+                collapsible
+                // Setup is the operator's pre-flight check: contest
+                // JSON + keypair pinned for every row downstream.
+                // Once all three are populated (which is the case on
+                // any seeded navigation, and after one click of
+                // "Generate new keypair" on a standalone visit),
+                // they rarely need to be re-read. Land collapsed in
+                // that case so the page leads with the actual
+                // pipeline rows. `defaultOpen` is read once; if the
+                // operator clears a field manually they're already
+                // editing inside the section.
+                defaultOpen={!(contestJson && pkB64 && skB64)}
+                summary={
+                    contestJson && pkB64 && skB64
+                        ? `contest ✓ · keypair ✓${seed ? " · seeded" : ""}`
+                        : [
+                              contestJson ? null : "contest",
+                              pkB64 && skB64 ? null : "keypair",
+                          ]
+                              .filter(Boolean)
+                              .map((s) => `${s} missing`)
+                              .join(" · ")
+                }
+            >
                 <CollapsibleField
                     label="Contest JSON"
                     value={contestJson}
@@ -985,14 +1010,48 @@ function generateRowId(): string {
 function Section({
     title,
     children,
+    collapsible,
+    defaultOpen = true,
+    summary,
 }: {
     title: string
     children: React.ReactNode
+    /** When true, the header doubles as a disclosure button. */
+    collapsible?: boolean
+    /** Initial open state for collapsible sections. Read once. */
+    defaultOpen?: boolean
+    /** Right-aligned status line shown next to the title (collapsible
+     *  sections only). Lets the operator see at a glance whether a
+     *  collapsed section is configured / complete / errored. */
+    summary?: React.ReactNode
 }) {
+    const [open, setOpen] = useState<boolean>(defaultOpen)
+    if (!collapsible) {
+        return (
+            <section style={styles.section}>
+                <h2 style={styles.h2}>{title}</h2>
+                {children}
+            </section>
+        )
+    }
     return (
         <section style={styles.section}>
-            <h2 style={styles.h2}>{title}</h2>
-            {children}
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                style={styles.sectionDisclosure}
+                title={open ? "Collapse section" : "Expand section"}
+            >
+                <span aria-hidden="true" style={styles.chevron}>
+                    {open ? "▾" : "▸"}
+                </span>
+                <span style={styles.sectionTitle}>{title}</span>
+                {summary !== undefined && summary !== null && (
+                    <span style={styles.sectionSummary}>{summary}</span>
+                )}
+            </button>
+            {open && <div style={{marginTop: "0.5rem"}}>{children}</div>}
         </section>
     )
 }
@@ -1116,6 +1175,28 @@ const styles: Record<string, CSSProperties> = {
         marginBottom: "1.25rem",
         paddingBottom: "0.75rem",
         borderBottom: "1px solid #ddd",
+    },
+    sectionDisclosure: {
+        display: "flex",
+        alignItems: "baseline",
+        gap: "0.5rem",
+        width: "100%",
+        padding: "0.1rem 0",
+        background: "transparent",
+        border: "none",
+        textAlign: "left",
+        cursor: "pointer",
+        fontFamily: "inherit",
+    },
+    sectionTitle: {
+        fontSize: "1.05rem",
+        fontWeight: 600,
+        color: "#222",
+    },
+    sectionSummary: {
+        marginLeft: "auto",
+        fontSize: "0.78rem",
+        color: "#666",
     },
     stageHeader: {
         display: "flex",
