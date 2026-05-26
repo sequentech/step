@@ -82,6 +82,7 @@ import {loadBundledSnapshot} from "./fixtures/bundledSnapshots"
 import {
     applyPolicyOverlayToBallotStyleRow,
     getPolicyOverrides,
+    subscribePolicyOverrides,
 } from "./policyOverridesStore"
 /**
  * Storage key. The `:v1` suffix is a schema version: when the persisted
@@ -493,23 +494,43 @@ function applyEligibilitySwap(
 ): void {
     const wb = getWorkbenchState()
     const pool = wb.ballotStylePool
-    if (!pool) return
     const overrides = getPolicyOverrides()
-    for (const electionId of Object.keys(pool)) {
-        const row = selectBallotStyleForVoter(voterId, electionId)
+    // Ephemeral policy overlay (see `policyOverridesStore.ts`):
+    // booth open is one of the two boundary points where the
+    // operator's per-contest policy overrides are applied. We
+    // merge them into the row before dispatch so the portal
+    // slice sees the *effective* contest presentation; the
+    // baseline pool entry is untouched and the override stays
+    // out of persistence.
+    if (pool) {
+        // Multi-BS snapshot: a pool exists and the active voter's
+        // eligibility decides which row goes into the slice. This is
+        // also the only branch that performs the eligibility swap;
+        // single-BS snapshots already have the correct row loaded.
+        for (const electionId of Object.keys(pool)) {
+            const row = selectBallotStyleForVoter(voterId, electionId)
+            if (!row) continue
+            const effective = applyPolicyOverlayToBallotStyleRow(
+                row as Parameters<typeof setBallotStyle>[0],
+                overrides
+            )
+            store.dispatch(setBallotStyle(effective))
+        }
+        return
+    }
+    // No pool (default/single-BS snapshot): re-dispatch the rows
+    // already in the slice so the operator's overlay still reaches
+    // the booth. When `overrides` is empty `applyPolicyOverlayToBallotStyleRow`
+    // returns the input ref unchanged, so this is a no-op in the
+    // common case and doesn't churn the slice.
+    const current = store.getState().ballotStyles
+    for (const row of Object.values(current)) {
         if (!row) continue
-        // Ephemeral policy overlay (see `policyOverridesStore.ts`):
-        // booth open is one of the two boundary points where the
-        // operator's per-contest policy overrides are applied. We
-        // merge them into the row before dispatch so the portal
-        // slice sees the *effective* contest presentation; the
-        // baseline pool entry is untouched and the override stays
-        // out of persistence.
         const effective = applyPolicyOverlayToBallotStyleRow(
             row as Parameters<typeof setBallotStyle>[0],
             overrides
         )
-        store.dispatch(setBallotStyle(effective))
+        if (effective !== row) store.dispatch(setBallotStyle(effective))
     }
 }
 
@@ -620,9 +641,23 @@ export function installPersistence(store: typeof Store): () => void {
         writeSnapshot(store.getState())
     })
 
+    // Operator-edited per-contest policy overrides are an ephemeral
+    // overlay (see `policyOverridesStore.ts`). When the operator
+    // flips an override while a voter is already active (so the
+    // `setActiveVoter` transition above won't re-fire), we still
+    // want the booth to reflect the change immediately. Re-running
+    // the eligibility swap re-dispatches the affected ballot-style
+    // row(s) with the new overlay merged in.
+    const unsubOverrides = subscribePolicyOverrides(() => {
+        const active = getWorkbenchState().activeVoterId
+        if (!active) return
+        applyEligibilitySwap(store, active)
+    })
+
     return () => {
         unsubStore()
         unsubWorkbench()
+        unsubOverrides()
     }
 }
 

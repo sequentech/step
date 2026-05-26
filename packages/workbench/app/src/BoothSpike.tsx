@@ -38,6 +38,7 @@ import {
     installPersistence,
     loadPersistedSnapshot,
 } from "./persistence"
+import {getPolicyOverrides} from "./policyOverridesStore"
 
 // On boot, the workbench's state ALWAYS comes from a snapshot. The
 // auto-resume slot (`workbench:state:v1`) wins if present \u2014 that is
@@ -107,6 +108,8 @@ if (typeof window !== "undefined") {
         clearPersistedSnapshot()
         location.reload()
     }
+    ;(w as unknown as {__getPolicyOverrides: typeof getPolicyOverrides}).__getPolicyOverrides =
+        getPolicyOverrides
 }
 
 /**

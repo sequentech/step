@@ -103,6 +103,16 @@ function subscribe(listener: () => void): () => void {
     return () => listeners.delete(listener)
 }
 
+/** Subscribe to override-map changes from non-React call sites
+ *  (e.g. the persistence layer's eligibility-swap listener, which
+ *  re-applies the overlay when the operator edits an override while a
+ *  voter is already active). Returns an unsubscribe function. */
+export function subscribePolicyOverrides(
+    listener: () => void
+): () => void {
+    return subscribe(listener)
+}
+
 /** Return the full override map. Identity-stable until the next
  *  mutation. */
 export function getPolicyOverrides(): OverridesMap {
