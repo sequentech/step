@@ -8,6 +8,11 @@ jobs:
       packages: write
       contents: read
     steps:
+      - name: Verify Tools
+        run: |
+          kubectl version --client
+          docker version
+
       - name: Check out repository
         run: |
           git clone "http://oauth2:${{ secrets.GITHUB_TOKEN }}@gitea.gitea:3000/admin/step.git" .
