@@ -43,7 +43,6 @@ use num_traits::{ToPrimitive, Zero};
 ///
 /// This ballot only supports plurality counting
 /// algorithms. It does not support write-ins.
-/// It does not support per-contest invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
     pub is_explicit_invalid: bool,
@@ -67,18 +66,22 @@ impl BallotChoices {
 /// The choices for a contest.
 ///
 /// Does not support write-ins.
-/// Does not support invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
     pub contest_id: String,
     pub choices: Vec<ContestChoice>,
+    pub is_explicit_invalid: bool,
 }
 impl ContestChoices {
-    pub fn new(contest_id: String, choices: Vec<ContestChoice>) -> Self {
+    pub fn new(
+        contest_id: String,
+        choices: Vec<ContestChoice>,
+        is_explicit_invalid: bool,
+    ) -> Self {
         ContestChoices {
             contest_id,
-            // is_explicit_invalid,
             choices,
+            is_explicit_invalid,
         }
     }
 
@@ -102,6 +105,7 @@ impl ContestChoices {
         ContestChoices {
             contest_id: dcv.contest_id.clone(),
             choices,
+            is_explicit_invalid: dcv.is_explicit_invalid,
         }
     }
 }
@@ -132,6 +136,7 @@ impl ContestChoice {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedContestChoices {
     pub contest_id: String,
+    pub is_explicit_invalid: bool,
     pub choices: Vec<DecodedContestChoice>,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
@@ -140,12 +145,14 @@ impl DecodedContestChoices {
     pub fn new(
         contest_id: String,
         choices: Vec<DecodedContestChoice>,
+        is_explicit_invalid: bool,
         invalid_errors: Vec<InvalidPlaintextError>,
         invalid_alerts: Vec<InvalidPlaintextError>,
     ) -> Self {
         DecodedContestChoices {
             contest_id,
             choices,
+            is_explicit_invalid,
             invalid_errors,
             invalid_alerts,
         }
@@ -235,9 +242,10 @@ impl BallotChoices {
     /// groups.
     ///
     /// Returns the encoded ballot, with n sets of contest choices
-    /// each of size contest.max_votes, plus one invalid flag.
+    /// each of size contest.max_votes, plus one ballot-level invalid flag
+    /// and one invalid flag per contest.
     /// The total number of choices is given by the following:
-    /// contests.iter().fold(0, |a, b| a + b.max_votes) + 1
+    /// contests.iter().fold(0, |a, b| a + b.max_votes) + contests.len() + 1
     fn encode_to_raw_ballot(
         &self,
         config: &BallotStyle,
@@ -272,6 +280,10 @@ impl BallotChoices {
                 "Could not find plaintexts for contest {:?}",
                 contest
             ))?;
+
+            let contest_invalid_vote: u64 =
+                if plaintext.is_explicit_invalid { 1 } else { 0 };
+            choices.push(contest_invalid_vote);
 
             let contest_choices = self.encode_contest(&contest, &plaintext)?;
 
@@ -494,15 +506,18 @@ impl BallotChoices {
         let mut contest_choices: Vec<DecodedContestChoices> = vec![];
         let choices = raw_ballot.choices.clone();
 
-        // Each contest contributes max_votes slots
-        let expected_choices = contests.iter().fold(0, |a, b| a + b.max_votes);
-        let expected_choices: usize =
-            expected_choices.try_into().map_err(|_| {
+        // Each contest contributes max_votes slots plus one invalid flag
+        let expected_vote_slots =
+            contests.iter().fold(0, |a, b| a + b.max_votes);
+        let expected_vote_slots: usize =
+            expected_vote_slots.try_into().map_err(|_| {
                 format!("i64 -> usize conversion on contest max_votes")
             })?;
 
-        // The first slot is used for explicit invalid ballot, so + 1
-        if choices.len() != expected_choices + 1 {
+        // One ballot-level invalid flag, one per-contest invalid flag per contest,
+        // and max_votes slots per contest.
+        let expected_choices = expected_vote_slots + contests.len() + 1;
+        if choices.len() != expected_choices {
             return Err(format!(
                 "Unexpected number of choices {} != {}",
                 choices.len(),
@@ -516,12 +531,18 @@ impl BallotChoices {
         let mut sorted_contests = contests.clone();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
-        // This explicit invalid flag is at the ballot level
+        // Ballot-level explicit invalid flag
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
-        // Skip past the explicit invalid slot
+        // Skip past the ballot-level explicit invalid slot
         let mut choice_index = 1;
 
         for contest in sorted_contests {
+            let contest_is_explicit_invalid: bool = choices
+                .get(choice_index)
+                .map(|value| *value > 0)
+                .unwrap_or(false);
+            choice_index += 1;
+
             let max_votes: usize =
                 contest.max_votes.try_into().map_err(|_| {
                     format!("i64 -> usize conversion on contest max_votes")
@@ -529,7 +550,7 @@ impl BallotChoices {
             let next = Self::decode_contest(
                 &contest,
                 &choices[choice_index..],
-                is_explicit_invalid,
+                contest_is_explicit_invalid,
             )?;
             choice_index += max_votes;
             contest_choices.push(next);
@@ -569,6 +590,7 @@ impl BallotChoices {
         let mut decoded_contest = DecodedContestChoices::new(
             contest.id.clone(),
             vec![],
+            is_explicit_invalid,
             vec![],
             vec![],
         );
@@ -711,11 +733,11 @@ impl BallotChoices {
     //
     // This encoding only supports plurality, so the
     // order in which selections will be put in the
-    // slots has no meaning. This implementation does not
-    // support contest level invalid flags.
+    // slots has no meaning.
     //
     // Returns the vector of bases for the mixed radix
-    // representation of this ballot (including a explicit invalid base = 2).
+    // representation of this ballot (including a ballot-level explicit
+    // invalid base = 2 and one per-contest explicit invalid base = 2).
     pub fn get_bases(contests: &Vec<Contest>) -> Result<Vec<u64>, String> {
         // the base for explicit invalid ballot slot is 2:
         // 0: not invalid, 1: explicit invalid
@@ -752,9 +774,11 @@ impl BallotChoices {
             let num_valid_candidates =
                 num_valid_candidates.map_err(|e| e.to_string())?;
 
+            // Per-contest explicit invalid flag
+            bases.push(2);
+
             let max_selections = contest.max_votes;
             for _ in 1..=max_selections {
-                // + 1: include a per-ballot invalid flag
                 bases.push(u64::from(num_valid_candidates + 1));
             }
         }
@@ -1088,6 +1112,13 @@ mod tests {
                 .iter()
                 .find(|c| c.id == choices.contest_id)
                 .unwrap();
+
+            assert_eq!(
+                mixed_radix.choices[index],
+                u64::from(choices.is_explicit_invalid)
+            );
+            index += 1;
+
             let mut candidate_ids: Vec<String> =
                 contest.candidates.iter().map(|c| c.id.clone()).collect();
             candidate_ids.sort();
@@ -1176,7 +1207,7 @@ mod tests {
             .map(|c| random_choice(c.id.clone()))
             .collect();
 
-        ContestChoices::new(contest.id.clone(), choices)
+        ContestChoices::new(contest.id.clone(), choices, false)
     }
 
     fn random_contest(
