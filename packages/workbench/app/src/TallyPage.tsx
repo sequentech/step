@@ -36,6 +36,9 @@ import type {CSSProperties} from "react"
 import {useCallback, useMemo, useState} from "react"
 import {useLocation} from "react-router-dom"
 
+import {createTheme, ThemeProvider} from "@mui/material/styles"
+import CssBaseline from "@mui/material/CssBaseline"
+
 import {
     TallyResultsView,
     type TallyResultsViewModel,
@@ -273,7 +276,10 @@ export function TallyPage(): React.ReactElement {
 
             <Section title="4. Visualization">
                 {model ? (
-                    <TallyResultsView model={model} />
+                    <ThemeProvider theme={muiDarkTheme}>
+                        <CssBaseline enableColorScheme />
+                        <TallyResultsView model={model} />
+                    </ThemeProvider>
                 ) : (
                     <p style={styles.placeholder}>
                         Run a tally or render an output JSON to see the
@@ -387,6 +393,17 @@ function formatOverlayTitle(
 }
 
 // ---------------------------------------------------------------------------
+// MUI dark theme for the tally visualization (DataGrid, charts)
+// ---------------------------------------------------------------------------
+
+const muiDarkTheme = createTheme({
+    palette: {
+        mode: "dark",
+        background: {default: "#1e1e1e", paper: "#2a2a2a"},
+    },
+})
+
+// ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
@@ -400,26 +417,28 @@ const styles: Record<string, CSSProperties> = {
     header: {
         marginBottom: "1rem",
         paddingBottom: "0.5rem",
-        borderBottom: "1px solid #ddd",
+        borderBottom: "1px solid #3a3a3a",
     },
     h1: {
         fontSize: "1.4rem",
         margin: "0 0 0.2rem 0",
+        color: "#e0e0e0",
     },
     subtitle: {
         margin: "0.1rem 0",
-        color: "#444",
+        color: "#999",
         fontFamily: "ui-monospace, Menlo, Consolas, monospace",
         fontSize: "0.9rem",
     },
     section: {
         marginBottom: "1.25rem",
         paddingBottom: "0.75rem",
-        borderBottom: "1px solid #ddd",
+        borderBottom: "1px solid #3a3a3a",
     },
     h2: {
         fontSize: "1.05rem",
         margin: "0 0 0.4rem 0",
+        color: "#e0e0e0",
     },
     textarea: {
         width: "100%",
@@ -427,6 +446,10 @@ const styles: Record<string, CSSProperties> = {
         fontSize: "0.8rem",
         padding: "0.5rem",
         boxSizing: "border-box",
+        background: "#252525",
+        color: "#e0e0e0",
+        border: "1px solid #4a4a4a",
+        borderRadius: 3,
     },
     actions: {
         display: "flex",
@@ -437,8 +460,8 @@ const styles: Record<string, CSSProperties> = {
     overlayBadge: {
         padding: "0.2rem 0.55rem",
         fontSize: "0.78rem",
-        background: "#fff3cd",
-        color: "#5c4400",
+        background: "#3d3000",
+        color: "#f0c200",
         border: "1px solid #f0c200",
         borderRadius: "0.25rem",
         cursor: "help",
@@ -447,34 +470,38 @@ const styles: Record<string, CSSProperties> = {
         padding: "0.4rem 0.9rem",
         fontSize: "0.9rem",
         cursor: "pointer",
+        background: "#383838",
+        color: "#e0e0e0",
+        border: "1px solid #555",
+        borderRadius: "0.2rem",
     },
     primaryButton: {
         padding: "0.4rem 0.9rem",
         fontSize: "0.9rem",
         cursor: "pointer",
-        background: "#1a73e8",
+        background: "#2563eb",
         color: "white",
-        border: "1px solid #1a73e8",
+        border: "1px solid #2563eb",
         borderRadius: "0.2rem",
     },
     error: {
         marginBottom: "1rem",
         padding: "0.5rem 0.75rem",
-        background: "#fdecea",
-        border: "1px solid #f5c2c0",
+        background: "#3a1c1c",
+        border: "1px solid #ef4444",
         borderRadius: "0.25rem",
-        color: "#a00",
+        color: "#ef4444",
         fontSize: "0.85rem",
         whiteSpace: "pre-wrap",
         fontFamily: "ui-monospace, Menlo, Consolas, monospace",
     },
     help: {
         fontSize: "0.85rem",
-        color: "#555",
+        color: "#999",
         margin: "0.3rem 0 0 0",
     },
     placeholder: {
-        color: "#777",
+        color: "#888",
         fontStyle: "italic",
         fontSize: "0.9rem",
     },

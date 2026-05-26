@@ -32,14 +32,15 @@ function Shell() {
             <nav
                 style={{
                     padding: "0.5rem 2rem",
-                    background: "#eee",
+                    background: "#1e1e1e",
                     fontFamily: "system-ui, sans-serif",
                     display: "flex",
                     gap: "1rem",
                     alignItems: "center",
+                    borderBottom: "1px solid #3a3a3a",
                 }}
             >
-                <Link to="/wb" style={{fontWeight: 600}}>
+                <Link to="/wb">
                     Snapshots
                 </Link>
                 <Link to="/pipeline">Ballot pipeline</Link>
@@ -52,7 +53,7 @@ function Shell() {
                     to="/diagnostics"
                     style={{
                         marginLeft: "auto",
-                        color: "#666",
+                        color: "#999",
                         fontSize: "0.85rem",
                     }}
                 >
@@ -131,6 +132,10 @@ const router = createBrowserRouter([
         ],
     },
 ])
+
+// Dark theme: set global defaults on the document body.
+document.body.style.backgroundColor = "#1e1e1e"
+document.body.style.color = "#e0e0e0"
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>

@@ -479,8 +479,8 @@ const styles: Record<string, CSSProperties> = {
     panel: {
         marginTop: "1.5rem",
         padding: "0.9rem 1rem",
-        border: "1px solid #d0d7de",
-        background: "#fbfcfd",
+        border: "1px solid #3a3a3a",
+        background: "#2a2a2a",
         borderRadius: 6,
     },
     header: {
@@ -492,22 +492,22 @@ const styles: Record<string, CSSProperties> = {
     h2: {
         fontSize: "1rem",
         margin: 0,
-        color: "#222",
+        color: "#e0e0e0",
     },
     spacer: {flex: 1},
     activeBadge: {
         padding: "0.1rem 0.4rem",
         fontSize: "0.72rem",
-        background: "#fff3cd",
-        color: "#5c4400",
+        background: "#3d3000",
+        color: "#f0c200",
         border: "1px solid #f0c200",
         borderRadius: 3,
     },
     clearButton: {
         padding: "0.2rem 0.6rem",
-        background: "#fff",
-        color: "#222",
-        border: "1px solid #bbb",
+        background: "#383838",
+        color: "#e0e0e0",
+        border: "1px solid #555",
         borderRadius: 3,
         fontSize: "0.78rem",
         cursor: "pointer",
@@ -515,7 +515,7 @@ const styles: Record<string, CSSProperties> = {
     intro: {
         margin: "0.25rem 0 0.75rem 0",
         fontSize: "0.82rem",
-        color: "#555",
+        color: "#999",
     },
     table: {
         width: "100%",
@@ -530,7 +530,7 @@ const styles: Record<string, CSSProperties> = {
     },
     label: {
         fontSize: "0.78rem",
-        color: "#666",
+        color: "#999",
     },
     td: {
         padding: "0.35rem 0.5rem",
@@ -540,12 +540,16 @@ const styles: Record<string, CSSProperties> = {
         width: "100%",
         fontSize: "0.85rem",
         padding: "0.25rem 0.4rem",
+        background: "#303030",
+        color: "#e0e0e0",
+        border: "1px solid #4a4a4a",
+        borderRadius: 3,
     },
     resetButton: {
         padding: "0.2rem 0.6rem",
-        background: "#fff",
-        color: "#222",
-        border: "1px solid #bbb",
+        background: "#383838",
+        color: "#e0e0e0",
+        border: "1px solid #555",
         borderRadius: 3,
         fontSize: "0.78rem",
         cursor: "pointer",
@@ -557,15 +561,15 @@ const styles: Record<string, CSSProperties> = {
     footnote: {
         margin: "0.75rem 0 0 0",
         fontSize: "0.78rem",
-        color: "#777",
+        color: "#999",
     },
     boundsRow: {
         display: "flex",
         gap: "1rem",
         margin: "0 0 0.85rem 0",
         padding: "0.55rem 0.65rem",
-        background: "#f4f6f8",
-        border: "1px solid #e1e6ea",
+        background: "#252525",
+        border: "1px solid #3a3a3a",
         borderRadius: 4,
         flexWrap: "wrap",
     },
@@ -576,11 +580,15 @@ const styles: Record<string, CSSProperties> = {
         fontSize: "0.82rem",
     },
     boundsLabel: {
-        color: "#444",
+        color: "#e0e0e0",
     },
     boundsInput: {
         width: "5.5rem",
         fontSize: "0.85rem",
         padding: "0.2rem 0.35rem",
+        background: "#303030",
+        color: "#e0e0e0",
+        border: "1px solid #4a4a4a",
+        borderRadius: 3,
     },
 }

@@ -78,8 +78,8 @@ const RAIL_WIDTH = 280
 const railStyle: React.CSSProperties = {
     width: RAIL_WIDTH,
     minWidth: RAIL_WIDTH,
-    borderRight: "1px solid #ddd",
-    background: "#fafafa",
+    borderRight: "1px solid #3a3a3a",
+    background: "#1e1e1e",
     padding: "1rem",
     fontFamily: "system-ui, sans-serif",
     fontSize: "0.85rem",
@@ -136,7 +136,7 @@ function SectionDivider(): JSX.Element {
             style={{
                 margin: "1.25rem 0",
                 border: 0,
-                borderTop: "1px solid #ddd",
+                borderTop: "1px solid #3a3a3a",
             }}
         />
     )
@@ -297,7 +297,7 @@ function ProvenanceTreeNode(props: {
                     <span
                         style={{
                             marginLeft: "0.3rem",
-                            color: isDirty ? "#a33" : "#2c7a2c",
+                            color: isDirty ? "#ef4444" : "#4ade80",
                         }}
                         aria-label={
                             isDirty
@@ -861,7 +861,7 @@ export function SnapshotOverviewPage(): JSX.Element {
     return (
         <>
             <h1>Snapshots</h1>
-            <p style={{color: "#666"}}>
+            <p style={{color: "#999"}}>
                 The working copy is the live in-memory state, auto-saved
                 to localStorage on every change. Bundled snapshots ship
                 in git; checkpoints are saved by you and live only in
@@ -965,11 +965,11 @@ export function SnapshotOverviewPage(): JSX.Element {
                                                     color:
                                                         row.id === parentId
                                                             ? "#999"
-                                                            : "#b22222",
+                                                            : "#ef4444",
                                                     borderColor:
                                                         row.id === parentId
-                                                            ? "#ccc"
-                                                            : "#b22222",
+                                                            ? "#3a3a3a"
+                                                            : "#ef4444",
                                                     opacity:
                                                         row.id === parentId
                                                             ? 0.6
@@ -1004,7 +1004,7 @@ export function SnapshotOverviewPage(): JSX.Element {
                 </tbody>
             </table>
             {error && (
-                <p style={{color: "#b00020", marginTop: "0.5rem"}}>
+                <p style={{color: "#ef4444", marginTop: "0.5rem"}}>
                     {error}
                 </p>
             )}
@@ -1043,7 +1043,7 @@ export function SnapshotOverviewPage(): JSX.Element {
                                   : "Import velvet ElectionConfig"}
                         </SubHeading>
                         {importMode === "snapshot" && (
-                            <p style={{color: "#666", marginTop: 0}}>
+                            <p style={{color: "#999", marginTop: 0}}>
                                 Paste a full <code>PersistedSnapshot</code>{" "}
                                 (same shape as the <em>Bundled JSON</em>{" "}
                                 block on any snapshot detail page). It
@@ -1058,7 +1058,7 @@ export function SnapshotOverviewPage(): JSX.Element {
                             </p>
                         )}
                         {importMode === "ballotStyle" && (
-                            <p style={{color: "#666", marginTop: 0}}>
+                            <p style={{color: "#999", marginTop: 0}}>
                                 Paste a single portal{" "}
                                 <code>IBallotStyle</code> row (the
                                 shape returned by{" "}
@@ -1075,7 +1075,7 @@ export function SnapshotOverviewPage(): JSX.Element {
                             </p>
                         )}
                         {importMode === "velvet" && (
-                            <p style={{color: "#666", marginTop: 0}}>
+                            <p style={{color: "#999", marginTop: 0}}>
                                 Paste a velvet{" "}
                                 <code>ElectionConfig</code> JSON (see{" "}
                                 <code>
@@ -1110,7 +1110,7 @@ export function SnapshotOverviewPage(): JSX.Element {
                         {importError && (
                             <p
                                 style={{
-                                    color: "#b00020",
+                                    color: "#ef4444",
                                     marginTop: "0.5rem",
                                 }}
                             >
@@ -1194,7 +1194,7 @@ export function DiagnosticsPage(): JSX.Element {
     return (
         <div style={{padding: "1.5rem 2rem"}}>
             <h1 style={{margin: "0 0 0.5rem 0"}}>Diagnostics</h1>
-            <p style={{color: "#555", margin: "0 0 1rem 0"}}>
+            <p style={{color: "#999", margin: "0 0 1rem 0"}}>
                 Build provenance for the wasm artifacts baked into this
                 workbench bundle (sourced at build time from the{" "}
                 <code>virtual:workbench-build-info</code> module), plus
@@ -1217,7 +1217,7 @@ export function DiagnosticsPage(): JSX.Element {
                 </summary>
                 <p
                     style={{
-                        color: "#666",
+                        color: "#999",
                         fontSize: "0.85rem",
                         margin: "0.5rem 0",
                     }}
@@ -1317,7 +1317,7 @@ function BuildStatusCard(): JSX.Element {
                                     <div
                                         style={{
                                             fontSize: "0.75rem",
-                                            color: "#555",
+                                            color: "#999",
                                             marginTop: "0.25rem",
                                         }}
                                     >
@@ -1410,7 +1410,7 @@ function BranchBaseLine(): JSX.Element {
         return (
             <p style={diagnosticsHintStyle}>
                 <strong>Branch base:</strong>{" "}
-                <span style={{color: "#a33"}}>
+                <span style={{color: "#ef4444"}}>
                     unavailable
                     {git.baseUnavailableReason
                         ? ` — ${git.baseUnavailableReason}`
@@ -1427,7 +1427,7 @@ function BranchBaseLine(): JSX.Element {
             {git.baseUnavailableReason && (
                 <span
                     style={{
-                        color: "#a33",
+                        color: "#ef4444",
                         marginLeft: "0.4rem",
                         fontStyle: "italic",
                     }}
@@ -1451,7 +1451,7 @@ function VotingPortalDriftBlock({
         return (
             <p style={diagnosticsHintStyle}>
                 <strong>voting-portal/src/:</strong>{" "}
-                <span style={{color: "#a33"}}>
+                <span style={{color: "#ef4444"}}>
                     diff unavailable (git probe failed)
                 </span>
             </p>
@@ -1460,7 +1460,7 @@ function VotingPortalDriftBlock({
     const empty = diff.patch.trim().length === 0
     return (
         <details style={{marginTop: "0.75rem"}}>
-            <summary style={{cursor: "pointer", color: "#444"}}>
+            <summary style={{cursor: "pointer", color: "#e0e0e0"}}>
                 voting-portal/src/ drift vs branch base
                 {empty
                     ? " — clean (matches base byte-for-byte)"
@@ -1468,7 +1468,7 @@ function VotingPortalDriftBlock({
                 {diff.dirty && (
                     <span
                         style={{
-                            color: "#a33",
+                            color: "#ef4444",
                             marginLeft: "0.4rem",
                             fontStyle: "italic",
                         }}
@@ -1496,7 +1496,7 @@ function VotingPortalDriftBlock({
                     <PerFileDiffList patch={diff.patch} />
                     <details style={{marginTop: "0.5rem"}}>
                         <summary
-                            style={{cursor: "pointer", color: "#666", fontSize: "0.85rem"}}
+                            style={{cursor: "pointer", color: "#999", fontSize: "0.85rem"}}
                         >
                             Full combined diff
                         </summary>
@@ -1537,19 +1537,19 @@ function PerFileDiffList({patch}: {patch: string}): JSX.Element {
                         key={`${path}-${i}`}
                         style={{
                             marginTop: "0.75rem",
-                            border: "1px solid #e0e0e0",
+                            border: "1px solid #3a3a3a",
                             borderRadius: 4,
                         }}
                     >
                         <div
                             style={{
                                 padding: "0.4rem 0.6rem",
-                                background: "#fafafa",
-                                borderBottom: "1px solid #e0e0e0",
+                                background: "#2a2a2a",
+                                borderBottom: "1px solid #3a3a3a",
                                 fontFamily:
                                     "ui-monospace, SFMono-Regular, Menlo, monospace",
                                 fontSize: "0.8rem",
-                                color: "#333",
+                                color: "#e0e0e0",
                             }}
                         >
                             {path}
@@ -1574,7 +1574,7 @@ function TallyLiftDriftBlock({
 }): JSX.Element {
     return (
         <details style={{marginTop: "0.75rem"}}>
-            <summary style={{cursor: "pointer", color: "#444"}}>
+            <summary style={{cursor: "pointer", color: "#e0e0e0"}}>
                 Tally lift drift vs admin-portal originals ({diffs.length}{" "}
                 file{diffs.length === 1 ? "" : "s"})
             </summary>
@@ -1602,14 +1602,14 @@ function TallyLiftDriftRow({
             style={{
                 marginTop: "0.5rem",
                 paddingLeft: "0.5rem",
-                borderLeft: "3px solid #d0d0d0",
+                borderLeft: "3px solid #3a3a3a",
             }}
         >
             <details>
                 <summary
                     style={{
                         cursor: "pointer",
-                        color: diff.kind === "added" ? "#666" : "#222",
+                        color: diff.kind === "added" ? "#999" : "#e0e0e0",
                         fontSize: "0.9rem",
                     }}
                 >
@@ -1633,7 +1633,7 @@ function TallyLiftDriftRow({
                     </p>
                 )}
                 {diff.note && (
-                    <p style={{...diagnosticsHintStyle, color: "#a33"}}>
+                    <p style={{...diagnosticsHintStyle, color: "#ef4444"}}>
                         {diff.note}
                     </p>
                 )}
@@ -1654,17 +1654,19 @@ function TallyLiftDriftRow({
 }
 
 const diagnosticsHintStyle: React.CSSProperties = {
-    color: "#666",
+    color: "#999",
     fontSize: "0.85rem",
     margin: "0.5rem 0",
 }
 const diffStatPreStyle: React.CSSProperties = {
-    background: "#f4f4f4",
+    background: "#252525",
     padding: "0.4rem 0.6rem",
     borderRadius: 4,
     fontSize: "0.75rem",
     margin: "0.5rem 0 0.25rem 0",
     overflow: "auto",
+    color: "#e0e0e0",
+    border: "1px solid #4a4a4a",
 }
 
 function humanAge(ms: number): string {
@@ -1684,11 +1686,11 @@ function humanAge(ms: number): string {
 // section the same grey-boxed frame turns the page into a visually
 // scannable stack instead of one long flow with subtle dividers.
 const diagnosticsCardStyle: React.CSSProperties = {
-    border: "1px solid #ddd",
+    border: "1px solid #3a3a3a",
     borderRadius: 4,
     padding: "0.6rem 0.9rem",
     marginTop: "1.5rem",
-    background: "#fafafa",
+    background: "#2a2a2a",
 }
 const diagnosticsCardHeaderStyle: React.CSSProperties = {
     display: "flex",
@@ -1713,23 +1715,23 @@ const snapshotTableStyle: React.CSSProperties = {
 }
 const thStyle: React.CSSProperties = {
     textAlign: "left",
-    borderBottom: "1px solid #ccc",
+    borderBottom: "1px solid #3a3a3a",
     padding: "0.4rem 0.6rem",
     fontWeight: 600,
-    color: "#444",
+    color: "#999",
 }
 const thNumStyle: React.CSSProperties = {
     ...thStyle,
     textAlign: "right",
 }
 const tdStyle: React.CSSProperties = {
-    borderBottom: "1px solid #eee",
+    borderBottom: "1px solid #3a3a3a",
     padding: "0.4rem 0.6rem",
     verticalAlign: "middle",
 }
 const tdMutedStyle: React.CSSProperties = {
     ...tdStyle,
-    color: "#666",
+    color: "#999",
 }
 const tdNumStyle: React.CSSProperties = {
     ...tdStyle,
@@ -1737,13 +1739,13 @@ const tdNumStyle: React.CSSProperties = {
     fontVariantNumeric: "tabular-nums",
 }
 const workingRowStyle: React.CSSProperties = {
-    background: "#f4f9ff",
+    background: "#2a2a2a",
 }
 const importPanelStyle: React.CSSProperties = {
-    border: "1px solid #ddd",
+    border: "1px solid #3a3a3a",
     borderRadius: 4,
     padding: "0.75rem 1rem",
-    background: "#fafafa",
+    background: "#2a2a2a",
 }
 const importLabelStyle: React.CSSProperties = {
     display: "flex",
@@ -1751,13 +1753,15 @@ const importLabelStyle: React.CSSProperties = {
     gap: "0.25rem",
     marginTop: "0.75rem",
     fontSize: "0.9rem",
-    color: "#444",
+    color: "#e0e0e0",
 }
 const importInputStyle: React.CSSProperties = {
     padding: "0.4rem 0.5rem",
     fontSize: "0.95rem",
-    border: "1px solid #ccc",
+    border: "1px solid #4a4a4a",
     borderRadius: 3,
+    background: "#303030",
+    color: "#e0e0e0",
 }
 const importTextareaStyle: React.CSSProperties = {
     ...importInputStyle,
@@ -1837,7 +1841,7 @@ export function SnapshotDetailPage(): JSX.Element {
                 <p>
                     <code>{id || "(missing id)"}</code>
                 </p>
-                <p style={{color: "#666"}}>
+                <p style={{color: "#999"}}>
                     The bundled JSON or checkpoint may have been removed.
                 </p>
             </>
@@ -1908,14 +1912,14 @@ function SnapshotDetailPageBody({
             <h1>
                 {kind === "bundled" ? "▣" : "◇"} {name}
             </h1>
-            <p style={{color: "#666"}}>
+            <p style={{color: "#999"}}>
                 <code>{id}</code> &middot;{" "}
                 {kind === "bundled" ? "Bundled snapshot" : "Checkpoint"}
                 {isActive && (
                     <>
                         {" "}
                         &middot;{" "}
-                        <span style={{color: "#2c7a2c"}}>
+                        <span style={{color: "#4ade80"}}>
                             ● currently loaded
                             {isDirty && " (working copy modified)"}
                         </span>
@@ -1981,7 +1985,7 @@ function SnapshotDetailPageBody({
                 )}
             </div>
             <details style={{marginTop: "1.5rem"}}>
-                <summary style={{cursor: "pointer", color: "#444"}}>
+                <summary style={{cursor: "pointer", color: "#e0e0e0"}}>
                     Bundled JSON (copy-paste under{" "}
                     <code>src/fixtures/snapshots/</code> to ship)
                 </summary>
@@ -2012,14 +2016,14 @@ function DivergenceBanner({
             style={{
                 marginTop: "1rem",
                 padding: "0.75rem 1rem",
-                border: "1px solid #d4b300",
-                background: "#fffbe6",
+                border: "1px solid #f0c200",
+                background: "#3d3000",
                 borderRadius: 4,
                 fontSize: "0.9rem",
             }}
         >
             <strong>Working copy has unsaved changes.</strong>
-            <p style={{margin: "0.4rem 0", color: "#444"}}>
+            <p style={{margin: "0.4rem 0", color: "#e0e0e0"}}>
                 Viewing <code>{routeId}</code>, but{" "}
                 <code>{activeId ?? "(no active snapshot)"}</code> is still
                 loaded with unsaved modifications. We did not auto-switch
@@ -2036,7 +2040,7 @@ function DivergenceBanner({
                 <span
                     style={{
                         alignSelf: "center",
-                        color: "#666",
+                        color: "#999",
                         fontSize: "0.85rem",
                     }}
                 >
@@ -2082,7 +2086,7 @@ export function CopyJsonBlock({
             </div>
             <pre
                 style={{
-                    background: "#f4f4f4",
+                    background: "#252525",
                     padding: "0.75rem",
                     borderRadius: 4,
                     fontSize: "0.75rem",
@@ -2175,7 +2179,7 @@ export function BallotStyleDetailPage(): JSX.Element {
     return (
         <>
             <h1>{election?.name ?? "(unnamed election)"}</h1>
-            <p style={{color: "#666"}}>
+            <p style={{color: "#999"}}>
                 <code>{bsId}</code> &middot; Ballot style
             </p>
             <dl style={dlStyle}>
@@ -2186,7 +2190,7 @@ export function BallotStyleDetailPage(): JSX.Element {
                     {pk ? (
                         <code style={codeBlockStyle}>{pk}</code>
                     ) : (
-                        <em style={{color: "#b00020"}}>
+                        <em style={{color: "#ef4444"}}>
                             missing on ballot_eml.public_key.public_key
                         </em>
                     )}
@@ -2242,7 +2246,7 @@ export function BallotStyleDetailPage(): JSX.Element {
                 </ul>
             )}
             <details style={{marginTop: "1.5rem"}}>
-                <summary style={{cursor: "pointer", color: "#444"}}>
+                <summary style={{cursor: "pointer", color: "#e0e0e0"}}>
                     Raw <code>ballot_eml</code> JSON
                 </summary>
                 <CopyJsonBlock
@@ -2262,7 +2266,7 @@ function SecretKeyRow({
 }): JSX.Element {
     if (!keypair) {
         return (
-            <em style={{color: "#b00020"}}>
+            <em style={{color: "#ef4444"}}>
                 no keypair registered in this snapshot — the decrypt
                 bridge will fall back to a fresh keypair
             </em>
@@ -2275,7 +2279,7 @@ function SecretKeyRow({
     return (
         <div>
             {mismatch && (
-                <p style={{color: "#b00020", margin: "0 0 0.4rem 0"}}>
+                <p style={{color: "#ef4444", margin: "0 0 0.4rem 0"}}>
                     ⚠ Registered pk does not match{" "}
                     <code>ballot_eml.public_key.public_key</code>. The
                     decrypt bridge will not work until they agree.
@@ -2529,7 +2533,7 @@ export function ContestDetailPage(): JSX.Element {
     return (
         <>
             <h1>{contestName}</h1>
-            <p style={{color: "#666"}}>
+            <p style={{color: "#999"}}>
                 <code>{contestId}</code> &middot; Contest
             </p>
             <dl style={dlStyle}>
@@ -2655,7 +2659,7 @@ function ContestTallyView({
 }): JSX.Element {
     const decodedCount = decodedRows.filter((r) => !!r.decoded).length
     return (
-        <p style={{margin: "0.3rem 0", color: "#444"}}>
+        <p style={{margin: "0.3rem 0", color: "#e0e0e0"}}>
             {decodedCount} of {decodedRows.length} cast vote
             {decodedRows.length === 1 ? "" : "s"} decoded for this
             contest. Click <strong>Open in tally</strong> above to run
@@ -2810,11 +2814,11 @@ export function VoterDetailPage(): JSX.Element {
     return (
         <>
             <h1>{voter.displayName}</h1>
-            <p style={{color: "#666"}}>
+            <p style={{color: "#999"}}>
                 <code>{voter.id}</code> &middot; Voter
             </p>
             {voter.notes && (
-                <p style={{color: "#444"}}>{voter.notes}</p>
+                <p style={{color: "#e0e0e0"}}>{voter.notes}</p>
             )}
             <h2 style={h2Style}>Vote as {voter.displayName}</h2>
             {ballotStyles.length === 0 ? (
@@ -2916,7 +2920,7 @@ function BallotStyleContestLinks({
 }): JSX.Element {
     const contests = bs.ballot_eml.contests ?? []
     return (
-        <span style={{color: "#666", fontSize: "0.85rem"}}>
+        <span style={{color: "#999", fontSize: "0.85rem"}}>
             {contests.length > 0 && (
                 <>
                     Contests:{" "}
@@ -2962,7 +2966,7 @@ function VoterCastVoteRow({
     const decodedEntries = Object.entries(row.decoded)
     return (
         <>
-            <div style={{fontSize: "0.85rem", color: "#444"}}>
+            <div style={{fontSize: "0.85rem", color: "#e0e0e0"}}>
                 <strong>{row.electionName ?? "(unknown election)"}</strong>
                 {row.createdAt && (
                     <>
@@ -3041,8 +3045,8 @@ function formatTimestamp(raw: string): string {
 const castVoteRowStyle: React.CSSProperties = {
     margin: "0.6rem 0",
     padding: "0.6rem 0.8rem",
-    background: "#fafafa",
-    border: "1px solid #e4e4e4",
+    background: "#2a2a2a",
+    border: "1px solid #3a3a3a",
     borderRadius: 4,
 }
 
@@ -3054,9 +3058,9 @@ const navLinkStyle = ({isActive}: {isActive: boolean}): React.CSSProperties => (
     display: "block",
     padding: "0.15rem 0.3rem",
     borderRadius: 3,
-    color: "#222",
+    color: "#e0e0e0",
     textDecoration: "none",
-    background: isActive ? "#dde9ff" : "transparent",
+    background: isActive ? "#383838" : "transparent",
     fontWeight: isActive ? 600 : 400,
 })
 
@@ -3073,7 +3077,7 @@ function SectionHeading({children}: {children: React.ReactNode}): JSX.Element {
                 fontSize: "0.7rem",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
-                color: "#666",
+                color: "#888",
                 margin: "0 0 0.4rem 0",
             }}
         >
@@ -3087,7 +3091,7 @@ function SubHeading({children}: {children: React.ReactNode}): JSX.Element {
         <h4
             style={{
                 fontSize: "0.75rem",
-                color: "#444",
+                color: "#e0e0e0",
                 margin: "0.75rem 0 0.25rem 0",
             }}
         >
@@ -3097,7 +3101,7 @@ function SubHeading({children}: {children: React.ReactNode}): JSX.Element {
 }
 
 function Empty({children}: {children: React.ReactNode}): JSX.Element {
-    return <div style={{color: "#999", fontStyle: "italic"}}>{children}</div>
+    return <div style={{color: "#888", fontStyle: "italic"}}>{children}</div>
 }
 
 /** Try to pretty-print JSON; fall back to the raw string if parsing
@@ -3132,7 +3136,7 @@ function DlRow({
 }): JSX.Element {
     return (
         <>
-            <dt style={{color: "#666"}}>{label}</dt>
+            <dt style={{color: "#999"}}>{label}</dt>
             <dd style={{margin: 0}}>{children}</dd>
         </>
     )
@@ -3140,7 +3144,7 @@ function DlRow({
 
 const primaryButtonStyle: React.CSSProperties = {
     padding: "0.5rem 1rem",
-    background: "#1976d2",
+    background: "#2563eb",
     color: "white",
     border: 0,
     borderRadius: 4,
@@ -3150,9 +3154,9 @@ const primaryButtonStyle: React.CSSProperties = {
 
 const secondaryButtonStyle: React.CSSProperties = {
     padding: "0.3rem 0.8rem",
-    background: "#fff",
-    color: "#222",
-    border: "1px solid #bbb",
+    background: "#383838",
+    color: "#e0e0e0",
+    border: "1px solid #555",
     borderRadius: 4,
     fontSize: "0.85rem",
     cursor: "pointer",
@@ -3161,22 +3165,23 @@ const secondaryButtonStyle: React.CSSProperties = {
 const codeBlockStyle: React.CSSProperties = {
     display: "inline-block",
     padding: "0.3rem 0.5rem",
-    background: "#f4f4f4",
-    border: "1px solid #ddd",
+    background: "#252525",
+    border: "1px solid #4a4a4a",
     borderRadius: 3,
     fontSize: "0.8rem",
     wordBreak: "break-all",
     maxWidth: "44rem",
+    color: "#e0e0e0",
 }
 
 const h2Style: React.CSSProperties = {
     fontSize: "1rem",
     margin: "1.5rem 0 0.5rem 0",
-    color: "#222",
+    color: "#e0e0e0",
 }
 
 const inlineLinkStyle: React.CSSProperties = {
-    color: "#1976d2",
+    color: "#5b9aff",
     textDecoration: "none",
 }
 
@@ -3193,7 +3198,7 @@ function NodeLabel(props: {
             title={props.title}
             style={{
                 padding: "0.15rem 0.3rem",
-                color: "#444",
+                color: "#e0e0e0",
                 fontWeight: 500,
             }}
         >

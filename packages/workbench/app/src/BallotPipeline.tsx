@@ -540,7 +540,7 @@ export function BallotPipeline() {
                         <p
                             style={{
                                 ...styles.help,
-                                color: "#b22222",
+                                color: "#ef4444",
                             }}
                         >
                             Keypair is bound to the seeded ciphertexts.
@@ -1117,7 +1117,7 @@ const styles: Record<string, CSSProperties> = {
     section: {
         marginBottom: "1.25rem",
         paddingBottom: "0.75rem",
-        borderBottom: "1px solid #ddd",
+        borderBottom: "1px solid #3a3a3a",
     },
     sectionDisclosure: {
         display: "flex",
@@ -1130,16 +1130,17 @@ const styles: Record<string, CSSProperties> = {
         textAlign: "left",
         cursor: "pointer",
         fontFamily: "inherit",
+        color: "#e0e0e0",
     },
     sectionTitle: {
         fontSize: "1.05rem",
         fontWeight: 600,
-        color: "#222",
+        color: "#e0e0e0",
     },
     sectionSummary: {
         marginLeft: "auto",
         fontSize: "0.78rem",
-        color: "#666",
+        color: "#999",
     },
     stageHeader: {
         display: "flex",
@@ -1150,22 +1151,16 @@ const styles: Record<string, CSSProperties> = {
     h2: {
         fontSize: "1.05rem",
         margin: "0 0 0.4rem 0",
+        color: "#e0e0e0",
     },
     rowCard: {
-        border: "1px solid #e5e5e5",
+        border: "1px solid #3a3a3a",
         borderRadius: "0.25rem",
         padding: "0.5rem",
         marginBottom: "0.5rem",
-        background: "#fafafa",
-        // Reserve the 3px left-edge so filled/empty rows stay
-        // perfectly aligned and only the accent color changes.
-        borderLeft: "3px solid #e5e5e5",
+        background: "#2a2a2a",
+        borderLeft: "3px solid #3a3a3a",
     },
-    // Applied on top of `rowCard` when the row's cell for the
-    // current stage has any content. The muted teal left-edge lets
-    // the operator's eye land on the last populated stage at a
-    // glance (e.g. on a seeded view, stage 3 lights up while stages
-    // 4-5 stay grey until Decrypt/Decode have run).
     rowCardFilled: {
         borderLeftColor: "#1f7a8c",
     },
@@ -1178,20 +1173,21 @@ const styles: Record<string, CSSProperties> = {
     rowBadge: {
         fontFamily: "ui-monospace, Menlo, Consolas, monospace",
         fontSize: "0.75rem",
-        background: "#333",
+        background: "#5b9aff",
         color: "white",
         padding: "0.1rem 0.4rem",
         borderRadius: "0.2rem",
     },
     rowLabel: {
         fontSize: "0.8rem",
-        color: "#444",
+        color: "#999",
         fontFamily: "ui-monospace, Menlo, Consolas, monospace",
     },
     removeButton: {
         marginLeft: "auto",
-        border: "1px solid #ccc",
-        background: "white",
+        border: "1px solid #555",
+        background: "#383838",
+        color: "#e0e0e0",
         cursor: "pointer",
         padding: "0 0.4rem",
         fontSize: "0.9rem",
@@ -1202,11 +1198,19 @@ const styles: Record<string, CSSProperties> = {
         padding: "0.3rem 0.7rem",
         fontSize: "0.85rem",
         cursor: "pointer",
+        background: "#383838",
+        color: "#e0e0e0",
+        border: "1px solid #555",
+        borderRadius: "0.2rem",
     },
     runAllButton: {
         padding: "0.25rem 0.6rem",
         fontSize: "0.8rem",
         cursor: "pointer",
+        background: "#383838",
+        color: "#e0e0e0",
+        border: "1px solid #555",
+        borderRadius: "0.2rem",
     },
     textarea: {
         width: "100%",
@@ -1214,6 +1218,10 @@ const styles: Record<string, CSSProperties> = {
         fontSize: "0.8rem",
         padding: "0.5rem",
         boxSizing: "border-box",
+        background: "#252525",
+        color: "#e0e0e0",
+        border: "1px solid #4a4a4a",
+        borderRadius: 3,
     },
     input: {
         width: "100%",
@@ -1221,25 +1229,36 @@ const styles: Record<string, CSSProperties> = {
         fontSize: "0.8rem",
         padding: "0.35rem 0.5rem",
         boxSizing: "border-box",
+        background: "#303030",
+        color: "#e0e0e0",
+        border: "1px solid #4a4a4a",
+        borderRadius: 3,
     },
     button: {
         marginTop: "0.5rem",
         padding: "0.4rem 0.9rem",
         fontSize: "0.9rem",
         cursor: "pointer",
+        background: "#383838",
+        color: "#e0e0e0",
+        border: "1px solid #555",
+        borderRadius: "0.2rem",
     },
     output: {
-        background: "#f4f4f4",
+        background: "#252525",
         padding: "0.75rem",
         marginTop: "0.5rem",
         overflow: "auto",
         fontSize: "0.8rem",
         wordBreak: "break-all",
         whiteSpace: "pre-wrap",
+        color: "#e0e0e0",
+        border: "1px solid #4a4a4a",
+        borderRadius: 3,
     },
     help: {
         fontSize: "0.8rem",
-        color: "#555",
+        color: "#999",
         margin: "0 0 0.4rem 0",
     },
     empty: {
@@ -1250,14 +1269,9 @@ const styles: Record<string, CSSProperties> = {
     label: {
         display: "block",
         fontSize: "0.8rem",
-        color: "#333",
+        color: "#e0e0e0",
         marginBottom: "0.2rem",
     },
-    // Row-header disclosure button. Looks like the previous inline
-    // header (badge + label) but is now a single clickable target
-    // that toggles the row's textarea. `flex: 1` so it stretches and
-    // remains the click target across the full header width; the
-    // `×` remove button sits to its right.
     disclosure: {
         flex: 1,
         display: "flex",
@@ -1276,18 +1290,18 @@ const styles: Record<string, CSSProperties> = {
         display: "inline-block",
         width: "0.9rem",
         fontSize: "0.8rem",
-        color: "#666",
+        color: "#999",
     },
     charCount: {
         fontSize: "0.75rem",
-        color: "#666",
+        color: "#888",
         fontFamily: "ui-monospace, Menlo, Consolas, monospace",
         marginLeft: "auto",
     },
     errorBadge: {
         fontSize: "0.7rem",
         color: "white",
-        background: "crimson",
+        background: "#ef4444",
         padding: "0.05rem 0.35rem",
         borderRadius: "0.2rem",
         marginLeft: "0.4rem",
