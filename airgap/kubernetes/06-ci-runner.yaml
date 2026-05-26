@@ -11,15 +11,16 @@ data:
       envs:
         KUBERNETES_SERVICE_HOST: kubernetes.default.svc.cluster.local
         KUBERNETES_SERVICE_PORT: "443"
-      # Map all standard labels to our custom local image that includes kubectl
+      # Map all standard labels to our local registry image for 100% reliability
       labels:
-        - "ubuntu-latest:docker://sequentech.local/runner-ubuntu:22.04"
-        - "ubuntu-24.04:docker://sequentech.local/runner-ubuntu:22.04"
-        - "ubuntu-22.04:docker://sequentech.local/runner-ubuntu:22.04"
+        - "ubuntu-latest:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+        - "ubuntu-24.04:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+        - "ubuntu-22.04:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
     container:
       workdir_parent: /workspace
-      # Allow mounting the service account into build containers
       valid_volumes: ["/var/run/secrets/kubernetes.io/serviceaccount"]
+      # Ensure it pulls from the local registry if needed
+      pull_policy: always
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -96,7 +97,7 @@ spec:
               value: ""
           securityContext:
             privileged: true
-          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then find /images -name \"*.tar\" -exec echo \"Loading {}...\" \\; -exec docker load -i {} \\;; fi; docker tag sequentech.local/runner-ubuntu:22.04 docker.gitea.com/runner-images:ubuntu-22.04 || true; wait"]
+          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --insecure-registry 10.43.10.10:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; if [ -d /images ]; then find /images -name \"*.tar\" -exec echo \"Loading {}...\" \\; -exec docker load -i {} \\;; fi; echo 'admin123' | docker login 10.43.10.10:3000 -u admin --password-stdin; docker pull 10.43.10.10:3000/admin/runner-ubuntu:22.04; docker tag 10.43.10.10:3000/admin/runner-ubuntu:22.04 docker.gitea.com/runner-images:ubuntu-22.04 || true; wait"]
           volumeMounts:
             - name: docker-storage
               mountPath: /var/lib/docker
