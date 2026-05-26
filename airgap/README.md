@@ -4,7 +4,26 @@ This guide explains how to prepare, install, and manage a single-node K3s cluste
 
 ---
 
-## 1. Online Preparation (Online Machine)
+## 1. Architecture & Design Decisions
+
+The solution is designed to provide a "Cloud-in-a-Box" experience without any internet connectivity.
+
+### Core Components
+- **K3s (Single-Node)**: Chosen for its lightweight footprint and built-in support for airgapped environments (binary-only installation and auto-importing images).
+- **Gitea**: Serves as both the **Git Source Control** and the **OCI Container Registry**. Consolidating these services reduces the architectural surface area.
+- **Gitea Runner (Actions)**: Runs inside the cluster using a **Docker-in-Docker (DinD)** sidecar to build and push images locally.
+
+### Key Architectural Decisions
+- **Static Registry Routing**: Gitea is assigned a fixed ClusterIP (`10.43.10.10`). During installation, K3s is pre-configured to trust `gitea.gitea:3000` at this IP. This bypasses the need for host-level DNS resolution (`/etc/hosts`) and ensures the Kubelet can always pull images.
+- **Declarative Automation**: Instead of complex bash scripts, a Kubernetes Job (`gitea-setup`) handles runner registration. It waits for Gitea to be ready, generates a token, and saves it to a Secret. This makes the deployment self-healing and asynchronous.
+- **Secure CI Rollouts**: The runner is assigned a dedicated `ServiceAccount` with RBAC permissions limited to restarting deployments in the `step-apps` namespace. This allows the CI pipeline to trigger updates without needing root access to the node.
+- **Offline Image Lifecycle**:
+  - **Online**: `prepare.sh` bundles every required base image into a 3.5GB tarball.
+  - **Offline**: `manage.sh` copies this tarball to K3s's `/var/lib/rancher/k3s/agent/images/` folder, where it is automatically imported into the `containerd` store on startup.
+
+---
+
+## 2. Online Preparation (Online Machine)
 
 Before going to the lab, you must bundle all required artifacts (binaries, deb packages, and container images).
 
@@ -21,7 +40,7 @@ Before going to the lab, you must bundle all required artifacts (binaries, deb p
 
 ---
 
-## 2. Server Machine Setup (Lab Machine)
+## 3. Server Machine Setup (Lab Machine)
 
 ### Install Cluster
 1.  Plug in the USB and copy `airgap-output` to the server.
@@ -44,7 +63,7 @@ sudo ./manage.sh --deploy
 
 ---
 
-## 3. Client Machine Setup (Ubuntu Desktop)
+## 4. Client Machine Setup (Ubuntu Desktop)
 
 1.  Plug in the USB.
 2.  Install required CLI tools (git, kubectl, etc.) from the offline bundle:
@@ -55,7 +74,7 @@ sudo ./manage.sh --deploy
 
 ---
 
-## 4. Development Workflow
+## 5. Development Workflow
 
 ### Initial Code Push
 1.  Log in to Gitea at `http://gitea.local` using **admin / admin123**.
@@ -76,7 +95,7 @@ Gitea Actions will automatically trigger on push. The pipeline:
 1.  Uses a `dind` (Docker-in-Docker) runner with pre-cached base images.
 2.  Builds services (Harvest, Windmill, Admin Portal) using `Dockerfile.airgap`.
 3.  Pushes images to the internal registry: `gitea.gitea:3000/admin/...`.
-4.  **Automatic Rollout**: Uses a secure ServiceAccount to restart deployments in the `step-apps` namespace upon success.
+4.  **Automatic Rollout**: Uses a secure ServiceAccount and the `ci-builder` image to restart deployments in the `step-apps` namespace upon success.
 
 ---
 
