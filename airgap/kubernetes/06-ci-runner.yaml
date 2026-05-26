@@ -55,6 +55,7 @@ spec:
         - name: runner
           image: gitea/act_runner:latest
           imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until [ -S /var/run/docker.sock ]; do echo 'Waiting for docker socket...'; sleep 2; done; /sbin/tini -- act_runner daemon --config /config/config.yaml"]
           env:
             - name: GITEA_INSTANCE_URL
               value: http://gitea.gitea:3000
