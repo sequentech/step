@@ -112,11 +112,10 @@ Update the Rust channel in the Nix development environment:
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
     channel = "stable";  # ← Should be "stable"
+    version = "1.90.0"; # ← Update this
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
   ```
-
-**Note**: Nix uses channel names (`stable`, `beta`, `nightly`) rather than specific versions. The actual version is determined by the nixpkgs snapshot. To pin a specific Rust version in Nix, you would need to override the `rustc` package.
 
 ## Step-by-Step Update Process
 
@@ -126,15 +125,22 @@ Update the Rust channel in the Nix development environment:
 
 #### Update devenv.nix
 
-Ensure your `devenv.nix` is using the stable channel:
+Ensure your `devenv.nix` is using the stable channel and the version is not fixed:
 
 ```nix
 languages.rust = {
   enable = true;
-  channel = "stable";  # Make sure this is set to "stable"
+  channel = "stable";
+  # version = "1.90.0"; # ← Comment this out
   toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
 };
 ```
+
+#### Do the update
+```bash
+devenv update
+```
+
 
 #### Check the Actual Rust Version in Nix
 
@@ -186,6 +192,7 @@ Update all files to use the same version that Nix is providing:
 
 1. **Update GitHub Actions** - Set `toolchain:` to the version from Nix
 2. **Update Dockerfiles** - Set `FROM rust:X.Y.Z` to the version from Nix
+3. **Fix devenv version** - Uncomment `version=` from devenv nix and set the new updated version.
 
 This ensures consistency: your local development environment (Nix), CI/CD (GitHub Actions), and production builds (Dockerfiles) all use the same Rust version.
 
