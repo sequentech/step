@@ -37,10 +37,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@nightly # You can also put the specific date here: @nightly-2024-01-01
         with:
-          profile: minimal
-          toolchain: nightly-2024-08-02
           components: rustfmt
           override: true
 
