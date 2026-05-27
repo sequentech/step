@@ -137,7 +137,7 @@ Import advanced settings for this Election and define vote limits, confirmations
   
 - **Decline To Vote Policy**
    - If `Election Level` option is selected, voters will be given the option to Decline to Vote for the entire election across all contests.
-   > **Note**: This option is available only when the Election Event uses the `Multiple Contests` encryption policy. If the encryption policy is set to `Single Contest`, the Decline to Vote policy will behave as if it is `Disabled`.
+   > **Note**: This policy is available only when the Election Event uses the `Multiple Contests` encryption policy. If the encryption policy is set to `Single Contest`, the Decline to Vote Policy will not be displayed or used.
 ---
 
 ### Notes & Best Practices
