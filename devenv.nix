@@ -90,6 +90,7 @@
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
     channel = "nightly";
+    version = "2024-09-01";
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
