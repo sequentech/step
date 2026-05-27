@@ -210,7 +210,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     const electionPresentation = safeParseJson(item.presentation)
                     const isDeclineToVote =
                         electionPresentation?.decline_to_vote_policy ===
-                            EDeclineToVotePolicy.ELECTION_LEVEL && isMultiContest
+                            EDeclineToVotePolicy.ENABLED && isMultiContest
 
                     return {
                         ...item,

@@ -1103,7 +1103,7 @@ impl Pipe for GenerateReports {
                         .presentation
                         .clone()
                         .and_then(|p| p.decline_to_vote_policy)
-                        == Some(DeclineToVotePolicy::ELECTION_LEVEL);
+                        == Some(DeclineToVotePolicy::ENABLED);
 
                 let total_decline_to_vote = if is_decline_to_vote_enabled {
                     contest_reports

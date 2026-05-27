@@ -666,8 +666,8 @@ const basqueTranslation: TranslationType = {
             declineToVotePolicy: {
                 label: "Bozkatzeari uko egiteko politika",
                 options: {
-                    "election-level": "Hauteskunde maila",
-                    "disabled": "Desgaituta",
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
                 },
             },
         },

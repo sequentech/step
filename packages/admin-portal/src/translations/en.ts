@@ -664,8 +664,8 @@ const englishTranslation = {
             declineToVotePolicy: {
                 label: "Decline to Vote Policy",
                 options: {
-                    "election-level": "Election Level",
-                    "disabled": "Disabled",
+                    enabled: "Enabled",
+                    disabled: "Disabled",
                 },
             },
         },

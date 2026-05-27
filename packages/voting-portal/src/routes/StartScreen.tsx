@@ -216,7 +216,7 @@ const StartScreen: React.FC = () => {
         ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const isDeclineToVotePolicyEnabled =
-        declineToVotePolicy === EDeclineToVotePolicy.ELECTION_LEVEL && isMultiContest
+        declineToVotePolicy === EDeclineToVotePolicy.ENABLED && isMultiContest
 
     const confirmDeclineToVote = () => {
         if (!ballotStyle || !election) {

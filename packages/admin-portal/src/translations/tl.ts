@@ -665,8 +665,8 @@ const tagalogTranslation: TranslationType = {
             declineToVotePolicy: {
                 label: "Patakaran sa pagtangging bumoto",
                 options: {
-                    "election-level": "Antas ng halalan",
-                    "disabled": "Naka-disable",
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
                 },
             },
         },
