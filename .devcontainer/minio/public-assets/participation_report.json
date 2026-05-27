@@ -1,0 +1,25 @@
+{
+  "execution_annotations": {
+    "date_printed": "2026-05-09T10:30:00+00:00",
+    "report_hash": "preview-report-hash",
+    "app_version": "preview",
+    "software_version": "preview",
+    "app_hash": "preview-app-hash",
+    "executer_username": "admin",
+    "results_hash": null
+  },
+  "participation": {
+    "scope": "election_event",
+    "tenant_id": "00000000-0000-0000-0000-000000000001",
+    "election_event_id": "00000000-0000-0000-0000-000000000002",
+    "election_id": null,
+    "election_event_name": "Election Event",
+    "election_name": null,
+    "generated_at": "2026-05-09T10:30:00+00:00",
+    "generated_timezone": "+00:00",
+    "total_voters": 1250,
+    "voted_voters": 895,
+    "participation_percentage": 71.6,
+    "votes_count": 910
+  }
+}

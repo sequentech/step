@@ -1074,6 +1074,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -2026,6 +2027,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
             },
             method: {
                 email: "E-mail",

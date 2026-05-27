@@ -41,8 +41,6 @@ export interface AnswersListProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
-    explicitBlank: boolean
-    setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
@@ -79,8 +77,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
-    explicitBlank,
-    setExplicitBlank,
     setIsTouched,
     externalExpanded,
     onExpandedChange,
@@ -103,6 +99,20 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
     const showCandidatesLabel = t("candidatesList.showCandidates")
     const hideCandidatesLabel = t("candidatesList.hideCandidates")
+    const categoryCandidateIds = new Set(category.candidates.map((candidate) => candidate.id))
+    const selectedCandidatesCount =
+        questionState?.choices.filter((choice) => {
+            return choice.selected > -1 && categoryCandidateIds.has(choice.id)
+        }).length ?? 0
+    const selectedCandidatesLabel =
+        !isReview && selectedCandidatesCount > 0
+            ? t(
+                  selectedCandidatesCount === 1
+                      ? "candidatesList.selectedCandidate"
+                      : "candidatesList.selectedCandidates",
+                  {count: selectedCandidatesCount}
+              )
+            : undefined
 
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) => {
@@ -156,6 +166,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
 
+    const shouldDisableList = disableSelect && !isChecked()
+
     return (
         <CandidatesList
             title={translate(listPresentation, "name", i18n.language) ?? title}
@@ -163,11 +175,13 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             isCheckable={checkableLists}
             checked={isChecked()}
             setChecked={setChecked}
+            shouldDisable={shouldDisableList}
             isCollapsible={!isReview && isCollapsible}
             defaultExpanded={defaultExpanded}
             collapseToggleAriaLabel={collapseToggleAriaLabel}
             showCandidatesLabel={showCandidatesLabel}
             hideCandidatesLabel={hideCandidatesLabel}
+            selectedCandidatesLabel={selectedCandidatesLabel}
             externalExpanded={!isReview && isCollapsible ? externalExpanded : undefined}
             onExpandedChange={!isReview && isCollapsible ? onExpandedChange : undefined}
         >
@@ -208,8 +222,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
                             />
                         ))}
@@ -236,8 +248,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
-                        explicitBlank={explicitBlank}
-                        setExplicitBlank={setExplicitBlank}
                         setIsTouched={setIsTouched}
                     />
                 ))}
