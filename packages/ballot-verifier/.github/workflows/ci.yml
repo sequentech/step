@@ -71,10 +71,6 @@ jobs:
       - name: Use locked cargo package versions known to work
         run: cargo clean && cp Cargo.lock.copy Cargo.lock
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master # You can also put the specific date here: @nightly-2024-01-01
-        with:
-          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
 

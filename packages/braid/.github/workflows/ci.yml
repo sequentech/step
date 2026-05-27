@@ -16,8 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master # You 
 
       - name: Static code analysis with cargo check
         uses: actions-rs/cargo@v1
