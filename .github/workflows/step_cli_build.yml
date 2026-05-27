@@ -27,8 +27,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
 
-      - name: Install Rust MUSL Target
-        run: rustup target add x86_64-unknown-linux-musl
+      - name: Install Rustup & Add Target
+        run: |
+          # 1. Install rustup silently with default settings
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          
+          # 2. Add Cargo to the GitHub Actions PATH for future steps
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          
+          # 3. Source the environment for THIS step and add your target
+          source "$HOME/.cargo/env"
+          rustup target add x86_64-unknown-linux-musl
 
       - name: Link openssl
         working-directory: packages/step-cli

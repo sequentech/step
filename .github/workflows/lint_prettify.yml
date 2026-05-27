@@ -83,6 +83,17 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Install Rustup
+        run: |
+          # 1. Install rustup silently with default settings
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          
+          # 2. Add Cargo to the GitHub Actions PATH for future steps
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          
+          # 3. Source the environment for THIS step and add your target
+          source "$HOME/.cargo/env"
+
       - name: Check Rust code formatting
         run: cd packages/ && cargo fmt -- --check
   
