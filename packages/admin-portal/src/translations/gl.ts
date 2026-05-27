@@ -665,8 +665,8 @@ const galegoTranslation: TranslationType = {
             declineToVotePolicy: {
                 label: "Política de abstención de voto",
                 options: {
-                    "election-level": "Nivel da elección",
-                    "disabled": "Desactivado",
+                    enabled: "Activado",
+                    disabled: "Desactivado",
                 },
             },
         },

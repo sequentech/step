@@ -662,8 +662,8 @@ const dutchTranslation: TranslationType = {
             declineToVotePolicy: {
                 label: "Beleid voor afzien van stemmen",
                 options: {
-                    "election-level": "Verkiezingsniveau",
-                    "disabled": "Uitgeschakeld",
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
                 },
             },
         },

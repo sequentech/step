@@ -66,6 +66,7 @@ import {
     getDefaultConsolidatedReportPolicy,
     EDeclineToVotePolicy,
     getDefaultDeclineToVotePolicy,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -543,6 +544,10 @@ export const ElectionDataForm: React.FC = () => {
         setActivateSave(true)
     }
 
+    const isShowDeclineToVotePolicy =
+        (data?.presentation as IElectionEventPresentation | undefined)
+            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
     return record && data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -896,13 +901,17 @@ export const ElectionDataForm: React.FC = () => {
                                     validate={required()}
                                     defaultValue={getDefaultConsolidatedReportPolicy()}
                                 />
-                                <SelectInput
-                                    source={`presentation.decline_to_vote_policy`}
-                                    choices={declineToVotePolicyChoices()}
-                                    label={String(t("electionScreen.declineToVotePolicy.label"))}
-                                    validate={required()}
-                                    defaultValue={getDefaultDeclineToVotePolicy()}
-                                />
+                                {isShowDeclineToVotePolicy && (
+                                    <SelectInput
+                                        source={`presentation.decline_to_vote_policy`}
+                                        choices={declineToVotePolicyChoices()}
+                                        label={String(
+                                            t("electionScreen.declineToVotePolicy.label")
+                                        )}
+                                        validate={required()}
+                                        defaultValue={getDefaultDeclineToVotePolicy()}
+                                    />
+                                )}
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>
