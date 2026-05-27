@@ -7,6 +7,11 @@ data:
   config.yaml: |
     runner:
       capacity: 1
+      # Map all standard labels to our local registry image for 100% reliability
+      labels:
+        - "ubuntu-latest:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+        - "ubuntu-24.04:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+        - "ubuntu-22.04:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
     container:
       workdir_parent: /workspace
       # Propagate cluster environment variables to job containers
