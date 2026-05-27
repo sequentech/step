@@ -6,6 +6,7 @@ use sequent_core::ballot::{Candidate, CandidatePresentation};
 use uuid::Uuid;
 
 #[allow(unused)]
+/// Returns a test candidate with ID "0".
 pub fn get_candidate_0(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -18,7 +19,7 @@ pub fn get_candidate_0(
         election_event_id: (election_event_id.to_string()),
         election_id: (election_id.to_string()),
         contest_id: (contest_id.to_string()),
-        name: Some("José Rabano Pimiento".into()),
+        name: Some(String::from("José Rabano Pimiento")),
         name_i18n: None,
         description: None,
         description_i18n: None,
@@ -42,6 +43,7 @@ pub fn get_candidate_0(
 }
 
 #[allow(unused)]
+/// Return candidate with ID "1".
 pub fn get_candidate_1(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -54,7 +56,7 @@ pub fn get_candidate_1(
         election_event_id: (election_event_id.to_string()),
         election_id: (election_id.to_string()),
         contest_id: (contest_id.to_string()),
-        name: Some("Miguel Pimentel Inventado".into()),
+        name: Some(String::from("Miguel Pimentel Inventado")),
         name_i18n: None,
         description: None,
         description_i18n: None,
@@ -78,6 +80,7 @@ pub fn get_candidate_1(
 }
 
 #[allow(unused)]
+/// Return candidate with ID "2".
 pub fn get_candidate_2(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -90,7 +93,7 @@ pub fn get_candidate_2(
         election_event_id: (election_event_id.to_string()),
         election_id: (election_id.to_string()),
         contest_id: (contest_id.to_string()),
-        name: Some("Juan Iglesias Torquemada".into()),
+        name: Some(String::from("Juan Iglesias Torquemada")),
         name_i18n: None,
         description: None,
         description_i18n: None,
@@ -114,6 +117,7 @@ pub fn get_candidate_2(
 }
 
 #[allow(unused)]
+/// Return candidate with ID "3".
 pub fn get_candidate_3(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -126,7 +130,7 @@ pub fn get_candidate_3(
         election_event_id: (election_event_id.to_string()),
         election_id: (election_id.to_string()),
         contest_id: (contest_id.to_string()),
-        name: Some("Mari Pili Hernández Ordoñez".into()),
+        name: Some(String::from("Mari Pili Hernández Ordoñez")),
         name_i18n: None,
         description: None,
         description_i18n: None,
@@ -150,6 +154,7 @@ pub fn get_candidate_3(
 }
 
 #[allow(unused)]
+/// Return candidate with ID "4".
 pub fn get_candidate_4(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -162,7 +167,7 @@ pub fn get_candidate_4(
         election_event_id: (election_event_id.to_string()),
         election_id: (election_id.to_string()),
         contest_id: (contest_id.to_string()),
-        name: Some("Juan Y Medio".into()),
+        name: Some(String::from("Juan Y Medio")),
         name_i18n: None,
         description: None,
         description_i18n: None,
@@ -186,6 +191,7 @@ pub fn get_candidate_4(
 }
 
 #[allow(unused)]
+/// Return candidate with ID "5".
 pub fn get_candidate_5(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -198,7 +204,7 @@ pub fn get_candidate_5(
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
         contest_id: contest_id.to_string(),
-        name: Some("Spiderman".into()),
+        name: Some(String::from("Spiderman")),
         name_i18n: None,
         description: None,
         description_i18n: None,

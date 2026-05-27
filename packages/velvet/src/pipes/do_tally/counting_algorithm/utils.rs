@@ -13,99 +13,91 @@ use std::str::FromStr;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Calculates the number of undervotes in a ballot.
 fn calculate_undervotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     // Count actual votes (selected > -1)
-    let actual_votes: u64 =
-        vote.choices.iter().fold(
-            0u64,
-            |acc, choice| {
-                if choice.selected > -1 {
-                    acc + 1
-                } else {
-                    acc
-                }
-            },
-        );
+    let actual_votes: u64 = vote.choices.iter().fold(0u64, |acc, choice| {
+        if choice.selected > -1 {
+            acc.saturating_add(1)
+        } else {
+            acc
+        }
+    });
 
     // Calculate undervotes based on max_votes
-    let max_votes = contest.max_votes as u64;
-    if actual_votes < max_votes {
-        max_votes - actual_votes
-    } else {
-        0
-    }
+    let max_votes = u64::try_from(contest.max_votes).expect("max_votes should be non-negative");
+    max_votes.saturating_sub(actual_votes)
 }
 
+/// Calculates the number of valid votes in a ballot.
 fn calculate_valid_votes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     // Count actual votes (selected > -1)
-    let actual_votes: u64 =
-        vote.choices.iter().fold(
-            0u64,
-            |acc, choice| {
-                if choice.selected > -1 {
-                    acc + 1
-                } else {
-                    acc
-                }
-            },
-        );
+    let actual_votes: u64 = vote.choices.iter().fold(0u64, |acc, choice| {
+        if choice.selected > -1 {
+            acc.saturating_add(1)
+        } else {
+            acc
+        }
+    });
 
     // Check if votes are within valid range
-    if actual_votes >= (contest.min_votes as u64) && actual_votes <= (contest.max_votes as u64) {
+    let min_votes_u64 = contest.min_votes.cast_unsigned();
+    let max_votes_u64 = contest.max_votes.cast_unsigned();
+    if actual_votes >= min_votes_u64 && actual_votes <= max_votes_u64 {
         actual_votes
     } else {
         0
     }
 }
 
+/// Calculates the number of overvotes in a ballot.
 fn calculate_overvotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     // Count actual votes (selected > -1)
-    let actual_votes: u64 =
-        vote.choices.iter().fold(
-            0u64,
-            |acc, choice| {
-                if choice.selected > -1 {
-                    acc + 1
-                } else {
-                    acc
-                }
-            },
-        );
+    let actual_votes: u64 = vote.choices.iter().fold(0u64, |acc, choice| {
+        if choice.selected > -1 {
+            acc.saturating_add(1)
+        } else {
+            acc
+        }
+    });
 
     // Calculate overvotes if actual votes exceed max_votes
-    if actual_votes > (contest.max_votes as u64) {
-        actual_votes - (contest.max_votes as u64)
-    } else {
-        0
-    }
+    let max_votes_u64 = contest.max_votes.cast_unsigned();
+    actual_votes.saturating_sub(max_votes_u64)
 }
 
+/// Updates extended metrics for a contest based on a decoded vote.
+///
+/// Calculates valid votes, undervotes, and overvotes and updates the metrics accordingly.
 #[instrument(skip_all)]
 pub fn update_extended_metrics(
     vote: &DecodedVoteContest,
     current_metrics: &ExtendedMetricsContest,
     contest: &Contest,
 ) -> ExtendedMetricsContest {
-    let mut metrics = current_metrics.clone();
+    let metrics = *current_metrics;
+    let mut result = metrics;
 
     // Calculate valid votes first
     let valid_votes = calculate_valid_votes(vote, contest);
-    metrics.votes_actually += valid_votes;
+    result.votes_actually = result.votes_actually.saturating_add(valid_votes);
 
     // Calculate undervotes
     let undervotes = calculate_undervotes(vote, contest);
-    metrics.under_votes += undervotes;
+    result.under_votes = result.under_votes.saturating_add(undervotes);
 
     // Calculate overvotes
     let overvotes = calculate_overvotes(vote, contest);
-    metrics.over_votes += overvotes;
+    result.over_votes = result.over_votes.saturating_add(overvotes);
 
     // Expected votes is always max_votes per ballot
-    metrics.expected_votes += contest.max_votes as u64;
+    let max_votes_u64 = contest.max_votes.cast_unsigned();
+    result.expected_votes = result.expected_votes.saturating_add(max_votes_u64);
 
-    metrics
+    result
 }
 
+/// Gets the tally operation for a contest from its annotations.
 #[instrument(skip_all)]
 pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     let default_tally_op = contest
@@ -114,14 +106,15 @@ pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     let annotations = contest.annotations.clone().unwrap_or_default();
     let operation = annotations
         .get("tally_operation")
-        .map(|val| val.clone())
+        .cloned()
         .unwrap_or_default();
     TallyOperation::from_str(&operation).unwrap_or(default_tally_op)
 }
 
+/// Gets the tally operation for an area based on ballot styles and counting algorithm.
 #[instrument(skip_all)]
 pub fn get_area_tally_operation(
-    ballot_styles: &Vec<BallotStyle>,
+    ballot_styles: &[BallotStyle],
     counting_alg: CountingAlgType,
     area_id: &Uuid,
 ) -> TallyOperation {
@@ -138,18 +131,18 @@ pub fn get_area_tally_operation(
     }
 }
 
+/// Gets the weight for an area from ballot styles.
 #[instrument(skip_all)]
-pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: &Uuid) -> Weight {
+pub fn get_area_weight(ballot_styles: &[BallotStyle], area_id: &Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());
 
     area_ballot_style
-        .map(|bs| {
+        .and_then(|bs| {
             bs.area_annotations
                 .as_ref()
-                .map(|area_annotations| area_annotations.get_weight())
+                .map(sequent_core::ballot::AreaAnnotations::get_weight)
         })
-        .flatten()
         .unwrap_or_default()
 }

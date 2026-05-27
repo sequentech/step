@@ -21,13 +21,17 @@ use rayon::prelude::*;
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
+/// Output filename for decoded ballots JSON.
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
 
+/// Ballot decoding pipe implementation.
 pub struct DecodeBallots {
+    /// Pipeline input configuration.
     pub pipe_inputs: PipeInputs,
 }
 
 impl DecodeBallots {
+    /// Creates a new ballot decoding pipe instance.
     #[instrument(skip_all, name = "DecodeBallots::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
@@ -36,6 +40,11 @@ impl DecodeBallots {
 
 impl DecodeBallots {
     #[instrument(err, skip(contest))]
+    /// Decodes ballots from a file using the specified contest configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or if ballot format is invalid.
     fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
@@ -53,11 +62,11 @@ impl DecodeBallots {
             }
 
             let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                plaintext.map_err(|_| Error::Unexpected("Wrong ballot format".into()))?;
 
             let decoded_vote = contest
                 .decode_plaintext_contest_bigint(&plaintext)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                .map_err(|_| Error::Unexpected("Wrong ballot format".into()))?;
 
             decoded_ballots.push(decoded_vote);
         }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
@@ -24,19 +24,28 @@ use crate::pipes::{
 };
 use crate::utils::parse_file;
 
+/// Output filename for the winners JSON file.
 pub const OUTPUT_WINNERS: &str = "winners.json";
 
+/// Pipe for identifying and marking winning candidates in a contest.
 pub struct MarkWinners {
+    /// Pipe input configuration containing election and file paths.
     pub pipe_inputs: PipeInputs,
 }
 
 impl MarkWinners {
     #[instrument(skip_all, name = "MarkWinners::new")]
+    /// Creates a new winner marker with the given pipe inputs.
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 
     #[instrument(skip_all)]
+    /// Extracts and orders winners from contest results.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the winning candidates number cannot be converted to usize.
     pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut winners = contest_result.candidate_result.clone();
 
@@ -52,21 +61,30 @@ impl MarkWinners {
 
         winners
             .into_iter()
-            .take(contest_result.contest.winning_candidates_num as usize)
+            .take(
+                usize::try_from(contest_result.contest.winning_candidates_num)
+                    .expect("winning candidates number must be convertible to usize"),
+            )
             .enumerate()
             .map(|(index, w)| WinnerResult {
                 candidate: w.candidate.clone(),
                 total_count: w.total_count,
-                winning_position: index + 1,
+                winning_position: index.saturating_add(1),
             })
             .collect()
     }
 
+    /// Creates breakdown winner reports for all contests and areas.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if files cannot be read or written.
+    ///
+    /// # Panics
+    ///
+    /// Panics if subfolder name cannot be determined.
     #[instrument(err, skip_all)]
-    pub fn create_breakdown_winners(
-        base_input_path: &PathBuf,
-        base_output_path: &PathBuf,
-    ) -> Result<()> {
+    pub fn create_breakdown_winners(base_input_path: &Path, base_output_path: &Path) -> Result<()> {
         let base_input_breakdown_path = base_input_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let base_output_breakdown_path = base_output_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let subfolders = list_subfolders(&base_input_breakdown_path);
@@ -78,7 +96,7 @@ impl MarkWinners {
 
             let winners = MarkWinners::get_winners(&contest_result);
 
-            let subfolder_name = subfolder.file_name().unwrap();
+            let subfolder_name = subfolder.file_name().expect("subfolder name must exist");
             let output_subfolder = base_output_breakdown_path.join(subfolder_name);
             fs::create_dir_all(&output_subfolder)?;
             let winners_file_path = output_subfolder.join(OUTPUT_WINNERS);
@@ -91,6 +109,7 @@ impl MarkWinners {
 
 impl Pipe for MarkWinners {
     #[instrument(err, skip_all, name = "MarkWinners::new")]
+    #[allow(clippy::too_many_lines)]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
@@ -128,11 +147,12 @@ impl Pipe for MarkWinners {
                         let contest_result_file =
                             base_input_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
 
-                        let contest_results_file = fs::File::open(&contest_result_file)
+                        let contest_results_file_agg = fs::File::open(&contest_result_file)
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                        let contest_result: ContestResult = parse_file(contest_results_file)?;
+                        let contest_result_agg: ContestResult =
+                            parse_file(contest_results_file_agg)?;
 
-                        let winners = MarkWinners::get_winners(&contest_result);
+                        let winners_agg = MarkWinners::get_winners(&contest_result_agg);
 
                         let aggregate_output_path = base_output_path
                             .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -141,7 +161,7 @@ impl Pipe for MarkWinners {
                         let winners_file_path = aggregate_output_path.join(OUTPUT_WINNERS);
                         let winners_file = fs::File::create(winners_file_path)?;
 
-                        serde_json::to_writer(winners_file, &winners)?;
+                        serde_json::to_writer(winners_file, &winners_agg)?;
                     }
 
                     // do tally sheet winners
@@ -150,44 +170,44 @@ impl Pipe for MarkWinners {
                         let contest_result_file =
                             tally_sheet_folder.join(OUTPUT_CONTEST_RESULT_FILE);
 
-                        let contest_results_file = fs::File::open(&contest_result_file)
+                        let contest_results_file_tally_sheet = fs::File::open(&contest_result_file)
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                        let contest_result: ContestResult = parse_file(contest_results_file)?;
+                        let contest_result_tally: ContestResult =
+                            parse_file(contest_results_file_tally_sheet)?;
 
-                        let winners = MarkWinners::get_winners(&contest_result);
+                        let winners_tally = MarkWinners::get_winners(&contest_result_tally);
 
                         let Some(tally_sheet_id) =
                             PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_folder)
                         else {
-                            return Err(Error::UnexpectedError(
+                            return Err(Error::Unexpected(
                                 "Can't read tally sheet id from path".into(),
                             ));
                         };
-                        let tally_sheet_folder =
+                        let tally_sheet_output =
                             PipeInputs::build_tally_sheet_path(&base_output_path, &tally_sheet_id);
-                        fs::create_dir_all(&tally_sheet_folder)?;
+                        fs::create_dir_all(&tally_sheet_output)?;
 
-                        let winners_file_path = tally_sheet_folder.join(OUTPUT_WINNERS);
+                        let winners_file_path = tally_sheet_output.join(OUTPUT_WINNERS);
                         let winners_file = fs::File::create(winners_file_path)?;
 
-                        serde_json::to_writer(winners_file, &winners)?;
+                        serde_json::to_writer(winners_file, &winners_tally)?;
                     }
 
                     // do area winners
 
                     let contest_result_file = base_input_path.join(OUTPUT_CONTEST_RESULT_FILE);
-
-                    let contest_results_file = fs::File::open(&contest_result_file)
+                    let contest_results_file_area = fs::File::open(&contest_result_file)
                         .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                    let contest_result: ContestResult = parse_file(contest_results_file)?;
+                    let contest_result_area: ContestResult = parse_file(contest_results_file_area)?;
 
-                    let winners = MarkWinners::get_winners(&contest_result);
+                    let winners_area = MarkWinners::get_winners(&contest_result_area);
 
                     fs::create_dir_all(&base_output_path)?;
                     let winners_file_path = base_output_path.join(OUTPUT_WINNERS);
                     let winners_file = fs::File::create(winners_file_path)?;
 
-                    serde_json::to_writer(winners_file, &winners)?;
+                    serde_json::to_writer(winners_file, &winners_area)?;
                 }
 
                 let contest_result_path = PipeInputs::build_path(
@@ -227,8 +247,12 @@ impl Pipe for MarkWinners {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
+/// Result data for a winning candidate.
 pub struct WinnerResult {
+    /// Information about the candidate.
     pub candidate: Candidate,
+    /// Total votes the candidate received.
     pub total_count: u64,
+    /// Position in the winners list.
     pub winning_position: usize,
 }

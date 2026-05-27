@@ -4,8 +4,8 @@
 
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    counting_algorithm::utils::update_extended_metrics, tally::Tally, CandidateResult,
+    ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use std::cmp;
@@ -14,16 +14,24 @@ use tracing::{info, instrument};
 
 use super::Result;
 
+/// Plurality at large voting algorithm implementation.
 pub struct PluralityAtLarge {
+    /// Tally containing ballots and contest information.
     pub tally: Tally,
 }
 
 impl PluralityAtLarge {
+    /// Creates a new plurality at large voting algorithm with a tally.
     #[instrument(skip_all)]
     pub fn new(tally: Tally) -> Self {
         Self { tally }
     }
     #[instrument(err, skip_all)]
+    /// Processes ballots using plurality at large voting.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the ballot processing fails.
     pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
@@ -38,28 +46,29 @@ impl PluralityAtLarge {
         let mut count_blank: u64 = 0;
 
         let mut extended_metrics = ExtendedMetricsContest::default();
-        let mut total_ballots = 0;
-        let mut total_weight = 0;
+        let mut total_ballots: u64 = 0;
+        let mut total_weight: u64 = 0;
 
         for (vote, weight_opt) in votes {
             let weight = weight_opt.clone().unwrap_or_default();
-            total_ballots += 1;
+            total_ballots = total_ballots.saturating_add(1);
 
-            extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
+            extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
             if vote.is_invalid() {
                 if vote.is_explicit_invalid {
-                    count_invalid_votes.explicit += 1;
+                    count_invalid_votes.explicit = count_invalid_votes.explicit.saturating_add(1);
                 } else {
-                    count_invalid_votes.implicit += 1;
+                    count_invalid_votes.implicit = count_invalid_votes.implicit.saturating_add(1);
                 }
-                count_invalid += 1;
+                count_invalid = count_invalid.saturating_add(1);
             } else {
                 let mut is_blank = true;
 
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
-                        *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
-                        total_weight += weight;
+                        let entry = vote_count.entry(choice.id.clone()).or_insert(0);
+                        *entry = entry.saturating_add(weight);
+                        total_weight = total_weight.saturating_add(weight);
                         if is_blank {
                             is_blank = false;
                         }
@@ -67,10 +76,10 @@ impl PluralityAtLarge {
                 }
 
                 if is_blank {
-                    count_blank += 1;
+                    count_blank = count_blank.saturating_add(1);
                 }
 
-                count_valid += 1;
+                count_valid = count_valid.saturating_add(1);
             }
         }
 
@@ -83,8 +92,8 @@ impl PluralityAtLarge {
             _ => self.tally.create_candidate_results(
                 vote_count,
                 count_blank,
-                count_invalid_votes.clone(),
-                extended_metrics.clone(),
+                count_invalid_votes,
+                extended_metrics,
                 count_valid,
                 count_invalid,
                 percentage_votes_denominator,
@@ -108,7 +117,7 @@ impl CountingAlgorithm for PluralityAtLarge {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.scope_operation {
-            ScopeOperation::Contest(op) if op == TallyOperation::AggregateResults => {
+            ScopeOperation::Contest(TallyOperation::AggregateResults) => {
                 self.tally.aggregate_results()?
             }
             ScopeOperation::Contest(op) => self.process_ballots(op)?,

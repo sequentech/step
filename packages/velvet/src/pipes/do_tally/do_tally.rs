@@ -43,29 +43,39 @@ use std::{
 use tracing::{event, info, instrument, Level, Value as TracingValue};
 use uuid::Uuid;
 
+/// Output filename for contest results JSON.
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
+/// Output folder for aggregated child area results.
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
+/// Input filename for tally sheet data.
 pub const INPUT_TALLY_SHEET_FILE: &str = "tally-sheet.json";
+/// Output folder for vote breakdowns.
 pub const OUTPUT_BREAKDOWNS_FOLDER: &str = "breakdowns";
 
+/// Tally calculation pipe implementation.
 pub struct DoTally {
+    /// Pipeline input configuration.
     pub pipe_inputs: PipeInputs,
 }
 
 impl DoTally {
+    /// Creates a new tally calculation pipe instance.
     #[instrument(skip_all, name = "DoTally::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 }
 
+/// Lists all tally sheet subfolders at the given path.
+///
+/// Filters directories by checking if their names start with the tally sheet prefix.
 #[instrument]
 pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
-    let subfolders = list_subfolders(&path);
+    let subfolders = list_subfolders(path);
     let tally_sheet_folders: Vec<PathBuf> = subfolders
         .into_iter()
-        .filter(|path| {
-            let Some(folder_name) = get_folder_name(path) else {
+        .filter(|subfolder| {
+            let Some(folder_name) = get_folder_name(subfolder) else {
                 return false;
             };
             folder_name.starts_with(PREFIX_TALLY_SHEET)
@@ -75,11 +85,15 @@ pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
 }
 
 impl DoTally {
+    /// Saves tally sheet breakdown results to files.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if file operations fail.
     #[instrument(err, skip_all)]
     fn save_tally_sheets_breakdown(
-        &self,
-        tally_sheet_results: &Vec<(ContestResult, TallySheet)>,
-        base_file_path: &PathBuf,
+        tally_sheet_results: &[(ContestResult, TallySheet)],
+        base_file_path: &Path,
     ) -> Result<()> {
         let base_breakdown_path = base_file_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let mut breakdown_map: HashMap<VotingChannel, ContestResult> = HashMap::new();
@@ -90,13 +104,13 @@ impl DoTally {
             breakdown_map
                 .entry(channel)
                 .and_modify(|current_result| {
-                    current_result.aggregate(&contest_result, true);
+                    current_result.aggregate(contest_result, true);
                 })
                 .or_insert_with(|| contest_result.clone());
         }
 
         for (channel, contest_result) in breakdown_map {
-            let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
+            let breakdown_folder_path = base_breakdown_path.join(channel.to_string());
             fs::create_dir_all(&breakdown_folder_path)?;
             let breakdown_file_path = breakdown_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
             let contest_result_file = fs::File::create(&breakdown_file_path)?;
@@ -108,7 +122,13 @@ impl DoTally {
 }
 
 impl Pipe for DoTally {
+    /// Processes tally operations and aggregates results.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if tally processing fails.
     #[instrument(err, skip_all, name = "DoTally::exec")]
+    #[allow(clippy::too_many_lines)]
     fn exec(&self) -> Result<()> {
         let input_dir_base = self
             .pipe_inputs
@@ -135,28 +155,27 @@ impl Pipe for DoTally {
                     let tally_sheets_dir = tally_sheets_dir_base.clone();
 
                     // These are specific to the contest and need to be cloned for use in area processing.
-                    let election_id_for_contest = contest_input.election_id.clone();
-                    let contest_id_for_contest = contest_input.id.clone();
+                    let election_id_for_contest = contest_input.election_id;
+                    let contest_id_for_contest = contest_input.id;
                     let contest_object = contest_input.contest.clone();
                     let contest_op = get_contest_tally_operation(&contest_object);
 
                     // --- Start of logic for a single contest ---
-                    let _areas_info: Vec<TreeNodeArea> = contest_input // Renamed, original `areas` was unused after info
+                    let areas_info: Vec<TreeNodeArea> = contest_input // Renamed, original `areas` was unused after info
                         .area_list
                         .iter()
                         .map(|area| (&area.area).into())
                         .collect();
                     info!(
                         "areas for contest {}: {:?}",
-                        contest_id_for_contest, _areas_info
+                        contest_id_for_contest, areas_info
                     );
 
                     let areas_tree = Arc::new(
                         TreeNode::<()>::from_areas(election_input.areas.clone()).map_err(
                             |err| {
-                                Error::UnexpectedError(format!(
-                                    "Error building area tree for contest {}: {:?}",
-                                    contest_id_for_contest, err
+                                Error::Unexpected(format!(
+                                    "Error building area tree for contest {contest_id_for_contest}: {err:?}"
                                 ))
                             },
                         )?,
@@ -181,9 +200,9 @@ impl Pipe for DoTally {
                         .par_iter()
                         .map(|area_input| {
                             // Clone data needed per area task.
-                            let area_id = area_input.id.clone();
-                            let election_id = election_id_for_contest.clone();
-                            let contest_id = contest_id_for_contest.clone();
+                            let area_id = area_input.id;
+                            let election_id = election_id_for_contest;
+                            let contest_id = contest_id_for_contest;
 
                             let base_input_path = PipeInputs::build_path(
                                 &input_dir,
@@ -206,7 +225,7 @@ impl Pipe for DoTally {
                             let Some(area_tree_node) =
                                 areas_tree.as_ref().find_area(&area_input.id.to_string())
                             else {
-                                return Err(Error::UnexpectedError(format!(
+                                return Err(Error::Unexpected(format!(
                                     "Error finding area {} in areas tree for contest {}",
                                     area_input.id, contest_id
                                 )));
@@ -246,7 +265,7 @@ impl Pipe for DoTally {
                                     .map(|child_area| -> Result<(PathBuf, Weight), Error> {
                                         let child_area_id = Uuid::parse_str(&child_area.id)
                                             .map_err(|err| {
-                                                Error::UnexpectedError(format!(
+                                                Error::Unexpected(format!(
                                                     "Uuid parse error: {err:?}"
                                                 ))
                                             })?;
@@ -278,10 +297,10 @@ impl Pipe for DoTally {
                                     vec![],
                                     vec![],
                                 )
-                                .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                .map_err(|e| Error::Unexpected(e.to_string()))?;
                                 let res: ContestResult = counting_algorithm
                                     .tally()
-                                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                    .map_err(|e| Error::Unexpected(e.to_string()))?;
                                 let file_path =
                                     base_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
                                 let file = fs::File::create(file_path)?;
@@ -301,10 +320,10 @@ impl Pipe for DoTally {
                                 vec![],
                                 vec![],
                             )
-                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                            .map_err(|e| Error::Unexpected(e.to_string()))?;
                             let mut area_tally_results = counting_algorithm_area
                                 .tally()
-                                .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                .map_err(|e| Error::Unexpected(e.to_string()))?;
 
                             if let Some(extended_metrics) =
                                 area_tally_results.extended_metrics.as_mut()
@@ -341,7 +360,7 @@ impl Pipe for DoTally {
                                         &tally_sheets_file_path,
                                     )
                                     .map_err(|e| {
-                                        Error::FileAccess(tally_sheets_file_path.to_path_buf(), e)
+                                        Error::FileAccess(tally_sheets_file_path.clone(), e)
                                     })?;
                                     let tally_sheet: TallySheet =
                                         serde_json::from_str(&tally_sheet_str)?;
@@ -353,7 +372,7 @@ impl Pipe for DoTally {
                                     fs::create_dir_all(&output_tally_sheets_folder_path)?;
                                     let contest_result_sheet =
                                         tally::process_tally_sheet(&tally_sheet, &contest_object)
-                                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                            .map_err(|e| Error::Unexpected(e.to_string()))?;
 
                                     let output_tally_sheets_file_path =
                                         output_tally_sheets_folder_path
@@ -398,8 +417,8 @@ impl Pipe for DoTally {
                     ) in collected_area_outputs
                     {
                         contest_ballot_files.push(ballot_file);
-                        sum_census += census;
-                        sum_auditable_votes += auditable_votes_val;
+                        sum_census = sum_census.saturating_add(census);
+                        sum_auditable_votes = sum_auditable_votes.saturating_add(auditable_votes_val);
                         tally_sheet_results_for_contest.extend(sheet_results);
                         area_tally_results_for_contest.push(area_tally_results);
                     }
@@ -413,7 +432,7 @@ impl Pipe for DoTally {
                     );
                     fs::create_dir_all(&contest_output_dir_path)?; // Ensure contest directory exists
 
-                    self.save_tally_sheets_breakdown(
+                    DoTally::save_tally_sheets_breakdown(
                         &tally_sheet_results_for_contest,
                         &contest_output_dir_path,
                     )?;
@@ -434,10 +453,10 @@ impl Pipe for DoTally {
                         final_only_sheet_results,
                         area_tally_results_for_contest,
                     )
-                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                    .map_err(|e| Error::Unexpected(e.to_string()))?;
                     let final_res = final_counting_algorithm
                         .tally()
-                        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                        .map_err(|e| Error::Unexpected(e.to_string()))?;
 
                     let final_contest_result_file_path =
                         contest_output_dir_path.join(OUTPUT_CONTEST_RESULT_FILE);
@@ -453,92 +472,127 @@ impl Pipe for DoTally {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
+/// Count of explicit and implicit invalid votes.
 pub struct InvalidVotes {
+    /// Number of explicitly marked invalid votes.
     pub explicit: u64,
+    /// Number of implicitly invalid votes (e.g., overvotes, rule violations).
     pub implicit: u64,
 }
 
 impl InvalidVotes {
+    /// Aggregates two Invalid Votes counts.
+    #[must_use]
     #[instrument]
     pub fn aggregate(&self, other: &InvalidVotes) -> InvalidVotes {
-        let mut sum = self.clone();
+        let mut sum = *self;
 
-        sum.explicit += other.explicit;
-        sum.implicit += other.implicit;
+        sum.explicit = sum.explicit.saturating_add(other.explicit);
+        sum.implicit = sum.implicit.saturating_add(other.implicit);
         sum
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
+/// Extended metrics for contest voting analysis.
 pub struct ExtendedMetricsContest {
-    // Voted more candidates than the allowed amount per contest
+    /// Voted more candidates than the allowed amount per contest
     pub over_votes: u64,
-    // Voted less than the number of votes allowed for each contest.
+    /// Voted less than the number of votes allowed for each contest.
     pub under_votes: u64,
-    // Total actual marks count of candidates in the contest. Only counted UV and fully votes.
+    /// Total actual marks count of candidates in the contest. Only counted UV and fully votes.
     pub votes_actually: u64,
-    // Total expected marks for candidates if all votes were normal
-    // (no under-votes, no over-votes) (valid-ballots X number of
-    // votes possible in the contest)
+    /// Total expected marks for candidates if all votes were normal
+    /// (no under-votes, no over-votes) (valid-ballots X number of
+    /// votes possible in the contest)
     pub expected_votes: u64,
-    //Total counted ballots
+    /// Total counted ballots
     pub total_ballots: u64,
-    pub weight: Weight, // Used to store the actual weight used to tally an specific area.
-    pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
+    /// Used to store the actual weight used to tally an specific area.
+    pub weight: Weight,
+    /// Used to calculate the right `percentage_votes` in aggregate
+    pub total_weight: u64,
 }
 
 impl ExtendedMetricsContest {
+    /// Aggregates extended metrics from another contest result.
+    ///
+    /// Sums all vote counts and weights for comparison across multiple contests.
+    #[must_use]
     #[instrument(skip_all)]
     pub fn aggregate(&self, other: &ExtendedMetricsContest) -> ExtendedMetricsContest {
-        let mut result = self.clone();
-        result.over_votes += other.over_votes;
-        result.under_votes += other.under_votes;
-        result.votes_actually += other.votes_actually;
-        result.expected_votes += other.expected_votes;
-        result.total_ballots += other.total_ballots;
-        result.total_weight += other.total_weight;
+        let mut result = *self;
+        result.over_votes = result.over_votes.saturating_add(other.over_votes);
+        result.under_votes = result.under_votes.saturating_add(other.under_votes);
+        result.votes_actually = result.votes_actually.saturating_add(other.votes_actually);
+        result.expected_votes = result.expected_votes.saturating_add(other.expected_votes);
+        result.total_ballots = result.total_ballots.saturating_add(other.total_ballots);
+        result.total_weight = result.total_weight.saturating_add(other.total_weight);
         result
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Extended metrics for the entire election event across all contests.
 pub struct ExtendedMetricsElection {
-    // Number of valid ballots processed by the ACM without any
-    // single mark on all contests.
+    /// Number of valid ballots processed by the ACM without any
+    /// single mark on all contests.
     pub abstentions: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Complete tally results for a contest including vote counts and percentages.
 pub struct ContestResult {
+    /// Contest configuration and details.
     pub contest: Contest,
+    /// Total number of registered voters for this contest.
     pub census: u64,
+    /// Percentage of census votes.
     pub percentage_census: f64,
+    /// Number of auditable votes cast.
     pub auditable_votes: u64,
+    /// Percentage of auditable votes relative to census.
     pub percentage_auditable_votes: f64,
+    /// Total votes cast.
     pub total_votes: u64,
+    /// Percentage of total votes relative to census.
     pub percentage_total_votes: f64,
+    /// Total valid votes cast.
     pub total_valid_votes: u64,
+    /// Percentage of valid votes.
     pub percentage_total_valid_votes: f64,
+    /// Total invalid votes cast.
     pub total_invalid_votes: u64,
+    /// Percentage of invalid votes.
     pub percentage_total_invalid_votes: f64,
+    /// Total blank votes cast (no selection).
     pub total_blank_votes: u64,
+    /// Percentage of blank votes.
     pub percentage_total_blank_votes: f64,
+    /// Breakdown of explicit and implicit invalid votes.
     pub invalid_votes: InvalidVotes,
+    /// Percentage of explicitly invalid votes.
     pub percentage_invalid_votes_explicit: f64,
+    /// Percentage of implicitly invalid votes.
     pub percentage_invalid_votes_implicit: f64,
+    /// Vote counts and percentages for each candidate.
     pub candidate_result: Vec<CandidateResult>,
+    /// Extended metrics for detailed vote analysis.
     pub extended_metrics: Option<ExtendedMetricsContest>,
-    pub process_results: Option<Value>, // The results from the counting algorithm process
+    /// Results from the counting algorithm process.
+    pub process_results: Option<Value>,
 }
 
 impl ContestResult {
+    /// Calculates percentages for all vote counts in the contest result.
+    ///
+    /// Computes vote percentages based on census and total vote counts,
+    /// and applies them to contest results.
+    #[must_use]
     #[instrument(skip_all)]
+    #[allow(clippy::cast_precision_loss)]
     pub fn calculate_percentages(&self) -> ContestResult {
-        let total_weight = self
-            .extended_metrics
-            .clone()
-            .unwrap_or_default()
-            .total_weight;
+        let total_weight = self.extended_metrics.unwrap_or_default().total_weight;
         let candidate_result: Vec<CandidateResult> = self
             .candidate_result
             .clone()
@@ -593,19 +647,30 @@ impl ContestResult {
         contest_result
     }
 
+    /// Aggregates another contest result into this one.
+    ///
+    /// Combines vote counts and metrics from another contest result,
+    #[must_use]
     #[instrument(skip_all)]
+    #[allow(clippy::cast_precision_loss, clippy::arithmetic_side_effects)]
     pub fn aggregate(&self, other: &ContestResult, add_census: bool) -> ContestResult {
         let mut aggregate = self.clone();
         if add_census {
-            aggregate.census += other.census;
+            aggregate.census = aggregate.census.saturating_add(other.census);
         }
         let aggregate_metrics = aggregate.extended_metrics.unwrap_or_default();
         aggregate.extended_metrics =
-            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
-        aggregate.total_votes += other.total_votes;
-        aggregate.total_valid_votes += other.total_valid_votes;
-        aggregate.total_invalid_votes += other.total_invalid_votes;
-        aggregate.total_blank_votes += other.total_blank_votes;
+            Some(aggregate_metrics.aggregate(&other.extended_metrics.unwrap_or_default()));
+        aggregate.total_votes = aggregate.total_votes.saturating_add(other.total_votes);
+        aggregate.total_valid_votes = aggregate
+            .total_valid_votes
+            .saturating_add(other.total_valid_votes);
+        aggregate.total_invalid_votes = aggregate
+            .total_invalid_votes
+            .saturating_add(other.total_invalid_votes);
+        aggregate.total_blank_votes = aggregate
+            .total_blank_votes
+            .saturating_add(other.total_blank_votes);
         aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes);
 
         let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();
@@ -620,7 +685,11 @@ impl ContestResult {
         for candidate_result in &other.candidate_result {
             candidate_map
                 .entry(candidate_result.candidate.id.clone())
-                .and_modify(|entry| entry.total_count += candidate_result.total_count)
+                .and_modify(|entry| {
+                    entry.total_count = entry
+                        .total_count
+                        .saturating_add(candidate_result.total_count);
+                })
                 .or_insert_with(|| candidate_result.clone());
         }
 
@@ -631,9 +700,13 @@ impl ContestResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Result for a single candidate containing vote counts and percentages.
 pub struct CandidateResult {
+    /// Candidate information including name and ID.
     pub candidate: Candidate,
+    /// Percentage of votes received by this candidate.
     pub percentage_votes: f64,
+    /// Total vote count for this candidate.
     pub total_count: u64,
 }
 

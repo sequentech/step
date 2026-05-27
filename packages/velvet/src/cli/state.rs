@@ -13,21 +13,33 @@ use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 use tracing::instrument;
 
+/// CLI execution state and configuration.
 #[derive(Debug, Clone)]
 pub struct State {
+    /// Command-line arguments and configuration.
     pub cli: CliRun,
+    /// Execution stages in the pipeline.
     pub stages: Vec<Stage>,
 }
 
+/// A single pipeline stage configuration.
 #[derive(Debug, Clone)]
 pub struct Stage {
+    /// Stage name.
     pub name: String,
+    /// Pipeline components within this stage.
     pub pipeline: Vec<PipeConfig>,
+    /// Current active pipe in this stage.
     pub current_pipe: Option<PipeName>,
+    /// Previously executed pipe in this stage.
     pub previous_pipe: Option<PipeName>,
 }
 
 impl State {
+    /// Creates a new State from the CLI and config.
+    ///
+    /// # Errors
+    /// Returns an error if the state cannot be initialized from the given CLI or config.
     #[instrument(err, skip(config), name = "State::new")]
     pub fn new(cli: &CliRun, config: &Config) -> Result<Self> {
         let stages =
@@ -50,8 +62,8 @@ impl State {
                     )?;
 
                     Ok(Stage {
-                        name: stage_name.to_string(),
-                        pipeline: pipeline.to_vec(),
+                        name: stage_name.clone(),
+                        pipeline: pipeline.clone(),
                         previous_pipe: None,
                         current_pipe: Some(current_pipe.pipe),
                     })
@@ -65,19 +77,24 @@ impl State {
     }
 
     #[instrument(skip_all)]
+    /// Gets the next pipe to execute in the pipeline.
+    ///
+    /// Returns `None` if the current pipe is the same as the previous pipe.
     pub fn get_next(&self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
-        self.get_stage(&stage_name)
-            .map(|stage| {
-                if stage.current_pipe == stage.previous_pipe {
-                    None
-                } else {
-                    stage.current_pipe
-                }
-            })
-            .flatten()
+        self.get_stage(&stage_name).and_then(|stage| {
+            if stage.current_pipe == stage.previous_pipe {
+                None
+            } else {
+                stage.current_pipe
+            }
+        })
     }
 
+    /// Executes the next pipe in the pipeline.
+    ///
+    /// # Errors
+    /// Returns an error if the next pipe cannot be executed or if a pipe fails.
     #[instrument(skip_all)]
     pub fn exec_next(&mut self) -> Result<()> {
         let stage_name = self.cli.stage.clone();
@@ -90,7 +107,7 @@ impl State {
 
         if let Err(e) = res {
             if let PipesError::FileAccess(file, _) = e {
-                println!("File not found: {} -- Not processed", file.display())
+                tracing::info!("File not found: {} -- Not processed", file.display());
             } else {
                 return Err(Error::FromPipe(e));
             }
@@ -101,11 +118,16 @@ impl State {
         Ok(())
     }
 
+    /// Returns a reference to the stage with the given name, if it exists.
     #[instrument(skip(self))]
     fn get_stage(&self, stage_name: &str) -> Option<&Stage> {
         self.stages.iter().find(|s| s.name == stage_name)
     }
 
+    /// Sets the current pipe for the given stage.
+    ///
+    /// # Errors
+    /// Returns `Error::PipeNotFound` if the stage is not found.
     #[instrument(skip(self))]
     fn set_current_pipe(&mut self, stage_name: &str, next_pipe: Option<PipeName>) -> Result<()> {
         let stage = self
@@ -114,13 +136,16 @@ impl State {
             .find(|s| s.name == stage_name)
             .ok_or(Error::PipeNotFound)?;
 
-        stage.previous_pipe = stage.current_pipe.clone();
-        stage.current_pipe = next_pipe;
+        stage.previous_pipe = stage.current_pipe;
         stage.current_pipe = next_pipe;
 
         Ok(())
     }
 
+    /// Gets the computed results for the current stage.
+    ///
+    /// # Errors
+    /// Returns `Error::PipeNotFound` if not all pipelines have been executed and `force` is false, or if the stage is not found.
     #[instrument(skip_all, err)]
     pub fn get_results(&self, force: bool) -> Result<Vec<ElectionReportDataComputed>> {
         let next_pipename = self.get_next();
@@ -144,29 +169,37 @@ impl State {
 }
 
 impl Stage {
+    /// Returns the previous pipe in the pipeline, if any.
+    ///
+    /// # Panics
+    /// Panics if the pipeline is empty.
     #[instrument(skip_all)]
     pub fn previous_pipe(&self) -> Option<PipeName> {
         if let Some(current_pipe) = self.current_pipe {
             let curr_index = self.pipeline.iter().position(|p| p.pipe == current_pipe);
             if let Some(curr_index) = curr_index {
                 if curr_index > 0 {
-                    return Some(self.pipeline[curr_index - 1].pipe);
+                    return self
+                        .pipeline
+                        .get(curr_index.wrapping_sub(1))
+                        .map(|p| p.pipe);
                 }
             }
             None
         } else {
-            Some(self.pipeline[self.pipeline.len() - 1].pipe)
+            self.pipeline.last().map(|p| p.pipe)
         }
     }
 
+    /// Returns the next pipe in the pipeline, if any.
     #[instrument(skip_all)]
     pub fn next_pipe(&self) -> Option<PipeName> {
         if let Some(current_pipe) = self.current_pipe {
             let curr_index = self.pipeline.iter().position(|p| p.pipe == current_pipe);
             if let Some(curr_index) = curr_index {
-                if curr_index + 1 < self.pipeline.len() {
-                    return Some(self.pipeline[curr_index + 1].pipe);
-                }
+                // Avoid arithmetic side effects by checking bounds
+                let next_index = curr_index.checked_add(1)?;
+                return self.pipeline.get(next_index).map(|p| p.pipe);
             }
             None
         } else {
@@ -174,6 +207,8 @@ impl Stage {
         }
     }
 
+    /// Returns the configuration for the given pipe, if it exists.
+    #[must_use]
     pub fn pipe_config(&self, pipe: Option<PipeName>) -> Option<PipeConfig> {
         if let Some(pipe) = pipe {
             self.pipeline.iter().find(|pc| pc.pipe == pipe).cloned()

@@ -1,10 +1,16 @@
+//! Velvet CLI module: error handling, state, and test harness for CLI operations.
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Error types for CLI operations.
 pub mod error;
+/// CLI state and stage configuration.
 pub mod state;
+/// Test harness for comprehensive validation.
 pub mod test_all;
 
+/// Private CLI module containing command handling.
+#[allow(clippy::module_inception)]
 mod cli;
 pub use cli::*;

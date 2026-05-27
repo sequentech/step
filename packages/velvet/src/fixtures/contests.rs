@@ -11,6 +11,7 @@ use uuid::Uuid;
 use super::candidates;
 
 #[allow(unused)]
+/// Generate a contest configuration for testing.
 pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &Uuid) -> Contest {
     let contest_id = Uuid::new_v4();
     Contest {
@@ -72,6 +73,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
 }
 
 #[allow(unused)]
+/// Generate a contest with custom min/max votes.
 pub fn get_contest_min_max_votes(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -94,8 +96,12 @@ pub fn get_contest_min_max_votes(
         description_i18n: None,
         alias: None,
         alias_i18n: None,
-        max_votes: (max_votes as i64),
-        min_votes: (min_votes as i64),
+        max_votes: max_votes
+            .try_into()
+            .expect("max_votes must be a valid i64 value"),
+        min_votes: min_votes
+            .try_into()
+            .expect("min_votes must be a valid i64 value"),
         winning_candidates_num: (1),
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */

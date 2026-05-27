@@ -8,40 +8,57 @@ use super::error::{Error, Result};
 use clap::{Parser, Subcommand};
 use std::{collections::HashSet, fs::File, path::PathBuf};
 
+/// Velvet command-line interface root.
 #[derive(Parser)]
 #[command(name = "Velvet")]
 pub struct Cli {
+    /// Subcommand to execute.
     #[command(subcommand)]
     pub command: Commands,
 }
 
+/// Available CLI commands.
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Run a pipeline stage.
     Run(CliRun),
 }
 
+/// Configuration for the Run command.
 #[derive(Parser, Debug, Clone)]
 pub struct CliRun {
+    /// Pipeline stage to execute.
     pub stage: String,
+    /// Pipe identifier within the stage.
     pub pipe_id: String,
 
+    /// Path to the configuration file.
     #[arg(short, long)]
     pub config: PathBuf,
 
+    /// Input directory for ballots and data.
     #[arg(short, long)]
     pub input_dir: PathBuf,
 
+    /// Output directory for results.
     #[arg(short, long)]
     pub output_dir: PathBuf,
 }
 
 impl CliRun {
+    /// Validate the configuration for this CLI run.
+    ///
+    /// # Errors
+    /// Returns an error if the config file is missing, cannot be opened, or is invalid.
     pub fn validate(&self) -> Result<Config> {
         let config = self.parse_config()?;
-
         Ok(config)
     }
 
+    /// Parse the configuration file for this CLI run.
+    ///
+    /// # Errors
+    /// Returns an error if the config file is missing, cannot be opened, or is invalid.
     fn parse_config(&self) -> Result<Config> {
         if !self.config.exists() {
             return Err(Error::ConfigNotFound);
@@ -51,17 +68,15 @@ impl CliRun {
         let config: Config = parse_file(file)?;
 
         for stage in &config.stages.order {
-            if !config.stages.stages_def.contains_key(stage) {
+            let Some(stage_def) = config.stages.stages_def.get(stage) else {
                 return Err(Error::StageDefinition(format!(
                     "Stage '{stage}', defined in stages.order, is not defined in stages."
                 )));
-            } else {
-                let stage_def = config.stages.stages_def.get(stage).unwrap();
-                let pipeline = &stage_def.pipeline;
-                let hash_set: HashSet<_> = pipeline.iter().map(|p| p.pipe.as_ref()).collect();
-                if hash_set.len() != pipeline.len() {
-                    return Err(Error::StageDefinition(format!("Pipeline, defined in stages[{stage}].pipeline, should have unique pipe definition")));
-                }
+            };
+            let pipeline = &stage_def.pipeline;
+            let hash_set: HashSet<_> = pipeline.iter().map(|p| p.pipe.as_ref()).collect();
+            if hash_set.len() != pipeline.len() {
+                return Err(Error::StageDefinition(format!("Pipeline, defined in stages[{stage}].pipeline, should have unique pipe definition")));
             }
         }
 
@@ -138,6 +153,8 @@ mod tests {
         Ok(())
     }
 
+    /// # Panics
+    /// This test will panic if the config file does not exist, as expected.
     #[test]
     #[should_panic]
     fn test_clirun_validate_not_found() {

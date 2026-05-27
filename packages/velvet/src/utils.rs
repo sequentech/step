@@ -11,21 +11,26 @@ use std::io::Read;
 use crate::pipes::pipe_inputs::InputElectionConfig;
 use sequent_core::plaintext::DecodedVoteChoice;
 
+/// Trait for types that have a unique identifier.
 pub trait HasId {
+    /// Returns the unique identifier as a string slice.
     fn id(&self) -> &str;
 }
 
+/// Parses the contents of a file into the specified type.
+///
+/// # Errors
+///
+/// Returns an error if file cannot be read or deserialized.
 pub fn parse_file<T: for<'a> Deserialize<'a>>(mut file: File) -> Result<T> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
 
-    deserialize_str(&contents).map_err(|err| {
-        Error::UnexpectedError(format!("Parse error: {:?} . Contents {contents}", err))
-    })
+    deserialize_str(&contents)
+        .map_err(|err| Error::Unexpected(format!("Parse error: {err:?} . Contents {contents}")))
 }
-
-// unmarked choices
-// contest_id -> (candidate_id -> dcv)
+/// Unmarked choices
+/// Creates a map of decoded vote choices indexed by contest and candidate IDs.
 pub(crate) fn get_contest_dvc_map(
     election_input: &InputElectionConfig,
 ) -> HashMap<String, HashMap<String, DecodedVoteChoice>> {

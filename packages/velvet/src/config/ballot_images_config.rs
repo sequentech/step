@@ -11,26 +11,38 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::instrument;
 
+/// Configuration for ballot image generation pipeline.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PipeConfigBallotImages {
+    /// HTML template for ballot rendering.
     pub template: String,
+    /// System-level template for ballot processing.
     pub system_template: String,
+    /// Additional data passed to the template.
     pub extra_data: Value,
+    /// Whether to generate PDF outputs.
     pub enable_pdfs: bool,
+    /// PDF printing options configuration.
     pub pdf_options: Option<PrintToPdfOptionsLocal>,
+    /// Report output options.
     pub report_options: Option<ReportOptions>,
+    /// Execution metadata and annotations.
     pub execution_annotations: Option<HashMap<String, String>>,
+    /// ECIES encryption key pair.
     pub acm_key: Option<EciesKeyPair>,
 }
 
+/// Default title for `MCBallot` ballot images.
 pub const DEFAULT_MCBALLOT_TITLE: &str = "Ballot images";
 
 impl PipeConfigBallotImages {
+    /// Creates a new default ballot images configuration.
     #[instrument(skip_all, name = "PipeConfigBallotImages::new")]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Creates a ballot images configuration for `MCBallot`.
     #[instrument(skip_all, name = "PipeConfigBallotImages::mcballot")]
     pub fn mcballot() -> Self {
         let html: &str = include_str!("../resources/ballot_images_user.hbs");

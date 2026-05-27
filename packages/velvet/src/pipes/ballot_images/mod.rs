@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Ballot images pipe for generating PDF and HTML ballot representations.
+#[allow(clippy::module_inception)]
 mod ballot_images;
+/// Multi-contest ballot images pipe module.
 pub mod mcballot_images;
 
 pub use ballot_images::*;

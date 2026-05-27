@@ -42,31 +42,43 @@ use rusqlite::Transaction as SqliteTransaction;
 
 use serde::{Deserialize, Serialize};
 
+/// Configuration for `SQLite` database generation pipeline.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PipeConfigGenerateDatabase {
+    /// Whether to include decoded ballots in the database.
     pub include_decoded_ballots: bool,
+    /// Tenant identifier.
     pub tenant_id: String,
+    /// Election event identifier.
     pub election_event_id: String,
+    /// Output filename for the database.
     pub database_filename: String,
 }
 
 impl PipeConfigGenerateDatabase {
+    /// Creates a new database generation configuration with default values.
     #[instrument(skip_all, name = "PipeConfigGenerateDatabase::new")]
     pub fn new() -> Self {
         Self::default()
     }
 }
 
+/// Default filename for the generated election database.
 pub const DATABASE_FILENAME: &str = "results.db";
 
+/// Database generation pipe implementation.
 #[derive(Debug)]
 pub struct GenerateDatabase {
+    /// Pipeline input configuration.
     pub pipe_inputs: PipeInputs,
+    /// Base input directory for results.
     pub input_dir: PathBuf,
+    /// Base output directory for the generated database.
     pub output_dir: PathBuf,
 }
 
 impl GenerateDatabase {
+    /// Creates a new database generation pipe instance.
     #[instrument(skip_all, name = "GenerateDatabase::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs
@@ -87,6 +99,11 @@ impl GenerateDatabase {
         }
     }
 
+    /// Retrieves the pipe configuration for database generation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the configuration cannot be parsed.
     #[instrument(skip_all)]
     pub fn get_config(&self) -> Result<PipeConfigGenerateDatabase> {
         let pipe_config: PipeConfigGenerateDatabase = self
@@ -94,7 +111,7 @@ impl GenerateDatabase {
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
-            .map(|value| serde_json::from_value(value))
+            .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
         Ok(pipe_config)
@@ -126,6 +143,17 @@ impl Pipe for GenerateDatabase {
     }
 }
 
+/// Converts unsigned result totals to `i64` for SQLite; saturates at `i64::MAX` if out of range.
+#[inline]
+fn result_count_u64_as_i64(n: u64) -> i64 {
+    i64::try_from(n).unwrap_or(i64::MAX)
+}
+
+/// Populates the database result tables from elections report data.
+///
+/// # Errors
+///
+/// Returns an error if database operations fail.
 #[instrument(skip(state_opt, config))]
 pub fn populate_results_tables(
     input_database_path: &Path,
@@ -141,12 +169,12 @@ pub fn populate_results_tables(
     let _ = tokio::task::block_in_place(|| -> anyhow::Result<String> {
         let process_result = rt.block_on(async {
             // Make sure the directory exists
-            fs::create_dir_all(&output_database_path)?;
+            fs::create_dir_all(output_database_path)?;
 
             if fs::exists(&input_database_path)? {
                 fs::copy(input_database_path, &database_path).map_err(|error| anyhow!("Could not copy file: {error}"))?;
             } else {
-                warn!("No input database found. A new database will be created only with result tables.")
+                warn!("No input database found. A new database will be created only with result tables.");
             }
 
             let mut sqlite_connection = Connection::open(&database_path)
@@ -162,7 +190,7 @@ pub fn populate_results_tables(
                 process_decoded_ballots(
                     &sqlite_transaction,
                     &decoded_ballots_path,
-                ).await?;
+                )?;
             }
 
             let result = process_results_tables(
@@ -170,8 +198,7 @@ pub fn populate_results_tables(
                 &config.tenant_id,
                 &config.election_event_id,
                 &sqlite_transaction,
-            )
-            .await;
+            );
 
             sqlite_transaction
                 .commit()
@@ -194,7 +221,7 @@ pub fn populate_results_tables(
 /// (e.g., `election__<id>/contest__<id>/area__<id>/decoded_ballots.json`).
 ///
 /// The content of each `decoded_ballots.json` file is then read and inserted
-/// into the `ballot` table in the provided SQLite transaction.
+/// into the `ballot` table in the provided `SQLite` transaction.
 ///
 /// The `ballot` table is created if it does not already exist with the schema:
 /// `(election_id TEXT NOT NULL, contest_id TEXT NOT NULL, area_id TEXT NOT NULL, decoded_ballot_json BLOB, PRIMARY KEY (election_id, contest_id, area_id))`
@@ -208,8 +235,12 @@ pub fn populate_results_tables(
 ///
 /// # Returns
 /// `Result<()>` - Returns `Ok(())` on success, or an `anyhow::Error` if any operation fails.
+///
+/// # Errors
+///
+/// Returns an error if file reading or database operations fail.
 #[instrument(skip(sqlite_transaction))]
-pub async fn process_decoded_ballots(
+pub fn process_decoded_ballots(
     sqlite_transaction: &SqliteTransaction<'_>,
     decoded_ballots_path: &Path,
 ) -> anyhow::Result<()> {
@@ -233,7 +264,7 @@ pub async fn process_decoded_ballots(
     // WalkDir provides an iterator that recursively goes through directories.
     for entry in WalkDir::new(decoded_ballots_path)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
     // Filter out any errors during directory traversal
     {
         let path = entry.path();
@@ -242,20 +273,20 @@ pub async fn process_decoded_ballots(
         if path.is_file()
             && path
                 .file_name()
-                .map_or(false, |name| name == "decoded_ballots.json")
+                .is_some_and(|name| name == "decoded_ballots.json")
         {
             // A 'decoded_ballots.json' file has been found.
-            tracing::info!("Found decoded_ballots.json at: {:?}", path);
+            tracing::info!("Found decoded_ballots.json at: {path:?}");
 
             // Extract the election, contest, and area IDs from the file's path.
             // This helper function parses the directory names to get the required IDs.
             let (election_id, contest_id, area_id) = extract_ids_from_path(path)
-                .with_context(|| format!("Failed to extract IDs from path: {:?}", path))?;
+                .with_context(|| format!("Failed to extract IDs from path: {}", path.display()))?;
 
             // Read the entire content of the decoded_ballots.json file asynchronously.
             // The content will be stored as a byte vector (Vec<u8>), suitable for BLOB.
             let decoded_ballot_json_content = fs::read(path)
-                .with_context(|| format!("Failed to read file content: {:?}", path))?;
+                .with_context(|| format!("Failed to read file content: {}", path.display()))?;
 
             // Insert or replace the data into the 'ballot' table.
             // `INSERT OR REPLACE` is used to handle cases where the same ballot might be
@@ -269,15 +300,11 @@ pub async fn process_decoded_ballots(
                     decoded_ballot_json_content   // Parameter for decoded_ballot_json BLOB
                 ],
             ).with_context(|| format!(
-                "Failed to insert/replace ballot data for election: {}, contest: {}, area: {}",
-                election_id, contest_id, area_id
+                "Failed to insert/replace ballot data for election: {election_id}, contest: {contest_id}, area: {area_id}"
             ))?;
 
             tracing::info!(
-                "Successfully processed ballot for election: {}, contest: {}, area: {}",
-                election_id,
-                contest_id,
-                area_id
+                "Successfully processed ballot for election: {election_id}, contest: {contest_id}, area: {area_id}"
             );
         }
     }
@@ -295,7 +322,7 @@ pub async fn process_decoded_ballots(
 /// * `path` - A reference to the `Path` from which to extract IDs.
 ///
 /// # Returns
-/// `Result<(String, String, String)>` - A tuple containing (election_id, contest_id, area_id)
+/// `Result<(String, String, String)>` - A tuple containing (`election_id`, `contest_id`, `area_id`)
 ///                                      as Strings on success, or an `anyhow::Error` if any
 ///                                      of the required IDs cannot be found.
 #[instrument(skip_all)]
@@ -319,21 +346,27 @@ fn extract_ids_from_path(path: &Path) -> anyhow::Result<(String, String, String)
     match (election_id, contest_id, area_id) {
         (Some(e), Some(c), Some(a)) => Ok((e, c, a)),
         _ => Err(anyhow::anyhow!(
-            "Could not extract all required IDs (election, contest, area) from path: {:?}",
-            path
+            "Could not extract all required IDs (election, contest, area) from path: {}",
+            path.display()
         )),
     }
 }
 
 #[instrument(skip_all)]
-pub async fn process_results_tables(
+/// Processes the election event result tables and inserts them into the database.
+///
+/// # Errors
+///
+/// Returns an error if database operations fail.
+#[instrument(err, skip_all)]
+pub fn process_results_tables(
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
     sqlite_transaction: &SqliteTransaction<'_>,
 ) -> Result<String> {
     let results_event_id =
-        generate_results_id_if_necessary(sqlite_transaction, tenant_id, election_event_id).await?;
+        generate_results_id_if_necessary(sqlite_transaction, tenant_id, election_event_id)?;
 
     save_results(
         sqlite_transaction,
@@ -341,14 +374,19 @@ pub async fn process_results_tables(
         tenant_id,
         election_event_id,
         &results_event_id,
-    )
-    .await?;
+    )?;
 
     Ok(results_event_id)
 }
 
 #[instrument(skip_all)]
-pub async fn generate_results_id_if_necessary(
+/// Generates or retrieves the results ID for the election event.
+///
+/// # Errors
+///
+/// Returns an error if database operations fail.
+#[instrument(err, skip_all)]
+pub fn generate_results_id_if_necessary(
     sqlite_transaction: &SqliteTransaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -361,13 +399,24 @@ pub async fn generate_results_id_if_necessary(
         election_event_id,
         &results_event_id,
     )
-    .await
     .context("Failed to create results event table")?;
     Ok(results_event_id)
 }
 
 #[instrument(skip_all)]
-pub async fn save_results(
+/// Saves the finalized election results to the database.
+///
+/// # Errors
+///
+/// Returns an error if database operations fail.
+///
+/// # Panics
+///
+/// May panic if `contest_result` is None for a contest in the results.
+#[instrument(err, skip_all)]
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::cast_precision_loss)]
+pub fn save_results(
     sqlite_transaction: &SqliteTransaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
@@ -380,7 +429,7 @@ pub async fn save_results(
     let mut results_contest_candidates: Vec<ResultsContestCandidate> = Vec::new();
     let mut results_area_contest_candidates: Vec<ResultsAreaContestCandidate> = Vec::new();
     for election in &results {
-        let total_voters_percent: f64 =
+        let election_total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
         results_elections.push(ResultsElection {
             id: Uuid::new_v4().into(),
@@ -389,13 +438,13 @@ pub async fn save_results(
             election_id: election.election_id.clone(),
             results_event_id: results_event_id.into(),
             name: None,
-            elegible_census: Some(election.census as i64),
-            total_voters: Some(election.total_votes as i64),
+            elegible_census: Some(election.census.cast_signed()),
+            total_voters: Some(election.total_votes.cast_signed()),
             created_at: None,
             last_updated_at: None,
             labels: None,
             annotations: None,
-            total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?),
+            total_voters_percent: Some(election_total_voters_percent.clamp(0.0, 1.0).try_into()?),
             documents: None,
         });
 
@@ -403,8 +452,11 @@ pub async fn save_results(
             if contest.contest_result.is_none() || contest.contest.is_none() {
                 continue;
             }
-            let contest_result = contest.contest_result.clone().unwrap();
-            let current_contest = contest.contest.clone().unwrap();
+            let contest_result = contest
+                .contest_result
+                .clone()
+                .expect("contest_result should be present");
+            let current_contest = contest.contest.clone().expect("contest should be present");
 
             let total_votes_percent: f64 = contest_result.percentage_total_votes / 100.0;
             let auditable_votes_percent: f64 = contest_result.percentage_auditable_votes / 100.0;
@@ -419,17 +471,22 @@ pub async fn save_results(
             let total_blank_votes_percent: f64 =
                 contest_result.percentage_total_blank_votes / 100.0;
 
-            let contest_result_ext_metrics =
-                contest_result.extended_metrics.clone().unwrap_or_default();
-            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
+            let contest_result_ext_metrics = contest_result.extended_metrics.unwrap_or_default();
+            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics)
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
-            annotations[EXTENDED_METRICS] = extended_metrics_value;
-            if let Some(process_results) = contest_result.process_results.clone() {
-                annotations[PROCESS_RESULTS] = process_results;
-            }
+            annotations
+                .as_object_mut()
+                .expect("annotations must be an object")
+                .insert(EXTENDED_METRICS.to_string(), extended_metrics_value);
 
+            if let Some(process_results) = contest_result.process_results.clone() {
+                annotations
+                    .as_object_mut()
+                    .expect("annotations must be an object")
+                    .insert(PROCESS_RESULTS.to_string(), process_results);
+            }
             if let Some(area) = &contest.area {
                 results_area_contests.push(ResultsAreaContest {
                     id: Uuid::new_v4().into(),
@@ -439,30 +496,40 @@ pub async fn save_results(
                     contest_id: current_contest.id.clone(),
                     area_id: area.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest_result.census as i64),
-                    total_votes: Some(contest_result.total_votes as i64),
+                    elegible_census: Some(result_count_u64_as_i64(contest_result.census)),
+                    total_votes: Some(result_count_u64_as_i64(contest_result.total_votes)),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    total_auditable_votes: Some(contest_result.auditable_votes as i64),
+                    total_auditable_votes: Some(result_count_u64_as_i64(
+                        contest_result.auditable_votes,
+                    )),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_valid_votes: Some(contest_result.total_valid_votes as i64),
+                    total_valid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_valid_votes,
+                    )),
                     total_valid_votes_percent: Some(
                         total_valid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_invalid_votes: Some(contest_result.total_invalid_votes as i64),
+                    total_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_invalid_votes,
+                    )),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
+                    explicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.explicit,
+                    )),
                     explicit_invalid_votes_percent: Some(
                         explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
+                    implicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.implicit,
+                    )),
                     implicit_invalid_votes_percent: Some(
                         implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    blank_votes: Some(contest_result.total_blank_votes as i64),
+                    blank_votes: Some(result_count_u64_as_i64(contest_result.total_blank_votes)),
                     blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -484,9 +551,11 @@ pub async fn save_results(
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
                         area_id: area.id.clone(),
-                        cast_votes: Some(candidate.total_count as i64),
+                        cast_votes: Some(result_count_u64_as_i64(candidate.total_count)),
                         cast_votes_percent: Some(cast_votes_percent.clamp(0.0, 1.0).try_into()?),
-                        winning_position: candidate.winning_position.map(|val| val as i64),
+                        winning_position: candidate
+                            .winning_position
+                            .map(|val| result_count_u64_as_i64(val as u64)),
                         points: None,
                         created_at: None,
                         last_updated_at: None,
@@ -503,11 +572,17 @@ pub async fn save_results(
                     election_id: election.election_id.clone(),
                     contest_id: current_contest.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest_result.census as i64),
-                    total_valid_votes: Some(contest_result.total_valid_votes as i64),
-                    explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
-                    implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
-                    blank_votes: Some(contest_result.total_blank_votes as i64),
+                    elegible_census: Some(result_count_u64_as_i64(contest_result.census)),
+                    total_valid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_valid_votes,
+                    )),
+                    explicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.explicit,
+                    )),
+                    implicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.implicit,
+                    )),
+                    blank_votes: Some(result_count_u64_as_i64(contest_result.total_blank_votes)),
                     voting_type: current_contest.voting_type.clone(),
                     counting_algorithm: Some(
                         current_contest
@@ -520,7 +595,9 @@ pub async fn save_results(
                     last_updated_at: None,
                     labels: None,
                     annotations: Some(annotations),
-                    total_invalid_votes: Some(contest_result.total_invalid_votes as i64),
+                    total_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_invalid_votes,
+                    )),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -536,10 +613,12 @@ pub async fn save_results(
                     blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_votes: Some(contest_result.total_votes as i64),
+                    total_votes: Some(result_count_u64_as_i64(contest_result.total_votes)),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
                     documents: None,
-                    total_auditable_votes: Some(contest_result.auditable_votes as i64),
+                    total_auditable_votes: Some(result_count_u64_as_i64(
+                        contest_result.auditable_votes,
+                    )),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -555,8 +634,10 @@ pub async fn save_results(
                         contest_id: current_contest.id.clone(),
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
-                        cast_votes: Some(candidate.total_count as i64),
-                        winning_position: candidate.winning_position.map(|val| val as i64),
+                        cast_votes: Some(result_count_u64_as_i64(candidate.total_count)),
+                        winning_position: candidate
+                            .winning_position
+                            .map(|val| result_count_u64_as_i64(val as u64)),
                         points: None,
                         created_at: None,
                         last_updated_at: None,
@@ -570,20 +651,18 @@ pub async fn save_results(
         }
     }
 
-    create_results_contest_sqlite(sqlite_transaction, results_contests).await?;
+    create_results_contest_sqlite(sqlite_transaction, results_contests)?;
 
-    create_results_area_contests_sqlite(sqlite_transaction, results_area_contests).await?;
+    create_results_area_contests_sqlite(sqlite_transaction, results_area_contests)?;
 
-    create_results_election_sqlite(sqlite_transaction, results_elections).await?;
+    create_results_election_sqlite(sqlite_transaction, results_elections)?;
 
-    create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)
-        .await?;
+    create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)?;
 
     create_results_area_contest_candidates_sqlite(
         sqlite_transaction,
         results_area_contest_candidates,
-    )
-    .await?;
+    )?;
 
     Ok(())
 }

@@ -4,18 +4,29 @@
 
 use uuid::Uuid;
 
+/// Result type alias for pipe operations.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+/// Errors that can occur during pipe operations.
 #[derive(Debug)]
 pub enum Error {
+    /// An element ID was not found.
     IDNotFound,
+    /// Election configuration could not be found for the given election ID.
     ElectionConfigNotFound(Uuid),
+    /// Contest configuration could not be found for the given contest ID.
     ContestConfigNotFound(Uuid),
+    /// Area configuration could not be found for the given area ID.
     AreaConfigNotFound(Uuid),
+    /// File system access error with path and underlying I/O error.
     FileAccess(std::path::PathBuf, std::io::Error),
+    /// Generic I/O error.
     IO(std::io::Error),
+    /// JSON deserialization or parsing error.
     JsonParse(serde_json::Error),
-    UnexpectedError(String),
+    /// Unexpected error with a custom message.
+    Unexpected(String),
+    /// Wrapper for anyhow errors.
     Anyhow(anyhow::Error),
 }
 
