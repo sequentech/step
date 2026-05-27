@@ -8,16 +8,6 @@ jobs:
       packages: write
       contents: read
     steps:
-      - name: Debug Environment
-        run: |
-          echo "Checking Environment Variables:"
-          env | grep KUBERNETES || echo "No KUBERNETES env vars found"
-          echo "Checking ServiceAccount Token:"
-          ls -R /var/run/secrets/kubernetes.io/serviceaccount || echo "ServiceAccount not mounted"
-          echo "Testing Connectivity:"
-          ping -c 1 kubernetes.default.svc.cluster.local || echo "DNS failed"
-          curl -k https://kubernetes.default.svc.cluster.local || echo "API unreachable"
-
       - name: Verify Tools
         run: |
           kubectl version --client
