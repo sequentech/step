@@ -33,41 +33,16 @@ Rust versions must be synchronized across all systems to ensure:
 
 When updating the Rust version, you MUST update it in all of the following locations:
 
-### 1. GitHub Actions Workflows
+### 1. Rust toolchain
 
-Update the `toolchain` version in these workflow files:
+Update the `channel` version in the Rust toolchain file:
 
-- **`.github/workflows/tests.yml`** (line 43)
-  ```yaml
-  - name: Install Rust
-    uses: dtolnay/rust-toolchain@stable
-    with:
-      profile: minimal
-      toolchain: 1.90.0  # ← Update this
-      components: rustfmt
-      target: x86_64-unknown-linux-musl
-  ```
-
-- **`.github/workflows/lint_prettify.yml`** (line 102)
-  ```yaml
-  - name: Install Rust
-    uses: dtolnay/rust-toolchain@stable
-    with:
-      profile: minimal
-      toolchain: 1.90.0  # ← Update this
-      components: rustfmt
-      target: x86_64-unknown-linux-musl
-  ```
-
-- **`.github/workflows/step_cli_build.yml`** (line 38)
-  ```yaml
-  - name: Install Rust
-    uses: dtolnay/rust-toolchain@stable
-    with:
-      profile: minimal
-      toolchain: 1.90.0  # ← Update this
-      components: rustfmt
-      target: x86_64-unknown-linux-musl
+- **`rust-toolchain.toml`** (line 2)
+  ```toml
+  [toolchain]
+  channel = "1.90.0" # ← Update this
+  components = ["rustfmt", "clippy"]
+  profile = "minimal"
   ```
 
 ### 2. Dockerfiles
@@ -169,7 +144,7 @@ Now identify the Rust versions currently used in other parts of the codebase:
 # Search for Rust versions in Dockerfiles
 grep -r "FROM rust:" packages/
 
-# Search for Rust versions in GitHub Actions
+# Search for Rust versions in GitHub Actions. They should not appear, as github actions use rust-toolchain.toml.
 grep -r "toolchain:" .github/workflows/
 ```
 
@@ -201,8 +176,8 @@ This ensures consistency: your local development environment (Nix), CI/CD (GitHu
 To update all versions at once:
 
 ```bash
-# Update stable version in GitHub Actions
-find .github/workflows/ -name "*.yml" -type f -exec sed -i 's/toolchain: 1.90.0/toolchain: X.Y.Z/g' {} +
+# Update stable version for GitHub Actions using rust-toolchain.toml
+sed -i 's/channel = "1.90.0"/channel = "X.Y.Z"/g' rust-toolchain.toml
 
 # Update stable version in Dockerfiles
 find packages/ -name "Dockerfile*" -type f -exec sed -i 's/FROM rust:1.90.0/FROM rust:X.Y.Z/g' {} +

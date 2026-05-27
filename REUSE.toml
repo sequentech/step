@@ -22,6 +22,7 @@ path = [
 	".release-commit",
 	"devenv.lock",
 	"devenv.nix",
+	"rust-toolchain.toml",
 	"graphql.schema.json",
 	"yarn.lock",
 	"packages/.ignore",
