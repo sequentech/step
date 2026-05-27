@@ -1074,6 +1074,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 AUDIT_LOGS: "Auditoria Egunkariak",
@@ -2023,6 +2024,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ACTIVITY_LOGS: "Jarduera Egunkariak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
             },
             method: {
                 email: "Emaila",
