@@ -35,7 +35,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly # You can also put the specific date here: @nightly-2024-01-01
         with:
           components: rustfmt
-          target: x86_64-unknown-linux-musl
+          targets: x86_64-unknown-linux-musl
 
       - name: Link openssl
         working-directory: packages/step-cli
