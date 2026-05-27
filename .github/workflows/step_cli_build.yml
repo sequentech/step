@@ -32,7 +32,7 @@ jobs:
           sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@nightly # You can also put the specific date here: @nightly-2024-01-01
+        uses: dtolnay/rust-toolchain@master # You can also put the specific date here: @nightly-2024-01-01
         with:
           components: rustfmt
           targets: x86_64-unknown-linux-musl
