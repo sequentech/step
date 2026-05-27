@@ -19,6 +19,8 @@ data:
         KUBERNETES_SERVICE_HOST: kubernetes.default.svc.cluster.local
         KUBERNETES_SERVICE_PORT: "443"
       valid_volumes: ["/var/run/secrets/kubernetes.io/serviceaccount"]
+      # Explicitly mount the ServiceAccount token and pass cluster env vars
+      options: "-v /var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro -e KUBERNETES_SERVICE_HOST=kubernetes.default.svc.cluster.local -e KUBERNETES_SERVICE_PORT=443"
       # Ensure it pulls from the local registry if needed
       pull_policy: always
 ---
