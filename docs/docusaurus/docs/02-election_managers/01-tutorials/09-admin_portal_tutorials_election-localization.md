@@ -29,7 +29,7 @@ You can change the labels of menus and tabs within the Admin Portal to better su
 5. Enter the new **Value** you want to display (e.g., "Statistics").
 6. Click `Save`.
 
-## Overwriting Voter Portal Text
+## Overwriting Voting Portal Text
 
 To customize the experience for voters, you can modify instructions and descriptions within the voting interface.
 
