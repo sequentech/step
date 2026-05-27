@@ -9,6 +9,8 @@ use tracing::info;
 pub const DEV_APP_VERSION: &str = "dev";
 pub const ENV_VAR_APP_VERSION: &str = "APP_VERSION";
 pub const ENV_VAR_APP_HASH: &str = "APP_HASH";
+pub const VERSION_KEY: &str = "version";
+pub const HISTORICAL_DEFAULT_VERSION: &str = "9.0.0";
 
 pub fn check_version_compatibility(
     imported_version: &str,
@@ -33,12 +35,12 @@ pub fn check_version_compatibility(
         return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
     }
 
-    let current_major_parsed = extract_major(&current_version)
+    let (current_major, current_minor, _) = extract_semver(current_version)
         .ok_or_else(|| anyhow!("Could not parse current version"))?;
-    let imported_major_parsed = extract_major(imported_version)
+    let (imported_major, imported_minor, _) = extract_semver(imported_version)
         .ok_or_else(|| anyhow!("Could not parse imported version"))?;
 
-    if current_major_parsed < imported_major_parsed {
+    if (current_major != imported_major) || (current_minor < imported_minor) {
         return Err(anyhow!(
             "Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.",
             imported_version,
@@ -48,18 +50,24 @@ pub fn check_version_compatibility(
     Ok(())
 }
 
-fn extract_major(input: &str) -> Option<u64> {
+/// Extract the semantic version from the given string.
+///
+/// Major version is required, and None will be returned if missing.
+/// Missing minor or patch versions will default to 0; pre-release tags are ignored (-*).
+fn extract_semver(input: &str) -> Option<(u64, u64, u64)> {
     // Trim optional 'v' or 'V' prefix
-    let trimmed = input.trim_start_matches(|c| c == 'v' || c == 'V');
+    let trimmed = input.trim_start_matches(['v', 'V']);
 
-    // We take characters from the start as long as they are digits.
-    // This stops at the first dot '.', hyphen '-', or any non-digit.
-    let major_str: String =
-        trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
+    // Split off any pre-release suffix (e.g. "-alpha", "-rc1") by splitting on '-'
+    let version_part = trimmed.split('-').next().unwrap_or("");
 
-    // Parse the result into a u64
-    // If the string was empty (e.g., input was "invalid"), this returns None.
-    major_str.parse::<u64>().ok()
+    // Split on '.' and parse up to three parts; missing components default to 0
+    let mut parts = version_part.split('.').map(|s| s.parse().ok());
+    let major: u64 = parts.next()??;
+    let minor: u64 = parts.next().flatten().unwrap_or(0);
+    let patch: u64 = parts.next().flatten().unwrap_or(0);
+
+    Some((major, minor, patch))
 }
 
 #[cfg(test)]
@@ -103,18 +111,35 @@ mod tests {
     #[test]
     fn test_backward_compatibility() {
         // Importing an OLDER version into a NEWER system should be OK
-        // Imported: 1, Current: 2
-        assert!(check_version_compatibility("1.0.0", "2.0.0").is_ok());
+        // Imported: 1.0.0, Current: 1.1.0
+        assert!(check_version_compatibility("1.0.0", "1.1.0").is_ok());
 
         // Imported: 10, Current: 11
-        assert!(check_version_compatibility("10.5.5", "11.0.0").is_ok());
+        assert!(check_version_compatibility("10.5.5", "10.5.7").is_ok());
     }
 
     #[test]
     fn test_forward_compatibility_rejection() {
         // Importing a NEWER version into an OLDER system should FAIL
-        // Imported: 2, Current: 1
-        let result = check_version_compatibility("2.0.0", "1.0.0");
+        // Imported: 1.1.0, Current: 1.0.0
+        let result = check_version_compatibility("1.1.0", "1.0.0");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not compatible"));
+
+        // Patch version is accepted.
+        let result = check_version_compatibility("1.1.1", "1.1.0");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_major_mismatch_rejection() {
+        // Importing anything with a different major version should fail,
+        //  be it older or newer.
+        let result = check_version_compatibility("1.0.0", "2.0.0");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not compatible"));
+
+        let result = check_version_compatibility("11.0.0", "10.0.0");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not compatible"));
     }
@@ -153,28 +178,30 @@ mod tests {
     // ==========================================
 
     #[test]
-    fn test_extract_major_logic() {
+    fn test_extract_semver_logic() {
         // Standard semver
-        assert_eq!(extract_major("1.2.3"), Some(1));
-        assert_eq!(extract_major("10.0.0"), Some(10));
-        assert_eq!(extract_major("0.5.9"), Some(0));
+        assert_eq!(extract_semver("1.2.3"), Some((1, 2, 3)));
+        assert_eq!(extract_semver("10.0.0"), Some((10, 0, 0)));
+        assert_eq!(extract_semver("0.5.9"), Some((0, 5, 9)));
 
         // With prefixes
-        assert_eq!(extract_major("v1.2.3"), Some(1));
-        assert_eq!(extract_major("V2.0.0"), Some(2));
+        assert_eq!(extract_semver("v1.2.3"), Some((1, 2, 3)));
+        assert_eq!(extract_semver("V2.0.0"), Some((2, 0, 0)));
 
         // With suffixes (alpha, beta, rc)
-        assert_eq!(extract_major("1.0.0-alpha"), Some(1));
-        assert_eq!(extract_major("3.0.0-rc1"), Some(3));
-        assert_eq!(extract_major("v4-beta"), Some(4));
+        assert_eq!(extract_semver("1.0.0-alpha"), Some((1, 0, 0)));
+        assert_eq!(extract_semver("3.0.0-rc1"), Some((3, 0, 0)));
+        assert_eq!(extract_semver("v4-beta"), Some((4, 0, 0)));
 
         // Edge cases
-        assert_eq!(extract_major("2"), Some(2)); // Just a number
-        assert_eq!(extract_major("not_a_number"), None);
-        assert_eq!(extract_major(""), None);
-        assert_eq!(extract_major("v"), None);
+        assert_eq!(extract_semver("2"), Some((2, 0, 0))); // Just a number
+        assert_eq!(extract_semver("2.none.1"), Some((2, 0, 1))); // Parse error in the midle
+        assert_eq!(extract_semver("q.1.0"), None); // Major version is problematic
+        assert_eq!(extract_semver("not_a_number"), None);
+        assert_eq!(extract_semver(""), None);
+        assert_eq!(extract_semver("v"), None);
 
         // Ensure it stops at non-digits
-        assert_eq!(extract_major("5startswithnumber"), Some(5));
+        assert_eq!(extract_semver("5startswithnumber"), None);
     }
 }
