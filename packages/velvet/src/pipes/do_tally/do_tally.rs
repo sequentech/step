@@ -485,6 +485,7 @@ pub struct ExtendedMetricsContest {
     pub total_ballots: u64,
     pub weight: Weight, // Used to store the actual weight used to tally an specific area.
     pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
+    pub total_declined_to_vote: u64, // Total number of ballots that declined to vote
 }
 
 impl ExtendedMetricsContest {

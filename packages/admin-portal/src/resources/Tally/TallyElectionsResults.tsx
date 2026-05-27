@@ -203,10 +203,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
                     /// If the election has a decline to vote policy, we need to get the total
                     // invalid votes from the one of the results contests (all contests supposed to have the same value)
+                    let contest_annotations = tallyData?.sequent_backend_results_contest.find(
+                        (c) => c.election_id === item.id
+                    )?.annotations
                     let total_invalid_votes =
-                        tallyData?.sequent_backend_results_contest.find(
-                            (c) => c.election_id === item.id
-                        )?.explicit_invalid_votes ?? null
+                        safeParseJson(contest_annotations)?.extended_metrics
+                            ?.total_declined_to_vote ?? null
                     const electionPresentation = safeParseJson(item.presentation)
                     const isDeclineToVote =
                         electionPresentation?.decline_to_vote_policy ===

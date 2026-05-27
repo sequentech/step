@@ -69,6 +69,7 @@ fn create_vote(preferences: &[&str]) -> (DecodedVoteContest, Weight) {
             contest_id: "contest1".to_string(),
             choices,
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
         },

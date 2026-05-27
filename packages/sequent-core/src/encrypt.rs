@@ -162,13 +162,17 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    // let is_explicit_invalid = decoded_contests
-    //     .iter()
-    //     .any(|choice| choice.is_explicit_invalid);
+    // is_explicit_invalid is true if any of the contests is a decline to vote contest
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_decline_to_vote);
 
     let counting_algorithm = config.get_counting_algorithm()?;
-    let ballot_choices =
-        BallotChoices::new(false, contest_choices, counting_algorithm);
+    let ballot_choices = BallotChoices::new(
+        is_explicit_invalid,
+        contest_choices,
+        counting_algorithm,
+    );
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
@@ -199,9 +203,10 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
+    /// is_explicit_invalid is true if any of the contests is a decline to vote contest
     let is_explicit_invalid = decoded_contests
         .iter()
-        .any(|choice| choice.is_explicit_invalid);
+        .any(|choice| choice.is_decline_to_vote);
 
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot = BallotChoices::new(

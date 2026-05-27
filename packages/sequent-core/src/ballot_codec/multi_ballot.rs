@@ -779,6 +779,7 @@ impl BallotChoices {
 
             let max_selections = contest.max_votes;
             for _ in 1..=max_selections {
+                // + 1: include a per-ballot invalid flag for decline to vote
                 bases.push(u64::from(num_valid_candidates + 1));
             }
         }
@@ -1239,6 +1240,7 @@ mod tests {
             presentation: None,
             created_at: None,
             annotations: None,
+            tie_breaking_policy: None,
         }
     }
 
