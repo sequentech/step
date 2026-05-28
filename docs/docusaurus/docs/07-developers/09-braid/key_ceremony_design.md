@@ -352,3 +352,150 @@ Keys ceremony complete.
 Election public key is in the DB.
 Each trustee holds their encrypted private key fragment.
 ```
+
+---
+
+## BBT Task: Generate Ed25519 Signing Keypair in WASM
+
+This section details the implementation plan for the first design gap: replacing the hardcoded
+signing keypair in `HeadlessTrusteeProvider` with one generated inside WASM, stored in
+`sessionStorage`, and registered in the DB per election event.
+
+### Current State
+
+The WASM session lifecycle has already been extracted from `useHeadlessTrustee` into a new
+`HeadlessTrusteeProvider` mounted at the election event level.  Key properties of this provider:
+
+- Initialises WASM and connects to the board as soon as the trustee views the election event
+  (not on wizard entry), so the session is ready before the ceremony wizard opens.
+- Runs a background heartbeat; pauses it when `useHeadlessTrustee` acquires exclusive control
+  during the wizard, preventing concurrent access to the single `WasmSession` object.
+- Frees the session when the trustee navigates away from the election event.
+- Still carries the hardcoded `signing_key_sk` / `encryption_key` (marked WIP) — replacing these
+  is the subject of this task.
+
+The provider is the right place to generate and consume the keypair since it is scoped to one
+election event and initialises early.
+
+### The Per-Event Key Problem
+
+A BBT trustee may participate in multiple election events simultaneously.  If the signing key is
+stored globally (one entry per trustee in the DB), registering a fresh key for event B overwrites
+the key already embedded in event A's `Configuration` on the board, breaking event A's DKG
+verification.
+
+The solution is to store the public key **per (trustee, election event)** in the DB and to
+namespace the `sessionStorage` entries by `election_event_id`.
+
+### DB Schema Change: add `election_event_id` to `sequent_backend_trustee`
+
+Add a nullable `election_event_id` column to the `sequent_backend_trustee` table:
+
+| Column | Type | Meaning |
+|---|---|---|
+| `election_event_id` | `uuid \| null` | `null` for server-based trustees; set to the event UUID for BBT trustees |
+| `public_key` | `text \| null` | Ed25519 public key (base64-DER) for this trustee + event combination |
+
+For server-based trustees the existing row keeps `election_event_id = null` and `public_key` set
+once at provisioning time — no behaviour change.
+
+For BBT trustees a row is upserted on every session start:
+`(trustee_id, election_event_id) → public_key`.  Two simultaneous events produce two independent
+rows with independent keys.
+
+Windmill's `create_keys` task already fetches trustees by ID
+(`get_trustees_by_id`, `create_keys.rs:49`).  That query must be updated to filter by
+`election_event_id` when selecting the `public_key` to embed in the `Configuration`.
+
+### The Core Timing Constraint
+
+The public key must be in the DB **before** the ceremony is created.  The required ordering is:
+
+```
+BBT trustee opens election event in admin portal
+  └─ HeadlessTrusteeProvider mounts
+  └─ WASM generates keypair for this election_event_id
+  └─ private key → sessionStorage['bbt_signing_key_sk_{election_event_id}']
+  └─ public key  → POST to Harvest /register-trustee-key
+                    (upserts trustee row with election_event_id + public_key)
+                    ↓
+Admin creates ceremony (selects trustees)
+                    ↓
+Windmill create_keys reads trustee.public_key WHERE election_event_id = $1
+  → builds Configuration with correct per-event public key
+                    ↓
+HeadlessTrusteeProvider reads signing_key_sk from sessionStorage
+  → WasmSession signs DKG messages with matching private key
+```
+
+### Component Changes
+
+#### 1 — Braid-wasm: new `generate_signing_keypair()` export
+
+Add a WASM-exported function in `braid/src/wasm/mod.rs` that generates an Ed25519 keypair and
+returns both halves as base64-DER strings — the same format already consumed by `WasmSession`:
+
+```
+pub fn generate_signing_keypair() -> JsValue
+  returns { signing_key_sk: string, signing_key_pk: string }
+```
+
+Reuses `StrandSignatureSk` already present in braid — no new crypto dependency.
+
+#### 2 — `HeadlessTrusteeProvider`: generate and register on mount
+
+Inside the existing `initialize` effect (already runs when `boardName` + `trusteeRecord` are
+available), before constructing `WasmSession`:
+
+1. Derive the sessionStorage key: `bbt_signing_key_sk_{electionEventId}`.
+2. If absent: call `generate_signing_keypair()` via WASM, store both halves in `sessionStorage`,
+   POST the public key to Harvest `/register-trustee-key` with the `election_event_id`.
+3. If present: re-POST on page refresh (tab has not closed, private key is still valid).
+4. Pass `signing_key_sk` / `signing_key_pk` from `sessionStorage` into the `WasmSession` config
+   instead of the hardcoded strings.
+
+#### 3 — Harvest: new `POST /register-trustee-key` endpoint
+
+```
+Input:  { public_key: string, election_event_id: string }
+Auth:   existing Keycloak JWT  — identifies which trustee is calling
+Action: UPSERT sequent_backend_trustee
+          SET public_key = $public_key
+          WHERE trustee_id = <from JWT> AND election_event_id = $election_event_id
+```
+
+The private key never reaches the server.  Server-based trustees never call this endpoint;
+their `public_key` continues to be set at provisioning time with `election_event_id = null`.
+
+#### 4 — Windmill `get_trustees_by_id`: filter by `election_event_id`
+
+Update the DB query to return the `public_key` that matches the ceremony's `election_event_id`,
+falling back to the row with `election_event_id = null` (server-based):
+
+```sql
+SELECT public_key FROM sequent_backend_trustee
+WHERE id = $trustee_id
+  AND (election_event_id = $event_id OR election_event_id IS NULL)
+ORDER BY election_event_id NULLS LAST
+LIMIT 1
+```
+
+No change to the `create_keys` task logic itself — it already uses whatever `public_key` the
+query returns.
+
+### Open Question: Trustee Not Logged In at Ceremony Creation
+
+If a BBT trustee has not yet opened the election event page when the admin creates the ceremony,
+`sessionStorage` is empty and the DB has no entry for this `(trustee, election_event_id)` pair.
+Windmill will find no public key and either skip the trustee (silently wrong) or fail.
+
+Two mitigation options:
+
+| Option | Approach | Trade-off |
+|---|---|---|
+| **A — Warn at ceremony creation (recommended for now)** | Admin portal shows a "not ready" badge next to any BBT trustee who has no `public_key` registered for this `election_event_id` yet | Simple, no Windmill change — relies on admin confirming all trustees are online before creating the ceremony |
+| **B — Defer `create_keys` until all trustees ready** | Ceremony stays in `STARTED`; Windmill only runs `create_keys` once all BBT trustees have a key registered for this event | Safe by design but requires a readiness signal and a polling or webhook trigger in Windmill |
+
+Option A is sufficient for the initial BBT rollout since attended ceremonies imply the trustee is
+already logged in.  Option B is the correct long-term design for unattended or scheduled
+ceremonies.
