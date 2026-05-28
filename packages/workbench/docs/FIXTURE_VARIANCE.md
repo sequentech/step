@@ -501,7 +501,7 @@ The remaining `ContestPresentation` (and per-contest) fields below influence ren
 
 ---
 
-### 17. Multi-Ballot Encoding Capacity & Limits
+### 12. Multi-Ballot Encoding Capacity & Limits
 
 - **Field / type**: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L202`](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L202) — fixed 30-byte encoding size.
 - **Value space**: Single encoded ballot must fit in 30 bytes; capacity depends on contest count and max_votes per contest.

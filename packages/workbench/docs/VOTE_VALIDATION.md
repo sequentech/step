@@ -50,14 +50,15 @@ This serves three purposes:
 ┌─────────────────────────────────────────────────────────────────┐
 │  Voting Portal (React)                                          │
 │                                                                 │
-│  VotingScreen.tsx                                               │
+│  VotingScreen.tsx → ContestPagination (inner component)         │
 │    └─ useMemo(errorSelectionState) — recalculates on every      │
 │       selection change (real-time, per click)                    │
 │    └─ disableNextButton() — checked on page/review transition   │
 │    └─ showNextDialog() — checked on page/review transition      │
 │                                                                 │
 │  Question.tsx → InvalidErrorsList.tsx                            │
-│    └─ renders invalid_errors as warnings/errors per contest     │
+│    └─ filters + renders invalid_errors / invalid_alerts         │
+│    └─ calls setDecodedContests() to feed gate functions         │
 └────────────────────────┬────────────────────────────────────────┘
                          │ calls
 ┌────────────────────────▼────────────────────────────────────────┐
@@ -117,15 +118,22 @@ recalculates every time `ballotSelectionState` changes. This means:
 
 ### On page transition (next page or → review)
 
-Two gate functions are evaluated when the voter clicks "Next" or "Review":
+Two gate functions are evaluated when the voter clicks "Next" or navigates
+to the review screen:
 
 | Function | Effect |
 |----------|--------|
-| `check_voting_not_allowed_next_bool` | **Hard block** — disables the button; voter must fix issues |
-| `check_voting_error_dialog_bool` | **Soft warn** — shows a confirmation dialog before proceeding |
+| `check_voting_not_allowed_next_bool` | **Hard block** — opens a dialog with only "OK" (no continue); also **physically disables** the Next button when multi-page |
+| `check_voting_error_dialog_bool` | **Soft warn** — opens a dialog with "Continue" + "Cancel" |
 
-These read the already-computed `decodedContests` (populated by each
-`<Question>` component) and consult the policies to determine severity.
+The `encryptAndReview()` handler opens the dialog whenever either function
+returns `true`. The dialog variant (dismissible vs non-dismissible) depends
+on whether `disableNextButton()` is `true`.
+
+These read the already-computed `decodedContests` record (populated by each
+`<InvalidErrorsList>` component via `setDecodedContests`) and evaluate
+specific policy+condition combinations (detailed in "Submission Gating
+Detail" below).
 
 ---
 
@@ -200,33 +208,97 @@ of a `Contest`). Each has a fixed set of enum variants that control:
 ### Policy severity model
 
 The submission-gate in [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs)
-classifies policy variants into two tiers:
+does NOT simply classify policy variants into tiers. Instead, it evaluates
+**specific condition+policy combinations** (see "Submission Gating Detail"
+below). However, the general pattern is:
 
-- **Hard blockers** (`NOT_ALLOWED*` variants): `check_voting_not_allowed_next_util`
-  returns true → button disabled, voter cannot proceed.
-- **Soft warnings** (`WARN*`, `ALLOWED*` variants): `check_voting_error_dialog_util`
-  returns true → confirmation dialog shown, voter may proceed anyway.
+- **Hard blockers**: `NOT_ALLOWED*` variants of a policy cause the gate to
+  prevent navigation when the corresponding condition is detected.
+- **Soft warnings**: `WARN*`, `ALLOWED_WARN*`, `ALLOWED_WITH_MSG_AND_ALERT`
+  variants cause a dismissible dialog.
+- **Silent**: `ALLOWED` variants (except `ALLOWED_WITH_MSG*`) do not trigger
+  any gate at all.
+
+The mapping is not uniform across policies — each policy has its own
+specific gating logic. See "Submission Gating Detail" for the precise
+conditions.
 
 ---
 
 ### 1. InvalidVotePolicy
 
-**What it checks**: Whether the voter selected an "explicitly invalid"
-candidate (a special candidate marked as invalid in the election config).
+This policy has a **dual role** that makes it the most complex policy:
 
-**Enum**: `InvalidVotePolicy` — 4 variants
+1. **Checker role** (`check_invalid_vote_policy`): Controls what happens when
+   the voter selects a candidate whose `CandidatePresentation.is_explicit_invalid`
+   is `true` — a special "vote invalid" option in the ballot UI.
+2. **UI filter role** (`InvalidErrorsList.tsx`): Acts as a **master switch**
+   that controls whether `invalid_errors` produced by *other* checkers
+   (overvote, min_vote, etc.) are displayed to the voter.
+3. **Submission gating role** (`voting_screen.rs`): When set to `NOT_ALLOWED`,
+   the presence of *any* `invalid_errors` (from any checker) triggers a hard
+   block.
 
-| Variant | Behavior |
-|---------|----------|
-| `ALLOWED` (default) | No error, no alert. |
-| `WARN` | Alert if explicit invalid selected. |
-| `WARN_INVALID_IMPLICIT_AND_EXPLICIT` | Alert on both implicit and explicit invalidity. |
-| `NOT_ALLOWED` | Error — blocks submission. |
+#### Explicit vs Implicit Invalid Votes
+
+- **Explicit invalid**: The voter selected a candidate with
+  `is_explicit_invalid: true` in the election config. This is a deliberate
+  opt-in — a "null vote" button. The flag is encoded as the first element
+  of the choices array (`choices[0] = 1`).
+- **Implicit invalid**: The ballot violates structural rules (overvote,
+  undervote, blank, rank issues) without the voter explicitly opting into
+  invalidity. All other checker errors are tagged
+  `InvalidPlaintextErrorType::Implicit`.
+
+#### Checker behavior
+
+The checker *only* fires when `is_explicit_invalid == true`:
+
+| Variant | Checker output |
+|---------|----------------|
+| `ALLOWED` (default) | Nothing — explicit invalid is silently accepted. |
+| `WARN` | Nothing — **identical to ALLOWED at the checker level.** |
+| `WARN_INVALID_IMPLICIT_AND_EXPLICIT` | Pushes alert (`errors.explicit.alert`) to `invalid_alerts`. |
+| `NOT_ALLOWED` | Pushes error (`errors.explicit.notAllowed`) to `invalid_errors`. |
+
+Note: `WARN` and `ALLOWED` produce the same checker output (none). Their
+difference is entirely in the UI filter and submission gating.
+
+#### UI filter behavior (`InvalidErrorsList.tsx`)
+
+When `InvalidVotePolicy == ALLOWED`, the `filterErrorList` function
+**suppresses `invalid_errors`** from all other checkers, with two exceptions:
+
+- `errors.implicit.selectedMax` survives if `OverVotePolicy` is a
+  `NOT_ALLOWED*` variant.
+- `errors.implicit.blankVote` survives if `BlankVotePolicy` is `NOT_ALLOWED`.
+
+When the policy is anything else (`WARN`, `WARN_INVALID_IMPLICIT_AND_EXPLICIT`,
+or `NOT_ALLOWED`), the UI filter does **not** suppress — all `invalid_errors`
+are shown.
+
+This means `ALLOWED` effectively says: "don't bother showing the voter
+structural error messages" while `WARN` says: "show all structural error
+messages" (even though neither produces its own checker output for explicit
+invalid).
+
+#### Submission gating behavior
+
+In `check_voting_not_allowed_next_util` (hard block):
+- If `invalid_vote_policy == NOT_ALLOWED` AND `invalid_errors` is non-empty
+  → hard block. This catches *any* validation error (overvote, min_vote, etc.)
+  — not just explicit-invalid.
+
+In `check_voting_error_dialog_util` (soft warn):
+- If `invalid_vote_policy != ALLOWED` AND `invalid_errors` is non-empty →
+  show dialog. Again catches errors from any checker.
+- Additionally: if `WARN_INVALID_IMPLICIT_AND_EXPLICIT` AND
+  `is_explicit_invalid` → show dialog (even without other errors).
 
 **Checker**: [`check_invalid_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L281)
 
 **UI surface**: [`InvalidErrorsList.tsx`](../../voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx)
-reads the policy and displays/hides the corresponding messages.
+reads the policy to filter errors from all checkers before rendering.
 
 ---
 
@@ -239,19 +311,39 @@ reads the policy and displays/hides the corresponding messages.
 
 | Variant | Behavior |
 |---------|----------|
-| `ALLOWED` | Silently allowed (extra votes encoded but ignored at tally). |
-| `ALLOWED_WITH_MSG` | Allow, show message. |
-| `ALLOWED_WITH_MSG_AND_ALERT` (default) | Allow, show message + alert popup. |
-| `NOT_ALLOWED_WITH_MSG_AND_ALERT` | Error — blocks submission + alert. |
-| `NOT_ALLOWED_WITH_MSG_AND_DISABLE` | Error — blocks submission + **disables checkboxes** when max reached. |
+| `ALLOWED` | Error generated (structural); no alert message. |
+| `ALLOWED_WITH_MSG` | Error generated; alert message shown. |
+| `ALLOWED_WITH_MSG_AND_ALERT` (default) | Error generated; alert message shown + dialog on submission. |
+| `NOT_ALLOWED_WITH_MSG_AND_ALERT` | Error generated; alert message shown; **hard block** on submission. |
+| `NOT_ALLOWED_WITH_MSG_AND_DISABLE` | Error generated; alert message shown; **UI disables checkboxes** at max. |
 
 **Checker**: [`check_over_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L137)
 
-**Special UI behavior**: The `NOT_ALLOWED_WITH_MSG_AND_DISABLE` variant has
-a unique UX — [`Question.tsx`](../../voting-portal/src/components/Question/Question.tsx)
+**Critical implementation detail**: When `num_selected > max_votes`, the
+checker **always** pushes an entry to `invalid_errors` — regardless of the
+policy variant. The policy only controls whether an *additional* entry is
+pushed to `invalid_alerts`. The code comment says: *"for errors, we use only
+invalid_vote_policy. Overvote policy is going to be used only for alerts."*
+
+This means `invalid_errors` always contains the overvote error for structural
+purposes (submission gating and round-trip verification), but whether the
+voter *sees* it depends on `InvalidVotePolicy`'s UI filter (see §1 above).
+
+**Special case — `num_selected == max_votes`**: When the policy is
+`NOT_ALLOWED_WITH_MSG_AND_DISABLE` and the voter has selected exactly
+`max_votes` candidates (not over), the checker pushes an *alert*
+(`errors.implicit.overVoteDisabled`) to inform the voter that further
+selections are disabled.
+
+**Special UI behavior**: The `NOT_ALLOWED_WITH_MSG_AND_DISABLE` variant —
+[`Question.tsx`](../../voting-portal/src/components/Question/Question.tsx)
 disables unchecked checkboxes once `num_selected == max_votes`, preventing
-the overvote entirely at the UI level (the checker still validates as
-defense-in-depth).
+the overvote at the UI level. The checker still validates as defense-in-depth.
+
+**Submission gating**: Only `NOT_ALLOWED_WITH_MSG_AND_ALERT` triggers a hard
+block in `check_voting_not_allowed_next_util`. The `NOT_ALLOWED_WITH_MSG_AND_DISABLE`
+variant is *not* checked in the gate because the UI prevents the condition
+from occurring.
 
 ---
 
@@ -265,34 +357,43 @@ defense-in-depth).
 
 | Variant | Behavior |
 |---------|----------|
-| `ALLOWED` (default) | No warning. |
-| `WARN` | Alert shown during voting. |
-| `WARN_ONLY_IN_REVIEW` | Alert shown only on the review screen, not during voting. |
-| `WARN_AND_ALERT` | Alert + popup dialog. |
+| `ALLOWED` (default) | No alert generated. |
+| `WARN` | Alert pushed to `invalid_alerts`; shown during voting. |
+| `WARN_ONLY_IN_REVIEW` | Alert pushed to `invalid_alerts`; UI filters it out unless in review mode. |
+| `WARN_AND_ALERT` | Alert pushed to `invalid_alerts`; additionally triggers submission dialog. |
 
 **Checker**: [`check_under_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L197)
 
+**Critical detail**: This checker only pushes to `invalid_alerts`, **never**
+to `invalid_errors`. Under-vote is always a soft warning — it can never
+hard-block submission on its own.
+
 **Note**: Under-vote is defined as `min_votes ≤ num_selected < max_votes`.
-If `num_selected < min_votes`, that's a **min_vote violation** (always an
-error, regardless of UnderVotePolicy).
+If `num_selected < min_votes`, that's a **min_vote violation** (always a hard
+error pushed to `invalid_errors`, regardless of UnderVotePolicy — handled by
+`check_min_vote_policy`).
 
 ---
 
 ### 4. BlankVotePolicy
 
 **What it checks**: Whether the voter selected **zero** candidates (blank
-ballot).
+ballot) AND did NOT select the explicit-invalid candidate.
 
 **Enum**: `EBlankVotePolicy` — 4 variants
 
 | Variant | Behavior |
 |---------|----------|
-| `ALLOWED` (default) | Blank ballots accepted without comment. |
-| `WARN` | Alert shown. |
-| `WARN_ONLY_IN_REVIEW` | Alert shown only on review screen. |
-| `NOT_ALLOWED` | Error — blocks submission (equivalent to enforcing min_votes ≥ 1). |
+| `ALLOWED` (default) | No output — checker skips entirely. |
+| `WARN` | Alert pushed to `invalid_alerts`; dialog triggered on submission. |
+| `WARN_ONLY_IN_REVIEW` | Alert pushed to `invalid_alerts`; UI filters it out unless in review mode. |
+| `NOT_ALLOWED` | Error pushed to `invalid_errors`; hard-blocks submission. |
 
 **Checker**: [`check_blank_vote_policy`](../../sequent-core/src/ballot_codec/checker.rs#L103)
+
+**Important**: The checker is gated on `!is_explicit_invalid`. If the voter
+selected the explicit-invalid candidate, the ballot is not considered "blank"
+— it's "explicitly invalid" (handled by InvalidVotePolicy instead).
 
 ---
 
@@ -305,10 +406,18 @@ candidates in a preferential (IRV / Borda) contest.
 
 | Variant | Behavior |
 |---------|----------|
-| `ALLOWED_WARN_AND_DIALOG` (default) | Allow duplicates, warn with dialog. |
-| `NOT_ALLOWED_WARN_AND_DIALOG` | Reject duplicates, warn with dialog (hard block). |
+| `ALLOWED_WARN_AND_DIALOG` (default) | Error pushed to `invalid_errors`; triggers soft-warn dialog. |
+| `NOT_ALLOWED_WARN_AND_DIALOG` | Error pushed to `invalid_errors`; triggers hard-block dialog. |
 
 **Checker**: [`check_duplicated_rank_policy`](../../sequent-core/src/ballot_codec/checker.rs#L235)
+
+**Critical detail**: Both variants produce **identical checker output** — an
+`invalid_errors` entry is always pushed. The difference is solely in which
+submission gate function reacts:
+- `ALLOWED_WARN_AND_DIALOG` → `check_voting_error_dialog_util` shows a
+  dismissible dialog.
+- `NOT_ALLOWED_WARN_AND_DIALOG` → `check_voting_not_allowed_next_util`
+  shows a non-dismissible dialog (hard block).
 
 **Only applies to**: Contests with `counting_algorithm` = `InstantRunoff`,
 `Borda`, `BordaNauru`, `BordaMasMadrid`, `Desborda*`, or `PairwiseBeta`.
@@ -325,10 +434,14 @@ rank 1, rank 3, skipping rank 2).
 
 | Variant | Behavior |
 |---------|----------|
-| `ALLOWED_WARN_AND_DIALOG` (default) | Allow gaps, warn with dialog. |
-| `NOT_ALLOWED_WARN_AND_DIALOG` | Reject gaps, warn with dialog (hard block). |
+| `ALLOWED_WARN_AND_DIALOG` (default) | Error pushed to `invalid_errors`; triggers soft-warn dialog. |
+| `NOT_ALLOWED_WARN_AND_DIALOG` | Error pushed to `invalid_errors`; triggers hard-block dialog. |
 
 **Checker**: [`check_preference_gaps_policy`](../../sequent-core/src/ballot_codec/checker.rs#L258)
+
+**Critical detail**: Same pattern as DuplicatedRankPolicy — both variants
+produce identical checker output (`invalid_errors` entry). The variant only
+affects which gate function reacts.
 
 **Only applies to**: Same preferential contest types as DuplicatedRankPolicy.
 
@@ -336,42 +449,129 @@ rank 1, rank 3, skipping rank 2).
 
 ## Error Display Pipeline
 
-The flow from checker output to rendered UI:
+The flow from checker output to rendered UI involves three layers: Rust
+checkers → WASM boundary → React UI filter.
 
-1. **Checker** populates `DecodedVoteContest.invalid_errors[]` and
-   `DecodedVoteContest.invalid_alerts[]` during decode.
+### Layer 1: Checker output (Rust)
 
-2. **wasm.ts** returns the full `BallotSelection` (array of
-   `DecodedVoteContest`) as `errorSelectionState` to the React layer.
+Each checker pushes entries to `invalid_errors[]` and/or `invalid_alerts[]`
+on the `DecodedVoteContest` struct. The distinction:
+- `invalid_errors` = structurally significant violations (used by submission
+  gating AND potentially shown to voter).
+- `invalid_alerts` = informational messages (used for UI display and dialog
+  triggers only).
 
-3. **`<Question>`** receives `errorSelectionState` and passes the relevant
-   contest's errors to **`<InvalidErrorsList>`**.
+Note: Some checkers always push to `invalid_errors` regardless of policy
+(overvote, duplicated rank, preference gaps, min_vote). The policy determines
+*how the system reacts*, not whether the error exists.
 
-4. **`<InvalidErrorsList>`** applies UI-level filtering:
-   - Hides under-vote warnings if not in review mode (for `WARN_ONLY_IN_REVIEW`).
-   - Suppresses messages when policy is `ALLOWED`.
-   - Renders remaining `invalid_errors` as `<WarnBox variant="warning">`.
-   - Renders remaining `invalid_alerts` as `<WarnBox variant="info">`.
+### Layer 2: WASM → React
+
+`wasm.ts` returns the full array of `DecodedVoteContest` as
+`errorSelectionState`. The `<InvalidErrorsList>` component extracts the
+contest matching its `question.id`.
+
+### Layer 3: UI filter (`filterErrorList`)
+
+Before rendering, `InvalidErrorsList.tsx` applies a multi-step filter:
+
+1. **`invalid_alerts` filter** — removes:
+   - `errors.implicit.underVote` when not in review mode and
+     `under_vote_policy == WARN_ONLY_IN_REVIEW`.
+   - `errors.implicit.blankVote` when not in review mode and
+     `blank_vote_policy == WARN_ONLY_IN_REVIEW`.
+   - `errors.implicit.overVoteDisabled` when in review mode (since the
+     disable state is already visually obvious on the review screen).
+
+2. **Touch gate** — if the contest is not "touched" (voter hasn't interacted
+   with it) and it's not the review screen, ALL errors and alerts are cleared.
+   This prevents error messages from showing before the voter has made any
+   selection.
+
+3. **Deduplication** — removes:
+   - `errors.implicit.underVote` if `errors.implicit.blankVote` also exists
+     (blank subsumes under-vote).
+   - Duplicate `errors.implicit.selectedMax` entries.
+
+4. **InvalidVotePolicy master filter** — when
+   `invalid_vote_policy == ALLOWED`, removes ALL `invalid_errors` **except**:
+   - `errors.implicit.selectedMax` when `over_vote_policy` is a
+     `NOT_ALLOWED*` variant.
+   - `errors.implicit.blankVote` when `blank_vote_policy == NOT_ALLOWED`.
+
+5. **Render** — remaining `invalid_errors` render as
+   `<WarnBox variant="warning">`, remaining `invalid_alerts` render as
+   `<WarnBox variant="info">`.
 
 ---
 
 ## Submission Gating Detail
 
 [`voting_screen.rs`](../../sequent-core/src/util/voting_screen.rs) exposes
-two utility functions consumed via WASM:
+two utility functions consumed via WASM. Both iterate all contests and check
+the decoded contest state against specific policy+condition combinations.
 
-### check_voting_not_allowed_next_util
+### check_voting_not_allowed_next_util (Hard Block)
 
-Iterates all contests. For each, checks if any `invalid_errors` entry
-corresponds to a `NOT_ALLOWED*` policy variant. If any contest has such an
-error → returns `true` → **button disabled**.
+Returns `true` → dialog opens with **no "Continue" button**; voter must fix
+the issue. Triggers when ANY contest matches ANY of these conditions:
 
-### check_voting_error_dialog_util
+| # | Condition | Rationale |
+|---|-----------|-----------|
+| 1 | Any `invalid_errors` entry has `error_type == Explicit \|\| EncodingError` | Encoding corruption or explicit-invalid error (from NOT_ALLOWED policy) |
+| 2 | `invalid_errors` is non-empty AND `invalid_vote_policy == NOT_ALLOWED` | Master hard-block — any structural error when policy forbids invalid votes |
+| 3 | `choices_selected == 0` AND `blank_vote_policy == NOT_ALLOWED` | Blank ballot prohibited |
+| 4 | `choices_selected > max_votes` AND `over_vote_policy == NOT_ALLOWED_WITH_MSG_AND_ALERT` | Overvote hard-block |
+| 5 | `duplicated_rank_policy == NOT_ALLOWED_WARN_AND_DIALOG` AND matching error exists | Duplicate ranks prohibited |
+| 6 | `preference_gaps_policy == NOT_ALLOWED_WARN_AND_DIALOG` AND matching error exists | Rank gaps prohibited |
 
-Iterates all contests. For each, checks if any `invalid_errors` or
-`invalid_alerts` exist (regardless of severity). If any contest has
-warnings → returns `true` → **dialog shown** (voter can dismiss and
-proceed).
+Note: `NOT_ALLOWED_WITH_MSG_AND_DISABLE` (overvote) is NOT checked here
+because the UI prevents the condition by disabling checkboxes.
+
+### check_voting_error_dialog_util (Soft Warn)
+
+Returns `true` → dialog opens with **"Continue" and "Cancel" buttons**;
+voter may dismiss and proceed. Triggers when ANY contest matches ANY of:
+
+| # | Condition | Rationale |
+|---|-----------|-----------|
+| 1 | `invalid_errors` is non-empty AND `invalid_vote_policy != ALLOWED` | Any structural error when policy isn't fully permissive |
+| 2 | `invalid_vote_policy == WARN_INVALID_IMPLICIT_AND_EXPLICIT` AND `is_explicit_invalid` | Explicit invalid selected with warn-both policy |
+| 3 | `blank_vote_policy == WARN` AND `choices_selected == 0` | Blank ballot with warn policy |
+| 4 | `choices_selected > max_votes` AND `over_vote_policy == ALLOWED_WITH_MSG_AND_ALERT` | Overvote with alert policy |
+| 5 | `choices_selected > 0` AND `choices_selected >= min_votes` AND `choices_selected < max_votes` AND `under_vote_policy == WARN_AND_ALERT` | Under-vote with alert policy |
+| 6 | `duplicated_rank_policy == ALLOWED_WARN_AND_DIALOG` AND matching error exists | Duplicate ranks allowed but warned |
+| 7 | `preference_gaps_policy == ALLOWED_WARN_AND_DIALOG` AND matching error exists | Rank gaps allowed but warned |
+
+### How the UI combines both gates
+
+In [`VotingScreen.tsx`](../../voting-portal/src/routes/VotingScreen.tsx), the
+`encryptAndReview()` handler:
+
+```
+if (showNextDialog() || disableNextButton()) → open dialog
+```
+
+The dialog rendered depends on `disableNextButton()`:
+- **true** → `variant="softwarning"`, only an "OK" button (no escape route).
+- **false** → `variant="action"`, "Continue" + "Cancel" buttons.
+
+### `choices_selected` calculation
+
+Both gate functions count selected choices as:
+```rust
+choices.iter().filter(|choice| choice.selected == 0).count()
+```
+
+For **plurality**, `selected = 0` means "chosen" and `selected = -1` means
+"not chosen" — so this correctly counts selections.
+
+For **preferential**, `selected` encodes the rank (0 = rank 1, 1 = rank 2,
+etc.). The `== 0` filter only counts candidates at rank 1. In practice this
+is acceptable because:
+- Overvote/blank gating conditions are designed for plurality contests.
+- Preferential contests rely on DuplicatedRankPolicy and PreferenceGapsPolicy
+  for their gating logic.
 
 ### Interaction with pagination
 
