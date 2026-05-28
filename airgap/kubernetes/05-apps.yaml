@@ -38,7 +38,7 @@ spec:
       containers:
         - name: harvest
           image: gitea.gitea:3000/admin/harvest:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: step-env
@@ -67,7 +67,7 @@ spec:
       containers:
         - name: windmill
           image: gitea.gitea:3000/admin/windmill:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: step-env
@@ -96,9 +96,9 @@ spec:
       containers:
         - name: admin-portal
           image: gitea.gitea:3000/admin/admin-portal:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
-            - containerPort: 80
+            - containerPort: 8000
 ---
 apiVersion: v1
 kind: Service
