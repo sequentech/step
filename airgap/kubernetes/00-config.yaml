@@ -20,9 +20,15 @@ data:
   AWS_S3_ACCESS_SECRET: "password"
   AWS_S3_BUCKET: "election-event-documents"
   AWS_S3_PUBLIC_BUCKET: "public"
+  # Public facing Storage URL for Browser (via Ingress)
+  PUBLIC_BUCKET_URL: "http://portal.local/storage/public/"
   
   # Keycloak
+  # Internal URL for Backend-to-Backend
   KEYCLOAK_URL: "http://keycloak.step-infra.svc.cluster.local:8090"
+  # Public URL for Browser Redirects
+  KEYCLOAK_PUBLIC_URL: "http://keycloak.local"
+  
   KEYCLOAK_DB__USER: "postgres"
   KEYCLOAK_DB__PASSWORD: "password"
   KEYCLOAK_DB__HOST: "postgres.step-infra.svc.cluster.local"
@@ -30,7 +36,10 @@ data:
   KEYCLOAK_DB__DBNAME: "keycloak"
   
   # Hasura
+  # Public facing Hasura URL for Browser (via Ingress)
+  HASURA_URL: "http://portal.local/hasura/v1/graphql"
   HASURA_ENDPOINT: "http://hasura.step-apps.svc.cluster.local:8080/v1/graphql"
+  
   HASURA_DB__USER: "postgres"
   HASURA_DB__PASSWORD: "password"
   HASURA_DB__HOST: "postgres.step-infra.svc.cluster.local"
