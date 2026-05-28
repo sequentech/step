@@ -96,6 +96,7 @@
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
     channel = "stable";
+    version = "1.90.0";
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
