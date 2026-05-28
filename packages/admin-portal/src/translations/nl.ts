@@ -1731,6 +1731,7 @@ const dutchTranslation: TranslationType = {
                     eliminated: "Geëlimineerd",
                     round: "Ronde",
                 },
+                total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",

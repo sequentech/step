@@ -498,6 +498,7 @@ impl ExtendedMetricsContest {
         result.expected_votes += other.expected_votes;
         result.total_ballots += other.total_ballots;
         result.total_weight += other.total_weight;
+        result.total_declined_to_vote += other.total_declined_to_vote;
         result
     }
 }

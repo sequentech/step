@@ -1736,6 +1736,7 @@ const galegoTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Rolda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",

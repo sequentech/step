@@ -1722,6 +1722,7 @@ const englishTranslation = {
                     eliminated: "Eliminated",
                     round: "Round",
                 },
+                total_declined_to_vote: "Total Declined to Vote",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
