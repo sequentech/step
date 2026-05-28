@@ -6,6 +6,7 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
+  ingressClassName: traefik
   rules:
     - host: gitea.local
       http:
@@ -23,7 +24,10 @@ kind: Ingress
 metadata:
   name: infra-ingress
   namespace: step-infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
+  ingressClassName: traefik
   rules:
     - host: keycloak.local
       http:
@@ -41,7 +45,10 @@ kind: Ingress
 metadata:
   name: app-ingress
   namespace: step-apps
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
+  ingressClassName: traefik
   rules:
     - host: portal.local
       http:
