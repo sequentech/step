@@ -1443,6 +1443,7 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de Cancel·lar la Cerimònia de Claus. Després de realitzar aquesta acció, per tenir una Cerimònia de Claus exitosa hauràs de Crear una nova.",
                 },
                 header: {
+                    status: "Estat",
                     trusteeName: "Nom d'Autoritat",
                     fragment: "Fragment de Clau Generat",
                     downloaded: "Fragment Privat de Clau Descarregat",

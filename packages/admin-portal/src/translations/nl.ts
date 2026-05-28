@@ -1431,6 +1431,7 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt de Sleutelceremonie te annuleren. Na deze actie moet u een nieuwe aanmaken voor een succesvolle Sleutelceremonie.",
                 },
                 header: {
+                    status: "Status",
                     trusteeName: "Naam Trustee",
                     fragment: "Sleutelfragment Gegenereerd",
                     downloaded: "Privésleutelfragment Gedownload",

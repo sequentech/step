@@ -1434,6 +1434,7 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
                 },
                 header: {
+                    status: "Estado",
                     trusteeName: "Nombre de Autoridad",
                     fragment: "Fragmento de Clave Generado",
                     downloaded: "Fragmento Privado de Clave Descargado",

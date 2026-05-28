@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 
-import React, {useContext, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {styled} from "@mui/material/styles"
+import {fetchSessions, TrusteeSession} from "@/resources/ElectionEvent/b4Api"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
 import {
@@ -31,6 +34,16 @@ import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CancelButton} from "@/resources/Tally/styles"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+
+const StatusDot = styled("div")<{active: boolean}>`
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: ${({active}) => (active ? "#43E3A1" : "#FF4444")};
+    flex: none;
+    flex-grow: 0;
+    margin: 0 auto;
+`
 
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
@@ -69,8 +82,31 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
+    const authContext = useContext(AuthContext)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
+    const [trusteeSessions, setTrusteeSessions] = useState<TrusteeSession[]>([])
+
+    const boardName: string | undefined = (electionEvent as any)
+        ?.bulletin_board_reference?.database_name
+
+    useEffect(() => {
+        const b4Url = globalSettings.B4_URL
+        const heartbeatSecs = globalSettings.BRAID_B4_HEARTBEAT
+        const accessToken = authContext.accessToken
+        if (!boardName || !b4Url || !accessToken) return
+
+        const poll = async () => {
+            const data = await fetchSessions(b4Url, boardName, heartbeatSecs, accessToken)
+            if (data) {
+                setTrusteeSessions(data.sessions)
+            }
+        }
+
+        poll()
+        const interval = setInterval(poll, heartbeatSecs * 1000)
+        return () => clearInterval(interval)
+    }, [boardName, globalSettings.B4_URL, globalSettings.BRAID_B4_HEARTBEAT, authContext.accessToken])
 
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -135,7 +171,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                             <Table sx={{minWidth: 650}} aria-label="simple table">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>
+                                        <TableCell align="center">
+                                            {t("keysGeneration.ceremonyStep.header.status")}
+                                        </TableCell>
+                                        <TableCell align="center">
                                             {t("keysGeneration.ceremonyStep.header.trusteeName")}
                                         </TableCell>
                                         <TableCell align="center">
@@ -166,7 +205,17 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                     "&:last-child td, &:last-child th": {border: 0},
                                                 }}
                                             >
-                                                <TableCell component="th" scope="row">
+                                                <TableCell align="center">
+                                                    <StatusDot
+                                                        active={
+                                                            trusteeSessions.find(
+                                                                (s) =>
+                                                                    s.trustee_name === trustee.name
+                                                            )?.status === "ACTIVE"
+                                                        }
+                                                    />
+                                                </TableCell>
+                                                <TableCell align="center" component="th" scope="row">
                                                     {trustee.name}
                                                 </TableCell>
                                                 <TableCell align="center">

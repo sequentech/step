@@ -44,11 +44,9 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {useQuery} from "@apollo/client"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
-import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
-import {fetchSessions} from "./b4Api"
 
 const NotificationLink = styled("span")`
     text-decoration: underline;
@@ -129,32 +127,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
-
-    const boardName: string | undefined = (electionEvent as any)
-        ?.bulletin_board_reference?.database_name
-
-    useEffect(() => {
-        const b4Url = globalSettings.B4_URL
-        const heartbeatSecs = globalSettings.BRAID_B4_HEARTBEAT
-        const accessToken = authContext.accessToken
-        if (!boardName || !b4Url || !accessToken || isTrustee) return
-
-        const poll = async () => {
-            const data = await fetchSessions(b4Url, boardName, heartbeatSecs, accessToken)
-            if (data) {
-                // Print one console log per entry in the sessions array, which should be updated every heartbeatSecs seconds when the trustee is connected
-                data.sessions.forEach((session: any) => {
-                    console.log(
-                        `B4 Session - Board: ${boardName}, Trustee: ${session.trustee_name}, mode: ${session.trustee_mode}, status ${session.status}`
-                    )
-                })   
-            }
-        }
-
-        poll()
-        const interval = setInterval(poll, heartbeatSecs * 1000)
-        return () => clearInterval(interval)
-    }, [boardName, globalSettings.B4_URL, globalSettings.BRAID_B4_HEARTBEAT, authContext.accessToken])
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
