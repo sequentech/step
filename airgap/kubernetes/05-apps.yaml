@@ -162,8 +162,8 @@ spec:
           effect: "NoSchedule"
       containers:
         - name: hasura
-          image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-          imagePullPolicy: IfNotPresent
+          image: gitea.gitea:3000/admin/hasura:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           envFrom:

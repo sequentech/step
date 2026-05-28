@@ -36,6 +36,11 @@ jobs:
           docker build -f ./packages/Dockerfile.airgap --build-arg SPA_NAME=admin-portal -t gitea.gitea:3000/admin/admin-portal:latest ./packages
           docker push gitea.gitea:3000/admin/admin-portal:latest
 
+      - name: Build and Push Hasura
+        run: |
+          docker build -f ./hasura/Dockerfile -t gitea.gitea:3000/admin/hasura:latest ./hasura
+          docker push gitea.gitea:3000/admin/hasura:latest
+
       - name: Rollout Update
         run: |
-          kubectl rollout restart deployment/harvest deployment/windmill deployment/admin-portal -n step-apps
+          kubectl rollout restart deployment/harvest deployment/windmill deployment/admin-portal deployment/hasura -n step-apps
