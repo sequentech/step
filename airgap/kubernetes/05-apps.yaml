@@ -99,6 +99,12 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: step-env
+          env:
+            - name: KEYCLOAK_URL
+              value: "http://keycloak.local"
 ---
 apiVersion: v1
 kind: Service
