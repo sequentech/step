@@ -170,10 +170,14 @@ spec:
             - configMapRef:
                 name: step-env
           env:
+            - name: PG_DATABASE_URL
+              value: postgres://postgres:password@postgres.step-infra.svc.cluster.local:5432/hasura
             - name: HASURA_GRAPHQL_DATABASE_URL
               value: postgres://postgres:password@postgres.step-infra.svc.cluster.local:5432/hasura
             - name: HASURA_GRAPHQL_METADATA_DATABASE_URL
               value: postgres://postgres:password@postgres.step-infra.svc.cluster.local:5432/hasura
+            - name: HASURA_GRAPHQL_ADMIN_SECRET
+              value: "admin123"
             - name: HASURA_GRAPHQL_ENABLE_CONSOLE
               value: "true"
             - name: HASURA_GRAPHQL_DEV_MODE
