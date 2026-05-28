@@ -661,6 +661,13 @@ const englishTranslation = {
                     "do-not-generate": "Do Not Generate",
                 },
             },
+            declineToVotePolicy: {
+                label: "Decline to Vote Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
         },
         tenantScreen: {
             common: {

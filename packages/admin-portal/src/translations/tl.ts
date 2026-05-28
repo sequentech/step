@@ -662,6 +662,13 @@ const tagalogTranslation: TranslationType = {
                     "do-not-generate": "Huwag bumuo",
                 },
             },
+            declineToVotePolicy: {
+                label: "Patakaran sa pagtangging bumoto",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
         },
         tenantScreen: {
             common: {
