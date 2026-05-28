@@ -160,6 +160,14 @@ spec:
         - key: "node-role.kubernetes.io/master"
           operator: "Exists"
           effect: "NoSchedule"
+      initContainers:
+        - name: wait-for-keycloak
+          image: sequentech.local/runner-ubuntu:22.04
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - "until curl -s http://keycloak.step-infra.svc.cluster.local:8090/health >/dev/null; do echo waiting for keycloak; sleep 5; done"
       containers:
         - name: hasura
           image: gitea.gitea:3000/admin/hasura:latest
@@ -187,4 +195,4 @@ spec:
             - name: HASURA_GRAPHQL_DEV_MODE
               value: "true"
             - name: HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT
-              value: "60"
+              value: "90"
