@@ -96,10 +96,13 @@ async fn main() -> Result<()> {
     let trustee_password =
         std::env::var(ev::TRUSTEE_PSW).map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
 
-    let heartbeat_secs: i64 = std::env::var(ev::BRAID_B4_HEARTBEAT)
+    let heartbeat_secs: u64 = std::env::var(ev::BRAID_B4_HEARTBEAT)
         .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be set"))?
-        .parse()
-        .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be a valid integer"))?;
+        .parse::<u64>()
+        .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be a positive integer"))?;
+    if heartbeat_secs == 0 {
+        return Err(anyhow!("BRAID_B4_HEARTBEAT must be greater than 0"));
+    }
 
     let sender_pk = { StrandSignaturePk::from_sk(&sk)?.to_der_b64_string()? };
 
@@ -205,10 +208,15 @@ async fn main() -> Result<()> {
         }
 
         // Send heartbeat for every active session every heartbeat_secs iterations
-        if loop_count % heartbeat_secs == 0 {
+        if loop_count % heartbeat_secs as i64 == 0 {
             for board_name in session_map.keys() {
                 if let Err(e) = board_params
-                    .send_heartbeat(board_name, &sender_pk, &trustee_name, TrusteeModePolicy::SERVER_BASED)
+                    .send_heartbeat(
+                        board_name,
+                        &sender_pk,
+                        &trustee_name,
+                        TrusteeModePolicy::SERVER_BASED,
+                    )
                     .await
                 {
                     tracing::warn!("Heartbeat failed for board '{board_name}': {e}");

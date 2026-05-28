@@ -101,9 +101,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 
         const poll = async () => {
             const data = await fetchSessions(b4Url, boardName, heartbeatSecs, accessToken)
-            if (data) {
-                setTrusteeSessions(data.sessions)
-            }
+            setTrusteeSessions(data?.sessions ?? [])
         }
 
         poll()
@@ -294,7 +292,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.NextButton
                             color="info"
                             onClick={goNext}
-                            disabled={isNextDisabled && !status.public_key}
+                            disabled={isNextDisabled}
                         >
                             <ArrowForwardIosIcon />
                             {t("common.label.next")}

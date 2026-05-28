@@ -4,11 +4,8 @@
 
 import {useContext, useEffect, useRef, useState, useCallback} from "react"
 import {useInterval} from "react-use"
-import {useQuery} from "@apollo/client"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
-import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 import init, {initThreadPool, WasmSession} from "braid-wasm"
@@ -44,13 +41,12 @@ export const ensureWasmReady = (): Promise<void> => {
 export interface UseHeadlessTrusteeProps {
     electionEvent?: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony
-    isAutomaticCeremony: boolean
-    isTrusteeParticipating: boolean
+    trusteeRecord: any
 }
 
 /**
  * Silently runs the braid WASM trustee protocol in the background for
- * browser-based trustees when an automatic keys ceremony is in progress.
+ * browser-based trustees when manual keys ceremony is in progress.
  * Mirrors the manual steps a user would take in TrusteeDashboard:
  *   1. Load WASM + thread pool
  *   2. Initialize WasmSession with trustee config
@@ -61,10 +57,9 @@ export interface UseHeadlessTrusteeProps {
 export const useHeadlessTrustee = ({
     electionEvent,
     currentCeremony,
-    isAutomaticCeremony,
-    isTrusteeParticipating,
+    trusteeRecord,
 }: UseHeadlessTrusteeProps) => {
-    const {accessToken, trustee: trusteeName, tenantId} = useContext(AuthContext)
+    const {accessToken, trustee: trusteeName} = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
 
     const sessionRef = useRef<WasmSession | null>(null)
@@ -73,20 +68,6 @@ export const useHeadlessTrustee = ({
     const loadingRef = useRef(false)
     const lastHeartbeatRef = useRef<number>(0)
     const [running, setRunning] = useState(false)
-
-    // Only query for trustee config when needed
-    const shouldFetch =
-        !isAutomaticCeremony && isTrusteeParticipating && !!trusteeName && !!tenantId
-
-    const {data: trusteeData} = useQuery(GET_TRUSTEE_CONFIG, {
-        variables: {tenantId, name: trusteeName},
-        skip: !shouldFetch,
-    })
-
-    const trusteeRecord = trusteeData?.sequent_backend_trustee?.[0]
-    const annotations = trusteeRecord?.annotations ?? {}
-    const trusteeModePolicy = annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()
-    const isBrowserBased = trusteeModePolicy === ETrusteeModePolicy.BROWSER_BASED
 
     // Board name is stored in the election event's bulletin board reference
     const boardName: string | undefined = electionEvent?.bulletin_board_reference?.database_name
@@ -124,10 +105,6 @@ export const useHeadlessTrustee = ({
 
     // Step 1-4: Initialize WASM and connect to board once config is available
     useEffect(() => {
-        console.info(
-            `[headless-trustee] init effect: isAutomaticCeremony=${isAutomaticCeremony}, isTrusteeParticipating=${isTrusteeParticipating}, isBrowserBased=${isBrowserBased}, trusteeRecord=${!!trusteeRecord}, boardName=${boardName}, accessToken=${!!accessToken}, initialized=${initializedRef.current}`
-        )
-        if (isAutomaticCeremony || !isTrusteeParticipating || !isBrowserBased) return
         if (!trusteeRecord || !boardName) return
         if (!accessToken || !trusteeName) return
         if (initializedRef.current) return
@@ -173,9 +150,6 @@ export const useHeadlessTrustee = ({
 
         initialize()
     }, [
-        isAutomaticCeremony,
-        isTrusteeParticipating,
-        isBrowserBased,
         boardName,
         accessToken,
         trusteeName,

@@ -27,17 +27,6 @@ impl PermissionSet for TrusteeCeremony {
     }
 }
 
-/// Permission set requiring ADMIN_CEREMONY.
-///
-/// Use this for B4 handlers called by the admin portal.
-pub struct AdminCeremony;
-
-impl PermissionSet for AdminCeremony {
-    fn required_permissions() -> &'static [Permissions] {
-        &[Permissions::ADMIN_CEREMONY]
-    }
-}
-
 /// Constraint validator for board access in B4.
 ///
 /// Checks that browser trustees can only access boards listed in their
@@ -60,10 +49,7 @@ impl ValidateConstraints for BoardAccessValidator {
         match board_name {
             Some(board) => {
                 let Some(authorized_boards) = &claims.hasura_claims.authorized_boards else {
-                    tracing::warn!(
-                        "No authorized_boards in claims for user {}",
-                        claims.sub
-                    );
+                    tracing::warn!("No authorized_boards in claims for user {}", claims.sub);
                     return false;
                 };
 

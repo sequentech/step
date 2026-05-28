@@ -17,16 +17,13 @@ import {
     useRecordContext,
     DateField,
     Identifier,
-    ReferenceArrayField,
-    SingleFieldList,
-    ChipField,
     FunctionField,
     RaRecord,
 } from "react-admin"
 import {Button, Typography, Chip, Alert, Box} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
-import {TrusteeWizard, isTrusteeParticipating} from "@/components/keys-ceremony/TrusteeWizard"
+import {TrusteeWizard, isTrusteeActionablePhase} from "@/components/keys-ceremony/TrusteeWizard"
 import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -97,7 +94,7 @@ const getActiveCeremony = (
     if (!keyCeremonies) {
         return
     } else {
-        return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
+        return keyCeremonies.find((ceremony) => isTrusteeActionablePhase(ceremony, authContext))
     }
 }
 

@@ -9,21 +9,19 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
 };
-use crate::auth::{
-    AdminCeremony, BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony,
-};
+use crate::auth::{BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
 use sequent_core::types::ceremonies::{
-    HeartbeatRequest, SessionsListResponse, TrusteeSessionResponse, TrusteeSessionStatus,
-    TrusteeModePolicy,
+    HeartbeatRequest, SessionsListResponse, TrusteeModePolicy, TrusteeSessionResponse,
+    TrusteeSessionStatus,
 };
 use sequent_core::types::env_vars as ev;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{db, s3, state::AppState};
@@ -930,10 +928,9 @@ pub async fn post_heartbeat(
     Ok(StatusCode::OK)
 }
 
-#[tracing::instrument(skip(state, claims), err)]
+#[tracing::instrument(skip(state), err)]
 pub async fn get_sessions(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<AdminCeremony>,
     Query(params): Query<GetSessionsQuery>,
 ) -> Result<Json<SessionsListResponse>, StatusCode> {
     let heartbeat_secs = params

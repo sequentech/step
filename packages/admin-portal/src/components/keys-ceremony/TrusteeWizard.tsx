@@ -18,8 +18,15 @@ import {useTranslation} from "react-i18next"
 import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
-import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
-import {useHeadlessTrustee} from "@/hooks/useHeadlessTrustee"
+import {EElectionEventCeremoniesPolicy, ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
+import {useHeadlessTrustee, UseHeadlessTrusteeProps} from "@/hooks/useHeadlessTrustee"
+import {useQuery} from "@apollo/client"
+import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
+
+const HeadlessTrusteeRunner: React.FC<UseHeadlessTrusteeProps> = (props) => {
+    useHeadlessTrustee(props)
+    return null
+}
 
 /**
  * Returns true when the currently logged-in trustee user is expected to act
@@ -36,7 +43,7 @@ import {useHeadlessTrustee} from "@/hooks/useHeadlessTrustee"
  * flow and, in automatic ceremonies, whether to start the headless WASM
  * trustee protocol runner.
  */
-export const isTrusteeParticipating = (
+export const isTrusteeActionablePhase = (
     ceremony: Sequent_Backend_Keys_Ceremony,
     authContext: AuthContextValues
 ) => {
@@ -82,8 +89,12 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
-    const trusteeParticipating =
-        currentCeremony && isTrusteeParticipating(currentCeremony, authContext)
+    // Log trusteeParticipating condition for debugging
+    console.info(
+        `[TrusteeWizard] Checking trustee participation: currentCeremony.execution_status=${currentCeremony.execution_status}, authContext.trustee=${authContext.trustee}, isParticipating=${isTrusteeActionablePhase(currentCeremony, authContext)}`
+     )
+    const trusteeIsInActionablePhase =
+        currentCeremony && isTrusteeActionablePhase(currentCeremony, authContext)
     const trusteeCheckedKeys = hasTrusteeCheckedKeys(currentCeremony, authContext)
     const status: IExecutionStatus = currentCeremony.status
     const keysGenerated =
@@ -93,12 +104,12 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
 
     const calculateCurrentStep: () => WizardStep = () => {
         // If trustee is not participating, show status step
-        if (!trusteeParticipating) {
+        if (!trusteeIsInActionablePhase) {
             return WizardStep.Status
             // If trustee is participating but is not started, show status step
         } else if (currentCeremony.execution_status === EStatus.USER_CONFIGURATION) {
             return WizardStep.Status
-            // If trustee is participating but is not started, show status step
+            // If trustee is participating but cancelled or succeeded, show success step (with status)
         } else if (
             currentCeremony.execution_status === EStatus.CANCELLED ||
             currentCeremony.execution_status === EStatus.SUCCESS
@@ -118,17 +129,17 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const [currentStep, setCurrentStep] = useState<WizardStep>(calculateCurrentStep())
 
     useEffect(() => {
-        if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
+        if (!trusteeCheckedKeys && trusteeIsInActionablePhase && keysGenerated) {
             setCurrentStep(WizardStep.Start)
         } else if (!keysGenerated) {
             setCurrentStep(WizardStep.Not_Generated)
         } else {
             setCurrentStep(WizardStep.Status)
         }
-    }, [trusteeCheckedKeys, trusteeParticipating, keysGenerated])
+    }, [trusteeCheckedKeys, trusteeIsInActionablePhase, keysGenerated])
 
-    const checkKeysGenerated = () => {
-        return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
+    const isWaitingForKeyGeneration = () => {
+        return !trusteeCheckedKeys && trusteeIsInActionablePhase && !keysGenerated
     }
 
     // Computed before the early return so hooks below are always called unconditionally
@@ -137,23 +148,38 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    // Silently run the braid protocol for browser-based trustees
-    useHeadlessTrustee({
-        electionEvent,
-        currentCeremony,
-        isAutomaticCeremony,
-        isTrusteeParticipating: !!trusteeParticipating,
+    const trusteeName = authContext.trustee
+    const tenantId = authContext.tenantId
+
+    const {data: trusteeData} = useQuery(GET_TRUSTEE_CONFIG, {
+        variables: {tenantId, name: trusteeName},
+        skip: !trusteeIsInActionablePhase || isAutomaticCeremony || !trusteeName || !tenantId,
     })
+    const trusteeRecord = trusteeData?.sequent_backend_trustee?.[0]
+    const isBrowserBased =
+        (trusteeRecord?.annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()) ===
+        ETrusteeModePolicy.BROWSER_BASED
 
     if (!electionEvent) {
         return <CircularProgress />
     }
-
+    // Log HeadlessTrusteeRunner conditions, and currentCeremony.execution_status for debugging
+    console.info(
+        `[TrusteeWizard] Rendering with conditions: isAutomaticCeremony=${isAutomaticCeremony}, trusteeParticipating=${trusteeIsInActionablePhase}, isBrowserBased=${isBrowserBased}, trusteeRecord=${!!trusteeRecord}, currentCeremony.execution_status=${currentCeremony.execution_status}`
+    )
     return (
         <WizardStyles.WizardWrapper>
+            {/* Silently run the braid protocol for browser-based trustees */}
+            {!!trusteeIsInActionablePhase && !isAutomaticCeremony && isBrowserBased && !!trusteeRecord && (
+                <HeadlessTrusteeRunner
+                    electionEvent={electionEvent}
+                    currentCeremony={currentCeremony}
+                    trusteeRecord={trusteeRecord}
+                />
+            )}
             <BreadCrumbSteps
                 labels={
-                    trusteeParticipating
+                    trusteeIsInActionablePhase
                         ? [
                               "electionEventScreen.keys.breadCrumbs.start",
                               "electionEventScreen.keys.breadCrumbs.download",
@@ -204,9 +230,9 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
-                    isNextDisabled={checkKeysGenerated() || isAutomaticCeremony}
+                    isNextDisabled={isWaitingForKeyGeneration() || isAutomaticCeremony || currentCeremony.execution_status === EStatus.SUCCESS || currentCeremony.execution_status === EStatus.CANCELLED}
                     message={
-                        checkKeysGenerated() ? (
+                        isWaitingForKeyGeneration() ? (
                             <>
                                 <Alert severity="warning">
                                     {t("electionEventScreen.keys.waitingKeys")}
