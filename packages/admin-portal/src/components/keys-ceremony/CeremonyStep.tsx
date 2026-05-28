@@ -218,15 +218,15 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                                 trusteeNames?.find(
                                                                     (t) => t.name === trustee.name
                                                                 )?.annotations
-                                                                    ?.trustee_mode_policy ??
-                                                                ETrusteeModePolicy.BROWSER_BASED
+                                                                    ?.trustee_mode_policy
                                                             return (
                                                                 trusteeSessions.find(
                                                                     (s) =>
                                                                         s.trustee_name ===
                                                                             trustee.name &&
-                                                                        s.trustee_mode ===
-                                                                            configuredMode
+                                                                        (!configuredMode ||
+                                                                            s.trustee_mode ===
+                                                                                configuredMode)
                                                                 )?.status === "ACTIVE"
                                                             )
                                                         })()}

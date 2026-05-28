@@ -18,13 +18,14 @@ import {useTranslation} from "react-i18next"
 import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
-import {EElectionEventCeremoniesPolicy, ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
-import {useHeadlessTrustee, UseHeadlessTrusteeProps} from "@/hooks/useHeadlessTrustee"
-import {useQuery} from "@apollo/client"
-import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {useHeadlessTrustee} from "@/hooks/useHeadlessTrustee"
+import {HeadlessTrusteeContext} from "@/providers/HeadlessTrusteeProvider"
 
-const HeadlessTrusteeRunner: React.FC<UseHeadlessTrusteeProps> = (props) => {
-    useHeadlessTrustee(props)
+const HeadlessTrusteeRunner: React.FC<{currentCeremony: Sequent_Backend_Keys_Ceremony}> = ({
+    currentCeremony,
+}) => {
+    useHeadlessTrustee({currentCeremony})
     return null
 }
 
@@ -70,6 +71,7 @@ interface TrusteeWizardProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony
     setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     goBack: () => void
+    trusteeNames?: Array<{id?: string; name?: string | null; annotations?: any}>
 }
 
 enum WizardStep {
@@ -86,6 +88,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     currentCeremony,
     setCurrentCeremony,
     goBack,
+    trusteeNames,
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -148,34 +151,16 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    const trusteeName = authContext.trustee
-    const tenantId = authContext.tenantId
-
-    const {data: trusteeData} = useQuery(GET_TRUSTEE_CONFIG, {
-        variables: {tenantId, name: trusteeName},
-        skip: !trusteeIsInActionablePhase || isAutomaticCeremony || !trusteeName || !tenantId,
-    })
-    const trusteeRecord = trusteeData?.sequent_backend_trustee?.[0]
-    const isBrowserBased =
-        (trusteeRecord?.annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()) ===
-        ETrusteeModePolicy.BROWSER_BASED
+    const {isConnected} = useContext(HeadlessTrusteeContext)
 
     if (!electionEvent) {
         return <CircularProgress />
     }
-    // Log HeadlessTrusteeRunner conditions, and currentCeremony.execution_status for debugging
-    console.info(
-        `[TrusteeWizard] Rendering with conditions: isAutomaticCeremony=${isAutomaticCeremony}, trusteeParticipating=${trusteeIsInActionablePhase}, isBrowserBased=${isBrowserBased}, trusteeRecord=${!!trusteeRecord}, currentCeremony.execution_status=${currentCeremony.execution_status}`
-    )
     return (
         <WizardStyles.WizardWrapper>
-            {/* Silently run the braid protocol for browser-based trustees */}
-            {!!trusteeIsInActionablePhase && !isAutomaticCeremony && isBrowserBased && !!trusteeRecord && (
-                <HeadlessTrusteeRunner
-                    electionEvent={electionEvent}
-                    currentCeremony={currentCeremony}
-                    trusteeRecord={trusteeRecord}
-                />
+            {/* Silently run the braid protocol — session provided by HeadlessTrusteeProvider */}
+            {!!trusteeIsInActionablePhase && !isAutomaticCeremony && isConnected && (
+                <HeadlessTrusteeRunner currentCeremony={currentCeremony} />
             )}
             <BreadCrumbSteps
                 labels={
@@ -217,6 +202,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     currentCeremonyId={currentCeremony?.id}
                     electionEvent={electionEvent}
                     goBack={goBack}
+                    trusteeNames={trusteeNames}
                 />
             )}
             {(currentStep === WizardStep.Status || currentStep === WizardStep.Not_Generated) && (
@@ -225,6 +211,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
+                    trusteeNames={trusteeNames}
                     goNext={
                         currentStep === WizardStep.Not_Generated
                             ? () => setCurrentStep(WizardStep.Start)

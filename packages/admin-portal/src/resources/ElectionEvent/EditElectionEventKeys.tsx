@@ -44,6 +44,7 @@ import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
+import {HeadlessTrusteeProvider} from "@/providers/HeadlessTrusteeProvider"
 
 const NotificationLink = styled("span")`
     text-decoration: underline;
@@ -124,6 +125,8 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
+    const boardName: string | undefined = (electionEvent as any)
+        ?.bulletin_board_reference?.database_name
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
@@ -250,7 +253,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     ]
 
     return (
-        <>
+        <HeadlessTrusteeProvider boardName={isTrustee ? boardName : undefined}>
             {/* Show the notification if the conditions are met */}
             {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">
@@ -288,6 +291,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
+                    trusteeNames={trusteeNames?.sequent_backend_trustee}
                 />
             )}
             {/* Show the keys ceremony table list */}
@@ -371,6 +375,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     </DatagridConfigurable>
                 </List>
             )}
-        </>
+        </HeadlessTrusteeProvider>
     )
 }
