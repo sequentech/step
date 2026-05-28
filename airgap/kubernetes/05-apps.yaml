@@ -118,15 +118,6 @@ spec:
     - port: 80
       targetPort: 8000
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: rustfs
-  namespace: step-apps
-spec:
-  type: ExternalName
-  externalName: rustfs.step-infra.svc.cluster.local
----
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -136,7 +127,6 @@ spec:
   stripPrefix:
     prefixes:
       - /hasura
-      - /storage
 ---
 apiVersion: v1
 kind: Service

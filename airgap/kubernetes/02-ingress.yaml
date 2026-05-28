@@ -40,6 +40,38 @@ spec:
                 port:
                   number: 8090
 ---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: storage-strip-prefix
+  namespace: step-infra
+spec:
+  stripPrefix:
+    prefixes:
+      - /storage
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: storage-ingress
+  namespace: step-infra
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: step-infra-storage-strip-prefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: portal.local
+      http:
+        paths:
+          - path: /storage
+            pathType: Prefix
+            backend:
+              service:
+                name: rustfs
+                port:
+                  number: 9000
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -47,12 +79,20 @@ metadata:
   namespace: step-apps
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: step-apps-strip-prefix@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
     - host: portal.local
       http:
         paths:
+          - path: /hasura
+            pathType: Prefix
+            backend:
+              service:
+                name: hasura
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:
