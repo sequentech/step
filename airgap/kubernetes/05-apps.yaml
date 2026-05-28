@@ -103,6 +103,18 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: admin-portal
+  namespace: step-apps
+spec:
+  selector:
+    app: admin-portal
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: hasura
   namespace: step-apps
 spec:
