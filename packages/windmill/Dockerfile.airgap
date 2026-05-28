@@ -26,4 +26,4 @@ ENV RUSTFLAGS="--cfg rustix_use_libc"
 
 RUN cargo build
 
-CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue" ]
+CMD ["/app/target/debug/main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue" ]

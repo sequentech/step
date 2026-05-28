@@ -23,4 +23,4 @@ RUN rustup default stable
 
 RUN cargo build
 
-CMD ["cargo", "run"]
+CMD ["/app/target/debug/harvest"]
