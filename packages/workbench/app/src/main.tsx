@@ -133,7 +133,8 @@ const router = createBrowserRouter([
     },
 ])
 
-// Dark theme: set global defaults on the document body.
+// Dark theme: set global defaults on the document body. The booth
+// routes reset these via BoothLayout's wrapper div (see BoothSpike.tsx).
 document.body.style.backgroundColor = "#1e1e1e"
 document.body.style.color = "#e0e0e0"
 

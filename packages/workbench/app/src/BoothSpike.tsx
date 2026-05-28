@@ -161,7 +161,12 @@ export function BoothLayout() {
             <SettingsWrapper>
                 <ApolloProvider client={apolloClient}>
                     <WasmWrapper>
-                        <Outlet />
+                        {/* Reset inherited dark-theme body styles so the
+                            voting-portal renders with its production
+                            appearance (light theme, dark text). */}
+                        <div style={{backgroundColor: "#fff", color: "#000", minHeight: "100vh", paddingTop: 12}}>
+                            <Outlet />
+                        </div>
                     </WasmWrapper>
                 </ApolloProvider>
             </SettingsWrapper>
