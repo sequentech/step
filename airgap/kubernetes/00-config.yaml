@@ -39,6 +39,8 @@ data:
   # Public facing Hasura URL for Browser (via Ingress)
   HASURA_URL: "http://portal.local/hasura/v1/graphql"
   HASURA_ENDPOINT: "http://hasura.step-apps.svc.cluster.local:8080/v1/graphql"
+  HARVEST_DOMAIN: "harvest.step-apps.svc.cluster.local"
+  ACTIONS_ADMIN_SECRET: "admin123"
   
   HASURA_DB__USER: "postgres"
   HASURA_DB__PASSWORD: "password"
