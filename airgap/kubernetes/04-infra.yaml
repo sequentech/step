@@ -177,6 +177,7 @@ spec:
     app: keycloak
   ports:
     - port: 8090
+      targetPort: 8090
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -203,6 +204,8 @@ spec:
           imagePullPolicy: Never
           args: ["start-dev", "--import-realm"]
           env:
+            - name: KC_HTTP_PORT
+              value: "8090"
             - name: KC_DB
               value: postgres
             - name: KC_DB_URL
