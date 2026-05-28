@@ -12,12 +12,18 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 import {CircularProgress} from "@mui/material"
 
+interface TrusteeNameEntry {
+    id?: string
+    name?: string | null
+    annotations?: any
+}
+
 interface AdminWizardProps {
     electionEvent?: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
-
     goBack: () => void
+    trusteeNames?: TrusteeNameEntry[]
 }
 
 export const AdminWizard: React.FC<AdminWizardProps> = ({
@@ -25,6 +31,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
     currentCeremony,
     setCurrentCeremony,
     goBack,
+    trusteeNames,
 }) => {
     const calculateCurrentStep: () => number = useCallback(() => {
         if (!currentCeremony) {
@@ -86,6 +93,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
                     electionEvent={electionEvent}
                     goBack={goBack}
                     setCurrentCeremony={isAutomaticPolicy ? setCurrentCeremony : undefined}
+                    trusteeNames={trusteeNames}
                 />
             )}
         </WizardStyles.WizardWrapper>

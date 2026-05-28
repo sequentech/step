@@ -281,6 +281,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
+                    trusteeNames={trusteeNames?.sequent_backend_trustee}
                 />
             )}
             {/* Show the trustees keys ceremony steps if the conditions are met */}

@@ -7,6 +7,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import {fetchSessions, TrusteeSession} from "@/resources/ElectionEvent/b4Api"
+import {ETrusteeModePolicy} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
 
 import {theme, Dialog} from "@sequentech/ui-essentials"
@@ -69,6 +70,7 @@ export interface CeremonyStepProps {
     goNext?: () => void
     isNextDisabled?: boolean
     goBack: () => void
+    trusteeNames?: Array<{id?: string; name?: string | null; annotations?: any}>
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
@@ -79,6 +81,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
     isNextDisabled = false,
+    trusteeNames,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -87,8 +90,8 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const [progressExpanded, setProgressExpanded] = useState(true)
     const [trusteeSessions, setTrusteeSessions] = useState<TrusteeSession[]>([])
 
-    const boardName: string | undefined = (electionEvent as any)
-        ?.bulletin_board_reference?.database_name
+    const boardName: string | undefined = (electionEvent as any)?.bulletin_board_reference
+        ?.database_name
 
     useEffect(() => {
         const b4Url = globalSettings.B4_URL
@@ -106,7 +109,12 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
         poll()
         const interval = setInterval(poll, heartbeatSecs * 1000)
         return () => clearInterval(interval)
-    }, [boardName, globalSettings.B4_URL, globalSettings.BRAID_B4_HEARTBEAT, authContext.accessToken])
+    }, [
+        boardName,
+        globalSettings.B4_URL,
+        globalSettings.BRAID_B4_HEARTBEAT,
+        authContext.accessToken,
+    ])
 
     const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -207,15 +215,30 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                             >
                                                 <TableCell align="center">
                                                     <StatusDot
-                                                        active={
-                                                            trusteeSessions.find(
-                                                                (s) =>
-                                                                    s.trustee_name === trustee.name
-                                                            )?.status === "ACTIVE"
-                                                        }
+                                                        active={(() => {
+                                                            const configuredMode =
+                                                                trusteeNames?.find(
+                                                                    (t) => t.name === trustee.name
+                                                                )?.annotations
+                                                                    ?.trustee_mode_policy ??
+                                                                ETrusteeModePolicy.BROWSER_BASED
+                                                            return (
+                                                                trusteeSessions.find(
+                                                                    (s) =>
+                                                                        s.trustee_name ===
+                                                                            trustee.name &&
+                                                                        s.trustee_mode ===
+                                                                            configuredMode
+                                                                )?.status === "ACTIVE"
+                                                            )
+                                                        })()}
                                                     />
                                                 </TableCell>
-                                                <TableCell align="center" component="th" scope="row">
+                                                <TableCell
+                                                    align="center"
+                                                    component="th"
+                                                    scope="row"
+                                                >
                                                     {trustee.name}
                                                 </TableCell>
                                                 <TableCell align="center">

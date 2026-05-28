@@ -11,7 +11,16 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable, WrapperField, FunctionField} from "react-admin"
+import {
+    List,
+    TextField,
+    TextInput,
+    useDelete,
+    Identifier,
+    DatagridConfigurable,
+    WrapperField,
+    FunctionField,
+} from "react-admin"
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -225,7 +234,8 @@ export const SettingsTrustees: React.FC<void> = () => {
                     <FunctionField
                         label={String(t("trusteesSettingsScreen.trusteeModePolicy.label"))}
                         render={(record: any) =>
-                            record?.annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()
+                            record?.annotations?.trustee_mode_policy ??
+                            getDefaultTrusteeModePolicy()
                         }
                     />
                     <TextField source="public_key" />

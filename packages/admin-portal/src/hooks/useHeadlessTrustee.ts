@@ -27,7 +27,10 @@ export const ensureWasmReady = (): Promise<void> => {
                 await initThreadPool(navigator.hardwareConcurrency || 4)
                 console.info("[useHeadlessTrustee] WASM initialized with thread pool")
             } catch (threadErr) {
-                console.warn("[useHeadlessTrustee] Thread pool init failed, running single-threaded:", threadErr)
+                console.warn(
+                    "[useHeadlessTrustee] Thread pool init failed, running single-threaded:",
+                    threadErr
+                )
             }
             wasmReady = true
         } catch (e) {
@@ -72,7 +75,8 @@ export const useHeadlessTrustee = ({
     const [running, setRunning] = useState(false)
 
     // Only query for trustee config when needed
-    const shouldFetch = !isAutomaticCeremony && isTrusteeParticipating && !!trusteeName && !!tenantId
+    const shouldFetch =
+        !isAutomaticCeremony && isTrusteeParticipating && !!trusteeName && !!tenantId
 
     const {data: trusteeData} = useQuery(GET_TRUSTEE_CONFIG, {
         variables: {tenantId, name: trusteeName},
@@ -95,7 +99,8 @@ export const useHeadlessTrustee = ({
 
     const step = useCallback(async () => {
         console.info("[headless-trustee] Running protocol step...")
-        console.info(`[headless-trustee] Current session state: sessionRef=${sessionRef.current}, loading=${loadingRef.current}`
+        console.info(
+            `[headless-trustee] Current session state: sessionRef=${sessionRef.current}, loading=${loadingRef.current}`
         )
         if (!sessionRef.current || loadingRef.current) return
         loadingRef.current = true
@@ -119,9 +124,11 @@ export const useHeadlessTrustee = ({
 
     // Step 1-4: Initialize WASM and connect to board once config is available
     useEffect(() => {
-        console.info(`[headless-trustee] init effect: isAutomaticCeremony=${isAutomaticCeremony}, isTrusteeParticipating=${isTrusteeParticipating}, isBrowserBased=${isBrowserBased}, trusteeRecord=${!!trusteeRecord}, boardName=${boardName}, accessToken=${!!accessToken}, initialized=${initializedRef.current}`)
+        console.info(
+            `[headless-trustee] init effect: isAutomaticCeremony=${isAutomaticCeremony}, isTrusteeParticipating=${isTrusteeParticipating}, isBrowserBased=${isBrowserBased}, trusteeRecord=${!!trusteeRecord}, boardName=${boardName}, accessToken=${!!accessToken}, initialized=${initializedRef.current}`
+        )
         if (isAutomaticCeremony || !isTrusteeParticipating || !isBrowserBased) return
-        if (! trusteeRecord || !boardName) return
+        if (!trusteeRecord || !boardName) return
         if (!accessToken || !trusteeName) return
         if (initializedRef.current) return
 
@@ -139,7 +146,8 @@ export const useHeadlessTrustee = ({
                 // Step 2: Create WasmSession with trustee config
                 const config = {
                     name: trusteeName,
-                    signing_key_sk: "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat",
+                    signing_key_sk:
+                        "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat",
                     signing_key_pk: trusteeRecord?.public_key ?? "",
                     encryption_key: "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg",
                     b4_url: globalSettings.B4_URL,
