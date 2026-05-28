@@ -206,6 +206,10 @@ spec:
           env:
             - name: KC_HTTP_PORT
               value: "8090"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+            - name: KC_HOSTNAME_STRICT_HTTPS
+              value: "false"
             - name: KC_DB
               value: postgres
             - name: KC_DB_URL
