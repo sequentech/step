@@ -216,6 +216,14 @@ spec:
               value: "password"
           ports:
             - containerPort: 8090
+          volumeMounts:
+            - name: realm-import
+              mountPath: /opt/keycloak/data/import/step-realm.json
+              subPath: step-realm.json
+      volumes:
+        - name: realm-import
+          configMap:
+            name: keycloak-realm
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
