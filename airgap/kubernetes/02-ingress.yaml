@@ -79,7 +79,7 @@ metadata:
   namespace: step-apps
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: step-apps-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: step-apps-permissive-cors@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
