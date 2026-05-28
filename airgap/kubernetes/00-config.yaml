@@ -18,3 +18,4 @@ data:
   AWS_S3_ACCESS_SECRET: "password"
   AWS_REGION: "us-east-1"
   LOG_LEVEL: "info"
+  ENV_SLUG: "step"
