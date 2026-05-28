@@ -44,7 +44,11 @@ import {
     type TallyResultsViewModel,
 } from "@sequentech/ui-essentials"
 
-import {runTally} from "./tally"
+import {
+    decodeBigIntToDecodedVoteContest,
+    encodeBallot,
+    runTally,
+} from "./tally"
 import {adaptVelvetContestResult} from "./lib/velvetTallyAdapter"
 import {
     applyPolicyOverlayToContest,
@@ -155,7 +159,25 @@ export function TallyPage(): React.ReactElement {
                 effective === baseContest
                     ? contestJson
                     : JSON.stringify(effective)
-            const result = await runTally(effectiveJson, ballots)
+            // Re-validate: encode each decoded ballot back to a
+            // BigInt then re-decode with the effective contest so
+            // that all validation checkers (blank, over-vote,
+            // under-vote, etc.) re-run under the current policy
+            // overlay. This mirrors production, where decode happens
+            // at tally time with the authoritative contest config.
+            const revalidated = await Promise.all(
+                ballots.map(async (ballotJson) => {
+                    const bigint = await encodeBallot(
+                        effectiveJson,
+                        ballotJson
+                    )
+                    return decodeBigIntToDecodedVoteContest(
+                        effectiveJson,
+                        bigint
+                    )
+                })
+            )
+            const result = await runTally(effectiveJson, revalidated)
             const pretty = JSON.stringify(result, null, 2)
             setOutputJson(pretty)
             const next = adaptVelvetContestResult(result, contestName)

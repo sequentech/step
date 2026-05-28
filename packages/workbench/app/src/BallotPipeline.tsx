@@ -12,6 +12,10 @@ import {
     generateKeypair,
 } from "./tally"
 import {useWorkbench} from "./workbenchStore"
+import {
+    applyPolicyOverlayToContest,
+    usePolicyOverrides,
+} from "./policyOverridesStore"
 
 // BallotPipeline — N-ballot playground that walks each selection
 // through every transformation a ballot undergoes on its way to the
@@ -145,6 +149,36 @@ export function BallotPipeline() {
     const [contestJson, setContestJson] = useState<string>(
         seed?.contestJson ?? ""
     )
+
+    // Derive contest id for overlay lookup.
+    const contestId = useMemo(() => {
+        try {
+            const p = JSON.parse(contestJson) as {id?: unknown}
+            return typeof p.id === "string" ? p.id : undefined
+        } catch {
+            return undefined
+        }
+    }, [contestJson])
+    const contestOverlay = usePolicyOverrides((m) =>
+        contestId ? m[contestId] : undefined
+    )
+
+    // Policy-overlay-applied contest JSON. All pipeline stages use
+    // this so encode/decode see the current overrides (e.g.
+    // blank_vote_policy: NOT_ALLOWED) — same as production tally.
+    const effectiveContestJson = useMemo(() => {
+        if (!contestOverlay) return contestJson
+        try {
+            const base = JSON.parse(contestJson) as Record<string, unknown>
+            const merged = applyPolicyOverlayToContest(base, contestOverlay)
+            return merged === base
+                ? contestJson
+                : JSON.stringify(merged)
+        } catch {
+            return contestJson
+        }
+    }, [contestJson, contestOverlay])
+
     const [pkB64, setPkB64] = useState<string>(
         seed?.pkB64 ?? storeKeypair?.pkB64 ?? ""
     )
@@ -239,7 +273,7 @@ export function BallotPipeline() {
             }))
             try {
                 const next = await executeStage(stage, row, {
-                    contestJson,
+                    contestJson: effectiveContestJson,
                     pkB64,
                     skB64,
                 })
@@ -269,7 +303,7 @@ export function BallotPipeline() {
                 expandKeys([expansionKey(rowId, STAGE_FLOW[stage].source)])
             }
         },
-        [rows, contestJson, pkB64, skB64, patchRow, expandKeys]
+        [rows, effectiveContestJson, pkB64, skB64, patchRow, expandKeys]
     )
 
     // Seeded rows arrive with `plaintextJson`, `encryptedJson` and
@@ -401,11 +435,11 @@ export function BallotPipeline() {
         })()
         const seed = {
             contestName,
-            contestJson,
+            contestJson: effectiveContestJson,
             decodedBallots,
         }
         navigate("/tally", {state: seed})
-    }, [contestJson, collectDecodedBallots, navigate])
+    }, [effectiveContestJson, collectDecodedBallots, navigate])
 
     // Per-stage "any row busy" flag, used to gate the per-stage
     // "Run on all" buttons (cheap to compute and avoids double-fires).
