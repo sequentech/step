@@ -115,6 +115,26 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: rustfs
+  namespace: step-apps
+spec:
+  type: ExternalName
+  externalName: rustfs.step-infra.svc.cluster.local
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+  namespace: step-apps
+spec:
+  stripPrefix:
+    prefixes:
+      - /hasura
+      - /storage
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: hasura
   namespace: step-apps
 spec:
