@@ -178,6 +178,10 @@ spec:
               value: postgres://postgres:password@postgres.step-infra.svc.cluster.local:5432/hasura
             - name: HASURA_GRAPHQL_ADMIN_SECRET
               value: "admin123"
+            - name: HASURA_GRAPHQL_JWT_SECRET
+              value: '{"type":"RS256", "jwk_url": "http://keycloak.step-infra.svc.cluster.local:8090/realms/step/protocol/openid-connect/certs"}'
+            - name: HASURA_GRAPHQL_UNAUTHORIZED_ROLE
+              value: "anonymous"
             - name: HASURA_GRAPHQL_ENABLE_CONSOLE
               value: "true"
             - name: HASURA_GRAPHQL_DEV_MODE
