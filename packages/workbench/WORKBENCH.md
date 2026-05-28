@@ -143,14 +143,11 @@ All five are exported from `WorkbenchInspector.tsx`:
   matching this BS's `ballot_eml.public_key.public_key`) is surfaced
   as a warning row rather than silently swallowed.
 - `ContestDetailPage` at `/wb/contest/:id`. Scans ballot styles for
-  the first one containing the contest, then runs the inline tally
-  against that ballot style and the live `decodedBigInts` (no
-  synthetic ballot style — the real one is what production would
-  decrypt against). A `useEffect` calls
-  `runElectionTally(ballotStyle, decodedByCastVote)` from
-  `electionTally.ts` whenever the decoded set changes, and renders
-  the outcome for the focused contest in a `<pre>` block
-  (running / no-data / error / result states).
+  the first one containing the contest, shows decoded selections, and
+  provides an "Open in tally" button that navigates to `/tally` with
+  the contest's decoded ballots as a seed. All tally execution is
+  centralised in `TallyPage.tsx` — contest detail pages do not run
+  tallies inline.
 - `VoterDetailPage` at `/wb/voter/:id`. Shows the voter, all their
   cast votes (joined via the `castBy` attribution ledger to
   `repairedCastVotes` and `state.castVotes`), and a *Cast a ballot in

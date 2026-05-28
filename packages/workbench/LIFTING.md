@@ -908,9 +908,10 @@ functions that participate in the encrypt → decrypt → tally loop are:
   by tests and by future round-trip checks: the value it produces
   must match what `decrypt_ballot_content` recovers from the same
   `Contest` + `DecodedVoteContest` pair.
-- `tally_plaintext_ballots(...)` — the lower-level tally entry
-  consumed by `electionTally.ts` once decrypted `BigUint`s have been
-  collected. See §M.4 for how the workbench feeds it.
+- `tally_plaintext_ballots(...)` — the lower-level tally entry used
+  by `TallyPage.tsx` (the centralised tally execution point) once
+  decrypted `BigUint`s have been collected. See §M.4 for how the
+  workbench feeds it.
 
 The package also re-exports a handful of `get_sample_*` JSON helpers
 used only by `/pipeline` (the ballot-pipeline sandbox) and by ad-hoc
@@ -1014,12 +1015,14 @@ was last written.
 #### M.4 Tally consumption
 
 The decrypted BigUints in `repairedCastVotes[*].decodedBigInts` are
-fed to `runElectionTally(ballotStyle, decodedByCastVote)`
-(`electionTally.ts`) by the workbench's contest detail page — see
-`WORKBENCH.md` for the UI. There is no re-encrypt-then-decrypt trip
-through wasm at tally time; the BigUints flow straight from the
+fed to `TallyPage.tsx` (the centralised tally execution point) via
+the "Open in tally" hand-off from the contest detail page or by
+navigating to `/tally` directly. There is no re-encrypt-then-decrypt
+trip through wasm at tally time; the BigUints flow straight from the
 decrypt bridge into the tally code path, exactly the way a production
-trustee would feed decrypted plaintexts in.
+trustee would feed decrypted plaintexts in. Policy overlays are
+applied at tally execution time by `TallyPage.tsx` (re-encodes and
+re-decodes with `applyPolicyOverlayToContest` before tallying).
 
 **End-to-end canary.** Cast a Blue vote on the bundled fixture
 (plurality-at-large, two candidates, `max_votes=1`); expected
