@@ -87,13 +87,13 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
 
     return (
         <Box
-            key={result.id}
             sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}, p: 2}}
         >
             <Typography variant="subtitle1" sx={{mb: 1}}>
                 {chartName}
             </Typography>
             <Chart
+                key={series.join(",")}
                 options={chartOptions}
                 series={series}
                 type="pie"
@@ -166,13 +166,13 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
 
     return (
         <Box
-            key={chartName + "-candidates"}
             sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}, p: 2}}
         >
             <Typography variant="subtitle1" sx={{mb: 1}}>
                 {chartName}
             </Typography>
             <Chart
+                key={series.join(",")}
                 options={chartOptions}
                 series={series}
                 type="pie"
