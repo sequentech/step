@@ -20,13 +20,15 @@ import org.keycloak.validate.ValidationError;
 
 class DeferredRegistrationUserCreationTest {
 
+  private static final String CUSTOM_HIDDEN_ATTRIBUTE = "customHidden";
+
   @Test
   void normalizeFormParametersRemovesHiddenAndSensitiveFields() throws Exception {
     MultivaluedMap<String, String> formParams = new MultivaluedHashMap<>();
     formParams.add(RegistrationPage.FIELD_PASSWORD, "password");
     formParams.add(RegistrationPage.FIELD_PASSWORD_CONFIRM, "password");
     formParams.add(UserModel.LOCALE, "en");
-    formParams.add("customHidden", "hidden");
+    formParams.add(CUSTOM_HIDDEN_ATTRIBUTE, "hidden");
     formParams.add(UserModel.EMAIL, "voter@example.com");
 
     Method method =
@@ -40,12 +42,12 @@ class DeferredRegistrationUserCreationTest {
             method.invoke(
                 new DeferredRegistrationUserCreation(),
                 formParams,
-                Set.of(UserModel.LOCALE, "customHidden"));
+                Set.of(UserModel.LOCALE, CUSTOM_HIDDEN_ATTRIBUTE));
 
     assertFalse(normalized.containsKey(RegistrationPage.FIELD_PASSWORD));
     assertFalse(normalized.containsKey(RegistrationPage.FIELD_PASSWORD_CONFIRM));
     assertFalse(normalized.containsKey(UserModel.LOCALE));
-    assertFalse(normalized.containsKey("customHidden"));
+    assertFalse(normalized.containsKey(CUSTOM_HIDDEN_ATTRIBUTE));
     assertTrue(normalized.containsKey(UserModel.EMAIL));
   }
 
@@ -59,11 +61,11 @@ class DeferredRegistrationUserCreationTest {
   @Test
   void hiddenProfileAttributesCanBeConfigured() {
     assertEquals(
-        Set.of(UserModel.LOCALE, "customHidden"),
+        Set.of(UserModel.LOCALE, CUSTOM_HIDDEN_ATTRIBUTE),
         DeferredRegistrationUserCreation.getHiddenProfileAttributes(
             Map.of(
                 DeferredRegistrationUserCreation.HIDDEN_PROFILE_ATTRIBUTES,
-                " locale, customHidden ")));
+                " locale, " + CUSTOM_HIDDEN_ATTRIBUTE + " ")));
   }
 
   @Test
