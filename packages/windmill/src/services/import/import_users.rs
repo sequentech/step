@@ -4,7 +4,6 @@
 
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
-use crate::postgres::keycloak_realm::get_duplicate_emails_allowed;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::types::error::{Error, Result};
@@ -203,7 +202,6 @@ fn get_insert_user_query(
     realm_id: String,
     voters_table: String,
     voters_table_columns: &Vec<String>,
-    duplicate_emails_allowed: bool,
 ) -> anyhow::Result<String> {
     parse_uuid_v4(&tenant_id)
         .with_context(|| format!("invalid v4 UUID for tenant_id: {}", tenant_id))?;
@@ -247,9 +245,7 @@ fn get_insert_user_query(
                     }
                 }
                 "email_constraint" => {
-                    if duplicate_emails_allowed {
-                        "gen_random_uuid()::text".to_string()
-                    } else if voters_table_columns.contains(&"email".to_string()) {
+                    if voters_table_columns.contains(&"email".to_string()) {
                         "NULLIF(LOWER(email), '')".to_string()
                     } else {
                         "NULL".to_string()
@@ -490,7 +486,7 @@ pub async fn import_users_file(
     let keycloak_transaction = keycloak_db_client
         .transaction()
         .await
-        .context("Error starting Keycloak transaction")?;
+        .map_err(|err| anyhow!("Error starting Keycloak transaction: {err}"))?;
 
     keycloak_transaction
         .simple_query(
@@ -574,16 +570,11 @@ pub async fn import_users_file(
         }
     };
 
-    let duplicate_emails_allowed = get_duplicate_emails_allowed(&keycloak_transaction, &realm_id)
-        .await
-        .map_err(|err| Error::String(format!("Error obtaining duplicate_emails_allowed: {err}")))?;
-
     let insert_user_query = match get_insert_user_query(
         tenant_id,
         realm_id,
         voters_table,
         &voters_table_processed_columns_names,
-        duplicate_emails_allowed,
     ) {
         Ok(query) => query,
         Err(err) => {
@@ -724,7 +715,7 @@ pub async fn import_users_file(
     let num_rows = keycloak_transaction
         .execute(insert_user_query.as_str(), &[])
         .await
-        .context("Error executing INSERT USER transaction")?;
+        .map_err(|err| anyhow!("Error executing INSERT USER transaction: {err}"))?;
 
     info!("num_rows = {num_rows}");
 
