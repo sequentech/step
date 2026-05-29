@@ -15,6 +15,22 @@ See [Key Ceremony Design](./key_ceremony_design.md) for the current architecture
 
 ---
 
+## Context: The B4 Board Lifetime
+
+**The tally ceremony uses the same B4 board as the key ceremony.**  Both `execute_tally_session`
+and `insert_ballots` resolve the board name by calling `get_keys_ceremony_board()` — the
+identical function used by `create_keys` and `set_public_key`.
+
+The full message sequence on a single board is:
+
+```
+Key ceremony:   Configuration → Channel → ChannelsAllSigned → Shares → PublicKey → PublicKeySigned
+                                           (same board, appended later)
+Tally ceremony: Ballots → Mix → DecryptionFactors → Plaintexts
+```
+
+---
+
 ## Context: Why a Redesign
 
 Two findings motivate the change:
@@ -62,22 +78,24 @@ PHASE 1 — Trustee Key Generation (one per trustee, explicit UI steps)
     ↓
   [Wizard Step: Generate Keys]
     Trustee clicks "Generate Keys" / "Next"
-    WASM generates:
-      - Ed25519 signing keypair  (signing_key_sk + signing_key_pk)
-      - Symmetric encryption key (encryption_key)
-      (same three values as trustee1.toml)
+    WASM generates (equivalent of gen_trustee_config.rs for server-based trustees):
+      - Ed25519 signing keypair  (StrandSignatureSk::generate() + StrandSignaturePk::from_sk())
+      - AES-256 symmetric key    (symm::gen_key())
+    These are the same three values stored in trustee1.toml for server-based trustees,
+    now generated in the browser and held only in sessionStorage for the session lifetime.
     Keys stored in sessionStorage keyed by election_event_id
     Trustee: POST TrusteeKeyGenerated message to B4
       └─ signed with signing_key_sk
       └─ artifact: signing_key_pk (public key announcement)
     ↓
   [Wizard Step: Download Backup]
-    Trustee downloads the key bundle (signing_key_sk + encryption_key, encrypted)
+    Trustee downloads a backup file containing the trustee identity keys:
+      { signing_key_sk, signing_key_pk, encryption_key }
     Trustee: POST TrusteeKeyDownloaded message to B4
     ↓
   [Wizard Step: Upload and Verify]
-    Trustee re-uploads the downloaded file
-    Integrity check passes
+    Trustee re-uploads the downloaded backup file
+    Integrity check: compare against values in sessionStorage
     Trustee: POST TrusteeKeyChecked message to B4
       └─ signed with signing_key_sk
       └─ artifact: signing_key_pk  ← this is the authoritative public key commitment
@@ -161,18 +179,19 @@ the DKG begins automatically.
 
 ### Braid-wasm: new `generate_trustee_keys()` export
 
-Add a WASM-exported function in `braid/src/wasm/mod.rs`:
+Add a WASM-exported function in `braid/src/wasm/mod.rs` that mirrors `gen_trustee_config.rs`:
 
 ```
 pub fn generate_trustee_keys() -> JsValue
   returns {
-    signing_key_sk:  string,   // Ed25519 private key, base64-DER
-    signing_key_pk:  string,   // Ed25519 public key,  base64-DER
-    encryption_key:  string,   // symmetric key,       base64
+    signing_key_sk:  string,   // StrandSignatureSk::generate() → base64-DER PKCS#8 Ed25519 private key
+    signing_key_pk:  string,   // StrandSignaturePk::from_sk()  → base64-DER Ed25519 public key
+    encryption_key:  string,   // symm::gen_key()               → base64 AES-256 symmetric key
   }
 ```
 
-Generates the same three values that `trustee1.toml` currently stores statically.
+Produces the same three values found in `trustee1.toml`.  All underlying functions are already
+present in braid — no new crypto dependency.
 
 ### B4: five new `Statement` variants
 
@@ -269,6 +288,23 @@ or tally operation.  It can be:
 The rest of the `sequent_backend_trustee` table (`id`, `name`, `tenant_id`, `annotations`,
 `labels`) remains in use for ceremony configuration, tally UI, user dropdowns, and
 `trustee_mode_policy`.
+
+---
+
+## Where `trustee.public_key` Is Used Today
+
+There are exactly **four consumers**:
+
+| Consumer | File | What it does |
+|---|---|---|
+| `create_keys` Celery task | `windmill/src/tasks/create_keys.rs:54` | Reads each trustee's public key and passes it to `add_config_to_board`, which embeds it in the `Configuration` message |
+| `set_public_key` Celery task | `windmill/src/tasks/set_public_key.rs:43` | Reads each trustee's public key and matches it against board messages to determine `KEY_GENERATED` trustee status |
+| `get-private-key` / `check-private-key` (Harvest → Windmill) | `windmill/src/services/ceremonies/keys_ceremony.rs:117` | Reads the trustee's public key to locate their `Channel` message on the board |
+| `insert_ballots` (tally) | `windmill/src/services/ceremonies/insert_ballots.rs:67` | Reads trustee public keys to call `generate_trustee_set()`, which identifies participating trustees in the tally `Ballots` message |
+
+`insert_ballots` is a notable case: it reads `trustee.public_key` from the DB only to match
+against the board's `Configuration` (which already contains those keys) — a redundant lookup
+that this approach does not fix.  The protocol-change proposal eliminates it.
 
 ---
 
