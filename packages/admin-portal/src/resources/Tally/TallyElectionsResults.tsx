@@ -13,7 +13,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {EDeclineToVotePolicy, formatPercentOne, isNumber} from "@sequentech/ui-core"
+import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {Loader} from "@sequentech/ui-essentials"
@@ -23,7 +23,6 @@ interface TallyElectionsResultsProps {
     electionEventId: string | null
     resultsEventId: string | null
     electionIds?: string[] | null
-    isMultiContest: boolean
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -33,7 +32,6 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     elegible_census: number | "-"
     total_voters: number | "-"
     total_voters_percent: number | "-"
-    total_invalid_votes?: number | "-"
 }
 
 interface GeneralInformationChartsProps {
@@ -148,7 +146,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds, isMultiContest} = props
+    const {tenantId, electionEventId, resultsEventId, electionIds} = props
     const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
@@ -182,35 +180,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
-    const safeParseJson = (value: unknown) => {
-        if (typeof value !== "string") {
-            return value
-        }
-
-        try {
-            return JSON.parse(value)
-        } catch {
-            return null
-        }
-    }
-
     useEffect(() => {
         setIsLoading(true)
         if (elections && results && elections.length > 0 && results.length > 0) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
                     const result = results?.find((r) => r.election_id === item.id)
-
-                    /// If the election has a decline to vote policy, we need to get the total
-                    // invalid votes from the one of the results contests (all contests supposed to have the same value)
-                    let total_invalid_votes =
-                        tallyData?.sequent_backend_results_contest.find(
-                            (c) => c.election_id === item.id
-                        )?.explicit_invalid_votes ?? null
-                    const electionPresentation = safeParseJson(item.presentation)
-                    const isDeclineToVote =
-                        electionPresentation?.decline_to_vote_policy ===
-                            EDeclineToVotePolicy.ENABLED && isMultiContest
 
                     return {
                         ...item,
@@ -220,9 +195,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         elegible_census: result?.elegible_census ?? "-",
                         total_voters: result?.total_voters ?? "-",
                         total_voters_percent: result?.total_voters_percent ?? "-",
-                        ...(isDeclineToVote
-                            ? {total_invalid_votes: total_invalid_votes ?? "-"}
-                            : {}),
                     }
                 }
             )
@@ -239,59 +211,39 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         }
     }, [results, elections, selectedElectionId, isTallyDataMatchCurrentResults])
 
-    const showTotalInvalidVotesColumn = useMemo(
-        () => resultsData.some((row) => isNumber(row.total_invalid_votes)),
-        [resultsData]
-    )
-
-    const columns: GridColDef[] = useMemo(
-        () => [
-            {
-                field: `presentation.i18n[${i18n.language}].alias`,
-                headerName: t("tally.table.elections"),
-                flex: 1,
-                editable: false,
-                valueGetter(value, row) {
-                    return value ? value : aliasRenderer(row.presentation)
-                },
+    const columns: GridColDef[] = [
+        {
+            field: `presentation.i18n[${i18n.language}].alias`,
+            headerName: t("tally.table.elections"),
+            flex: 1,
+            editable: false,
+            valueGetter(value, row) {
+                return value ? value : aliasRenderer(row.presentation)
             },
-            {
-                field: "elegible_census",
-                headerName: t("tally.table.elegible_census"),
-                flex: 1,
-                editable: false,
-                renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
-            },
-            {
-                field: "total_voters",
-                headerName: t("tally.table.total_votes"),
-                flex: 1,
-                editable: false,
-                renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
-            },
-            {
-                field: "total_voters_percent",
-                headerName: t("tally.table.total_votes_percent"),
-                flex: 1,
-                editable: false,
-                renderCell: (props: GridRenderCellParams<any, number>) =>
-                    isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
-            },
-            ...(showTotalInvalidVotesColumn
-                ? [
-                      {
-                          field: "total_invalid_votes",
-                          headerName: t("tally.table.total_invalid_votes"),
-                          flex: 1,
-                          editable: false,
-                          renderCell: (props: GridRenderCellParams<any, number>) =>
-                              props["value"] ?? "-",
-                      } satisfies GridColDef,
-                  ]
-                : []),
-        ],
-        [aliasRenderer, i18n.language, showTotalInvalidVotesColumn, t]
-    )
+        },
+        {
+            field: "elegible_census",
+            headerName: t("tally.table.elegible_census"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
+        },
+        {
+            field: "total_voters",
+            headerName: t("tally.table.total_votes"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+        },
+        {
+            field: "total_voters_percent",
+            headerName: t("tally.table.total_votes_percent"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) =>
+                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
+        },
+    ]
 
     return (
         <>

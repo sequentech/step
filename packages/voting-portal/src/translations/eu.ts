@@ -20,10 +20,10 @@ const basqueTranslation: TranslationType = {
             collapseAll: "Dena tolestu",
         },
         breadcrumbSteps: {
-            electionList: "Bozketak",
+            electionList: "Bozketa Zerrenda",
             ballot: "Bozketa",
             review: "Berrikusi",
-            confirmation: "Berretsi",
+            confirmation: "Berrespena",
             audit: "Auditoria",
         },
         footer: {
@@ -34,9 +34,9 @@ const basqueTranslation: TranslationType = {
             reviewButton: "Hurrengoa",
             clearButton: "Hautaketa garbitu",
             ballotHelpDialog: {
-                title: "Bozketa pantailari buruz",
+                title: "Informazioa: Bozketa pantaila",
                 content:
-                    'Pantaila honek bozkatzeko eskubidea duzun lehiaketa erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
+                    'Pantaila honek zuk bozkatzeko eskubidea duzun lehiaketa erakusten du. Zure hautaketa egin dezakezu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia aktibatuz. Zure hautaketak berrezartzeko, sakatu "<b>Hautaketa garbitu</b>" botoia, hurrengo urratsera joateko, sakatu beheko "<b>Hurrengoa</b>" botoia.',
                 ok: "Ados",
             },
             nonVotedDialog: {
@@ -58,37 +58,29 @@ const basqueTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Hasi Bozketa",
-            declineToVoteButton: "Bozkatzeari uko egin",
-            declineToVoteDialog: {
-                title: "Berretsi bozkatzeari uko egitea",
-                content:
-                    "Ziur zaude bozkatzeari uko egin nahi diozula?<br />Zuzenean berrikuspen pantailara joango zara, eta zure parte-hartze egoera <b>Bozkatzeari uko egina</b> bezala gordeko da.",
-                continue: "Bozkatzeari uko egin",
-                cancel: "Utzi",
-            },
-            instructionsTitle: "Nola bozkatzen da",
-            instructionsDescription: "Jarraitu urrats hauek bozkatzeko:",
+            instructionsTitle: "Jarraibideak",
+            instructionsDescription: "Mesedez, jarraitu urrats hauek zure bozketa emateko:",
             step1Title: "1. Hautatu zure aukerak",
             step1Description:
-                "Aukeratu zure hautagaiak eta erantzun galderak. Editatu bozketa prest egon arte.",
+                "Aukeratu zure gogoko hautagaiak eta erantzun Bozketaren galderei bat-batean agertzen diren heinean. Zure bozketa editatu dezakezu prest egon arte.",
             step2Title: "2. Berrikusi zure bozketa",
             step2Description:
-                "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Bozketa ID jarraitzaile bakarra jasoko duzu.",
+                "Zure hautaketekin pozik zaudenean, zure bozketa zifratu eta zure aukeren azken berrikuspena erakutsiko dizugu. Zure bozketarako ID jarraitzaile bakarra ere jasoko duzu.",
             step3Title: "3. Eman zure bozketa",
             step3Description:
-                "Eman zure bozketa erregistratzeko, edo zifraketa zuzen egin dela egiaztatu.",
+                "Eman zure bozketa: Azkenik, zure bozketa eman dezakezu behar bezala erregistratu izan dadin. Bestela, zure bozketa zuzen hartu eta zifratu izan dela egiaztatu eta berresteko aukera duzu.",
         },
         reviewScreen: {
             title: "Berrikusi zure bozketa",
             description:
-                '"<b>Editatu bozketa</b>" hautaketak aldatzeko, "<b>Eman bozketa</b>" bidaltzeko, edo "<b>Egiaztatu Bozketa</b>" auditatzeko.',
+                'Zure hautaketetan aldaketak egiteko, sakatu "<b>Editatu bozketa</b>" botoia, zure hautaketak berresteko, sakatu beheko "<b>Eman zure bozketa</b>" botoia, eta zure bozketa auditatzeko sakatu beheko "<b>Auditatu Bozketa</b>" botoia.',
             descriptionNoAudit:
-                '"<b>Editatu bozketa</b>" hautaketak aldatzeko, edo "<b>Eman bozketa</b>" bidaltzeko.',
+                'Zure hautaketetan aldaketak egiteko, sakatu "<b>Editatu bozketa</b>" botoia, zure hautaketak berresteko, sakatu beheko "<b>Eman zure bozketa</b>" botoia.',
             backButton: "Editatu bozketa",
-            castBallotButton: "Eman bozketa",
-            auditButton: "Egiaztatu bozketa",
+            castBallotButton: "Eman zure bozketa",
+            auditButton: "Auditatu bozketa",
             reviewScreenHelpDialog: {
-                title: "Berrikuspena pantailari buruz",
+                title: "Informazioa: Berrikuspena Pantaila",
                 content:
                     "Pantaila honek zure hautaketak berrikusteko aukera ematen dizu zure bozketa eman aurretik.",
                 ok: "Ados",
@@ -97,20 +89,20 @@ const basqueTranslation: TranslationType = {
                 title: "Botoa ez da eman",
                 content:
                     "<p>Hau da zure Bozketa Jarraitzaile IDa, baina <b>zure botoa ez da eman oraindik</b>. Bozketa jarraitzen saiatzen bazara, ez duzu aurkituko.</p><p>Bozketa Jarraitzaile IDa etapa honetan erakusten dugun arrazoia zifratu bozketaren zuzentasuna auditatu ahal izatea da eman aurretik.</p>",
-                ok: "Ulertzen dut nire botoa ez dela eman",
+                ok: "Onartzen dut nire botoa EZ dela eman",
                 cancel: "Ezeztatu",
             },
             auditBallotHelpDialog: {
                 title: "Bozketa auditatu nahi duzu?",
                 content:
                     "<p>Kontuan izan zure bozketa auditatzeak baliogabetu egingo duela, bozketa prozesua berriz hasi beharko duzularik. Auditoria prozesuak zure bozketa zuzen kodetu dela egiaztatzeko aukera ematen dizu, baina urrats tekniko aurreratuak dakartza. Zure trebetasun teknikoetan konfiantza baduzu soilik jarraitzea gomendatzen dugu. Zure bozketa eman besterik ez baduzu nahi, sakatu <u>Ezeztatu</u> bozketa berrikuspena pantailara itzultzeko.</b></p>",
-                ok: "Bai, nire bozketa baztertu nahi dut auditatzeko",
+                ok: "Bai, nire bozketa BAZTERTU nahi dut auditatzeko",
                 cancel: "Ezeztatu",
             },
             confirmCastVoteDialog: {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
-                content: "Berretsi ondoren, zure botoa emango da.",
-                ok: "Bai, nire botoa eman nahi dut",
+                content: "Zure botoa ez da editagarria izango behin berrestuta.",
+                ok: "Bai, nire botoa EMAN nahi dut",
                 cancel: "Ezeztatu",
             },
             error: {
@@ -203,7 +195,6 @@ const basqueTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
-            declineToVote: "Bozkatzeari uko egin",
         },
         confirmationScreen: {
             title: "Zure botoa eman da",
@@ -216,9 +207,9 @@ const basqueTranslation: TranslationType = {
             verifyCastDescription:
                 "Zure bozketa zuzen eman dela egiaztatu dezakezu edozein unetan hurrengo QR kodea erabiliz:",
             confirmationHelpDialog: {
-                title: "Berrespen pantailari buruz",
+                title: "Informazioa: Berrespen Pantaila",
                 content:
-                    "Pantaila honek zure botoa arrakastaz eman dela erakusten du. Bozketa kutxan gorde dela egiaztatzeko aukera ematen dizu.",
+                    "Pantaila honek zure botoa arrakastaz eman dela erakusten du. Orrialde honetan emandako informazioak bozketa kutxan gorde dela egiaztatzeko aukera ematen dizu, prozesu hau bozketa aldian zehar edozein unetan eta Bozketa itxi ondoren exekutatu daiteke.",
                 ok: "Ados",
             },
             demoPrintDialog: {
@@ -232,15 +223,15 @@ const basqueTranslation: TranslationType = {
                 ok: "Ados",
             },
             ballotIdHelpDialog: {
-                title: "Bozketa IDari buruz",
+                title: "Informazioa: Bozketa IDa",
                 content:
                     "Bozketa IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.",
                 ok: "Ados",
             },
             ballotIdDemoHelpDialog: {
-                title: "Bozketa IDari buruz",
+                title: "Informazioa: Bozketa IDa",
                 content:
-                    "Bozketa IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.",
+                    "<p>Bozketa IDa zure bozketa bozketa kutxan aurkitzeko ahalbidetzen duen kodea da, ID hau bakarra da eta ez du zure hautaketei buruzko informaziorik.</p><p><b>Oharra:</b> Bozketa kabina hau erakusteko helburuetarako soilik da. Zure botoa EZ da eman.</p>",
                 ok: "Ados",
             },
             errorDialogPrintBallotReceipt: {
@@ -253,8 +244,8 @@ const basqueTranslation: TranslationType = {
         auditScreen: {
             printButton: "Inprimatu",
             restartButton: "Hasi Bozketa",
-            title: "Egiaztatu zure Bozketa",
-            description: "Zure bozketa egiaztatzeko, jarraitu beheko urratsak:",
+            title: "Auditatu zure Bozketa",
+            description: "Zure bozketa egiaztatzeko, mesedez jarraitu beheko urratsak:",
             step1Title: "1. Deskargatu edo kopiatu hurrengo informazioa",
             step1Description:
                 "Pantailaren goialdean agertzen den zure <b>Bozketa IDa</b> eta beheko zure zifratutako bozketa:",
@@ -278,23 +269,24 @@ const basqueTranslation: TranslationType = {
                 "Segurtasun arrazoiengatik, zure bozketa audtatzen duzunean, hondatu egin behar da. Bozketa prozesuarekin jarraitzeko, beheko '<b>Hasi Bozketa</b>' sakatu behar duzu.",
         },
         electionSelectionScreen: {
-            title: "Bozketak",
+            title: "Bozketa zerrenda",
             description: "Hautatu bozkatu nahi duzun Bozketa",
             chooserHelpDialog: {
-                title: "Bozketa zerrendari buruz",
+                title: "Informazioa: Bozketa Zerrenda",
                 content:
-                    "Pantaila honek bozkatu dezakezun Bozketen zerrenda erakusten du. Bozketara sar zaitezke bozketa aldia irekita dagoenean.",
+                    "Ongi etorri Bozketa Kabinara, pantaila honek bozketa eman dezakezun Bozketen zerrenda erakusten du. Zerrenda honetan erakutsitako Bozketak bozketarako irekita, programatuta edo itxita egon daitezke. Bozketara sartzeko aukera izango duzu bozketa aldia irekita badago soilik.",
                 ok: "Ados",
             },
-            noResults: "Ez dago bozketarik eskuragarri oraingoz.",
+            noResults: "Ez dago bozketarik oraingoz.",
             demoDialog: {
                 title: "Demo bozketa kabina",
                 content:
-                    "Demo bozketa kabina batean sartzen ari zara. <strong>Zure botoa ez da emango.</strong> Erakusteko helburuetarako soilik da.",
-                ok: "Ulertzen dut nire botoa ez dela emango",
+                    "Demo bozketa kabina batean sartzen ari zara. <strong>Zure botoa EZ da emango.</strong> Bozketa kabina hau erakusteko helburuetarako soilik da.",
+                ok: "Onartzen dut nire botoa Ez dela emango",
             },
             errors: {
-                noVotingArea: "Hauteskunde eremua ez da esleitu. Saiatu berriro geroago.",
+                noVotingArea:
+                    "Hauteskunde eremua ez da bozkatzaileari esleitu. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 networkError:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 unableToFetchData:
@@ -314,34 +306,6 @@ const basqueTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
-                writeInChoiceOutOfRange: "Eskuz idatzitako aukera barrutitik kanpo dago: {{index}}",
-                writeInNotEndInZero: "Eskuz idatzitakoa ez da 0-rekin amaitzen",
-                writeInCharsExceeded:
-                    "Eskuz idatzitakoak gehieneko luzera gainditzen du {{numCharsExceeded}} karakteretan. Mesedez, laburtu ezazu.",
-                bytesToUtf8Conversion:
-                    "Errorea eskuz idatzitakoa byte-etatik UTF-8 kate bihurtzerakoan: {{errorMessage}}",
-                ballotTooLarge: "Bozketa espero baino handiagoa da",
-            },
-            implicit: {
-                selectedMax:
-                    "Gehiegizko botoa: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino handiagoa da",
-                selectedMin:
-                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino txikiagoa da",
-                maxSelectionsPerType:
-                    "Hautatutako aukeren kopurua {{numSelected}} {{type}} zerrendarako gehieneko {{max}} baino handiagoa da",
-                underVote:
-                    "Boto gutxiegiko: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino txikiagoa da",
-                overVoteDisabled:
-                    "Gehienekoa lortu da: {{numSelected}} aukera hautatu dituzu, gehieneko kopurua. Hautaketa aldatzeko, lehenik beste aukera bat kendu ezazu.",
-                blankVote: "Boto zuria: 0 aukera hautatuta",
-            },
-            explicit: {
-                notAllowed:
-                    "Bozketa berariaz baliogabetzat markatu da, baina galderak ez du hori onartzen",
-                alert: "Hautaketa hau boto baliogabe gisa zenbatuko da",
-            },
             page: {
                 oopsWithStatus: "Hara! {{status}}",
                 oopsWithoutStatus: "Hara! Ustekabeko Errorea",
@@ -354,37 +318,37 @@ const basqueTranslation: TranslationType = {
         materials: {
             common: {
                 label: "Laguntza Materialak",
-                back: "Itzuli bozketa zerrendara",
+                back: "Itzuli Bozketa Zerrendara",
                 close: "Itxi",
                 preview: "Aurrebista",
             },
         },
         ballotLocator: {
-            title: "Bilatu zure Bozketa",
+            title: "Lokalizatu zure Bozketa",
             titleResult: "Zure Bozketa Bilaketak Emaitza",
             description: "Egiaztatu zure Bozketa zuzen bidali dela",
-            locate: "Bilatu zure Bozketa",
-            locateAgain: "Bilatu beste Bozketa bat",
-            found: "Zure bozketa IDa {{ballotId}} aurkitu da",
-            notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
+            locate: "Lokalizatu zure Bozketa",
+            locateAgain: "Lokalizatu beste Bozketa bat",
+            found: "Zure bozketa IDa {{ballotId}} lokalizatu da",
+            notFound: "Zure bozketa IDa {{ballotId}} ez da lokalizatu",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
             filterByBallotId: "Filtratu Bozketa IDa",
             totalBallots: "Bozketa kopurua: {{total}}",
             steps: {
-                lookup: "Bilatu zure Bozketa",
+                lookup: "Lokalizatu zure Bozketa",
                 result: "Emaitza",
             },
             titleHelpDialog: {
-                title: "Bozketa Bilatzaileari buruz",
+                title: "Informazioa: Bozketa Lokalizatzaile pantaila",
                 content:
-                    "Bozketa Bilatzaileak Bozketa IDa sartzeko aukera ematen dizu zure botoa aurkitu eta zuzen erregistratu dela egiaztatzeko.",
+                    "Pantaila honek bozkatzaileari bere botoa aurkitzeko aukera ematen dio Bozketa IDa erabiliz berreskuratzeko. Prozedura honek beren bozketa zuzen eman dela eta erregistratutako bozketa bidali zuten zifratutako bozketarekin bat datorrela egiaztatzeko aukera ematen du.",
                 ok: "Ados",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Bozketa Bilatzaile",
+                ballotLocator: "Bozketa Lokalizatzaile",
             },
             column: {
                 statement_kind: "Adierazpen mota",

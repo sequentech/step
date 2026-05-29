@@ -663,13 +663,6 @@ const basqueTranslation: TranslationType = {
                     "do-not-generate": "Ez sortu",
                 },
             },
-            declineToVotePolicy: {
-                label: "Bozkatzeari uko egiteko politika",
-                options: {
-                    enabled: "Gaituta",
-                    disabled: "Desgaituta",
-                },
-            },
         },
         tenantScreen: {
             common: {

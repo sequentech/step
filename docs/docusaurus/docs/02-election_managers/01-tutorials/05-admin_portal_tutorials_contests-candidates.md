@@ -1,6 +1,6 @@
 ---
-id: admin_portal_tutorials_publish-election
-title: Publish Election
+id: admin_portal_tutorials_contests-candidates
+title: Create Contests and Candidates
 ---
 
 <!--

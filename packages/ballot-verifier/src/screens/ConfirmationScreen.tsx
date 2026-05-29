@@ -31,7 +31,6 @@ import {
 import {keyBy} from "lodash"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {EDeclineToVotePolicy, EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -252,12 +251,6 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
     const {globalSettings} = useContext(SettingsContext)
 
-    const isDeclineToVotePolicyEnabled =
-        confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
-            EDeclineToVotePolicy.ENABLED &&
-        confirmationBallot?.election_config?.election_event_presentation
-            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-
     return (
         <>
             <HorizontalWrap marginTop="26px">
@@ -322,7 +315,6 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                             })}
                             markedInvalidLabel={t("confirmationScreen.markedInvalid")}
                             pointsLabel={(points) => t("confirmationScreen.points", {points})}
-                            isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                         />
                     ))}
                 </>

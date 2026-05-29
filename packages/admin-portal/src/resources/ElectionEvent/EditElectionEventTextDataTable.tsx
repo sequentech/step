@@ -9,16 +9,16 @@ import {
     Button,
     Datagrid,
     Identifier,
+    ListContextProvider,
     SaveButton,
     SimpleForm,
     TextField,
     TextInput,
     WrapperField,
+    useList,
     useNotify,
     useRecordContext,
     useUpdate,
-    useList,
-    ListContextProvider,
 } from "react-admin"
 import EditIcon from "@mui/icons-material/Edit"
 import Add from "@mui/icons-material/Add"
@@ -27,6 +27,7 @@ import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataFo
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {
     Box,
+    Card,
     Drawer,
     FormControl,
     InputLabel,
@@ -60,30 +61,44 @@ const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, ac
 
     const listContext = useList({
         data: translationData,
+        perPage: 10,
     })
 
     return (
         <ListContextProvider value={listContext}>
-            <Datagrid bulkActionButtons={false}>
-                <TextField
-                    source="id"
-                    label={String(t("electionEventScreen.localization.labels.key"))}
-                />
-                <TextField
-                    source="value"
-                    label={String(t("electionEventScreen.localization.labels.value"))}
-                />
-                <WrapperField label="Actions">
-                    <ActionsColumn actions={actions} />
-                </WrapperField>
-            </Datagrid>
+            <Card>
+                <Datagrid
+                    bulkActionButtons={false}
+                    sx={{
+                        "& .column-id": {minWidth: "150px"},
+                        "& .column-value": {width: "100%"},
+                        "& .column-actions": {minWidth: "100px", whiteSpace: "nowrap"},
+                    }}
+                >
+                    <TextField
+                        source="id"
+                        label={String(t("electionEventScreen.localization.labels.key"))}
+                    />
+                    <TextField
+                        source="value"
+                        label={String(t("electionEventScreen.localization.labels.value"))}
+                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
+                </Datagrid>
+            </Card>
             <TablePagination
                 component="div"
-                page={listContext.page - 1}
+                page={listContext.page ? listContext.page - 1 : 0}
                 rowsPerPage={listContext.perPage}
+                rowsPerPageOptions={[5, 10, 25, 50]}
                 count={listContext.total || 0}
                 onPageChange={(e, page) => listContext.setPage(page + 1)}
-                onRowsPerPageChange={(e) => listContext.setPerPage(parseInt(e.target.value, 10))}
+                onRowsPerPageChange={(e) => {
+                    listContext.setPerPage(parseInt(e.target.value, 10))
+                    listContext.setPage(1)
+                }}
             />
         </ListContextProvider>
     )

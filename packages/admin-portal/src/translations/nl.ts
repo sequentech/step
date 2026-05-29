@@ -659,13 +659,6 @@ const dutchTranslation: TranslationType = {
                     "do-not-generate": "Niet genereren",
                 },
             },
-            declineToVotePolicy: {
-                label: "Beleid voor afzien van stemmen",
-                options: {
-                    enabled: "Ingeschakeld",
-                    disabled: "Uitgeschakeld",
-                },
-            },
         },
         tenantScreen: {
             common: {

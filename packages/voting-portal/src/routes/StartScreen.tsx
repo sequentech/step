@@ -11,8 +11,6 @@ import {
     translateFromPresentation,
     EStartScreenTitlePolicy,
     ESecurityConfirmationPolicy,
-    EElectionEventContestEncryptionPolicy,
-    EDeclineToVotePolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
@@ -25,14 +23,8 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import {
-    resetBallotSelection,
-    selectBallotSelectionByElectionId,
-    setAllBallotSelectionsInvalidVote,
-} from "../store/ballotSelections/ballotSelectionsSlice"
-import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
-import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
-import {store} from "../store/store"
+import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearIsVoted} from "../store/extra/extraSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -57,7 +49,7 @@ const ActionsContainer = styled(Box)`
     width: 100%;
     margin-bottom: 20px;
     margin-top: 10px;
-    gap: 8px;
+    gap: 2px;
 `
 
 const StyledLink = styled(RouterLink)`
@@ -92,15 +84,9 @@ const StyledCheckbox = styled(Checkbox)`
 `
 interface ActionButtonsProps {
     election: IElection
-    isDeclineToVotePolicyEnabled: boolean
-    onDeclineToVoteClick: () => void
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({
-    election,
-    isDeclineToVotePolicyEnabled,
-    onDeclineToVoteClick,
-}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const location = useLocation()
@@ -153,17 +139,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                         </StyledButton>
                     </StyledLink>
                 )}
-                {isDeclineToVotePolicyEnabled ? (
-                    <StyledButton
-                        className="decline-to-vote-button"
-                        sx={{width: "100%"}}
-                        variant="secondary"
-                        disabled={disabledStart}
-                        onClick={onDeclineToVoteClick}
-                    >
-                        {t("startScreen.declineToVoteButton")}
-                    </StyledButton>
-                ) : null}
             </ActionsContainer>
         </>
     )
@@ -179,11 +154,8 @@ const StartScreen: React.FC = () => {
     const backLink = useRootBackLink()
     const isDemo = useAppSelector(showDemo(electionId))
     const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
-    const [openDeclineDialog, setOpenDeclineDialog] = useState(false)
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
-    const location = useLocation()
-    const {encryptAndStoreBallot} = useEncryptBallotForReview()
 
     const titleObject = useMemo(() => {
         const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
@@ -210,37 +182,6 @@ const StartScreen: React.FC = () => {
         )
         dispatch(clearIsVoted())
     }, [ballotStyle])
-
-    const declineToVotePolicy = election?.presentation?.decline_to_vote_policy
-    const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
-        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const isDeclineToVotePolicyEnabled =
-        declineToVotePolicy === EDeclineToVotePolicy.ENABLED && isMultiContest
-
-    const confirmDeclineToVote = () => {
-        if (!ballotStyle || !election) {
-            return
-        }
-
-        setOpenDeclineDialog(false)
-        dispatch(setAllBallotSelectionsInvalidVote({ballotStyle}))
-        dispatch(setDeclinedToVote(ballotStyle.election_id))
-        dispatch(setIsVoted(ballotStyle.election_id))
-
-        const declinedSelection = selectBallotSelectionByElectionId(ballotStyle.election_id)(
-            store.getState()
-        )
-        if (!declinedSelection) {
-            return
-        }
-
-        if (encryptAndStoreBallot(ballotStyle, declinedSelection, isMultiContest)) {
-            navigate(
-                `/tenant/${tenantId}/event/${eventId}/election/${election.id}/review${location.search}`
-            )
-        }
-    }
 
     if (!election || !titleObject) {
         return <CircularProgress />
@@ -289,18 +230,14 @@ const StartScreen: React.FC = () => {
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
                 </Box>
             </Box>
-            <ActionButtons
-                election={election}
-                isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
-                onDeclineToVoteClick={() => setOpenDeclineDialog(true)}
-            />
+            <ActionButtons election={election} />
 
             <Dialog
                 variant="warning"
                 open={showDemoDialog}
                 ok={t("electionSelectionScreen.demoDialog.ok")}
                 title={t("electionSelectionScreen.demoDialog.title")}
-                handleClose={() => {
+                handleClose={(result: boolean) => {
                     setShowDemoDialog(false)
                 }}
                 fullWidth
@@ -308,24 +245,6 @@ const StartScreen: React.FC = () => {
             >
                 {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
             </Dialog>
-
-            {isDeclineToVotePolicyEnabled ? (
-                <Dialog
-                    handleClose={(confirmed) => {
-                        setOpenDeclineDialog(false)
-                        if (confirmed) {
-                            confirmDeclineToVote()
-                        }
-                    }}
-                    open={openDeclineDialog}
-                    title={t("startScreen.declineToVoteDialog.title")}
-                    ok={t("startScreen.declineToVoteDialog.continue")}
-                    cancel={t("startScreen.declineToVoteDialog.cancel")}
-                    variant="info"
-                >
-                    {stringToHtml(t("startScreen.declineToVoteDialog.content"))}
-                </Dialog>
-            ) : null}
         </PageLimit>
     )
 }

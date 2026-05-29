@@ -25,11 +25,11 @@ const RadioButtonCheckedIconFixed: React.FC<any> = (props) => {
     return <Icon {...props} />
 }
 
-export const UnselectableTypography = styled(Typography)`
+const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
 
-export const BorderBox = styled("li")<{
+const BorderBox = styled("li")<{
     isSelectable: boolean
     hasCategory: boolean
     isInvalidVote: boolean

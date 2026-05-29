@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -95,8 +94,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String INVALID_INPUT = "Invalid input";
 
   public static final String MISSING_FIELDS_ERROR = "error_user_attribute_required";
-  public static final String HIDDEN_PROFILE_ATTRIBUTES = "hidden-profile-attributes";
-  public static final String HIDDEN_PROFILE_ATTRIBUTES_DEFAULT = UserModel.LOCALE;
 
   @Override
   public String getHelpText() {
@@ -153,12 +150,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "User attribute to use for storing the Password Expiration Date. Should be read-only. If the attribute is set and the password has expired, login will fail.",
             ProviderConfigProperty.STRING_TYPE,
             PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT),
-        new ProviderConfigProperty(
-            HIDDEN_PROFILE_ATTRIBUTES,
-            "Hidden Profile Attributes",
-            "Comma-separated list of profile attributes to hide from the form and ignore if Keycloak marks them as required.",
-            ProviderConfigProperty.STRING_TYPE,
-            HIDDEN_PROFILE_ATTRIBUTES_DEFAULT),
         formMode);
   }
 
@@ -188,14 +179,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
-    Set<String> hiddenProfileAttributes = getHiddenProfileAttributes(configMap);
-    UserProfile profile = getOrCreateUserProfile(context, formData, hiddenProfileAttributes);
+    UserProfile profile = getOrCreateUserProfile(context, formData);
 
     UserModel user = null;
     if (!searchAttributesList.isEmpty()) {
       user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
     }
-    buildEventDetails(formData, context, user, hiddenProfileAttributes);
+    buildEventDetails(formData, context, user);
     Attributes attributes = profile.getAttributes();
     String email = attributes.getFirst(UserModel.EMAIL);
 
@@ -229,8 +219,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                       ((!context.getRealm().isRegistrationEmailAsUsername()
                               && !Messages.USERNAME_EXISTS.equals(error.getMessage()))
                           && !Messages.EMAIL_EXISTS.equals(error.getMessage())
-                          // If an attribute is hidden ignore its missing field validation error.
-                          && !isRequiredErrorForHiddenAttribute(error, hiddenProfileAttributes)
+                          // If username is hidden ignore the missing username validation error.
                           && !(Messages.MISSING_USERNAME.equals(error.getMessage())
                               && "true"
                                   .equals(
@@ -512,7 +501,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
-    form.setAttribute("hiddenProfileAttributes", getHiddenProfileAttributes(configMap));
     log.infov("buildPage(): formMode = {0}", formMode);
     checkNotOtherUserAuthenticating(context);
   }
@@ -619,35 +607,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   private MultivaluedMap<String, String> normalizeFormParameters(
-      MultivaluedMap<String, String> formParams, Set<String> hiddenProfileAttributes) {
+      MultivaluedMap<String, String> formParams) {
     MultivaluedHashMap<String, String> copy = new MultivaluedHashMap<>(formParams);
 
     // Remove "password" and "password-confirm" to avoid leaking them in the
     // user-profile data
     copy.remove(RegistrationPage.FIELD_PASSWORD);
     copy.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-    hiddenProfileAttributes.forEach(copy::remove);
 
     return copy;
-  }
-
-  static boolean isRequiredErrorForHiddenAttribute(
-      ValidationException.Error error, Set<String> hiddenProfileAttributes) {
-    return hiddenProfileAttributes.contains(error.getAttribute())
-        && MISSING_FIELDS_ERROR.equals(error.getMessage());
-  }
-
-  /**
-   * Returns configured hidden profile attributes, defaulting to locale when the option is not set.
-   *
-   * @param configMap authenticator configuration values
-   * @return hidden profile attribute names
-   */
-  static Set<String> getHiddenProfileAttributes(Map<String, String> configMap) {
-    String hiddenProfileAttributes =
-        Optional.ofNullable(configMap.get(HIDDEN_PROFILE_ATTRIBUTES))
-            .orElse(HIDDEN_PROFILE_ATTRIBUTES_DEFAULT);
-    return parseAttributesSet(hiddenProfileAttributes);
   }
 
   /**
@@ -656,13 +624,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
    * in Keycloak
    */
   public UserProfile getOrCreateUserProfile(
-      FormContext formContext,
-      MultivaluedMap<String, String> formData,
-      Set<String> hiddenProfileAttributes) {
+      FormContext formContext, MultivaluedMap<String, String> formData) {
     KeycloakSession session = formContext.getSession();
     UserProfile profile = (UserProfile) session.getAttribute("UP_REGISTER");
     if (profile == null) {
-      formData = normalizeFormParameters(formData, hiddenProfileAttributes);
+      formData = normalizeFormParameters(formData);
       UserProfileProvider profileProvider = session.getProvider(UserProfileProvider.class);
       profile = profileProvider.create(UserProfileContext.REGISTRATION, formData);
       session.setAttribute("UP_REGISTER", profile);
@@ -671,26 +637,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   private List<String> parseAttributesList(String attributes) {
-    return parseAttributes(attributes).collect(Collectors.toList());
-  }
-
-  /**
-   * Parses a comma-separated attribute list into trimmed, non-empty attribute names.
-   *
-   * @param attributes comma-separated attribute names
-   * @return parsed attribute names
-   */
-  private static Set<String> parseAttributesSet(String attributes) {
-    return parseAttributes(attributes).collect(Collectors.toUnmodifiableSet());
-  }
-
-  private static Stream<String> parseAttributes(String attributes) {
     if (attributes == null || attributes.trim().isEmpty()) {
-      return Stream.empty();
+      return Collections.emptyList();
     }
-    return Stream.of(attributes.split(","))
-        .map(String::trim)
-        .filter(attribute -> !attribute.isEmpty());
+    return List.of(attributes.split(","));
   }
 
   private Optional<String> checkUnsetAttributes(UserModel user, List<String> attributes) {
@@ -731,11 +681,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   private void buildEventDetails(
-      MultivaluedMap<String, String> formData,
-      ValidationContext context,
-      UserModel user,
-      Set<String> hiddenProfileAttributes) {
-    formData = normalizeFormParameters(formData, hiddenProfileAttributes);
+      MultivaluedMap<String, String> formData, ValidationContext context, UserModel user) {
+    formData = normalizeFormParameters(formData);
     formData.forEach(
         (key, value) -> {
           if (value != null) {

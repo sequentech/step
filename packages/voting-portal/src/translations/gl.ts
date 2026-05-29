@@ -21,10 +21,10 @@ const galegoTranslation: TranslationType = {
             collapseAll: "Contraer todo",
         },
         breadcrumbSteps: {
-            electionList: "Papeletas",
+            electionList: "Lista de Papeletas",
             ballot: "Papeleta",
             review: "Revisión",
-            confirmation: "Confirmar",
+            confirmation: "Confirmación",
             audit: "Auditoría",
         },
         footer: {
@@ -35,9 +35,9 @@ const galegoTranslation: TranslationType = {
             reviewButton: "Seguinte",
             clearButton: "Limpar selección",
             ballotHelpDialog: {
-                title: "Sobre a pantalla da papeleta",
+                title: "Información: Pantalla da papeleta",
                 content:
-                    "Esta pantalla mostra o concurso no que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
+                    "Esta pantalla mostra o concurso no que es elixible para votar. Podes facer a túa selección activando a caixa de verificación á dereita do Candidato/Resposta. Para restablecer as túas seleccións, fai clic no botón “<b>Limpar selección</b>”; para pasar ao seguinte paso, fai clic no botón “<b>Seguinte</b>” abaixo.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
@@ -59,37 +59,29 @@ const galegoTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Comezar a votar",
-            declineToVoteButton: "Absterse de votar",
-            declineToVoteDialog: {
-                title: "Confirmar abstención de voto",
-                content:
-                    "Seguro que queres absterte de votar?<br />Irás directamente á revisión e o teu estado de participación gardarase como <b>Abstívose de votar</b>.",
-                continue: "Absterse de votar",
-                cancel: "Cancelar",
-            },
-            instructionsTitle: "Como votar",
-            instructionsDescription: "Siga estes pasos para votar:",
+            instructionsTitle: "Instrucións",
+            instructionsDescription: "Siga estes pasos para emitir a súa papeleta:",
             step1Title: "1. Selecciona as túas opcións",
             step1Description:
-                "Elixe os teus candidatos e responde ás preguntas. Podes editar a túa papeleta ata estar listo.",
+                "Elixe os teus candidatos preferidos e responde ás preguntas da papeleta unha por unha segundo aparecen. Podes editar a túa papeleta ata que esteas listo para continuar.",
             step2Title: "2. Revisa a túa papeleta",
             step2Description:
-                "Encriptaremos a túa papeleta e mostrarémosche unha revisión final. Recibirás un ID de seguimento único.",
+                "Unha vez que esteas satisfeito coas túas seleccións, encriptaremos a túa papeleta e mostrarémosche unha revisión final das túas eleccións. Tamén recibirás un ID de seguimento único para a túa papeleta.",
             step3Title: "3. Emite a túa papeleta",
             step3Description:
-                "Emite a túa papeleta para que quede rexistrada, ou auditala para confirmar que foi encriptada correctamente.",
+                "Emite a túa papeleta: finalmente, podes emitir a túa papeleta para que quede rexistrada correctamente. Alternativamente, podes optar por auditala e confirmar que a túa papeleta foi correctamente capturada e encriptada.",
         },
         reviewScreen: {
             title: "Revisa a túa papeleta",
             description:
-                "Fai clic en “<b>Editar papeleta</b>” para cambiar as túas seleccións, “<b>Emitir papeleta</b>” para confirmar, ou “<b>Comproba a papeleta</b>” para auditala.",
+                "Para facer cambios nas túas seleccións, fai clic no botón “<b>Editar papeleta</b>”; para confirmar as túas seleccións, fai clic no botón “<b>Emitir a túa papeleta</b>” abaixo; e para auditar a túa papeleta, fai clic no botón “<b>Auditar Papeleta</b>” abaixo.",
             descriptionNoAudit:
-                "Fai clic en “<b>Editar papeleta</b>” para cambiar as túas seleccións, ou “<b>Emitir papeleta</b>” para confirmar.",
+                "Para facer cambios nas túas seleccións, fai clic no botón “<b>Editar papeleta</b>”; para confirmar as túas seleccións, fai clic no botón “<b>Emitir a túa papeleta</b>” abaixo.",
             backButton: "Editar papeleta",
-            castBallotButton: "Emitir papeleta",
-            auditButton: "Comproba a papeleta",
+            castBallotButton: "Emitir a túa papeleta",
+            auditButton: "Auditar papeleta",
             reviewScreenHelpDialog: {
-                title: "Sobre a pantalla de revisión",
+                title: "Información: Pantalla de Revisión",
                 content:
                     "Esta pantalla permíteche revisar as túas seleccións antes de emitir a papeleta.",
                 ok: "Aceptar",
@@ -98,20 +90,20 @@ const galegoTranslation: TranslationType = {
                 title: "O voto non foi emitido",
                 content:
                     "<p>Este é o teu ID de seguimento da papeleta, pero <b>o teu voto aínda non foi emitido</b>. Se tentas rastrexar a papeleta, non a atoparás.</p><p>A razón pola que mostramos o ID de seguimento nesta fase é permitirche auditar a corrección da papeleta encriptada antes de emitila.</p>",
-                ok: "Entendo que o meu voto non foi emitido",
+                ok: "Acepto que o meu voto NON foi emitido",
                 cancel: "Cancelar",
             },
             auditBallotHelpDialog: {
                 title: "Queres auditar a papeleta?",
                 content:
                     "<p>Ten en conta que auditar a túa papeleta anularaa, polo que terás que reiniciar o proceso de votación. O proceso de auditoría permíteche verificar que a túa papeleta está correctamente codificada, pero implica pasos técnicos avanzados. Recomendamos continuar só se estás seguro das túas habilidades técnicas. Se só queres emitir a túa papeleta, fai clic en <u>Cancelar</u> para volver á pantalla de revisión.</p>",
-                ok: "Si, quero descartar a miña papeleta para auditala",
+                ok: "Si, quero DESCARTAR a miña papeleta para auditala",
                 cancel: "Cancelar",
             },
             confirmCastVoteDialog: {
                 title: "Estás seguro de que queres emitir o teu voto?",
-                content: "Tras confirmar, o teu voto será emitido.",
-                ok: "Si, quero emitir o meu voto",
+                content: "O teu voto non será editable unha vez confirmado.",
+                ok: "Si, quero EMITIR o meu voto",
                 cancel: "Cancelar",
             },
             error: {
@@ -203,7 +195,6 @@ const galegoTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
-            declineToVote: "Absterse de votar",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",
@@ -216,9 +207,9 @@ const galegoTranslation: TranslationType = {
             verifyCastDescription:
                 "Podes verificar en calquera momento que o teu voto foi emitido correctamente usando o seguinte código QR:",
             confirmationHelpDialog: {
-                title: "Sobre a pantalla de confirmación",
+                title: "Información: Pantalla de Confirmación",
                 content:
-                    "Esta pantalla amosa que o teu voto foi emitido correctamente. Podes verificar que a papeleta foi almacenada na urna.",
+                    "Esta pantalla amosa que o teu voto foi emitido correctamente. A información proporcionada nesta páxina permíteche verificar que a papeleta foi almacenada na urna, este proceso pode realizarse en calquera momento durante o período de votación e despois do peche das eleccións.",
                 ok: "Aceptar",
             },
             demoPrintDialog: {
@@ -232,15 +223,15 @@ const galegoTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             ballotIdHelpDialog: {
-                title: "Sobre o ID da Papeleta",
+                title: "Información: ID da Papeleta",
                 content:
                     "O ID da Papeleta é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.",
                 ok: "Aceptar",
             },
             ballotIdDemoHelpDialog: {
-                title: "Sobre o ID da Papeleta",
+                title: "Información: ID da Papeleta",
                 content:
-                    "O ID da Papeleta é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.",
+                    "<p>O ID da Papeleta é un código que permite atopar a túa papeleta na urna, este ID é único e non contén información sobre as túas seleccións.</p><p><b>Aviso:</b> Esta cabina de votación é só para fins de demostración. O teu voto NON foi emitido.</p>",
                 ok: "Aceptar",
             },
             errorDialogPrintBallotReceipt: {
@@ -253,8 +244,8 @@ const galegoTranslation: TranslationType = {
         auditScreen: {
             printButton: "Imprimir",
             restartButton: "Comezar a votar",
-            title: "Comproba a túa Papeleta",
-            description: "Segue os pasos abaixo para comprobar a túa papeleta:",
+            title: "Auditar a túa Papeleta",
+            description: "Para verificar a túa papeleta, siga os pasos abaixo:",
             step1Title: "1. Descarga ou copia a seguinte información",
             step1Description:
                 "O teu <b>ID da Papeleta</b> aparece na parte superior da pantalla e a túa papeleta encriptada abaixo:",
@@ -278,23 +269,24 @@ const galegoTranslation: TranslationType = {
                 "Por razóns de seguridade, ao auditar a túa papeleta, esta debe ser anulada. Para continuar co proceso de votación, necesitas facer clic en ‘<b>Comezar a votar</b>’ abaixo.",
         },
         electionSelectionScreen: {
-            title: "Papeletas",
+            title: "Lista de Papeletas",
             description: "Selecciona a papeleta na que queres votar",
             chooserHelpDialog: {
-                title: "Sobre a lista de papeletas",
+                title: "Información: Lista de Papeletas",
                 content:
-                    "Esta pantalla amosa a lista de papeletas nas que podes votar. Só poderás acceder á papeleta se o período de votación está aberto.",
+                    "Benvido ao Cabina de Votación, nesta pantalla amósase a lista de papeletas nas que podes emitir o teu voto. As papeletas mostradas nesta lista poden estar abertas para votar, programadas ou pechadas. Só poderás acceder á papeleta se o período de votación está aberto.",
                 ok: "OK",
             },
-            noResults: "Sen papeletas dispoñibles de momento.",
+            noResults: "Sen papeletas por agora.",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
-                    "Estás entrando nunha cabina de votación de demostración. <strong>O teu voto non será emitido.</strong> Só para fins de demostración.",
-                ok: "Entendo que o meu voto non será emitido",
+                    "Estás entrando nunha cabina de votación de demostración. <strong>O teu voto NON será emitido.</strong> Esta cabina de votación é só para fins de demostración.",
+                ok: "Acepto que o meu voto NON será emitido",
             },
             errors: {
-                noVotingArea: "Área de votación non asignada. Inténteo de novo máis tarde.",
+                noVotingArea:
+                    "Área de elección non asignada ao votante. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 networkError:
                     "Houbo un problema de rede. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 unableToFetchData:
@@ -314,34 +306,6 @@ const galegoTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Non hai suficientes opcións para decodificar",
-                writeInChoiceOutOfRange: "Opción de escritura libre fóra de rango: {{index}}",
-                writeInNotEndInZero: "A escritura libre non remata en 0",
-                writeInCharsExceeded:
-                    "A escritura libre supera a lonxitude máxima en {{numCharsExceeded}} caracteres. Por favor, acórtea.",
-                bytesToUtf8Conversion:
-                    "Erro ao converter a escritura libre de bytes a cadea UTF-8: {{errorMessage}}",
-                ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Voto en exceso: o número de opcións seleccionadas {{numSelected}} é maior que o máximo {{max}}",
-                selectedMin:
-                    "O número de opcións seleccionadas {{numSelected}} é inferior ao mínimo {{min}}",
-                maxSelectionsPerType:
-                    "O número de opcións seleccionadas {{numSelected}} para a lista {{type}} é maior que o máximo {{max}}",
-                underVote:
-                    "Voto incompleto: o número de opcións seleccionadas {{numSelected}} é inferior ao máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: seleccionaches o máximo de {{numSelected}} opcións. Para cambiar a túa selección, anula primeiro a selección doutra opción.",
-                blankVote: "Voto en branco: 0 opcións seleccionadas",
-            },
-            explicit: {
-                notAllowed:
-                    "A papeleta está marcada como explicitamente inválida, pero a pregunta non o permite",
-                alert: "Esta selección contarase como un voto inválido",
-            },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Erro inesperado",
@@ -354,19 +318,19 @@ const galegoTranslation: TranslationType = {
         materials: {
             common: {
                 label: "Materiais de apoio",
-                back: "Voltar á lista de papeletas",
+                back: "Voltar á Lista de Papeletas",
                 close: "Pechar",
                 preview: "Previsualizar",
             },
         },
         ballotLocator: {
-            title: "Busca a túa Papeleta",
+            title: "Localiza a túa Papeleta",
             titleResult: "Resultado da túa busca de Papeleta",
             description: "Verifica que a túa Papeleta foi correctamente enviada",
-            locate: "Busca a túa Papeleta",
+            locate: "Localiza a túa Papeleta",
             locateAgain: "Buscar outra Papeleta",
-            found: "O teu ID de papeleta {{ballotId}} foi atopado",
-            notFound: "O teu ID de papeleta {{ballotId}} non foi atopado",
+            found: "O teu ID de papeleta {{ballotId}} foi localizado",
+            notFound: "O teu ID de papeleta {{ballotId}} non foi localizado",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
             ballotIdNotFoundAtFilter:
@@ -374,18 +338,18 @@ const galegoTranslation: TranslationType = {
             filterByBallotId: "Filtrar por ID da Papeleta",
             totalBallots: "Papeletas: {{total}}",
             steps: {
-                lookup: "Busca a túa Papeleta",
+                lookup: "Localiza a túa Papeleta",
                 result: "Resultado",
             },
             titleHelpDialog: {
-                title: "Sobre o localizador de papeleta",
+                title: "Información: Pantalla de localización de papeleta",
                 content:
-                    "O localizador de papeletas permíteche introducir o ID da papeleta para atopar o teu voto e confirmar que foi rexistrado correctamente.",
+                    "Esta pantalla permite ao votante atopar o seu voto utilizando o ID da papeleta para recuperalo. Este procedemento permite verificar que a súa papeleta foi emitida correctamente e que a papeleta rexistrada coincide coa papeleta encriptada enviada.",
                 ok: "Aceptar",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Busca de Papeleta",
+                ballotLocator: "Localiza a tua Papeleta",
             },
             column: {
                 statement_kind: "Tipo",

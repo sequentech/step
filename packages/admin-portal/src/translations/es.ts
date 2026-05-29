@@ -663,13 +663,6 @@ const spanishTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
-            declineToVotePolicy: {
-                label: "Política de abstención de voto",
-                options: {
-                    enabled: "Habilitado",
-                    disabled: "Deshabilitado",
-                },
-            },
         },
         tenantScreen: {
             common: {

@@ -11,7 +11,6 @@ import SequentCoreLibInit, {
     set_hooks,
     get_default_consolidated_report_policy_js,
     get_default_language_detection_policy_js,
-    get_default_decline_to_vote_policy_js,
 } from "sequent-core"
 import {
     sort_elections_list_js,
@@ -58,7 +57,6 @@ import {
     EPreferenceGapsPolicy,
     EConsolidatedReportPolicy,
     ELanguageDetectionPolicy,
-    EDeclineToVotePolicy,
 } from ".."
 
 export type {
@@ -454,15 +452,6 @@ export const getDefaultConsolidatedReportPolicy = (): EConsolidatedReportPolicy 
 export const getDefaultLanguageDetectionPolicy = (): ELanguageDetectionPolicy => {
     try {
         return get_default_language_detection_policy_js() as ELanguageDetectionPolicy
-    } catch (error) {
-        console.log(error)
-        throw error
-    }
-}
-
-export const getDefaultDeclineToVotePolicy = (): EDeclineToVotePolicy => {
-    try {
-        return get_default_decline_to_vote_policy_js() as EDeclineToVotePolicy
     } catch (error) {
         console.log(error)
         throw error
