@@ -46,10 +46,15 @@ logged in before the admin proceeds.
 ```
 BBT trustee opens election event in admin portal
   └─ HeadlessTrusteeProvider mounts
-  └─ WASM generates trustee keys for this election_event_id:
-       - Ed25519 signing keypair  (StrandSignatureSk::generate())
-       - AES-256 symmetric key    (symm::gen_key())
-  └─ All three values stored in sessionStorage keyed by election_event_id
+  └─ [Wizard Step: Generate Keys]
+       WASM generates trustee keys for this election_event_id:
+         - Ed25519 signing keypair  (StrandSignatureSk::generate())
+         - AES-256 symmetric key    (symm::gen_key())
+       All three values stored in sessionStorage keyed by election_event_id
+  └─ [Wizard Step: Download Backup]
+       Trustee downloads identity key backup file: { signing_key_sk, signing_key_pk, encryption_key }
+  └─ [Wizard Step: Verify Backup]
+       Trustee re-uploads the file; integrity check against sessionStorage values passes
   └─ signing_key_pk → POST Harvest /register-trustee-key
                        UPSERT (trustee_id, election_event_id) → public_key in DB
                     ↓
