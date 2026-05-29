@@ -663,6 +663,13 @@ const spanishTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1080,6 +1087,7 @@ const spanishTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estadístico",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 AUDIT_LOGS: "Registros de Auditoría",
@@ -1382,6 +1390,12 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-candidates": "Sólo Candidatos",
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (empieza expandido)",
+                "enabled-collapsed": "Habilitado (empieza contraído)",
             },
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
@@ -2026,6 +2040,7 @@ const spanishTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Email",

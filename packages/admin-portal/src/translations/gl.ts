@@ -662,6 +662,13 @@ const galegoTranslation: TranslationType = {
                     "do-not-generate": "Non xerar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Activado",
+                    disabled: "Desactivado",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1079,6 +1086,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estatístico",
                 OVCS_EVENTS: "Monitorización de Votación no Estranxeiro - Eventos OVCS",
                 AUDIT_LOGS: "Rexistros de Auditoría",
@@ -1382,6 +1390,12 @@ const galegoTranslation: TranslationType = {
                 "allow-selecting-candidates": "Só Candidatos",
                 "allow-selecting-lists": "Só Listas",
                 "disabled": "Desactivado",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (comeza expandido)",
+                "enabled-collapsed": "Habilitado (comeza contraído)",
             },
             blankVotePolicy: {
                 "label": "Política de Voto en Branco",
@@ -2025,6 +2039,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Correo",

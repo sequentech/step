@@ -659,6 +659,13 @@ const dutchTranslation: TranslationType = {
                     "do-not-generate": "Niet genereren",
                 },
             },
+            declineToVotePolicy: {
+                label: "Beleid voor afzien van stemmen",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1074,6 +1081,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -1379,6 +1387,12 @@ const dutchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Alleen Kandidaten",
                 "allow-selecting-lists": "Alleen Lijsten",
                 "disabled": "Uitgeschakeld",
+            },
+            collapsibleListsPolicy: {
+                "label": "Inklapbare lijsten",
+                "disabled": "Uitgeschakeld",
+                "enabled-expanded": "Ingeschakeld (start uitgevouwen)",
+                "enabled-collapsed": "Ingeschakeld (start ingeklapt)",
             },
             blankVotePolicy: {
                 "label": "Beleid Blanco Stem",
@@ -2020,6 +2034,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
             },
             method: {
                 email: "E-mail",
