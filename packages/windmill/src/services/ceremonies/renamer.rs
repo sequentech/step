@@ -206,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_election_display_name_prefers_alias() {
+    fn test_resolve_display_name_prefers_alias() {
         assert_eq!(
             resolve_display_name("General Election 2024", "GE 2024"),
             "GE 2024"
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_election_display_name_falls_back_to_name_when_alias_empty() {
+    fn test_resolve_display_name_falls_back_to_name_when_alias_empty() {
         assert_eq!(
             resolve_display_name("General Election 2024", ""),
             "General Election 2024"
