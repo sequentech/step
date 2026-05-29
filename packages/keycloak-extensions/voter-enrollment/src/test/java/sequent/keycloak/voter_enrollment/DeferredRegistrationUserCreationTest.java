@@ -3,12 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.voter_enrollment;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.models.UserModel;
@@ -18,37 +21,53 @@ import org.keycloak.validate.ValidationError;
 class DeferredRegistrationUserCreationTest {
 
   @Test
-  void normalizeFormParametersRemovesLocaleAndSensitiveFields() throws Exception {
+  void normalizeFormParametersRemovesHiddenAndSensitiveFields() throws Exception {
     MultivaluedMap<String, String> formParams = new MultivaluedHashMap<>();
     formParams.add(RegistrationPage.FIELD_PASSWORD, "password");
     formParams.add(RegistrationPage.FIELD_PASSWORD_CONFIRM, "password");
     formParams.add(UserModel.LOCALE, "en");
+    formParams.add("customHidden", "hidden");
     formParams.add(UserModel.EMAIL, "voter@example.com");
 
     Method method =
         DeferredRegistrationUserCreation.class.getDeclaredMethod(
-            "normalizeFormParameters", MultivaluedMap.class);
+            "normalizeFormParameters", MultivaluedMap.class, Set.class);
     method.setAccessible(true);
 
     @SuppressWarnings("unchecked")
     MultivaluedMap<String, String> normalized =
         (MultivaluedMap<String, String>)
-            method.invoke(new DeferredRegistrationUserCreation(), formParams);
+            method.invoke(
+                new DeferredRegistrationUserCreation(),
+                formParams,
+                Set.of(UserModel.LOCALE, "customHidden"));
 
     assertFalse(normalized.containsKey(RegistrationPage.FIELD_PASSWORD));
     assertFalse(normalized.containsKey(RegistrationPage.FIELD_PASSWORD_CONFIRM));
     assertFalse(normalized.containsKey(UserModel.LOCALE));
+    assertFalse(normalized.containsKey("customHidden"));
     assertTrue(normalized.containsKey(UserModel.EMAIL));
   }
 
   @Test
-  void hiddenProfileAttributesIncludesLocale() {
-    assertTrue(
-        DeferredRegistrationUserCreation.HIDDEN_PROFILE_ATTRIBUTES.contains(UserModel.LOCALE));
+  void hiddenProfileAttributesDefaultToLocale() {
+    assertEquals(
+        Set.of(UserModel.LOCALE),
+        DeferredRegistrationUserCreation.getHiddenProfileAttributes(Map.of()));
   }
 
   @Test
-  void isLocaleRequiredErrorOnlyMatchesRequiredLocale() {
+  void hiddenProfileAttributesCanBeConfigured() {
+    assertEquals(
+        Set.of(UserModel.LOCALE, "customHidden"),
+        DeferredRegistrationUserCreation.getHiddenProfileAttributes(
+            Map.of(
+                DeferredRegistrationUserCreation.HIDDEN_PROFILE_ATTRIBUTES,
+                " locale, customHidden ")));
+  }
+
+  @Test
+  void isRequiredErrorForHiddenAttributeOnlyMatchesConfiguredHiddenAttributes() {
     ValidationException.Error localeRequiredError =
         new ValidationException.Error(
             new ValidationError(
@@ -66,8 +85,16 @@ class DeferredRegistrationUserCreationTest {
                 UserModel.EMAIL,
                 DeferredRegistrationUserCreation.MISSING_FIELDS_ERROR));
 
-    assertTrue(DeferredRegistrationUserCreation.isLocaleRequiredError(localeRequiredError));
-    assertFalse(DeferredRegistrationUserCreation.isLocaleRequiredError(localeInvalidError));
-    assertFalse(DeferredRegistrationUserCreation.isLocaleRequiredError(emailRequiredError));
+    Set<String> hiddenProfileAttributes = Set.of(UserModel.LOCALE);
+
+    assertTrue(
+        DeferredRegistrationUserCreation.isRequiredErrorForHiddenAttribute(
+            localeRequiredError, hiddenProfileAttributes));
+    assertFalse(
+        DeferredRegistrationUserCreation.isRequiredErrorForHiddenAttribute(
+            localeInvalidError, hiddenProfileAttributes));
+    assertFalse(
+        DeferredRegistrationUserCreation.isRequiredErrorForHiddenAttribute(
+            emailRequiredError, hiddenProfileAttributes));
   }
 }
