@@ -184,6 +184,10 @@ type DataListPgAudit {
   total: TotalAggregate!
 }
 
+type DeleteCertificateAuthorityOutput {
+  deleted_count: Int!
+}
+
 type DeleteElectionEvent {
   error_msg: String
   id: String
@@ -291,6 +295,11 @@ type ExportBallotPublicationOutput {
   task_execution: tasks_execution_type
 }
 
+type ExportCertificateAuthorityOutput {
+  document_id: String!
+  task_execution: tasks_execution_type
+}
+
 type ExportElectionEventOutput {
   document_id: String!
   password: String
@@ -306,6 +315,7 @@ input ExportOptions {
   activity_logs: Boolean
   applications: Boolean
   bulletin_board: Boolean
+  include_certificates: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
   password: String
@@ -469,6 +479,12 @@ input GetUsersInput {
 type GetUsersOutput {
   items: [KeycloakUser!]!
   total: TotalAggregate!
+}
+
+type ImportCertificateAuthorityOutput {
+  errors: [String!]!
+  inserted_count: Int!
+  skipped_count: Int!
 }
 
 input ImportOptions {
@@ -846,6 +862,10 @@ type UpdateEventVotingStatusOutput {
   election_event_id: uuid
 }
 
+type UpdateRealmAttributesOutput {
+  updated: Boolean!
+}
+
 type UpsertAreaOutput {
   id: String!
 }
@@ -1024,6 +1044,8 @@ type mutation_root {
   create_tally_ceremony(configuration: jsonb, election_event_id: uuid!, election_ids: [uuid!]!, tally_type: String): CreateTallyOutput
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
   create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
+  """Delete a certificate authority by id"""
+  delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
@@ -1105,6 +1127,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.cast_vote"
   """
   delete_sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
+  """
+  delete data from the table: "sequent_backend.certificate_authority"
+  """
+  delete_sequent_backend_certificate_authority(
+    """filter the rows which have to be deleted"""
+    where: certificate_authority_bool_exp!
+  ): certificate_authority_mutation_response
+  """
+  delete single row from the table: "sequent_backend.certificate_authority"
+  """
+  delete_sequent_backend_certificate_authority_by_pk(id: uuid!): certificate_authority
   """
   delete data from the table: "sequent_backend.contest"
   """
@@ -1455,6 +1488,8 @@ type mutation_root {
   exportTrustees(password: String!): ExportTrusteesOutput
   export_application(election_event_id: String, election_id: String, tenant_id: String!): ExportApplicationOutput
   export_ballot_publication(ballot_publication_id: String!, election_event_id: String!, election_id: String, tenant_id: String!): ExportBallotPublicationOutput
+  """Export certificate authorities as a PEM bundle for an election event"""
+  export_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): ExportCertificateAuthorityOutput
   export_election_event(election_event_id: String, export_configurations: ExportOptions): ExportElectionEventOutput
   export_election_event_logs(election_event_id: String!, format: String!): ExportLogsOutput
   export_election_event_tasks(election_event_id: String): ExportTasksOutput
@@ -1481,6 +1516,8 @@ type mutation_root {
   import_application(document_id: String!, election_event_id: String, election_id: String, sha256: String, tenant_id: String!): applicationOutput
   import_areas(document_id: String!, election_event_id: String!, sha256: String): OptionalId
   import_candidates(document_id: String!, election_event_id: String!, sha256: String): documentTaskOutput
+  """Import certificate authorities from a PEM string for an election event"""
+  import_certificate_authority(election_event_id: uuid!, pem_content: String!): ImportCertificateAuthorityOutput
   """import_election_event"""
   import_election_event(check_only: Boolean, document_id: String!, password: String, sha256: String, tenant_id: String!): OptionalImportEvent
   import_templates(document_id: String!, sha256: String, tenant_id: String!): templateOutput
@@ -1617,6 +1654,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: cast_vote_on_conflict
   ): cast_vote
+  """
+  insert data into the table: "sequent_backend.certificate_authority"
+  """
+  insert_sequent_backend_certificate_authority(
+    """the rows to be inserted"""
+    objects: [certificate_authority_insert_input!]!
+    """upsert condition"""
+    on_conflict: certificate_authority_on_conflict
+  ): certificate_authority_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.certificate_authority"
+  """
+  insert_sequent_backend_certificate_authority_one(
+    """the row to be inserted"""
+    object: certificate_authority_insert_input!
+    """upsert condition"""
+    on_conflict: certificate_authority_on_conflict
+  ): certificate_authority
   """
   insert data into the table: "sequent_backend.contest"
   """
@@ -2192,6 +2247,7 @@ type mutation_root {
   submit_tally_resolution(election_event_id: uuid!, resolutions: [TallyResolutionInput!]!, tally_session_id: uuid!): SubmitTallyResolutionOutput
   update_election_voting_status(election_event_id: uuid!, election_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateElectionVotingStatusOutput
   update_event_voting_status(election_event_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateEventVotingStatusOutput
+  update_realm_attributes(attributes: jsonb!, election_event_id: String!): UpdateRealmAttributesOutput
   """
   update data of the table: "sequent_backend.applications"
   """
@@ -2584,6 +2640,30 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [cast_vote_updates!]!
   ): [cast_vote_mutation_response]
+  """
+  update data of the table: "sequent_backend.certificate_authority"
+  """
+  update_sequent_backend_certificate_authority(
+    """sets the columns of the filtered rows to the given values"""
+    _set: certificate_authority_set_input
+    """filter the rows which have to be updated"""
+    where: certificate_authority_bool_exp!
+  ): certificate_authority_mutation_response
+  """
+  update single row of the table: "sequent_backend.certificate_authority"
+  """
+  update_sequent_backend_certificate_authority_by_pk(
+    """sets the columns of the filtered rows to the given values"""
+    _set: certificate_authority_set_input
+    pk_columns: certificate_authority_pk_columns_input!
+  ): certificate_authority
+  """
+  update multiples rows of table: "sequent_backend.certificate_authority"
+  """
+  update_sequent_backend_certificate_authority_many(
+    """updates to execute, in order"""
+    updates: [certificate_authority_updates!]!
+  ): [certificate_authority_mutation_response]
   """
   update data of the table: "sequent_backend.contest"
   """
@@ -4642,6 +4722,40 @@ type query_root {
   fetch data from the table: "sequent_backend.cast_vote" using primary key columns
   """
   sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
+  """
+  fetch data from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): [certificate_authority!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority_aggregate(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): certificate_authority_aggregate!
+  """
+  fetch data from the table: "sequent_backend.certificate_authority" using primary key columns
+  """
+  sequent_backend_certificate_authority_by_pk(id: uuid!): certificate_authority
   """
   fetch data from the table: "sequent_backend.contest"
   """
@@ -8137,6 +8251,293 @@ input cast_vote_updates {
   _set: cast_vote_set_input
   """filter the rows which have to be updated"""
   where: cast_vote_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.certificate_authority"
+"""
+type certificate_authority {
+  common_name: String!
+  created_at: timestamptz!
+  election_event_id: uuid!
+  fingerprint_sha256: String!
+  id: uuid!
+  issuer: String!
+  issuer_common_name: String!
+  not_after: timestamptz!
+  not_before: timestamptz!
+  pem: String!
+  serial_number: String!
+  subject: String!
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.certificate_authority"
+"""
+type certificate_authority_aggregate {
+  aggregate: certificate_authority_aggregate_fields
+  nodes: [certificate_authority!]!
+}
+
+"""
+aggregate fields of "sequent_backend.certificate_authority"
+"""
+type certificate_authority_aggregate_fields {
+  count(columns: [certificate_authority_select_column!], distinct: Boolean): Int!
+  max: certificate_authority_max_fields
+  min: certificate_authority_min_fields
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.certificate_authority". All fields are combined with a logical 'AND'.
+"""
+input certificate_authority_bool_exp {
+  _and: [certificate_authority_bool_exp!]
+  _not: certificate_authority_bool_exp
+  _or: [certificate_authority_bool_exp!]
+  common_name: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  fingerprint_sha256: String_comparison_exp
+  id: uuid_comparison_exp
+  issuer: String_comparison_exp
+  issuer_common_name: String_comparison_exp
+  not_after: timestamptz_comparison_exp
+  not_before: timestamptz_comparison_exp
+  pem: String_comparison_exp
+  serial_number: String_comparison_exp
+  subject: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.certificate_authority"
+"""
+enum certificate_authority_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  certificate_authority_pkey
+  """
+  unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id"
+  """
+  certificate_authority_tenant_id_election_event_id_fingerpri_key
+}
+
+"""
+input type for inserting data into table "sequent_backend.certificate_authority"
+"""
+input certificate_authority_insert_input {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type certificate_authority_max_fields {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type certificate_authority_min_fields {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.certificate_authority"
+"""
+type certificate_authority_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [certificate_authority!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.certificate_authority"
+"""
+input certificate_authority_on_conflict {
+  constraint: certificate_authority_constraint!
+  update_columns: [certificate_authority_update_column!]! = []
+  where: certificate_authority_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.certificate_authority".
+"""
+input certificate_authority_order_by {
+  common_name: order_by
+  created_at: order_by
+  election_event_id: order_by
+  fingerprint_sha256: order_by
+  id: order_by
+  issuer: order_by
+  issuer_common_name: order_by
+  not_after: order_by
+  not_before: order_by
+  pem: order_by
+  serial_number: order_by
+  subject: order_by
+  tenant_id: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.certificate_authority
+"""
+input certificate_authority_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.certificate_authority"
+"""
+enum certificate_authority_select_column {
+  """column name"""
+  common_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  fingerprint_sha256
+  """column name"""
+  id
+  """column name"""
+  issuer
+  """column name"""
+  issuer_common_name
+  """column name"""
+  not_after
+  """column name"""
+  not_before
+  """column name"""
+  pem
+  """column name"""
+  serial_number
+  """column name"""
+  subject
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.certificate_authority"
+"""
+input certificate_authority_set_input {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""
+Streaming cursor of the table "sequent_backend_certificate_authority"
+"""
+input certificate_authority_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: certificate_authority_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input certificate_authority_stream_cursor_value_input {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""
+update columns of table "sequent_backend.certificate_authority"
+"""
+enum certificate_authority_update_column {
+  """column name"""
+  common_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  fingerprint_sha256
+  """column name"""
+  id
+  """column name"""
+  issuer
+  """column name"""
+  issuer_common_name
+  """column name"""
+  not_after
+  """column name"""
+  not_before
+  """column name"""
+  pem
+  """column name"""
+  serial_number
+  """column name"""
+  subject
+  """column name"""
+  tenant_id
+}
+
+input certificate_authority_updates {
+  """sets the columns of the filtered rows to the given values"""
+  _set: certificate_authority_set_input
+  """filter the rows which have to be updated"""
+  where: certificate_authority_bool_exp!
 }
 
 """
@@ -21015,6 +21416,51 @@ type subscription_root {
     """filter the rows returned"""
     where: cast_vote_bool_exp
   ): [cast_vote!]!
+  """
+  fetch data from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): [certificate_authority!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority_aggregate(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): certificate_authority_aggregate!
+  """
+  fetch data from the table: "sequent_backend.certificate_authority" using primary key columns
+  """
+  sequent_backend_certificate_authority_by_pk(id: uuid!): certificate_authority
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [certificate_authority_stream_cursor_input]!
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): [certificate_authority!]!
   """
   fetch data from the table: "sequent_backend.contest"
   """
