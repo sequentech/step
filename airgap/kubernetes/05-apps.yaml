@@ -104,7 +104,7 @@ spec:
                 name: step-env
           env:
             - name: KEYCLOAK_URL
-              value: "http://keycloak.local/"
+              value: "http://portal.local"
 ---
 apiVersion: v1
 kind: Service

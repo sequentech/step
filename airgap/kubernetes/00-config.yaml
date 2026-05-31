@@ -27,7 +27,7 @@ data:
   # Internal URL for Backend-to-Backend
   KEYCLOAK_URL: "http://keycloak.step-infra.svc.cluster.local:8090"
   # Public URL for Browser Redirects
-  KEYCLOAK_PUBLIC_URL: "http://keycloak.local"
+  KEYCLOAK_PUBLIC_URL: "http://portal.local"
   
   KEYCLOAK_DB__USER: "postgres"
   KEYCLOAK_DB__PASSWORD: "password"
