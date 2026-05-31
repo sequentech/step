@@ -21,13 +21,13 @@ data:
   AWS_S3_BUCKET: "election-event-documents"
   AWS_S3_PUBLIC_BUCKET: "public"
   # Public facing Storage URL for Browser (via Ingress)
-  PUBLIC_BUCKET_URL: "http://portal.local/storage/public/"
+  PUBLIC_BUCKET_URL: "https://portal.local/storage/public/"
   
   # Keycloak
   # Internal URL for Backend-to-Backend
   KEYCLOAK_URL: "http://keycloak.step-infra.svc.cluster.local:8090"
   # Public URL for Browser Redirects
-  KEYCLOAK_PUBLIC_URL: "http://portal.local"
+  KEYCLOAK_PUBLIC_URL: "https://portal.local"
   
   KEYCLOAK_DB__USER: "postgres"
   KEYCLOAK_DB__PASSWORD: "password"
@@ -37,7 +37,7 @@ data:
   
   # Hasura
   # Public facing Hasura URL for Browser (via Ingress)
-  HASURA_URL: "http://portal.local/hasura/v1/graphql"
+  HASURA_URL: "https://portal.local/hasura/v1/graphql"
   HASURA_ENDPOINT: "http://hasura.step-apps.svc.cluster.local:8080/v1/graphql"
   HARVEST_DOMAIN: "harvest.step-apps.svc.cluster.local:8400"
   ACTIONS_ADMIN_SECRET: "admin123"
@@ -60,4 +60,4 @@ data:
   MASTER_SECRET: "dummy_master_secret_for_airgap_certification"
   
   # Other
-  VOTING_PORTAL_URL: "http://portal.local"
+  VOTING_PORTAL_URL: "https://portal.local"

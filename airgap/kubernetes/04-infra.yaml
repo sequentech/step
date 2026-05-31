@@ -210,6 +210,8 @@ spec:
               value: "false"
             - name: KC_HOSTNAME_STRICT_HTTPS
               value: "false"
+            - name: KC_PROXY
+              value: "edge"
             - name: KC_DB
               value: postgres
             - name: KC_DB_URL

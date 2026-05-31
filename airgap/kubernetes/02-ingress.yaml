@@ -4,9 +4,13 @@ metadata:
   name: step-ingress
   namespace: gitea
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - gitea.local
+      secretName: step-tls-cert
   rules:
     - host: gitea.local
       http:
@@ -25,9 +29,13 @@ metadata:
   name: infra-ingress
   namespace: step-infra
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - keycloak.local
+      secretName: step-tls-cert
   rules:
     - host: keycloak.local
       http:
@@ -56,10 +64,14 @@ metadata:
   name: storage-ingress
   namespace: step-infra
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: step-infra-storage-strip-prefix@kubernetescrd
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - portal.local
+      secretName: step-tls-cert
   rules:
     - host: portal.local
       http:
@@ -78,9 +90,13 @@ metadata:
   name: keycloak-portal-ingress
   namespace: step-infra
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - portal.local
+      secretName: step-tls-cert
   rules:
     - host: portal.local
       http:
@@ -106,10 +122,14 @@ metadata:
   name: app-ingress
   namespace: step-apps
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: step-apps-strip-prefix@kubernetescrd,step-apps-permissive-cors@kubernetescrd
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - portal.local
+      secretName: step-tls-cert
   rules:
     - host: portal.local
       http:
