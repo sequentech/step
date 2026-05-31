@@ -77,11 +77,11 @@ EOF
     --deploy)
         echo "--- Ensuring TLS Certificate is Provisioned ---"
         if ! sudo k3s kubectl get secret step-tls-cert -n step-apps &>/dev/null; then
-            echo "Generating self-signed TLS certificate for portal.local and keycloak.local..."
+            echo "Generating self-signed TLS certificate for portal.local..."
             sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
               -keyout /tmp/tls.key -out /tmp/tls.crt \
               -subj '/CN=portal.local' \
-              -addext 'subjectAltName = DNS:portal.local, DNS:keycloak.local'
+              -addext 'subjectAltName = DNS:portal.local'
 
             sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n step-apps --dry-run=client -o yaml | sudo k3s kubectl apply -f -
             sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n step-infra --dry-run=client -o yaml | sudo k3s kubectl apply -f -
@@ -111,7 +111,7 @@ EOF
         echo ""
         echo "--- Configuring Local DNS Resolution ---"
         echo "Adding *.local domains to your /etc/hosts file..."
-        sudo sh -c 'grep -q "gitea.local" /etc/hosts || echo "127.0.0.1 gitea.local keycloak.local portal.local" >> /etc/hosts'
+        sudo sh -c 'grep -q "gitea.local" /etc/hosts || echo "127.0.0.1 gitea.local portal.local" >> /etc/hosts'
         echo "Domains configured."
         echo ""
         echo "To start developing:"

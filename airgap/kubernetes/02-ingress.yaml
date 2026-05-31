@@ -19,31 +19,6 @@ spec:
                 port:
                   number: 3000
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: infra-ingress
-  namespace: step-infra
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-spec:
-  ingressClassName: traefik
-  tls:
-    - hosts:
-        - keycloak.local
-      secretName: step-tls-cert
-  rules:
-    - host: keycloak.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: keycloak
-                port:
-                  number: 8090
----
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
