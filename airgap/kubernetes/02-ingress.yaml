@@ -4,13 +4,9 @@ metadata:
   name: step-ingress
   namespace: gitea
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
-  tls:
-    - hosts:
-        - gitea.local
-      secretName: step-tls-cert
   rules:
     - host: gitea.local
       http:

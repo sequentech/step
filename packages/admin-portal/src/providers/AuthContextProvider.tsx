@@ -312,7 +312,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 }
             }
         } catch (error) {
-            console.error("[initKeycloak] initialization failed:", error)
             setAuthenticated(false)
             navigate("/tenant") // Redirect back on failure
             return false
@@ -353,7 +352,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const createKeycloak = (tenantId?: string) => {
         if (keycloak) {
-            console.log("[createKeycloak] Keycloak instance already exists, skipping creation");
             return
         }
         /**
@@ -361,10 +359,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
          */
         const storedTenantId = tenantId || selectedTenantId || globalSettings.DEFAULT_TENANT_ID
 
-        console.log("[createKeycloak] Creating Keycloak instance with storedTenantId:", storedTenantId, "and KEYCLOAK_URL:", globalSettings.KEYCLOAK_URL);
-
         if (location.pathname.endsWith("/tenant") && !selectedTenantId) {
-            console.log("[createKeycloak] Path ends with /tenant and no selectedTenantId, skipping creation");
             return
         }
 
@@ -376,13 +371,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             url: globalSettings.KEYCLOAK_URL,
         }
         const newKeycloak = new Keycloak(keycloakConfig)
-        console.log("[createKeycloak] Keycloak instance successfully created:", newKeycloak);
         setKeycloak(newKeycloak)
     }
 
     const initializeKeycloak = async () => {
         if (!keycloak) {
-            console.log("[initializeKeycloak] No Keycloak instance available, skipping initialization");
             return
         }
         try {
@@ -398,14 +391,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 flow: "standard", // Use standard flow instead of implicit
                 responseMode: "fragment", // Use fragment response mode
             }
-            console.log("[initializeKeycloak] Calling keycloak.init() with options:", keycloakInitOptions);
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
-            console.log("[initializeKeycloak] keycloak.init() successfully resolved. IsAuthenticated:", isAuthenticatedResponse);
 
             // If the authentication was not successful, we'll let the App component handle it
             // by showing the SelectTenant screen
             if (!isAuthenticatedResponse) {
-                console.log("[initializeKeycloak] User is not authenticated, handling SelectTenant");
                 setAuthenticated(false)
                 setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
                 localStorage.removeItem("token")
@@ -425,7 +415,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
         } catch (error) {
-            console.error("[initializeKeycloak] initialization failed:", error)
             setAuthenticated(false)
             setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
             localStorage.removeItem("token")

@@ -75,6 +75,21 @@ EOF
         ;;
 
     --deploy)
+        echo "--- Ensuring TLS Certificate is Provisioned ---"
+        if ! sudo k3s kubectl get secret step-tls-cert -n step-apps &>/dev/null; then
+            echo "Generating self-signed TLS certificate for portal.local and keycloak.local..."
+            sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+              -keyout /tmp/tls.key -out /tmp/tls.crt \
+              -subj '/CN=portal.local' \
+              -addext 'subjectAltName = DNS:portal.local, DNS:keycloak.local'
+
+            sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n step-apps --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+            sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n step-infra --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+            rm -f /tmp/tls.key /tmp/tls.crt
+        else
+            echo "TLS certificate already exists."
+        fi
+
         echo "--- Loading Infrastructure Images into K3s (Background) ---"
         sudo mkdir -p /var/lib/rancher/k3s/agent/images/
         sudo cp "$PROJECT_ROOT/images/step-airgap-infra.tar" /var/lib/rancher/k3s/agent/images/
