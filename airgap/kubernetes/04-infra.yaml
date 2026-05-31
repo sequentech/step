@@ -222,8 +222,8 @@ spec:
             - containerPort: 8090
           volumeMounts:
             - name: realm-import
-              mountPath: /opt/keycloak/data/import/step-realm.json
-              subPath: step-realm.json
+              mountPath: /opt/keycloak/data/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+              subPath: tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
       volumes:
         - name: realm-import
           configMap:
