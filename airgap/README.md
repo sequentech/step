@@ -6,7 +6,36 @@ This guide explains how to prepare, install, and manage a single-node K3s cluste
 
 ## 1. Architecture & Design Decisions
 
-The solution is designed to provide a "Cloud-in-a-Box" experience without any internet connectivity.
+The solution is designed to provide a secure, production-grade "Cloud-in-a-Box" experience without any internet connectivity.
+
+```
+                  +---------------------------------------+
+                  |         Client (Ubuntu 26.04)         |
+                  +---------------------------------------+
+                                      |
+                     (HTTPS / Port 443 | HTTP / Port 80)
+                                      v
++---------------------------------------------------------------------------------+
+|                            Server VM (Ubuntu 26.04)                             |
+|                                                                                 |
+|  +--------------------------- Traefik Ingress Controller --------------------+  |
+|  |                                                                           |  |
+|  |  +-- https://portal.local ---------------------------------------------+  |  |
+|  |  |  * Port 443 (TLS)                                                   |  |  |
+|  |  |  * Routes / -> admin-portal                                         |  |  |
+|  |  |  * Routes /hasura -> hasura (GraphQL Engine)                        |  |  |
+|  |  |  * Routes /storage -> rustfs (S3 Assets)                            |  |  |
+|  |  |  * Routes /realms & /resources -> keycloak (Port 8090)              |  |  |
+|  |  +---------------------------------------------------------------------+  |  |
+|  |                                                                           |  |
+|  |  +-- http://gitea.local -----------------------------------------------+  |  |
+|  |  |  * Port 80 (Plain HTTP)                                             |  |  |
+|  |  |  * Routes / -> gitea (Port 3000)                                    |  |  |
+|  |  +---------------------------------------------------------------------+  |  |
+|  +---------------------------------------------------------------------------+  |
+|                                                                                 |
++---------------------------------------------------------------------------------+
+```
 
 ### Core Components
 - **K3s (Single-Node)**: Chosen for its lightweight footprint and built-in support for airgapped environments (binary-only installation and auto-importing images).
@@ -14,8 +43,10 @@ The solution is designed to provide a "Cloud-in-a-Box" experience without any in
 - **Gitea Runner (Actions)**: Runs inside the cluster using a **Docker-in-Docker (DinD)** sidecar to build and push images locally.
 
 ### Key Architectural Decisions
+- **Unified Single-Domain TLS routing**: To prevent CORS blocks, cookie-transmission blocks, and DNS-over-HTTPS (DoH) issues (where browsers bypass `/etc/hosts` for different subdomains), **the entire application has been refactored into a single host (`portal.local`)**. Keycloak's frontend endpoints (`/realms` and `/resources`), Hasura (`/hasura`), and RustFS (`/storage`) are multiplexed securely under the same TLS domain.
+- **Turnkey Self-Signed Certificates**: During deployment, our management script automatically checks for TLS secrets and generates a multi-domain self-signed certificate for `portal.local` dynamically, injecting it into `step-apps` and `step-infra` namespaces.
 - **Static Registry Routing**: Gitea is assigned a fixed ClusterIP (`10.43.10.10`). During installation, K3s is pre-configured to trust `gitea.gitea:3000` at this IP. This bypasses the need for host-level DNS resolution (`/etc/hosts`) and ensures the Kubelet can always pull images.
-- **Declarative Automation**: Instead of complex bash scripts, a Kubernetes Job (`gitea-setup`) handles runner registration. It waits for Gitea to be ready, generates a token, and saves it to a Secret. This makes the deployment self-healing and asynchronous.
+- **Declarative Automation**: Instead of complex bash loops, a Kubernetes Job (`gitea-setup`) handles runner registration. It waits for Gitea to be ready, generates a token, and saves it to a Secret. This makes the deployment self-healing and asynchronous.
 - **Secure CI Rollouts**: The runner is assigned a dedicated `ServiceAccount` with RBAC permissions limited to restarting deployments in the `step-apps` namespace. This allows the CI pipeline to trigger updates without needing root access to the node.
 - **Offline Image Lifecycle**:
   - **Online**: `prepare.sh` bundles every required base image into a 3.5GB tarball.
@@ -23,11 +54,82 @@ The solution is designed to provide a "Cloud-in-a-Box" experience without any in
 
 ---
 
-## 2. Online Preparation (Online Machine)
+## 2. Environment Specifications
 
-Before going to the lab, you must bundle all required artifacts (binaries, deb packages, and container images).
+### Operating Systems
+- **Online Preparation Machine**: Ubuntu 26.04 LTS (Noble Numbat)
+- **Server Machine (Cluster Node)**: Ubuntu 26.04 LTS Server (Noble Numbat)
+- **Client Machine (Desktop)**: Ubuntu 26.04 LTS Desktop (Noble Numbat)
 
-1.  Clone the repository on a machine with internet access.
+### Toolchain Requirements (Online Preparation Machine)
+To successfully run `./airgap/prepare.sh` and build the offline bundle, the online prep machine must have the following tools installed:
+1.  **Bash (v5+)**: Unix shell environment.
+2.  **Coreutils (`uname`, `realpath`, `mkdir`, `rm`, `chmod`)**.
+3.  **Curl**: Used for downloading K3s, Kubectl, and installation scripts.
+4.  **Docker (CE / Community Edition, v25+)**: 
+    - Must be configured to run containers without sudo (user added to `docker` group).
+    - Must support emulation/multi-arch building (if preparing ARM64 artifacts from an x86_64 host).
+5.  **Tar / Gzip**: For compressing the source files bundle.
+
+---
+
+## 3. Server Network Configuration (Ubuntu 26.04)
+
+For the cluster to run reliably in an offline lab environment, the server must be assigned a **Static IP address**. 
+
+### Step 1: Configure Static IP on Server
+On **Ubuntu 26.04**, static IPs are configured via Netplan. Edit your Netplan configuration file (typically `/etc/netplan/50-cloud-init.yaml` or `/etc/netplan/01-netcfg.yaml`):
+
+```bash
+sudo nano /etc/netplan/50-cloud-init.yaml
+```
+
+Modify the network interface (e.g., `eth0` or `enp3s0`) to have static IP definitions. Here is an example of setting the Server IP to `192.168.1.100`:
+
+```yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      dhcp4: no
+      addresses:
+        - 192.168.1.100/24
+      routes:
+        - to: default
+          via: 192.168.1.1
+      nameservers:
+        addresses:
+          - 192.168.1.1
+```
+
+Apply the changes:
+```bash
+sudo netplan apply
+```
+
+### Step 2: Configure Hosts File on Client Machine
+On the **Client Machine (Ubuntu 26.04 Desktop)**, map the static IP of your Server to the local domains. Open `/etc/hosts`:
+
+```bash
+sudo nano /etc/hosts
+```
+
+Add the following entry (replacing `192.168.1.100` with your Server's actual static IP):
+
+```text
+192.168.1.100 portal.local gitea.local
+```
+
+*Note: `keycloak.local` is no longer needed since Keycloak is multiplexed directly under `portal.local`!*
+
+---
+
+## 4. Online Preparation (Online Machine)
+
+Before going to the lab, you must bundle all required artifacts.
+
+1.  Clone the repository on an online machine running Ubuntu 26.04.
 2.  Run the preparation script:
     ```bash
     ./airgap/prepare.sh
@@ -40,10 +142,10 @@ Before going to the lab, you must bundle all required artifacts (binaries, deb p
 
 ---
 
-## 3. Server Machine Setup (Lab Machine)
+## 5. Server Machine Setup (Lab Machine)
 
 ### Install Cluster
-1.  Plug in the USB and copy `airgap-output` to the server.
+1.  Plug in the USB and copy `airgap-output` to your server.
 2.  Install the airgapped K3s cluster:
     ```bash
     cd airgap-output
@@ -56,17 +158,13 @@ This will load the infrastructure images and apply all Kubernetes manifests in a
 ```bash
 sudo ./manage.sh --deploy
 ```
-**What happens under the hood:**
-- **Static Routing**: Gitea is assigned a static IP (`10.43.10.10`) so the Kubelet can always resolve the registry.
-- **Auto-Config**: Gitea starts with a pre-configured admin user (`admin/admin123`).
-- **Automated Runner**: A Kubernetes Job (`gitea-setup`) waits for Gitea, generates a registration token, and stores it in a Secret. The Gitea Runner starts automatically once the Secret is available.
 
 ---
 
-## 4. Client Machine Setup (Ubuntu Desktop)
+## 6. Client Machine Setup (Ubuntu 26.04 Desktop)
 
 1.  Plug in the USB.
-2.  Install required CLI tools (git, kubectl, etc.) from the offline bundle:
+2.  Install required CLI tools (git, curl, jq) from the offline bundle:
     ```bash
     cd airgap-output
     sudo ./manage.sh --setup-client
@@ -74,10 +172,10 @@ sudo ./manage.sh --deploy
 
 ---
 
-## 5. Development Workflow
+## 7. Development Workflow
 
 ### Initial Code Push
-1.  Log in to Gitea at `http://gitea.local` using **admin / admin123**.
+1.  Log in to Gitea at `http://gitea.local` (Plain HTTP) using **admin / admin123**.
 2.  Create a new repository called **`step`** under the **admin** user.
 3.  Prepare your source code:
     ```bash
@@ -90,19 +188,25 @@ sudo ./manage.sh --deploy
     git push -u origin main
     ```
 
-### CI/CD Pipeline
-Gitea Actions will automatically trigger on push. The pipeline:
-1.  Uses a `dind` (Docker-in-Docker) runner with pre-cached base images.
-2.  Builds services (Harvest, Windmill, Admin Portal) using `Dockerfile.airgap`.
-3.  Pushes images to the internal registry: `gitea.gitea:3000/admin/...`.
-4.  **Automatic Rollout**: Uses a secure ServiceAccount and the `ci-builder` image to restart deployments in the `step-apps` namespace upon success.
-
 ---
 
-## Management & Access
-- **Gitea:** `http://gitea.local` (admin/admin123)
-- **Keycloak:** `http://keycloak.local`
-- **Admin Portal:** `http://portal.local`
+## 8. Service Access Map
+
+Once deployed, access each service using the mapping below:
+
+| Service | Protocol | Access URL | Description |
+| :--- | :--- | :--- | :--- |
+| **Admin Portal** | **HTTPS (Port 443)** | `https://portal.local` | The main administrative SPA interface. |
+| **Keycloak (Auth)** | **HTTPS (Port 443)** | `https://portal.local/realms/...` | Handled on the same single-domain to prevent browser cookie-blocks. |
+| **Hasura Engine** | **HTTPS (Port 443)** | `https://portal.local/hasura/v1/graphql` | Public-facing GraphQL API. |
+| **RustFS (S3)** | **HTTPS (Port 443)** | `https://portal.local/storage/public/` | Public asset storage bucket. |
+| **Gitea** | **HTTP (Port 80)** | `http://gitea.local` | Source control and internal docker registry (Port 3000 mapped). |
+
+### Important Note on Self-Signed Certificates:
+Since `https://portal.local` uses a self-signed TLS certificate generated natively:
+1.  When you first access `https://portal.local` in your browser, you will see a privacy warning.
+2.  Click **Advanced** -> **Proceed to portal.local (unsafe)**.
+3.  Once accepted, your browser will mark the context as **Secure**, unlocking the **Web Crypto API** natively and allowing Keycloak OIDC authentication to initialize and log in.
 
 ---
 *SPDX-License-Identifier: AGPL-3.0-only*
