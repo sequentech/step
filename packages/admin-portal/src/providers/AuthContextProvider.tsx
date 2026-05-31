@@ -312,6 +312,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 }
             }
         } catch (error) {
+            console.error("[initKeycloak] initialization failed:", error)
             setAuthenticated(false)
             navigate("/tenant") // Redirect back on failure
             return false
@@ -415,6 +416,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
         } catch (error) {
+            console.error("[initializeKeycloak] initialization failed:", error)
             setAuthenticated(false)
             setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
             localStorage.removeItem("token")
