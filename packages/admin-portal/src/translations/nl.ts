@@ -2221,8 +2221,9 @@ const dutchTranslation: TranslationType = {
                 importButton: "Importeren",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} certificaat(-en) geïmporteerd. {{skipped}} overgeslagen (al aanwezig).",
+                importSuccess: "{{inserted}} certificaat(-en) geïmporteerd.",
+                importSkipped: "{{count}} overgeslagen (al aanwezig).",
+                importErrors: "Importproblemen: {{errors}}",
                 importError: "Importeren mislukt: {{error}}",
                 deleteSuccess: "Certificaat verwijderd.",
                 deleteError: "Fout bij verwijderen van certificaat.",
