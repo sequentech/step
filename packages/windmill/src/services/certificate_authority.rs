@@ -3,10 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, NaiveDateTime, Utc};
-use sequent_core::util::temp_path::generate_temp_file;
-use std::fs;
-use std::process::Command;
+use chrono::{DateTime, TimeZone, Utc};
+use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::CertificateAuthEventAction;
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use tracing::{error, info, warn};
+use uuid::Uuid;
+use x509_parser::pem::parse_x509_pem;
+
+use crate::postgres::certificate_authority::{
+    delete_certificate_authorities, insert_certificate_authority, CertificateAuthorityRecord,
+};
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log::ElectoralLog;
 
 // The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
@@ -55,79 +65,51 @@ pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
     certs
 }
 
-/// Parses a single PEM-encoded X.509 certificate and extracts its metadata
-/// using OpenSSL command-line tools.
+/// Parses a single PEM-encoded X.509 certificate and extracts its metadata.
 pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
-    let cert_temp_file =
-        generate_temp_file("cert", ".pem").with_context(|| "Error creating temp PEM file")?;
-    let cert_path = cert_temp_file.path();
-    fs::write(cert_path, pem)
-        .with_context(|| format!("Error writing PEM to temp file {}", cert_path.display()))?;
+    let (_, pem_obj) =
+        parse_x509_pem(pem.as_bytes()).map_err(|e| anyhow!("Failed to parse PEM: {e}"))?;
 
-    let raw_output = Command::new("openssl")
-        .args([
-            "x509",
-            "-in",
-            &cert_path.to_string_lossy(),
-            "-noout",
-            "-subject",
-            "-issuer",
-            "-startdate",
-            "-enddate",
-            "-fingerprint",
-            "-sha256",
-            "-serial",
-        ])
-        .output()
-        .with_context(|| "Error running openssl x509 to parse certificate")?;
-    if !raw_output.status.success() {
-        return Err(anyhow!(
-            "openssl x509 failed: {}",
-            String::from_utf8_lossy(&raw_output.stderr)
-        ));
-    }
-    let output = String::from_utf8_lossy(&raw_output.stdout).into_owned();
+    let cert = pem_obj
+        .parse_x509()
+        .map_err(|e| anyhow!("Failed to parse X.509 certificate: {e}"))?;
 
-    parse_openssl_x509_output(&output, pem)
-}
+    let subject = cert.subject().to_string();
+    let issuer = cert.issuer().to_string();
 
-fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificate> {
-    let mut subject = String::new();
-    let mut issuer = String::new();
-    let mut not_before_str = String::new();
-    let mut not_after_str = String::new();
-    let mut fingerprint_sha256 = String::new();
-    let mut serial_number = String::new();
+    let common_name = cert
+        .subject()
+        .iter_common_name()
+        .next()
+        .and_then(|cn| cn.as_str().ok())
+        .unwrap_or(&subject)
+        .to_string();
 
-    for line in output.lines() {
-        if let Some(v) = line.strip_prefix("subject=") {
-            subject = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("issuer=") {
-            issuer = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("notBefore=") {
-            not_before_str = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("notAfter=") {
-            not_after_str = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("sha256 Fingerprint=") {
-            fingerprint_sha256 = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("serial=") {
-            serial_number = v.trim().to_string();
-        }
-    }
+    let issuer_common_name = cert
+        .issuer()
+        .iter_common_name()
+        .next()
+        .and_then(|cn| cn.as_str().ok())
+        .unwrap_or(&issuer)
+        .to_string();
 
-    if subject.is_empty() {
-        return Err(anyhow!(
-            "Failed to parse certificate: subject not found in openssl output"
-        ));
-    }
+    let validity = cert.validity();
+    let not_before = Utc
+        .timestamp_opt(validity.not_before.timestamp(), 0)
+        .single()
+        .ok_or_else(|| anyhow!("Invalid notBefore timestamp"))?;
+    let not_after = Utc
+        .timestamp_opt(validity.not_after.timestamp(), 0)
+        .single()
+        .ok_or_else(|| anyhow!("Invalid notAfter timestamp"))?;
 
-    let common_name = extract_cn(&subject).unwrap_or_else(|| subject.clone());
-    let issuer_common_name = extract_cn(&issuer).unwrap_or_else(|| issuer.clone());
+    let fingerprint_sha256 = Sha256::digest(&pem_obj.contents)
+        .iter()
+        .map(|b| format!("{b:02X}"))
+        .collect::<Vec<_>>()
+        .join(":");
 
-    let not_before = parse_openssl_date(&not_before_str)
-        .with_context(|| format!("Failed to parse notBefore: '{not_before_str}'"))?;
-    let not_after = parse_openssl_date(&not_after_str)
-        .with_context(|| format!("Failed to parse notAfter: '{not_after_str}'"))?;
+    let serial_number = cert.tbs_certificate.raw_serial_as_string();
 
     Ok(ParsedCertificate {
         common_name,
@@ -142,26 +124,196 @@ fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificat
     })
 }
 
-/// Extracts the CN value from a distinguished name string such as
-/// "CN=My Root CA, O=Org, C=US" or "CN = My CA,O=Org".
-pub fn extract_cn(rdns: &str) -> Option<String> {
-    for part in rdns.split(',') {
-        let part = part.trim();
-        if let Some(v) = part.strip_prefix("CN=") {
-            return Some(v.trim().to_string());
-        }
-        if let Some(v) = part.strip_prefix("CN =") {
-            return Some(v.trim().to_string());
-        }
-    }
-    None
+pub struct CertificateImportResult {
+    pub inserted_count: i32,
+    pub skipped_count: i32,
+    pub errors: Vec<String>,
 }
 
-/// Parses the OpenSSL date format: "Jan  1 00:00:00 2020 GMT"
-pub fn parse_openssl_date(date_str: &str) -> Result<DateTime<Utc>> {
-    let dt = NaiveDateTime::parse_from_str(date_str.trim(), "%b %e %H:%M:%S %Y %Z")
-        .with_context(|| format!("Unrecognised date format: '{date_str}'"))?;
-    Ok(dt.and_utc())
+pub async fn import_certificate_authority(
+    hasura_transaction: Transaction<'_>,
+    pem_chunks: Vec<String>,
+    tenant_uuid: Uuid,
+    election_event_id: Uuid,
+    bulletin_board_reference: Option<Value>,
+    tenant_id: &str,
+    user_id: &str,
+    preferred_username: Option<String>,
+) -> Result<CertificateImportResult> {
+    let mut inserted_count: i32 = 0;
+    let mut skipped_count: i32 = 0;
+    let mut errors: Vec<String> = Vec::new();
+    let mut inserted_subjects: Vec<String> = Vec::new();
+
+    for (i, pem_chunk) in pem_chunks.iter().enumerate() {
+        match parse_certificate_pem(pem_chunk) {
+            Ok(parsed) => {
+                if parsed.not_after < Utc::now() {
+                    warn!(
+                        cert_index = i + 1,
+                        common_name = %parsed.common_name,
+                        not_after = %parsed.not_after,
+                        "Certificate is expired, skipping"
+                    );
+                    errors.push(format!(
+                        "Certificate {}: expired on {}",
+                        i + 1,
+                        parsed.not_after.format("%Y-%m-%d")
+                    ));
+                    continue;
+                }
+                let record = CertificateAuthorityRecord {
+                    id: Uuid::new_v4(),
+                    tenant_id: tenant_uuid,
+                    election_event_id,
+                    common_name: parsed.common_name,
+                    subject: parsed.subject.clone(),
+                    issuer_common_name: parsed.issuer_common_name,
+                    issuer: parsed.issuer,
+                    not_before: parsed.not_before,
+                    not_after: parsed.not_after,
+                    fingerprint_sha256: parsed.fingerprint_sha256,
+                    serial_number: parsed.serial_number,
+                    pem: parsed.pem,
+                };
+                match insert_certificate_authority(&hasura_transaction, record).await {
+                    Ok(true) => {
+                        info!(cert_index = i + 1, "Certificate inserted");
+                        inserted_count += 1;
+                        inserted_subjects.push(parsed.subject);
+                    }
+                    Ok(false) => {
+                        info!(cert_index = i + 1, "Certificate skipped (duplicate)");
+                        skipped_count += 1;
+                    }
+                    Err(e) => {
+                        warn!(cert_index = i + 1, error = %e, "Failed to insert certificate");
+                        errors.push(format!("Certificate {}: {}", i + 1, e));
+                    }
+                }
+            }
+            Err(e) => {
+                warn!(cert_index = i + 1, error = %e, "Failed to parse certificate");
+                errors.push(format!("Certificate {}: {}", i + 1, e));
+            }
+        }
+    }
+
+    let electoral_log = if !inserted_subjects.is_empty() {
+        let board_name = get_election_event_board(bulletin_board_reference)
+            .ok_or_else(|| anyhow!("Missing bulletin board"))?;
+        match ElectoralLog::for_admin_user(
+            &hasura_transaction,
+            &board_name,
+            tenant_id,
+            &election_event_id.to_string(),
+            user_id,
+            preferred_username.clone(),
+            None,
+            None,
+        )
+        .await
+        {
+            Ok(log) => Some(log),
+            Err(e) => {
+                error!("Error initializing electoral log for CA import: {e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    hasura_transaction
+        .commit()
+        .await
+        .context("Failed to commit transaction")?;
+
+    if let Some(log) = electoral_log {
+        if let Err(e) = log
+            .post_certificate_auth_event(
+                election_event_id.to_string(),
+                CertificateAuthEventAction::Import,
+                inserted_subjects,
+                Some(user_id.to_string()),
+                preferred_username,
+            )
+            .await
+        {
+            error!("Error posting CA import event to electoral log: {e:?}");
+        }
+    }
+
+    Ok(CertificateImportResult {
+        inserted_count,
+        skipped_count,
+        errors,
+    })
+}
+
+pub async fn delete_certificate_authority(
+    hasura_transaction: Transaction<'_>,
+    ids: &[Uuid],
+    election_event_id: Uuid,
+    tenant_uuid: Uuid,
+    bulletin_board_reference: Option<Value>,
+    tenant_id: &str,
+    user_id: &str,
+    preferred_username: Option<String>,
+) -> Result<i32> {
+    let deleted_subjects =
+        delete_certificate_authorities(&hasura_transaction, ids, election_event_id, tenant_uuid)
+            .await
+            .context("Failed to delete certificate authorities")?;
+
+    let electoral_log = if !deleted_subjects.is_empty() {
+        let board_name = get_election_event_board(bulletin_board_reference)
+            .ok_or_else(|| anyhow!("Missing bulletin board"))?;
+        match ElectoralLog::for_admin_user(
+            &hasura_transaction,
+            &board_name,
+            tenant_id,
+            &election_event_id.to_string(),
+            user_id,
+            preferred_username.clone(),
+            None,
+            None,
+        )
+        .await
+        {
+            Ok(log) => Some(log),
+            Err(e) => {
+                error!("Error initializing electoral log for CA delete: {e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let deleted_count = deleted_subjects.len();
+
+    hasura_transaction
+        .commit()
+        .await
+        .context("Failed to commit transaction")?;
+
+    if let Some(log) = electoral_log {
+        if let Err(e) = log
+            .post_certificate_auth_event(
+                election_event_id.to_string(),
+                CertificateAuthEventAction::Delete,
+                deleted_subjects,
+                Some(user_id.to_string()),
+                preferred_username,
+            )
+            .await
+        {
+            error!("Error posting CA delete event to electoral log: {e:?}");
+        }
+    }
+
+    Ok(deleted_count as i32)
 }
 
 #[cfg(test)]
@@ -193,36 +345,5 @@ mod tests {
                    -----BEGIN CERTIFICATE-----\nBBBB\n-----END CERTIFICATE-----\n";
         let certs = split_pem_bundle(pem);
         assert_eq!(certs.len(), 2);
-    }
-
-    #[test]
-    fn test_extract_cn_simple() {
-        assert_eq!(
-            extract_cn("CN=My CA, O=Org, C=US"),
-            Some("My CA".to_string())
-        );
-    }
-
-    #[test]
-    fn test_extract_cn_with_spaces() {
-        assert_eq!(extract_cn("CN = Root CA"), Some("Root CA".to_string()));
-    }
-
-    #[test]
-    fn test_extract_cn_not_found() {
-        assert_eq!(extract_cn("O=Org, C=US"), None);
-    }
-
-    #[test]
-    fn test_parse_openssl_date() {
-        let result = parse_openssl_date("Jan  1 00:00:00 2020 GMT");
-        assert!(result.is_ok());
-        let dt = result.unwrap();
-        assert_eq!(dt.format("%Y-%m-%d").to_string(), "2020-01-01");
-    }
-
-    #[test]
-    fn test_parse_openssl_date_invalid() {
-        assert!(parse_openssl_date("not a date").is_err());
     }
 }
