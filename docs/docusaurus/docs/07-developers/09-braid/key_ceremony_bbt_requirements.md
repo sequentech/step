@@ -19,7 +19,9 @@ cancelled at any point before the tally.
 
 ### 2.1 Ceremony states
 
-    ceremony.status ∈ { PENDING, STARTED, IN_PROGRESS, SUCCESS, CANCELLED }
+```
+ceremony.status ∈ { PENDING, STARTED, IN_PROGRESS, SUCCESS, CANCELLED }
+```
 
 | State | Meaning |
 |---|---|
@@ -31,7 +33,9 @@ cancelled at any point before the tally.
 
 ### 2.2 Trustee connection states
 
-    trustee.connection ∈ { CONNECTED, DISCONNECTED }
+```
+trustee.connection ∈ { CONNECTED, DISCONNECTED }
+```
 
 | Value | UI indicator |
 |---|---|
@@ -92,19 +96,23 @@ Dependency rules:
 
 ## 6. Ceremony Status Computation
 
-    allConnected = trustees.every(t => t.connection == CONNECTED)
-    anyStepDone  = trustees.some(t => any step is DONE)
-    allStepsDone = trustees.every(t => all steps are DONE)
+```
+allConnected = trustees.every(t => t.connection == CONNECTED)
+anyStepDone  = trustees.some(t => any step is DONE)
+allStepsDone = trustees.every(t => all steps are DONE)
 
-    if ceremony.cancelled  → CANCELLED
-    else if allStepsDone   → SUCCESS
-    else if anyStepDone    → IN_PROGRESS
-    else if ceremony.started → STARTED
-    else                   → PENDING
+if ceremony.cancelled  → CANCELLED
+else if allStepsDone   → SUCCESS
+else if anyStepDone    → IN_PROGRESS
+else if ceremony.started → STARTED
+else                   → PENDING
+```
 
 Derived flag:
 
-    blocked = (ceremony.status ∈ { STARTED, IN_PROGRESS } && !allConnected)
+```
+blocked = (ceremony.status ∈ { STARTED, IN_PROGRESS } && !allConnected)
+```
 
 The `blocked` flag drives UI warnings and prevents step updates without changing `ceremony.status`.
 
