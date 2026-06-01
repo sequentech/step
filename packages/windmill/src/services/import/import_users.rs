@@ -250,9 +250,9 @@ fn get_insert_user_query(
                     if duplicate_emails_allowed {
                         "gen_random_uuid()::text".to_string()
                     } else if voters_table_columns.contains(&"email".to_string()) {
-                        "LOWER(email)".to_string()
+                        "NULLIF(LOWER(email), '')".to_string()
                     } else {
-                        "''".to_string()
+                        "NULL".to_string()
                     }
                 }
                 "not_before" => "0".to_string(),
