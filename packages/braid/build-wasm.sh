@@ -1,9 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-
-#!/usr/bin/env bash
-set -euo pipefail
 
 # Always run from the braid package directory regardless of where the script is invoked from
 cd "$(dirname "$0")"

@@ -4,10 +4,13 @@
 
 //! WASM bindings for Braid mixnet node and session
 
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
@@ -20,8 +23,8 @@ use b4::api_types::{
     ConfirmMessageRequest, ContentType, InitiateMessageRequest, InitiateMessageResponse,
     ListMessagesResponse,
 };
-use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 use b4::HttpB3Message;
+use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -65,8 +68,6 @@ pub struct SessionState {
 #[wasm_bindgen]
 pub struct WasmSession {
     session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, IndexedDbStorage>>,
-    // Trustee instance name
-    // FIXME is this used anywhere?
     name: String,
     b4_url: String,
     /// JWT access token for B4 authentication (required).
@@ -76,6 +77,8 @@ pub struct WasmSession {
     access_token: Arc<RwLock<String>>,
     board_name: Option<String>,
     config: TrusteeConfig,
+    /// Set to true by Drop to signal the background heartbeat daemon to stop.
+    heartbeat_stop: Rc<Cell<bool>>,
 }
 
 #[wasm_bindgen]
@@ -106,6 +109,7 @@ impl WasmSession {
             access_token: Arc::new(RwLock::new(wasm_config.access_token)),
             board_name: None,
             config: wasm_config.trustee_config,
+            heartbeat_stop: Rc::new(Cell::new(false)),
         })
     }
 
@@ -887,56 +891,119 @@ impl WasmSession {
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
-    /// Send a heartbeat to B4 for the current board.
+    /// Start a background heartbeat daemon that runs until this session is freed.
     ///
-    /// Call this every `BRAID_B4_HEARTBEAT` seconds from the JS polling loop.
-    pub async fn heartbeat(&self, trustee_name: String) -> Result<(), JsValue> {
-        let board_name = self
-            .board_name
-            .as_ref()
-            .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
-
-        let url = format!("{}/boards/{}/sessions/heartbeat", self.b4_url, board_name);
-        let access_token = self
-            .access_token
-            .read()
-            .expect("access_token lock poisoned")
-            .clone();
-
+    /// Spawns a `spawn_local` task that wakes every `interval_secs` seconds and
+    /// POSTs a heartbeat to B4. The loop exits automatically when the session is
+    /// dropped (via the shared `heartbeat_stop` flag).
+    pub fn start_heartbeat_daemon(&self, interval_secs: u32) {
+        let stop = self.heartbeat_stop.clone();
+        let b4_url = self.b4_url.clone();
+        let board_name = match self.board_name.clone() {
+            Some(n) => n,
+            None => {
+                web_sys::console::warn_1(&JsValue::from_str(
+                    "[WasmSession] start_heartbeat_daemon called before init_session",
+                ));
+                return;
+            }
+        };
+        let access_token = self.access_token.clone();
         let sender_pk = self.config.signing_key_pk.clone();
+        let trustee_name = self.name.clone();
 
-        let body = serde_json::to_string(&HeartbeatRequest {
-            board_name: board_name.clone(),
-            sender_pk,
-            trustee_name,
-            trustee_mode: TrusteeModePolicy::BROWSER_BASED,
-        })
-        .map_err(|e| JsValue::from_str(&format!("Failed to serialize heartbeat: {e}")))?;
+        spawn_local(async move {
+            loop {
+                // Sleep first so the very first heartbeat goes out after one interval.
+                sleep_ms((interval_secs * 1000) as i32).await;
 
-        let opts = RequestInit::new();
-        opts.set_method("POST");
-        opts.set_mode(RequestMode::Cors);
-        opts.set_body(&JsValue::from_str(&body));
+                if stop.get() {
+                    break;
+                }
 
-        let request = Request::new_with_str_and_init(&url, &opts)?;
-        request
-            .headers()
-            .set("Authorization", &format!("Bearer {access_token}"))?;
-        request
-            .headers()
-            .set("Content-Type", "application/json")?;
+                let token = access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+                    .clone();
 
-        let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
-        let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-        let resp: Response = resp_value.dyn_into()?;
+                let url = format!("{b4_url}/boards/{board_name}/sessions/heartbeat");
 
-        if !resp.ok() {
-            return Err(JsValue::from_str(&format!(
-                "Heartbeat failed: HTTP {}",
-                resp.status()
-            )));
-        }
+                let body = match serde_json::to_string(&HeartbeatRequest {
+                    board_name: board_name.clone(),
+                    sender_pk: sender_pk.clone(),
+                    trustee_name: trustee_name.clone(),
+                    trustee_mode: TrusteeModePolicy::BROWSER_BASED,
+                }) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&format!(
+                            "[WasmSession] heartbeat serialize error: {e}"
+                        )));
+                        continue;
+                    }
+                };
 
-        Ok(())
+                let opts = RequestInit::new();
+                opts.set_method("POST");
+                opts.set_mode(RequestMode::Cors);
+                opts.set_body(&JsValue::from_str(&body));
+
+                let request = match Request::new_with_str_and_init(&url, &opts) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&format!(
+                            "[WasmSession] heartbeat request error: {e:?}"
+                        )));
+                        continue;
+                    }
+                };
+
+                let _ = request
+                    .headers()
+                    .set("Authorization", &format!("Bearer {token}"));
+                let _ = request.headers().set("Content-Type", "application/json");
+
+                let window = match web_sys::window() {
+                    Some(w) => w,
+                    None => break,
+                };
+
+                match JsFuture::from(window.fetch_with_request(&request)).await {
+                    Ok(resp_value) => {
+                        if let Ok(resp) = resp_value.dyn_into::<Response>() {
+                            if !resp.ok() {
+                                web_sys::console::warn_1(&JsValue::from_str(&format!(
+                                    "[WasmSession] heartbeat HTTP {}: {}",
+                                    resp.status(),
+                                    board_name
+                                )));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&format!(
+                            "[WasmSession] heartbeat post error: {e:?}"
+                        )));
+                    }
+                }
+            }
+        });
     }
+}
+
+impl Drop for WasmSession {
+    fn drop(&mut self) {
+        self.heartbeat_stop.set(true);
+    }
+}
+
+/// Async sleep backed by `window.setTimeout`. Works inside `spawn_local` tasks.
+async fn sleep_ms(ms: i32) {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        web_sys::window()
+            .expect("no window")
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms)
+            .expect("set_timeout failed");
+    });
+    let _ = JsFuture::from(promise).await;
 }
