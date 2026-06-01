@@ -87,14 +87,14 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
-      configure-minio:
-        condition: service_completed_successfully
+      harvest:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s
       timeout: 10s
       retries: 25
-      start_period: 5s
+      start_period: 120s
 
   keycloak-nginx:
     profiles: ["full", "base"]
