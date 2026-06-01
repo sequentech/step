@@ -8,7 +8,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
-import init, {initThreadPool, WasmSession} from "braid-wasm"
+import init, {generate_trustee_keys, initThreadPool, WasmSession} from "braid-wasm"
 
 // Module-level WASM init guard — runs once per page load regardless of re-renders
 let wasmReady = false
@@ -45,6 +45,40 @@ const sessionRegistry = new Map<string, WasmSession>()
 // Tracks the trustee identity paired with the registry so we can detect key
 // rotation and flush stale sessions.
 let registryIdentity = ""
+
+///////////////////////////////////////////////////////////////////////////
+// Trustee key storage (localStorage, keyed by boardName)
+///////////////////////////////////////////////////////////////////////////
+
+interface TrusteeKeys {
+    signing_key_sk: string
+    signing_key_pk: string
+    encryption_key: string
+}
+
+const localStorageKey = (boardName: string) => `bbt_keys_${boardName}`
+
+const getStoredKeys = (boardName: string): TrusteeKeys | null => {
+    try {
+        const raw = localStorage.getItem(localStorageKey(boardName))
+        return raw ? (JSON.parse(raw) as TrusteeKeys) : null
+    } catch {
+        return null
+    }
+}
+
+const storeKeys = (boardName: string, keys: TrusteeKeys): void => {
+    localStorage.setItem(localStorageKey(boardName), JSON.stringify(keys))
+}
+
+const ensureKeys = (boardName: string): TrusteeKeys => {
+    const existing = getStoredKeys(boardName)
+    if (existing) return existing
+    const generated = generate_trustee_keys()
+    storeKeys(boardName, generated)
+    console.info(`[HeadlessTrusteeProvider] Generated new trustee keys for board "${boardName}"`)
+    return generated
+}
 
 export interface HeadlessTrusteeContextValue {
     session: WasmSession | null
@@ -93,7 +127,8 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
         if (!boardName || !trusteeRecord || !trusteeName || !isBrowserBased) return
 
         // Detect trustee identity change (e.g. key rotation) — flush all sessions.
-        const identity = `${trusteeName}::${trusteeRecord.public_key ?? ""}`
+        const storedPk = getStoredKeys(boardName)?.signing_key_pk ?? ""
+        const identity = `${trusteeName}::${boardName}::${storedPk}`
         if (identity !== registryIdentity) {
             sessionRegistry.forEach((s) => s.free())
             sessionRegistry.clear()
@@ -114,13 +149,14 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
             try {
                 await ensureWasmReady()
 
-                // WIP - signing keys are hardcoded for development
+                // Load keys from localStorage or generate fresh ones
+                const keys = ensureKeys(boardName)
+
                 const config = {
                     name: trusteeName,
-                    signing_key_sk:
-                        "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat",
-                    signing_key_pk: trusteeRecord.public_key ?? "",
-                    encryption_key: "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg",
+                    signing_key_sk: keys.signing_key_sk,
+                    signing_key_pk: keys.signing_key_pk,
+                    encryption_key: keys.encryption_key,
                     b4_url: globalSettings.B4_URL,
                     access_token: accessTokenRef.current,
                 }

@@ -24,9 +24,11 @@ use b4::api_types::{
     ListMessagesResponse,
 };
 use b4::HttpB3Message;
+use base64::engine::general_purpose::STANDARD_NO_PAD;
+use base64::Engine as _;
 use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
 /// WASM-specific configuration that includes session properties
@@ -995,6 +997,47 @@ impl Drop for WasmSession {
     fn drop(&mut self) {
         self.heartbeat_stop.set(true);
     }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// generate_trustee_keys
+///////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize)]
+struct TrusteeKeys {
+    signing_key_sk: String,
+    signing_key_pk: String,
+    encryption_key: String,
+}
+
+/// Generates a fresh trustee identity: an Ed25519 signing keypair and an
+/// AES-256 symmetric encryption key. Equivalent to what `gen_trustee_config`
+/// produces for server-based trustees.
+///
+/// Returns `{ signing_key_sk, signing_key_pk, encryption_key }` as base64-DER /
+/// base64 strings, ready to pass directly into `WasmSession`.
+#[wasm_bindgen]
+pub fn generate_trustee_keys() -> Result<JsValue, JsValue> {
+    let sk = StrandSignatureSk::generate()
+        .map_err(|e| JsValue::from_str(&format!("Failed to generate signing key: {e:?}")))?;
+    let pk = StrandSignaturePk::from_sk(&sk)
+        .map_err(|e| JsValue::from_str(&format!("Failed to derive public key: {e:?}")))?;
+    let ek = symm::gen_key();
+
+    let signing_key_sk = sk
+        .to_der_b64_string()
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize signing key: {e:?}")))?;
+    let signing_key_pk = pk
+        .to_der_b64_string()
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize public key: {e:?}")))?;
+    let encryption_key = STANDARD_NO_PAD.encode(ek.as_slice());
+
+    serde_wasm_bindgen::to_value(&TrusteeKeys {
+        signing_key_sk,
+        signing_key_pk,
+        encryption_key,
+    })
+    .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
 }
 
 /// Async sleep backed by `window.setTimeout`. Works inside `spawn_local` tasks.
