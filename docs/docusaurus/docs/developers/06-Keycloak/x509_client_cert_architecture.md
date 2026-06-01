@@ -23,7 +23,7 @@ CA certificates are stored per election event in the database (Postgres, via
 Hasura/Harvest). The `UrlTruststoreProvider` Keycloak SPI fetches them at
 session time and caches them in memory.
 
-**See also:** [X.509 Dev Tutorial](../10-tutorials/07-x509-voter-certificate-authentication.md) — dev environment setup, testing, and troubleshooting.
+**See also:** [X.509 Dev Tutorial](../10-Tutorials/07-x509-voter-certificate-authentication.md) — dev environment setup, testing, and troubleshooting.
 
 ---
 

@@ -69,7 +69,7 @@ openssl pkcs7 -print_certs -in <bundle-file> -out extracted.pem
 ## 4. Add the CA via the Admin Portal
 
 CA certificates are stored in the database per election event and served by
-Harvest. This applies to both dev and production. See the [Certificates reference](../../02-election_managers/02-reference/02-election-event/15-election_management_election-event_certificates.md) for details on the admin portal UI.
+Harvest. This applies to both dev and production. See the [Certificates reference](/docs/admin_portal/Reference/Election-Event/election_management_election_event_certificates) for details on the admin portal UI.
 
 1. Log in and navigate to the election event
 2. Open the **CERTIFICATES** tab
