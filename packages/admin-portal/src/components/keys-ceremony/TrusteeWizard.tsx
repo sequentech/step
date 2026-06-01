@@ -95,7 +95,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     // Log trusteeParticipating condition for debugging
     console.info(
         `[TrusteeWizard] Checking trustee participation: currentCeremony.execution_status=${currentCeremony.execution_status}, authContext.trustee=${authContext.trustee}, isParticipating=${isTrusteeActionablePhase(currentCeremony, authContext)}`
-     )
+    )
     const trusteeIsInActionablePhase =
         currentCeremony && isTrusteeActionablePhase(currentCeremony, authContext)
     const trusteeCheckedKeys = hasTrusteeCheckedKeys(currentCeremony, authContext)
@@ -217,7 +217,12 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
-                    isNextDisabled={isWaitingForKeyGeneration() || isAutomaticCeremony || currentCeremony.execution_status === EStatus.SUCCESS || currentCeremony.execution_status === EStatus.CANCELLED}
+                    isNextDisabled={
+                        isWaitingForKeyGeneration() ||
+                        isAutomaticCeremony ||
+                        currentCeremony.execution_status === EStatus.SUCCESS ||
+                        currentCeremony.execution_status === EStatus.CANCELLED
+                    }
                     message={
                         isWaitingForKeyGeneration() ? (
                             <>

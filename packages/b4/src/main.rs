@@ -102,7 +102,10 @@ async fn main() -> Result<()> {
             post(handlers::confirm_messages_multi),
         )
         // Trustee session heartbeat
-        .route("/boards/:board/sessions/heartbeat", post(handlers::post_heartbeat))
+        .route(
+            "/boards/:board/sessions/heartbeat",
+            post(handlers::post_heartbeat),
+        )
         .route("/sessions", get(handlers::get_sessions))
         .layer(cors)
         .with_state(state);

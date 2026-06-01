@@ -302,10 +302,9 @@ pub async fn add_board_to_trustee_authorized_boards(
         .await
         .map_err(|e| anyhow::anyhow!("Keycloak user lookup failed for '{trustee_name}': {e:?}"))?;
 
-    let user = users
-        .into_iter()
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Keycloak user '{trustee_name}' not found in realm '{realm}'"))?;
+    let user = users.into_iter().next().ok_or_else(|| {
+        anyhow::anyhow!("Keycloak user '{trustee_name}' not found in realm '{realm}'")
+    })?;
 
     let user_id = user
         .id

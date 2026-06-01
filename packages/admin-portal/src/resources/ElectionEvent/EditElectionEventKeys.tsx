@@ -125,8 +125,8 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
-    const boardName: string | undefined = (electionEvent as any)
-        ?.bulletin_board_reference?.database_name
+    const boardName: string | undefined = (electionEvent as any)?.bulletin_board_reference
+        ?.database_name
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod ceremonies;
-pub mod env_vars;
 pub mod date_time;
+pub mod env_vars;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod hasura;

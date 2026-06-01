@@ -330,7 +330,18 @@ impl CountingAlgType {
 }
 
 /// Whether a trustee session is currently reachable.
-#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, EnumString, Default)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    EnumString,
+    Default,
+)]
 pub enum TrusteeSessionStatus {
     #[strum(serialize = "ACTIVE")]
     #[serde(rename = "ACTIVE")]

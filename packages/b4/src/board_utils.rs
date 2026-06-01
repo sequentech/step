@@ -112,7 +112,6 @@ pub fn verify_board_tenant(board_name: &str, tenant_id: &str) -> Result<()> {
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,6 +192,4 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Tenant mismatch"));
     }
-
 }
-

@@ -131,9 +131,7 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
                 if (!cancelled) {
                     newSession.start_heartbeat_daemon(globalSettings.BRAID_B4_HEARTBEAT)
                     sessionRegistry.set(boardName, newSession)
-                    console.info(
-                        `[HeadlessTrusteeProvider] Connected to board "${boardName}"`
-                    )
+                    console.info(`[HeadlessTrusteeProvider] Connected to board "${boardName}"`)
                     setSession(newSession)
                     setIsConnected(true)
                 } else {

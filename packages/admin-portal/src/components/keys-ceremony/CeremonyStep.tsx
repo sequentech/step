@@ -217,8 +217,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                             const configuredMode =
                                                                 trusteeNames?.find(
                                                                     (t) => t.name === trustee.name
-                                                                )?.annotations
-                                                                    ?.trustee_mode_policy
+                                                                )?.annotations?.trustee_mode_policy
                                                             return (
                                                                 trusteeSessions.find(
                                                                     (s) =>
