@@ -9,7 +9,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# IVR Telephone Voting System - Keycloak Configuration
+# Keycloak Configuration
 
 The Keycloak-related configuration required for the IVR is mostly bootstrapped automatically and doesn't require any
 manual operations. But this document explains how the system works, and what is the required setup if anything goes
