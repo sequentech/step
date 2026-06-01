@@ -22,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </span>
                     </#if>
                    <small style="color: #6c757d; font-size: 0.9em; margin-top: 0.25rem; display: block;" id="username-hint">
-                        ${msg("forgotPasswrodPhoneNumberHint")}
+                        ${msg("forgotPasswordPhoneNumberHint")}
                     </small>
                 </div>
             </div>
