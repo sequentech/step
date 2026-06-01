@@ -1030,14 +1030,14 @@ mod tests {
         let contest_folder = map.get(&contest_id).unwrap();
 
         assert!(
-            election_folder.chars().count() <= FOLDER_MAX_CHARS,
-            "election folder exceeds FOLDER_MAX_CHARS: {} chars",
-            election_folder.chars().count()
+            PREFIX_ELECTION.len() + election_folder.len() <= FOLDER_MAX_CHARS,
+            "prefixed election folder exceeds FOLDER_MAX_CHARS: {} chars",
+            PREFIX_ELECTION.len() + election_folder.len()
         );
         assert!(
-            contest_folder.chars().count() <= FOLDER_MAX_CHARS,
-            "contest folder exceeds FOLDER_MAX_CHARS: {} chars",
-            contest_folder.chars().count()
+            PREFIX_CONTEST.len() + contest_folder.len() <= FOLDER_MAX_CHARS,
+            "prefixed contest folder exceeds FOLDER_MAX_CHARS: {} chars",
+            PREFIX_CONTEST.len() + contest_folder.len()
         );
     }
 
