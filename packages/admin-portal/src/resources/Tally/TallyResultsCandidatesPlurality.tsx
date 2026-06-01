@@ -11,19 +11,27 @@ import {CandidatesResultsCharts} from "./TallyResultsCharts"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {GridRenderCellParams} from "@mui/x-data-grid"
 import {winningPositionComparator} from "./utils"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsCandidatesProps {
     resultsData: Sequent_Backend_Candidate_Extended[]
     orderedResultsData: Sequent_Backend_Candidate_Extended[]
     chartName: string
+    electionId: string
+    electionEventId: string
 }
 
 export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesProps> = ({
     resultsData,
     orderedResultsData,
     chartName,
+    electionId,
+    electionEventId,
 }) => {
     const {t} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
 
     const columns: GridColDef[] = [
         {
@@ -32,6 +40,9 @@ export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesPro
             flex: 1,
             editable: false,
             align: "left",
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return aliasRenderer(props.row.presentation, defaultElectionLang)
+            },
         },
         {
             field: "cast_votes",

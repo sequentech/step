@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useRef, useState, useEffect} from "react"
+import React, {useState, useEffect, useMemo} from "react"
 import {
     Box,
     Table,
@@ -19,13 +19,22 @@ import {
 import {ChevronLeft, ChevronRight} from "@mui/icons-material"
 import {RunoffStatus, ECandidateStatus} from "./types"
 import {useTranslation} from "react-i18next"
+import {Sequent_Backend_Candidate_Extended} from "./types"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsCandidatesIRVProps {
     processResults: RunoffStatus
+    resultsData: Sequent_Backend_Candidate_Extended[]
+    electionId: string
+    electionEventId: string
 }
 
 export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps> = ({
     processResults,
+    resultsData,
+    electionId,
+    electionEventId,
 }) => {
     const {t} = useTranslation()
     const theme = useTheme()
@@ -34,6 +43,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     const VISIBLE_ROUNDS = isXL ? 3 : isLarge ? 2 : 1
 
     const [representedRounds, setRepresentedRounds] = useState({start: 0, end: VISIBLE_ROUNDS - 1})
+    const aliasRenderer = useAliasRenderer()
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+    const candidateById = useMemo(() => new Map(resultsData.map((c) => [c.id, c])), [resultsData])
 
     useEffect(() => {
         // Reset to initial range when data changes
@@ -254,9 +266,15 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                             backgroundColor: "#f5f5f5",
                                         },
                                     }}
-                                    title={candidate.name}
+                                    title={aliasRenderer(
+                                        candidateById.get(candidate.id)?.presentation,
+                                        defaultElectionLang
+                                    )}
                                 >
-                                    {candidate.name}
+                                    {aliasRenderer(
+                                        candidateById.get(candidate.id)?.presentation,
+                                        defaultElectionLang
+                                    )}
                                 </TableCell>
                                 {visibleRounds.map((round, visibleIndex) => {
                                     const roundIndex = representedRounds.start + visibleIndex
