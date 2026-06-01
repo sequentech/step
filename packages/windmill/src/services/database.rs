@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use async_once::AsyncOnce;
 use celery::export::Arc;
 use config::{Config, ConfigError, Environment};
 use deadpool_postgres::{Client, Pool, PoolError, Runtime, SslMode};
@@ -18,6 +17,7 @@ use openssl::ssl::{SslConnector, SslMethod};
 
 #[cfg(any(feature = "fips_core", feature = "fips_full"))]
 use postgres_openssl::MakeTlsConnector;
+use tokio::sync::OnceCell;
 
 #[derive(Debug, Deserialize)]
 pub struct PgConfig {
@@ -155,27 +155,32 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     }
 }
 
-lazy_static! {
-    static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
-        let pool = generate_keycloak_pool().await.unwrap();
-        assert_standard_conforming_strings(&pool)
-            .await
-            .expect("Keycloak DB: standard_conforming_strings check failed");
-        pool
-    });
-    static ref HASURA_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
-        let pool = generate_hasura_pool().await.unwrap();
-        assert_standard_conforming_strings(&pool)
-            .await
-            .expect("Hasura DB: standard_conforming_strings check failed");
-        pool
-    });
-}
+static KEYCLOAK_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
+
+static HASURA_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
 pub async fn get_keycloak_pool() -> Arc<Pool> {
-    KEYCLOAK_POOL.get().await.clone()
+    KEYCLOAK_POOL
+        .get_or_init(|| async {
+            let pool = generate_keycloak_pool().await.unwrap();
+            assert_standard_conforming_strings(&pool)
+                .await
+                .expect("Keycloak DB: standard_conforming_strings check failed");
+            pool
+        })
+        .await
+        .clone()
 }
 
 pub async fn get_hasura_pool() -> Arc<Pool> {
-    HASURA_POOL.get().await.clone()
+    HASURA_POOL
+        .get_or_init(|| async {
+            let pool = generate_hasura_pool().await.unwrap();
+            assert_standard_conforming_strings(&pool)
+                .await
+                .expect("Hasura DB: standard_conforming_strings check failed");
+            pool
+        })
+        .await
+        .clone()
 }

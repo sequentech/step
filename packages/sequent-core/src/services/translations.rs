@@ -7,6 +7,7 @@ use crate::{
         Contest, ContestEncryptionPolicy, ContestPresentation,
         DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
         ElectionEventPresentation, ElectionPresentation, I18nContent,
+        LanguageDetectionPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -79,6 +80,13 @@ impl ElectionEvent {
     pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.delegated_voting_policy)
+            .unwrap_or_default()
+    }
+
+    pub fn get_language_detection_policy(&self) -> LanguageDetectionPolicy {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.language_conf)
+            .and_then(|c| c.language_detection_policy)
             .unwrap_or_default()
     }
 }

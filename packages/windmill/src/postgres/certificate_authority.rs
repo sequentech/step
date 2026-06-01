@@ -68,40 +68,42 @@ pub async fn insert_certificate_authority(
     Ok(rows_affected > 0)
 }
 
-/// Deletes a certificate authority by id, scoped to the given tenant.
-/// Returns `true` if a row was deleted, `false` if not found.
+/// Deletes the certificate authorities matching the given ids, scoped to the
+/// given tenant and election event.
+/// Returns the subjects of all deleted rows.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn delete_certificate_authority(
+pub async fn delete_certificate_authorities(
     hasura_transaction: &Transaction<'_>,
-    id: Uuid,
+    ids: &[Uuid],
     election_event_id: Uuid,
     tenant_id: Uuid,
-) -> Result<bool> {
+) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 DELETE FROM sequent_backend.certificate_authority
-                WHERE id = $1 AND tenant_id = $2 AND election_event_id = $3
+                WHERE id = ANY($1) AND tenant_id = $2 AND election_event_id = $3
+                RETURNING subject
             "#,
         )
         .await?;
 
-    let rows_affected = hasura_transaction
-        .execute(&statement, &[&id, &tenant_id, &election_event_id])
+    let rows = hasura_transaction
+        .query(&statement, &[&ids, &tenant_id, &election_event_id])
         .await
-        .map_err(|err| anyhow!("Error deleting certificate authority: {err}"))?;
+        .map_err(|err| anyhow!("Error deleting certificate authorities: {err}"))?;
 
-    Ok(rows_affected > 0)
+    Ok(rows.into_iter().map(|row| row.get(0)).collect())
 }
 
 /// Returns the PEM strings for all certificate authorities belonging to the
-/// given election event, ordered by creation time.
-#[instrument(skip(client), err)]
+/// given election event, ordered by creation time. Uses a transaction.
+#[instrument(skip(transaction), err)]
 pub async fn get_certificate_authorities_pem(
-    client: &Client,
+    transaction: &Transaction<'_>,
     election_event_id: Uuid,
 ) -> Result<Vec<String>> {
-    let statement = client
+    let statement = transaction
         .prepare(
             r#"
                 SELECT pem
@@ -112,10 +114,46 @@ pub async fn get_certificate_authorities_pem(
         )
         .await?;
 
-    let rows = client
+    let rows = transaction
         .query(&statement, &[&election_event_id])
         .await
         .map_err(|err| anyhow!("Error fetching certificate authority PEMs: {err}"))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| row.get::<_, String>(0))
+        .collect())
+}
+
+/// Returns the PEM strings for the specified certificate authorities (by id),
+/// scoped to the given election event. If `ids` is empty, returns PEMs for all
+/// CAs in the election event (same behaviour as `get_certificate_authorities_pem`).
+#[instrument(skip(transaction), err)]
+pub async fn get_certificate_authorities_pem_by_ids(
+    transaction: &Transaction<'_>,
+    election_event_id: Uuid,
+    ids: &[Uuid],
+) -> Result<Vec<String>> {
+    if ids.is_empty() {
+        return get_certificate_authorities_pem(transaction, election_event_id).await;
+    }
+
+    let statement = transaction
+        .prepare(
+            r#"
+                SELECT pem
+                FROM sequent_backend.certificate_authority
+                WHERE election_event_id = $1
+                  AND id = ANY($2)
+                ORDER BY created_at ASC
+            "#,
+        )
+        .await?;
+
+    let rows = transaction
+        .query(&statement, &[&election_event_id, &ids])
+        .await
+        .map_err(|err| anyhow!("Error fetching certificate authority PEMs by ids: {err}"))?;
 
     Ok(rows
         .into_iter()

@@ -87,6 +87,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -341,7 +342,7 @@ const frenchTranslation: TranslationType = {
                     "no-signature": "Sans signature",
                     "with-signature": "Avec signature",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Activé",
                     disabled: "Désactivé",
@@ -379,6 +380,13 @@ const frenchTranslation: TranslationType = {
                     options: {
                         enabled: "Activé",
                         disabled: "Désactivé",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Politique de détection de la langue",
+                    options: {
+                        "browser-detect": "Détection par le navigateur",
+                        "force-default": "Forcer par défaut",
                     },
                 },
             },
@@ -550,6 +558,7 @@ const frenchTranslation: TranslationType = {
                 reports: "Rapports",
                 applications: "Applications",
                 tally: "Décompte",
+                certificates: "Certificats",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -653,6 +662,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "generate": "Générer",
                     "do-not-generate": "Ne pas générer",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Politique d’abstention de vote",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
                 },
             },
         },
@@ -1075,6 +1091,7 @@ const frenchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
+                PARTICIPATION_REPORT: "Rapport de Participation",
                 STATISTICAL_REPORT: "Rapport Statistique",
                 OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
                 AUDIT_LOGS: "Journaux d'Audit",
@@ -1380,6 +1397,12 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Seulement Candidats",
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listes repliables",
+                "disabled": "Désactivé",
+                "enabled-expanded": "Activé (commence déplié)",
+                "enabled-collapsed": "Activé (commence replié)",
             },
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
@@ -2028,6 +2051,7 @@ const frenchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Reçu de Vote",
                 ACTIVITY_LOGS: "Journaux d'Activité",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
+                PARTICIPATION_REPORT: "Rapport de Participation",
             },
             method: {
                 email: "Email",
@@ -2106,6 +2130,9 @@ const frenchTranslation: TranslationType = {
                     url: "URL",
                 },
             },
+            languages: {
+                default: "Langue par défaut",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2181,6 +2208,9 @@ const frenchTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificats",
+            subtitle:
+                "Autorités de certification (CA) de confiance pour cet événement électoral. Les CA importées sont utilisées pour valider les certificats des électeurs.",
             importButton: "Importer des certificats",
             type: {
                 root: "Racine",
@@ -2214,6 +2244,16 @@ const frenchTranslation: TranslationType = {
                 importError: "Échec de l'importation : {{error}}",
                 deleteSuccess: "Certificat supprimé.",
                 deleteError: "Erreur lors de la suppression du certificat.",
+                exportSuccess: "Certificat(s) exporté(s) avec succès.",
+                exportError: "Erreur lors de l'exportation des certificats.",
+            },
+            exportDialog: {
+                title: "Exporter les autorités de certification",
+                description: "Vous êtes sur le point d'exporter {{amount}} certificat(s).",
+                all: "tous",
+            },
+            deleteDialog: {
+                description: "Êtes-vous sûr de vouloir supprimer {{count}} certificat(s) ?",
             },
             emptyHeader:
                 "Aucune autorité de certification n'a été importée pour cet événement électoral.",
