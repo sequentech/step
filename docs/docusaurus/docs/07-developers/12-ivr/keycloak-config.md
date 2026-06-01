@@ -1,6 +1,6 @@
 ---
 id: keycloak-config
-title: Keycloak Configuration for the IVR
+title: Keycloak Configuration
 format: md
 ---
 
