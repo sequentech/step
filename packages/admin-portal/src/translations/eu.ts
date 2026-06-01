@@ -2218,8 +2218,9 @@ const basqueTranslation: TranslationType = {
                 importButton: "Inportatu",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} ziurtagiri inportatuta. {{skipped}} saltatu (dagoeneko badaude).",
+                importSuccess: "{{inserted}} ziurtagiri inportatuta.",
+                importSkipped: "{{count}} saltatu (dagoeneko badaude).",
+                importErrors: "Inportazio arazoak: {{errors}}",
                 importError: "Inportazioa huts egin du: {{error}}",
                 deleteSuccess: "Ziurtagiria ezabatuta.",
                 deleteError: "Errorea ziurtagiria ezabatzean.",
