@@ -34,10 +34,15 @@ This approach solves it by adding an `election_event_id` column so each
 If a BBT trustee has not yet opened the election event page, `localStorage` is empty and no
 entry exists in the DB for `(trustee_id, election_event_id)`.
 
-The admin/Windmill does not allow creating the ceremony if any BBT trustee has no key registered
-for this event yet or is offline.  The admin confirms all trustees are online before creating
-the ceremony.  This is sufficient for attended ceremonies where all trustees are expected to be
-logged in before the admin proceeds.
+The Harvest `create_keys_ceremony` endpoint checks that every selected BBT trustee has a
+`public_key` registered for this `election_event_id` before creating the ceremony record.  If
+any trustee is missing, it returns a specific error (e.g. `TRUSTEE_KEY_NOT_REGISTERED`).  The
+admin portal catches this error and displays:
+
+> **"All parties must be present — some trustee users have not signed in yet."**
+
+The admin confirms all trustees are online before retrying.  This is sufficient for attended
+ceremonies where all trustees are expected to be logged in before the admin proceeds.
 
 ---
 
