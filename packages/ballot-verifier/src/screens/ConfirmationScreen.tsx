@@ -251,7 +251,8 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
     const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
-    const contestsOrderType = confirmationBallot?.election_config.election_presentation?.contests_order
+    const contestsOrderType =
+        confirmationBallot?.election_config.election_presentation?.contests_order
     const sortedPlaintextVoteQuestions = useMemo(() => {
         if (!plaintextVoteQuestions.length) {
             return []
