@@ -46,15 +46,11 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
    */
   static final String IVR_VOTING_CLIENT_ID = "ivr-voting";
 
-  /**
-   * Flow we override for the voting client, if exists.
-   * Only Direct Grant flow currently.
-   */
+  /** Flow we override for the voting client, if exists. Only Direct Grant flow currently. */
   static final String IVR_VOTING_OVERRIDE_FLOW = "direct_grant";
 
   /** Realm role required on the caller's token. */
   static final String REQUIRED_ROLE = "ivr-config-read";
-
 
   /**
    * Lookup table for the stock Keycloak authenticators we currently support. Anything else either
@@ -181,10 +177,11 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
     String fieldName = c.get(Constants.AUTH_STEP_PROP_FIELD);
     String mapsTo = c.get(Constants.AUTH_STEP_PROP_MAPS_TO);
     if (fieldName == null || mapsTo == null) {
-      String msg =
-          "AuthenticatorConfig for '%s' is missing required IVR keys (%s, %s)";
+      String msg = "AuthenticatorConfig for '%s' is missing required IVR keys (%s, %s)";
       throw new WebApplicationException(
-          msg.formatted(authenticatorId, Constants.AUTH_STEP_PROP_FIELD, Constants.AUTH_STEP_PROP_MAPS_TO), Response.Status.INTERNAL_SERVER_ERROR);
+          msg.formatted(
+              authenticatorId, Constants.AUTH_STEP_PROP_FIELD, Constants.AUTH_STEP_PROP_MAPS_TO),
+          Response.Status.INTERNAL_SERVER_ERROR);
     }
 
     int maxDigits;

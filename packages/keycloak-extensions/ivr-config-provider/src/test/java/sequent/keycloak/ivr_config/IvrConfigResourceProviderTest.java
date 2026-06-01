@@ -82,7 +82,8 @@ class IvrConfigResourceProviderTest {
     AuthenticationFlowModel overrideFlow = mock(AuthenticationFlowModel.class);
 
     when(overrideFlow.getId()).thenReturn("override-flow-id");
-    when(client.getAuthenticationFlowBindingOverride(IvrConfigResourceProvider.IVR_VOTING_OVERRIDE_FLOW))
+    when(client.getAuthenticationFlowBindingOverride(
+            IvrConfigResourceProvider.IVR_VOTING_OVERRIDE_FLOW))
         .thenReturn("override-flow-id");
     when(realm.getClientByClientId(IvrConfigResourceProvider.IVR_VOTING_CLIENT_ID))
         .thenReturn(client);
@@ -101,7 +102,8 @@ class IvrConfigResourceProviderTest {
     IvrConfigResourceProvider provider = providerWithValidToken();
     @SuppressWarnings("unchecked")
     List<AuthStep> steps =
-        (List<AuthStep>) ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
+        (List<AuthStep>)
+            ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
 
     // Verify only one step (from override flow), not two (from realm default)
     assertThat(steps).hasSize(1);
@@ -127,7 +129,8 @@ class IvrConfigResourceProviderTest {
     IvrConfigResourceProvider provider = providerWithValidToken();
     @SuppressWarnings("unchecked")
     List<AuthStep> steps =
-        (List<AuthStep>) ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
+        (List<AuthStep>)
+            ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
 
     assertThat(steps).containsExactly(new AuthStep("dob", 8, "#", "dob", "auth_enter_dob"));
   }
@@ -154,7 +157,8 @@ class IvrConfigResourceProviderTest {
     IvrConfigResourceProvider provider = providerWithValidToken();
     @SuppressWarnings("unchecked")
     List<AuthStep> steps =
-        (List<AuthStep>) ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
+        (List<AuthStep>)
+            ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
 
     assertThat(steps).hasSize(1);
     assertThat(steps.get(0).field()).isEqualTo("voter_id");
@@ -176,7 +180,8 @@ class IvrConfigResourceProviderTest {
   void customAuthenticatorMissingRequiredKeysYields500() {
     stubExecutions(exec("custom-x", AuthenticationExecutionModel.Requirement.REQUIRED, "cfg-x"));
     AuthenticatorConfigModel cfg = mock(AuthenticatorConfigModel.class);
-    when(cfg.getConfig()).thenReturn(new HashMap<>(Map.of(Constants.AUTH_STEP_PROP_MAX_DIGITS, "4")));
+    when(cfg.getConfig())
+        .thenReturn(new HashMap<>(Map.of(Constants.AUTH_STEP_PROP_MAX_DIGITS, "4")));
     when(realm.getAuthenticatorConfigById("cfg-x")).thenReturn(cfg);
 
     IvrConfigResourceProvider provider = providerWithValidToken();
