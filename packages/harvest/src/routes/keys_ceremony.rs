@@ -211,6 +211,12 @@ pub async fn create_keys_ceremony(
 
     let username = claims.preferred_username.unwrap_or("-".to_string());
 
+    event!(
+        Level::INFO,
+        "Creating Keys Ceremony, electionEventId={}, electionId={:?}",
+        input.election_event_id,
+        input.election_id,
+    );
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -260,6 +266,26 @@ pub async fn create_keys_ceremony(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    // Update each trustee's authorized-boards in Keycloak so their JWT
+    // contains the board_name required by BoardAccessValidator.
+    for trustee_name in &input.trustee_names {
+        add_board_to_trustee_authorized_boards(
+            &tenant_id,
+            &board_name,
+            trustee_name,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Error adding board to trustee's authorized boards in Keycloak: {:?}",
+                    e
+                ),
+            )
+        })?;
+    }
+
     hasura_transaction
         .commit()
         .await
@@ -268,27 +294,11 @@ pub async fn create_keys_ceremony(
 
     event!(
         Level::INFO,
-        "Creating Keys Ceremony, electionEventId={}, keysCeremonyId={}, electionId={:?}",
+        "Created Keys Ceremony, electionEventId={}, keysCeremonyId={}, electionId={:?}",
         input.election_event_id,
         keys_ceremony_id,
         input.election_id,
     );
-
-    // Update each trustee's authorized-boards in Keycloak so their JWT
-    // contains the board_name required by BoardAccessValidator.
-    for trustee_name in &input.trustee_names {
-        if let Err(e) = add_board_to_trustee_authorized_boards(
-            &tenant_id,
-            &board_name,
-            trustee_name,
-        )
-        .await
-        {
-            tracing::warn!(
-                "Failed to update authorized-boards for trustee '{trustee_name}': {e}"
-            );
-        }
-    }
 
     Ok(Json(CreateKeysCeremonyOutput {
         keys_ceremony_id,

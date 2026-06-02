@@ -269,8 +269,8 @@ pub async fn read_roles_config_file(
 
 /// Append `board_name` to a trustee's `authorized-boards` Keycloak attribute.
 ///
-/// Call this after the DB transaction commits. If Keycloak is unreachable or the user is not
-/// found, log a warning and continue — the ceremony is already persisted.
+/// If Keycloak is unreachable or the user is not
+/// found, return Err as the trustee won't be able to access the board.
 #[instrument(err)]
 pub async fn add_board_to_trustee_authorized_boards(
     tenant_id: &str,

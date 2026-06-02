@@ -107,8 +107,8 @@ impl StatementHead {
                 ),
                 ..default_head
             },
-            StatementBody::KeyGeneration => StatementHead {
-                kind: StatementType::KeyGeneration,
+            StatementBody::KeysCeremonyCreation => StatementHead {
+                kind: StatementType::KeysCeremonyCreation,
                 description: "Creating keys ceremony.".to_string(),
                 ..default_head
             },
@@ -213,7 +213,7 @@ pub enum StatementBody {
     // create_keys
     //
     // "Creación de llave criptográfica"
-    KeyGeneration,
+    KeysCeremonyCreation,
     // /workspaces/step/packages/harvest/src/main.rs
     // routes::tally_ceremony::restore_private_key
     //
@@ -265,7 +265,7 @@ pub enum StatementType {
     ElectionEventVotingPeriodOpen,
     ElectionEventVotingPeriodClose,
     ElectionEventVotingPeriodPause,
-    KeyGeneration,
+    KeysCeremonyCreation,
     KeyInsertionStart,
     KeyInsertionCeremony,
     TallyOpen,
