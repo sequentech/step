@@ -139,7 +139,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
 
             setResultsData(temp)
         }
-    }, [results, candidates, i18n.language])
+    }, [results, candidates, i18n.language, defaultElectionLang, aliasRenderer])
 
     return (
         <>
