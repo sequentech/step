@@ -253,7 +253,10 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     ]
 
     return (
-        <HeadlessTrusteeProvider boardName={isTrustee ? boardName : undefined}>
+        <HeadlessTrusteeProvider
+            boardName={isTrustee ? boardName : undefined}
+            electionEventId={isTrustee ? (electionEvent?.id ?? undefined) : undefined}
+        >
             {/* Show the notification if the conditions are met */}
             {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">

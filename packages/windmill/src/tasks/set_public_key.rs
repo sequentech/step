@@ -102,6 +102,7 @@ pub async fn set_public_key_impl(
         &hasura_transaction,
         &tenant_id,
         &trustee_names.clone().into_iter().collect::<Vec<_>>(),
+        Some(&election_event_id),
     )
     .await?;
 

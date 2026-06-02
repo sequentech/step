@@ -45,8 +45,13 @@ pub async fn create_keys_impl(
     .await
     .with_context(|| "error finding keys ceremony")?;
 
-    let trustees =
-        get_trustees_by_id(&hasura_transaction, &tenant_id, &keys_ceremony.trustee_ids).await?;
+    let trustees = get_trustees_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &keys_ceremony.trustee_ids,
+        Some(&election_event_id),
+    )
+    .await?;
     info!("trustees: {:?}", trustees);
     let trustee_pks = trustees
         .clone()

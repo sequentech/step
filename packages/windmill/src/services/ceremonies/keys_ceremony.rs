@@ -325,7 +325,7 @@ pub async fn create_keys_ceremony(
     is_automatic_ceremony: bool,
 ) -> Result<(String, String)> {
     // verify trustee names and fetch their objects to get their ids
-    let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
+    let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names, None)
         .await
         .with_context(|| "can't find trustees")?;
 

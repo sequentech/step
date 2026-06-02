@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {createContext, useContext, useEffect, useRef, useState} from "react"
-import {useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
+import {REGISTER_TRUSTEE_KEY} from "@/queries/RegisterTrusteeKey"
 import init, {generate_trustee_keys, initThreadPool, WasmSession} from "braid-wasm"
 
 // Module-level WASM init guard — runs once per page load regardless of re-renders
@@ -92,11 +93,13 @@ export const HeadlessTrusteeContext = createContext<HeadlessTrusteeContextValue>
 
 interface HeadlessTrusteeProviderProps {
     boardName: string | undefined
+    electionEventId: string | undefined
     children: React.ReactNode
 }
 
 export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = ({
     boardName,
+    electionEventId,
     children,
 }) => {
     const {accessToken, trustee: trusteeName, tenantId} = useContext(AuthContext)
@@ -104,6 +107,8 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
 
     const [session, setSession] = useState<WasmSession | null>(null)
     const [isConnected, setIsConnected] = useState(false)
+
+    const [registerTrusteeKey] = useMutation(REGISTER_TRUSTEE_KEY)
 
     // Keeps the latest accessToken available to the init effect without making
     // it a dependency (token refreshes are handled by update_access_token below).
@@ -124,7 +129,8 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
     // Initialize WASM + session whenever board or trustee config becomes available.
     // Sessions are stored in the module-level registry so they survive route changes.
     useEffect(() => {
-        if (!boardName || !trusteeRecord || !trusteeName || !isBrowserBased) return
+        if (!boardName || !electionEventId || !trusteeRecord || !trusteeName || !isBrowserBased)
+            return
 
         // Detect trustee identity change (e.g. key rotation) — flush all sessions.
         const storedPk = getStoredKeys(boardName)?.signing_key_pk ?? ""
@@ -149,8 +155,14 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
             try {
                 await ensureWasmReady()
 
-                // Load keys from localStorage or generate fresh ones
+                // Load keys from localStorage or generate fresh ones, then
+                // register the signing public key for this election event in the DB.
                 const keys = ensureKeys(boardName)
+                registerTrusteeKey({
+                    variables: {publicKey: keys.signing_key_pk, electionEventId},
+                }).catch((e) =>
+                    console.warn("[HeadlessTrusteeProvider] Failed to register trustee key:", e)
+                )
 
                 const config = {
                     name: trusteeName,
@@ -187,6 +199,7 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
         }
     }, [
         boardName,
+        electionEventId,
         trusteeRecord,
         trusteeName,
         isBrowserBased,

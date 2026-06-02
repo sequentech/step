@@ -18,6 +18,9 @@ use strum_macros::Display;
 use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
+use windmill::postgres::trustee::{
+    get_trustee_by_name, update_trustee_key_for_event,
+};
 use windmill::services::ceremonies::keys_ceremony::{
     self, validate_permission_labels,
 };
@@ -393,4 +396,87 @@ pub async fn list_keys_ceremonies(
             aggregate: Aggregate { count: count },
         },
     }))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Endpoint: /register-trustee-key
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterTrusteeKeyInput {
+    pub public_key: String,
+    pub election_event_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterTrusteeKeyOutput {
+    pub success: bool,
+}
+
+#[instrument(skip(claims))]
+#[post("/register-trustee-key", format = "json", data = "<body>")]
+pub async fn register_trustee_key(
+    body: Json<RegisterTrusteeKeyInput>,
+    claims: JwtClaims,
+) -> Result<Json<RegisterTrusteeKeyOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let trustee_name = claims.trustee.ok_or_else(|| {
+        (
+            Status::Unauthorized,
+            "trustee name not found in token".to_string(),
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let trustee =
+        get_trustee_by_name(&hasura_transaction, &tenant_id, &trustee_name)
+            .await
+            .map_err(|e| {
+                (
+                    Status::NotFound,
+                    format!("Trustee '{trustee_name}' not found: {e:?}"),
+                )
+            })?;
+
+    update_trustee_key_for_event(
+        &hasura_transaction,
+        &tenant_id,
+        &trustee.id,
+        &input.election_event_id,
+        &input.public_key,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error committing transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    event!(
+        Level::INFO,
+        "Registered trustee key: trustee={trustee_name}, election_event_id={}",
+        input.election_event_id,
+    );
+
+    Ok(Json(RegisterTrusteeKeyOutput { success: true }))
 }

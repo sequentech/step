@@ -785,6 +785,16 @@ export type PublishTallyOutput = {
   tally_sheet_id?: Maybe<Scalars['uuid']['output']>;
 };
 
+export type RegisterTrusteeKeyInput = {
+  election_event_id: Scalars['String']['input'];
+  public_key: Scalars['String']['input'];
+};
+
+export type RegisterTrusteeKeyOutput = {
+  __typename?: 'RegisterTrusteeKeyOutput';
+  success: Scalars['Boolean']['output'];
+};
+
 export type RenderDocumentPdfOutput = {
   __typename?: 'RenderDocumentPDFOutput';
   document_id?: Maybe<Scalars['String']['output']>;
@@ -1416,6 +1426,8 @@ export type Mutation_Root = {
   publish_ballot?: Maybe<PublishBallotOutput>;
   /** publish_tally_sheet */
   publish_tally_sheet?: Maybe<PublishTallyOutput>;
+  /** register BBT trustee signing public key for an election event */
+  register_trustee_key?: Maybe<RegisterTrusteeKeyOutput>;
   render_document_pdf?: Maybe<RenderDocumentPdfOutput>;
   restore_private_key?: Maybe<RestorePrivateKeyOutput>;
   send_transmission_package?: Maybe<OptionalId>;
@@ -3098,6 +3110,12 @@ export type Mutation_RootPublish_Tally_SheetArgs = {
   election_event_id: Scalars['uuid']['input'];
   publish?: InputMaybe<Scalars['Boolean']['input']>;
   tally_sheet_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootRegister_Trustee_KeyArgs = {
+  object: RegisterTrusteeKeyInput;
 };
 
 
@@ -18882,6 +18900,7 @@ export type Sequent_Backend_Trustee = {
   __typename?: 'sequent_backend_trustee';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -18962,6 +18981,7 @@ export type Sequent_Backend_Trustee_Bool_Exp = {
   _or?: InputMaybe<Array<Sequent_Backend_Trustee_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -18998,6 +19018,7 @@ export type Sequent_Backend_Trustee_Delete_Key_Input = {
 export type Sequent_Backend_Trustee_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -19010,6 +19031,7 @@ export type Sequent_Backend_Trustee_Insert_Input = {
 export type Sequent_Backend_Trustee_Max_Fields = {
   __typename?: 'sequent_backend_trustee_max_fields';
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
@@ -19020,6 +19042,7 @@ export type Sequent_Backend_Trustee_Max_Fields = {
 /** order by max() on columns of table "sequent_backend.trustee" */
 export type Sequent_Backend_Trustee_Max_Order_By = {
   created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
@@ -19031,6 +19054,7 @@ export type Sequent_Backend_Trustee_Max_Order_By = {
 export type Sequent_Backend_Trustee_Min_Fields = {
   __typename?: 'sequent_backend_trustee_min_fields';
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
@@ -19041,6 +19065,7 @@ export type Sequent_Backend_Trustee_Min_Fields = {
 /** order by min() on columns of table "sequent_backend.trustee" */
 export type Sequent_Backend_Trustee_Min_Order_By = {
   created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
@@ -19068,6 +19093,7 @@ export type Sequent_Backend_Trustee_On_Conflict = {
 export type Sequent_Backend_Trustee_Order_By = {
   annotations?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
@@ -19094,6 +19120,8 @@ export enum Sequent_Backend_Trustee_Select_Column {
   /** column name */
   CreatedAt = 'created_at',
   /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
   Id = 'id',
   /** column name */
   Labels = 'labels',
@@ -19111,6 +19139,7 @@ export enum Sequent_Backend_Trustee_Select_Column {
 export type Sequent_Backend_Trustee_Set_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -19131,6 +19160,7 @@ export type Sequent_Backend_Trustee_Stream_Cursor_Input = {
 export type Sequent_Backend_Trustee_Stream_Cursor_Value_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -19145,6 +19175,8 @@ export enum Sequent_Backend_Trustee_Update_Column {
   Annotations = 'annotations',
   /** column name */
   CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
   /** column name */
   Id = 'id',
   /** column name */

@@ -59,7 +59,8 @@ pub async fn insert_ballots_messages(
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
 ) -> Result<Vec<TallySessionContest>> {
-    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
+    let trustees =
+        get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names, None).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 

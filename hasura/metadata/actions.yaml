@@ -1305,6 +1305,24 @@ actions:
       permissions:
           - role: google-meet-link
       comment: generate Google Meet link for election events
+    - name: register_trustee_key
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/register-trustee-key
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input.object}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: trustee-ceremony
+          - role: admin-user
+      comment: register BBT trustee signing public key for an election event
 custom_types:
     enums:
         - name: EarlyVotingPolicy
