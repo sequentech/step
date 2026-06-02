@@ -715,6 +715,15 @@ type PublishTallyOutput {
   tally_sheet_id: uuid
 }
 
+input RegisterTrusteeKeyInput {
+  election_event_id: String!
+  public_key: String!
+}
+
+type RegisterTrusteeKeyOutput {
+  success: Boolean!
+}
+
 type RenderDocumentPDFOutput {
   document_id: String
   task_execution: tasks_execution_type
@@ -2112,6 +2121,8 @@ type mutation_root {
   publish_ballot(ballot_publication_id: uuid!, election_event_id: uuid!): PublishBallotOutput
   """publish_tally_sheet"""
   publish_tally_sheet(election_event_id: uuid!, publish: Boolean, tally_sheet_id: uuid!): PublishTallyOutput
+  """register BBT trustee signing public key for an election event"""
+  register_trustee_key(object: RegisterTrusteeKeyInput!): RegisterTrusteeKeyOutput
   render_document_pdf(document_id: uuid!, election_event_id: uuid, tally_session_id: uuid): RenderDocumentPDFOutput
   restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
   send_transmission_package(area_id: uuid!, election_id: uuid!, tally_session_id: uuid!): OptionalId
@@ -19397,6 +19408,7 @@ type trustee {
     path: String
   ): jsonb
   created_at: timestamptz
+  election_event_id: uuid
   id: uuid!
   labels(
     """JSON select path"""
@@ -19469,6 +19481,7 @@ input trustee_bool_exp {
   _or: [trustee_bool_exp!]
   annotations: jsonb_comparison_exp
   created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
   id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
@@ -19517,6 +19530,7 @@ input type for inserting data into table "sequent_backend.trustee"
 input trustee_insert_input {
   annotations: jsonb
   created_at: timestamptz
+  election_event_id: uuid
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
@@ -19528,6 +19542,7 @@ input trustee_insert_input {
 """aggregate max on columns"""
 type trustee_max_fields {
   created_at: timestamptz
+  election_event_id: uuid
   id: uuid
   last_updated_at: timestamptz
   name: String
@@ -19540,6 +19555,7 @@ order by max() on columns of table "sequent_backend.trustee"
 """
 input trustee_max_order_by {
   created_at: order_by
+  election_event_id: order_by
   id: order_by
   last_updated_at: order_by
   name: order_by
@@ -19550,6 +19566,7 @@ input trustee_max_order_by {
 """aggregate min on columns"""
 type trustee_min_fields {
   created_at: timestamptz
+  election_event_id: uuid
   id: uuid
   last_updated_at: timestamptz
   name: String
@@ -19562,6 +19579,7 @@ order by min() on columns of table "sequent_backend.trustee"
 """
 input trustee_min_order_by {
   created_at: order_by
+  election_event_id: order_by
   id: order_by
   last_updated_at: order_by
   name: order_by
@@ -19592,6 +19610,7 @@ input trustee_on_conflict {
 input trustee_order_by {
   annotations: order_by
   created_at: order_by
+  election_event_id: order_by
   id: order_by
   labels: order_by
   last_updated_at: order_by
@@ -19620,6 +19639,8 @@ enum trustee_select_column {
   """column name"""
   created_at
   """column name"""
+  election_event_id
+  """column name"""
   id
   """column name"""
   labels
@@ -19639,6 +19660,7 @@ input type for updating data in table "sequent_backend.trustee"
 input trustee_set_input {
   annotations: jsonb
   created_at: timestamptz
+  election_event_id: uuid
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
@@ -19661,6 +19683,7 @@ input trustee_stream_cursor_input {
 input trustee_stream_cursor_value_input {
   annotations: jsonb
   created_at: timestamptz
+  election_event_id: uuid
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
@@ -19677,6 +19700,8 @@ enum trustee_update_column {
   annotations
   """column name"""
   created_at
+  """column name"""
+  election_event_id
   """column name"""
   id
   """column name"""
