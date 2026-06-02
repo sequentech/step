@@ -11,10 +11,14 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 export function useAliasRenderer() {
     const {i18n} = useTranslation()
 
-    const aliasRenderer = (item: unknown) => {
+    const aliasRenderer = (item: unknown, defaultLang?: string) => {
         const t = (x: any) =>
             translateFromPresentation(x, "alias", i18n.language) ||
             translateFromPresentation(x, "name", i18n.language) ||
+            (defaultLang
+                ? translateFromPresentation(x, "alias", defaultLang) ||
+                  translateFromPresentation(x, "name", defaultLang)
+                : undefined) ||
             translateFromPresentation(x, "alias", "en") ||
             translateFromPresentation(x, "name", "en") ||
             "-"
