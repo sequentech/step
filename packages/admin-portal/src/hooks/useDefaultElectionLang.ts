@@ -39,7 +39,9 @@ export function getDefaultElectionLang(
     const electionEvent = tallyData?.sequent_backend_election_event?.find(
         (ee) => ee.id === electionEventId
     )
-    const eventPresentation = parsePresentation<IElectionEventPresentation>(electionEvent?.presentation)
+    const eventPresentation = parsePresentation<IElectionEventPresentation>(
+        electionEvent?.presentation
+    )
     const electionPresentation = parsePresentation<IElectionPresentation>(election?.presentation)
 
     return (
