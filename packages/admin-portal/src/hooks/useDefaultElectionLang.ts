@@ -8,6 +8,26 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {GetTallyDataQuery} from "@/gql/graphql"
 import {IElectionEventPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
+function parsePresentation<T>(presentation: unknown): T | undefined {
+    if (!presentation) {
+        return undefined
+    }
+
+    if (typeof presentation === "string") {
+        try {
+            return JSON.parse(presentation) as T
+        } catch {
+            return undefined
+        }
+    }
+
+    if (typeof presentation === "object") {
+        return presentation as T
+    }
+
+    return undefined
+}
+
 export function getDefaultElectionLang(
     tallyData: GetTallyDataQuery | null,
     electionId: string,
@@ -19,23 +39,13 @@ export function getDefaultElectionLang(
     const electionEvent = tallyData?.sequent_backend_election_event?.find(
         (ee) => ee.id === electionEventId
     )
-    try {
-        let eventDefaultLang: string | undefined
-        let electionDefaultLang: string | undefined
-        if (electionEvent?.presentation) {
-            eventDefaultLang = (
-                JSON.parse(electionEvent.presentation) as IElectionEventPresentation
-            )?.language_conf?.default_language_code
-        }
+    const eventPresentation = parsePresentation<IElectionEventPresentation>(electionEvent?.presentation)
+    const electionPresentation = parsePresentation<IElectionPresentation>(election?.presentation)
 
-        if (election?.presentation) {
-            electionDefaultLang = (JSON.parse(election.presentation) as IElectionPresentation)
-                ?.language_conf?.default_language_code
-        }
-        return electionDefaultLang || (eventDefaultLang as string | undefined)
-    } catch {
-        return undefined
-    }
+    return (
+        electionPresentation?.language_conf?.default_language_code ||
+        eventPresentation?.language_conf?.default_language_code
+    )
 }
 
 export function useDefaultElectionLang(
