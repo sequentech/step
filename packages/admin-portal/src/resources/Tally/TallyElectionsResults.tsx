@@ -87,10 +87,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     const result = selectedResult
-    const election_name = aliasRenderer(
-        result.presentation,
-        defaultLangByElectionId.get(result.id)
-    )
+    const election_name = aliasRenderer(result.presentation, defaultLangByElectionId.get(result.id))
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
     const nonVoters = eligibleCensus - totalVoters
