@@ -26,6 +26,33 @@ See [Key Ceremony Design](./key_ceremony_design.md) for the current architecture
 
 ---
 
+## Service Communication Paths
+
+Braid-wasm is considered part of admin-portal.  Rows marked **BBT** are new or changed by
+this proposal; all others are unchanged from the current architecture.
+
+| # | Origin | Destination | Protocol | What |
+|---|--------|-------------|----------|------|
+| 1 | Admin-portal | Harvest | HTTP POST | `create-keys-ceremony`, `list-keys-ceremonies`, `get-private-key`, `check-private-key`, all admin operations |
+| 2 | Admin-portal | Harvest | HTTP POST | **`register-trustee-key` — BBT new:** registers the BBT signing public key for an election event |
+| 3 | Admin-portal | Hasura | GraphQL/HTTP | Read trustee config (`GET_TRUSTEE_CONFIG`), election events, ceremony status (`execution_status`), all entity queries |
+| 4 | Admin-portal (braid-wasm) | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol (Channel, Shares, PublicKey…) |
+| 5 | Harvest / Windmill | PostgreSQL (Hasura DB) | SQL direct | Read/write `keys_ceremony`, `trustee`, `election_event` tables.  **BBT change:** `trustee` now has `election_event_id`; `get_trustees_by_id` / `get_trustees_by_name` filter `public_key` by event |
+| 6 | Windmill (Celery) | B4 PostgreSQL | SQL direct (`PgsqlB3Client`) | INSERT `Configuration` message (`add_config_to_board`), SELECT `PublicKey` message (`get_board_public_key`) |
+| 7 | Braid-native | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol, same as wasm |
+| 8 | Braid-native | Keycloak | HTTP | Fetch JWT access token using `TRUSTEE_NAME` / `TRUSTEE_PSW` env vars |
+
+**Notes:**
+- Windmill bypasses B4's HTTP API entirely — it writes directly into B4's PostgreSQL via
+  `PgsqlB3Client` using `B4_PG_*` env vars.
+- Braid (both native and wasm) uses B4's HTTP API exclusively.
+- Admin-portal never talks to B4 directly except through the embedded braid-wasm trustee.
+- Admin-portal reads ceremony status by polling Hasura (GraphQL), not by calling Harvest.
+- For BBT trustees, the `signing_key_pk` is registered in the Hasura DB (path 2) so that
+  Windmill can include it in the `Configuration` message posted to B4 (path 6).
+
+---
+
 ## The Per-Event Key Problem
 
 A BBT trustee may participate in multiple election events simultaneously.  A single global
