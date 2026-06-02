@@ -20,7 +20,6 @@ export const GET_TALLY_DATA = gql`
             labels
             annotations
             tenant_id
-            name
             description
             presentation
             bulletin_board_reference
@@ -32,7 +31,6 @@ export const GET_TALLY_DATA = gql`
             is_audit
             audit_election_event_id
             public_key
-            alias
             statistics
         }
         sequent_backend_area(

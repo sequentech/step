@@ -85,10 +85,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     const result = selectedResult
-    const election_name = aliasRenderer(
-        result.presentation,
-        defaultLangByElectionId.get(result.id)
-    )
+    const election_name = aliasRenderer(result.presentation, defaultLangByElectionId.get(result.id))
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
     const nonVoters = eligibleCensus - totalVoters
@@ -197,7 +194,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         return map
     }, [elections, tallyData?.sequent_backend_election_event])
 
-
     useEffect(() => {
         setIsLoading(true)
         if (elections && results && elections.length > 0 && results.length > 0) {
@@ -236,9 +232,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             flex: 1,
             editable: false,
             valueGetter(value, row) {
-                    return value
-                        ? value
-                        : aliasRenderer(row.presentation, defaultLangByElectionId.get(row.id))
+                return value
+                    ? value
+                    : aliasRenderer(row.presentation, defaultLangByElectionId.get(row.id))
             },
         },
         {
