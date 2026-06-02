@@ -4,7 +4,6 @@
 import React, {useEffect, useState} from "react"
 import {Box, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {ETemplateType} from "@/types/templates"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
