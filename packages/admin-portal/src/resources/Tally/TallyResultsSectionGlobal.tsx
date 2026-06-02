@@ -73,6 +73,8 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+
     const contestName = useMemo(() => {
         if (!contestId || !tallyData) return undefined
 
@@ -81,15 +83,17 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         )
         if (!contest?.presentation) return undefined
 
-        return aliasRenderer(contest.presentation)
-    }, [contestId, tallyData, i18n.language])
+        return aliasRenderer(contest.presentation, defaultElectionLang)
+    }, [contestId, tallyData, i18n.language, defaultElectionLang])
 
     const electionName: string | undefined = useMemo(() => {
         const election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionId
         )
-        return election?.presentation ? aliasRenderer(election.presentation) : undefined
-    }, [tallyData?.sequent_backend_election, electionId])
+        return election?.presentation
+            ? aliasRenderer(election.presentation, defaultElectionLang)
+            : undefined
+    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang])
 
     const processResults = useMemo(
         () =>
@@ -114,8 +118,6 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
             !!tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
         )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
-
-    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
 
     useEffect(() => {
         if (results && candidates) {

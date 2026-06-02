@@ -23,6 +23,7 @@ import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -52,6 +53,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -115,15 +117,19 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         const election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionId
         )
-        return election?.presentation ? aliasRenderer(election.presentation) : undefined
-    }, [tallyData?.sequent_backend_election, electionId])
+        return election?.presentation
+            ? aliasRenderer(election.presentation, defaultElectionLang)
+            : undefined
+    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang])
 
     const contestName: string | undefined = useMemo(() => {
         const contest = tallyData?.sequent_backend_contest?.find(
             (contest) => contest.id === contestId
         )
-        return contest?.presentation ? aliasRenderer(contest.presentation) : undefined
-    }, [tallyData?.sequent_backend_contest, contestId])
+        return contest?.presentation
+            ? aliasRenderer(contest.presentation, defaultElectionLang)
+            : undefined
+    }, [tallyData?.sequent_backend_contest, contestId, defaultElectionLang])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
