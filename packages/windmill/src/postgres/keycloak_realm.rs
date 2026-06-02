@@ -55,6 +55,13 @@ pub async fn get_realm_id(
         .clone())
 }
 
+/// Returns whether duplicate email addresses are permitted within the given Keycloak realm.
+///
+/// Queries the `duplicate_emails_allowed` flag directly from the Keycloak `realm` table.
+///
+/// # Errors
+///
+/// Returns an error if the realm is not found or the column cannot be read.#[instrument(skip(keycloak_transaction), err)]
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn get_duplicate_emails_allowed(
     keycloak_transaction: &Transaction<'_>,
