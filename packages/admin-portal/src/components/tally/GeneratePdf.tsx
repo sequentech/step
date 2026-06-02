@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {Box, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ETemplateType} from "@/types/templates"
@@ -65,7 +65,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
             return
         }
         setOutputDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.RENDER_DOCUMENT_PDF, true)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.RENDER_DOCUMENT_PDF, undefined)
         try {
             let {data} = await generateDocumentPdf({
                 variables: {
