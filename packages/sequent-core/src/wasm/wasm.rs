@@ -1256,3 +1256,14 @@ pub fn iso_639_2t_to_bcp47_js(lang: &str) -> String {
 pub fn locale_to_internal_language_code_js(lang: &str) -> String {
     locale_to_internal_language_code(lang)
 }
+
+#[wasm_bindgen]
+/// Returns the default decline to vote policy
+pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
+    let policy: DeclineToVotePolicy = DeclineToVotePolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default decline to vote policy: {err}"
+        ))
+    })
+}

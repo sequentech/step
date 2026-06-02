@@ -122,6 +122,7 @@ export interface PlaintextVoteContestProps {
     contestNotFoundLabel: string
     markedInvalidLabel: string
     pointsLabel: (points: number) => string
+    isDeclineToVotePolicyEnabled: boolean
 }
 
 export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
@@ -131,6 +132,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     contestNotFoundLabel,
     markedInvalidLabel,
     pointsLabel,
+    isDeclineToVotePolicyEnabled,
 }) => {
     const {t, i18n} = useTranslation()
 
@@ -153,40 +155,49 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     const showPoints = !!question.presentation?.show_points
     const isBlank = checkIsBlank(questionPlaintext)
 
+    const isBallotDeclineToVote =
+        isDeclineToVotePolicyEnabled && questionPlaintext.is_explicit_invalid
+
     return (
         <>
             <Typography variant="body2" fontWeight={"bold"}>
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
-            {isBlank ? <BlankAnswer /> : null}
-            {questionPlaintext.invalid_errors.map((error, index) => (
-                <WarnBox variant="warning" key={index}>
-                    {t(error.message || "", normalizeMessageMap(error.message_map))}
-                </WarnBox>
-            ))}
-            {questionPlaintext.is_explicit_invalid ? (
-                <VoteChoice
-                    text={explicitInvalidAnswer?.name || markedInvalidLabel}
-                    points={null}
-                    ordered={properties?.ordered || false}
-                    pointsLabel={pointsLabel}
-                />
+            {isBlank || isBallotDeclineToVote ? (
+                <BlankAnswer title={isBallotDeclineToVote ? markedInvalidLabel : undefined} />
             ) : null}
-            <CandidatesWrapper>
-                {selectedAnswers.map((answer, index) => (
-                    <CandidateChoice
-                        key={index}
-                        answer={answersById[answer.id]}
-                        points={(showPoints && getPoints(question, answer)) || null}
-                        isWriteIn={checkIsWriteIn(answersById[answer.id])}
-                        writeInValue={answer.write_in_text}
-                        isPreferentialVote={isPreferentialVote}
-                        selectedPosition={answer.selected + 1}
-                        publicBucketUrl={publicBucketUrl}
-                        pointsLabel={pointsLabel}
-                    />
-                ))}
-            </CandidatesWrapper>
+            {!isBallotDeclineToVote && (
+                <>
+                    {questionPlaintext.invalid_errors.map((error, index) => (
+                        <WarnBox variant="warning" key={index}>
+                            {t(error.message || "", normalizeMessageMap(error.message_map))}
+                        </WarnBox>
+                    ))}
+                    {questionPlaintext.is_explicit_invalid ? (
+                        <VoteChoice
+                            text={explicitInvalidAnswer?.name || markedInvalidLabel}
+                            points={null}
+                            ordered={properties?.ordered || false}
+                            pointsLabel={pointsLabel}
+                        />
+                    ) : null}
+                    <CandidatesWrapper>
+                        {selectedAnswers.map((answer, index) => (
+                            <CandidateChoice
+                                key={index}
+                                answer={answersById[answer.id]}
+                                points={(showPoints && getPoints(question, answer)) || null}
+                                isWriteIn={checkIsWriteIn(answersById[answer.id])}
+                                writeInValue={answer.write_in_text}
+                                isPreferentialVote={isPreferentialVote}
+                                selectedPosition={answer.selected + 1}
+                                publicBucketUrl={publicBucketUrl}
+                                pointsLabel={pointsLabel}
+                            />
+                        ))}
+                    </CandidatesWrapper>
+                </>
+            )}
         </>
     )
 }
