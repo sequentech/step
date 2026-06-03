@@ -17,9 +17,8 @@ import {
     useMediaQuery,
 } from "@mui/material"
 import {ChevronLeft, ChevronRight} from "@mui/icons-material"
-import {RunoffStatus} from "./types"
+import {RunoffStatus, Sequent_Backend_Candidate_Extended} from "./types"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
