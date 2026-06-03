@@ -385,7 +385,7 @@ pub async fn create_keys_ceremony(
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
-    let execution_status: String = KeysCeremonyExecutionStatus::default().to_string();
+    let execution_status: String = KeysCeremonyExecutionStatus::STARTED.to_string();
     let status: Value = serde_json::to_value(KeysCeremonyStatus {
         stop_date: None,
         public_key: None,

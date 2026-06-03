@@ -33,7 +33,7 @@ this proposal; all others are unchanged from the current architecture.
 
 | # | Origin | Destination | Protocol | What |
 |---|--------|-------------|----------|------|
-| 1 | Admin-portal | Harvest | HTTP POST | `create-keys-ceremony`, `list-keys-ceremonies`, `get-private-key`, `check-private-key`, all admin operations |
+| 1 | Admin-portal | Harvest (via Hasura) | HTTP POST | `create-keys-ceremony`, `list-keys-ceremonies`, `get-private-key`, `check-private-key`, all admin operations |
 | 2 | Admin-portal | Harvest | HTTP POST | **`register-trustee-key` — BBT new:** registers the BBT signing public key for an election event |
 | 3 | Admin-portal | Hasura | GraphQL/HTTP | Read trustee config (`GET_TRUSTEE_CONFIG`), election events, ceremony status (`execution_status`), all entity queries |
 | 4 | Admin-portal (braid-wasm) | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol (Channel, Shares, PublicKey…) |
@@ -110,7 +110,7 @@ reads public keys in `create_keys_impl` must differentiate by trustee mode:
 | Trustee type | How to read `public_key` |
 |---|---|
 | **Server-based** | Read the global `public_key` directly — no `election_event_id` filter. |
-| **Browser-based** | Filter by both `tenant_id` **and** `election_event_id` to get the per-event key. |
+| **Browser-based** | Filter by both `tenant_id`, `election_event_id` **and** `keys_ceremony_id` to get the per-event key. |
 
 `get_trustee_mode_policy()` in `windmill/src/postgres/trustee.rs` already reads the
 `TrusteeModePolicy` from the trustee's `annotations.trustee_mode_policy` JSON field, so the
@@ -118,53 +118,63 @@ mode is already detectable.  The query in the document's Component Changes secti
 (`ORDER BY election_event_id NULLS LAST`) covers both cases in one SQL statement, but the
 calling code must know whether to pass an `election_event_id` parameter at all.
 
-### Options
+### Repurpose `USER_CONFIGURATION` as `AWAITING_TRUSTEE_KEYS`
 
-> **Recommended: Option C — see below.**
-
-**Option A — Block at `create_keys_ceremony` (admin-gate)**
-Check at Harvest time that every selected BBT trustee has a registered `public_key` for the
-event.  Return a descriptive error (e.g. `TRUSTEE_KEY_NOT_REGISTERED`) if any key is missing
-so the admin portal can display:
-
-> *"All parties must be present — some trustee users have not signed in yet."*
-
-Pro: immediate, visible feedback to the admin.
-Con: `create_keys_ceremony` currently has no key-reading logic; this mixes concerns.
-
-**Option B — Early-exit from `create_keys_impl` (silent retry)**
-`create_keys_ceremony` creates the record normally (`STARTED`).  `create_keys_impl` checks
-whether every BBT trustee in the ceremony has a `public_key`; if not, it returns `Ok(())`
-without advancing the status.  On the next beat cycle `process_board` dispatches `create_keys`
-again and the check is retried automatically.
-
-Pro: no new status needed; ceremony advances on its own once trustees are ready.
-Con: ceremony appears stuck in `STARTED` with no UI feedback; admin cannot distinguish
-"waiting for trustees" from a genuine failure.
-
-**Option C — Rename `USER_CONFIGURATION` to `AWAITING_TRUSTEE_KEYS` ✓ Recommended**
 `USER_CONFIGURATION` exists in the enum today but is unused and carries a generic name.
 Rename it to `AWAITING_TRUSTEE_KEYS` to give it a clear, purpose-built meaning.
-`create_keys_ceremony` inserts the record with `AWAITING_TRUSTEE_KEYS`.  `process_board` gains
-a new arm: for ceremonies in `AWAITING_TRUSTEE_KEYS`, check whether all BBT trustees have a
-registered `public_key`; if so, advance to `STARTED`.  Once in `STARTED` the existing
-`create_keys` path runs unchanged.  The enum becomes:
+
+#### How it works today
+
+Posting the `Configuration` message to the bulletin board happens in the same beat-task step
+that advances the status:
+
+1. Harvest's `create_keys_ceremony`, triggered by the admin portal, inserts the
+   `keys_ceremony` row and sets `execution_status = STARTED` synchronously.  It never reads
+   trustee keys or touches the board.
+2. On the next beat cycle, a Windmill task picks up the `STARTED` ceremony, posts the
+   `Configuration` message to B4, and advances the status to `IN_PROGRESS` — both in one
+   step.
+
+#### How it works with this change
+
+- The call that creates the keys ceremony writes `AWAITING_TRUSTEE_KEYS` instead of
+  `STARTED`.
+- The beat-triggered Windmill task that previously took `STARTED → IN_PROGRESS` now operates
+  from `AWAITING_TRUSTEE_KEYS`.  Each beat it checks every trustee in the ceremony:
+  - **BBT trustees**: have they registered a `public_key` for this `(trustee_id,
+    election_event_id, keys_ceremony_id)`?
+  - **Server-based trustees**: is their `public_key` configured?
+
+  If any key is still missing the ceremony stays in `AWAITING_TRUSTEE_KEYS` and the check
+  retries on the next beat.  Once every key is present, the task posts the `Configuration`
+  message to B4 **and** advances the status to `IN_PROGRESS` in the same step — exactly as
+  today, only now gated on the key-availability check.
+
+See the [Flow](#flow) section below for the full sequence diagram.
+
+The enum becomes:
 
 ```rust
 pub enum KeysCeremonyExecutionStatus {
-    AWAITING_TRUSTEE_KEYS,   // renamed from USER_CONFIGURATION: waiting for BBT keys
-    STARTED,                 // ready for create_keys
-    IN_PROGRESS,             // DKG running
+    AWAITING_TRUSTEE_KEYS,   // renamed from USER_CONFIGURATION: waiting for trustee keys
+    STARTED,                 // legacy — no longer written by any task after this change, so it can be removed
+    IN_PROGRESS,             // Configuration posted to board; DKG running
     SUCCESS,
     CANCELLED,
 }
 ```
 
+`STARTED` is preserved in the enum for backwards-compatibility with any persisted rows, but
+no code path writes it after this change — `AWAITING_TRUSTEE_KEYS` absorbs the pre-config
+gating role and the transition straight to `IN_PROGRESS` happens once all keys are present.
+
 Pro: repurposes the existing unused variant with no net change to the enum size; intent is
 explicit; the UI can show a distinct "waiting for keys" state; transition table is enforced at
 runtime via a `try_transition` guard (see below).
 Con: any code that already serialises/stores `USER_CONFIGURATION` as a string must be
-migrated (currently there is none — the variant is unused).
+migrated (currently there is none — the variant is unused).  Existing references to `STARTED`
+in `process_board`, `create_keys_ceremony`, and admin-portal status filters must be updated to
+the new `AWAITING_TRUSTEE_KEYS → IN_PROGRESS` transition.
 
 ### Runtime state machine
 
@@ -311,13 +321,17 @@ A future implementation would require at minimum:
 - A new Harvest endpoint (e.g. `POST /cancel-keys-ceremony`) that validates the current
   `execution_status` is not already `CANCELLED` and that the election has not been started yet, then writes `CANCELLED`.
   It should be allowed to cancel on `SUCCESS` but only if the voting period has not been started.
-- A decision on what to do with the B4 board if DKG was already `IN_PROGRESS`: the board
-  already holds `Channel`, `Shares`, and possibly `PublicKey` messages.  These cannot be
-  deleted from an append-only board, so a cancelled ceremony would leave orphaned board
-  messages.  The admin would need to create a fresh ceremony on a new board.
-- For BBTs: a decision on whether to delete the `(trustee_id, election_event_id)` rows from
-  `sequent_backend_trustee` on cancellation, or leave them so the trustee's keys are already
-  registered if a replacement ceremony is created immediately after.
+- Handling of the B4 board if DKG was already `IN_PROGRESS`: the board already holds
+  `Channel`, `Shares`, and possibly `PublicKey` messages, which cannot be deleted from an
+  append-only board.  **Decision:** leave the messages orphaned.  The ceremony only advances
+  when the browser trustees act on it, and to do so they must input their keys via the admin
+  portal — which they cannot do once the ceremony is cancelled.  The admin creates a fresh
+  ceremony on a new board.
+- Handling of BBT key rows in `sequent_backend_trustee` on cancellation.  **Decision:** leave
+  the rows in place.  A new keys ceremony will produce different/regenerated trustee public
+  keys regardless, so stale rows do not interfere.  This implies the trustee key identity is
+  not just `(trustee_id, election_event_id)` but `(trustee_id, election_event_id,
+  keys_ceremony_id)`.
 
 Valid transitions to add (mirroring tally ceremony):
 ```
@@ -361,8 +375,8 @@ BBT trustee opens election event in admin portal  ← can happen before or after
        All three values stored in localStorage keyed by election_event_id
        (localStorage persists across tab closures and browser restarts; keys are only
         lost if the trustee explicitly clears site data or the device/profile is lost)
-  └─ signing_key_pk → POST Harvest /register-trustee-key
-                       UPSERT (trustee_id, election_event_id) → public_key in DB
+  └─ signing_key_pk → POST Harvest /register-trustee-key  ← can happen onnly once the keys ceremony is created
+                       UPSERT (trustee_id, election_event_id) → public_key in DB  ← depends on keys_ceremony_id
                     ↓
 beat service (review_boards → process_board) polls each ceremony in AWAITING_TRUSTEE_KEYS:
   checks whether every selected BBT trustee has a public_key for this election_event_id in DB
@@ -543,18 +557,21 @@ This produces the same three values found in `trustee1.toml`.  All underlying fu
 (`StrandSignatureSk::generate`, `symm::gen_key`) are already present in braid and used in
 `gen_trustee_config.rs` — no new crypto dependency.
 
-### 2 — DB schema: add `election_event_id` to `sequent_backend_trustee`
+### 2 — DB schema: add `election_event_id` and `keys_ceremony_id` to `sequent_backend_trustee`
 
-Add a nullable `election_event_id` column:
+Add nullable `election_event_id` and `keys_ceremony_id` columns.  Both are nullable but, when
+set, must be foreign keys to the `id` columns of their respective tables (`election_event` and
+`keys_ceremony`):
 
 | Column | Type | Meaning |
 |---|---|---|
-| `election_event_id` | `uuid \| null` | `null` for server-based trustees; event UUID for BBT |
-| `public_key` | `text \| null` | Ed25519 public key scoped to this (trustee, event) pair |
+| `election_event_id` | `uuid \| null` (FK → `election_event.id`) | `null` for server-based trustees; event UUID for BBT |
+| `keys_ceremony_id` | `uuid \| null` (FK → `keys_ceremony.id`) | `null` for server-based trustees; ceremony UUID for BBT |
+| `public_key` | `text \| null` | Ed25519 public key scoped to this (trustee, event, ceremony) tuple |
 
-Server-based trustees keep `election_event_id = null` and `public_key` set once at provisioning
-time — no behaviour change.  BBT trustees upsert `(trustee_id, election_event_id) → public_key`
-on every session start.
+Server-based trustees keep `election_event_id = null`, `keys_ceremony_id = null`, and
+`public_key` set once at provisioning time — no behaviour change.  BBT trustees upsert
+`(trustee_id, election_event_id, keys_ceremony_id) → public_key` on every session start.
 
 ### 3 — `HeadlessTrusteeProvider`: generate and register on mount
 
