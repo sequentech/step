@@ -203,6 +203,12 @@ pub enum Permissions {
     ELECTION_EVENT_SCHEDULED_TAB,
     #[strum(serialize = "election-event-reports-tab")]
     ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-event-cas-tab")]
+    ELECTION_EVENT_CAS_TAB,
+    #[strum(serialize = "ca-read")]
+    CA_READ,
+    #[strum(serialize = "ca-write")]
+    CA_WRITE,
     #[strum(serialize = "election-data-tab")]
     ELECTION_DATA_TAB,
     #[strum(serialize = "election-voters-tab")]
@@ -365,6 +371,12 @@ pub enum Permissions {
     VOTER_EMAIL_TLF_EDIT,
     #[strum(serialize = "google-meet-link")]
     GOOGLE_MEET_LINK,
+    #[strum(serialize = "generate-preview")]
+    GENERATE_PREVIEW,
+    #[strum(serialize = "preview-read")]
+    PREVIEW_READ,
+    #[strum(serialize = "tally-resolution-submit")]
+    TALLY_RESOLUTION_SUBMIT,
 }
 
 #[allow(non_camel_case_types)]

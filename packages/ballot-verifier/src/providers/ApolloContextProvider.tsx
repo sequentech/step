@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, useContext, PropsWithChildren, createContext} from "react"
+import React, {
+    useEffect,
+    useState,
+    useContext,
+    PropsWithChildren,
+    createContext,
+    useCallback,
+} from "react"
 import {ApolloClient, InMemoryCache, NormalizedCacheObject, createHttpLink} from "@apollo/client"
 import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
@@ -9,9 +16,18 @@ import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "./SettingsContextProvider"
+import {IElectionEventPresentation} from "@sequentech/ui-core"
+import {ELanguageDetectionPolicy} from "@sequentech/ui-core"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
+}
+
+interface ElectionEventConfigDocument {
+    id: string
+    tenant_id: string
+    election_event_id: string
+    election_event_presentation: IElectionEventPresentation
 }
 
 const defaultApolloContextValues: ApolloContextValues = {
@@ -37,9 +53,41 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
     let {tenantId, eventId} = useParams()
     const {globalSettings} = useContext(SettingsContext)
 
+    const electionEventConfigUrl = `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/event-${eventId}/election_event_config.json`
+    // Set up tenant and event in AuthContext on initial load.
+    // It is needed to fetch the election event config file from S3
+    // and apply the language policy before loading any other data.
+    const setupLogin = useCallback(async () => {
+        if (!tenantId || !eventId) {
+            return
+        }
+
+        try {
+            const response = await fetch(electionEventConfigUrl)
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`)
+            }
+
+            const config = (await response.json()) as ElectionEventConfigDocument
+            const presentation = config.election_event_presentation
+            const languageConf = presentation?.language_conf
+
+            const defaultLocale =
+                languageConf?.language_detection_policy === ELanguageDetectionPolicy.FORCE_DEFAULT
+                    ? languageConf.default_language_code
+                    : undefined
+
+            login(tenantId, eventId, defaultLocale)
+        } catch (error) {
+            console.error("Error loading election event config:", error)
+            login(tenantId, eventId, undefined)
+        }
+    }, [tenantId, eventId, electionEventConfigUrl, location.pathname, login])
+
     useEffect(() => {
         if (!isAuthenticated && tenantId && eventId) {
-            login(tenantId, eventId)
+            void setupLogin()
         }
     }, [isAuthenticated, tenantId, eventId])
 

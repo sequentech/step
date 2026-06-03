@@ -12,12 +12,9 @@ import {
     check_voting_not_allowed_next_bool,
     stringToHtml,
     isUndefined,
-    translateElection,
+    translateFromPresentation,
     IContest,
-    IAuditableMultiBallot,
-    IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
-    EVoterSigningPolicy,
     BallotSelection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
@@ -28,12 +25,10 @@ import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
-    setBallotSelection,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
-import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
@@ -44,6 +39,7 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
+import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -202,7 +198,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
 
     const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const errorSelectionState = useMemo(() => {
         if (!ballotSelectionState) {
@@ -299,16 +295,7 @@ const VotingScreen: React.FC = () => {
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {
-        encryptBallotSelection,
-        encryptMultiBallotSelection,
-        decodeAuditableBallot,
-        decodeAuditableMultiBallot,
-        signHashableMultiBallot,
-        signHashableBallot,
-        hashMultiBallot,
-        hashBallot,
-    } = provideBallotService()
+    const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -368,61 +355,15 @@ const VotingScreen: React.FC = () => {
             return
         }
 
-        try {
-            const isMultiContest =
-                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ===
-                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+        dispatch(clearDeclinedToVoteForElection(ballotStyle.election_id))
 
-            const doSignBallot =
-                ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
-                EVoterSigningPolicy.WITH_SIGNATURE
+        const isMultiContest =
+            ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            const auditableBallot = isMultiContest
-                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
-                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-
-            let ballotId = isMultiContest
-                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : hashBallot(auditableBallot as IAuditableSingleBallot)
-
-            if (doSignBallot) {
-                let signedContent = isMultiContest
-                    ? signHashableMultiBallot(
-                          ballotId,
-                          ballotStyle.election_id,
-                          auditableBallot as IAuditableMultiBallot
-                      )
-                    : signHashableBallot(
-                          ballotId,
-                          ballotStyle.election_id,
-                          auditableBallot as IAuditableSingleBallot
-                      )
-                auditableBallot.voter_signing_pk = signedContent?.public_key
-                auditableBallot.voter_ballot_signature = signedContent?.signature
-            }
-
-            dispatch(
-                setAuditableBallot({
-                    electionId: ballotStyle?.election_id ?? "",
-                    auditableBallot,
-                })
-            )
-
-            let decodedSelectionState = isMultiContest
-                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
-
-            if (null !== decodedSelectionState) {
-                dispatch(
-                    setBallotSelection({
-                        ballotStyle,
-                        ballotSelection: decodedSelectionState,
-                    })
-                )
-            }
-
+        if (encryptAndStoreBallot(ballotStyle, selectionState, isMultiContest)) {
             submit(null, {method: "post"})
-        } catch (error) {
+        } else {
             submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
         }
     }
@@ -432,8 +373,20 @@ const VotingScreen: React.FC = () => {
             navigate(backLink)
         } else if (!selectionState || !canVote) {
             logout()
+        } else if (electionId) {
+            dispatch(clearDeclinedToVoteForElection(electionId))
         }
-    }, [navigate, backLink, election, ballotStyle, selectionState, canVote, logout])
+    }, [
+        navigate,
+        backLink,
+        election,
+        ballotStyle,
+        selectionState,
+        canVote,
+        logout,
+        electionId,
+        dispatch,
+    ])
 
     useEffect(() => {
         let minMaxGlobal = false
@@ -487,7 +440,7 @@ const VotingScreen: React.FC = () => {
             </Box>
             <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
-                    {translateElection(election, "name", i18n.language) ?? "-"}
+                    {translateFromPresentation(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
                     className="title-question"
@@ -512,7 +465,9 @@ const VotingScreen: React.FC = () => {
                     variant="body2"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
+                    {stringToHtml(
+                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                    )}
                 </Typography>
             ) : null}
 
@@ -580,6 +535,8 @@ export async function action({request}: {request: Request}) {
             VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
         )
     }
+    const url = new URL(request.url)
+    const search = url.search || ""
 
-    return redirect(`../review`)
+    return redirect(`../review${search}`)
 }

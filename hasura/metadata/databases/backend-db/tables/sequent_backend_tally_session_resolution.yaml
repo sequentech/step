@@ -1,0 +1,160 @@
+table:
+    name: tally_session_resolution
+    schema: sequent_backend
+object_relationships:
+    - name: contest
+      using:
+          manual_configuration:
+              column_mapping:
+                  contest_id: id
+                  election_event_id: election_event_id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: contest
+                  schema: sequent_backend
+    - name: tally_session
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  tally_session_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: tally_session
+                  schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - election_event_id
+              - labels
+              - resolution_data
+              - resolution_type
+              - resolved_at
+              - resolved_by_user
+              - status
+              - tally_session_id
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - election_event_id
+              - labels
+              - resolution_data
+              - resolution_type
+              - resolved_at
+              - resolved_by_user
+              - status
+              - tally_session_id
+              - tenant_id
+      role: super-admin-user
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - contest_id
+              - created_at
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - resolution_data
+              - resolution_type
+              - resolved_at
+              - resolved_by_user
+              - status
+              - tally_session_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - contest_id
+              - created_at
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - resolution_data
+              - resolution_type
+              - resolved_at
+              - resolved_by_user
+              - status
+              - tally_session_id
+              - tenant_id
+          filter: {}
+      role: super-admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - contest_id
+              - created_at
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - resolution_data
+              - resolution_type
+              - resolved_at
+              - resolved_by_user
+              - status
+              - tally_session_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-resolution-submit
+update_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - labels
+              - resolution_data
+              - resolved_at
+              - resolved_by_user
+              - status
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - labels
+              - resolution_data
+              - resolved_at
+              - resolved_by_user
+              - status
+          filter: {}
+      role: super-admin-user
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: super-admin-user

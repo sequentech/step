@@ -87,6 +87,7 @@ const spanishTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -342,6 +343,11 @@ const spanishTranslation: TranslationType = {
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
                 },
+                VoterCertificatePolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {
@@ -375,6 +381,13 @@ const spanishTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detección de idioma",
+                    options: {
+                        "browser-detect": "Detectar desde el navegador",
+                        "force-default": "Forzar predeterminado",
                     },
                 },
             },
@@ -439,6 +452,7 @@ const spanishTranslation: TranslationType = {
                 notifications: "Notificaciones",
                 reports: "Informe",
                 approvals: "Aprobaciones",
+                cas: "Certificados",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -543,6 +557,7 @@ const spanishTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicaciones",
                 tally: "Recuento",
+                certificates: "Certificados",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
@@ -586,6 +601,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descripción",
                 securityConfirmationHtml: "Confirmación de seguridad HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política de la casilla de confirmación de seguridad",
@@ -638,6 +654,20 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "election": "Elección",
                     "election-event": "Evento Electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
                 },
             },
         },
@@ -1057,6 +1087,7 @@ const spanishTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estadístico",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 AUDIT_LOGS: "Registros de Auditoría",
@@ -1322,8 +1353,12 @@ const spanishTranslation: TranslationType = {
                 "plurality-at-large": "Mayoría Plural",
                 "instant-runoff": "Segunda Vuelta Instantánea",
                 "random": "Aleatorias",
+                "external-procedure": "Procedimiento externo",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempate",
             },
             auditButtonConfig: {
                 "label": "Opciones de visualización del botón de auditoría",
@@ -1356,6 +1391,12 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
             },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (empieza expandido)",
+                "enabled-collapsed": "Habilitado (empieza contraído)",
+            },
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
                 "allowed": "Permitido",
@@ -1372,8 +1413,31 @@ const spanishTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
             },
+            duplicatedRankPolicy: {
+                "label": "Voto inválido - Política de rango duplicado",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto inválido - Política de rangos omitidos",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
             paginationPolicy: {
                 label: "Nombre de la página",
+            },
+            allowWriteins: {
+                label: "Permitir candidaturas manuales",
+            },
+            maxVotes: {
+                helperText:
+                    "Número máximo de candidatos que un votante puede seleccionar (votación no preferencial).",
+                helperTextPreferential:
+                    "Posición de rango más alta disponible para los votantes (p.ej. '5' significa posiciones 1–5). Debe ser al menos igual al número de candidatos a ordenar (votación preferencial).",
             },
             error: {},
             createContestSuccess: "Pregunta creado",
@@ -1675,6 +1739,37 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
             },
+            pendingResolutions: {
+                round: "Ronda {{round}}",
+                tieResolutionRequired: "Resolución de empate necesaria",
+                tieResolved: "Empate resuelto",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Resoluciones pendientes",
+                pendingResolutionStatus: "Resolución pendiente",
+                resolvedStatus: "Resuelta",
+                resolutionTitle: "Resolución",
+                selectContest: "Seleccione un elemento a la izquierda para ver los detalles",
+                selectCandidateToAdvance: "Seleccione el candidato a avanzar",
+                undoResolution: "Deshacer resolución",
+                applyResolutions: "Aplicar resoluciones y recalcular",
+                submitSuccess: "Resoluciones enviadas. El recuento está reanudando...",
+                submitError: "Error al enviar las resoluciones. Por favor, inténtelo de nuevo.",
+                filter: "Filtrar",
+                save: "Guardar",
+                pendingApplyStatus: "Cálculo pendiente",
+                filterElection: "Elección",
+                filterContest: "Concurso",
+                filterArea: "Área",
+                filterStatusLabel: "Estado",
+                clearFilters: "Borrar filtros",
+                candidateWithVotes: "{{name}} ({{votes}} votos)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
+                tieInfoTitle: "Recuento pausado por empate sin resolver (Ronda {{round}})",
+                tieInfoBody:
+                    "Candidatos empatados ({{votes}} votos, {{percent}}%): {{candidates}}. Se requiere desempate manual para continuar el recuento.",
+                tallyResumedTitle: "Recuento reanudado tras aplicar la resolución",
+                tallyResumedBody: "El empate fue resuelto el {{date}} por {{user}}",
+            },
             chart: {
                 votesForCandidates: "Votos por Candidatos",
                 blankVotes: "Votos en Blanco",
@@ -1682,6 +1777,8 @@ const spanishTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "No Votantes",
             },
+            exportAllAreas:
+                "Exportar los resultados de todas las áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {
@@ -1943,6 +2040,7 @@ const spanishTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Email",
@@ -2008,6 +2106,21 @@ const spanishTranslation: TranslationType = {
                     keycloakConfigOption: "Importar configuraciones de Keycloak",
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
                 },
+            },
+            previewScreen: {
+                label: "Vistas Previas",
+                noContent: "No se encontraron vistas previas",
+                table: {
+                    title: "Vistas previas externas",
+                    description:
+                        "Un registro de las vistas previas de estilos de papeleta generadas mediante peticiones externas",
+                    requestedBy: "Solicitado por",
+                    document: "Documento",
+                    url: "URL",
+                },
+            },
+            languages: {
+                default: "Idioma predeterminado",
             },
         },
         approvalsScreen: {
@@ -2082,6 +2195,69 @@ const spanishTranslation: TranslationType = {
                 title: "Pruebas",
                 testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
+        },
+        certificateAuthorities: {
+            title: "Certificados",
+            subtitle:
+                "Autoridades de certificación (CA) de confianza para este evento electoral. Los CA importados se usan para validar los certificados de los votantes.",
+            importButton: "Importar certificados",
+            type: {
+                root: "Raíz",
+                intermediate: "Intermedio",
+            },
+            expiry: {
+                expired: "Vencido",
+                expiringSoon: "Por vencer",
+                valid: "Válido",
+            },
+            columns: {
+                commonName: "Nombre común",
+                type: "Tipo",
+                issuerCn: "CN del emisor",
+                notBefore: "Válido desde",
+                notAfter: "Vence",
+                fingerprint: "Huella SHA256",
+            },
+            importDialog: {
+                title: "Importar autoridades de certificación",
+                subtitle: "Importar uno o más certificados CA desde un archivo PEM",
+                description:
+                    "Seleccione un archivo PEM que contenga uno o más certificados. Se admiten paquetes — cada certificado se importa individualmente.",
+                selectFile: "Seleccionar archivo PEM",
+                fileLoaded: "Archivo cargado ({{bytes}} bytes)",
+                importButton: "Importar",
+            },
+            notify: {
+                importSuccess: "Se importaron {{inserted}} certificado(s).",
+                importSkipped: "{{count}} certificado(s) omitido(s) (ya presentes).",
+                importErrors: "Problemas en la importación: {{errors}}",
+                importError: "Error al importar: {{error}}",
+                deleteSuccess: "Certificado eliminado.",
+                deleteError: "Error al eliminar el certificado.",
+                exportSuccess: "Certificado(s) exportado(s) correctamente.",
+                exportError: "Error al exportar los certificados.",
+            },
+            exportDialog: {
+                title: "Exportar autoridades de certificación",
+                description: "Está a punto de exportar {{amount}} certificado(s).",
+                all: "todos",
+            },
+            deleteDialog: {
+                description: "¿Está seguro de que desea eliminar {{count}} certificado(s)?",
+            },
+            emptyHeader:
+                "No se han importado autoridades de certificación para este evento electoral.",
+            fileReadError: "Error al leer el archivo.",
+            viewDialog: {
+                title: "Detalles de la autoridad de certificación",
+                subject: "Asunto",
+                issuer: "Emisor",
+                serialNumber: "Número de serie",
+                pemContent: "Contenido PEM",
+            },
+            confirmDelete: "Eliminar autoridad de certificación",
+            confirmDeleteDescription:
+                '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
         },
     },
 }

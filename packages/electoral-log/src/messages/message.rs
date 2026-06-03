@@ -18,7 +18,9 @@ use crate::messages::statement::StatementBody;
 use crate::messages::statement::StatementHead;
 
 use super::newtypes::*;
-use crate::messages::newtypes::EventIdString;
+use crate::messages::newtypes::{
+    CertificateAuthEventAction, CertificateSubjectDnsString, EventIdString,
+};
 use std::fmt;
 
 /// We use this when the statement is not related to any election event
@@ -306,6 +308,79 @@ impl Message {
     ) -> Result<Self> {
         let body = StatementBody::VoterPublicKey(tenant_id, event.clone(), user_hash, pk);
         Self::from_body(event, body, sd, user_id, username, None, area_id, None)
+    }
+
+    pub fn tally_resumed_with_resolution(
+        event: EventIdString,
+        election: ElectionIdString,
+        resolution_ids: Vec<String>,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyResumedWithResolution(
+            election.clone(),
+            ResolutionIdsString(resolution_ids),
+        );
+        Self::from_body(event, body, sd, None, None, election.0, None, None)
+    }
+
+    pub fn tally_paused_pending_resolutions(
+        event: EventIdString,
+        election: ElectionIdString,
+        resolution_ids: Vec<String>,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyPausedPendingResolution(
+            election.clone(),
+            ResolutionIdsString(resolution_ids),
+        );
+        Self::from_body(event, body, sd, None, None, election.0, None, None)
+    }
+
+    pub fn tally_tie_resolved(
+        event: EventIdString,
+        election: ElectionIdString,
+        contest: ContestIdString,
+        resolution_id: String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyTieResolved(
+            election.clone(),
+            contest,
+            ResolutionIdsString(vec![resolution_id]),
+        );
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
+    }
+
+    pub fn tally_tie_resolution_updated(
+        event: EventIdString,
+        election: ElectionIdString,
+        contest: ContestIdString,
+        resolution_id: String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyTieResolutionUpdated(
+            election.clone(),
+            contest,
+            ResolutionIdsString(vec![resolution_id]),
+        );
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
+    }
+
+    pub fn certificate_auth_event_message(
+        event: EventIdString,
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let subjects = CertificateSubjectDnsString(subject_dns);
+        let body = StatementBody::CertificateAuthEvent(action, subjects);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
     pub fn admin_public_key_message(

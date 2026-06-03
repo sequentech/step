@@ -13,6 +13,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::transactions_manager::transaction::Host;
 use uuid::Uuid;
+use wasmtime::component::HasData;
+
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {
     client: Option<Object>,
@@ -21,6 +23,12 @@ pub struct PluginDbManager {
     #[borrows(mut client)]
     #[not_covariant]
     txn: Option<Transaction<'this>>,
+}
+
+pub struct TxnHost;
+
+impl HasData for TxnHost {
+    type Data<'a> = &'a mut PluginTransactionsManager;
 }
 
 impl PluginDbManager {

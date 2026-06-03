@@ -18,12 +18,18 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {useLocation, useNavigate} from "react-router"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
+import {
+    EElectionEventLockedDown,
+    EVoterCertificatePolicy,
+    i18n,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
+import {useNavigate, useLocation} from "react-router-dom"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -43,6 +49,9 @@ const EditElectionEventAreas = lazy(() =>
 )
 const EditElectionEventKeys = lazy(() =>
     import("./EditElectionEventKeys").then((m) => ({default: m.EditElectionEventKeys}))
+)
+const EditElectionEventCAs = lazy(() =>
+    import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
 )
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
@@ -118,6 +127,15 @@ const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
     </Suspense>
 )
 
+const CAsTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventCAs />
+        </Suspense>
+    )
+}
+
 const TallyTab: React.FC = () => (
     <Suspense fallback={<div>Loading Tally...</div>}>
         <EditElectionEventTally />
@@ -184,6 +202,7 @@ export const ElectionEventTabs: React.FC = () => {
     const refreshRef = useRef<HTMLButtonElement | null>(null)
     const {setTallyId} = useElectionEventTallyStore()
     const [open] = useSidebarState()
+    const aliasRenderer = useAliasRenderer()
 
     // State for tab-specific triggers
     const [showKeysList, setShowKeysList] = useState<string | null>(null)
@@ -283,6 +302,9 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
+    const showCAs =
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
+        record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
@@ -335,6 +357,11 @@ export const ElectionEventTabs: React.FC = () => {
                 props: {showKeysList},
                 action: () => setShowKeysList(uuidv4()),
             })
+        }
+
+        // CAs
+        if (showCAs) {
+            result.push({label: t("electionEventScreen.tabs.cas"), component: CAsTab})
         }
 
         // Tally
@@ -415,6 +442,7 @@ export const ElectionEventTabs: React.FC = () => {
         showEvents,
         showReports,
         showApprovalsExecution,
+        showCAs,
         t,
         showKeysList,
         showPublishList,
@@ -442,13 +470,7 @@ export const ElectionEventTabs: React.FC = () => {
             className="events-box"
         >
             <ElectionHeader
-                title={
-                    translateElection(record, "alias", i18n.language) ||
-                    translateElection(record, "name", i18n.language) ||
-                    record.alias ||
-                    record.name ||
-                    "-"
-                }
+                title={aliasRenderer(record)}
                 subtitle="electionEventScreen.common.subtitle"
             />
             <Box sx={{bgcolor: "background.paper"}}>

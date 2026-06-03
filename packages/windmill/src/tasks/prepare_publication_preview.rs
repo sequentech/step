@@ -26,7 +26,7 @@ use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
-    ballot_styles: Value,
+    pub ballot_styles: Value,
     election_event: Value,
     elections: Value,
     support_materials: Value,
@@ -170,7 +170,7 @@ pub async fn get_elections_json_with_open_status(
     tenant_id: &str,
     election_event_id: &str,
 ) -> AnyhowResult<Value> {
-    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None)
+    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Can't find open elections")?;
 

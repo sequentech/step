@@ -3,11 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::ballot_style::export_event_ballot_styles;
+use crate::services::ballot_styles::ballot_style::EVENT_CONFIG_FILE_NAME;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::services::s3::{
+    get_object_into_temp_file, get_public_bucket, get_public_election_event_document_name_key,
+};
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::{BallotPublication, Template};
 use sequent_core::util::temp_path::write_into_named_temp_file;
@@ -137,4 +141,29 @@ pub async fn export_ballot_publications(
     .map_err(|e| anyhow!("Error processing export ballot publication: {e:?}"))?;
 
     Ok(temp_path)
+}
+
+/// Exports election event config file which created at ballot publication generation.
+// #[instrument(err)]
+pub async fn export_election_event_config_file(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<TempPath> {
+    let s3_bucket = get_public_bucket()?;
+
+    let document_name = EVENT_CONFIG_FILE_NAME;
+
+    // Obtain the key for the document in S3
+    let document_s3_key =
+        get_public_election_event_document_name_key(tenant_id, election_event_id, document_name);
+
+    let file = get_object_into_temp_file(
+        s3_bucket.as_str(),
+        document_s3_key.as_str(),
+        &document_name,
+        ".tmp",
+    )
+    .await
+    .with_context(|| "Failed to get S3 object into temporary file")?;
+    Ok(file.into_temp_path())
 }

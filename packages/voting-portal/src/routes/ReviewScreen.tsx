@@ -80,6 +80,7 @@ import {
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {selectElectionById} from "../store/elections/electionsSlice"
+import {isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -231,7 +232,7 @@ const useTryInsertCastVote = () => {
         electionId: string,
         ballotId: string,
         content: string,
-        setErrorMsg: (msg: CastBallotsErrorType) => void
+        setErrorMsg: (msg: string) => void
     ) => {
         try {
             let result = await insertCastVote({
@@ -242,8 +243,8 @@ const useTryInsertCastVote = () => {
                 },
             })
 
-            if (result.errors) {
-                console.log(result.errors.map((e) => e.message))
+            if (result.error) {
+                console.log(result.error?.message)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
                 return false
             }
@@ -302,9 +303,10 @@ interface ActionButtonProps {
     auditButtonCfg: EVotingPortalAuditButtonCfg
     castVoteConfirmModal: boolean
     ballotId: string
-    setErrorMsg: (msg: CastBallotsErrorType) => void
+    setErrorMsg: (msg: string) => void
     isGoldenPolicy: boolean
     isMultiContest: boolean
+    isDeclineToVote: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -316,6 +318,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     setErrorMsg,
     isGoldenPolicy,
     isMultiContest,
+    isDeclineToVote,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -450,6 +453,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         return submit(null, {method: "post"})
     }
 
+    const backNavigateTo = isDeclineToVote
+        ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
+        : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
     return (
         <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
@@ -460,7 +466,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             ) : null}
             <ActionsContainer className="actions-container">
                 <StyledLink
-                    to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`}
+                    to={backNavigateTo}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
@@ -507,7 +513,7 @@ export const ReviewScreen: React.FC = () => {
     const navigate = useNavigate()
     const submit = useSubmit()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const [errorMsg, setErrorMsg] = useState<CastBallotsErrorType>()
+    const [errorMsg, setErrorMsg] = useState<string>()
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
     const isCastingBallot = useRef<boolean>(false)
@@ -516,19 +522,31 @@ export const ReviewScreen: React.FC = () => {
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
     const electionFromRedux = useAppSelector(selectElectionById(String(electionId)))
-    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: electionId ? [electionId] : [],
-        },
-        skip: globalSettings.DISABLE_AUTH || electionFromRedux !== undefined, // Skip query if we can get the election from redux (golden user cant)
-        onError: (error) => {
-            if (error.networkError) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
-            }
-        },
-    })
+    const isDeclineToVote = useAppSelector(isDeclineToVoteByElectionId(String(electionId)))
+    const {data: dataElections, error: errorElections} = useQuery<GetElectionsQuery>(
+        GET_ELECTIONS,
+        {
+            variables: {
+                electionIds: electionId ? [electionId] : [],
+            },
+            skip: globalSettings.DISABLE_AUTH || electionFromRedux !== undefined, // Skip query if we can get the election from redux (golden user cant)
+        }
+    )
+
+    useEffect(() => {
+        if (!errorElections) return
+
+        const isNetworkError =
+            errorElections.name === "NetworkError" ||
+            errorElections.message.includes("fetch") ||
+            errorElections.message.includes("network")
+
+        if (isNetworkError) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+        } else {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+        }
+    }, [errorElections, t])
 
     const isGoldenPolicy = useMemo(() => {
         return electionFromRedux !== undefined
@@ -536,8 +554,8 @@ export const ReviewScreen: React.FC = () => {
                   ECastVoteGoldLevelPolicy.GOLD_LEVEL
             : dataElections?.sequent_backend_election?.some(
                   (item) =>
-                      item.id === electionId &&
-                      item.presentation?.cast_vote_gold_level ===
+                      item?.id === electionId &&
+                      item?.presentation?.cast_vote_gold_level ===
                           ECastVoteGoldLevelPolicy.GOLD_LEVEL
               )
     }, [electionFromRedux, dataElections])
@@ -809,6 +827,7 @@ export const ReviewScreen: React.FC = () => {
                         isReview={true}
                         setDecodedContests={() => undefined}
                         errorSelectionState={errorSelectionState}
+                        isDeclineToVote={isDeclineToVote}
                     />
                 </Box>
             ))}
@@ -822,6 +841,7 @@ export const ReviewScreen: React.FC = () => {
                     setErrorMsg={setErrorMsg}
                     isGoldenPolicy={isGoldenPolicy ?? false}
                     isMultiContest={isMultiContest}
+                    isDeclineToVote={isDeclineToVote}
                 />
             )}
         </PageLimit>

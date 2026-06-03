@@ -20,7 +20,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
 > - Security hardening for production environments
 > - Automated scaling or failover mechanisms
 >
-> **For production deployments** with enterprise-grade reliability, managed infrastructure, support, and SLA guarantees, please contact **Sequent**
+> **For production deployments** with enterprise-grade reliability, managed infrastructure, support, and SLA guarantees, please contact **[Sequent](https://sequentech.io/)**
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
         *   AWS: `c5.2xlarge` (8 vCPUs, 16 GB RAM)
         *   GCP: `n2-standard-8` (8 vCPUs, 32 GB RAM)
         *   Azure: `Standard_D8s_v3` (8 vCPUs, 32 GB RAM)
-    *   OS: Ubuntu 22.04 LTS or 24.04 LTS
+    *   OS: Ubuntu 24.04 LTS
     *   See `.devcontainer/remote-deployment/provision-server.sh` for detailed specifications and provisioning examples.
     *   optional: See also 'Cloudflare source IP addresses list' in the bottom of the document for firewall allowence.
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
