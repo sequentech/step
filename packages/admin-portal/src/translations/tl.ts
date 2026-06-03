@@ -662,6 +662,13 @@ const tagalogTranslation: TranslationType = {
                     "do-not-generate": "Huwag bumuo",
                 },
             },
+            declineToVotePolicy: {
+                label: "Patakaran sa pagtangging bumoto",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -2224,8 +2231,9 @@ const tagalogTranslation: TranslationType = {
                 importButton: "I-import",
             },
             notify: {
-                importSuccess:
-                    "Na-import ang {{inserted}} sertipiko. {{skipped}} nilaktawan (mayroon na).",
+                importSuccess: "Na-import ang {{inserted}} sertipiko.",
+                importSkipped: "{{count}} nilaktawan (mayroon na).",
+                importErrors: "Mga isyu sa pag-import: {{errors}}",
                 importError: "Nabigo ang pag-import: {{error}}",
                 deleteSuccess: "Nabura ang sertipiko.",
                 deleteError: "Error sa pagbura ng sertipiko.",

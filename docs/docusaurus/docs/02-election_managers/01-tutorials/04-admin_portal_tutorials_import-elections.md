@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The Sequent Admin Portal provides tools to export election data for backup or auditing and to import existing election configurations to quickly set up new events.
 
-## Exporting an Election
+## Exporting an Election Event
 
 Exporting allows you to save a comprehensive snapshot of your election event.
 
@@ -29,6 +29,10 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 3.  Choose the data components you wish to include in the export:
     * **Include Voters:** Exports the registered voter list.
     * **Activity Logs:** Includes a history of administrative actions.
+    *  * **Bulletin Board:** Includes the cryptographic state of the Election Event such as key ceremonies.
+    *  **Publications:** Includes the publication history for the Election Event.
+    *  **S3 Files:** Includes images, support materials or other files that are saved in cloud storage.
+    *  **Scheduled Events:** Includes configured Scheduled Events.
     * **Reports:** Includes generated election reports.
     * **Tally:** Includes the final vote counts (if available).
 
@@ -40,8 +44,8 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 
 ![Export Password and Instructions](./assets/export_password_display.png)
 
-4.  Click `Export` to generate an `.ezip` file.
-5.  **Save the Password:** A dialog will display a unique decryption password. Copy and store this securely; you will need it to import the file later or to unzip it manually.
+1.  Click `Export` to generate an `.ezip` file.
+2.  **Save the Password:** A dialog will display a unique decryption password. Copy and store this securely; you will need it to import the file later or to unzip it manually.
 
 ## Importing an Election Event
 
@@ -59,8 +63,3 @@ For example, assuming you have version **10.1.0** installed, you can only import
 2.  Select `Import Election Event`.
 
 ![Import File Upload](./assets/import_file_upload.png)
-
-3.  Drag and drop your import file or click **Browse** to select it from your local storage.
-4.  If your file was encrypted, enter the **Decryption Password** you saved during the export process.
-5.  (Optional) Paste an **Integrity Check (SHA-256)** hash to verify the file has not been tampered with.
-6.  Click `Import`. The event will now appear in your **Active** elections list.
