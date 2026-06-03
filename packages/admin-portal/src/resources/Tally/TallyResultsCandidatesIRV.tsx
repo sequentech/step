@@ -17,7 +17,7 @@ import {
     useMediaQuery,
 } from "@mui/material"
 import {ChevronLeft, ChevronRight} from "@mui/icons-material"
-import {RunoffStatus, ECandidateStatus} from "./types"
+import {RunoffStatus} from "./types"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -246,7 +246,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {name_references.map((candidate, candidateIndex) => {
+                        {name_references.map((candidate) => {
                             const resolvedCandidateName = aliasRenderer(
                                 candidateById.get(candidate.id)?.presentation,
                                 defaultElectionLang
