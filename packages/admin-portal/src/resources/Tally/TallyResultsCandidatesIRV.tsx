@@ -252,7 +252,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                 defaultElectionLang
                             )
                             const candidateLabel =
-                                resolvedCandidateName === "-" ? candidate.name ?? "-" : resolvedCandidateName
+                                resolvedCandidateName === "-"
+                                    ? (candidate.name ?? "-")
+                                    : resolvedCandidateName
 
                             return (
                                 <TableRow key={candidate.id}>
