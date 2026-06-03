@@ -246,109 +246,115 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {name_references.map((candidate, candidateIndex) => (
-                            <TableRow key={candidate.id}>
-                                <TableCell
-                                    component="th"
-                                    scope="row"
-                                    sx={{
-                                        "position": "sticky",
-                                        "left": 0,
-                                        "backgroundColor": "#fff",
-                                        "zIndex": 2,
-                                        "border": "1px solid #fff",
-                                        "fontWeight": 500,
-                                        "maxWidth": 180,
-                                        "overflow": "hidden",
-                                        "textOverflow": "ellipsis",
-                                        "whiteSpace": "nowrap",
-                                        "&:hover": {
-                                            backgroundColor: "#f5f5f5",
-                                        },
-                                    }}
-                                    title={aliasRenderer(
-                                        candidateById.get(candidate.id)?.presentation,
-                                        defaultElectionLang
-                                    )}
-                                >
-                                    {aliasRenderer(
-                                        candidateById.get(candidate.id)?.presentation,
-                                        defaultElectionLang
-                                    )}
-                                </TableCell>
-                                {visibleRounds.map((round, visibleIndex) => {
-                                    const roundIndex = representedRounds.start + visibleIndex
-                                    const status = getCandidateStatusInRound(
-                                        candidate.id,
-                                        roundIndex
-                                    )
-                                    const outcome = round.candidates_wins[candidate.id]
+                        {name_references.map((candidate, candidateIndex) => {
+                            const resolvedCandidateName = aliasRenderer(
+                                candidateById.get(candidate.id)?.presentation,
+                                defaultElectionLang
+                            )
+                            const candidateLabel =
+                                resolvedCandidateName === "-" ? candidate.name ?? "-" : resolvedCandidateName
 
-                                    return (
-                                        <TableCell
-                                            key={roundIndex}
-                                            align="center"
-                                            sx={{
-                                                width: 320,
-                                                minWidth: 320,
-                                                maxWidth: 320,
-                                                backgroundColor: outcome ? "#F9F9FF" : "#E0E0E0",
-                                                border: "1px solid #fff",
-                                            }}
-                                        >
-                                            {outcome ? (
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        flexDirection: "row",
-                                                        alignItems: "center",
-                                                        justifyContent: "left",
-                                                        gap: 5,
-                                                    }}
-                                                >
+                            return (
+                                <TableRow key={candidate.id}>
+                                    <TableCell
+                                        component="th"
+                                        scope="row"
+                                        sx={{
+                                            "position": "sticky",
+                                            "left": 0,
+                                            "backgroundColor": "#fff",
+                                            "zIndex": 2,
+                                            "border": "1px solid #fff",
+                                            "fontWeight": 500,
+                                            "maxWidth": 180,
+                                            "overflow": "hidden",
+                                            "textOverflow": "ellipsis",
+                                            "whiteSpace": "nowrap",
+                                            "&:hover": {
+                                                backgroundColor: "#f5f5f5",
+                                            },
+                                        }}
+                                        title={candidateLabel}
+                                    >
+                                        {candidateLabel}
+                                    </TableCell>
+                                    {visibleRounds.map((round, visibleIndex) => {
+                                        const roundIndex = representedRounds.start + visibleIndex
+                                        const status = getCandidateStatusInRound(
+                                            candidate.id,
+                                            roundIndex
+                                        )
+                                        const outcome = round.candidates_wins[candidate.id]
+
+                                        return (
+                                            <TableCell
+                                                key={roundIndex}
+                                                align="center"
+                                                sx={{
+                                                    width: 320,
+                                                    minWidth: 320,
+                                                    maxWidth: 320,
+                                                    backgroundColor: outcome
+                                                        ? "#F9F9FF"
+                                                        : "#E0E0E0",
+                                                    border: "1px solid #fff",
+                                                }}
+                                            >
+                                                {outcome ? (
                                                     <Box
                                                         sx={{
-                                                            color: "#333",
-                                                            fontSize: "0.875rem",
+                                                            display: "flex",
+                                                            flexDirection: "row",
+                                                            alignItems: "center",
+                                                            justifyContent: "left",
+                                                            gap: 5,
                                                         }}
                                                     >
-                                                        {formatNumber(outcome.wins)} (
-                                                        {(outcome.percentage * 100).toFixed(2)}%)
+                                                        <Box
+                                                            sx={{
+                                                                color: "#333",
+                                                                fontSize: "0.875rem",
+                                                            }}
+                                                        >
+                                                            {formatNumber(outcome.wins)} (
+                                                            {(outcome.percentage * 100).toFixed(2)}
+                                                            %)
+                                                        </Box>
+                                                        {status === "winner" && (
+                                                            <Chip
+                                                                label={t(
+                                                                    "tally.table.preferential.winner"
+                                                                )}
+                                                                sx={{
+                                                                    backgroundColor: "#4caf50",
+                                                                    color: "white",
+                                                                    fontWeight: 400,
+                                                                    fontSize: "0.875rem",
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {status === "eliminated" && (
+                                                            <Chip
+                                                                label={t(
+                                                                    "tally.table.preferential.eliminated"
+                                                                )}
+                                                                variant="outlined"
+                                                                sx={{
+                                                                    borderColor: "#f44336",
+                                                                    color: "#f44336",
+                                                                    fontWeight: 400,
+                                                                    fontSize: "0.875rem",
+                                                                }}
+                                                            />
+                                                        )}
                                                     </Box>
-                                                    {status === "winner" && (
-                                                        <Chip
-                                                            label={t(
-                                                                "tally.table.preferential.winner"
-                                                            )}
-                                                            sx={{
-                                                                backgroundColor: "#4caf50",
-                                                                color: "white",
-                                                                fontWeight: 400,
-                                                                fontSize: "0.875rem",
-                                                            }}
-                                                        />
-                                                    )}
-                                                    {status === "eliminated" && (
-                                                        <Chip
-                                                            label={t(
-                                                                "tally.table.preferential.eliminated"
-                                                            )}
-                                                            variant="outlined"
-                                                            sx={{
-                                                                borderColor: "#f44336",
-                                                                color: "#f44336",
-                                                                fontWeight: 400,
-                                                                fontSize: "0.875rem",
-                                                            }}
-                                                        />
-                                                    )}
-                                                </Box>
-                                            ) : null}
-                                        </TableCell>
-                                    )
-                                })}
-                            </TableRow>
-                        ))}
+                                                ) : null}
+                                            </TableCell>
+                                        )
+                                    })}
+                                </TableRow>
+                            )
+                        })}
                     </TableBody>
                 </Table>
             </TableContainer>

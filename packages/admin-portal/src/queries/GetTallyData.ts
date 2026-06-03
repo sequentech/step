@@ -14,24 +14,7 @@ export const GET_TALLY_DATA = gql`
         sequent_backend_election_event(
             where: {id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
-            id
-            created_at
-            updated_at
-            labels
-            annotations
-            tenant_id
-            description
             presentation
-            bulletin_board_reference
-            is_archived
-            voting_channels
-            status
-            user_boards
-            encryption_protocol
-            is_audit
-            audit_election_event_id
-            public_key
-            statistics
         }
         sequent_backend_area(
             where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
