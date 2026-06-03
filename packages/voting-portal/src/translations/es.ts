@@ -58,6 +58,14 @@ const spanishTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Empezar a votar",
+            declineToVoteButton: "Declinar votar",
+            declineToVoteDialog: {
+                title: "Confirmar declinación de voto",
+                content:
+                    "¿Estás seguro de que deseas declinar votar?<br />Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
+                continue: "Declinar votar",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Cómo votar",
             instructionsDescription: "Siga estos pasos para emitir su voto",
             step1Title: "1. Elija sus opciones",
@@ -196,6 +204,7 @@ const spanishTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",

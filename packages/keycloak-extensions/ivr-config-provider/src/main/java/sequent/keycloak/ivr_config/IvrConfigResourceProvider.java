@@ -46,6 +46,9 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
    */
   static final String IVR_VOTING_CLIENT_ID = "ivr-voting";
 
+  /** Flow we override for the voting client, if exists. Only Direct Grant flow currently. */
+  static final String IVR_VOTING_OVERRIDE_FLOW = "direct_grant";
+
   /** Realm role required on the caller's token. */
   static final String REQUIRED_ROLE = "ivr-config-read";
 
@@ -97,7 +100,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
           "There are no viable auth steps for IVR.", Response.Status.INTERNAL_SERVER_ERROR);
     }
 
-    return Response.ok(Map.of("steps", steps)).build();
+    return Response.ok(Map.of(Constants.IVR_CONFIG_FIELD_STEPS, steps)).build();
   }
 
   // Primarily a test helper
@@ -127,7 +130,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
   private static AuthenticationFlowModel effectiveDirectGrantFlow(RealmModel realm) {
     ClientModel ivrClient = realm.getClientByClientId(IVR_VOTING_CLIENT_ID);
     if (ivrClient != null) {
-      String overrideId = ivrClient.getAuthenticationFlowBindingOverride("direct_grant");
+      String overrideId = ivrClient.getAuthenticationFlowBindingOverride(IVR_VOTING_OVERRIDE_FLOW);
       if (overrideId != null) {
         AuthenticationFlowModel override = realm.getAuthenticationFlowById(overrideId);
         if (override != null) {
@@ -171,25 +174,26 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
       throw new WebApplicationException(
           msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
-    String fieldName = c.get("field_name");
-    String mapsTo = c.get("maps_to");
+    String fieldName = c.get(Constants.AUTH_STEP_PROP_FIELD);
+    String mapsTo = c.get(Constants.AUTH_STEP_PROP_MAPS_TO);
     if (fieldName == null || mapsTo == null) {
-      String msg =
-          "AuthenticatorConfig for '%s' is missing required IVR keys (field_name, maps_to)";
+      String msg = "AuthenticatorConfig for '%s' is missing required IVR keys (%s, %s)";
       throw new WebApplicationException(
-          msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
+          msg.formatted(
+              authenticatorId, Constants.AUTH_STEP_PROP_FIELD, Constants.AUTH_STEP_PROP_MAPS_TO),
+          Response.Status.INTERNAL_SERVER_ERROR);
     }
 
     int maxDigits;
     try {
-      maxDigits = Integer.parseInt(c.getOrDefault("max_digits", "10"));
+      maxDigits = Integer.parseInt(c.getOrDefault(Constants.AUTH_STEP_PROP_MAX_DIGITS, "10"));
     } catch (NumberFormatException e) {
       String msg = "AuthenticatorConfig for '%s' has non-numeric max_digits";
       throw new WebApplicationException(
           msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
-    String terminator = c.getOrDefault("terminator", "#");
-    String promptKey = c.get("prompt_key"); // optional, may be null
+    String terminator = c.getOrDefault(Constants.AUTH_STEP_PROP_TERMINATOR, "#");
+    String promptKey = c.get(Constants.AUTH_STEP_PROP_PROMPT_KEY); // optional, may be null
 
     return new AuthStep(fieldName, maxDigits, terminator, mapsTo, promptKey);
   }
