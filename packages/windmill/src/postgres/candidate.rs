@@ -33,7 +33,7 @@ const CANDIDATE_COPY_TYPES: &[Type] = &[
     Type::JSONB,
     Type::JSONB,
     Type::TEXT,
-    Type::TEXT,
+    Type::VARCHAR,
     Type::JSONB,
     Type::BOOL,
     Type::TEXT,
