@@ -17,8 +17,12 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 use uuid::Uuid;
 
-const CANDIDATE_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, description, type, presentation, is_public, image_document_id, external_id";
+/// Candidate column for insert operation
+const CANDIDATE_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, contest_id, 
+created_at, last_updated_at, labels, annotations, description, type, 
+presentation, is_public, image_document_id, external_id";
 
+/// Candidate columns types for insert operation (same order as the columns)
 const CANDIDATE_COPY_TYPES: &[Type] = &[
     Type::UUID,
     Type::UUID,

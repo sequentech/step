@@ -13,8 +13,13 @@ use tokio_postgres::types::{ToSql, Type};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-const CONTEST_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id";
+/// Contest column for insert operation
+const CONTEST_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, election_id, created_at,
+last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation,
+min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, 
+conditions, winning_candidates_num, image_document_id, external_id";
 
+/// Contest columns types for insert operation (same order as the columns)
 const CONTEST_COPY_TYPES: &[Type] = &[
     Type::UUID,
     Type::UUID,

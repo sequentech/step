@@ -16,8 +16,13 @@ use tokio_postgres::types::{ToSql, Type};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-const ELECTION_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option, voting_channels, is_kiosk, image_document_id, statistics, receipts, permission_label, keys_ceremony_id, initialization_report_generated, external_id";
+/// Election column for insert operation
+const ELECTION_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, created_at, last_updated_at,
+labels, annotations, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding,
+spoil_ballot_option, voting_channels, is_kiosk, image_document_id, statistics, receipts, permission_label,
+keys_ceremony_id, initialization_report_generated, external_id";
 
+/// Election columns types for insert operation (same order as the columns)
 const ELECTION_COPY_TYPES: &[Type] = &[
     Type::UUID,
     Type::UUID,
