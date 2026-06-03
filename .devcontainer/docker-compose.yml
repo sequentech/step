@@ -80,10 +80,8 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
-      minio:
+      harvest:
         condition: service_healthy
-      configure-minio:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s

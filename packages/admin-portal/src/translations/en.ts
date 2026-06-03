@@ -2210,8 +2210,9 @@ const englishTranslation = {
                 importButton: "Import",
             },
             notify: {
-                importSuccess:
-                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importSuccess: "Imported {{inserted}} certificate(s).",
+                importSkipped: "{{count}} certificate(s) skipped (already present).",
+                importErrors: "Import issues: {{errors}}",
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",
