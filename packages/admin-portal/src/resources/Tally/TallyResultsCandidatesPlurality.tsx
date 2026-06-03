@@ -48,9 +48,7 @@ export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesPro
             flex: 1,
             editable: false,
             align: "left",
-            renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation, defaultElectionLang)
-            },
+            renderCell: (props: GridRenderCellParams<any, string>) => props.value ?? "-",
         },
         {
             field: "cast_votes",
