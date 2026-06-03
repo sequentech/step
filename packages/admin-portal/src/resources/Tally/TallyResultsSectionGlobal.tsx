@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
@@ -17,7 +16,7 @@ import {TallyResultsSummary} from "./TallyResultsSummary"
 import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
 import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
-import {winningPositionComparator, parseProcessResults} from "./utils"
+import {parseProcessResults} from "./utils"
 import {RunoffStatus} from "./types"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -33,10 +32,8 @@ interface TallyResultsGlobalCandidatesProps {
 }
 
 export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesProps> = (props) => {
-    const {contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} =
-        props
+    const {contestId, electionId, electionEventId, resultsEventId, counting_algorithm} = props
     const {t, i18n} = useTranslation()
-    const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
@@ -93,7 +90,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         return election?.presentation
             ? aliasRenderer(election.presentation, defaultElectionLang)
             : undefined
-    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang])
+    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang, aliasRenderer])
 
     const processResults = useMemo(
         () =>

@@ -120,7 +120,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         return election?.presentation
             ? aliasRenderer(election.presentation, defaultElectionLang)
             : undefined
-    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang])
+    }, [tallyData?.sequent_backend_election, electionId, defaultElectionLang, aliasRenderer])
 
     const contestName: string | undefined = useMemo(() => {
         const contest = tallyData?.sequent_backend_contest?.find(
@@ -129,7 +129,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         return contest?.presentation
             ? aliasRenderer(contest.presentation, defaultElectionLang)
             : undefined
-    }, [tallyData?.sequent_backend_contest, contestId, defaultElectionLang])
+    }, [tallyData?.sequent_backend_contest, contestId, defaultElectionLang, aliasRenderer])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
@@ -156,7 +156,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
                 (candidate, index) => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
-                    let candidateName = aliasRenderer(candidate.presentation)
+                    let candidateName = aliasRenderer(candidate.presentation, defaultElectionLang)
                     return {
                         ...candidate,
                         rowId: index,
@@ -172,7 +172,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
 
             setResultsData(temp)
         }
-    }, [results, candidates, i18n.language])
+    }, [results, candidates, i18n.language, defaultElectionLang, aliasRenderer])
 
     return (
         <>
