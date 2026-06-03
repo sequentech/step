@@ -88,6 +88,15 @@
         "attributes": {}
       },
       {
+        "id": "bb8c9da3-1f1d-4360-97ec-a8675d84cd53",
+        "name": "ivr-config-read",
+        "description": "Allow reading IVR configuration, primarily auth steps.",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
+        "attributes": {}
+      },
+      {
         "id": "5334f260-242a-4f02-8ea4-1fa27d60541b",
         "name": "offline_access",
         "description": "${role_offline-access}",
@@ -465,7 +474,7 @@
   "localizationTexts": {
     "en": {
       "loginAccountTitle": "Authenticate to vote",
-        "loginCustomCss": "#kc-cert-login-container '{'     display: none !important; '}'"
+      "loginCustomCss": "#kc-cert-login-container '{'     display: none !important; '}'"
     }
   },
   "webAuthnPolicyRpEntityName": "keycloak",
@@ -494,7 +503,41 @@
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
   "webAuthnPolicyPasswordlessExtraOrigins": [],
-  "users": [],
+  "users": [
+    {
+      "id": "320c36f1-e5f0-4934-9a83-39f0f7e69892",
+      "username": "service-account-ivr-service",
+      "emailVerified": false,
+      "enabled": true,
+      "createdTimestamp": 1779261084619,
+      "totp": false,
+      "serviceAccountClientId": "ivr-service",
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
+        "ivr-config-read"
+      ],
+      "notBefore": 0,
+      "groups": []
+    },
+    {
+      "id": "7ca1e94e-4765-4416-9669-be77fbadd6a4",
+      "username": "service-account-ivr-voting",
+      "emailVerified": false,
+      "enabled": true,
+      "createdTimestamp": 1779261418087,
+      "totp": false,
+      "serviceAccountClientId": "ivr-voting",
+      "disableableCredentialTypes": [],
+      "requiredActions": [],
+      "realmRoles": [
+        "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559"
+      ],
+      "notBefore": 0,
+      "groups": []
+    }
+  ],
   "scopeMappings": [
     {
       "clientScope": "offline_access",
@@ -754,6 +797,126 @@
         "acr",
         "roles",
         "profile",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "id": "78a0ec8c-5dc7-46b8-885b-e49044ba830f",
+      "clientId": "ivr-service",
+      "name": "IVR Service",
+      "description": "Used by the IVR to act on its own behalf, such as reading IVR auth configuration or blacklists.",
+      "rootUrl": "",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "**********",
+      "redirectUris": [
+        "/*"
+      ],
+      "webOrigins": [
+        "/*"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "logout.confirmation.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1779261084",
+        "backchannel.logout.session.required": "true",
+        "standard.token.exchange.enabled": "false",
+        "oauth2.jwt.authorization.grant.enabled": "false",
+        "frontchannel.logout.session.required": "true",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "display.on.consent.screen": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "dpop.bound.access.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "service_account",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "id": "608e49fc-0602-47ba-93be-d72650dc377e",
+      "clientId": "ivr-voting",
+      "name": "IVR Voting",
+      "description": "Used by the IVR to act on its own behalf, for voting related purposes.",
+      "rootUrl": "",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "**********",
+      "redirectUris": [
+        "/*"
+      ],
+      "webOrigins": [
+        "/*"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1779261418",
+        "backchannel.logout.session.required": "true",
+        "standard.token.exchange.enabled": "false",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "dpop.bound.access.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "service_account",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
         "email"
       ],
       "optionalClientScopes": [
