@@ -81,7 +81,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         if (!contest?.presentation) return undefined
 
         return aliasRenderer(contest.presentation, defaultElectionLang)
-    }, [contestId, tallyData, i18n.language, defaultElectionLang])
+    }, [contestId, tallyData, defaultElectionLang, aliasRenderer])
 
     const electionName: string | undefined = useMemo(() => {
         const election = tallyData?.sequent_backend_election?.find(
