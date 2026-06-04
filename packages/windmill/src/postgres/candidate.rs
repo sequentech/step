@@ -78,10 +78,6 @@ pub async fn insert_candidates(
         return Ok(());
     }
 
-    for candidate in candidates {
-        candidate.validate()?;
-    }
-
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
     let election_event_uuid = parse_uuid_v4(election_event_id)?;
     let now = chrono::Utc::now();
@@ -97,6 +93,8 @@ pub async fn insert_candidates(
     pin_mut!(writer);
 
     for candidate in candidates {
+        candidate.validate()?;
+
         let id = parse_uuid_v4(&candidate.id)?;
         let contest_id = candidate
             .contest_id

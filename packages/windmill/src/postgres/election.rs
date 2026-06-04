@@ -495,10 +495,6 @@ pub async fn insert_elections(
         return Ok(());
     }
 
-    for election in &data.elections {
-        election.validate()?;
-    }
-
     let now = chrono::Utc::now();
     let copy_sql =
         format!("COPY sequent_backend.election ({ELECTION_COPY_COLUMNS}) FROM STDIN BINARY");
@@ -511,6 +507,8 @@ pub async fn insert_elections(
     pin_mut!(writer);
 
     for election in &data.elections {
+        election.validate()?;
+
         let id = parse_uuid_v4(&election.id)?;
         let tenant_id = parse_uuid_v4(&election.tenant_id)?;
         let election_event_id = parse_uuid_v4(&election.election_event_id)?;
