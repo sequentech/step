@@ -2,11 +2,11 @@
   definition:
       query:
           collection_name: allowed-queries
-          query_name: IvrGetElectionEventStatus
+          query_name: IvrGetElectionStatus
   methods:
       - GET
-  name: IvrGetElectionEventStatus
-  url: ivr/election-event/:event_id/status
+  name: IvrGetElectionStatus
+  url: ivr/election/:election_id/status
 - comment: ""
   definition:
       query:

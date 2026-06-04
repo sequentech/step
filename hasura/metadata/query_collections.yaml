@@ -10,10 +10,10 @@
                     }
                   }
                 }
-          - name: IvrGetElectionEventStatus
+          - name: IvrGetElectionStatus
             query: |
-                query IvrGetElectionEventStatus ($event_id: uuid!) {
-                  event: sequent_backend_election_event_by_pk(id: $event_id) {
+                query IvrGetElectionStatus ($election_id: uuid!) {
+                  election: sequent_backend_election_by_pk(id: $election_id) {
                     status
                   }
                 }
