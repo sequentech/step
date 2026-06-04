@@ -10,3 +10,10 @@
                     }
                   }
                 }
+          - name: IvrGetElectionEventStatus
+            query: |
+                query IvrGetElectionEventStatus ($event_id: uuid!) {
+                  event: sequent_backend_election_event_by_pk(id: $event_id) {
+                    status
+                  }
+                }

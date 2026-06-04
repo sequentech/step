@@ -2,6 +2,15 @@
   definition:
       query:
           collection_name: allowed-queries
+          query_name: IvrGetElectionEventStatus
+  methods:
+      - GET
+  name: IvrGetElectionEventStatus
+  url: ivr/election-event/:event_id/status
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
           query_name: IvrIsPhoneBlacklisted
   methods:
       - GET
