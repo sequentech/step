@@ -91,10 +91,6 @@ pub async fn insert_contest(
         return Ok(());
     }
 
-    for contest in &data.contests {
-        contest.validate()?;
-    }
-
     let now = chrono::Utc::now();
     let copy_sql =
         format!("COPY sequent_backend.contest ({CONTEST_COPY_COLUMNS}) FROM STDIN BINARY");
@@ -107,6 +103,8 @@ pub async fn insert_contest(
     pin_mut!(writer);
 
     for contest in &data.contests {
+        contest.validate()?;
+
         let id = parse_uuid_v4(&contest.id)?;
         let tenant_id = parse_uuid_v4(&contest.tenant_id)?;
         let election_event_id = parse_uuid_v4(&contest.election_event_id)?;
