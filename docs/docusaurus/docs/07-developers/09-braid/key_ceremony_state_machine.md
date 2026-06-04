@@ -18,17 +18,20 @@ broader BBT key ceremony design that this state machine is part of.
 ## Transition graph
 
 ```
-AWAITING_TRUSTEE_KEYS ──(all keys registered)──▶ STARTED
-          STARTED      ──(config posted)────────▶ IN_PROGRESS
-      IN_PROGRESS      ──(all KEY_CHECKED)──────▶ SUCCESS
+AWAITING_TRUSTEE_KEYS ──(all keys registered, config posted)──▶ IN_PROGRESS
+      IN_PROGRESS      ──(all KEY_CHECKED)──────────────────────▶ SUCCESS
 
 AWAITING_TRUSTEE_KEYS ─┐
-          STARTED       ├─(cancel)──────────────▶ CANCELLED
-      IN_PROGRESS       ─┘
-          SUCCESS       ──▶ (terminal — cancel gated on voting period, outside this enum)
+      IN_PROGRESS       ├─(cancel)──────────────────────────────▶ CANCELLED
+          SUCCESS       ─┘   (cancel-from-SUCCESS only valid while
+                               the election event's voting period has
+                               not started; gated by the cancellation
+                               endpoint, not by this enum)
 ```
 
-`SUCCESS` and `CANCELLED` are terminal: no further transitions are permitted.
+`CANCELLED` is terminal: no further transitions are permitted.  `SUCCESS` is terminal for
+forward progress, but cancellation is allowed from `SUCCESS` as long as no election in the
+event has started its voting period.
 
 ---
 
@@ -92,23 +95,26 @@ impl KeysCeremonyExecutionStatus {
     ) -> Result<KeysCeremonyExecutionStatus, InvalidTransition> {
         let ok = matches!(
             (self, to),
-            // forward progress
-            (AWAITING_TRUSTEE_KEYS, STARTED)
-                | (STARTED, IN_PROGRESS)
+            // forward progress: AWAITING_TRUSTEE_KEYS jumps straight to
+            // IN_PROGRESS because the beat task that gates on key
+            // availability also posts the Configuration message in the
+            // same step (see BBT Signing Keypair Proposal §3).
+            (AWAITING_TRUSTEE_KEYS, IN_PROGRESS)
                 | (IN_PROGRESS, SUCCESS)
-            // cancellation (mirrors the tally ceremony table;
-            // SUCCESS is terminal here — cancel-after-success is gated
-            // on the voting period, which lives outside this enum)
+            // cancellation.  SUCCESS → CANCELLED is allowed at the enum
+            // level; the caller (cancel endpoint) is responsible for
+            // additionally checking that no election in the event has
+            // started its voting period before invoking it.
                 | (AWAITING_TRUSTEE_KEYS, CANCELLED)
-                | (STARTED, CANCELLED)
                 | (IN_PROGRESS, CANCELLED)
+                | (SUCCESS, CANCELLED)
         );
 
         if ok { Ok(to) } else { Err(InvalidTransition { from: self, to }) }
     }
 
     pub fn is_terminal(self) -> bool {
-        matches!(self, SUCCESS | CANCELLED)
+        matches!(self, CANCELLED)
     }
 }
 ```
@@ -127,35 +133,36 @@ mod tests {
 
     #[test]
     fn happy_path() {
-        assert_eq!(AWAITING_TRUSTEE_KEYS.try_transition(STARTED),      Ok(STARTED));
-        assert_eq!(STARTED.try_transition(IN_PROGRESS),                Ok(IN_PROGRESS));
-        assert_eq!(IN_PROGRESS.try_transition(SUCCESS),                Ok(SUCCESS));
-    }
-
-    #[test]
-    fn skipping_a_state_is_rejected() {
-        assert!(AWAITING_TRUSTEE_KEYS.try_transition(IN_PROGRESS).is_err());
+        assert_eq!(AWAITING_TRUSTEE_KEYS.try_transition(IN_PROGRESS), Ok(IN_PROGRESS));
+        assert_eq!(IN_PROGRESS.try_transition(SUCCESS),               Ok(SUCCESS));
     }
 
     #[test]
     fn cancellation_arms() {
         assert!(AWAITING_TRUSTEE_KEYS.try_transition(CANCELLED).is_ok());
-        assert!(STARTED.try_transition(CANCELLED).is_ok());
         assert!(IN_PROGRESS.try_transition(CANCELLED).is_ok());
-        assert!(SUCCESS.try_transition(CANCELLED).is_err()); // gated elsewhere
+        assert!(SUCCESS.try_transition(CANCELLED).is_ok()); // caller must additionally
+                                                            // verify voting has not started
     }
 
     #[test]
-    fn terminals_go_nowhere() {
-        assert!(SUCCESS.try_transition(STARTED).is_err());
-        assert!(CANCELLED.try_transition(STARTED).is_err());
+    fn cancelled_is_terminal() {
+        assert!(CANCELLED.try_transition(IN_PROGRESS).is_err());
+        assert!(CANCELLED.try_transition(SUCCESS).is_err());
+        assert!(CANCELLED.try_transition(CANCELLED).is_err());
+    }
+
+    #[test]
+    fn success_cannot_progress_forward() {
+        assert!(SUCCESS.try_transition(IN_PROGRESS).is_err());
+        assert!(SUCCESS.try_transition(AWAITING_TRUSTEE_KEYS).is_err());
     }
 
     #[test]
     fn round_trips_through_serde_as_the_db_would() {
         let s    = serde_json::to_string(&AWAITING_TRUSTEE_KEYS).unwrap();
         let back: super::KeysCeremonyExecutionStatus = serde_json::from_str(&s).unwrap();
-        assert_eq!(back.try_transition(STARTED), Ok(STARTED));
+        assert_eq!(back.try_transition(IN_PROGRESS), Ok(IN_PROGRESS));
     }
 }
 ```
@@ -169,7 +176,6 @@ Every place that currently writes `execution_status` directly to the DB should r
 
 | Call site | File | Transition to enforce |
 |---|---|---|
-| `process_board` (AWAITING → STARTED) | `windmill/src/tasks/process_board.rs` | `AWAITING_TRUSTEE_KEYS → STARTED` |
-| `create_keys_impl` (STARTED → IN_PROGRESS) | `windmill/src/tasks/create_keys.rs` | `STARTED → IN_PROGRESS` |
+| `create_keys_impl` (gates on key availability, posts `Configuration`, then advances) | `windmill/src/tasks/create_keys.rs` | `AWAITING_TRUSTEE_KEYS → IN_PROGRESS` |
 | `set_public_key_impl` (IN_PROGRESS → SUCCESS via automated policy) | `windmill/src/tasks/set_public_key.rs` | `IN_PROGRESS → SUCCESS` |
-| `/cancel-keys-ceremony` (future Harvest endpoint) | `harvest/src/routes/keys_ceremony.rs` | any non-terminal → `CANCELLED` |
+| `/cancel-keys-ceremony` (future Harvest endpoint) | `harvest/src/routes/keys_ceremony.rs` | `AWAITING_TRUSTEE_KEYS`, `IN_PROGRESS`, or `SUCCESS` → `CANCELLED` (cancel-from-SUCCESS additionally requires that no election in the event has started its voting period) |

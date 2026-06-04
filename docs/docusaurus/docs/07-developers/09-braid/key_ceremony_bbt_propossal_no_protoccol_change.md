@@ -11,7 +11,7 @@ signing keys — a new capability where each trustee generates their own keypair
 browser via WASM, stores it in `localStorage`, and registers the public key in the existing
 `sequent_backend_trustee` DB table via a new Harvest endpoint. Previously, only server-based
 trustees existed; this is the first design to support in-browser key generation.
-The B4 protocol and all DKG message types remain unchanged.
+The B4 protocol and all DKG (Distributed Keys Generation) message types remain unchanged.
 
 See [BBT Protocol Change Proposal](./key_ceremony_bbt_propossal_protoccol_change.md) for the
 alternative design that removes the DB dependency entirely.
@@ -26,7 +26,7 @@ See [Key Ceremony Design](./key_ceremony_design.md) for the current architecture
 
 ---
 
-## Service Communication Paths
+## 1. Service Communication Paths
 
 Braid-wasm is considered part of admin-portal.  Rows marked **BBT** are new or changed by
 this proposal; all others are unchanged from the current architecture.
@@ -53,7 +53,7 @@ this proposal; all others are unchanged from the current architecture.
 
 ---
 
-## The Per-Event Key Problem
+## 2. The Per-Event Key Problem
 
 A BBT trustee may participate in multiple election events simultaneously.  A single global
 `public_key` per trustee row would be overwritten by whichever event registered last, breaking
@@ -64,7 +64,7 @@ This approach solves it by adding an `election_event_id` column so each
 
 ---
 
-## Ceremony Creation Gate
+## 3. Ceremony Creation Gate
 
 ### Current status lifecycle
 
@@ -157,24 +157,22 @@ The enum becomes:
 ```rust
 pub enum KeysCeremonyExecutionStatus {
     AWAITING_TRUSTEE_KEYS,   // renamed from USER_CONFIGURATION: waiting for trustee keys
-    STARTED,                 // legacy — no longer written by any task after this change, so it can be removed
     IN_PROGRESS,             // Configuration posted to board; DKG running
     SUCCESS,
     CANCELLED,
 }
 ```
 
-`STARTED` is preserved in the enum for backwards-compatibility with any persisted rows, but
-no code path writes it after this change — `AWAITING_TRUSTEE_KEYS` absorbs the pre-config
-gating role and the transition straight to `IN_PROGRESS` happens once all keys are present.
+`STARTED` is **removed**: `AWAITING_TRUSTEE_KEYS` absorbs the pre-config gating role and the
+transition straight to `IN_PROGRESS` happens once all keys are present.
 
-Pro: repurposes the existing unused variant with no net change to the enum size; intent is
-explicit; the UI can show a distinct "waiting for keys" state; transition table is enforced at
-runtime via a `try_transition` guard (see below).
-Con: any code that already serialises/stores `USER_CONFIGURATION` as a string must be
-migrated (currently there is none — the variant is unused).  Existing references to `STARTED`
-in `process_board`, `create_keys_ceremony`, and admin-portal status filters must be updated to
-the new `AWAITING_TRUSTEE_KEYS → IN_PROGRESS` transition.
+Pro: repurposes the existing unused variant; intent is explicit; the UI can show a distinct
+"waiting for keys" state; transition table is enforced at runtime via a `try_transition` guard
+(see below).
+Con: any code that already serialises/stores `USER_CONFIGURATION` or `STARTED` as a string
+must be migrated.  `USER_CONFIGURATION` is currently unused so that side is a no-op.
+Existing references to `STARTED` in `process_board`, `create_keys_ceremony`, and admin-portal
+status filters must be updated to the new `AWAITING_TRUSTEE_KEYS → IN_PROGRESS` transition.
 
 ### Runtime state machine
 
@@ -188,7 +186,7 @@ implementation code, tests, and call-site table.
 
 ---
 
-## Trustee Online Presence
+## 4. Trustee Online Presence
 
 For the admin to observe that all BBT trustees are online after creating the ceremony, each
 trustee's browser must continuously report its presence to B4 via a heartbeat POST to
@@ -219,7 +217,7 @@ independent session and daemon running concurrently.
 
 ---
 
-## TrusteeStatus Lifecycle
+## 5. TrusteeStatus Lifecycle
 
 Each trustee inside a ceremony carries a `TrusteeStatus` (in `sequent-core`):
 
@@ -308,7 +306,7 @@ mode-aware branch is required.
 
 ---
 
-## Cancellation Window
+## 6. Cancellation Window
 
 ### Keys ceremony — not currently implemented
 
@@ -318,9 +316,12 @@ Keys ceremony cancellation does not exist today.
 
 A future implementation would require at minimum:
 
-- A new Harvest endpoint (e.g. `POST /cancel-keys-ceremony`) that validates the current
-  `execution_status` is not already `CANCELLED` and that the election has not been started yet, then writes `CANCELLED`.
-  It should be allowed to cancel on `SUCCESS` but only if the voting period has not been started.
+- A new Harvest endpoint (e.g. `POST /cancel-keys-ceremony`) that validates that:
+  - The current`execution_status` is not already `CANCELLED`.
+  - The election event has not been started yet.
+  - Any of event's elections haven´t been started either.
+  Then writes `CANCELLED`.
+  So it should be allowed to cancel on `SUCCESS` but only if the voting period has not been started.
 - Handling of the B4 board if DKG was already `IN_PROGRESS`: the board already holds
   `Channel`, `Shares`, and possibly `PublicKey` messages, which cannot be deleted from an
   append-only board.  **Decision:** leave the messages orphaned.  The ceremony only advances
@@ -333,13 +334,8 @@ A future implementation would require at minimum:
   not just `(trustee_id, election_event_id)` but `(trustee_id, election_event_id,
   keys_ceremony_id)`.
 
-Valid transitions to add (mirroring tally ceremony):
-```
-AWAITING_TRUSTEE_KEYS → CANCELLED
-STARTED               → CANCELLED
-IN_PROGRESS           → CANCELLED
-SUCCESS               → (terminal, no cancellation)
-```
+See [Keys Ceremony State Machine](./key_ceremony_state_machine.md) for the full transition
+table, including the cancellation arms.
 
 ### Tally ceremony — supported
 
@@ -361,35 +357,34 @@ will also participate in tally ceremonies, and the same identity keys must be pr
 
 ---
 
-## Flow
+## 7. Flow
 
 ```
 Admin creates ceremony (selects trustees)
   → create_keys_ceremony inserts record with execution_status: AWAITING_TRUSTEE_KEYS
                     ↓
-BBT trustee opens election event in admin portal  ← can happen before or after ceremony creation
+BBT trustee opens the election event's keys ceremony in admin portal
   └─ HeadlessTrusteeProvider mounts
-  └─ WASM silently generates trustee keys (once, if not already in localStorage):
+  └─ WASM silently generates trustee identity keys (once, if not already in localStorage):
          - Ed25519 signing keypair  (StrandSignatureSk::generate())
          - AES-256 symmetric key    (symm::gen_key())
-       All three values stored in localStorage keyed by election_event_id
+       All three values stored in localStorage keyed by keys_ceremony_id
        (localStorage persists across tab closures and browser restarts; keys are only
         lost if the trustee explicitly clears site data or the device/profile is lost)
   └─ signing_key_pk → POST Harvest /register-trustee-key  ← can happen onnly once the keys ceremony is created
-                       UPSERT (trustee_id, election_event_id) → public_key in DB  ← depends on keys_ceremony_id
+                       UPSERT (trustee_id, election_event_id, keys_ceremony_id) → public_key in DB  ← depends on keys_ceremony_id
                     ↓
 beat service (review_boards → process_board) polls each ceremony in AWAITING_TRUSTEE_KEYS:
-  checks whether every selected BBT trustee has a public_key for this election_event_id in DB
+  checks whether every selected BBT trustee has a public_key for this election_event_id and keys_ceremony_id in DB
   if any key is still missing → stays in AWAITING_TRUSTEE_KEYS, retried on next beat cycle
-  once all keys are present  → execution_status: STARTED
-                    ↓
-Windmill create_keys (dispatched by process_board when STARTED):
-  reads trustee.public_key WHERE election_event_id = $1 (BBT) or no filter (server-based)
-  → posts Configuration to B4
+  once all keys are present it launches Windmill create_keys
+  reads trustee.public_key WHERE (trustee_id, election_event_id, keys_ceremony_id) = $1, $2, $3; (BBT) 
+  or WHERE (trustee_id, election_event_id, keys_ceremony_id) = $1, NULL, NULL; (server-based)
+  → posts Configuration protoccol message to B4
   → execution_status: IN_PROGRESS
                     ↓
 HeadlessTrusteeProvider reads signing_key_sk + encryption_key from localStorage
-  → WasmSession runs DKG automatically in background:
+  → WasmSession runs DKG protoccol automatically in background:
        Channel → ChannelsAllSigned → Shares → PublicKey → PublicKeySigned
                     ↓
 allTrusteesGenerated: all trustees have a PublicKey or PublicKeySigned message on the board
@@ -397,6 +392,7 @@ allTrusteesGenerated: all trustees have a PublicKey or PublicKeySigned message o
   → each trustee status: KEY_GENERATED
                     ↓
 [Existing Download Step — repurposed for identity key]
+  Download is enabled only after all selected trustees have reached KEY_GENERATED
   Trustee downloads identity key backup from localStorage:
     { signing_key_sk, signing_key_pk, encryption_key }
   → trustee status: KEY_RETRIEVED
@@ -416,6 +412,21 @@ When the trustee uploads the backup file in the Check Step, the UI reads `signin
 No B4 read is needed — the check is purely local.  When all trustees reach `KEY_CHECKED` the
 ceremony status advances to `SUCCESS`.
 
+### Backup validation is reusable, not a one-shot step
+
+The Download/Check pair is drawn above as a linear progression, but the underlying validation
+— **read backup file, compare against `localStorage`** — is available any time after
+`KEY_GENERATED`.  The admin portal should expose a "check my backup" affordance the trustee
+can use during `KEY_RETRIEVED` (to confirm the file is valid before signing off), after
+`KEY_CHECKED` (re-verify days/weeks later), and during tally-ceremony preparation (to
+re-hydrate `localStorage` on a fresh device, or just to confirm the file still works before
+tally begins).
+
+The logic is identical in every case.  Only the side-effect differs: the formal Check Step
+at `KEY_RETRIEVED → KEY_CHECKED` is the one place where a successful match also advances the
+trustee status.  Outside that window the check is read-only — same UI, same WASM helpers,
+reused across the key ceremony and tally preparation with no protocol or DB changes.
+
 > **Note on the Download step:** the trustee downloads a backup of their **identity keys** —
 > `{ signing_key_sk, signing_key_pk, encryption_key }` — the browser equivalent of
 > `trustee1.toml`.  This is **not** the DKG private key fragment (`TrusteeShareData`).
@@ -425,7 +436,7 @@ ceremony status advances to `SUCCESS`.
 
 ---
 
-## Security: localStorage Key Storage
+## 8. Security: localStorage Key Storage
 
 ### Is the risk real?
 
@@ -497,7 +508,7 @@ This can be implemented incrementally:
 
 ---
 
-## Key Loss: Recovery from Cleared localStorage
+## 9. Key Loss: Recovery from Cleared localStorage
 
 `localStorage` is **persistent storage** — it survives tab closures, page refreshes, and
 browser restarts.  Closing the tab mid-ceremony does not lose the keys; the trustee simply
@@ -511,7 +522,7 @@ Keys are only lost in two exceptional situations:
 
 Two sub-cases for explicit loss:
 
-**Before `Configuration` is posted** (ceremony still in `AWAITING_TRUSTEE_KEYS` or `STARTED`):
+**Before `Configuration` is posted** (ceremony still in `AWAITING_TRUSTEE_KEYS`):
 The public key has not yet been embedded in a board message, so the trustee can regenerate a
 fresh keypair, re-register the new `public_key` in the DB, and the beat service will proceed
 normally.  The ceremony has not used the old key for anything.
@@ -535,9 +546,37 @@ path requires:
 
 No changes to Windmill, Harvest, or B4 are needed for this recovery path.
 
+### Unrecoverable loss: cancel and recreate
+
+If a trustee **cannot download** their identity backup (e.g. the Download step never
+completed) or **loses both** their `localStorage` keys and the backup file with no way to
+restore them, the trustee can no longer participate in the ceremony — and because their public
+key is embedded in the on-board `Configuration` message, no fresh keypair can be substituted.
+
+In this situation the ceremony itself is unrecoverable.  The recovery path is to **cancel the
+ceremony and create a new one**, provided no election in the event has opened its voting
+period yet.  This is permitted by the state machine: `AWAITING_TRUSTEE_KEYS`, `IN_PROGRESS`,
+and `SUCCESS` all transition to `CANCELLED` (see [Keys Ceremony State
+Machine](./key_ceremony_state_machine.md); the SUCCESS arm is additionally gated by the
+voting-period check at the cancel endpoint, see [§6 Cancellation Window](#6-cancellation-window)).
+
+After cancellation:
+- The orphan `Channel`, `Shares`, and `PublicKey` messages on the old B4 board remain in
+  place (append-only), but are simply ignored — the admin creates the replacement ceremony on
+  a fresh board.
+- The old BBT rows in `sequent_backend_trustee` keyed by the cancelled `keys_ceremony_id`
+  remain in place but no longer match the new ceremony's `keys_ceremony_id`, so they do not
+  interfere with the replacement (see [§6](#6-cancellation-window)).
+- The remaining trustees regenerate their keys in their browsers under the new
+  `keys_ceremony_id` and the ceremony proceeds normally from `AWAITING_TRUSTEE_KEYS`.
+
+Once any election in the event has opened its voting period, this path is no longer
+available — the ceremony's public key is already in production use and cancellation is
+blocked by the endpoint.
+
 ---
 
-## Component Changes
+## 10. Component Changes
 
 ### 1 — Braid-wasm: new `generate_trustee_keys()` export
 
@@ -615,7 +654,7 @@ whatever `public_key` the query returns.
 
 ---
 
-## `trustee.public_key` Column
+## 11. `trustee.public_key` Column
 
 The column is **retained and extended** with the companion `election_event_id` column.  It
 remains the single source of truth for the public key in this approach.
