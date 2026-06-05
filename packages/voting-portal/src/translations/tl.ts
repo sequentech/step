@@ -58,6 +58,14 @@ const tagalogTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
+            declineToVoteButton: "Tumangging bumoto",
+            declineToVoteDialog: {
+                title: "Kumpirmahin ang pagtangging bumoto",
+                content:
+                    "Sigurado ka bang nais mong tumangging bumoto?<br />Dadalhin ka diretso sa review at mase-save ang iyong status ng partisipasyon bilang <b>Tumangging bumoto</b>.",
+                continue: "Tumangging bumoto",
+                cancel: "Kanselahin",
+            },
             instructionsTitle: "Paano bumoto",
             instructionsDescription: "Sundin ang mga hakbang na ito para bumoto:",
             step1Title: "1. Piliin ang iyong mga sagot",
@@ -194,6 +202,7 @@ const tagalogTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
+            declineToVote: "Tumangging bumoto",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
