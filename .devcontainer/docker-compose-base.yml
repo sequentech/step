@@ -510,6 +510,12 @@ services:
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3030/ready || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 30s
 
   trustee1:
     profiles: ["full"]
