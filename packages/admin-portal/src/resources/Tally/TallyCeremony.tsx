@@ -506,7 +506,7 @@ export const TallyCeremony: React.FC = () => {
         return tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
             ? isTallyAllowed
             : isInitAllowed
-    }, [tallySession?.tally_type, isTallyAllowed, isInitAllowed, page])
+    }, [tallySession?.tally_type, isTallyAllowed, isInitAllowed])
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
