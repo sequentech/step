@@ -123,6 +123,7 @@ export interface PlaintextVoteContestProps {
     markedInvalidLabel: string
     pointsLabel: (points: number) => string
     isDeclineToVotePolicyEnabled: boolean
+    declineToVoteLabel?: string
 }
 
 export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
@@ -133,6 +134,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     markedInvalidLabel,
     pointsLabel,
     isDeclineToVotePolicyEnabled,
+    declineToVoteLabel,
 }) => {
     const {t, i18n} = useTranslation()
 
@@ -164,7 +166,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
             {isBlank || isBallotDeclineToVote ? (
-                <BlankAnswer title={isBallotDeclineToVote ? markedInvalidLabel : undefined} />
+                <BlankAnswer title={isBallotDeclineToVote ? declineToVoteLabel : undefined} />
             ) : null}
             {!isBallotDeclineToVote && (
                 <>

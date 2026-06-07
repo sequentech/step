@@ -167,7 +167,13 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         .iter()
         .any(|choice| choice.is_decline_to_vote);
 
-    if (is_explicit_invalid) {
+    if is_explicit_invalid && !config.decline_to_vote_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Decline to vote is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_explicit_invalid {
         let number_of_contests_decline_to_vote = decoded_contests
             .iter()
             .filter(|choice| choice.is_decline_to_vote)
@@ -223,7 +229,13 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .iter()
         .any(|choice| choice.is_decline_to_vote);
 
-    if (is_explicit_invalid) {
+    if is_explicit_invalid && !config.decline_to_vote_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Decline to vote is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_explicit_invalid {
         let number_of_contests_decline_to_vote = decoded_contests
             .iter()
             .filter(|choice| choice.is_decline_to_vote)
