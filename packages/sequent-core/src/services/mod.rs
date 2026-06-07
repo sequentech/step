@@ -8,7 +8,7 @@ pub mod area_tree;
 pub mod connection;
 #[cfg(feature = "time")]
 pub mod date;
-
+#[cfg(feature = "time")]
 pub mod jwt;
 #[cfg(feature = "keycloak")]
 pub mod keycloak;
