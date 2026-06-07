@@ -489,7 +489,7 @@ const englishTranslation = {
                         "You cannot continue the ceremony because no elections are selected or the elections are not published.",
                     ceremonyDisabled:
                         "Board Members and Trustees must upload their respective key fragments to proceed with the tally.",
-                    automaticCeremonyTallyDisabled:
+                    startTallyDisabled:
                         "You cannot continue the ceremony because the start of the ceremony is not allowed.",
                 },
             },
