@@ -15,8 +15,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AuthStep(
-    @JsonProperty("field") String field,
-    @JsonProperty("max_digits") int maxDigits,
-    @JsonProperty("terminator") String terminator,
-    @JsonProperty("maps_to") String mapsTo,
-    @JsonProperty("prompt_key") String promptKey) {}
+    @JsonProperty(Constants.AUTH_STEP_PROP_FIELD) String field,
+    @JsonProperty(Constants.AUTH_STEP_PROP_MAX_DIGITS) int maxDigits,
+    @JsonProperty(Constants.AUTH_STEP_PROP_TERMINATOR) String terminator,
+    @JsonProperty(Constants.AUTH_STEP_PROP_MAPS_TO) String mapsTo,
+    @JsonProperty(Constants.AUTH_STEP_PROP_PROMPT_KEY) String promptKey) {}

@@ -56,6 +56,14 @@ const englishTranslation = {
         },
         startScreen: {
             startButton: "Start Voting",
+            declineToVoteButton: "Decline to Vote",
+            declineToVoteDialog: {
+                title: "Confirm decline to vote",
+                content:
+                    "Are you sure you want to decline to vote?<br />You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
+                continue: "Decline to vote",
+                cancel: "Cancel",
+            },
             instructionsTitle: "How to vote",
             instructionsDescription: "Follow these steps to cast your ballot",
             step1Title: "1. Choose your options",
@@ -187,6 +195,7 @@ const englishTranslation = {
                 INTERNAL_ERROR:
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
+            declineToVote: "Decline to vote",
         },
         confirmationScreen: {
             title: "Your vote has been cast",
