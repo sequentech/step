@@ -142,6 +142,7 @@ const englishTranslation = {
                 subtitle: "Election type configuration",
                 onlineVoting: "Online Voting",
                 kioskVoting: "Kiosk Voting",
+                telephoneVoting: "Telephone Voting",
                 settingTitle: "Settings",
                 settingSubtitle: "General Configuration",
                 sms: "SMS",

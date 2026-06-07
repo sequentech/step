@@ -143,6 +143,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració del Tipus d'Elecció",
                 onlineVoting: "Votació en Línia",
                 kioskVoting: "Votació en Quiosc",
+                telephoneVoting: "Votació Telefònica",
                 settingTitle: "Configuració",
                 settingSubtitle: "Ajustos generals",
                 sms: "SMS",

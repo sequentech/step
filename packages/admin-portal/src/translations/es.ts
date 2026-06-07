@@ -144,6 +144,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración del Tipo de Elección",
                 onlineVoting: "Votación en Línea",
                 kioskVoting: "Votación en Quiosco",
+                telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuración",
                 settingSubtitle: "Ajustes generales",
                 sms: "SMS",

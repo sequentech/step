@@ -143,6 +143,7 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Hauteskunde mota konfigurazioa",
                 onlineVoting: "Lineko Bozketa",
                 kioskVoting: "Kiosko Bozketa",
+                telephoneVoting: "Telefono Bozketa",
                 settingTitle: "Ezarpenak",
                 settingSubtitle: "Konfigurazio Orokorra",
                 sms: "SMS",

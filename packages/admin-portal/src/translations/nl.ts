@@ -142,6 +142,7 @@ const dutchTranslation: TranslationType = {
                 subtitle: "Configuratie verkiezingstype",
                 onlineVoting: "Online Stemmen",
                 kioskVoting: "Kiosk Stemmen",
+                telephoneVoting: "Telefonisch Stemmen",
                 settingTitle: "Instellingen",
                 settingSubtitle: "Algemene Configuratie",
                 sms: "SMS",

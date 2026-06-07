@@ -143,6 +143,7 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración do tipo de elección",
                 onlineVoting: "Votación en Liña",
                 kioskVoting: "Votación en Quiosco",
+                telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuracións",
                 settingSubtitle: "Configuración Xeral",
                 sms: "SMS",

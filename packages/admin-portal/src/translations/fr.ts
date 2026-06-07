@@ -143,6 +143,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration du Type d'Élection",
                 onlineVoting: "Vote en Ligne",
                 kioskVoting: "Vote au Kiosque",
+                telephoneVoting: "Vote par Téléphone",
                 settingTitle: "Configuration",
                 settingSubtitle: "Paramètres généraux",
                 sms: "SMS",

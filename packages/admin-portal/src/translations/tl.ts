@@ -144,6 +144,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pag-configure ng uri ng halalan",
                 onlineVoting: "Online na Pagboto",
                 kioskVoting: "Pagboto sa Kiosk",
+                telephoneVoting: "Pagboto sa Telepono",
                 settingTitle: "Mga Setting",
                 settingSubtitle: "Pangkalahatang Pag-configure",
                 sms: "SMS",
