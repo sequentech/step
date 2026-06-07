@@ -1219,6 +1219,7 @@ const spanishTranslation: TranslationType = {
                 online: "En línea",
                 kiosk: "Kiosco",
                 early_voting: "Votación anticipada",
+                telephone: "Votación telefónica",
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",

@@ -1214,6 +1214,7 @@ const basqueTranslation: TranslationType = {
                 online: "Linea",
                 kiosk: "Kiosko",
                 early_voting: "Aurre-botoa",
+                telephone: "Telefono bozketa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",

@@ -1219,6 +1219,7 @@ const galegoTranslation: TranslationType = {
                 online: "En Liña",
                 kiosk: "Quiosco",
                 early_voting: "Votación anticipada",
+                telephone: "Votación telefónica",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",

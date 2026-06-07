@@ -1214,6 +1214,7 @@ const dutchTranslation: TranslationType = {
                 online: "Online",
                 kiosk: "Kiosk",
                 early_voting: "Vroeg stemmen",
+                telephone: "Telefonisch stemmen",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
