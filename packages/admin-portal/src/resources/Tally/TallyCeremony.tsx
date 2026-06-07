@@ -479,7 +479,9 @@ export const TallyCeremony: React.FC = () => {
 
             setIsButtonDisabled(newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed)
             if (isAutomaticCeremonyTallyNotAllowed) {
-                setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
+                setNextDisabledReason(
+                    t("electionEventScreen.tally.notify.automaticCeremonyTallyDisabled")
+                )
             } else if (newIsButtonDisabled) {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
             }
@@ -499,14 +501,17 @@ export const TallyCeremony: React.FC = () => {
         )
     }, [elections, tallySession])
 
+    const isCeremonyStartAllowed = useMemo(() => {
+        return tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
+            ? isTallyAllowed
+            : isInitAllowed
+    }, [tallySession?.tally_type, isTallyAllowed, isInitAllowed])
+
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            let isStartAllowed =
-                tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
-                    ? isTallyAllowed
-                    : isInitAllowed
             let newIsButtonDisabled =
-                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED ||
+                !isCeremonyStartAllowed
             setIsButtonDisabled(newIsButtonDisabled)
             if (newIsButtonDisabled) {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
@@ -519,7 +524,7 @@ export const TallyCeremony: React.FC = () => {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
         }
-    }, [tally, page, elections, isTallyAllowed])
+    }, [tally, page, elections, isCeremonyStartAllowed])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
@@ -906,7 +911,9 @@ export const TallyCeremony: React.FC = () => {
                             is not allowed based on the tally type and the status of the elections.
                             */}
                             {nextDisabledReason && isButtonDisabled && (
-                                <Alert severity="warning">{nextDisabledReason}</Alert>
+                                <Alert severity={!isCeremonyStartAllowed ? "warning" : "info"}>
+                                    {nextDisabledReason}
+                                </Alert>
                             )}
                             <TallyElectionsList
                                 elections={elections}
