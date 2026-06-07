@@ -1228,6 +1228,7 @@ const catalanTranslation: TranslationType = {
                 online: "En línia",
                 kiosk: "Quiosc",
                 early_voting: "Votació anticipada",
+                telephone: "Votació telefònica",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
