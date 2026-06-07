@@ -489,7 +489,7 @@ const tagalogTranslation: TranslationType = {
                         "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling eleksyon o ang eleksyon ay hindi pa na-publish.",
                     ceremonyDisabled:
                         "Dapat i-upload ng mga Miyembro ng Lupon at mga Trustee ang kani-kanilang mga bahagi ng susi upang maipagpatuloy ang tally.",
-                    automaticCeremonyTallyDisabled:
+                    startTallyDisabled:
                         "Hindi mo maaaring ipagpatuloy ang seremonya dahil hindi pinapayagan ang pagsisimula nito.",
                 },
             },

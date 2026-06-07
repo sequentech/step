@@ -488,7 +488,7 @@ const dutchTranslation: TranslationType = {
                         "U kunt de ceremonie niet voortzetten omdat er geen verkiezingen zijn geselecteerd of de verkiezingen niet zijn gepubliceerd.",
                     ceremonyDisabled:
                         "Leden van de Raad van Bestuur en Toezichthouders moeten hun respectievelijke sleutelfragmenten uploaden om met de telling verder te gaan.",
-                    automaticCeremonyTallyDisabled:
+                    startTallyDisabled:
                         "U kunt de ceremonie niet voortzetten omdat het starten van de ceremonie niet is toegestaan.",
                 },
             },

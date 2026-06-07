@@ -490,7 +490,7 @@ const catalanTranslation: TranslationType = {
                         "No podeu continuar amb la cerimònia perquè no s'ha seleccionat cap elecció o les eleccions no estan publicades.",
                     ceremonyDisabled:
                         "Els Membres de la Junta i els Trustees han de pujar els seus respectius fragments de clau per procedir amb el recompte.",
-                    automaticCeremonyTallyDisabled:
+                    startTallyDisabled:
                         "No podeu continuar la cerimònia perquè no està permès iniciar-la.",
                 },
             },

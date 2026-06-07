@@ -490,7 +490,7 @@ const basqueTranslation: TranslationType = {
                         "Ezin duzu zeremoniarekin jarraitu hauteskunderik hautatu ez delako edo hauteskundeak argitaratu ez direlako.",
                     ceremonyDisabled:
                         "Batzordeko kideek eta fiduziarioek dagozkien gako-zatiak igo behar dituzte zenbaketarekin jarraitzeko.",
-                    automaticCeremonyTallyDisabled:
+                    startTallyDisabled:
                         "Ezin duzu zeremoniarekin jarraitu, zeremoniaren hasiera ez baitago baimenduta.",
                 },
             },
