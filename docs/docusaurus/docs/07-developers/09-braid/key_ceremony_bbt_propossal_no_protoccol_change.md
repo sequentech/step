@@ -31,40 +31,39 @@ See [Key Ceremony Design](./key_ceremony_design.md) for the current architecture
 
 ## 1. Service Communication Paths
 
-Braid-wasm is considered part of admin-portal.  Rows marked **BBT** are new or changed by
-this proposal; all others are unchanged from the current architecture.
+Braid-wasm is embedded in the admin-portal browser bundle and handles only the DKG protocol
+with B4 (path 4).  All Hasura and Harvest calls are made by admin-portal TypeScript/React
+code — never by braid-wasm.  Rows marked **BBT** are new or changed by this proposal; all
+others are unchanged from the current architecture.
 
 | # | Origin | Destination | Protocol | What |
 |---|--------|-------------|----------|------|
-| 1 | Admin-portal | Harvest (via Hasura) | HTTP POST | `create-keys-ceremony` (now accepts optional `duplicate_from`), `list-keys-ceremonies`, `get-private-key`, `check-private-key`, all admin operations |
-| 2 | Admin-portal | Harvest | HTTP POST | **`register-trustee-key` — BBT new:** registers the BBT signing public key for `(trustee, event, ceremony)` (no secret material) |
-| 2a | Admin-portal (browser) | Harvest (Hasura action) | HTTP POST | **BBT new:** `confirm_key_backup` — writes `encryption_key_commitment` at Download Step time and advances `KEY_RETRIEVED` |
-| 2b | Admin-portal (browser) | Harvest (Hasura action) | HTTP POST | **BBT new:** `issue_key_check_nonce` — issues a short-lived nonce for the signed-attestation Check Step |
-| 2c | Admin-portal (browser) | Harvest (Hasura action) | HTTP POST | **BBT new:** `submit_key_check_attestation` — accepts signed attestation `{ payload, signature, nonce, commitment }`; advances `KEY_CHECKED` on success; receives no secret material |
-| 2d | Admin-portal | Harvest (Hasura action) | HTTP POST | **BBT new:** `cancel_keys_ceremony` — atomic `CANCELLED` transition + clears `election_event.keys_ceremony_id` |
-| 3 | Admin-portal | Hasura | GraphQL/HTTP | Read trustee config (`GET_TRUSTEE_CONFIG`), election events, ceremony status (`execution_status`), all entity queries |
-| 4 | Admin-portal (braid-wasm) | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol (Channel, Shares, PublicKey…), signed locally in the browser |
-| 5 | Harvest / Windmill | PostgreSQL (Hasura DB) | SQL direct | Read/write `keys_ceremony`, `trustee`, `election_event`, `sequent_backend_trustee_verification_nonce` tables.  **BBT change:** `trustee` now has `election_event_id`, `keys_ceremony_id`, `encryption_key_commitment`; reads filter by all three for BBT, by `NULL` for server-based |
-| 6 | Windmill (Celery) | B4 PostgreSQL | SQL direct (`PgsqlB3Client`) | INSERT `Configuration` message (`add_config_to_board`), SELECT `PublicKey` message (`get_board_public_key`) |
-| 7 | Braid-native | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol, same as wasm |
-| 8 | Braid-native | Keycloak | HTTP | Fetch JWT access token using `TRUSTEE_NAME` / `TRUSTEE_PSW` env vars |
+| 1–6 | Admin-portal (TypeScript) | Harvest (Hasura action) | HTTP POST | `create-keys-ceremony`, `list-keys-ceremonies`, `get-private-key`, `check-private-key` (existing)<hr/>`register_trustee_key` **BBT new** — registers the BBT signing public key for `(trustee, election_event_id, keys_ceremony_id)` (no secret material)<hr/>`confirm_key_backup` **BBT new** — writes `encryption_key_commitment` at Download Step; advances trustee to `KEY_RETRIEVED`<hr/>`issue_key_check_nonce` **BBT new** — issues a short-lived nonce for the signed-attestation Check Step<hr/>`submit_key_check_attestation` **BBT new** — accepts signed attestation `{ payload, signature, nonce, commitment }`; advances trustee to `KEY_CHECKED`; receives no secret material<hr/>`cancel_keys_ceremony` **BBT new** — atomic `CANCELLED` transition + clears `election.keys_ceremony_id` |
+| 7 | Admin-portal (TypeScript) | Hasura | GraphQL/HTTP | Read-only queries: trustee config (`GET_TRUSTEE_CONFIG`), election events, ceremony `execution_status`, all entity reads |
+| 8 | Admin-portal (braid-wasm) | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol (Channel, Shares, PublicKey…), every message signed locally in the browser |
+| 9 | Harvest / Windmill | PostgreSQL (Hasura DB) | SQL direct | Read/write `keys_ceremony`, `trustee`, `election_event`, `sequent_backend_trustee_verification_nonce` tables.  **BBT change:** `trustee` now has `election_event_id`; `get_trustees_by_id` / `get_trustees_by_name` filter `public_key` by event |
+| 10 | Windmill (Celery) | B4 PostgreSQL | SQL direct (`PgsqlB3Client`) | INSERT `Configuration` message (`add_config_to_board`), SELECT `PublicKey` message (`get_board_public_key`) |
+| 11 | Braid-native | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol, same as wasm |
+| 12 | Braid-native | Keycloak | HTTP | Fetch JWT access token using `TRUSTEE_NAME` / `TRUSTEE_PSW` env vars |
 
 **Notes:**
+- Paths 1–6 all route through Hasura actions: admin-portal calls Hasura GraphQL, Hasura
+  proxies to the Harvest HTTP handler, Harvest writes back to PostgreSQL.
+- Braid-wasm (path 8) has no Hasura or Harvest client — it only calls B4 directly.
 - Windmill bypasses B4's HTTP API entirely — it writes directly into B4's PostgreSQL via
-  `PgsqlB3Client` using `B4_PG_*` env vars.
-- Braid (both native and wasm) uses B4's HTTP API exclusively.
-- Admin-portal never talks to B4 directly except through the embedded braid-wasm trustee.
-- Admin-portal reads ceremony status by polling Hasura (GraphQL), not by calling Harvest.
-- For BBT trustees, the `signing_key_pk` is registered in the Hasura DB (path 2) so that
-  Windmill can include it in the `Configuration` message posted to B4 (path 6).
+  `PgsqlB3Client` (path 10).
+- Admin-portal reads ceremony status by polling Hasura (path 7, GraphQL), not by calling
+  Harvest.
+- For BBT trustees, the `signing_key_pk` registered via `register_trustee_key` (path 1–6) is
+  what Windmill reads in path 9 to include in the `Configuration` message posted to B4 in path 10.
 
 > **B4 signing invariant.** BBT trustees sign every B4 message locally in the browser using
 > their in-memory `signing_key_sk`.  Harvest never signs on behalf of a BBT trustee and never
-> holds BBT signing material.  The browser posts signed B4 messages directly to B4 (path 4),
+> holds BBT signing material.  The browser posts signed B4 messages directly to B4 (path 8),
 > and separately notifies Harvest/Hasura for ceremony state transitions and for recording the
-> `encryption_key_commitment`.  If a future audit requirement ever justifies routing B4
-> traffic through Harvest, the relay must forward the already-signed envelope verbatim —
-> never open, modify, or re-sign it.
+> `encryption_key_commitment` (path 1–6).  If a future audit requirement ever justifies
+> routing B4 traffic through Harvest, the relay must forward the already-signed envelope
+> verbatim — never open, modify, or re-sign it.
 
 ---
 
@@ -74,8 +73,13 @@ A BBT trustee may participate in multiple election events simultaneously.  A sin
 `public_key` per trustee row would be overwritten by whichever event registered last, breaking
 DKG verification on any previously started ceremony.
 
-This approach solves it by adding an `election_event_id` column so each
-`(trustee, election_event)` pair has its own independent public key.
+This approach solves it by adding an `election_event_id` **and** `keys_ceremony_id` columns so each
+`(trustee, election_event_id, keys_ceremony_id)` pair has its own independent public key.
+
+Furthermore, keys ceremonies can be cancelled and a replacement ceremony created for the same
+election event.  Scoping the registered public key to the `keys_ceremony_id` ensures that keys
+registered for a cancelled ceremony are never reused in the replacement, preventing a stale or
+attacker-supplied key from silently surviving a ceremony reset.
 
 ---
 
@@ -107,8 +111,8 @@ STARTED`; it never touches `public_key`.
 ### Where the BBT problem surfaces
 
 When `create_keys_impl` runs for a ceremony that includes BBT trustees it calls
-`get_trustees_by_id` and collects their `public_key` fields.  If a BBT trustee has not yet
-opened the election event page their row has no `public_key`; the current code uses
+`get_trustees_by_id` and collects their `public_key` fields.  If a BBT trustee user has not yet
+opened the keys ceremony tab their row has no `public_key`; the current code uses
 `.filter_map(|t| t.public_key)` which silently drops missing keys.
 
 The resulting truncated list is passed to `public_keys::create_keys` →
@@ -382,12 +386,12 @@ table, including the cancellation arms.
 
 ### Election ↔ ceremony reference handling
 
-The election row points to its current keys ceremony via `election_event.keys_ceremony_id`.
+Each election row points to its current keys ceremony via `election.keys_ceremony_id`.
 On `/cancel-keys-ceremony`, in the same transaction as the status transition:
 
 1. `try_transition(current → CANCELLED)` on the `keys_ceremony` row.
-2. For every election event whose `keys_ceremony_id` points to the cancelled ceremony, set
-   `election_event.keys_ceremony_id = NULL`.
+2. For every election whose `keys_ceremony_id` points to the cancelled ceremony, set
+   `election.keys_ceremony_id = NULL`.
 
 After cancellation the election is in an **unassigned** state: no current ceremony, but the
 cancelled-ceremony row remains in `keys_ceremony` for audit (and its BBT trustee rows remain
@@ -443,7 +447,7 @@ tally session.
 ```
 Admin creates ceremony (selects trustees)
   → create_keys_ceremony inserts record with execution_status: AWAITING_TRUSTEE_KEYS
-  → sets election_event.keys_ceremony_id to point at the new ceremony
+  → sets election.keys_ceremony_id (on each election in the event) to point at the new ceremony
                     ↓
 BBT trustee opens the election event's keys ceremony in admin portal
   └─ HeadlessTrusteeProvider mounts; checks the in-memory session registry
@@ -731,8 +735,8 @@ additionally gated by the voting-period check at the cancel endpoint, see
 [§6 Cancellation Window](#6-cancellation-window)).
 
 After cancellation:
-- `election_event.keys_ceremony_id` is cleared atomically with the status transition (see
-  [§6](#6-cancellation-window)) so the election can be re-assigned.
+- `election.keys_ceremony_id` is cleared (on every election in the event) atomically with
+  the status transition (see [§6](#6-cancellation-window)) so the elections can be re-assigned.
 - The orphan `Channel`, `Shares`, and `PublicKey` messages on the old B4 board remain in
   place (append-only) but are simply ignored — the admin creates the replacement ceremony
   on a fresh board.
@@ -923,7 +927,7 @@ Action (one transaction):
   2. For each election in the event:
        - reject VOTING_PERIOD_STARTED if its voting period has begun.
   3. try_transition(current → CANCELLED) on the keys_ceremony row.
-  4. For every election_event whose keys_ceremony_id points at this ceremony,
+  4. For every entry in the election's table whose keys_ceremony_id points at this ceremony,
        SET keys_ceremony_id = NULL.
 Returns: { status: "ok" } | error code.
 ```
@@ -943,19 +947,21 @@ Add an optional input field `duplicate_from: keys_ceremony_id?`.
   `keys_ceremony_id`.
 - If absent: behaves as today (fresh create).
 
-In both cases, on success set `election_event.keys_ceremony_id` to the new ceremony id.
+In both cases, on success set `election.keys_ceremony_id` (on each election in the event)
+to the new ceremony id.
 
 ### 10 — Admin portal: ceremony-assignment states on the election page
 
 The election-event ceremony page must render different controls depending on
-`election_event.keys_ceremony_id`:
+`election.keys_ceremony_id` (read from the elections within the event — there is no
+`keys_ceremony_id` on the `election_event` row itself):
 
-- **`NULL` (no ceremony assigned)**: show "Create ceremony" and, if any prior ceremony
+- **10.1 — `NULL` (no ceremony assigned)**: show "Create ceremony" and, if any prior ceremony
   exists for this election event, "Duplicate from previous".
-- **Assigned, voting period not started**: show ceremony status + "Cancel ceremony" button
-  (calls `cancel_keys_ceremony`).
-- **Assigned, voting period started or election in progress**: show ceremony status only;
-  no cancel/recreate controls (the state machine + voting-period gate would reject
+- **10.2 — Assigned, voting period not started**: show ceremony status + "Cancel ceremony"
+  button (calls `cancel_keys_ceremony`).
+- **10.3 — Assigned, voting period started or election in progress**: show ceremony status
+  only; no cancel/recreate controls (the state machine + voting-period gate would reject
   anyway).
 
 ### 11 — Windmill `get_trustees_by_id` / `get_trustees_by_name`: filter by `(election_event_id, keys_ceremony_id)`
