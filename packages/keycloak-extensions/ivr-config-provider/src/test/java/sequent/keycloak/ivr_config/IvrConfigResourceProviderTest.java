@@ -132,7 +132,9 @@ class IvrConfigResourceProviderTest {
         (List<AuthStep>)
             ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
 
-    assertThat(steps).containsExactly(new AuthStep("dob", 8, "secret", "dob", "auth_enter_dob"));
+    assertThat(steps)
+        .containsExactly(
+            new AuthStep("dob", 8, Constants.AUTH_STEP_KIND_SECRET, "dob", "auth_enter_dob"));
   }
 
   @Test
