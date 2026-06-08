@@ -12,16 +12,15 @@ import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.services.resource.RealmResourceProviderFactory;
 
 /**
- * Registers the HMAC Smart Link endpoint under {@code /realms/{realm}/smart-link}.
+ * Registers the HMAC Smart Link endpoint under {@code /realms/{realm}/election}.
  *
- * <p>The provider id {@code smart-link} is scoped to the {@link RealmResourceProvider} SPI, so it
- * does not collide with the existing {@code smart-link} Authenticator or ActionTokenHandler
- * providers, which live in different SPIs.
+ * <p>The provider id {@code election} gives the public URL the same shape as the first-generation
+ * Smart Link route while still living under Keycloak's realm resource namespace.
  */
 @AutoService(RealmResourceProviderFactory.class)
 public class HmacSmartLinkResourceProviderFactory implements RealmResourceProviderFactory {
 
-  public static final String PROVIDER_ID = "smart-link";
+  public static final String PROVIDER_ID = "election";
 
   @Override
   public RealmResourceProvider create(KeycloakSession session) {

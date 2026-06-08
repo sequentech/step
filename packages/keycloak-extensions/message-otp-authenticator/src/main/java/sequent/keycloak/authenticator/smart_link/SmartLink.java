@@ -7,20 +7,14 @@ package sequent.keycloak.authenticator.smart_link;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import jakarta.ws.rs.core.UriBuilder;
-import jakarta.ws.rs.core.UriInfo;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
-import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.authenticators.browser.CookieAuthenticatorFactory;
 import org.keycloak.authentication.authenticators.browser.IdentityProviderAuthenticatorFactory;
-import org.keycloak.common.util.Time;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.events.Details;
@@ -28,21 +22,14 @@ import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticationFlowModel;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.KeycloakSessionTask;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
-import org.keycloak.protocol.oidc.OIDCLoginProtocol;
-import org.keycloak.protocol.oidc.utils.RedirectUtils;
 import org.keycloak.provider.ProviderFactory;
-import org.keycloak.services.Urls;
-import org.keycloak.services.resources.LoginActionsService;
-import org.keycloak.services.resources.RealmsResource;
-import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.login_bridge.LoginBridgeActionToken;
 
 /** Common utilities Smart Link authentication, used by the authenticator and resource */
 @JBossLog
@@ -63,7 +50,7 @@ public class SmartLink {
       public void accept(UserModel user) {
         event
             .event(EventType.REGISTER)
-            .detail(Details.REGISTER_METHOD, SmartLinkActionToken.TOKEN_TYPE)
+            .detail(Details.REGISTER_METHOD, LoginBridgeActionToken.TOKEN_TYPE)
             .detail(Details.USERNAME, user.getUsername())
             .detail(Details.EMAIL, user.getEmail())
             .user(user)
@@ -97,107 +84,6 @@ public class SmartLink {
     }
 
     return user;
-  }
-
-  public static SmartLinkActionToken createActionToken(
-      UserModel user,
-      String clientId,
-      OptionalInt validity,
-      Boolean rememberMe,
-      AuthenticationSessionModel authSession,
-      Boolean isActionTokenPersistent,
-      Boolean markEmailVerified) {
-    String redirectUri = authSession.getRedirectUri();
-    String scopes = authSession.getClientNote(OIDCLoginProtocol.SCOPE_PARAM);
-    String state = authSession.getClientNote(OIDCLoginProtocol.STATE_PARAM);
-    String nonce = authSession.getClientNote(OIDCLoginProtocol.NONCE_PARAM);
-    log.infof(
-        "Attempting SmartLinkAuthenticator for %s, %s, %s", user.getEmail(), clientId, redirectUri);
-    log.infof("SmartLinkAuthenticator extra vars %s %s %s %b", scopes, state, nonce, rememberMe);
-    return createActionToken(
-        user,
-        clientId,
-        redirectUri,
-        validity,
-        scopes,
-        nonce,
-        state,
-        rememberMe,
-        isActionTokenPersistent,
-        markEmailVerified);
-  }
-
-  public static SmartLinkActionToken createActionToken(
-      UserModel user,
-      String clientId,
-      String redirectUri,
-      OptionalInt validity,
-      String scopes,
-      String nonce,
-      String state,
-      Boolean rememberMe,
-      Boolean persistent,
-      Boolean markEmailVerified) {
-    // build the action token
-    int validityInSecs = validity.orElse(60 * 60 * 24); // 1 day
-    int absoluteExpirationInSecs = Time.currentTime() + validityInSecs;
-    SmartLinkActionToken token =
-        new SmartLinkActionToken(
-            user.getId(),
-            absoluteExpirationInSecs,
-            nonce,
-            clientId,
-            markEmailVerified,
-            redirectUri,
-            scopes,
-            state,
-            rememberMe,
-            persistent);
-    return token;
-  }
-
-  public static String linkFromActionToken(
-      KeycloakSession session, RealmModel realm, SmartLinkActionToken token) {
-    UriInfo uriInfo = session.getContext().getUri();
-
-    // This is a workaround for situations where the realm you are using to
-    // call this (e.g. master) is different than the one you are generating
-    // the action token for. Because the SignatureProvider assumes the value
-    // that is set in session.getContext().getRealm() has the keys it should
-    // use, we need to temporarily reset it
-    RealmModel r = session.getContext().getRealm();
-    log.debugf("realm %s session.context.realm %s", realm.getName(), r.getName());
-
-    // Because of the risk, throw an exception for master realm
-    if (Config.getAdminRealm().equals(realm.getName())) {
-      throw new IllegalStateException(
-          String.format("Smart links not allowed for %s realm", Config.getAdminRealm()));
-    }
-    session.getContext().setRealm(realm);
-
-    UriBuilder builder =
-        actionTokenBuilder(
-            uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), token.getIssuedFor());
-
-    // and then set it back
-    session.getContext().setRealm(r);
-    return builder.build(realm.getName()).toString();
-  }
-
-  public static boolean validateRedirectUri(
-      KeycloakSession session, String redirectUri, ClientModel client) {
-    String redirect = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
-    log.debugf("Redirect after verify %s -> %s", redirectUri, redirect);
-    return redirectUri.equals(redirect);
-  }
-
-  private static UriBuilder actionTokenBuilder(URI baseUri, String tokenString, String clientId) {
-    log.debugf("baseUri: %s, tokenString: %s, clientId: %s", baseUri, tokenString, clientId);
-    return Urls.realmBase(baseUri)
-        .path(RealmsResource.class, "getLoginActionsService")
-        .path(LoginActionsService.class, "executeActionToken")
-        .queryParam(Constants.KEY, tokenString)
-        .queryParam(Constants.CLIENT_ID, clientId);
   }
 
   // TODO: send sms too

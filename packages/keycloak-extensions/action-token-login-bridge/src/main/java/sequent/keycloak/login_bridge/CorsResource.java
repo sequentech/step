@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package sequent.keycloak.authenticator.smart_link;
+package sequent.keycloak.login_bridge;
 
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Response;

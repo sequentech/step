@@ -28,8 +28,10 @@ the voter follows a link carrying it. Keycloak verifies the token and
 establishes the OIDC session.
 
 This is the second-generation port of the first-generation IAM `smart-link`
-auth method (`m_smart_link.py`). The **wire format is unchanged** so existing
-generators keep working; what changes is where verification happens.
+auth method (`m_smart_link.py`). The token envelope, message shape and
+HMAC-SHA256 calculation are unchanged, so existing generators can keep working
+once they use the configured second-generation election id and Keycloak URL. The
+runtime behavior is not identical; the deliberate differences are listed below.
 
 ### Two different "Smart Links"
 
@@ -41,50 +43,83 @@ external app cannot produce it offline.
 The feature in this document is the opposite trust model: a **symmetric**,
 **client-minted** token verified with a shared secret. The two coexist; this one
 is packaged as a separate Keycloak extension,
-`smart-link-hmac-authenticator`, and reuses the existing action-token machinery
-to finish the login (see §4).
+`smart-link-hmac-authenticator`, and uses the shared login-bridge module to
+finish the login (see §5).
 
 ## 2. Goals
 
 - Verify an external `khmac:///sha-256;<hex>/<message>` token using a per-event
-  shared secret, with the exact semantics of the first generation.
-- Require, from the integrator, only a change of **host, election-event id and
-  secret** — the token format is identical.
+  shared secret and the first-generation token format.
+- Require, from the integrator, only a change of **host, Smart Link election id
+  and secret** — the token format is identical.
 - Establish a normal Keycloak OIDC session for the `voting-portal` client.
 - Be hardened: constant-time HMAC, reject expired **and** future-dated tokens,
   bind the token to one event, and never leak which check failed.
 
-## 3. Non-goals
+## 3. Compatibility with first generation
+
+Compatible:
+
+- Token envelope: `khmac:///sha-256;<hex>/<message>`.
+- Message shape: `<user-id>:AuthEvent:<election-id>:vote:<unix_timestamp>`,
+  exactly five colon-separated fields. `user-id` cannot contain `:`.
+- HMAC calculation: lowercase-hex HMAC-SHA256 over the UTF-8 message with the
+  shared secret.
+- Default external token lifetime: 90 seconds.
+
+Different:
+
+- The direct endpoint is
+  `/realms/{realm}/election/{election-id}/public/login`, because Keycloak owns
+  the realm context and OIDC session. A root
+  `/election/{election-id}/public/login` URL needs a reverse-proxy rule.
+- The expected election id is `smart-link-election-id` when configured, otherwise
+  the realm name. First generation used the IAM AuthEvent id directly.
+- First generation only checked expiry. This implementation also rejects tokens
+  minted too far in the future, controlled by `smart-link-clock-skew-secs`.
+- Required attributes are intentionally smaller: `email`, `tlf` and exact text
+  user-attribute matches. First-generation required-field machinery such as
+  passwords, OTP codes, captchas, images, dictionaries, pipelines, parent-election
+  checks, vote-count checks and post-verify hooks is not part of this Keycloak
+  bridge.
+- Error responses are HTTP-oriented: disabled or misconfigured realms return
+  `404`; enabled authentication failures return a generic `401`.
+- Session creation is delegated to a short-lived internal Keycloak action token;
+  there is no second IAM backend authentication call returning IAM auth data.
+
+## 4. Non-goals
 
 - No new token format or crypto — HMAC-SHA256 over the existing message only.
 - No replacement of the email magic link or any other auth method.
 - No census management — voters must already exist in the realm (authorization
   stays with Sequent, authentication with the external app).
 
-## 4. Architecture and components
+## 5. Architecture and components
 
 All Java lives in
 `packages/keycloak-extensions/smart-link-hmac-authenticator/src/main/java/sequent/keycloak/authenticator/smart_link/hmac/`.
 
 | Component | Responsibility |
 | --- | --- |
-| `HmacSmartLink` | Pure, JDK-only validation: parse the envelope, recompute the HMAC (constant-time), check structure, event binding and the time window. No Keycloak dependency, so it is exhaustively unit-tested. |
+| `HmacSmartLink` | Pure, JDK-only validation: parse the envelope, recompute the HMAC (constant-time), check structure, election id binding and the time window. No Keycloak dependency, so it is exhaustively unit-tested. |
 | `SmartLinkError` / `SmartLinkValidationException` | Typed rejection reasons, logged server-side only. |
-| `HmacSmartLinkResource` | JAX-RS endpoint `GET /realms/{realm}/smart-link/login`. Reads realm-attribute config, validates the token, resolves the client and census user, then bridges to the action-token machinery. |
+| `HmacSmartLinkResource` | JAX-RS endpoint `GET /realms/{realm}/election/{election-id}/public/login`. Reads realm-attribute config, validates the token, resolves the client and census user, then bridges to the action-token machinery. |
 | `HmacSmartLinkProvider` | Extends `BaseRealmResourceProvider` (free CORS preflight) and returns the resource. |
-| `HmacSmartLinkResourceProviderFactory` | `@AutoService(RealmResourceProviderFactory.class)`, `getId() = "smart-link"`, which yields the URL path. |
+| `HmacSmartLinkResourceProviderFactory` | `@AutoService(RealmResourceProviderFactory.class)`, `getId() = "election"`, which yields the first-generation-style URL path segment. |
+| `action-token-login-bridge` | Shared neutral module that owns the internal action-token type, handler, URL builder and CORS base resource used by both HMAC Smart Link and email magic links. |
 
 ### The action-token bridge
 
 The resource deliberately does **not** re-implement session creation. After the
-token validates and the user is resolved, it reuses the existing, audited
-helpers from the `smart_link` package:
+token validates and the user is resolved, it calls the neutral
+`action-token-login-bridge` module:
 
-1. `SmartLink.getOrCreate(...)` — resolve (or, if configured, create) the user.
-2. `SmartLink.createActionToken(...)` — mint a **short-lived, non-persistent**
+1. Resolve the user in the current realm census. Unknown users fail
+   authentication; this endpoint does not create voters.
+2. `LoginBridge.createActionToken(...)` — mint a **short-lived, non-persistent**
    internal action token for the `voting-portal` client.
-3. `SmartLink.linkFromActionToken(...)` — build the `executeActionToken` URL.
-4. Return a `302` to it; `SmartLinkActionTokenHandler` then creates the session
+3. `LoginBridge.linkFromActionToken(...)` — build the `executeActionToken` URL.
+4. Return a `302` to it; `LoginBridgeActionTokenHandler` then creates the session
    and redirects to the portal with an OIDC code.
 
 So the new code is a thin, security-critical translator: **external symmetric
@@ -105,19 +140,28 @@ Config is stored as realm attributes on the event realm, set through harvest's
 | `smart-link-timeout-secs` | `90` |
 | `smart-link-clock-skew-secs` | `5` |
 | `smart-link-client-id` | `voting-portal` |
-| `smart-link-force-create` | `false` |
+| `smart-link-election-id` | realm name |
 | `smart-link-required-attributes` | empty |
 
 `smart-link-enabled=true` is the feature switch. The shared secret is required
 only once the feature is enabled. A realm with `smart-link-enabled` unset or
 `false` returns `404` from the HMAC endpoint; a realm with Smart Link enabled
 but no shared secret also returns `404` and logs a server-side misconfiguration
-warning.
+warning. Configured timeout/skew values must be positive; `0`, negative or
+non-numeric values also return `404` and log a misconfiguration warning.
 
 `update_realm_attributes` in
 `packages/sequent-core/src/services/keycloak/realm_attributes.rs` validates each
-value (boolean enable/force-create flags; non-blank bounded secret; integer
-timeouts; comma-separated required attribute names) and drops anything malformed.
+value (boolean enable flag; non-blank bounded secret; positive integer timeouts;
+URL-safe election id text; comma-separated required attribute names) and drops
+anything malformed.
+
+`smart-link-election-id` is the public election id used in both the
+`/election/<election-id>/public/login` path and the HMAC message. It is text,
+not an integer. If the attribute is missing or blank, the realm name is used as
+the default election id. For example, realm `tenant-acme-event-150017` defaults
+to election id `tenant-acme-event-150017`, but setting
+`smart-link-election-id=150017` makes the path and token use `150017`.
 
 `smart-link-required-attributes` is the second-generation equivalent of the
 first-generation Smart Link required extra-field check. It is intentionally
@@ -136,7 +180,7 @@ Supported checks:
 Unsupported first-generation field types (`password`, `otp-code`, `captcha`,
 `image`, `dict`, etc.) are deliberately out of scope for this HMAC bridge.
 
-## 5. Flow description
+## 6. Flow description
 
 ```mermaid
 sequenceDiagram
@@ -144,29 +188,35 @@ sequenceDiagram
     participant Browser as Voter browser
     participant Res as HmacSmartLinkResource
     participant Core as HmacSmartLink (pure)
-    participant Handler as SmartLinkActionTokenHandler
+    participant Handler as LoginBridgeActionTokenHandler
     participant Portal as voting-portal (OIDC)
 
     Backend->>Browser: Smart Link URL (token minted offline)
-    Browser->>Res: GET /realms/{realm}/smart-link/login?auth-token=...&student_id=...
-    Res->>Core: validate(token, secret, eventId, now, timeout, skew)
-    Core-->>Res: ValidatedSmartLink(userId, eventId, ts)  | throws
-    Res->>Res: getOrCreate(user) + required attribute checks
-    Res->>Res: createActionToken (60s, one-time)
+    Browser->>Res: GET /realms/{realm}/election/{election-id}/public/login?auth-token=...&student_id=...
+    Res->>Core: validate(token, secret, electionId, now, timeout, skew)
+    Core-->>Res: ValidatedSmartLink(userId, electionId, ts)  | throws
+    Res->>Res: resolve census user + required attribute checks
+    Res->>Res: LoginBridge.createActionToken (60s, one-time)
     Res-->>Browser: 302 -> /login-actions/action-token?key=...
     Browser->>Handler: follow redirect
     Handler-->>Portal: 302 with OIDC code (session established)
 ```
 
-## 6. Realm ↔ event mapping
+## 7. Realm ↔ Smart Link Election Id
 
-Event realms are named `tenant-<tenant_id>-event-<election_event_id>`
-(`get_event_realm` in sequent-core). `HmacSmartLink.electionEventIdFromRealm`
-re-implements `parse_realm` to recover the event id from the realm being
-accessed, and the token's `election-event-id` field must equal it. This is what
-prevents a token minted for one event from being replayed against another.
+Event realms are still resolved by name, usually
+`tenant-<tenant_id>-event-<election_event_id>` (`get_event_realm` in
+sequent-core). Smart Link does not parse that event id for authentication. It
+chooses the expected Smart Link election id from the realm attribute
+`smart-link-election-id`; when that attribute is missing or blank, it uses the
+realm name itself.
 
-## 7. Security considerations
+The path election id and the token's `AuthEvent:<election-id>:vote` field must
+both equal that expected Smart Link election id. This lets deployments keep the
+first-generation numeric path when they configure one, while defaulting to the
+realm name without adding another required setting.
+
+## 8. Security considerations
 
 ### Verification order
 
@@ -175,9 +225,11 @@ prevents a token minted for one event from being replayed against another.
    Token validation only runs when the realm is explicitly enabled and has a
    secret.
 2. **Structural** parse of envelope, digest (`sha-256` only), 64-hex hash and
-   the message. The parser anchors on the last four fields, so `:` remains valid
-   inside the user id and malformed short messages are rejected.
-3. **Permission / event binding** — `AuthEvent`/`vote` and event id match.
+   the message. The message must have exactly five colon-separated fields, so
+   `:` is rejected inside `user-id`.
+3. **Permission / election id binding** — the path election id, `AuthEvent`/`vote`,
+   and token election id all match the expected Smart Link election id for the
+   realm.
 4. **HMAC** — recomputed and compared in **constant time**
    (`MessageDigest.isEqual`) **before** any timing decision, so the time checks
    only ever run on authentic messages.
@@ -202,30 +254,30 @@ prevents a token minted for one event from being replayed against another.
   admins via the admin API — the same trust level as the first generation's
   config secret. Rotate per event as needed.
 
-## 8. Testing
+## 9. Testing
 
 `HmacSmartLinkTest` covers the happy path plus every rejection: wrong secret,
-tampered message, mismatched event, expired, future-dated, missing secret,
+tampered message, mismatched election id, expired, future-dated, missing secret,
 malformed envelope, unsupported digest, wrong permission, empty user id,
-malformed short messages, and realm-name parsing. It also accepts user ids
-containing `:`, `/`, and `;`, matching the first-generation parser behavior. The
-"known vector" test asserts the Java HMAC equals the value produced by the
-Python/Scala/Go generators, locking cross-generation compatibility.
+malformed short messages, configured/default Smart Link election id selection,
+and rejection of `:` inside `user-id`. The "known vector" test asserts the Java
+HMAC equals the value produced by the Python/Scala/Go generators for the same
+message, locking token-level compatibility.
 `SmartLinkRequiredAttributesTest` covers comma-separated parsing and the
 supported `email`, `tlf`, and generic text attribute checks.
 
 Because `HmacSmartLink` is JDK-only it runs as a fast unit test
-(`mvn -pl smart-link-hmac-authenticator -am test`). The resource/provider
-wiring is covered by the e2e suite.
+(`mvn -pl smart-link-hmac-authenticator -am test`). Resource/provider wiring
+should be covered by an e2e suite before release.
 
-## 9. Related documentation
+## 10. Related documentation
 
 - [Smart Link SSO Integration](../../integrations/smart_link_integration_guide.md)
   — integrator contract.
 - [IdP-Initiated SSO Design & Implementation](./idp_initiated_sso_design_implementation.md)
   — the other custom realm-resource login bridge, same wiring pattern.
 
-## 10. Future considerations
+## 11. Future considerations
 
 - **Single-use external tokens.** Parity with the first generation keeps tokens
   replayable within their window; a short-lived nonce cache keyed by HMAC could

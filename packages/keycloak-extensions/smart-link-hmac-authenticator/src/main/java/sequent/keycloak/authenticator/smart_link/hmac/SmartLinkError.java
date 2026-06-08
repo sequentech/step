@@ -24,7 +24,7 @@ public enum SmartLinkError {
   INVALID_USER_ID,
   /** The permission object/action was not {@code AuthEvent}/{@code vote}. */
   INVALID_PERMISSION,
-  /** The election-event id in the token did not match the realm it was presented to. */
+  /** The election id in the token did not match the realm/path it was presented to. */
   MISMATCHED_EVENT,
   /** The HMAC did not match: wrong secret or tampered message. */
   INVALID_SIGNATURE,

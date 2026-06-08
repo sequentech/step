@@ -5,7 +5,7 @@
 package sequent.keycloak.authenticator.smart_link.hmac;
 
 import org.keycloak.models.KeycloakSession;
-import sequent.keycloak.authenticator.smart_link.BaseRealmResourceProvider;
+import sequent.keycloak.login_bridge.BaseRealmResourceProvider;
 
 /**
  * Realm resource provider for the HMAC Smart Link endpoint.

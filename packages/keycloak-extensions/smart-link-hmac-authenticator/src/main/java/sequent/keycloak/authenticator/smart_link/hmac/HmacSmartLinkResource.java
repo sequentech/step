@@ -6,6 +6,7 @@ package sequent.keycloak.authenticator.smart_link.hmac;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
@@ -21,23 +22,23 @@ import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import sequent.keycloak.authenticator.smart_link.SmartLink;
-import sequent.keycloak.authenticator.smart_link.SmartLinkActionToken;
+import org.keycloak.models.utils.KeycloakModelUtils;
+import sequent.keycloak.login_bridge.LoginBridge;
+import sequent.keycloak.login_bridge.LoginBridgeActionToken;
 
 /**
  * Public, unauthenticated endpoint that consumes an externally generated HMAC Smart Link and logs
  * the voter in.
  *
- * <p>Exposed at {@code GET /realms/{realm}/smart-link/login?auth-token=<urlencoded khmac>}. This is
- * the second-generation analogue of the first-generation {@code /election/<eid>/public/login}
- * route, hosted inside Keycloak because that is where the per-event shared secret, the census
- * (realm users) and the session all live.
+ * <p>Exposed at {@code GET
+ * /realms/{realm}/election/{election-id}/public/login?auth-token=<urlencoded khmac>}. This keeps
+ * the first-generation {@code /election/<eid>/public/login} shape while hosting the endpoint inside
+ * Keycloak, where the per-event shared secret, the census (realm users) and the session all live.
  *
  * <p>Design: this resource only does the security-critical work — validate the symmetric token and
  * resolve the user. To actually establish the session and produce the OIDC code it bridges into the
- * existing, audited Smart Link <em>action token</em> machinery ({@link SmartLink#createActionToken}
- * / {@link SmartLink#linkFromActionToken}) by issuing a short-lived, single-use internal token and
- * 302-redirecting the browser to it. No session-bootstrapping logic is re-implemented here.
+ * shared login bridge action-token machinery by issuing a short-lived, single-use internal token
+ * and 302-redirecting the browser to it. No session-bootstrapping logic is re-implemented here.
  */
 @JBossLog
 public class HmacSmartLinkResource {
@@ -55,9 +56,10 @@ public class HmacSmartLinkResource {
   private static final int INTERNAL_TOKEN_VALIDITY_SECONDS = 60;
 
   @GET
-  @Path("login")
+  @Path("{electionId}/public/login")
   @Produces(MediaType.APPLICATION_JSON)
   public Response login(
+      @PathParam("electionId") String pathElectionId,
       @QueryParam("auth-token") String authToken,
       @QueryParam("redirect_uri") String redirectUriParam,
       @Context UriInfo uriInfo) {
@@ -74,19 +76,42 @@ public class HmacSmartLinkResource {
       log.warnf("SmartLink HMAC enabled but no shared secret configured: realm=%s", realmName);
       return notFound();
     }
-    long timeout =
-        readLong(realm, HmacSmartLink.ATTR_TIMEOUT_SECONDS, HmacSmartLink.DEFAULT_TIMEOUT_SECONDS);
-    long clockSkew =
-        readLong(
-            realm, HmacSmartLink.ATTR_CLOCK_SKEW_SECONDS, HmacSmartLink.DEFAULT_CLOCK_SKEW_SECONDS);
-    String expectedEventId = HmacSmartLink.electionEventIdFromRealm(realmName);
+    Long timeout =
+        readPositiveLong(
+            realm,
+            HmacSmartLink.ATTR_TIMEOUT_SECONDS,
+            HmacSmartLink.DEFAULT_TIMEOUT_SECONDS,
+            realmName);
+    Long clockSkew =
+        readPositiveLong(
+            realm,
+            HmacSmartLink.ATTR_CLOCK_SKEW_SECONDS,
+            HmacSmartLink.DEFAULT_CLOCK_SKEW_SECONDS,
+            realmName);
+    if (timeout == null || clockSkew == null) {
+      return notFound();
+    }
+    String expectedElectionId =
+        HmacSmartLink.smartLinkElectionId(
+            realmName, realm.getAttribute(HmacSmartLink.ATTR_ELECTION_ID));
+    if (expectedElectionId == null) {
+      log.warnf("SmartLink HMAC enabled but invalid election id configured: realm=%s", realmName);
+      return notFound();
+    }
+    if (!expectedElectionId.equals(pathElectionId)) {
+      log.warnf(
+          "SmartLink HMAC rejected: error=%s path_election_id=%s realm=%s",
+          SmartLinkError.MISMATCHED_EVENT, pathElectionId, realmName);
+      return genericError();
+    }
     long now = Time.currentTime();
 
-    // Step 1: validate the symmetric token (envelope, signature, event binding, time window).
+    // Step 1: validate the symmetric token (envelope, signature, election id, time window).
     HmacSmartLink.ValidatedSmartLink validated;
     try {
       validated =
-          HmacSmartLink.validate(authToken, sharedSecret, expectedEventId, now, timeout, clockSkew);
+          HmacSmartLink.validate(
+              authToken, sharedSecret, expectedElectionId, now, timeout, clockSkew);
     } catch (SmartLinkValidationException error) {
       log.warnf(
           "SmartLink HMAC rejected: error=%s detail=%s realm=%s",
@@ -106,14 +131,7 @@ public class HmacSmartLinkResource {
         return genericError();
       }
 
-      // Default false: like the first generation, an unknown user id is an authorization failure
-      // (the user must be in the census), not a silent account creation.
-      boolean forceCreate =
-          Boolean.parseBoolean(realm.getAttribute(HmacSmartLink.ATTR_FORCE_CREATE));
-
-      UserModel user =
-          SmartLink.getOrCreate(
-              session, realm, validated.userId(), forceCreate, false, false, null);
+      UserModel user = KeycloakModelUtils.findUserByNameOrEmail(session, realm, validated.userId());
       if (user == null) {
         log.warnf(
             "SmartLink HMAC rejected: error=%s realm=%s", SmartLinkError.USER_NOT_FOUND, realmName);
@@ -144,7 +162,7 @@ public class HmacSmartLinkResource {
       // action token handler resolves the client's own base URL (the event's voting portal).
       String redirectUri = null;
       if (redirectUriParam != null && !redirectUriParam.isEmpty()) {
-        if (!SmartLink.validateRedirectUri(session, redirectUriParam, client)) {
+        if (!LoginBridge.validateRedirectUri(session, redirectUriParam, client)) {
           log.warnf(
               "SmartLink HMAC rejected: error=%s redirect_uri=%s realm=%s",
               SmartLinkError.REDIRECT_NOT_ALLOWED, redirectUriParam, realmName);
@@ -154,8 +172,8 @@ public class HmacSmartLinkResource {
       }
 
       // Internal bridge token: short-lived and NOT persistent, so it cannot be replayed.
-      SmartLinkActionToken token =
-          SmartLink.createActionToken(
+      LoginBridgeActionToken token =
+          LoginBridge.createActionToken(
               user,
               clientId,
               redirectUri,
@@ -166,7 +184,7 @@ public class HmacSmartLinkResource {
               /* rememberMe= */ false,
               /* persistent= */ false,
               /* markEmailVerified= */ true);
-      String link = SmartLink.linkFromActionToken(session, realm, token);
+      String link = LoginBridge.linkFromActionToken(session, realm, token);
 
       return Response.status(Response.Status.FOUND).location(URI.create(link)).build();
     } catch (Exception error) {
@@ -202,16 +220,26 @@ public class HmacSmartLinkResource {
     return value == null || value.isBlank();
   }
 
-  private static long readLong(RealmModel realm, String attribute, long defaultValue) {
+  private static Long readPositiveLong(
+      RealmModel realm, String attribute, long defaultValue, String realmName) {
     String raw = realm.getAttribute(attribute);
-    if (raw == null || raw.isEmpty()) {
+    if (raw == null || raw.isBlank()) {
       return defaultValue;
     }
     try {
-      return Long.parseLong(raw.trim());
+      long parsed = Long.parseLong(raw.trim());
+      if (parsed <= 0L) {
+        log.warnf(
+            "SmartLink HMAC enabled but non-positive realm attribute configured: %s=%s realm=%s",
+            attribute, raw, realmName);
+        return null;
+      }
+      return parsed;
     } catch (NumberFormatException e) {
-      log.warnf("Ignoring non-numeric realm attribute %s=%s", attribute, raw);
-      return defaultValue;
+      log.warnf(
+          "SmartLink HMAC enabled but non-numeric realm attribute configured: %s=%s realm=%s",
+          attribute, raw, realmName);
+      return null;
     }
   }
 

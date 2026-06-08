@@ -9,11 +9,11 @@ A Smart Link is an HMAC-SHA256 over a fixed message, wrapped in a
 `khmac:///sha-256;<hex>/<message>` envelope, exactly as the first generation.
 In this generation it is verified by Keycloak at:
 
-    https://<keycloak-host>/realms/tenant-<tenant>-event-<event-id>/smart-link/login?auth-token=<token>
+    https://<keycloak-host>/realms/<realm>/election/<election-id>/public/login?auth-token=<token>
 
 Message format (must match HmacSmartLink.java):
 
-    <user_id>:AuthEvent:<election_event_id>:vote:<unix_timestamp>
+    <user_id>:AuthEvent:<election_id>:vote:<unix_timestamp>
 
 This script has no third-party dependencies. The `validate` subcommand
 reproduces the server-side checks (HMAC, "created in the past", "still valid")
@@ -23,8 +23,12 @@ Usage:
     # Mint a Smart Link URL
     ./generate_smart_link.py generate \\
         --host vote.university.com --tenant acme --event-id 150017 \\
-        --user-id example@sequentech.io --secret "the cake is in the oven" \\
+        --election-id 150017 --user-id example@sequentech.io \\
+        --secret "the cake is in the oven" \\
         --attribute email=example@sequentech.io --attribute tlf=+34600111222
+
+    # Omit --election-id to use the resolved realm name as the Smart Link election id.
+    ./generate_smart_link.py generate ... --event-id 150017
 
     # Just the token (no URL)
     ./generate_smart_link.py generate ... --token-only
@@ -32,7 +36,7 @@ Usage:
     # Reproduce Keycloak's validation
     ./generate_smart_link.py validate \\
         --token 'khmac:///sha-256;<hex>/<message>' \\
-        --event-id 150017 --secret "the cake is in the oven"
+        --election-id 150017 --secret "the cake is in the oven"
 """
 
 import argparse
@@ -65,8 +69,8 @@ def compute_hmac_hex(secret: str, message: str) -> str:
     ).hexdigest()
 
 
-def build_token(user_id: str, event_id: str, secret: str, timestamp: int) -> str:
-    message = f"{user_id}:{PERMISSION_OBJECT}:{event_id}:{PERMISSION_ACTION}:{timestamp}"
+def build_token(user_id: str, election_id: str, secret: str, timestamp: int) -> str:
+    message = f"{user_id}:{PERMISSION_OBJECT}:{election_id}:{PERMISSION_ACTION}:{timestamp}"
     code = compute_hmac_hex(secret, message)
     return f"{ENVELOPE_PREFIX}{DIGEST_LABEL};{code}/{message}"
 
@@ -84,16 +88,18 @@ def parse_attribute(value: str) -> tuple[str, str]:
 def build_url(
     host: str,
     tenant: str,
-    event_id: str,
+    realm_event_id: str,
+    election_id: str,
     token: str,
     attributes: list[tuple[str, str]] | None = None,
 ) -> str:
-    realm = event_realm(tenant, event_id)
+    realm = event_realm(tenant, realm_event_id)
     params = [("auth-token", token)]
     if attributes:
         params.extend(attributes)
     query = urllib.parse.urlencode(params)
-    return f"https://{host}/realms/{realm}/smart-link/login?{query}"
+    election_path = urllib.parse.quote(election_id, safe="")
+    return f"https://{host}/realms/{realm}/election/{election_path}/public/login?{query}"
 
 
 class SmartLinkError(Exception):
@@ -107,7 +113,7 @@ class SmartLinkError(Exception):
 def validate_token(
     token: str,
     secret: str,
-    expected_event_id: str,
+    expected_election_id: str,
     now: int,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     clock_skew_seconds: int = DEFAULT_CLOCK_SKEW_SECONDS,
@@ -131,18 +137,19 @@ def validate_token(
         raise SmartLinkError("MALFORMED_TOKEN", "bad hash length or empty message")
 
     fields = message.split(":")
-    if len(fields) < MIN_MESSAGE_FIELD_COUNT:
+    if len(fields) != MIN_MESSAGE_FIELD_COUNT:
+        if len(fields) > MIN_MESSAGE_FIELD_COUNT:
+            raise SmartLinkError("INVALID_USER_ID", "user id must not contain ':'")
         raise SmartLinkError("MALFORMED_MESSAGE", f"unexpected field count: {len(fields)}")
-    user_id = ":".join(fields[:-4])
-    perm_obj, event_id, perm_action, ts_field = fields[-4:]
+    user_id, perm_obj, election_id, perm_action, ts_field = fields
 
     if not user_id:
         raise SmartLinkError("INVALID_USER_ID", "empty user id")
     if perm_obj != PERMISSION_OBJECT or perm_action != PERMISSION_ACTION:
         raise SmartLinkError("INVALID_PERMISSION", "permission is not AuthEvent/vote")
-    if expected_event_id is None or event_id != expected_event_id:
+    if expected_election_id is None or election_id != expected_election_id:
         raise SmartLinkError(
-            "MISMATCHED_EVENT", f"token event {event_id} != expected {expected_event_id}"
+            "MISMATCHED_EVENT", f"token election {election_id} != expected {expected_election_id}"
         )
     try:
         timestamp = int(ts_field)
@@ -153,23 +160,25 @@ def validate_token(
     if not hmac.compare_digest(compute_hmac_hex(secret, message), code):
         raise SmartLinkError("INVALID_SIGNATURE", "wrong secret or tampered message")
 
-    skew = max(0, clock_skew_seconds)
-    timeout = max(0, timeout_seconds)
-    if timestamp > now + skew:
+    if timeout_seconds <= 0 or clock_skew_seconds <= 0:
+        raise SmartLinkError("NOT_CONFIGURED", "timeout and clock skew must be positive")
+    if timestamp > now + clock_skew_seconds:
         raise SmartLinkError("TOKEN_IN_FUTURE", "token timestamp is in the future")
-    if timestamp <= now - timeout:
+    if timestamp <= now - timeout_seconds:
         raise SmartLinkError("TOKEN_EXPIRED", "token has expired")
 
-    return {"user_id": user_id, "event_id": event_id, "timestamp": timestamp}
+    return {"user_id": user_id, "election_id": election_id, "timestamp": timestamp}
 
 
 def cmd_generate(args: argparse.Namespace) -> int:
     timestamp = args.timestamp if args.timestamp is not None else int(time.time())
-    token = build_token(args.user_id, args.event_id, args.secret, timestamp)
+    realm = event_realm(args.tenant, args.event_id)
+    election_id = args.election_id if args.election_id is not None else realm
+    token = build_token(args.user_id, election_id, args.secret, timestamp)
     if args.token_only:
         print(token)
     else:
-        print(build_url(args.host, args.tenant, args.event_id, token, args.attribute))
+        print(build_url(args.host, args.tenant, args.event_id, election_id, token, args.attribute))
     return 0
 
 
@@ -177,13 +186,13 @@ def cmd_validate(args: argparse.Namespace) -> int:
     now = args.now if args.now is not None else int(time.time())
     try:
         result = validate_token(
-            args.token, args.secret, args.event_id, now, args.timeout, args.clock_skew
+            args.token, args.secret, args.election_id, now, args.timeout, args.clock_skew
         )
     except SmartLinkError as err:
         print(f"INVALID  {err}", file=sys.stderr)
         return 1
     age = now - result["timestamp"]
-    print(f"VALID    user_id={result['user_id']} event_id={result['event_id']} age={age}s")
+    print(f"VALID    user_id={result['user_id']} election_id={result['election_id']} age={age}s")
     return 0
 
 
@@ -194,8 +203,19 @@ def main() -> int:
     gen = sub.add_parser("generate", help="mint a Smart Link URL (or token)")
     gen.add_argument("--host", required=True, help="Keycloak host, e.g. vote.university.com")
     gen.add_argument("--tenant", required=True, help="tenant id")
-    gen.add_argument("--event-id", required=True, help="election event id")
-    gen.add_argument("--user-id", required=True, help="voter id (must exist in the census)")
+    gen.add_argument("--event-id", required=True, help="election event id used to build the realm")
+    gen.add_argument(
+        "--election-id",
+        default=None,
+        help=(
+            "Smart Link election id used in the path and token; defaults to the resolved realm name"
+        ),
+    )
+    gen.add_argument(
+        "--user-id",
+        required=True,
+        help="voter id (must exist in the census and must not contain ':')",
+    )
     gen.add_argument("--secret", required=True, help="shared secret (smart-link-shared-secret)")
     gen.add_argument(
         "--timestamp", type=int, default=None, help="override the unix timestamp (default: now)"
@@ -215,7 +235,13 @@ def main() -> int:
 
     val = sub.add_parser("validate", help="reproduce Keycloak's server-side validation")
     val.add_argument("--token", required=True, help="the khmac auth-token")
-    val.add_argument("--event-id", required=True, help="expected election event id")
+    val.add_argument(
+        "--election-id",
+        "--event-id",
+        dest="election_id",
+        required=True,
+        help="expected Smart Link election id",
+    )
     val.add_argument("--secret", required=True, help="shared secret")
     val.add_argument(
         "--timeout", type=int, default=DEFAULT_TIMEOUT_SECONDS, help="validity window in seconds"

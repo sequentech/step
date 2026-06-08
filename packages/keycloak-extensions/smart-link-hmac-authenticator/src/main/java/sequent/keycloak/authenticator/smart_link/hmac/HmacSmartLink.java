@@ -7,7 +7,6 @@ package sequent.keycloak.authenticator.smart_link.hmac;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.util.Arrays;
 import java.util.HexFormat;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -21,7 +20,7 @@ import javax.crypto.spec.SecretKeySpec;
  * the first generation so existing token generators keep working:
  *
  * <pre>
- *   message = &lt;user_id&gt;:AuthEvent:&lt;election_event_id&gt;:vote:&lt;unix_timestamp&gt;
+ *   message = &lt;user_id&gt;:AuthEvent:&lt;election_id&gt;:vote:&lt;unix_timestamp&gt;
  *   code    = HMAC_SHA256(shared_secret, message)   // lowercase hex
  *   token   = khmac:///sha-256;&lt;code&gt;/&lt;message&gt;
  * </pre>
@@ -39,7 +38,7 @@ public final class HmacSmartLink {
   public static final String PERMISSION_OBJECT = "AuthEvent";
   public static final String PERMISSION_ACTION = "vote";
 
-  /** Minimum fields in {@code user_id : AuthEvent : election_event_id : vote : timestamp}. */
+  /** Minimum fields in {@code user_id : AuthEvent : election_id : vote : timestamp}. */
   public static final int MIN_MESSAGE_FIELD_COUNT = 5;
 
   /** Hex length of a SHA-256 HMAC. */
@@ -51,6 +50,9 @@ public final class HmacSmartLink {
   /** Default tolerance for clock differences between the external app and Keycloak. */
   public static final long DEFAULT_CLOCK_SKEW_SECONDS = 5L;
 
+  /** Maximum accepted length of the public Smart Link election id. */
+  public static final int ELECTION_ID_MAX_LENGTH = 255;
+
   // Realm attribute names. These MUST stay in sync with the constants in
   // sequent-core: packages/sequent-core/src/types/keycloak.rs
   public static final String ATTR_ENABLED = "smart-link-enabled";
@@ -58,11 +60,11 @@ public final class HmacSmartLink {
   public static final String ATTR_TIMEOUT_SECONDS = "smart-link-timeout-secs";
   public static final String ATTR_CLOCK_SKEW_SECONDS = "smart-link-clock-skew-secs";
   public static final String ATTR_CLIENT_ID = "smart-link-client-id";
-  public static final String ATTR_FORCE_CREATE = "smart-link-force-create";
+  public static final String ATTR_ELECTION_ID = "smart-link-election-id";
   public static final String ATTR_REQUIRED_ATTRIBUTES = "smart-link-required-attributes";
 
   /** Successful result of {@link #validate}. */
-  public record ValidatedSmartLink(String userId, String electionEventId, long timestampSeconds) {}
+  public record ValidatedSmartLink(String userId, String electionId, long timestampSeconds) {}
 
   /**
    * Computes the lowercase-hex HMAC-SHA256 of {@code message} keyed with {@code sharedSecret}.
@@ -85,14 +87,15 @@ public final class HmacSmartLink {
   /**
    * Validates an auth-token end to end and returns the authenticated identity.
    *
-   * <p>Checks, in order: envelope shape, digest, message structure, permission, election-event
-   * binding, the HMAC itself (constant time), and finally the temporal window. The signature is
-   * verified before the temporal checks so that timing decisions are only made about authentic
-   * messages.
+   * <p>Checks, in order: envelope shape, digest, message structure, permission, election id
+   * binding, the HMAC itself (constant time), and finally the temporal window. The expected
+   * election id is the configured {@code smart-link-election-id}, or the realm name when the
+   * attribute is unset. The signature is verified before the temporal checks so that timing
+   * decisions are only made about authentic messages.
    *
    * @param authToken the raw {@code khmac:///...} token (already URL-decoded)
    * @param sharedSecret the per-event shared secret configured on the realm
-   * @param expectedElectionEventId the election-event id derived from the realm being accessed
+   * @param expectedElectionId the Smart Link election id expected for the realm being accessed
    * @param nowEpochSeconds the current time, in seconds since the Unix epoch
    * @param timeoutSeconds how long after creation a token stays valid
    * @param clockSkewSeconds tolerance for the token being slightly ahead of this server's clock
@@ -101,7 +104,7 @@ public final class HmacSmartLink {
   public static ValidatedSmartLink validate(
       String authToken,
       String sharedSecret,
-      String expectedElectionEventId,
+      String expectedElectionId,
       long nowEpochSeconds,
       long timeoutSeconds,
       long clockSkewSeconds)
@@ -141,19 +144,22 @@ public final class HmacSmartLink {
           SmartLinkError.MALFORMED_TOKEN, "bad hash length or empty message");
     }
 
-    // message = <user_id>:AuthEvent:<election_event_id>:vote:<timestamp>
-    // Parse from the right so ':' remains valid inside user_id, matching the first generation.
+    // message = <user_id>:AuthEvent:<election_id>:vote:<timestamp>
+    // First-generation SmartLink expected exactly five fields; ':' is not valid in user_id.
     String[] fields = message.split(":", -1);
-    if (fields.length < MIN_MESSAGE_FIELD_COUNT) {
+    if (fields.length != MIN_MESSAGE_FIELD_COUNT) {
+      if (fields.length > MIN_MESSAGE_FIELD_COUNT) {
+        throw new SmartLinkValidationException(
+            SmartLinkError.INVALID_USER_ID, "user id must not contain ':'");
+      }
       throw new SmartLinkValidationException(
           SmartLinkError.MALFORMED_MESSAGE, "unexpected field count: " + fields.length);
     }
-    int tailIndex = fields.length;
-    String timestampField = fields[tailIndex - 1];
-    String permissionAction = fields[tailIndex - 2];
-    String electionEventId = fields[tailIndex - 3];
-    String permissionObject = fields[tailIndex - 4];
-    String userId = String.join(":", Arrays.copyOfRange(fields, 0, tailIndex - 4));
+    String userId = fields[0];
+    String permissionObject = fields[1];
+    String electionId = fields[2];
+    String permissionAction = fields[3];
+    String timestampField = fields[4];
 
     if (userId.isEmpty()) {
       throw new SmartLinkValidationException(SmartLinkError.INVALID_USER_ID, "empty user id");
@@ -163,10 +169,10 @@ public final class HmacSmartLink {
       throw new SmartLinkValidationException(
           SmartLinkError.INVALID_PERMISSION, "permission is not AuthEvent/vote");
     }
-    if (expectedElectionEventId == null || !expectedElectionEventId.equals(electionEventId)) {
+    if (expectedElectionId == null || !expectedElectionId.equals(electionId)) {
       throw new SmartLinkValidationException(
           SmartLinkError.MISMATCHED_EVENT,
-          "token event " + electionEventId + " != realm event " + expectedElectionEventId);
+          "token election " + electionId + " != expected election " + expectedElectionId);
     }
 
     long timestampSeconds;
@@ -184,21 +190,24 @@ public final class HmacSmartLink {
           SmartLinkError.INVALID_SIGNATURE, "HMAC mismatch (wrong secret or tampered message)");
     }
 
+    if (timeoutSeconds <= 0L || clockSkewSeconds <= 0L) {
+      throw new SmartLinkValidationException(
+          SmartLinkError.NOT_CONFIGURED, "timeout and clock skew must be positive");
+    }
+
     // --- temporal validation: must have been created in the past AND still be valid ---
-    long skew = Math.max(0L, clockSkewSeconds);
-    long timeout = Math.max(0L, timeoutSeconds);
     // Reject future-dated tokens: a valid token can only be minted "now or earlier"
     // (within a small clock-skew tolerance). This blocks pre-minted, long-lived tokens.
-    if (timestampSeconds > nowEpochSeconds + skew) {
+    if (timestampSeconds > nowEpochSeconds + clockSkewSeconds) {
       throw new SmartLinkValidationException(
           SmartLinkError.TOKEN_IN_FUTURE, "token timestamp is in the future");
     }
     // Reject expired tokens: valid iff timestamp + timeout > now (same rule as the first gen).
-    if (timestampSeconds <= nowEpochSeconds - timeout) {
+    if (timestampSeconds <= nowEpochSeconds - timeoutSeconds) {
       throw new SmartLinkValidationException(SmartLinkError.TOKEN_EXPIRED, "token has expired");
     }
 
-    return new ValidatedSmartLink(userId, electionEventId, timestampSeconds);
+    return new ValidatedSmartLink(userId, electionId, timestampSeconds);
   }
 
   /** Constant-time comparison of two ASCII/hex strings. */
@@ -208,30 +217,38 @@ public final class HmacSmartLink {
   }
 
   /**
-   * Extracts the election-event id from an event realm name.
+   * Returns the Smart Link election id for a realm.
    *
-   * <p>Mirrors {@code parse_realm} in sequent-core: event realms are named {@code
-   * tenant-<tenant_id>-event-<election_event_id>}. Returns {@code null} for tenant realms, the
-   * master realm, or any name that does not match.
+   * <p>If {@code smart-link-election-id} is configured, that text value is used. Otherwise the
+   * realm name itself is the default election id. This keeps the URL and token independent from the
+   * internal realm event id while still letting deployments expose first-generation-style numeric
+   * ids when needed.
    */
-  public static String electionEventIdFromRealm(String realmName) {
-    if (realmName == null) {
-      return null;
+  public static String smartLinkElectionId(String realmName, String configuredElectionId) {
+    String electionId = realmName;
+    if (configuredElectionId != null && !configuredElectionId.isBlank()) {
+      electionId = configuredElectionId.trim();
     }
-    String[] parts = realmName.split("-");
-    if (parts.length < 2 || !"tenant".equals(parts[0])) {
-      return null;
+    return isValidElectionId(electionId) ? electionId : null;
+  }
+
+  /** Returns true when {@code electionId} is safe for both the URL path and token message. */
+  public static boolean isValidElectionId(String electionId) {
+    if (electionId == null
+        || electionId.isBlank()
+        || electionId.length() > ELECTION_ID_MAX_LENGTH) {
+      return false;
     }
-    int eventIndex = -1;
-    for (int i = 0; i < parts.length; i++) {
-      if ("event".equals(parts[i])) {
-        eventIndex = i;
-        break;
+    for (int i = 0; i < electionId.length(); i++) {
+      char c = electionId.charAt(i);
+      if (!isAsciiAlphaNumeric(c) && c != '.' && c != '_' && c != '-') {
+        return false;
       }
     }
-    if (eventIndex > 1 && eventIndex < parts.length - 1) {
-      return String.join("-", Arrays.copyOfRange(parts, eventIndex + 1, parts.length));
-    }
-    return null;
+    return true;
+  }
+
+  private static boolean isAsciiAlphaNumeric(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
   }
 }

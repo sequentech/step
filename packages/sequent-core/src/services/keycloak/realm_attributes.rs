@@ -5,11 +5,11 @@ use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
     REALM_ATTR_SMARTLINK_CLIENT_ID, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
-    REALM_ATTR_SMARTLINK_ENABLED, REALM_ATTR_SMARTLINK_FORCE_CREATE,
+    REALM_ATTR_SMARTLINK_ELECTION_ID, REALM_ATTR_SMARTLINK_ENABLED,
     REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
-    REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN,
-    SMARTLINK_SHARED_SECRET_MAX_LEN,
+    REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_ELECTION_ID_MAX_LEN,
+    SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN, SMARTLINK_SHARED_SECRET_MAX_LEN,
 };
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -77,13 +77,13 @@ impl KeycloakAdminClient {
             } else if key == REALM_ATTR_SMARTLINK_TIMEOUT_SECS
                 || key == REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS
             {
-                match value.parse::<u64>() {
-                    Ok(_) => {
-                        current_attributes.insert(key, value);
+                match normalize_positive_integer(&value) {
+                    Some(normalized) => {
+                        current_attributes.insert(key, normalized);
                     }
-                    Err(_) => {
+                    None => {
                         warn!(
-                            "Ignoring non-integer value {:?} for realm \
+                            "Ignoring non-positive or non-integer value {:?} for realm \
                              attribute {:?}",
                             value, key
                         );
@@ -94,6 +94,18 @@ impl KeycloakAdminClient {
                     warn!("Ignoring empty Smart Link client id");
                 } else {
                     current_attributes.insert(key, value);
+                }
+            } else if key == REALM_ATTR_SMARTLINK_ELECTION_ID {
+                match normalize_election_id(&value) {
+                    Some(normalized) => {
+                        current_attributes.insert(key, normalized);
+                    }
+                    None => {
+                        warn!(
+                            "Ignoring invalid Smart Link election id {:?}",
+                            value
+                        );
+                    }
                 }
             } else if key == REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES {
                 match normalize_required_attributes(&value) {
@@ -107,9 +119,7 @@ impl KeycloakAdminClient {
                         );
                     }
                 }
-            } else if key == REALM_ATTR_SMARTLINK_ENABLED
-                || key == REALM_ATTR_SMARTLINK_FORCE_CREATE
-            {
+            } else if key == REALM_ATTR_SMARTLINK_ENABLED {
                 match value.parse::<bool>() {
                     Ok(_) => {
                         current_attributes.insert(key, value);
@@ -127,7 +137,10 @@ impl KeycloakAdminClient {
             }
         }
 
-        info!("Updating realm {realm} with attributes: {current_attributes:?}");
+        info!(
+            "Updating realm {realm} with attributes: {:?}",
+            redacted_attributes(&current_attributes)
+        );
         current_realm.attributes = Some(current_attributes);
 
         self.client
@@ -157,15 +170,55 @@ fn normalize_required_attributes(value: &str) -> Option<String> {
     Some(attributes.join(","))
 }
 
+fn normalize_election_id(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.len() > SMARTLINK_ELECTION_ID_MAX_LEN {
+        return None;
+    }
+    if value.is_empty() {
+        return Some(String::new());
+    }
+    if !value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    {
+        return None;
+    }
+    Some(value.to_string())
+}
+
+fn normalize_positive_integer(value: &str) -> Option<String> {
+    let parsed = value.trim().parse::<u64>().ok()?;
+    (parsed > 0).then(|| parsed.to_string())
+}
+
 fn is_valid_required_attribute_name(attribute: &str) -> bool {
     attribute
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
 }
 
+fn redacted_attributes(
+    attributes: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    let mut redacted = attributes.clone();
+    if redacted.contains_key(REALM_ATTR_SMARTLINK_SHARED_SECRET) {
+        redacted.insert(
+            REALM_ATTR_SMARTLINK_SHARED_SECRET.to_string(),
+            "<redacted>".to_string(),
+        );
+    }
+    redacted
+}
+
 #[cfg(test)]
 mod tests {
-    use super::normalize_required_attributes;
+    use super::{
+        normalize_election_id, normalize_positive_integer,
+        normalize_required_attributes, redacted_attributes,
+    };
+    use crate::types::keycloak::REALM_ATTR_SMARTLINK_SHARED_SECRET;
+    use std::collections::HashMap;
 
     #[test]
     fn normalize_required_attributes_trims_and_deduplicates() {
@@ -187,5 +240,57 @@ mod tests {
     #[test]
     fn normalize_required_attributes_rejects_invalid_names() {
         assert_eq!(normalize_required_attributes("email,bad/value"), None);
+    }
+
+    #[test]
+    fn normalize_positive_integer_rejects_zero_and_invalid_values() {
+        assert_eq!(normalize_positive_integer("90"), Some("90".to_string()));
+        assert_eq!(normalize_positive_integer(" 90 "), Some("90".to_string()));
+        assert_eq!(normalize_positive_integer("0"), None);
+        assert_eq!(normalize_positive_integer("-1"), None);
+        assert_eq!(normalize_positive_integer("soon"), None);
+    }
+
+    #[test]
+    fn normalize_election_id_trims_text_value() {
+        assert_eq!(
+            normalize_election_id(" 150017 "),
+            Some("150017".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_election_id_allows_realm_name_default_shape() {
+        assert_eq!(
+            normalize_election_id("tenant-acme-event-150017"),
+            Some("tenant-acme-event-150017".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_election_id_allows_clearing_to_default_realm_name() {
+        assert_eq!(normalize_election_id(" "), Some(String::new()));
+    }
+
+    #[test]
+    fn normalize_election_id_rejects_path_or_token_separators() {
+        assert_eq!(normalize_election_id("tenant/acme"), None);
+        assert_eq!(normalize_election_id("tenant:acme"), None);
+    }
+
+    #[test]
+    fn redacted_attributes_hides_smart_link_secret() {
+        let mut attributes = HashMap::new();
+        attributes.insert(
+            REALM_ATTR_SMARTLINK_SHARED_SECRET.to_string(),
+            "the cake is in the oven".to_string(),
+        );
+
+        assert_eq!(
+            redacted_attributes(&attributes)
+                .get(REALM_ATTR_SMARTLINK_SHARED_SECRET)
+                .map(String::as_str),
+            Some("<redacted>")
+        );
     }
 }
