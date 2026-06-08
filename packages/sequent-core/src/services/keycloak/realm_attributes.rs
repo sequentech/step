@@ -3,7 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
-use crate::types::keycloak::REALM_ATTR_VOTER_CERTIFICATE_POLICY;
+use crate::types::keycloak::{
+    REALM_ATTR_SMARTLINK_CLIENT_ID, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
+    REALM_ATTR_SMARTLINK_FORCE_CREATE, REALM_ATTR_SMARTLINK_SHARED_SECRET,
+    REALM_ATTR_SMARTLINK_TIMEOUT_SECS, REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    SMARTLINK_SHARED_SECRET_MAX_LEN,
+};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -50,6 +55,53 @@ impl KeycloakAdminClient {
                     Err(_) => {
                         warn!(
                             "Ignoring invalid value {:?} for realm attribute {:?}",
+                            value, key
+                        );
+                    }
+                }
+            } else if key == REALM_ATTR_SMARTLINK_SHARED_SECRET {
+                // Freeform secret, but bounded and non-empty so it cannot
+                // accidentally disable the feature with a blank value.
+                if value.is_empty()
+                    || value.len() > SMARTLINK_SHARED_SECRET_MAX_LEN
+                {
+                    warn!(
+                        "Ignoring invalid Smart Link shared secret (empty or \
+                         longer than {SMARTLINK_SHARED_SECRET_MAX_LEN} chars)"
+                    );
+                } else {
+                    current_attributes.insert(key, value);
+                }
+            } else if key == REALM_ATTR_SMARTLINK_TIMEOUT_SECS
+                || key == REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS
+            {
+                match value.parse::<u64>() {
+                    Ok(_) => {
+                        current_attributes.insert(key, value);
+                    }
+                    Err(_) => {
+                        warn!(
+                            "Ignoring non-integer value {:?} for realm \
+                             attribute {:?}",
+                            value, key
+                        );
+                    }
+                }
+            } else if key == REALM_ATTR_SMARTLINK_CLIENT_ID {
+                if value.is_empty() {
+                    warn!("Ignoring empty Smart Link client id");
+                } else {
+                    current_attributes.insert(key, value);
+                }
+            } else if key == REALM_ATTR_SMARTLINK_FORCE_CREATE {
+                match value.parse::<bool>() {
+                    Ok(_) => {
+                        current_attributes.insert(key, value);
+                    }
+                    Err(_) => {
+                        warn!(
+                            "Ignoring non-boolean value {:?} for realm \
+                             attribute {:?}",
                             value, key
                         );
                     }

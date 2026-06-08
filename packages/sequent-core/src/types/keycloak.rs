@@ -42,6 +42,29 @@ pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
 pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
 
+/// Smart Link (external HMAC SSO) realm attributes.
+///
+/// These configure the Keycloak `smart-link` realm resource that validates
+/// externally generated HMAC auth-tokens. The attribute names MUST stay in sync
+/// with the constants in the Keycloak extension `HmacSmartLink.java`.
+///
+/// The shared secret is the symmetric key the external application uses to sign
+/// auth-tokens; it must match the value configured on the external side.
+pub const REALM_ATTR_SMARTLINK_SHARED_SECRET: &str = "smart-link-shared-secret";
+/// Seconds an auth-token stays valid after its embedded timestamp (default 90).
+pub const REALM_ATTR_SMARTLINK_TIMEOUT_SECS: &str = "smart-link-timeout-secs";
+/// Tolerance, in seconds, for the token being slightly ahead of Keycloak's
+/// clock (default 5). Future-dated tokens beyond this are rejected.
+pub const REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS: &str =
+    "smart-link-clock-skew-secs";
+/// OIDC client the voter is logged into (default `voting-portal`).
+pub const REALM_ATTR_SMARTLINK_CLIENT_ID: &str = "smart-link-client-id";
+/// Whether to auto-create users not present in the census (default `false`).
+pub const REALM_ATTR_SMARTLINK_FORCE_CREATE: &str = "smart-link-force-create";
+
+/// Maximum accepted length of the Smart Link shared secret.
+pub const SMARTLINK_SHARED_SECRET_MAX_LEN: usize = 1000;
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {
     pub id: Option<String>,
