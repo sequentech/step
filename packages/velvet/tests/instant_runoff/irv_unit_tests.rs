@@ -15,6 +15,8 @@ fn create_runoff_status_simple() -> RunoffStatus {
         rounds: Vec::new(),
         max_rounds: 1,
         name_references: Vec::new(),
+        tie_resolutions: vec![],
+        ..Default::default()
     }
 }
 
@@ -44,6 +46,8 @@ fn create_runoff_status(active_candidate_ids: Vec<&str>) -> RunoffStatus {
         rounds: Vec::new(),
         max_rounds,
         name_references,
+        tie_resolutions: vec![],
+        ..Default::default()
     }
 }
 
@@ -430,13 +434,17 @@ fn test_preferential_order_error_duplicated_position() {
     let vote: DecodedVoteContest = DecodedVoteContest {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![], // In practice here should be an error because of the duplication
         invalid_alerts: vec![],
         choices,
     };
 
     let result = vote.validate_preferencial_order();
-    assert_eq!(result, Err(PreferencialOrderErrorType::DuplicatedPosition));
+    assert_eq!(
+        result,
+        Err(vec![PreferencialOrderErrorType::DuplicatedPosition])
+    );
 }
 
 #[test]
@@ -450,6 +458,7 @@ fn test_preferential_order_error_preference_order_with_gaps() {
     let vote: DecodedVoteContest = DecodedVoteContest {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![],
         invalid_alerts: vec![], // In practice here should be an alert because of the gaps
         choices,
@@ -458,7 +467,7 @@ fn test_preferential_order_error_preference_order_with_gaps() {
     let result = vote.validate_preferencial_order();
     assert_eq!(
         result,
-        Err(PreferencialOrderErrorType::PreferenceOrderWithGaps)
+        Err(vec![PreferencialOrderErrorType::PreferenceOrderWithGaps])
     );
 }
 
@@ -473,6 +482,7 @@ fn test_preferential_order_ok() {
     let vote: DecodedVoteContest = DecodedVoteContest {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![],
         invalid_alerts: vec![],
         choices,

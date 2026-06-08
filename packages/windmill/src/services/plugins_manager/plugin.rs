@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::plugins_manager::plugin_db_manager::{
-    PluginDbManager, PluginTransactionsManager,
+    PluginDbManager, PluginTransactionsManager, TxnHost,
 };
 use anyhow::{anyhow, Context, Result};
 use core::{option::Option::None, result::Result::Err};
@@ -21,9 +21,10 @@ use serde_json::Value;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
+use wasmtime::component::{Component, Func, HasData, Instance, Linker, ResourceTable, Val};
 use wasmtime::{Engine, Store};
-use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::p2::add_to_linker_async;
+use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 /// Represents a value that can be passed to or returned from a plugin hook.
 #[derive(Debug, Clone)]
@@ -138,14 +139,11 @@ pub struct PluginStore {
 }
 
 impl WasiView for PluginStore {
-    fn ctx(&mut self) -> &mut WasiCtx {
-        &mut self.wasi
-    }
-}
-
-impl IoView for PluginStore {
-    fn table(&mut self) -> &mut ResourceTable {
-        &mut self.resource_table
+    fn ctx(&mut self) -> WasiCtxView<'_> {
+        WasiCtxView {
+            ctx: &mut self.wasi,
+            table: &mut self.resource_table,
+        }
     }
 }
 
@@ -165,11 +163,11 @@ impl Plugin {
         wasm_bytes: Vec<u8>,
         wasm_file_name: String,
     ) -> Result<Option<Self>> {
-        let mut linker = Linker::<PluginStore>::new(&engine);
-        let component = Component::new(&engine, wasm_bytes)?;
+        let mut linker = Linker::<PluginStore>::new(engine);
+        let component = Component::new(engine, wasm_bytes)?;
 
-        let wasi: WasiCtx = WasiCtxBuilder::new().inherit_stdio().build();
-        add_to_linker_sync(&mut linker)?;
+        let wasi: WasiCtx = WasiCtx::builder().inherit_stdio().build();
+        add_to_linker_async(&mut linker)?;
 
         let hasura_manager = Arc::new(Mutex::new(PluginDbManager::init()));
         let keycloak_manager = Arc::new(Mutex::new(PluginDbManager::init()));
@@ -186,10 +184,11 @@ impl Plugin {
 
         let mut store = Store::new(engine, plugin_store);
 
-        add_transaction_linker(&mut linker, |s: &mut PluginStore| {
+        add_transaction_linker::<_, TxnHost>(&mut linker, |s: &mut PluginStore| {
             &mut s.transactions_manager
         })?;
-        add_auth_to_linker(&mut linker, |store: &mut PluginStore| {
+
+        add_auth_to_linker::<_, AuthHost>(&mut linker, |store: &mut PluginStore| {
             &mut store.plugin_auth
         })?;
 
@@ -272,6 +271,12 @@ impl PluginAuth {
     pub fn new() -> Self {
         PluginAuth
     }
+}
+
+struct AuthHost;
+
+impl HasData for AuthHost {
+    type Data<'a> = &'a mut PluginAuth;
 }
 
 impl HostAuth for PluginAuth {

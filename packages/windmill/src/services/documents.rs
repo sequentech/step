@@ -75,6 +75,53 @@ pub async fn upload_and_return_document(
     Ok(document)
 }
 
+/// Uploads a document to S3 public bucket and returns the created Document record.
+/// The document is associated with the given election event ID and tenant ID.
+/// The Document path does not include the document ID and will be used
+/// for when the UI does not have access to the document ID.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn upload_and_return_public_event_document(
+    hasura_transaction: &Transaction<'_>,
+    file_path: &str,
+    file_size: u64,
+    media_type: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    name: &str,
+    document_id: Option<String>,
+) -> AnyhowResult<Document> {
+    let document = insert_document(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id.to_string()),
+        name,
+        media_type,
+        file_size.try_into()?,
+        true,
+        document_id,
+    )
+    .await?;
+
+    info!("Document inserted {document:?}");
+    let document_s3_key =
+        s3::get_public_election_event_document_name_key(tenant_id, election_event_id, name);
+    let bucket = s3::get_public_bucket()?;
+
+    s3::upload_file_to_s3(
+        /* key */ document_s3_key,
+        /* is_public: always false because it's windmill that uploads the file */ false,
+        /* s3_bucket */ bucket,
+        /* media_type */ media_type.to_string(),
+        /* file_path */ file_path.to_string(),
+        /* cache_control_policy */ None,
+        Some(name.to_string()),
+    )
+    .await
+    .with_context(|| "Failed uploading file to s3")?;
+
+    Ok(document)
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_upload_url(
     hasura_transaction: &Transaction<'_>,
@@ -164,7 +211,11 @@ pub async fn get_document_as_temp_file(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<NamedTempFile> {
-    let s3_bucket = s3::get_private_bucket()?;
+    let s3_bucket = match document.is_public {
+        Some(true) => s3::get_public_bucket()?,
+        _ => s3::get_private_bucket()?,
+    };
+
     let document_name = document.name.clone().unwrap_or_default();
     let election_event_id = document.election_event_id.clone();
 

@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
-import React, {PropsWithChildren} from "react"
+import {Box, Button, Collapse, Typography} from "@mui/material"
+import React, {PropsWithChildren, useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
+import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const ListContainer = styled(Box)<{isactive: string}>`
     backgroundcolor: ${({theme}) => theme.palette.lightBackground};
@@ -14,6 +16,9 @@ const ListContainer = styled(Box)<{isactive: string}>`
     border-radius: 5px;
     flex-grow: 2;
     width: 50%;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        width: initial;
+    }
     ${({isactive}) =>
         "true" === isactive
             ? `
@@ -26,7 +31,9 @@ const ListContainer = styled(Box)<{isactive: string}>`
 
 const ListHeader = styled(Box)`
     display: flex;
-    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
 `
 
 const ListChildrenContainer = styled("ul")`
@@ -42,12 +49,47 @@ const ListChildrenContainer = styled("ul")`
 `
 
 const ListTitle = styled(Typography)`
+    flex: 1 1 160px;
     margin-top: 10px;
     margin-bottom: 26px;
-    flex-shrink: 0;
-    flex-grow: 2;
-    text-align: center;
+    min-width: 0;
+    text-align: left;
     font-size: 24px;
+`
+
+const CollapseToggleButton = styled(Button)(({theme}) => ({
+    "marginRight": "-30px",
+    "&&": {
+        border: "none",
+        boxShadow: "none",
+    },
+    "&&:hover": {
+        border: "none",
+    },
+    "&&:active": {
+        border: "none",
+    },
+    "&&:focus": {
+        border: "none",
+        outline: `2px solid ${theme.palette.brandSuccess}`,
+        outlineOffset: "2px",
+    },
+}))
+
+const CollapseToggleText = styled("span")(({theme}) => ({
+    [theme.breakpoints.down("sm")]: {
+        display: "none",
+    },
+}))
+
+const SelectedCandidatesLabel = styled("span")`
+    color: ${theme.palette.customGrey.contrastText};
+    font-size: 14px;
+    line-height: 1.2;
+    text-align: right;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        width: min-content;
+    }
 `
 
 export interface CandidatesListProps extends PropsWithChildren {
@@ -56,6 +98,15 @@ export interface CandidatesListProps extends PropsWithChildren {
     isCheckable?: boolean
     checked?: boolean
     setChecked?: (value: boolean) => void
+    shouldDisable?: boolean
+    isCollapsible?: boolean
+    defaultExpanded?: boolean
+    collapseToggleAriaLabel?: string
+    showCandidatesLabel?: string
+    hideCandidatesLabel?: string
+    selectedCandidatesLabel?: string
+    externalExpanded?: boolean
+    onExpandedChange?: (expanded: boolean) => void
 }
 
 const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -65,38 +116,112 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     isCheckable,
     checked,
     setChecked,
+    shouldDisable,
+    isCollapsible,
+    defaultExpanded,
+    collapseToggleAriaLabel,
+    showCandidatesLabel,
+    hideCandidatesLabel,
+    selectedCandidatesLabel,
+    externalExpanded,
+    onExpandedChange,
 }) => {
+    const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? true)
+
+    useEffect(() => {
+        if (externalExpanded !== undefined) {
+            setIsExpanded(externalExpanded)
+        }
+    }, [externalExpanded])
+
     const onClick = () => {
-        if (isActive && isCheckable && setChecked) {
+        if (isActive && isCheckable && !shouldDisable && setChecked) {
             setChecked(!checked)
         }
     }
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
-        isActive && isCheckable && setChecked && setChecked(event.target.checked)
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        event.stopPropagation()
+        if (isActive && isCheckable && !shouldDisable && setChecked) {
+            setChecked(event.target.checked)
+        }
+    }
+
+    const handleToggleCollapse = (event: React.MouseEvent) => {
+        event.stopPropagation()
+        const newExpanded = !isExpanded
+        setIsExpanded(newExpanded)
+        onExpandedChange?.(newExpanded)
+    }
+
+    const collapseLabel = isExpanded ? hideCandidatesLabel : showCandidatesLabel
 
     return (
         <ListContainer
-            isactive={String(!!(isActive && isCheckable))}
+            isactive={String(!!(isActive && isCheckable && !shouldDisable))}
             onClick={onClick}
             className="candidates-list"
+            aria-disabled={shouldDisable}
         >
             <ListHeader className="candidates-list-header">
                 <Box>
-                    <ListTitle
-                        color={theme.palette.customGrey.contrastText}
-                        fontSize="24px"
-                        className="candidates-list-title"
-                    >
-                        {title}
-                    </ListTitle>
+                    {isCollapsible ? (
+                        <CollapseToggleButton
+                            variant="secondary"
+                            size="small"
+                            startIcon={
+                                <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
+                            }
+                            onClick={handleToggleCollapse}
+                            aria-label={collapseToggleAriaLabel ?? collapseLabel}
+                            aria-expanded={isExpanded}
+                        >
+                            <CollapseToggleText>{collapseLabel}</CollapseToggleText>
+                        </CollapseToggleButton>
+                    ) : null}
                 </Box>
-                {isActive && isCheckable ? (
-                    <Checkbox checked={checked} onChange={handleChange} />
-                ) : null}
+                <ListTitle
+                    color={theme.palette.customGrey.contrastText}
+                    fontSize="24px"
+                    className="candidates-list-title"
+                >
+                    {title}
+                </ListTitle>
+                <Box
+                    sx={(muiTheme) => ({
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        flexShrink: 0,
+                        gap: 1,
+                        [muiTheme.breakpoints.down("sm")]: {
+                            width: "min-content",
+                        },
+                    })}
+                >
+                    {isCollapsible && !isExpanded && selectedCandidatesLabel ? (
+                        <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
+                    ) : null}
+                    {isActive && isCheckable ? (
+                        <Checkbox
+                            checked={checked}
+                            onChange={handleChange}
+                            disabled={shouldDisable}
+                        />
+                    ) : null}
+                </Box>
             </ListHeader>
-            <ListChildrenContainer className="candidates-list-children">
-                {children}
-            </ListChildrenContainer>
+            {isCollapsible ? (
+                <Collapse in={isExpanded}>
+                    <ListChildrenContainer className="candidates-list-children">
+                        {children}
+                    </ListChildrenContainer>
+                </Collapse>
+            ) : (
+                <ListChildrenContainer className="candidates-list-children">
+                    {children}
+                </ListChildrenContainer>
+            )}
         </ListContainer>
     )
 }

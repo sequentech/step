@@ -21,11 +21,9 @@ import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
-import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
-import {useLocation, useNavigate} from "react-router"
 import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -55,7 +53,6 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     exportFormat,
 }) => {
     const {t} = useTranslation()
-    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>(undefined)
     const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
         context: {
             headers: {
@@ -77,13 +74,10 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
                 updateWidgetFail(currWidget.identifier)
                 return
             }
-            let documentId = exportElectionEventData?.export_election_event_logs?.document_id
-            setExportDocumentId(documentId)
             const task_id = exportElectionEventData?.export_election_event_logs?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
         } catch (error) {
             updateWidgetFail(currWidget.identifier)
-            setExportDocumentId(undefined)
         }
     }
     const confirmExportAction = () => {
@@ -92,41 +86,27 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     }
 
     return (
-        <>
-            <Dialog
-                variant="info"
-                open={openExport}
-                ok={String(t("common.label.export"))}
-                cancel={String(t("common.label.cancel"))}
-                title={String(
-                    t("common.label.exportFormat", {
-                        item: t("logsScreen.title"),
-                        format: exportFormat,
-                    })
-                )}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmExportAction()
-                    } else {
-                        setOpenExport(false)
-                    }
-                }}
-            >
-                <span>{t("logsScreen.exportdialog.description")}</span>
-            </Dialog>
-            {exportDocumentId && (
-                <>
-                    <DownloadDocument
-                        documentId={exportDocumentId ?? ""}
-                        electionEventId={electionEventId}
-                        fileName={null}
-                        onDownload={() => {
-                            setExportDocumentId(undefined)
-                        }}
-                    />
-                </>
+        <Dialog
+            variant="info"
+            open={openExport}
+            ok={String(t("common.label.export"))}
+            cancel={String(t("common.label.cancel"))}
+            title={String(
+                t("common.label.exportFormat", {
+                    item: t("logsScreen.title"),
+                    format: exportFormat,
+                })
             )}
-        </>
+            handleClose={(result: boolean) => {
+                if (result) {
+                    confirmExportAction()
+                } else {
+                    setOpenExport(false)
+                }
+            }}
+        >
+            <span>{t("logsScreen.exportdialog.description")}</span>
+        </Dialog>
     )
 }
 
@@ -204,11 +184,15 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             key={"created"}
             source={"created"}
             label={String(t("logsScreen.column.created"))}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
             label={String(t("logsScreen.column.statement_timestamp"))}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <TextInput
             key={"statement_kind"}
@@ -271,13 +255,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <FunctionField
                         source="created"
                         label={String(t("logsScreen.column.created"))}
-                        render={(record: any) => new Date(record.created * 1000).toUTCString()}
+                        render={(record: any) => new Date(record.created * 1000).toLocaleString()}
                     />
                     <FunctionField
                         source="statement_timestamp"
                         label={String(t("logsScreen.column.statement_timestamp"))}
                         render={(record: any) =>
-                            new Date(record.statement_timestamp * 1000).toUTCString()
+                            new Date(record.statement_timestamp * 1000).toLocaleString()
                         }
                     />
                     <TextField source="statement_kind" />

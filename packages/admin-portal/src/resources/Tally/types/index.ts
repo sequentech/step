@@ -11,6 +11,7 @@ export interface Sequent_Backend_Candidate_Extended extends Sequent_Backend_Cand
     winning_position?: number | null
     cast_votes?: number | null
     cast_votes_percent: number | null
+    name: string
 }
 
 export interface ExtendedMetricsContest {

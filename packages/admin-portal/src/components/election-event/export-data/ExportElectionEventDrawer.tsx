@@ -8,8 +8,6 @@ import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "@/types/keycloak"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../../../resources/User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -27,8 +25,6 @@ interface ExportWrapperProps {
     electionEventId: string
     openExport: boolean
     setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
     setLoadingExport: (val: boolean) => void
 }
 
@@ -36,8 +32,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     electionEventId,
     openExport,
     setOpenExport,
-    exportDocumentId,
-    setExportDocumentId,
     setLoadingExport,
 }) => {
     const {t} = useTranslation()
@@ -54,6 +48,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [reports, setReports] = useState(false)
     const [applications, setApplications] = useState(false)
     const [tally, setTally] = useState(false)
+    const [certificates, setCertificates] = useState(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -76,6 +71,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setReports(false)
         setApplications(false)
         setTally(false)
+        setCertificates(false)
     }
 
     const confirmExportAction = async () => {
@@ -100,6 +96,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         reports: reports,
                         applications: applications,
                         tally: tally,
+                        include_certificates: certificates,
                     },
                 },
             })
@@ -120,17 +117,14 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
             const task_id = exportElectionEventData?.export_election_event?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
-            setExportDocumentId(documentId)
+            setLoadingExport(false)
+
+            if (generatedPassword) {
+                setOpenPasswordDialog(true)
+            }
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setLoadingExport(false)
-        }
-    }
-
-    const onDownloadSuccess = () => {
-        setLoadingExport(false)
-        if (password) {
-            setOpenPasswordDialog(true)
         }
     }
 
@@ -271,24 +265,17 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         }
                         label={"Tally"}
                     />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
+                                checked={certificates}
+                                onChange={() => setCertificates(!certificates)}
+                            />
+                        }
+                        label={String(t("electionEventScreen.export.certificates"))}
+                    />
                 </FormGroup>
             </Dialog>
-            {exportDocumentId && (
-                <>
-                    <FormStyles.ShowProgress />
-                    <DownloadDocument
-                        documentId={exportDocumentId}
-                        electionEventId={electionEventId ?? ""}
-                        fileName={null}
-                        onDownload={() => {
-                            console.log("onDownload called")
-                            setExportDocumentId(undefined)
-                            setOpenExport(false)
-                        }}
-                        onSuccess={onDownloadSuccess}
-                    />
-                </>
-            )}
             {openPasswordDialog && password && (
                 <PasswordDialog password={password} onClose={resetState}>
                     <DecryptHelp decryptionCommand={decryptionCommand} />

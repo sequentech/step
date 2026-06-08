@@ -43,6 +43,9 @@
                       <div class="election-name">
 
                         {{sanitize_html (expr reports.0.election_name)}}
+                        {{#if reports.0.election_alias}}
+                        <span>("{{ reports.0.election_alias }}")<span>
+                        {{/if}}
                       </div>
                       <div class="online">
                         ONLINE VOTING AND COUNTING SYSTEM
