@@ -74,6 +74,7 @@ const galegoTranslation: TranslationType = {
             markedInvalid: "Papeleta marcada explícitamente como inválida",
             points: "({{points}} Puntos)",
             contestNotFound: "Concurso non atopado: {{contestId}}",
+            declineToVote: "Decidiu non votar",
         },
         footer: {
             poweredBy: "Impulsado por <1></1>",

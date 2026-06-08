@@ -28,7 +28,7 @@ import {selectElectionEventById} from "../store/electionEvents/electionEventsSli
 import {
     resetBallotSelection,
     selectBallotSelectionByElectionId,
-    setAllBallotSelectionsInvalidVote,
+    setAllBallotSelectionsDeclineToVote,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
@@ -224,7 +224,7 @@ const StartScreen: React.FC = () => {
         }
 
         setOpenDeclineDialog(false)
-        dispatch(setAllBallotSelectionsInvalidVote({ballotStyle}))
+        dispatch(setAllBallotSelectionsDeclineToVote({ballotStyle}))
         dispatch(setDeclinedToVote(ballotStyle.election_id))
         dispatch(setIsVoted(ballotStyle.election_id))
 
