@@ -7,7 +7,8 @@ use std::num::TryFromIntError;
 use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{
-    AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
+    AreaPresentation, BallotStyle, Candidate, Contest, DeclineToVotePolicy,
+    EUnderVotePolicy,
 };
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
@@ -43,7 +44,6 @@ use num_traits::{ToPrimitive, Zero};
 ///
 /// This ballot only supports plurality counting
 /// algorithms. It does not support write-ins.
-/// It does not support per-contest invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
     pub is_explicit_invalid: bool,
@@ -67,18 +67,22 @@ impl BallotChoices {
 /// The choices for a contest.
 ///
 /// Does not support write-ins.
-/// Does not support invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
     pub contest_id: String,
     pub choices: Vec<ContestChoice>,
+    pub is_explicit_invalid: bool,
 }
 impl ContestChoices {
-    pub fn new(contest_id: String, choices: Vec<ContestChoice>) -> Self {
+    pub fn new(
+        contest_id: String,
+        choices: Vec<ContestChoice>,
+        is_explicit_invalid: bool,
+    ) -> Self {
         ContestChoices {
             contest_id,
-            // is_explicit_invalid,
             choices,
+            is_explicit_invalid,
         }
     }
 
@@ -102,6 +106,7 @@ impl ContestChoices {
         ContestChoices {
             contest_id: dcv.contest_id.clone(),
             choices,
+            is_explicit_invalid: dcv.is_explicit_invalid,
         }
     }
 }
@@ -132,6 +137,7 @@ impl ContestChoice {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedContestChoices {
     pub contest_id: String,
+    pub is_explicit_invalid: bool,
     pub choices: Vec<DecodedContestChoice>,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
@@ -140,12 +146,14 @@ impl DecodedContestChoices {
     pub fn new(
         contest_id: String,
         choices: Vec<DecodedContestChoice>,
+        is_explicit_invalid: bool,
         invalid_errors: Vec<InvalidPlaintextError>,
         invalid_alerts: Vec<InvalidPlaintextError>,
     ) -> Self {
         DecodedContestChoices {
             contest_id,
             choices,
+            is_explicit_invalid,
             invalid_errors,
             invalid_alerts,
         }
@@ -167,6 +175,20 @@ pub struct DecodedBallotChoices {
 }
 
 impl BallotStyle {
+    /// Returns whether decline-to-vote is enabled for this election.
+    ///
+    /// When disabled (the default), multi-contest ballots omit the ballot-level
+    /// decline-to-vote bit from the mixed-radix encoding for backwards
+    /// compatibility with existing elections.
+    pub fn decline_to_vote_enabled(&self) -> bool {
+        self.election_presentation
+            .as_ref()
+            .and_then(|presentation| {
+                presentation.decline_to_vote_policy.clone()
+            })
+            == Some(DeclineToVotePolicy::ENABLED)
+    }
+
     /// Returns Error if all counting algorithms are not the same.
     pub fn get_counting_algorithm(
         &self,
@@ -235,16 +257,27 @@ impl BallotChoices {
     /// groups.
     ///
     /// Returns the encoded ballot, with n sets of contest choices
-    /// each of size contest.max_votes, plus one invalid flag.
+    /// each of size contest.max_votes, plus one invalid flag per contest.
+    /// When decline-to-vote is enabled, a ballot-level invalid flag is also
+    /// included.
     /// The total number of choices is given by the following:
-    /// contests.iter().fold(0, |a, b| a + b.max_votes) + 1
+    /// contests.iter().fold(0, |a, b| a + b.max_votes) + contests.len()
+    /// + (1 if decline-to-vote enabled else 0)
     fn encode_to_raw_ballot(
         &self,
         config: &BallotStyle,
     ) -> Result<RawBallotContest, String> {
         let contests = self.get_contests(config)?;
+        let include_decline_to_vote = config.decline_to_vote_enabled();
 
-        let bases = Self::get_bases(&contests).map_err(|e| e.to_string())?;
+        if self.is_explicit_invalid && !include_decline_to_vote {
+            return Err(
+                "Decline to vote is not enabled for this election".to_string()
+            );
+        }
+
+        let bases = Self::get_bases(&contests, include_decline_to_vote)
+            .map_err(|e| e.to_string())?;
         let mut choices: Vec<u64> = vec![];
 
         // Construct a map of plaintexts, this will allow us to
@@ -263,8 +296,11 @@ impl BallotChoices {
         let mut sorted_contests = contests.clone();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
-        let invalid_vote: u64 = if self.is_explicit_invalid { 1 } else { 0 };
-        choices.push(invalid_vote);
+        if include_decline_to_vote {
+            let invalid_vote: u64 =
+                if self.is_explicit_invalid { 1 } else { 0 };
+            choices.push(invalid_vote);
+        }
 
         // Iterate in contest order
         for contest in sorted_contests {
@@ -272,6 +308,10 @@ impl BallotChoices {
                 "Could not find plaintexts for contest {:?}",
                 contest
             ))?;
+
+            let contest_invalid_vote: u64 =
+                if plaintext.is_explicit_invalid { 1 } else { 0 };
+            choices.push(contest_invalid_vote);
 
             let contest_choices = self.encode_contest(&contest, &plaintext)?;
 
@@ -469,7 +509,12 @@ impl BallotChoices {
         let bytes = vec::decode_array_to_vec(&bytes);
         let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
 
-        Self::decode_from_bigint(&bigint, &style.contests, None)
+        Self::decode_from_bigint(
+            &bigint,
+            &style.contests,
+            style.decline_to_vote_enabled(),
+            None,
+        )
     }
 
     /// Returns a decoded ballot from a BigUint
@@ -478,31 +523,47 @@ impl BallotChoices {
     pub fn decode_from_bigint(
         bigint: &BigUint,
         contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
-        let raw_ballot = Self::bigint_to_raw_ballot(&bigint, contests)?;
+        let raw_ballot = Self::bigint_to_raw_ballot(
+            &bigint,
+            contests,
+            include_decline_to_vote,
+        )?;
 
-        Self::decode(&raw_ballot, contests, serial_number_counter)
+        Self::decode(
+            &raw_ballot,
+            contests,
+            include_decline_to_vote,
+            serial_number_counter,
+        )
     }
 
     /// Decode a mixed radix representation of the ballot.
     pub fn decode(
         raw_ballot: &RawBallotContest,
         contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
         let mut contest_choices: Vec<DecodedContestChoices> = vec![];
         let choices = raw_ballot.choices.clone();
 
-        // Each contest contributes max_votes slots
-        let expected_choices = contests.iter().fold(0, |a, b| a + b.max_votes);
-        let expected_choices: usize =
-            expected_choices.try_into().map_err(|_| {
+        // Each contest contributes max_votes slots plus one invalid flag
+        let expected_vote_slots =
+            contests.iter().fold(0, |a, b| a + b.max_votes);
+        let expected_vote_slots: usize =
+            expected_vote_slots.try_into().map_err(|_| {
                 format!("i64 -> usize conversion on contest max_votes")
             })?;
 
-        // The first slot is used for explicit invalid ballot, so + 1
-        if choices.len() != expected_choices + 1 {
+        // One per-contest invalid flag per contest and max_votes slots per contest.
+        // When decline-to-vote is enabled, a ballot-level invalid flag is also present.
+        let expected_choices = expected_vote_slots
+            + contests.len()
+            + usize::from(include_decline_to_vote);
+        if choices.len() != expected_choices {
             return Err(format!(
                 "Unexpected number of choices {} != {}",
                 choices.len(),
@@ -516,12 +577,20 @@ impl BallotChoices {
         let mut sorted_contests = contests.clone();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
-        // This explicit invalid flag is at the ballot level
-        let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
-        // Skip past the explicit invalid slot
-        let mut choice_index = 1;
+        let is_explicit_invalid = if include_decline_to_vote {
+            !choices.is_empty() && (choices[0] > 0)
+        } else {
+            false
+        };
+        let mut choice_index = usize::from(include_decline_to_vote);
 
         for contest in sorted_contests {
+            let contest_is_explicit_invalid: bool = choices
+                .get(choice_index)
+                .map(|value| *value > 0)
+                .unwrap_or(false);
+            choice_index += 1;
+
             let max_votes: usize =
                 contest.max_votes.try_into().map_err(|_| {
                     format!("i64 -> usize conversion on contest max_votes")
@@ -529,7 +598,7 @@ impl BallotChoices {
             let next = Self::decode_contest(
                 &contest,
                 &choices[choice_index..],
-                is_explicit_invalid,
+                contest_is_explicit_invalid,
             )?;
             choice_index += max_votes;
             contest_choices.push(next);
@@ -569,6 +638,7 @@ impl BallotChoices {
         let mut decoded_contest = DecodedContestChoices::new(
             contest.id.clone(),
             vec![],
+            is_explicit_invalid,
             vec![],
             vec![],
         );
@@ -711,15 +781,22 @@ impl BallotChoices {
     //
     // This encoding only supports plurality, so the
     // order in which selections will be put in the
-    // slots has no meaning. This implementation does not
-    // support contest level invalid flags.
+    // slots has no meaning.
     //
     // Returns the vector of bases for the mixed radix
-    // representation of this ballot (including a explicit invalid base = 2).
-    pub fn get_bases(contests: &Vec<Contest>) -> Result<Vec<u64>, String> {
+    // representation of this ballot (one per-contest explicit invalid base = 2,
+    // and optionally a ballot-level explicit invalid base = 2 when
+    // decline-to-vote is enabled).
+    pub fn get_bases(
+        contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
+    ) -> Result<Vec<u64>, String> {
         // the base for explicit invalid ballot slot is 2:
         // 0: not invalid, 1: explicit invalid
-        let mut bases: Vec<u64> = vec![2];
+        let mut bases: Vec<u64> = vec![];
+        if include_decline_to_vote {
+            bases.push(2);
+        }
 
         // The set of bases for each contest
         // will be placed in order, for example
@@ -752,9 +829,12 @@ impl BallotChoices {
             let num_valid_candidates =
                 num_valid_candidates.map_err(|e| e.to_string())?;
 
+            // Per-contest explicit invalid flag
+            bases.push(2);
+
             let max_selections = contest.max_votes;
             for _ in 1..=max_selections {
-                // + 1: include a per-ballot invalid flag
+                // + 1: include a per-ballot invalid flag for decline to vote
                 bases.push(u64::from(num_valid_candidates + 1));
             }
         }
@@ -792,8 +872,10 @@ impl BallotChoices {
     pub fn bigint_to_raw_ballot(
         bigint: &BigUint,
         contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
     ) -> Result<RawBallotContest, String> {
-        let bases = Self::get_bases(contests).map_err(|e| e.to_string())?;
+        let bases = Self::get_bases(contests, include_decline_to_vote)
+            .map_err(|e| e.to_string())?;
 
         let choices = Self::decode_mixed_radix(&bases, &bigint)?;
 
@@ -846,8 +928,9 @@ impl BallotChoices {
     /// than any valid ballot
     pub fn maximum_size_bytes(
         contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
     ) -> Result<usize, String> {
-        let bases = Self::get_bases(contests)?;
+        let bases = Self::get_bases(contests, include_decline_to_vote)?;
 
         let choices: Vec<u64> = bases.iter().map(|b| b - 1).collect();
 
@@ -926,7 +1009,10 @@ pub fn test_multi_contest_reencoding(
 mod tests {
 
     use super::*;
-    use crate::ballot::{BallotStyle, Candidate, Contest};
+    use crate::ballot::{
+        BallotStyle, Candidate, Contest, DeclineToVotePolicy,
+        ElectionPresentation,
+    };
     use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
     use serde_json::json;
@@ -938,6 +1024,7 @@ mod tests {
         let ballot_selection_json = json!([{
             "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
             "is_explicit_invalid": true,
+            "is_decline_to_vote": false,
             "invalid_errors": [],
             "invalid_alerts": [],
             "choices": [
@@ -1028,12 +1115,629 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_contest_reencoding_with_invalid_vote_multi_contests() {
+        // Create test data matching the scenario with explicit invalid
+        // candidates
+        let ballot_selection_json = json!([{
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": true,
+            "is_decline_to_vote": false,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                },{
+                    "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
+                    "selected": -1
+                }
+            ]
+        },
+        {
+            "contest_id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": false,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5243d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                }
+            ]
+        }]);
+
+        // Create a minimal ballot style for testing
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [
+                {
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    },
+                    {
+                        "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    },{
+                        "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "C"
+                    }
+                ]
+            },{
+                "id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest2",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    },
+                    {
+                        "id": "dfc5243d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            }
+        });
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        // This test should pass now for explicit invalid per-contest candidates
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Multi-contest reencoding with explicit invalid candidate failed: {:?}",
+            result.err()
+        );
+
+        // Verify the output maintains the explicit invalid flag
+        let output_contests = result.unwrap();
+        assert_eq!(output_contests.len(), 2);
+        assert_eq!(output_contests[0].is_explicit_invalid, true);
+        assert_eq!(output_contests[1].is_explicit_invalid, false);
+    }
+
+    #[test]
+    fn test_multi_contest_reencoding_with_decline_to_vote() {
+        // Create test data matching the scenario with decline to vote
+        let ballot_selection_json = json!([{
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                },{
+                    "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
+                    "selected": -1
+                }
+            ]
+        },
+        {
+            "contest_id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5243d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                }
+            ]
+        }]);
+
+        // Create a minimal ballot style for testing
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [
+                {
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    },
+                    {
+                        "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    },{
+                        "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "C"
+                    }
+                ]
+            },{
+                "id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest2",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    },
+                    {
+                        "id": "dfc5243d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            },
+            "election_presentation": {
+                "decline_to_vote_policy": "enabled"
+            }
+        });
+
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Multi-contest reencoding with decline to vote failed: {:?}",
+            result.err()
+        );
+
+        let output_contests = result.unwrap();
+        assert_eq!(output_contests.len(), 2);
+        assert_eq!(output_contests[0].is_decline_to_vote, true);
+        assert_eq!(output_contests[1].is_decline_to_vote, true);
+    }
+
+    #[test]
+    fn test_multi_contest_reencoding_with_invalid_decline_to_vote() {
+        // Create test data matching the scenario with decline to vote but invalid (only one contest is decline to vote)
+        let ballot_selection_json = json!([
+            {
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                },{
+                    "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
+                    "selected": -1
+                }
+            ]
+        },
+        {
+            "contest_id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+            "is_explicit_invalid": false,
+            "is_decline_to_vote": false,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5243d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                }
+            ]
+        }]);
+
+        // Create a minimal ballot style for testing
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [
+                {
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    },
+                    {
+                        "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    },{
+                        "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "C"
+                    }
+                ]
+            },{
+                "id": "ba08a9eb-49c9-44d7-a25e-b2e142e17b0b",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest2",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05e14f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "B"
+                    },
+                    {
+                        "id": "dfc5243d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            },
+            "election_presentation": {
+                "decline_to_vote_policy": "enabled"
+            }
+        });
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(
+            result.is_err(),
+            "Expected invalid mixed decline-to-vote ballot to fail, got: {:?}",
+            result.ok()
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains(
+                "Invalid number of contests with decline to vote 1 != 2"
+            ),
+            "Unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_map_decoded_ballot_choices_is_decline_to_vote_mapping() {
+        let contests = vec![
+            test_contest("contest-a", 2, 1),
+            test_contest("contest-b", 2, 1),
+        ];
+
+        for (ballot_decline_to_vote, expected_decline_to_vote) in
+            [(false, false), (true, true)]
+        {
+            let decoded_ballot_choices = DecodedBallotChoices {
+                is_explicit_invalid: ballot_decline_to_vote,
+                choices: vec![
+                    DecodedContestChoices::new(
+                        "contest-a".to_string(),
+                        vec![],
+                        false,
+                        vec![],
+                        vec![],
+                    ),
+                    DecodedContestChoices::new(
+                        "contest-b".to_string(),
+                        vec![],
+                        false,
+                        vec![],
+                        vec![],
+                    ),
+                ],
+                serial_number: None,
+            };
+
+            let mapped = map_decoded_ballot_choices_to_decoded_contests(
+                decoded_ballot_choices,
+                &contests,
+            )
+            .expect("mapping decoded ballot choices should succeed");
+
+            assert_eq!(mapped.len(), 2);
+            for contest in &mapped {
+                assert_eq!(
+                    contest.is_decline_to_vote, expected_decline_to_vote,
+                    "ballot is_explicit_invalid={ballot_decline_to_vote} should map to is_decline_to_vote={expected_decline_to_vote} on every contest"
+                );
+            }
+
+            assert_eq!(mapped[0].is_explicit_invalid, false);
+            assert_eq!(mapped[1].is_explicit_invalid, false);
+        }
+    }
+
+    #[test]
+    fn test_decline_to_vote_rejected_when_policy_disabled() {
+        let style = test_ballot_style(vec![test_contest("1", 2, 1)]);
+        let ballot = BallotChoices::new(
+            true,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let err = ballot.encode_to_30_bytes(&style).expect_err(
+            "decline to vote should be rejected when policy is disabled",
+        );
+        assert!(
+            err.contains("Decline to vote is not enabled for this election"),
+            "Unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_get_bases_output_shape() {
+        let contest_a = test_contest("a", 3, 2);
+        let contest_b = test_contest("b", 5, 1);
+        let contests = vec![contest_b, contest_a];
+
+        let bases = BallotChoices::get_bases(&contests, false)
+            .expect("get_bases should succeed");
+
+        // per-contest flag + max_votes slots for each contest, sorted by id
+        assert_eq!(bases.len(), 5);
+        assert_eq!(bases[0], 2);
+        assert_eq!(bases[1], 4);
+        assert_eq!(bases[2], 4);
+        assert_eq!(bases[3], 2);
+        assert_eq!(bases[4], 6);
+
+        let bases = BallotChoices::get_bases(&contests, true)
+            .expect("get_bases should succeed");
+
+        assert_eq!(bases.len(), 6);
+        assert_eq!(bases[0], 2);
+        assert_eq!(bases[1], 2);
+        assert_eq!(bases[2], 4);
+        assert_eq!(bases[3], 4);
+        assert_eq!(bases[4], 2);
+        assert_eq!(bases[5], 6);
+    }
+
+    #[test]
+    fn test_encode_to_raw_ballot_choices_layout() {
+        let style = test_ballot_style(vec![
+            test_contest("1", 2, 2),
+            test_contest("2", 3, 1),
+        ]);
+
+        let candidate_id = style.contests[1].candidates[0].id.clone();
+        let ballot = BallotChoices::new(
+            false,
+            vec![
+                ContestChoices::new("1".to_string(), vec![], true),
+                ContestChoices::new(
+                    "2".to_string(),
+                    vec![ContestChoice::new(candidate_id.clone(), 0)],
+                    false,
+                ),
+            ],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let raw = ballot
+            .encode_to_raw_ballot(&style)
+            .expect("encoding should succeed");
+
+        assert_eq!(raw.choices.len(), raw.bases.len());
+
+        let mut sorted_contests = style.contests.clone();
+        sorted_contests.sort_by_key(|c| c.id.clone());
+
+        let mut index = 0;
+        for contest in &sorted_contests {
+            let contest_choices = ballot
+                .choices
+                .iter()
+                .find(|c| c.contest_id == contest.id)
+                .expect("contest choices should exist");
+
+            assert_eq!(
+                raw.choices[index],
+                u64::from(contest_choices.is_explicit_invalid),
+                "per-contest invalid flag at index {index} for contest {}",
+                contest.id
+            );
+            index += 1;
+
+            let max_votes: usize = contest
+                .max_votes
+                .try_into()
+                .expect("max_votes should fit in usize");
+            index += max_votes;
+        }
+
+        assert_eq!(
+            index,
+            raw.choices.len(),
+            "choices vector should contain exactly one flag and max_votes slots per contest"
+        );
+    }
+
+    #[test]
     fn test_roundtrip() {
         let (ballot, style) = random_ballot(5);
         println!("{:?}", ballot);
 
-        let max_bytes =
-            BallotChoices::maximum_size_bytes(&style.contests).unwrap();
+        let max_bytes = BallotChoices::maximum_size_bytes(
+            &style.contests,
+            style.decline_to_vote_enabled(),
+        )
+        .unwrap();
         assert!(max_bytes <= 30);
 
         println!("max bytes: {:?}", max_bytes);
@@ -1049,12 +1753,14 @@ mod tests {
         let mut out_choices = back.choices.clone();
         out_choices.sort_by_key(|c| c.contest_id.clone());
 
+        assert_eq!(ballot.is_explicit_invalid, back.is_explicit_invalid);
         assert_eq!(in_choices.len(), out_choices.len());
 
         for (i, inc) in in_choices.iter().enumerate() {
             let outc = out_choices[i].clone();
 
             assert_eq!(inc.contest_id, outc.contest_id);
+            assert_eq!(inc.is_explicit_invalid, outc.is_explicit_invalid);
             assert_eq!(inc.choices.len(), outc.choices.len());
 
             let mut inc = inc.choices.clone();
@@ -1077,10 +1783,20 @@ mod tests {
 
         let mixed_radix = ballot.encode_to_raw_ballot(&style).unwrap();
 
+        let include_decline_to_vote = style.decline_to_vote_enabled();
+        let mut index = if include_decline_to_vote {
+            assert_eq!(
+                mixed_radix.choices[0],
+                u64::from(ballot.is_explicit_invalid),
+                "ballot-level decline-to-vote flag should be at index 0"
+            );
+            1
+        } else {
+            0
+        };
+
         let mut sorted_choices = ballot.choices.clone();
         sorted_choices.sort_by_key(|c| c.contest_id.clone());
-
-        let mut index: usize = 1;
 
         for choices in sorted_choices.iter() {
             let contest = style
@@ -1088,6 +1804,13 @@ mod tests {
                 .iter()
                 .find(|c| c.id == choices.contest_id)
                 .unwrap();
+
+            assert_eq!(
+                mixed_radix.choices[index],
+                u64::from(choices.is_explicit_invalid)
+            );
+            index += 1;
+
             let mut candidate_ids: Vec<String> =
                 contest.candidates.iter().map(|c| c.id.clone()).collect();
             candidate_ids.sort();
@@ -1123,10 +1846,16 @@ mod tests {
             .map(|i| {
                 let contest_id = i.to_string();
 
-                let min_votes = rng.gen_range(1..5);
-                let max_votes = rng.gen_range(min_votes..(min_votes + 5));
+                // allow for 0 min_votes to test decline to vote
+                let min_votes = rng.gen_range(0..5);
+                let max_votes = if min_votes == 0 {
+                    rng.gen_range(0..5)
+                } else {
+                    rng.gen_range(min_votes..(min_votes + 5))
+                };
 
-                let candidates = rng.gen_range(max_votes..max_votes + 20);
+                let candidates =
+                    rng.gen_range((max_votes.max(1))..max_votes + 20);
 
                 let candidates: Vec<Candidate> = (0..candidates)
                     .map(|j| {
@@ -1138,15 +1867,30 @@ mod tests {
             })
             .collect();
 
-        let choices: Vec<ContestChoices> = contests
-            .iter()
-            .map(|c| random_contest_choices(&c))
-            .collect();
+        let all_allow_decline_to_vote =
+            contests.iter().all(|c| c.min_votes == 0);
+        let use_decline_to_vote =
+            all_allow_decline_to_vote && rng.gen_bool(0.15);
 
-        let ballot_style = random_ballot_style(contests);
+        let choices: Vec<ContestChoices> = if use_decline_to_vote {
+            contests
+                .iter()
+                .map(|c| ContestChoices::new(c.id.clone(), vec![], false))
+                .collect()
+        } else {
+            contests.iter().map(|c| random_contest_choices(c)).collect()
+        };
+
+        let mut ballot_style = random_ballot_style(contests);
+        if use_decline_to_vote {
+            ballot_style.election_presentation = Some(ElectionPresentation {
+                decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
+                ..Default::default()
+            });
+        }
 
         let ballot = BallotChoices::new(
-            false,
+            use_decline_to_vote,
             choices,
             CountingAlgType::PluralityAtLarge,
         );
@@ -1166,6 +1910,11 @@ mod tests {
 
     fn random_contest_choices(contest: &Contest) -> ContestChoices {
         let mut rng = rand::thread_rng();
+
+        if contest.min_votes == 0 && rng.gen_bool(0.2) {
+            return ContestChoices::new(contest.id.clone(), vec![], true);
+        }
+
         let count = rng.gen_range(contest.min_votes..=contest.max_votes);
 
         let mut cs = contest.candidates.clone();
@@ -1176,7 +1925,23 @@ mod tests {
             .map(|c| random_choice(c.id.clone()))
             .collect();
 
-        ContestChoices::new(contest.id.clone(), choices)
+        ContestChoices::new(contest.id.clone(), choices, false)
+    }
+
+    fn test_contest(
+        id: &str,
+        num_candidates: usize,
+        max_votes: i64,
+    ) -> Contest {
+        let candidates: Vec<Candidate> = (0..num_candidates)
+            .map(|i| random_candidate(i.to_string(), id.to_string()))
+            .collect();
+
+        random_contest(id.to_string(), candidates, 0, max_votes)
+    }
+
+    fn test_ballot_style(contests: Vec<Contest>) -> BallotStyle {
+        random_ballot_style(contests)
     }
 
     fn random_contest(

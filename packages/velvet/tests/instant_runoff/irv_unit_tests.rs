@@ -434,6 +434,7 @@ fn test_preferential_order_error_duplicated_position() {
     let vote: DecodedVoteContest = DecodedVoteContest {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![], // In practice here should be an error because of the duplication
         invalid_alerts: vec![],
         choices,
@@ -457,6 +458,7 @@ fn test_preferential_order_error_preference_order_with_gaps() {
     let vote: DecodedVoteContest = DecodedVoteContest {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![],
         invalid_alerts: vec![], // In practice here should be an alert because of the gaps
         choices,
@@ -480,6 +482,7 @@ fn test_preferential_order_ok() {
     let vote: DecodedVoteContest = DecodedVoteContest {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
+        is_decline_to_vote: false,
         invalid_errors: vec![],
         invalid_alerts: vec![],
         choices,
