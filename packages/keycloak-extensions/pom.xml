@@ -22,6 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>dummy-email-sender-provider</module>
         <module>voter-enrollment</module>
         <module>message-otp-authenticator</module>
+        <module>smart-link-hmac-authenticator</module>
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
         <module>custom-event-listener</module>
@@ -149,6 +150,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<include>dummy-email-sender-provider/pom.xml</include>
 				<include>voter-enrollment/pom.xml</include>
 				<include>message-otp-authenticator/pom.xml</include>
+				<include>smart-link-hmac-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
@@ -165,6 +167,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<include>dummy-email-sender-provider/pom.xml</include>
 				<include>voter-enrollment/pom.xml</include>
 				<include>message-otp-authenticator/pom.xml</include>
+				<include>smart-link-hmac-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>

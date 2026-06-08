@@ -65,6 +65,7 @@ COPY --chown=keycloak:keycloak \
    --from=spis-build \
    /build/keycloak-extensions/voter-enrollment/target/sequent.voter-enrollment.jar \
    /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
+   /build/keycloak-extensions/smart-link-hmac-authenticator/target/sequent.smart-link-hmac-authenticator.jar \
    /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
    /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \
    /build/keycloak-extensions/dummy-email-sender-provider/target/sequent.dummy-email-sender-provider.jar \

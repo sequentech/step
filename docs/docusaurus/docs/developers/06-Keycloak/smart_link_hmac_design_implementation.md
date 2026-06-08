@@ -40,8 +40,9 @@ external app cannot produce it offline.
 
 The feature in this document is the opposite trust model: a **symmetric**,
 **client-minted** token verified with a shared secret. The two coexist; this one
-adds a new package `smart_link.hmac` and reuses the existing action-token
-machinery to finish the login (see §4).
+is packaged as a separate Keycloak extension,
+`smart-link-hmac-authenticator`, and reuses the existing action-token machinery
+to finish the login (see §4).
 
 ## 2. Goals
 
@@ -63,7 +64,7 @@ machinery to finish the login (see §4).
 ## 4. Architecture and components
 
 All Java lives in
-`packages/keycloak-extensions/message-otp-authenticator/src/main/java/sequent/keycloak/authenticator/smart_link/hmac/`.
+`packages/keycloak-extensions/smart-link-hmac-authenticator/src/main/java/sequent/keycloak/authenticator/smart_link/hmac/`.
 
 | Component | Responsibility |
 | --- | --- |
@@ -99,16 +100,41 @@ Config is stored as realm attributes on the event realm, set through harvest's
 
 | Attribute (`REALM_ATTR_SMARTLINK_*`) | Default |
 | --- | --- |
-| `smart-link-shared-secret` | unset → feature disabled |
+| `smart-link-enabled` | `false` |
+| `smart-link-shared-secret` | unset |
 | `smart-link-timeout-secs` | `90` |
 | `smart-link-clock-skew-secs` | `5` |
 | `smart-link-client-id` | `voting-portal` |
 | `smart-link-force-create` | `false` |
+| `smart-link-required-attributes` | empty |
+
+`smart-link-enabled=true` is the feature switch. The shared secret is required
+only once the feature is enabled. A realm with `smart-link-enabled` unset or
+`false` returns `404` from the HMAC endpoint; a realm with Smart Link enabled
+but no shared secret also returns `404` and logs a server-side misconfiguration
+warning.
 
 `update_realm_attributes` in
 `packages/sequent-core/src/services/keycloak/realm_attributes.rs` validates each
-value (non-empty bounded secret; integer timeouts; boolean force-create) and
-drops anything malformed.
+value (boolean enable/force-create flags; non-blank bounded secret; integer
+timeouts; comma-separated required attribute names) and drops anything malformed.
+
+`smart-link-required-attributes` is the second-generation equivalent of the
+first-generation Smart Link required extra-field check. It is intentionally
+small: a comma-separated list of request parameter names. The external token
+format is unchanged; these values are passed as ordinary query parameters on the
+same endpoint after `auth-token`.
+
+Supported checks:
+
+| Required attribute | User-side value |
+| --- | --- |
+| `email` | `UserModel.getEmail()`, normalized case-insensitively. |
+| `tlf` | Keycloak user attribute `sequent.read-only.mobile-number`. |
+| any other name | Keycloak user attribute with the same name, exact string match. |
+
+Unsupported first-generation field types (`password`, `otp-code`, `captcha`,
+`image`, `dict`, etc.) are deliberately out of scope for this HMAC bridge.
 
 ## 5. Flow description
 
@@ -122,10 +148,11 @@ sequenceDiagram
     participant Portal as voting-portal (OIDC)
 
     Backend->>Browser: Smart Link URL (token minted offline)
-    Browser->>Res: GET /realms/{realm}/smart-link/login?auth-token=...
+    Browser->>Res: GET /realms/{realm}/smart-link/login?auth-token=...&student_id=...
     Res->>Core: validate(token, secret, eventId, now, timeout, skew)
     Core-->>Res: ValidatedSmartLink(userId, eventId, ts)  | throws
-    Res->>Res: getOrCreate(user) + createActionToken (60s, one-time)
+    Res->>Res: getOrCreate(user) + required attribute checks
+    Res->>Res: createActionToken (60s, one-time)
     Res-->>Browser: 302 -> /login-actions/action-token?key=...
     Browser->>Handler: follow redirect
     Handler-->>Portal: 302 with OIDC code (session established)
@@ -141,12 +168,15 @@ prevents a token minted for one event from being replayed against another.
 
 ## 7. Security considerations
 
-### Verification order (in `HmacSmartLink.validate`)
+### Verification order
 
-1. **Configured?** No secret → reject (`NOT_CONFIGURED`); the feature is opt-in.
+1. **Enabled and configured?** `smart-link-enabled` unset/false returns `404`.
+   Enabled with no secret also returns `404` and logs a misconfiguration warning.
+   Token validation only runs when the realm is explicitly enabled and has a
+   secret.
 2. **Structural** parse of envelope, digest (`sha-256` only), 64-hex hash and
-   the 5-field message. A `:` in the user id makes the message unparseable
-   (`MALFORMED_MESSAGE`) rather than silently truncated.
+   the message. The parser anchors on the last four fields, so `:` remains valid
+   inside the user id and malformed short messages are rejected.
 3. **Permission / event binding** — `AuthEvent`/`vote` and event id match.
 4. **HMAC** — recomputed and compared in **constant time**
    (`MessageDigest.isEqual`) **before** any timing decision, so the time checks
@@ -155,14 +185,17 @@ prevents a token minted for one event from being replayed against another.
    (`timestamp <= now + skew`, rejecting future-dated tokens) **and still be
    valid** (`timestamp > now - timeout`, rejecting expired ones). The expiry rule
    matches the first generation; the future-dated rejection is an added defense.
+6. **Required attributes** — if configured, request parameters must match the
+   resolved census user before the internal action token is issued.
 
 ### Other properties
 
 - **Bearer token, short-lived.** The default 90 s window limits the blast radius
   of a leaked link. The internal bridge token is 60 s and single-use.
-- **Generic errors.** Every failure returns one vague `401`
-  (`{"error":"authentication_failed"}`); the specific `SmartLinkError` is only
-  written to the server log, denying an attacker an oracle.
+- **Generic errors.** Disabled or misconfigured realms return `404`. Once a
+  realm is enabled and configured, token and login failures return one vague
+  `401` (`{"error":"authentication_failed"}`); the specific `SmartLinkError` is
+  only written to the server log, denying an attacker an oracle.
 - **No secret on the client.** Verification happens entirely server-side in
   Keycloak; the voting portal never receives the secret.
 - **Secret at rest.** The shared secret is a realm attribute, readable by realm
@@ -173,14 +206,17 @@ prevents a token minted for one event from being replayed against another.
 
 `HmacSmartLinkTest` covers the happy path plus every rejection: wrong secret,
 tampered message, mismatched event, expired, future-dated, missing secret,
-malformed envelope, unsupported digest, wrong permission, empty user id, colon
-in user id, and realm-name parsing. The "known vector" test asserts the Java
-HMAC equals the value produced by the Python/Scala/Go generators, locking
-cross-generation compatibility.
+malformed envelope, unsupported digest, wrong permission, empty user id,
+malformed short messages, and realm-name parsing. It also accepts user ids
+containing `:`, `/`, and `;`, matching the first-generation parser behavior. The
+"known vector" test asserts the Java HMAC equals the value produced by the
+Python/Scala/Go generators, locking cross-generation compatibility.
+`SmartLinkRequiredAttributesTest` covers comma-separated parsing and the
+supported `email`, `tlf`, and generic text attribute checks.
 
 Because `HmacSmartLink` is JDK-only it runs as a fast unit test
-(`mvn -pl message-otp-authenticator test`). The resource/provider wiring is
-covered by the e2e suite.
+(`mvn -pl smart-link-hmac-authenticator -am test`). The resource/provider
+wiring is covered by the e2e suite.
 
 ## 9. Related documentation
 

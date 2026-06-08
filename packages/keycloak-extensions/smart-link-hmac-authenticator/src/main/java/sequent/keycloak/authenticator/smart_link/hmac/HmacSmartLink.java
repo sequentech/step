@@ -39,8 +39,8 @@ public final class HmacSmartLink {
   public static final String PERMISSION_OBJECT = "AuthEvent";
   public static final String PERMISSION_ACTION = "vote";
 
-  /** {@code user_id : AuthEvent : election_event_id : vote : timestamp}. */
-  public static final int MESSAGE_FIELD_COUNT = 5;
+  /** Minimum fields in {@code user_id : AuthEvent : election_event_id : vote : timestamp}. */
+  public static final int MIN_MESSAGE_FIELD_COUNT = 5;
 
   /** Hex length of a SHA-256 HMAC. */
   public static final int HASH_HEX_LENGTH = 64;
@@ -53,15 +53,16 @@ public final class HmacSmartLink {
 
   // Realm attribute names. These MUST stay in sync with the constants in
   // sequent-core: packages/sequent-core/src/types/keycloak.rs
+  public static final String ATTR_ENABLED = "smart-link-enabled";
   public static final String ATTR_SHARED_SECRET = "smart-link-shared-secret";
   public static final String ATTR_TIMEOUT_SECONDS = "smart-link-timeout-secs";
   public static final String ATTR_CLOCK_SKEW_SECONDS = "smart-link-clock-skew-secs";
   public static final String ATTR_CLIENT_ID = "smart-link-client-id";
   public static final String ATTR_FORCE_CREATE = "smart-link-force-create";
+  public static final String ATTR_REQUIRED_ATTRIBUTES = "smart-link-required-attributes";
 
   /** Successful result of {@link #validate}. */
-  public record ValidatedSmartLink(
-      String userId, String electionEventId, long timestampSeconds) {}
+  public record ValidatedSmartLink(String userId, String electionEventId, long timestampSeconds) {}
 
   /**
    * Computes the lowercase-hex HMAC-SHA256 of {@code message} keyed with {@code sharedSecret}.
@@ -106,7 +107,7 @@ public final class HmacSmartLink {
       long clockSkewSeconds)
       throws SmartLinkValidationException {
 
-    if (sharedSecret == null || sharedSecret.isEmpty()) {
+    if (sharedSecret == null || sharedSecret.isBlank()) {
       throw new SmartLinkValidationException(
           SmartLinkError.NOT_CONFIGURED, "no shared secret configured for realm");
     }
@@ -141,23 +142,24 @@ public final class HmacSmartLink {
     }
 
     // message = <user_id>:AuthEvent:<election_event_id>:vote:<timestamp>
-    // Limit -1 keeps trailing empty fields so a user id containing ':' is rejected
-    // (it would yield more than MESSAGE_FIELD_COUNT fields) rather than silently truncated.
+    // Parse from the right so ':' remains valid inside user_id, matching the first generation.
     String[] fields = message.split(":", -1);
-    if (fields.length != MESSAGE_FIELD_COUNT) {
+    if (fields.length < MIN_MESSAGE_FIELD_COUNT) {
       throw new SmartLinkValidationException(
           SmartLinkError.MALFORMED_MESSAGE, "unexpected field count: " + fields.length);
     }
-    String userId = fields[0];
-    String permissionObject = fields[1];
-    String electionEventId = fields[2];
-    String permissionAction = fields[3];
-    String timestampField = fields[4];
+    int tailIndex = fields.length;
+    String timestampField = fields[tailIndex - 1];
+    String permissionAction = fields[tailIndex - 2];
+    String electionEventId = fields[tailIndex - 3];
+    String permissionObject = fields[tailIndex - 4];
+    String userId = String.join(":", Arrays.copyOfRange(fields, 0, tailIndex - 4));
 
     if (userId.isEmpty()) {
       throw new SmartLinkValidationException(SmartLinkError.INVALID_USER_ID, "empty user id");
     }
-    if (!PERMISSION_OBJECT.equals(permissionObject) || !PERMISSION_ACTION.equals(permissionAction)) {
+    if (!PERMISSION_OBJECT.equals(permissionObject)
+        || !PERMISSION_ACTION.equals(permissionAction)) {
       throw new SmartLinkValidationException(
           SmartLinkError.INVALID_PERMISSION, "permission is not AuthEvent/vote");
     }
@@ -193,8 +195,7 @@ public final class HmacSmartLink {
     }
     // Reject expired tokens: valid iff timestamp + timeout > now (same rule as the first gen).
     if (timestampSeconds <= nowEpochSeconds - timeout) {
-      throw new SmartLinkValidationException(
-          SmartLinkError.TOKEN_EXPIRED, "token has expired");
+      throw new SmartLinkValidationException(SmartLinkError.TOKEN_EXPIRED, "token has expired");
     }
 
     return new ValidatedSmartLink(userId, electionEventId, timestampSeconds);

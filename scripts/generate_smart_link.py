@@ -23,7 +23,8 @@ Usage:
     # Mint a Smart Link URL
     ./generate_smart_link.py generate \\
         --host vote.university.com --tenant acme --event-id 150017 \\
-        --user-id example@sequentech.io --secret "the cake is in the oven"
+        --user-id example@sequentech.io --secret "the cake is in the oven" \\
+        --attribute email=example@sequentech.io --attribute tlf=+34600111222
 
     # Just the token (no URL)
     ./generate_smart_link.py generate ... --token-only
@@ -49,7 +50,7 @@ ENVELOPE_PREFIX = "khmac:///"
 DIGEST_LABEL = "sha-256"
 PERMISSION_OBJECT = "AuthEvent"
 PERMISSION_ACTION = "vote"
-MESSAGE_FIELD_COUNT = 5
+MIN_MESSAGE_FIELD_COUNT = 5
 HASH_HEX_LENGTH = 64
 
 
@@ -65,17 +66,34 @@ def compute_hmac_hex(secret: str, message: str) -> str:
 
 
 def build_token(user_id: str, event_id: str, secret: str, timestamp: int) -> str:
-    if ":" in user_id:
-        raise ValueError("user_id must not contain ':' (the message splits on ':')")
     message = f"{user_id}:{PERMISSION_OBJECT}:{event_id}:{PERMISSION_ACTION}:{timestamp}"
     code = compute_hmac_hex(secret, message)
     return f"{ENVELOPE_PREFIX}{DIGEST_LABEL};{code}/{message}"
 
 
-def build_url(host: str, tenant: str, event_id: str, token: str) -> str:
+def parse_attribute(value: str) -> tuple[str, str]:
+    if "=" not in value:
+        raise argparse.ArgumentTypeError("expected NAME=VALUE")
+    name, attr_value = value.split("=", 1)
+    name = name.strip()
+    if not name:
+        raise argparse.ArgumentTypeError("attribute name cannot be empty")
+    return name, attr_value
+
+
+def build_url(
+    host: str,
+    tenant: str,
+    event_id: str,
+    token: str,
+    attributes: list[tuple[str, str]] | None = None,
+) -> str:
     realm = event_realm(tenant, event_id)
-    encoded = urllib.parse.quote(token, safe="")
-    return f"https://{host}/realms/{realm}/smart-link/login?auth-token={encoded}"
+    params = [("auth-token", token)]
+    if attributes:
+        params.extend(attributes)
+    query = urllib.parse.urlencode(params)
+    return f"https://{host}/realms/{realm}/smart-link/login?{query}"
 
 
 class SmartLinkError(Exception):
@@ -95,7 +113,7 @@ def validate_token(
     clock_skew_seconds: int = DEFAULT_CLOCK_SKEW_SECONDS,
 ) -> dict:
     """Reproduce HmacSmartLink.validate(); raise SmartLinkError on any failure."""
-    if not secret:
+    if not secret.strip():
         raise SmartLinkError("NOT_CONFIGURED", "no shared secret configured")
     if not token or not token.startswith(ENVELOPE_PREFIX):
         raise SmartLinkError("MALFORMED_TOKEN", "missing or malformed khmac envelope")
@@ -113,9 +131,10 @@ def validate_token(
         raise SmartLinkError("MALFORMED_TOKEN", "bad hash length or empty message")
 
     fields = message.split(":")
-    if len(fields) != MESSAGE_FIELD_COUNT:
+    if len(fields) < MIN_MESSAGE_FIELD_COUNT:
         raise SmartLinkError("MALFORMED_MESSAGE", f"unexpected field count: {len(fields)}")
-    user_id, perm_obj, event_id, perm_action, ts_field = fields
+    user_id = ":".join(fields[:-4])
+    perm_obj, event_id, perm_action, ts_field = fields[-4:]
 
     if not user_id:
         raise SmartLinkError("INVALID_USER_ID", "empty user id")
@@ -146,15 +165,11 @@ def validate_token(
 
 def cmd_generate(args: argparse.Namespace) -> int:
     timestamp = args.timestamp if args.timestamp is not None else int(time.time())
-    try:
-        token = build_token(args.user_id, args.event_id, args.secret, timestamp)
-    except ValueError as err:
-        print(f"error: {err}", file=sys.stderr)
-        return 1
+    token = build_token(args.user_id, args.event_id, args.secret, timestamp)
     if args.token_only:
         print(token)
     else:
-        print(build_url(args.host, args.tenant, args.event_id, token))
+        print(build_url(args.host, args.tenant, args.event_id, token, args.attribute))
     return 0
 
 
@@ -184,6 +199,16 @@ def main() -> int:
     gen.add_argument("--secret", required=True, help="shared secret (smart-link-shared-secret)")
     gen.add_argument(
         "--timestamp", type=int, default=None, help="override the unix timestamp (default: now)"
+    )
+    gen.add_argument(
+        "--attribute",
+        action="append",
+        default=[],
+        type=parse_attribute,
+        metavar="NAME=VALUE",
+        help=(
+            "append a Smart Link required attribute query parameter; repeat for multiple values"
+        ),
     )
     gen.add_argument("--token-only", action="store_true", help="print the auth-token, not the URL")
     gen.set_defaults(func=cmd_generate)

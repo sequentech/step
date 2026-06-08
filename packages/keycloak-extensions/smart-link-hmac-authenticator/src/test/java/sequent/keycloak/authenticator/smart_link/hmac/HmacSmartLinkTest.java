@@ -128,13 +128,18 @@ class HmacSmartLinkTest {
   }
 
   @Test
+  void validate_rejectsBlankSecret() {
+    String token = mintToken(SECRET, USER, EVENT_ID, NOW);
+    assertEquals(
+        SmartLinkError.NOT_CONFIGURED,
+        errorOf(() -> HmacSmartLink.validate(token, " ", EVENT_ID, NOW, 90, 5)));
+  }
+
+  @Test
   void validate_rejectsBadEnvelope() {
     assertEquals(
         SmartLinkError.MALFORMED_TOKEN,
-        errorOf(
-            () ->
-                HmacSmartLink.validate(
-                    "not-a-khmac-token", SECRET, EVENT_ID, NOW, 90, 5)));
+        errorOf(() -> HmacSmartLink.validate("not-a-khmac-token", SECRET, EVENT_ID, NOW, 90, 5)));
   }
 
   @Test
@@ -175,9 +180,24 @@ class HmacSmartLinkTest {
   }
 
   @Test
-  void validate_rejectsUserIdContainingColon() {
-    // A ':' in the user id yields 6 fields, so the message no longer parses.
-    String token = mintToken(SECRET, "a:b", EVENT_ID, NOW);
+  void validate_acceptsUserIdContainingSeparators() throws Exception {
+    String userId = "ex:amp./le@nvot;es.com";
+    String token = mintToken(SECRET, userId, EVENT_ID, NOW);
+    HmacSmartLink.ValidatedSmartLink result =
+        HmacSmartLink.validate(token, SECRET, EVENT_ID, NOW, 90, 5);
+    assertEquals(userId, result.userId());
+  }
+
+  @Test
+  void validate_rejectsMessageWithTooFewFields() {
+    String message = USER + ":AuthEvent:" + EVENT_ID + ":" + NOW;
+    String token =
+        HmacSmartLink.ENVELOPE_PREFIX
+            + HmacSmartLink.DIGEST_LABEL
+            + ";"
+            + HmacSmartLink.computeHmacHex(SECRET, message)
+            + "/"
+            + message;
     assertEquals(
         SmartLinkError.MALFORMED_MESSAGE,
         errorOf(() -> HmacSmartLink.validate(token, SECRET, EVENT_ID, NOW, 90, 5)));

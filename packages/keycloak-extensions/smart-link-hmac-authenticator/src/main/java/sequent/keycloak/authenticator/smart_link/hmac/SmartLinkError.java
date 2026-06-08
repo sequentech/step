@@ -36,6 +36,8 @@ public enum SmartLinkError {
   USER_NOT_FOUND,
   /** The matched user is disabled. */
   USER_DISABLED,
+  /** A configured Smart Link required attribute was missing or did not match the census user. */
+  REQUIRED_ATTRIBUTE_MISMATCH,
   /** The configured Smart Link client does not exist in the realm. */
   CLIENT_NOT_FOUND,
   /** The supplied redirect_uri is not allowed by the client. */

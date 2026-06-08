@@ -119,9 +119,9 @@ example@sequentech.io:AuthEvent:150017:vote:1780869273
 
 - **user-id** — a unique identifier of the voter, matched against the census.
   It must be **stable** for a given voter and election (so re-votes map to the
-  same person), must **not contain a colon** (`:`), and must exist in the
-  census. To avoid leaking real identifiers, it is good practice to use a
-  salted SHA-256 hash of your internal id, with a per-election salt.
+  same person), and must exist in the census. To avoid leaking real identifiers,
+  it is good practice to use a salted SHA-256 hash of your internal id, with a
+  per-election salt.
 - **AuthEvent** / **vote** — fixed literals identifying the permission being
   granted. They must appear exactly as shown.
 - **election-event-id** — binds the token to one election event. It must equal
@@ -147,6 +147,40 @@ def build_smart_link(keycloak_host, tenant, event_id, user_id, secret):
             f"?auth-token={urllib.parse.quote(token, safe='')}")
 ```
 
+### Required extra attributes
+
+Some elections require extra census fields to match before the voter is logged
+in. These fields are configured by Sequent with
+`smart-link-required-attributes`, a comma-separated list such as:
+
+```
+email,tlf,student_id
+```
+
+When configured, your Smart Link URL must include the same names as additional
+query parameters. They are **not** added to the HMAC message; the `auth-token`
+format stays exactly the same as first generation.
+
+```
+https://<keycloak-host>/realms/<realm>/smart-link/login
+  ?auth-token=<auth-token>
+  &email=example%40sequentech.io
+  &tlf=%2B34600111222
+  &student_id=12345
+```
+
+Supported second-generation attribute checks are:
+
+| Required attribute | Check |
+| --- | --- |
+| `email` | Compared with the Keycloak user's email, case-insensitively. |
+| `tlf` | Compared with the Keycloak user's mobile phone attribute, `sequent.read-only.mobile-number`. |
+| any other name | Compared exactly with the Keycloak user attribute of the same name. |
+
+Unsupported first-generation field types such as `password`, `otp-code`,
+`captcha`, `image` and `dict` are not part of Smart Link HMAC authentication in
+this generation.
+
 Or, equivalently, with the shell:
 
 ```bash
@@ -157,23 +191,30 @@ echo "khmac:///sha-256;$CODE/$M"
 
 ## Configuration in Sequent
 
-### The shared secret
+### Enabling Smart Link
 
-The shared secret is stored as a **realm attribute** on the election event's
-realm. It is set per election event, so each event can have its own secret. An
-election manager configures it via the election event settings (which call the
-`update-realm-attributes` admin endpoint); the attribute keys are:
+Smart Link is enabled per election event realm. An election manager configures
+it via the election event settings (which call the `update-realm-attributes`
+admin endpoint). The feature is off unless `smart-link-enabled` is explicitly
+set to `true`.
+
+The shared secret is also stored as a **realm attribute** on the election event's
+realm. It is set per election event, so each event can have its own secret. The
+attribute keys are:
 
 | Attribute | Meaning | Default |
 | --- | --- | --- |
-| `smart-link-shared-secret` | The HMAC key. **Required** to enable the feature. | _(unset → disabled)_ |
+| `smart-link-enabled` | Enables the HMAC Smart Link endpoint for this realm. | `false` |
+| `smart-link-shared-secret` | The HMAC key. Required when Smart Link is enabled. | _(unset)_ |
 | `smart-link-timeout-secs` | How long a token stays valid after its timestamp. | `90` |
 | `smart-link-clock-skew-secs` | Tolerance for tokens slightly ahead of Sequent's clock. | `5` |
 | `smart-link-client-id` | OIDC client the voter lands in. | `voting-portal` |
 | `smart-link-force-create` | Create voters not in the census (leave `false`). | `false` |
+| `smart-link-required-attributes` | Comma-separated extra attributes that must match the census user. | _(empty)_ |
 
-If `smart-link-shared-secret` is unset, the endpoint rejects every token, so the
-feature is off until you configure a secret.
+If `smart-link-enabled` is unset or `false`, the endpoint returns `404`. If it
+is `true` but `smart-link-shared-secret` is unset, the endpoint also returns
+`404` and Sequent will treat the realm as misconfigured.
 
 ### The census
 
@@ -181,6 +222,10 @@ Because Sequent does authorization, **the voter's `user-id` must be in the censu
 (the realm's users) before they follow the link. Upload the census as usual. With
 `smart-link-force-create` left at its default `false`, a Smart Link for an unknown
 `user-id` simply fails authentication.
+
+If `smart-link-required-attributes` is configured, the corresponding values must
+also be present on the census user. For example, `student_id` must be a Keycloak
+user attribute, while `email` and `tlf` use the special checks described above.
 
 ## Security considerations
 
@@ -192,21 +237,38 @@ Because Sequent does authorization, **the voter's `user-id` must be in the censu
   validity window short (the 90 s default is recommended).
 - **Mint at click time.** Do not pre-generate links; generate one when the voter
   acts, so it is consumed well within its validity window.
+- **Treat required attributes as login data.** Required attributes are URL query
+  parameters, so avoid adding more personal data than the election needs, and
+  keep the token lifetime short.
 - **Keep clocks in sync.** Sequent rejects both expired tokens and tokens minted
   in the future (beyond `smart-link-clock-skew-secs`), so use NTP on both sides.
-- **Errors are deliberately vague.** Every failure returns the same generic
-  message, to avoid revealing which check failed. Diagnose using the Keycloak
-  server logs, which record the specific reason.
+- **Errors are deliberately vague.** Disabled or misconfigured realms return
+  `404`. Once Smart Link is enabled and configured, token and login failures
+  return the same generic message, to avoid revealing which check failed.
+  Diagnose using the Keycloak server logs, which record the specific reason.
 
 ## Testing manually
 
 You can exercise the endpoint without your application:
 
-1. Configure `smart-link-shared-secret` on the event realm and add a test voter
-   to the census.
+1. Configure `smart-link-enabled=true` and `smart-link-shared-secret` on the
+   event realm, then add a test voter to the census.
 2. Build a token with the snippet above (using the current `date +%s`).
 3. Open the resulting URL in a browser — you should be redirected into the
    voting portal, logged in and ready to cast a vote.
+
+The helper script can append required attributes when needed:
+
+```bash
+./scripts/generate_smart_link.py generate \
+  --host vote.university.com \
+  --tenant acme \
+  --event-id 150017 \
+  --user-id example@sequentech.io \
+  --secret "the cake is in the oven" \
+  --attribute email=example@sequentech.io \
+  --attribute tlf=+34600111222
+```
 
 If it fails, check the Keycloak logs for a line like
 `SmartLink HMAC rejected: error=TOKEN_EXPIRED ...`, which names the exact reason.

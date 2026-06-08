@@ -8,9 +8,12 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
+import java.util.List;
 import java.util.OptionalInt;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.common.util.Time;
@@ -56,19 +59,26 @@ public class HmacSmartLinkResource {
   @Produces(MediaType.APPLICATION_JSON)
   public Response login(
       @QueryParam("auth-token") String authToken,
-      @QueryParam("redirect_uri") String redirectUriParam) {
+      @QueryParam("redirect_uri") String redirectUriParam,
+      @Context UriInfo uriInfo) {
 
     RealmModel realm = session.getContext().getRealm();
     String realmName = realm.getName();
 
+    if (!isSmartLinkEnabled(realm)) {
+      return notFound();
+    }
+
     String sharedSecret = realm.getAttribute(HmacSmartLink.ATTR_SHARED_SECRET);
+    if (isBlank(sharedSecret)) {
+      log.warnf("SmartLink HMAC enabled but no shared secret configured: realm=%s", realmName);
+      return notFound();
+    }
     long timeout =
         readLong(realm, HmacSmartLink.ATTR_TIMEOUT_SECONDS, HmacSmartLink.DEFAULT_TIMEOUT_SECONDS);
     long clockSkew =
         readLong(
-            realm,
-            HmacSmartLink.ATTR_CLOCK_SKEW_SECONDS,
-            HmacSmartLink.DEFAULT_CLOCK_SKEW_SECONDS);
+            realm, HmacSmartLink.ATTR_CLOCK_SKEW_SECONDS, HmacSmartLink.DEFAULT_CLOCK_SKEW_SECONDS);
     String expectedEventId = HmacSmartLink.electionEventIdFromRealm(realmName);
     long now = Time.currentTime();
 
@@ -86,7 +96,8 @@ public class HmacSmartLinkResource {
 
     // Step 2: resolve the OIDC client and the census user, then bridge to an internal action token.
     try {
-      String clientId = orDefault(realm.getAttribute(HmacSmartLink.ATTR_CLIENT_ID), DEFAULT_CLIENT_ID);
+      String clientId =
+          orDefault(realm.getAttribute(HmacSmartLink.ATTR_CLIENT_ID), DEFAULT_CLIENT_ID);
       ClientModel client = session.clients().getClientByClientId(realm, clientId);
       if (client == null) {
         log.warnf(
@@ -97,10 +108,12 @@ public class HmacSmartLinkResource {
 
       // Default false: like the first generation, an unknown user id is an authorization failure
       // (the user must be in the census), not a silent account creation.
-      boolean forceCreate = Boolean.parseBoolean(realm.getAttribute(HmacSmartLink.ATTR_FORCE_CREATE));
+      boolean forceCreate =
+          Boolean.parseBoolean(realm.getAttribute(HmacSmartLink.ATTR_FORCE_CREATE));
 
       UserModel user =
-          SmartLink.getOrCreate(session, realm, validated.userId(), forceCreate, false, false, null);
+          SmartLink.getOrCreate(
+              session, realm, validated.userId(), forceCreate, false, false, null);
       if (user == null) {
         log.warnf(
             "SmartLink HMAC rejected: error=%s realm=%s", SmartLinkError.USER_NOT_FOUND, realmName);
@@ -110,6 +123,21 @@ public class HmacSmartLinkResource {
         log.warnf(
             "SmartLink HMAC rejected: error=%s realm=%s", SmartLinkError.USER_DISABLED, realmName);
         return genericError();
+      }
+
+      List<String> requiredAttributes =
+          SmartLinkRequiredAttributes.parse(
+              realm.getAttribute(HmacSmartLink.ATTR_REQUIRED_ATTRIBUTES));
+      if (!requiredAttributes.isEmpty()) {
+        var rejectedAttribute =
+            SmartLinkRequiredAttributes.firstRejectedAttribute(
+                user, uriInfo.getQueryParameters(), requiredAttributes);
+        if (rejectedAttribute.isPresent()) {
+          log.warnf(
+              "SmartLink HMAC rejected: error=%s attribute=%s realm=%s",
+              SmartLinkError.REQUIRED_ATTRIBUTE_MISMATCH, rejectedAttribute.get(), realmName);
+          return genericError();
+        }
       }
 
       // Optional caller-supplied redirect, validated against the client. Defaults to null so the
@@ -143,8 +171,10 @@ public class HmacSmartLinkResource {
       return Response.status(Response.Status.FOUND).location(URI.create(link)).build();
     } catch (Exception error) {
       log.warnf(
-          error, "SmartLink HMAC internal error: error=%s realm=%s",
-          SmartLinkError.INTERNAL_ERROR, realmName);
+          error,
+          "SmartLink HMAC internal error: error=%s realm=%s",
+          SmartLinkError.INTERNAL_ERROR,
+          realmName);
       return genericError();
     }
   }
@@ -158,6 +188,18 @@ public class HmacSmartLinkResource {
         .type(MediaType.APPLICATION_JSON)
         .entity("{\"error\":\"authentication_failed\"}")
         .build();
+  }
+
+  private static Response notFound() {
+    return Response.status(Response.Status.NOT_FOUND).build();
+  }
+
+  private static boolean isSmartLinkEnabled(RealmModel realm) {
+    return Boolean.parseBoolean(realm.getAttribute(HmacSmartLink.ATTR_ENABLED));
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   private static long readLong(RealmModel realm, String attribute, long defaultValue) {
