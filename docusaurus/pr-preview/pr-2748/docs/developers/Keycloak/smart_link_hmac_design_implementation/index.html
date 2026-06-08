@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Smart Link (HMAC) Design &amp; Implementation | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Smart Link (HMAC) Design &amp; Implementation | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2748/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Smart Link (HMAC) Design & Implementation","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2748/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2748/assets/js/runtime~main.eee15277.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2748/assets/js/runtime~main.64dc8c11.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2748/assets/js/main.f9a2f344.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -26,8 +26,10 @@ short-lived token, signed with a <strong>symmetric secret</strong> shared with S
 the voter follows a link carrying it. Keycloak verifies the token and
 establishes the OIDC session.</p>
 <p>This is the second-generation port of the first-generation IAM <code>smart-link</code>
-auth method (<code>m_smart_link.py</code>). The <strong>wire format is unchanged</strong> so existing
-generators keep working; what changes is where verification happens.</p>
+auth method (<code>m_smart_link.py</code>). The token envelope, message shape and
+HMAC-SHA256 calculation are unchanged, so existing generators can keep working
+once they use the configured second-generation election id and Keycloak URL. The
+runtime behavior is not identical; the deliberate differences are listed below.</p>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="two-different-smart-links">Two different &quot;Smart Links&quot;<a href="#two-different-smart-links" class="hash-link" aria-label="Direct link to Two different &quot;Smart Links&quot;" title="Direct link to Two different &quot;Smart Links&quot;">​</a></h3>
 <p>The codebase already contains a <code>smart_link</code> package implementing an <strong>email
 magic link</strong>: Keycloak mints a signed <em>action token</em>, emails it, and the voter
@@ -36,39 +38,70 @@ external app cannot produce it offline.</p>
 <p>The feature in this document is the opposite trust model: a <strong>symmetric</strong>,
 <strong>client-minted</strong> token verified with a shared secret. The two coexist; this one
 is packaged as a separate Keycloak extension,
-<code>smart-link-hmac-authenticator</code>, and reuses the existing action-token machinery
-to finish the login (see §4).</p>
+<code>smart-link-hmac-authenticator</code>, and uses the shared login-bridge module to
+finish the login (see §5).</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="2-goals">2. Goals<a href="#2-goals" class="hash-link" aria-label="Direct link to 2. Goals" title="Direct link to 2. Goals">​</a></h2>
 <ul>
 <li>Verify an external <code>khmac:///sha-256;&lt;hex&gt;/&lt;message&gt;</code> token using a per-event
-shared secret, with the exact semantics of the first generation.</li>
-<li>Require, from the integrator, only a change of <strong>host, election-event id and
-secret</strong> — the token format is identical.</li>
+shared secret and the first-generation token format.</li>
+<li>Require, from the integrator, only a change of <strong>host, Smart Link election id
+and secret</strong> — the token format is identical.</li>
 <li>Establish a normal Keycloak OIDC session for the <code>voting-portal</code> client.</li>
 <li>Be hardened: constant-time HMAC, reject expired <strong>and</strong> future-dated tokens,
 bind the token to one event, and never leak which check failed.</li>
 </ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="3-non-goals">3. Non-goals<a href="#3-non-goals" class="hash-link" aria-label="Direct link to 3. Non-goals" title="Direct link to 3. Non-goals">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="3-compatibility-with-first-generation">3. Compatibility with first generation<a href="#3-compatibility-with-first-generation" class="hash-link" aria-label="Direct link to 3. Compatibility with first generation" title="Direct link to 3. Compatibility with first generation">​</a></h2>
+<p>Compatible:</p>
+<ul>
+<li>Token envelope: <code>khmac:///sha-256;&lt;hex&gt;/&lt;message&gt;</code>.</li>
+<li>Message shape: <code>&lt;user-id&gt;:AuthEvent:&lt;election-id&gt;:vote:&lt;unix_timestamp&gt;</code>,
+exactly five colon-separated fields. <code>user-id</code> cannot contain <code>:</code>.</li>
+<li>HMAC calculation: lowercase-hex HMAC-SHA256 over the UTF-8 message with the
+shared secret.</li>
+<li>Default external token lifetime: 90 seconds.</li>
+</ul>
+<p>Different:</p>
+<ul>
+<li>The direct endpoint is
+<code>/realms/{realm}/election/{election-id}/public/login</code>, because Keycloak owns
+the realm context and OIDC session. A root
+<code>/election/{election-id}/public/login</code> URL needs a reverse-proxy rule.</li>
+<li>The expected election id is <code>smart-link-election-id</code> when configured, otherwise
+the realm name. First generation used the IAM AuthEvent id directly.</li>
+<li>First generation only checked expiry. This implementation also rejects tokens
+minted too far in the future, controlled by <code>smart-link-clock-skew-secs</code>.</li>
+<li>Required attributes are intentionally smaller: <code>email</code>, <code>tlf</code> and exact text
+user-attribute matches. First-generation required-field machinery such as
+passwords, OTP codes, captchas, images, dictionaries, pipelines, parent-election
+checks, vote-count checks and post-verify hooks is not part of this Keycloak
+bridge.</li>
+<li>Error responses are HTTP-oriented: disabled or misconfigured realms return
+<code>404</code>; enabled authentication failures return a generic <code>401</code>.</li>
+<li>Session creation is delegated to a short-lived internal Keycloak action token;
+there is no second IAM backend authentication call returning IAM auth data.</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="4-non-goals">4. Non-goals<a href="#4-non-goals" class="hash-link" aria-label="Direct link to 4. Non-goals" title="Direct link to 4. Non-goals">​</a></h2>
 <ul>
 <li>No new token format or crypto — HMAC-SHA256 over the existing message only.</li>
 <li>No replacement of the email magic link or any other auth method.</li>
 <li>No census management — voters must already exist in the realm (authorization
 stays with Sequent, authentication with the external app).</li>
 </ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="4-architecture-and-components">4. Architecture and components<a href="#4-architecture-and-components" class="hash-link" aria-label="Direct link to 4. Architecture and components" title="Direct link to 4. Architecture and components">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="5-architecture-and-components">5. Architecture and components<a href="#5-architecture-and-components" class="hash-link" aria-label="Direct link to 5. Architecture and components" title="Direct link to 5. Architecture and components">​</a></h2>
 <p>All Java lives in
 <code>packages/keycloak-extensions/smart-link-hmac-authenticator/src/main/java/sequent/keycloak/authenticator/smart_link/hmac/</code>.</p>
-<table><thead><tr><th>Component</th><th>Responsibility</th></tr></thead><tbody><tr><td><code>HmacSmartLink</code></td><td>Pure, JDK-only validation: parse the envelope, recompute the HMAC (constant-time), check structure, event binding and the time window. No Keycloak dependency, so it is exhaustively unit-tested.</td></tr><tr><td><code>SmartLinkError</code> / <code>SmartLinkValidationException</code></td><td>Typed rejection reasons, logged server-side only.</td></tr><tr><td><code>HmacSmartLinkResource</code></td><td>JAX-RS endpoint <code>GET /realms/{realm}/smart-link/login</code>. Reads realm-attribute config, validates the token, resolves the client and census user, then bridges to the action-token machinery.</td></tr><tr><td><code>HmacSmartLinkProvider</code></td><td>Extends <code>BaseRealmResourceProvider</code> (free CORS preflight) and returns the resource.</td></tr><tr><td><code>HmacSmartLinkResourceProviderFactory</code></td><td><code>@AutoService(RealmResourceProviderFactory.class)</code>, <code>getId() = &quot;smart-link&quot;</code>, which yields the URL path.</td></tr></tbody></table>
+<table><thead><tr><th>Component</th><th>Responsibility</th></tr></thead><tbody><tr><td><code>HmacSmartLink</code></td><td>Pure, JDK-only validation: parse the envelope, recompute the HMAC (constant-time), check structure, election id binding and the time window. No Keycloak dependency, so it is exhaustively unit-tested.</td></tr><tr><td><code>SmartLinkError</code> / <code>SmartLinkValidationException</code></td><td>Typed rejection reasons, logged server-side only.</td></tr><tr><td><code>HmacSmartLinkResource</code></td><td>JAX-RS endpoint <code>GET /realms/{realm}/election/{election-id}/public/login</code>. Reads realm-attribute config, validates the token, resolves the client and census user, then bridges to the action-token machinery.</td></tr><tr><td><code>HmacSmartLinkProvider</code></td><td>Extends <code>BaseRealmResourceProvider</code> (free CORS preflight) and returns the resource.</td></tr><tr><td><code>HmacSmartLinkResourceProviderFactory</code></td><td><code>@AutoService(RealmResourceProviderFactory.class)</code>, <code>getId() = &quot;election&quot;</code>, which yields the first-generation-style URL path segment.</td></tr><tr><td><code>action-token-login-bridge</code></td><td>Shared neutral module that owns the internal action-token type, handler, URL builder and CORS base resource used by both HMAC Smart Link and email magic links.</td></tr></tbody></table>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="the-action-token-bridge">The action-token bridge<a href="#the-action-token-bridge" class="hash-link" aria-label="Direct link to The action-token bridge" title="Direct link to The action-token bridge">​</a></h3>
 <p>The resource deliberately does <strong>not</strong> re-implement session creation. After the
-token validates and the user is resolved, it reuses the existing, audited
-helpers from the <code>smart_link</code> package:</p>
+token validates and the user is resolved, it calls the neutral
+<code>action-token-login-bridge</code> module:</p>
 <ol>
-<li><code>SmartLink.getOrCreate(...)</code> — resolve (or, if configured, create) the user.</li>
-<li><code>SmartLink.createActionToken(...)</code> — mint a <strong>short-lived, non-persistent</strong>
+<li>Resolve the user in the current realm census. Unknown users fail
+authentication; this endpoint does not create voters.</li>
+<li><code>LoginBridge.createActionToken(...)</code> — mint a <strong>short-lived, non-persistent</strong>
 internal action token for the <code>voting-portal</code> client.</li>
-<li><code>SmartLink.linkFromActionToken(...)</code> — build the <code>executeActionToken</code> URL.</li>
-<li>Return a <code>302</code> to it; <code>SmartLinkActionTokenHandler</code> then creates the session
+<li><code>LoginBridge.linkFromActionToken(...)</code> — build the <code>executeActionToken</code> URL.</li>
+<li>Return a <code>302</code> to it; <code>LoginBridgeActionTokenHandler</code> then creates the session
 and redirects to the portal with an OIDC code.</li>
 </ol>
 <p>So the new code is a thin, security-critical translator: <strong>external symmetric
@@ -79,16 +112,24 @@ replayed.</p>
 <p>Config is stored as realm attributes on the event realm, set through harvest&#x27;s
 <code>update-realm-attributes</code> route. Keys are defined once in
 <code>packages/sequent-core/src/types/keycloak.rs</code> and mirrored in <code>HmacSmartLink</code>:</p>
-<table><thead><tr><th>Attribute (<code>REALM_ATTR_SMARTLINK_*</code>)</th><th>Default</th></tr></thead><tbody><tr><td><code>smart-link-enabled</code></td><td><code>false</code></td></tr><tr><td><code>smart-link-shared-secret</code></td><td>unset</td></tr><tr><td><code>smart-link-timeout-secs</code></td><td><code>90</code></td></tr><tr><td><code>smart-link-clock-skew-secs</code></td><td><code>5</code></td></tr><tr><td><code>smart-link-client-id</code></td><td><code>voting-portal</code></td></tr><tr><td><code>smart-link-force-create</code></td><td><code>false</code></td></tr><tr><td><code>smart-link-required-attributes</code></td><td>empty</td></tr></tbody></table>
+<table><thead><tr><th>Attribute (<code>REALM_ATTR_SMARTLINK_*</code>)</th><th>Default</th></tr></thead><tbody><tr><td><code>smart-link-enabled</code></td><td><code>false</code></td></tr><tr><td><code>smart-link-shared-secret</code></td><td>unset</td></tr><tr><td><code>smart-link-timeout-secs</code></td><td><code>90</code></td></tr><tr><td><code>smart-link-clock-skew-secs</code></td><td><code>5</code></td></tr><tr><td><code>smart-link-client-id</code></td><td><code>voting-portal</code></td></tr><tr><td><code>smart-link-election-id</code></td><td>realm name</td></tr><tr><td><code>smart-link-required-attributes</code></td><td>empty</td></tr></tbody></table>
 <p><code>smart-link-enabled=true</code> is the feature switch. The shared secret is required
 only once the feature is enabled. A realm with <code>smart-link-enabled</code> unset or
 <code>false</code> returns <code>404</code> from the HMAC endpoint; a realm with Smart Link enabled
 but no shared secret also returns <code>404</code> and logs a server-side misconfiguration
-warning.</p>
+warning. Configured timeout/skew values must be positive; <code>0</code>, negative or
+non-numeric values also return <code>404</code> and log a misconfiguration warning.</p>
 <p><code>update_realm_attributes</code> in
 <code>packages/sequent-core/src/services/keycloak/realm_attributes.rs</code> validates each
-value (boolean enable/force-create flags; non-blank bounded secret; integer
-timeouts; comma-separated required attribute names) and drops anything malformed.</p>
+value (boolean enable flag; non-blank bounded secret; positive integer timeouts;
+URL-safe election id text; comma-separated required attribute names) and drops
+anything malformed.</p>
+<p><code>smart-link-election-id</code> is the public election id used in both the
+<code>/election/&lt;election-id&gt;/public/login</code> path and the HMAC message. It is text,
+not an integer. If the attribute is missing or blank, the realm name is used as
+the default election id. For example, realm <code>tenant-acme-event-150017</code> defaults
+to election id <code>tenant-acme-event-150017</code>, but setting
+<code>smart-link-election-id=150017</code> makes the path and token use <code>150017</code>.</p>
 <p><code>smart-link-required-attributes</code> is the second-generation equivalent of the
 first-generation Smart Link required extra-field check. It is intentionally
 small: a comma-separated list of request parameter names. The external token
@@ -98,15 +139,20 @@ same endpoint after <code>auth-token</code>.</p>
 <table><thead><tr><th>Required attribute</th><th>User-side value</th></tr></thead><tbody><tr><td><code>email</code></td><td><code>UserModel.getEmail()</code>, normalized case-insensitively.</td></tr><tr><td><code>tlf</code></td><td>Keycloak user attribute <code>sequent.read-only.mobile-number</code>.</td></tr><tr><td>any other name</td><td>Keycloak user attribute with the same name, exact string match.</td></tr></tbody></table>
 <p>Unsupported first-generation field types (<code>password</code>, <code>otp-code</code>, <code>captcha</code>,
 <code>image</code>, <code>dict</code>, etc.) are deliberately out of scope for this HMAC bridge.</p>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="5-flow-description">5. Flow description<a href="#5-flow-description" class="hash-link" aria-label="Direct link to 5. Flow description" title="Direct link to 5. Flow description">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="6-flow-description">6. Flow description<a href="#6-flow-description" class="hash-link" aria-label="Direct link to 6. Flow description" title="Direct link to 6. Flow description">​</a></h2>
 <!-- -->
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="6-realm--event-mapping">6. Realm ↔ event mapping<a href="#6-realm--event-mapping" class="hash-link" aria-label="Direct link to 6. Realm ↔ event mapping" title="Direct link to 6. Realm ↔ event mapping">​</a></h2>
-<p>Event realms are named <code>tenant-&lt;tenant_id&gt;-event-&lt;election_event_id&gt;</code>
-(<code>get_event_realm</code> in sequent-core). <code>HmacSmartLink.electionEventIdFromRealm</code>
-re-implements <code>parse_realm</code> to recover the event id from the realm being
-accessed, and the token&#x27;s <code>election-event-id</code> field must equal it. This is what
-prevents a token minted for one event from being replayed against another.</p>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="7-security-considerations">7. Security considerations<a href="#7-security-considerations" class="hash-link" aria-label="Direct link to 7. Security considerations" title="Direct link to 7. Security considerations">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="7-realm--smart-link-election-id">7. Realm ↔ Smart Link Election Id<a href="#7-realm--smart-link-election-id" class="hash-link" aria-label="Direct link to 7. Realm ↔ Smart Link Election Id" title="Direct link to 7. Realm ↔ Smart Link Election Id">​</a></h2>
+<p>Event realms are still resolved by name, usually
+<code>tenant-&lt;tenant_id&gt;-event-&lt;election_event_id&gt;</code> (<code>get_event_realm</code> in
+sequent-core). Smart Link does not parse that event id for authentication. It
+chooses the expected Smart Link election id from the realm attribute
+<code>smart-link-election-id</code>; when that attribute is missing or blank, it uses the
+realm name itself.</p>
+<p>The path election id and the token&#x27;s <code>AuthEvent:&lt;election-id&gt;:vote</code> field must
+both equal that expected Smart Link election id. This lets deployments keep the
+first-generation numeric path when they configure one, while defaulting to the
+realm name without adding another required setting.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="8-security-considerations">8. Security considerations<a href="#8-security-considerations" class="hash-link" aria-label="Direct link to 8. Security considerations" title="Direct link to 8. Security considerations">​</a></h2>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="verification-order">Verification order<a href="#verification-order" class="hash-link" aria-label="Direct link to Verification order" title="Direct link to Verification order">​</a></h3>
 <ol>
 <li><strong>Enabled and configured?</strong> <code>smart-link-enabled</code> unset/false returns <code>404</code>.
@@ -114,9 +160,11 @@ Enabled with no secret also returns <code>404</code> and logs a misconfiguration
 Token validation only runs when the realm is explicitly enabled and has a
 secret.</li>
 <li><strong>Structural</strong> parse of envelope, digest (<code>sha-256</code> only), 64-hex hash and
-the message. The parser anchors on the last four fields, so <code>:</code> remains valid
-inside the user id and malformed short messages are rejected.</li>
-<li><strong>Permission / event binding</strong> — <code>AuthEvent</code>/<code>vote</code> and event id match.</li>
+the message. The message must have exactly five colon-separated fields, so
+<code>:</code> is rejected inside <code>user-id</code>.</li>
+<li><strong>Permission / election id binding</strong> — the path election id, <code>AuthEvent</code>/<code>vote</code>,
+and token election id all match the expected Smart Link election id for the
+realm.</li>
 <li><strong>HMAC</strong> — recomputed and compared in <strong>constant time</strong>
 (<code>MessageDigest.isEqual</code>) <strong>before</strong> any timing decision, so the time checks
 only ever run on authentic messages.</li>
@@ -141,33 +189,33 @@ Keycloak; the voting portal never receives the secret.</li>
 admins via the admin API — the same trust level as the first generation&#x27;s
 config secret. Rotate per event as needed.</li>
 </ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="8-testing">8. Testing<a href="#8-testing" class="hash-link" aria-label="Direct link to 8. Testing" title="Direct link to 8. Testing">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="9-testing">9. Testing<a href="#9-testing" class="hash-link" aria-label="Direct link to 9. Testing" title="Direct link to 9. Testing">​</a></h2>
 <p><code>HmacSmartLinkTest</code> covers the happy path plus every rejection: wrong secret,
-tampered message, mismatched event, expired, future-dated, missing secret,
+tampered message, mismatched election id, expired, future-dated, missing secret,
 malformed envelope, unsupported digest, wrong permission, empty user id,
-malformed short messages, and realm-name parsing. It also accepts user ids
-containing <code>:</code>, <code>/</code>, and <code>;</code>, matching the first-generation parser behavior. The
-&quot;known vector&quot; test asserts the Java HMAC equals the value produced by the
-Python/Scala/Go generators, locking cross-generation compatibility.
+malformed short messages, configured/default Smart Link election id selection,
+and rejection of <code>:</code> inside <code>user-id</code>. The &quot;known vector&quot; test asserts the Java
+HMAC equals the value produced by the Python/Scala/Go generators for the same
+message, locking token-level compatibility.
 <code>SmartLinkRequiredAttributesTest</code> covers comma-separated parsing and the
 supported <code>email</code>, <code>tlf</code>, and generic text attribute checks.</p>
 <p>Because <code>HmacSmartLink</code> is JDK-only it runs as a fast unit test
-(<code>mvn -pl smart-link-hmac-authenticator -am test</code>). The resource/provider
-wiring is covered by the e2e suite.</p>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="9-related-documentation">9. Related documentation<a href="#9-related-documentation" class="hash-link" aria-label="Direct link to 9. Related documentation" title="Direct link to 9. Related documentation">​</a></h2>
+(<code>mvn -pl smart-link-hmac-authenticator -am test</code>). Resource/provider wiring
+should be covered by an e2e suite before release.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="10-related-documentation">10. Related documentation<a href="#10-related-documentation" class="hash-link" aria-label="Direct link to 10. Related documentation" title="Direct link to 10. Related documentation">​</a></h2>
 <ul>
 <li><a href="/docusaurus/pr-preview/pr-2748/docs/integrations/smart_link_integration_guide">Smart Link SSO Integration</a>
 — integrator contract.</li>
 <li><a href="/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/idp_initiated_sso_design_implementation">IdP-Initiated SSO Design &amp; Implementation</a>
 — the other custom realm-resource login bridge, same wiring pattern.</li>
 </ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="10-future-considerations">10. Future considerations<a href="#10-future-considerations" class="hash-link" aria-label="Direct link to 10. Future considerations" title="Direct link to 10. Future considerations">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="11-future-considerations">11. Future considerations<a href="#11-future-considerations" class="hash-link" aria-label="Direct link to 11. Future considerations" title="Direct link to 11. Future considerations">​</a></h2>
 <ul>
 <li><strong>Single-use external tokens.</strong> Parity with the first generation keeps tokens
 replayable within their window; a short-lived nonce cache keyed by HMAC could
 enforce strict one-time use if a client requires it.</li>
 <li><strong>Admin-portal UI.</strong> Surface the realm attributes in the event settings screen
 with a &quot;rotate secret&quot; action, rather than relying on the raw API.</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/developers/06-Keycloak/smart_link_hmac_design_implementation.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/oid4vp_testing_guide"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">OID4VP Testing Guide</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/x509_cert_login_events"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">X.509 Certificate Login — Electoral Log Events</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#document-purpose" class="table-of-contents__link toc-highlight">Document purpose</a></li><li><a href="#1-overview" class="table-of-contents__link toc-highlight">1. Overview</a><ul><li><a href="#two-different-smart-links" class="table-of-contents__link toc-highlight">Two different &quot;Smart Links&quot;</a></li></ul></li><li><a href="#2-goals" class="table-of-contents__link toc-highlight">2. Goals</a></li><li><a href="#3-non-goals" class="table-of-contents__link toc-highlight">3. Non-goals</a></li><li><a href="#4-architecture-and-components" class="table-of-contents__link toc-highlight">4. Architecture and components</a><ul><li><a href="#the-action-token-bridge" class="table-of-contents__link toc-highlight">The action-token bridge</a></li><li><a href="#configuration-realm-attributes" class="table-of-contents__link toc-highlight">Configuration (realm attributes)</a></li></ul></li><li><a href="#5-flow-description" class="table-of-contents__link toc-highlight">5. Flow description</a></li><li><a href="#6-realm--event-mapping" class="table-of-contents__link toc-highlight">6. Realm ↔ event mapping</a></li><li><a href="#7-security-considerations" class="table-of-contents__link toc-highlight">7. Security considerations</a><ul><li><a href="#verification-order" class="table-of-contents__link toc-highlight">Verification order</a></li><li><a href="#other-properties" class="table-of-contents__link toc-highlight">Other properties</a></li></ul></li><li><a href="#8-testing" class="table-of-contents__link toc-highlight">8. Testing</a></li><li><a href="#9-related-documentation" class="table-of-contents__link toc-highlight">9. Related documentation</a></li><li><a href="#10-future-considerations" class="table-of-contents__link toc-highlight">10. Future considerations</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/developers/06-Keycloak/smart_link_hmac_design_implementation.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/oid4vp_testing_guide"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">OID4VP Testing Guide</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/x509_cert_login_events"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">X.509 Certificate Login — Electoral Log Events</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#document-purpose" class="table-of-contents__link toc-highlight">Document purpose</a></li><li><a href="#1-overview" class="table-of-contents__link toc-highlight">1. Overview</a><ul><li><a href="#two-different-smart-links" class="table-of-contents__link toc-highlight">Two different &quot;Smart Links&quot;</a></li></ul></li><li><a href="#2-goals" class="table-of-contents__link toc-highlight">2. Goals</a></li><li><a href="#3-compatibility-with-first-generation" class="table-of-contents__link toc-highlight">3. Compatibility with first generation</a></li><li><a href="#4-non-goals" class="table-of-contents__link toc-highlight">4. Non-goals</a></li><li><a href="#5-architecture-and-components" class="table-of-contents__link toc-highlight">5. Architecture and components</a><ul><li><a href="#the-action-token-bridge" class="table-of-contents__link toc-highlight">The action-token bridge</a></li><li><a href="#configuration-realm-attributes" class="table-of-contents__link toc-highlight">Configuration (realm attributes)</a></li></ul></li><li><a href="#6-flow-description" class="table-of-contents__link toc-highlight">6. Flow description</a></li><li><a href="#7-realm--smart-link-election-id" class="table-of-contents__link toc-highlight">7. Realm ↔ Smart Link Election Id</a></li><li><a href="#8-security-considerations" class="table-of-contents__link toc-highlight">8. Security considerations</a><ul><li><a href="#verification-order" class="table-of-contents__link toc-highlight">Verification order</a></li><li><a href="#other-properties" class="table-of-contents__link toc-highlight">Other properties</a></li></ul></li><li><a href="#9-testing" class="table-of-contents__link toc-highlight">9. Testing</a></li><li><a href="#10-related-documentation" class="table-of-contents__link toc-highlight">10. Related documentation</a></li><li><a href="#11-future-considerations" class="table-of-contents__link toc-highlight">11. Future considerations</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
