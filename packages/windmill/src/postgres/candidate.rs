@@ -103,7 +103,7 @@ pub async fn insert_candidates(
             .as_ref()
             .and_then(|contest_id| parse_uuid_v4(contest_id).ok());
 
-        let row: Vec<&(dyn ToSql + Sync)> = vec![
+        let row: [&(dyn ToSql + Sync); 15] = [
             &id,
             &tenant_uuid,
             &election_event_uuid,
