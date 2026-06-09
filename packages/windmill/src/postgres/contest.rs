@@ -113,7 +113,7 @@ pub async fn insert_contest(
         let max_votes = contest.max_votes.map(|val| val as i32);
         let winning_candidates_num = contest.winning_candidates_num.map(|val| val as i32);
 
-        let row: Vec<&(dyn ToSql + Sync)> = vec![
+        let row: [&(dyn ToSql + Sync); 22] = [
             &id,
             &tenant_id,
             &election_event_id,
