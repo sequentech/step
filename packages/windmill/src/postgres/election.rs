@@ -528,7 +528,7 @@ pub async fn insert_elections(
             .transpose()?;
         let num_allowed_revotes = election.num_allowed_revotes.map(|val| val as i32);
 
-        let row: Vec<&(dyn ToSql + Sync)> = vec![
+        let row: [&(dyn ToSql + Sync); 24] = [
             &id,
             &tenant_id,
             &election_event_id,
