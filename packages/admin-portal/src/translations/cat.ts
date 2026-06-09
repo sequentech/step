@@ -1745,6 +1745,7 @@ const catalanTranslation: TranslationType = {
                     eliminated: "Eliminat",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de vots de renúncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
