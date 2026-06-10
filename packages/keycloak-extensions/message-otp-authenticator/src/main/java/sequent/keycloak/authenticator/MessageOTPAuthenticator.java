@@ -381,7 +381,7 @@ public class MessageOTPAuthenticator
       return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
     }
     boolean deferredUser =
-        config.get().getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE).equals("true");
+        "true".equals(config.get().getConfig().get(Utils.DEFERRED_USER_ATTRIBUTE));
     String mobileNumber = null;
     String emailAddress = null;
 
