@@ -27,10 +27,22 @@ APPLY (default) does the following to a Sequent tenant realm whose
   4. Adds "webauthn-register-passwordless" to every existing non-service-
      account user's requiredActions so they get prompted on their next login.
 
+Before making any change, the first apply on a pristine realm records the
+state it is about to overwrite (SMTP "From" address, WebAuthn Passwordless
+policy, and the parent-flow execution priorities) into the realm attribute
+"sequent.passkey-email-otp.backup", so revert can restore it faithfully. The
+snapshot is taken only once; later applies leave it untouched. The keys that
+heal_stale_message_otp_configs() backfills into OTHER flows' message-otp
+configs are intentionally NOT snapshotted — they are benign defaults and are
+left in place on revert.
+
 REVERT (--revert) undoes all of the above:
 
-  1. Resets the WebAuthn Passwordless Policy back to defaults and removes the
-     "Enable Passkeys" attribute.
+  1. Restores the snapshot recorded by apply (SMTP "From", WebAuthn
+     Passwordless policy and attribute, parent-flow execution priorities) and
+     clears the backup attribute. If no snapshot is present (e.g. the realm was
+     configured before snapshots existed), it falls back to resetting the
+     WebAuthn Passwordless Policy to hard-coded defaults.
   2. Deletes the two "WebAuthn Passwordless - silver/gold conditional"
      sub-flows (and their references from the silver/gold parent conditions).
   3. Deletes the "Email OTP silver/gold" authenticator configs.
@@ -52,6 +64,12 @@ Usage:
         --admin-user admin --admin-password admin \
         --realm tenant-<uuid>
 
+    # preview (no changes) — works on both apply and revert
+    python3 apply-passkey-email-otp.py --dry-run \
+        --url http://keycloak:8090 \
+        --admin-user admin --admin-password admin \
+        --realm tenant-<uuid>
+
 Environment variable fallbacks: KC_URL, KC_ADMIN_USER, KC_ADMIN_PASSWORD.
 """
 import argparse
@@ -63,6 +81,13 @@ import urllib.request
 
 
 USER_AGENT = "curl/8.0.0 apply-passkey-email-otp.py"
+
+# When True, all mutating HTTP calls (PUT/POST/DELETE) are skipped and only
+# logged, so the script previews its changes without touching the realm.
+DRY_RUN = False
+# Sentinel returned by ensure_authenticator in dry-run when the execution it
+# would create does not exist yet, so downstream helpers can no-op gracefully.
+DRY_RUN_ID = "DRY_RUN"
 
 class Token:
     """Refreshable token holder. Re-fetches on demand (e.g. after a 401)."""
@@ -78,6 +103,9 @@ class Token:
 
 
 def http(method, url, token=None, body=None, ignore_404=False, _retried=False):
+    if DRY_RUN and method in ("PUT", "POST", "DELETE"):
+        print(f"    [dry-run] skip {method} {url}")
+        return None
     data = None
     headers = {"User-Agent": USER_AGENT}
     if body is not None:
@@ -130,6 +158,11 @@ def get_token(base, user, password):
 
 SMTP_FROM_ADDRESS = "noreply@sequent.vote"
 
+# Realm attribute under which apply() stashes the original state it overwrites
+# (SMTP "From", WebAuthn Passwordless policy, parent-flow execution priorities)
+# so revert() can restore it faithfully instead of resetting to hard defaults.
+BACKUP_ATTR = "sequent.passkey-email-otp.backup"
+
 EMAIL_OTP_CONFIG = {
     "one-time-link": "false",
     "senderId": "Keycloak",
@@ -169,9 +202,66 @@ REQUIRED_MSG_OTP_KEYS = {
 
 # ----------------------------- APPLY helpers -----------------------------
 
+def _exec_key(e):
+    """Stable identity for a flow execution: its providerId, or the sub-flow's
+    displayName when it has no providerId."""
+    return e.get("providerId") or e.get("displayName")
+
+
+def _passwordless_policy_snapshot(realm_rep):
+    """Capture the WebAuthn Passwordless policy fields apply() overwrites."""
+    attrs = realm_rep.get("attributes") or {}
+    return {
+        "rpEntityName": realm_rep.get("webAuthnPolicyPasswordlessRpEntityName"),
+        "signatureAlgorithms": realm_rep.get("webAuthnPolicyPasswordlessSignatureAlgorithms"),
+        "authenticatorAttachment": realm_rep.get("webAuthnPolicyPasswordlessAuthenticatorAttachment"),
+        "requireResidentKey": realm_rep.get("webAuthnPolicyPasswordlessRequireResidentKey"),
+        "userVerification": realm_rep.get("webAuthnPolicyPasswordlessUserVerificationRequirement"),
+        "passkeysEnabled": realm_rep.get("webAuthnPolicyPasswordlessPasskeysEnabled"),
+        "passkeysAttr": attrs.get("webAuthnPolicyPasswordlessPasskeysEnabled"),
+    }
+
+
+def snapshot_state(base, token, realm):
+    """Record the original realm state apply() will overwrite into a realm
+    attribute, so revert() can restore it faithfully.
+
+    Idempotent and safe across apply/revert cycles: only the FIRST apply on a
+    pristine realm writes the snapshot. Later applies see the existing snapshot
+    and leave it untouched, so the true original (captured before any mutation)
+    always survives. revert() clears the attribute once it has restored.
+    """
+    print("[snapshot] Recording original state for faithful revert")
+    r = http("GET", f"{base}/admin/realms/{realm}", token)
+    attrs = dict(r.get("attributes") or {})
+    if BACKUP_ATTR in attrs:
+        print("    snapshot already present; leaving it untouched")
+        return
+    parent_priorities = {}
+    for parent_alias, _, _, _ in PARENT_FLOWS:
+        execs = fetch_flow_executions(base, token, realm, parent_alias)
+        parent_priorities[parent_alias] = {
+            _exec_key(e): e["priority"]
+            for e in execs if e.get("level") == 0 and _exec_key(e) is not None
+        }
+    smtp = r.get("smtpServer") or {}
+    backup = {
+        "smtpFrom": smtp.get("from"),
+        "passwordlessPolicy": _passwordless_policy_snapshot(r),
+        "parentPriorities": parent_priorities,
+    }
+    attrs[BACKUP_ATTR] = json.dumps(backup)
+    # Send the full attribute map so no existing realm attribute is dropped.
+    http("PUT", f"{base}/admin/realms/{realm}", token, {"attributes": attrs})
+
+
 def enable_passkey_policy(base, token, realm):
     print("[1/4] Enabling WebAuthn Passwordless Policy (passkeys)")
-    # A full PUT ensures Keycloak promotes top-level passkey flag to the realm attribute.
+    # Read-modify-write the attribute map so the passkey flag is added without
+    # dropping any other realm attribute (e.g. our snapshot).
+    r = http("GET", f"{base}/admin/realms/{realm}", token)
+    attrs = dict(r.get("attributes") or {})
+    attrs["webAuthnPolicyPasswordlessPasskeysEnabled"] = "true"
     http("PUT", f"{base}/admin/realms/{realm}", token, {
         "webAuthnPolicyPasswordlessRpEntityName": "keycloak",
         "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256"],
@@ -179,7 +269,7 @@ def enable_passkey_policy(base, token, realm):
         "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
         "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
         "webAuthnPolicyPasswordlessPasskeysEnabled": True,
-        "attributes": {"webAuthnPolicyPasswordlessPasskeysEnabled": "true"},
+        "attributes": attrs,
     })
 
 
@@ -243,6 +333,8 @@ def ensure_authenticator(base, token, realm, child_alias, provider):
     http("POST",
         f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(child_alias, safe='')}/executions/execution",
         token, {"provider": provider})
+    if DRY_RUN:
+        return DRY_RUN_ID
     for e in fetch_flow_executions(base, token, realm, child_alias):
         if e.get("providerId") == provider:
             return e["id"]
@@ -259,6 +351,9 @@ def remove_conditional_user_configured(base, token, realm, child_alias):
 
 
 def ensure_email_otp_config(base, token, realm, execution_id, config_alias):
+    if DRY_RUN and execution_id == DRY_RUN_ID:
+        print(f"    [dry-run] would attach '{config_alias}' config to a new message-otp execution")
+        return
     exe = http("GET",
         f"{base}/admin/realms/{realm}/authentication/executions/{execution_id}",
         token)
@@ -474,13 +569,89 @@ def apply_required_action_to_users(base, token, realm):
         if changed:
             http("PUT", f"{base}/admin/realms/{realm}/users/{u['id']}",
                  token, {"requiredActions": ras})
-            print(f"    updated {u['username']} requiredActions={ras}")
+            verb = "would update" if DRY_RUN else "updated"
+            print(f"    {verb} {u['username']} requiredActions={ras}")
 
 
 # ----------------------------- REVERT helpers -----------------------------
 
+def restore_parent_priorities(base, token, realm, parent_priorities):
+    """Restore the level-0 execution priorities captured by snapshot_state().
+
+    apply()'s ensure_strict_priority_order may delete+recreate the parent's
+    auth_provider execution, permanently changing its priority. We match each
+    saved execution by its stable key (providerId / displayName) and put its
+    priority back, preserving the execution's current requirement.
+    """
+    for parent_alias, saved in parent_priorities.items():
+        for e in fetch_flow_executions(base, token, realm, parent_alias):
+            if e.get("level") != 0:
+                continue
+            key = _exec_key(e)
+            if key is None or key not in saved or e["priority"] == saved[key]:
+                continue
+            print(f"    restoring priority of '{key}' in '{parent_alias}' -> {saved[key]}")
+            http("PUT",
+                f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias, safe='')}/executions",
+                token, {"id": e["id"], "requirement": e["requirement"], "priority": saved[key]})
+
+
+def restore_state(base, token, realm):
+    """Restore the original realm state captured by snapshot_state().
+
+    Falls back to the hard-coded passkey-policy defaults (the legacy behaviour)
+    when no readable snapshot is present, so revert still works on realms that
+    were configured before snapshots existed.
+    """
+    print("[1/4] Restoring original realm state")
+    r = http("GET", f"{base}/admin/realms/{realm}", token)
+    attrs = dict(r.get("attributes") or {})
+    raw = attrs.get(BACKUP_ATTR)
+    if not raw:
+        print("    no snapshot found; resetting passkey policy to defaults")
+        reset_passkey_policy(base, token, realm)
+        return
+    try:
+        backup = json.loads(raw)
+    except (ValueError, TypeError):
+        print("    snapshot unreadable; resetting passkey policy to defaults")
+        reset_passkey_policy(base, token, realm)
+        return
+
+    # Restore SMTP "From" (drop it if there was none originally).
+    smtp = dict(r.get("smtpServer") or {})
+    orig_from = backup.get("smtpFrom")
+    if orig_from is None:
+        smtp.pop("from", None)
+    else:
+        smtp["from"] = orig_from
+
+    # Restore the WebAuthn Passwordless policy and its realm attribute.
+    pol = backup.get("passwordlessPolicy") or {}
+    passkeys_attr = pol.get("passkeysAttr")
+    if passkeys_attr is None:
+        attrs.pop("webAuthnPolicyPasswordlessPasskeysEnabled", None)
+    else:
+        attrs["webAuthnPolicyPasswordlessPasskeysEnabled"] = passkeys_attr
+    attrs.pop(BACKUP_ATTR, None)
+
+    http("PUT", f"{base}/admin/realms/{realm}", token, {
+        "smtpServer": smtp,
+        "webAuthnPolicyPasswordlessRpEntityName": pol.get("rpEntityName") or "keycloak",
+        "webAuthnPolicyPasswordlessSignatureAlgorithms": pol.get("signatureAlgorithms") or ["ES256"],
+        "webAuthnPolicyPasswordlessAuthenticatorAttachment": pol.get("authenticatorAttachment") or "not specified",
+        "webAuthnPolicyPasswordlessRequireResidentKey": pol.get("requireResidentKey") or "not specified",
+        "webAuthnPolicyPasswordlessUserVerificationRequirement": pol.get("userVerification") or "not specified",
+        "webAuthnPolicyPasswordlessPasskeysEnabled": bool(pol.get("passkeysEnabled")),
+        "attributes": attrs,
+    })
+
+    # Restore parent-flow execution priorities.
+    restore_parent_priorities(base, token, realm, backup.get("parentPriorities") or {})
+
+
 def reset_passkey_policy(base, token, realm):
-    print("[1/4] Resetting WebAuthn Passwordless Policy")
+    print("    resetting WebAuthn Passwordless Policy to defaults")
     # Fetch current realm to preserve other attributes; remove the passkeys ones.
     r = http("GET", f"{base}/admin/realms/{realm}", token)
     attrs = r.get("attributes") or {}
@@ -559,7 +730,8 @@ def remove_required_action_from_users(base, token, realm):
         if new_ras != ras:
             http("PUT", f"{base}/admin/realms/{realm}/users/{u['id']}",
                  token, {"requiredActions": new_ras})
-            print(f"    cleared required actions for {u['username']}")
+            verb = "would clear" if DRY_RUN else "cleared"
+            print(f"    {verb} required actions for {u['username']}")
         # Also delete any previously-seeded message-otp credential (no-op if absent).
         creds = http("GET", f"{base}/admin/realms/{realm}/users/{u['id']}/credentials", token) or []
         for c in creds:
@@ -567,13 +739,16 @@ def remove_required_action_from_users(base, token, realm):
                 http("DELETE",
                      f"{base}/admin/realms/{realm}/users/{u['id']}/credentials/{c['id']}",
                      token, ignore_404=True)
-                print(f"    deleted email-OTP credential from {u['username']}")
+                verb = "would delete" if DRY_RUN else "deleted"
+                print(f"    {verb} email-OTP credential from {u['username']}")
 
 
 # ------------------------------- entry ---------------------------------
 
 def do_apply(base, token, realm):
-    print(f"Applying passkey+email-OTP config to realm '{realm}' at {base}")
+    suffix = " (dry-run — no changes will be made)" if DRY_RUN else ""
+    print(f"Applying passkey+email-OTP config to realm '{realm}' at {base}{suffix}")
+    snapshot_state(base, token, realm)
     ensure_smtp_from(base, token, realm)
     enable_passkey_policy(base, token, realm)
     configure_subflows(base, token, realm)
@@ -584,8 +759,9 @@ def do_apply(base, token, realm):
 
 
 def do_revert(base, token, realm):
-    print(f"Reverting passkey+email-OTP config from realm '{realm}' at {base}")
-    reset_passkey_policy(base, token, realm)
+    suffix = " (dry-run — no changes will be made)" if DRY_RUN else ""
+    print(f"Reverting passkey+email-OTP config from realm '{realm}' at {base}{suffix}")
+    restore_state(base, token, realm)
     remove_subflows(base, token, realm)
     remove_email_otp_configs(base, token, realm)
     disable_required_action(base, token, realm)
@@ -603,11 +779,15 @@ def main():
                     help="Target realm name (e.g. tenant-<uuid>)")
     ap.add_argument("--revert", action="store_true",
                     help="Undo passkey+email-OTP config on the realm")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="Preview changes (reads only); skip all PUT/POST/DELETE calls")
     args = ap.parse_args()
     if not args.url:
         ap.error("--url (or KC_URL env) is required")
     if not args.admin_password:
         ap.error("--admin-password (or KC_ADMIN_PASSWORD env) is required")
+    global DRY_RUN
+    DRY_RUN = args.dry_run
     base = args.url.rstrip("/")
     token = get_token(base, args.admin_user, args.admin_password)
     if args.revert:
