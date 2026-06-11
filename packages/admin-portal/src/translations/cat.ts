@@ -2228,8 +2228,9 @@ const catalanTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "S'han importat {{inserted}} certificat(s). {{skipped}} omès(os) (ja presents).",
+                importSuccess: "S'han importat {{inserted}} certificat(s).",
+                importSkipped: "{{count}} omès(os) (ja presents).",
+                importErrors: "Problemes en la importació: {{errors}}",
                 importError: "Error en la importació: {{error}}",
                 deleteSuccess: "Certificat eliminat.",
                 deleteError: "Error en eliminar el certificat.",
