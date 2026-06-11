@@ -664,6 +664,13 @@ const frenchTranslation: TranslationType = {
                     "do-not-generate": "Ne pas générer",
                 },
             },
+            declineToVotePolicy: {
+                label: "Politique d’abstention de vote",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1742,6 +1749,7 @@ const frenchTranslation: TranslationType = {
                     eliminated: "Éliminé",
                     round: "Tour",
                 },
+                total_declined_to_vote: "Total des refus de vote",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -2232,8 +2240,9 @@ const frenchTranslation: TranslationType = {
                 importButton: "Importer",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} certificat(s) importé(s). {{skipped}} ignoré(s) (déjà présent(s)).",
+                importSuccess: "{{inserted}} certificat(s) importé(s).",
+                importSkipped: "{{count}} ignoré(s) (déjà présent(s)).",
+                importErrors: "Problèmes d'importation : {{errors}}",
                 importError: "Échec de l'importation : {{error}}",
                 deleteSuccess: "Certificat supprimé.",
                 deleteError: "Erreur lors de la suppression du certificat.",

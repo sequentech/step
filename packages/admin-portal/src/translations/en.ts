@@ -661,6 +661,13 @@ const englishTranslation = {
                     "do-not-generate": "Do Not Generate",
                 },
             },
+            declineToVotePolicy: {
+                label: "Decline to Vote Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1715,6 +1722,7 @@ const englishTranslation = {
                     eliminated: "Eliminated",
                     round: "Round",
                 },
+                total_declined_to_vote: "Total Declined to Vote",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
@@ -2202,8 +2210,9 @@ const englishTranslation = {
                 importButton: "Import",
             },
             notify: {
-                importSuccess:
-                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importSuccess: "Imported {{inserted}} certificate(s).",
+                importSkipped: "{{count}} certificate(s) skipped (already present).",
+                importErrors: "Import issues: {{errors}}",
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",
