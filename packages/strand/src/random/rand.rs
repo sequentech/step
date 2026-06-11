@@ -39,6 +39,38 @@ impl RngCore for StrandRng {
     }
 }
 
+/// num-bigint's `RandBigInt` trait is implemented for any `rand_core` 0.6 (rand 0.8) `Rng`.
+/// StrandRng implements that trait generation too, delegating to the same OsRng-backed
+/// rand 0.9 implementation above, so num_bigint can share StrandRng as its randomness source.
+#[cfg(feature = "num_bigint")]
+impl rand_core_06::CryptoRng for StrandRng {}
+
+#[cfg(feature = "num_bigint")]
+impl rand_core_06::RngCore for StrandRng {
+    #[inline(always)]
+    fn next_u32(&mut self) -> u32 {
+        RngCore::next_u32(self)
+    }
+
+    #[inline(always)]
+    fn next_u64(&mut self) -> u64 {
+        RngCore::next_u64(self)
+    }
+
+    #[inline(always)]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        RngCore::fill_bytes(self, dest)
+    }
+
+    fn try_fill_bytes(
+        &mut self,
+        dest: &mut [u8],
+    ) -> Result<(), rand_core_06::Error> {
+        RngCore::fill_bytes(self, dest);
+        Ok(())
+    }
+}
+
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }
