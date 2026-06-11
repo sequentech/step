@@ -1,8 +1,49 @@
 table:
     name: phone_blacklist
     schema: sequent_backend
+insert_permissions:
+    - role: admin-user
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - phone_e164
+              - reason
+              - tenant_id
+      comment: ""
+    - role: service-account
+      permission:
+          check: {}
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+      comment: ""
 select_permissions:
-    - comment: ""
+    - role: admin-user
+      permission:
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: phone-blacklist-read
       permission:
           columns:
               - election_event_id
@@ -12,4 +53,58 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      role: phone-blacklist-read
+      comment: ""
+    - role: service-account
+      permission:
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+      comment: ""
+update_permissions:
+    - role: admin-user
+      permission:
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: service-account
+      permission:
+          columns:
+              - phone_e164
+              - reason
+              - created_at
+              - created_by
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+          check: {}
+      comment: ""
+delete_permissions:
+    - role: admin-user
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      comment: ""
+    - role: service-account
+      permission:
+          filter: {}
+      comment: ""
