@@ -106,6 +106,15 @@
         "attributes": {}
       },
       {
+        "id": "4ba82ad8-9582-4766-b48c-f97418aa17a6",
+        "name": "election-event-read",
+        "description": "Allow reading election events.",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
+        "attributes": {}
+      },
+      {
         "id": "eca4e6a6-6ef8-4f0c-b471-aacfcb0bc328",
         "name": "ivr-service",
         "description": "Fallback role for the ivr-service, provides no access.",
@@ -541,6 +550,7 @@
         "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
         "ivr-config-read",
         "phone-blacklist-read",
+        "election-event-read",
         "ivr-service"
       ],
       "notBefore": 0,
