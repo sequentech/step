@@ -15,7 +15,6 @@ const ListContainer = styled(Box)<{isactive: string}>`
     box-shadow: 0 2px 4px 2px rgba(0, 0, 0, 0.25);
     border-radius: 5px;
     flex-grow: 2;
-    width: 50%;
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         width: initial;
     }
