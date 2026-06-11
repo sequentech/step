@@ -12,11 +12,19 @@
                 }
           - name: IvrGetElectionStatus
             query: |
-                query IvrGetElectionStatus($election_id: uuid!) {
-                  election: sequent_backend_election(
-                    where: {id: {_eq: $election_id}},
-                    limit: 1
-                  ) {
+                query IvrGetElectionStatus ($election_id: uuid!) {
+                  election: sequent_backend_election(where: {id:{_eq:$election_id}}, limit: 1) {
                     status
+                  }
+                }
+          - name: IvrGetBallotStyles
+            query: |
+                query IvrGetBallotStyles ($event_id: uuid!) {
+                  ballot_styles: sequent_backend_ballot_style(where: {deleted_at:{_is_null:true},election_event_id:{_eq:$event_id}}) {
+                    election_id
+                    election_event_id
+                    area_id
+                    ballot_publication_id
+                    ballot_eml
                   }
                 }

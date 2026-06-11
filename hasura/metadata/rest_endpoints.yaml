@@ -2,6 +2,15 @@
   definition:
       query:
           collection_name: allowed-queries
+          query_name: IvrGetBallotStyles
+  methods:
+      - GET
+  name: IvrGetBallotStyles
+  url: ivr/election-event/:event_id/ballot-styles
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
           query_name: IvrGetElectionStatus
   methods:
       - GET
