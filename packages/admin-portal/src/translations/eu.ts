@@ -663,6 +663,13 @@ const basqueTranslation: TranslationType = {
                     "do-not-generate": "Ez sortu",
                 },
             },
+            declineToVotePolicy: {
+                label: "Bozkatu ezaren politika",
+                options: {
+                    "election-level": "Hauteskundearen maila",
+                    "disabled": "Desgaituta",
+                },
+            },
         },
         tenantScreen: {
             common: {
