@@ -17,6 +17,18 @@
                     status
                   }
                 }
+          - name: IvrGetElectionEvent
+            query: |
+                query IvrGetElectionEvent ($event_id: uuid!) {
+                  election_event: sequent_backend_election_event(where: {id:{_eq:$event_id}}, limit: 1) {
+                    id
+                    tenant_id
+                    description
+                    annotations
+                    presentation
+                    status
+                  }
+                }
           - name: IvrGetBallotStyles
             query: |
                 query IvrGetBallotStyles ($event_id: uuid!) {

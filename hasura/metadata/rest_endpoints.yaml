@@ -6,7 +6,7 @@
   methods:
       - GET
   name: IvrGetBallotStyles
-  url: ivr/election-event/:event_id/ballot-styles
+  url: ivr/election-events/:event_id/ballot-styles
 - comment: ""
   definition:
       query:
@@ -16,6 +16,15 @@
       - GET
   name: IvrGetElectionStatus
   url: ivr/election/:election_id/status
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetElectionEvent
+  methods:
+      - GET
+  name: IvrGetElectionEvent
+  url: ivr/election-events/:event_id
 - comment: ""
   definition:
       query:
