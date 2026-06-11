@@ -12108,6 +12108,7 @@ export type Sequent_Backend_Phone_Blacklist = {
     phone_e164: Scalars["String"]["output"]
     reason?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
+    updated_at: Scalars["timestamptz"]["output"]
 }
 
 /** aggregated selection of "sequent_backend.phone_blacklist" */
@@ -12143,6 +12144,7 @@ export type Sequent_Backend_Phone_Blacklist_Bool_Exp = {
     phone_e164?: InputMaybe<String_Comparison_Exp>
     reason?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
 }
 
 /** unique or primary key constraints on table "sequent_backend.phone_blacklist" */
@@ -12162,6 +12164,7 @@ export type Sequent_Backend_Phone_Blacklist_Insert_Input = {
     phone_e164?: InputMaybe<Scalars["String"]["input"]>
     reason?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
 }
 
 /** aggregate max on columns */
@@ -12174,6 +12177,7 @@ export type Sequent_Backend_Phone_Blacklist_Max_Fields = {
     phone_e164?: Maybe<Scalars["String"]["output"]>
     reason?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
 }
 
 /** aggregate min on columns */
@@ -12186,6 +12190,7 @@ export type Sequent_Backend_Phone_Blacklist_Min_Fields = {
     phone_e164?: Maybe<Scalars["String"]["output"]>
     reason?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
 }
 
 /** response of any mutation on the table "sequent_backend.phone_blacklist" */
@@ -12213,6 +12218,7 @@ export type Sequent_Backend_Phone_Blacklist_Order_By = {
     phone_e164?: InputMaybe<Order_By>
     reason?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
+    updated_at?: InputMaybe<Order_By>
 }
 
 /** primary key columns input for table: sequent_backend.phone_blacklist */
@@ -12236,6 +12242,8 @@ export enum Sequent_Backend_Phone_Blacklist_Select_Column {
     Reason = "reason",
     /** column name */
     TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
 }
 
 /** input type for updating data in table "sequent_backend.phone_blacklist" */
@@ -12247,6 +12255,7 @@ export type Sequent_Backend_Phone_Blacklist_Set_Input = {
     phone_e164?: InputMaybe<Scalars["String"]["input"]>
     reason?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
 }
 
 /** Streaming cursor of the table "sequent_backend_phone_blacklist" */
@@ -12266,6 +12275,7 @@ export type Sequent_Backend_Phone_Blacklist_Stream_Cursor_Value_Input = {
     phone_e164?: InputMaybe<Scalars["String"]["input"]>
     reason?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
 }
 
 /** update columns of table "sequent_backend.phone_blacklist" */
@@ -12284,6 +12294,8 @@ export enum Sequent_Backend_Phone_Blacklist_Update_Column {
     Reason = "reason",
     /** column name */
     TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
 }
 
 export type Sequent_Backend_Phone_Blacklist_Updates = {
