@@ -75,31 +75,51 @@ impl BallotsStatus<'_> {
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut ballots = Vec::with_capacity(votes.len());
 
+        let mut count_declined_to_vote: u64 = 0;
+
         for (vote, weight) in votes {
-            let status = match (vote.is_invalid(), vote.is_blank()) {
-                (true, _) => {
+            let status = match (
+                vote.is_invalid(),
+                vote.is_decline_to_vote(),
+                vote.is_blank(),
+            ) {
+                (true, _, _) => {
                     if vote.is_explicit_invalid {
                         count_invalid_votes.explicit += 1;
                     } else {
                         count_invalid_votes.implicit += 1;
                     }
+
                     BallotStatus::Invalid
                 }
-                (false, true) => {
+
+                (false, true, false) => {
+                    // decline to vote is should be a blank vote, so it is an implicit invalid vote
+                    count_invalid_votes.implicit = count_invalid_votes.implicit.saturating_add(1);
+                    BallotStatus::Invalid
+                }
+                (false, true, true) => {
+                    count_declined_to_vote = count_declined_to_vote.saturating_add(1);
+                    BallotStatus::Invalid
+                }
+                (false, false, true) => {
                     count_blank += 1;
                     BallotStatus::Blank
                 }
-                (false, false) => BallotStatus::Valid,
+
+                (false, false, false) => BallotStatus::Valid,
             };
             extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
             ballots.push((status, vote, weight.clone()));
         }
         let total_ballots = votes.len() as u64;
         extended_metrics.total_ballots = total_ballots;
+        extended_metrics.total_declined_to_vote = count_declined_to_vote;
         let count_valid = total_ballots
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
-            - count_blank;
+            - count_blank
+            - count_declined_to_vote;
         BallotsStatus {
             ballots,
             count_valid,

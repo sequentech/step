@@ -1738,6 +1738,7 @@ const spanishTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
@@ -2228,8 +2229,9 @@ const spanishTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "Se importaron {{inserted}} certificado(s). {{skipped}} omitido(s) (ya presentes).",
+                importSuccess: "Se importaron {{inserted}} certificado(s).",
+                importSkipped: "{{count}} certificado(s) omitido(s) (ya presentes).",
+                importErrors: "Problemas en la importación: {{errors}}",
                 importError: "Error al importar: {{error}}",
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Error al eliminar el certificado.",

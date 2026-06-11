@@ -1736,6 +1736,7 @@ const galegoTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Rolda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",
@@ -2225,8 +2226,9 @@ const galegoTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "Importáronse {{inserted}} certificado(s). {{skipped}} omitido(s) (xa presentes).",
+                importSuccess: "Importáronse {{inserted}} certificado(s).",
+                importSkipped: "{{count}} omitido(s) (xa presentes).",
+                importErrors: "Problemas na importación: {{errors}}",
                 importError: "Erro ao importar: {{error}}",
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Erro ao eliminar o certificado.",

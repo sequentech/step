@@ -51,6 +51,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 
 const RESOURCE = "sequent_backend_certificate_authority"
 const FINGERPRINT_TRUNCATE_LENGTH = 24
+const AUTO_HIDE_DURATION = 10000
 
 const getExpiryStatus = (notAfter: string): "expired" | "expiringSoon" | "valid" => {
     const expiry = new Date(notAfter)
@@ -260,19 +261,35 @@ export const EditElectionEventCAs: React.FC = () => {
         onCompleted: (result) => {
             const {inserted_count, skipped_count, errors} =
                 result.import_certificate_authority ?? {}
-            if (errors?.length > 0) {
-                notify(t("certificateAuthorities.notify.importError", {error: errors.join("; ")}), {
-                    type: "error",
-                })
-            } else {
+            const hasInserted = (inserted_count ?? 0) > 0
+            const hasSkipped = (skipped_count ?? 0) > 0
+            const hasErrors = (errors?.length ?? 0) > 0
+
+            if (hasInserted) {
                 notify(
-                    t("certificateAuthorities.notify.importSuccess", {
-                        inserted: inserted_count,
-                        skipped: skipped_count,
-                    }),
-                    {type: "success"}
+                    t("certificateAuthorities.notify.importSuccess", {inserted: inserted_count}),
+                    {type: "success", autoHideDuration: AUTO_HIDE_DURATION}
                 )
             }
+
+            if (hasSkipped || hasErrors) {
+                const redParts: string[] = []
+                if (hasSkipped) {
+                    redParts.push(
+                        t("certificateAuthorities.notify.importSkipped", {count: skipped_count})
+                    )
+                }
+                if (hasErrors) {
+                    redParts.push(...(errors as string[]))
+                }
+                notify(
+                    t("certificateAuthorities.notify.importErrors", {
+                        errors: redParts.join("; "),
+                    }),
+                    {type: "error", autoHideDuration: AUTO_HIDE_DURATION}
+                )
+            }
+
             setImportDrawerOpen(false)
             setPemContent("")
             setFileError(null)
@@ -281,6 +298,7 @@ export const EditElectionEventCAs: React.FC = () => {
         onError: (err) => {
             notify(t("certificateAuthorities.notify.importError", {error: err.message}), {
                 type: "error",
+                autoHideDuration: AUTO_HIDE_DURATION,
             })
         },
     })

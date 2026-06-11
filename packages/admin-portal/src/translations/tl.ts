@@ -1739,6 +1739,7 @@ const tagalogTranslation: TranslationType = {
                     eliminated: "Naalis",
                     round: "Ikot",
                 },
+                total_declined_to_vote: "Kabuuang Tumangging Bumoto",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",
@@ -2231,8 +2232,9 @@ const tagalogTranslation: TranslationType = {
                 importButton: "I-import",
             },
             notify: {
-                importSuccess:
-                    "Na-import ang {{inserted}} sertipiko. {{skipped}} nilaktawan (mayroon na).",
+                importSuccess: "Na-import ang {{inserted}} sertipiko.",
+                importSkipped: "{{count}} nilaktawan (mayroon na).",
+                importErrors: "Mga isyu sa pag-import: {{errors}}",
                 importError: "Nabigo ang pag-import: {{error}}",
                 deleteSuccess: "Nabura ang sertipiko.",
                 deleteError: "Error sa pagbura ng sertipiko.",
