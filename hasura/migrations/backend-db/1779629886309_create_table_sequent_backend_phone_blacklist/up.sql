@@ -18,4 +18,3 @@ CREATE TABLE "sequent_backend"."phone_blacklist"
         ON DELETE RESTRICT,
     UNIQUE NULLS NOT DISTINCT ("tenant_id", "election_event_id", "phone_e164") -- Null election_event_id means tenant-wide, prevent duplicates
 );
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
