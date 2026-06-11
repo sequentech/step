@@ -53,6 +53,7 @@ export const categorizeCandidates = (question: IContest): ICategorizedCandidates
 
         if (isCategoryHeader) {
             categoriesMap[category].header = answer
+            categoriesMap[category].candidates.push(answer)
         } else {
             categoriesMap[category].candidates.push(answer)
         }

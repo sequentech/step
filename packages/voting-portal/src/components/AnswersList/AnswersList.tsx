@@ -101,8 +101,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
     const defaultExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
     const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
-    const showCandidatesLabel = t("candidatesList.showCandidates")
-    const hideCandidatesLabel = t("candidatesList.hideCandidates")
+    const showCandidatesLabel = ""
+    const hideCandidatesLabel = ""
     const categoryCandidateIds = new Set(category.candidates.map((candidate) => candidate.id))
     const selectedCandidatesCount =
         questionState?.choices.filter((choice) => {
@@ -119,6 +119,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             : undefined
 
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
+    const isListSelectedOnReview = isReview && isChecked()
     const setChecked = (value: boolean) => {
         if (isRadioSelection) {
             dispatch(
@@ -203,7 +204,10 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                     (choice) => choice.selected > -1 && subtypeCandidateIds.includes(choice.id)
                 )
 
-                if (0 === subtypeCandidates.length || (isReview && !hasSelectedAnswer)) {
+                if (
+                    0 === subtypeCandidates.length ||
+                    (isReview && !hasSelectedAnswer && !isListSelectedOnReview)
+                ) {
                     return null
                 }
                 return (
@@ -229,6 +233,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 explicitBlank={explicitBlank}
                                 setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
+                                showWhenListSelected={isListSelectedOnReview}
                             />
                         ))}
                     </>
@@ -257,6 +262,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         explicitBlank={explicitBlank}
                         setExplicitBlank={setExplicitBlank}
                         setIsTouched={setIsTouched}
+                        showWhenListSelected={isListSelectedOnReview}
                     />
                 ))}
         </CandidatesList>
