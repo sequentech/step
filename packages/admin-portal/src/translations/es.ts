@@ -1740,6 +1740,7 @@ const spanishTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",

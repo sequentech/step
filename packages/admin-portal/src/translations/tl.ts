@@ -1741,6 +1741,7 @@ const tagalogTranslation: TranslationType = {
                     eliminated: "Naalis",
                     round: "Ikot",
                 },
+                total_declined_to_vote: "Kabuuang Tumangging Bumoto",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",
