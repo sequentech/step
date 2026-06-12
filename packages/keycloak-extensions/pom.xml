@@ -23,13 +23,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 	        <module>voter-enrollment</module>
 	        <module>action-token-login-bridge</module>
 	        <module>message-otp-authenticator</module>
-	        <module>smart-link-hmac-authenticator</module>
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
         <module>custom-event-listener</module>
         <module>url-truststore-provider</module>
         <module>idp-linking-authenticator</module>
     </modules>
+
+	<profiles>
+		<profile>
+			<id>beyond-keycloak-extensions</id>
+			<activation>
+				<file>
+					<exists>../../beyond/packages/keycloak-extensions/pom.xml</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>../../beyond/packages/keycloak-extensions</module>
+			</modules>
+		</profile>
+	</profiles>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -152,7 +165,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<include>voter-enrollment/pom.xml</include>
 					<include>action-token-login-bridge/pom.xml</include>
 					<include>message-otp-authenticator/pom.xml</include>
-					<include>smart-link-hmac-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
@@ -170,7 +182,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<include>voter-enrollment/pom.xml</include>
 					<include>action-token-login-bridge/pom.xml</include>
 					<include>message-otp-authenticator/pom.xml</include>
-					<include>smart-link-hmac-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>

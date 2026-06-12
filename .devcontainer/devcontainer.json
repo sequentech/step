@@ -123,6 +123,14 @@
 				"stkb.rewrap",
     		]
 		},
+		"codespaces": {
+			"repositories": {
+				// Allow checking out private submodules
+				"sequentech/beyond": {
+					"contents": "read"
+				}
+			}
+		},
 		"devpod": {
 			"prebuildRepository": "ghcr.io/sequentech/step"
 			}
