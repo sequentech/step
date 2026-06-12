@@ -13,7 +13,7 @@ This guide explains how to update the Rust version across the entire Step Reposi
 
 ## Overview
 
-The Step Repository uses **Rust stable version 1.90.0** throughout the entire codebase. We maintain a single, consistent version across:
+The Step Repository uses **Rust stable version 1.96.0** throughout the entire codebase. We maintain a single, consistent version across:
 
 - GitHub Actions (CI/CD pipelines)
 - All Dockerfiles (development and production)
@@ -99,6 +99,7 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 - **`packages/Dockerfile.immudb-init-vstl-dependencies`**
 - **`packages/Dockerfile.immudb-init.prod`**
 - **`packages/step-cli/Dockerfile`**
+- **`packages/orare/doc_renderer/Dockerfile`**
 
 **Important**: Remove any `rustup toolchain install nightly-*` commands if present. We only use stable Rust.
 
@@ -300,7 +301,7 @@ Here's the complete list of files that need updating:
 ### Nix Configuration (1 file)
 - `devenv.nix`
 
-### Dockerfiles (18 files)
+### Dockerfiles (19 files)
 - `packages/Dockerfile.cargo-packages`
 - `packages/braid/Dockerfile`
 - `packages/braid/Dockerfile.prod`
@@ -318,6 +319,7 @@ Here's the complete list of files that need updating:
 - `packages/Dockerfile.immudb-init-vstl-dependencies`
 - `packages/Dockerfile.immudb-init.prod`
 - `packages/step-cli/Dockerfile`
+- `packages/orare/doc_renderer/Dockerfile`
 
 ## Best Practices
 
