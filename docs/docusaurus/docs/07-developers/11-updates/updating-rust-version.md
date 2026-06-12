@@ -107,7 +107,7 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 
 Update the pinned Rust version in the Nix development environment:
 
-- **`devenv.nix`** (lines 4–21) — update the `rust-overlay` commit and the version string in `rust-bin.stable`:
+- **`devenv.nix`** (lines 4–15) — update the `rust-overlay` commit and the version string in `rust-bin.stable`:
   ```nix
   let
     rustOverlay = import (builtins.fetchTarball {
@@ -130,6 +130,23 @@ Update the pinned Rust version in the Nix development environment:
 **How to update the `sha256` hash**: set it to `""` (empty string), run `devenv shell`, and Nix will fail with the actual hash — paste that value back in.
 
 **Note**: Because `rust-overlay` is pinned to a specific commit, the Rust version is fully reproducible and does **not** depend on the nixpkgs snapshot. The version in `rust-bin.stable."X.Y.Z"` is the authoritative source — this is the same version number that must be used in GitHub Actions and Dockerfiles.
+
+- **`packages/sequent-core/flake.nix`** — used to build the `sequent-core` WASM package (`nix develop` + `wasm-pack build`, see `.github/workflows/build_wasm.yml`). Update `configureRustTargets` to point at `rust-bin.stable."X.Y.Z"`:
+  ```nix
+  configureRustTargets = targets : pkgs
+    .rust-bin
+    .stable
+    ."X.Y.Z"
+    .default
+    .override {
+        extensions = [ "rust-src" ];
+        ${if (builtins.length targets) > 0 then "targets" else null} = targets;
+    };
+  ```
+  This flake's `rust-overlay` input is pinned via `packages/sequent-core/flake.lock`. If the target Rust version isn't available yet in that pinned revision, refresh it with:
+  ```bash
+  cd packages/sequent-core && nix flake update rust-overlay
+  ```
 
 ## Step-by-Step Update Process
 
@@ -200,7 +217,7 @@ Compare these versions with what you found in Nix. They should all match.
 If you need to update to a newer Rust version:
 
 1. **Choose the target version** - Pick the stable Rust version you want (e.g. `1.91.0`)
-2. **Find an `rust-overlay` commit** - Browse [oxalica/rust-overlay](https://github.com/oxalica/rust-overlay) commits and pick one made after the target release date
+2. **Find a `rust-overlay` commit** - Browse [oxalica/rust-overlay](https://github.com/oxalica/rust-overlay) commits and pick one made after the target release date
 3. **Review breaking changes** - Check https://www.rust-lang.org/ and release notes
 4. **Ensure compatibility** - Verify existing dependencies work with the target version
 
@@ -298,8 +315,9 @@ Here's the complete list of files that need updating:
 - `.github/workflows/lint_prettify.yml`
 - `.github/workflows/step_cli_build.yml`
 
-### Nix Configuration (1 file)
+### Nix Configuration (2 files)
 - `devenv.nix`
+- `packages/sequent-core/flake.nix` (plus `packages/sequent-core/flake.lock` if `rust-overlay` needs updating)
 
 ### Dockerfiles (19 files)
 - `packages/Dockerfile.cargo-packages`
