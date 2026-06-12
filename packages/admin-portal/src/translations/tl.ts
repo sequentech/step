@@ -1219,7 +1219,7 @@ const tagalogTranslation: TranslationType = {
                 online: "Online",
                 kiosk: "Kiosk",
                 early_voting: "Maagang pagboto",
-                telephone: "Telepono pagboto",
+                telephone: "Pagboto sa Telepono",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
