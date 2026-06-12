@@ -15,7 +15,7 @@
   methods:
       - GET
   name: IvrGetElectionStatus
-  url: ivr/election/:election_id/status
+  url: ivr/elections/:election_id/status
 - comment: ""
   definition:
       query:
