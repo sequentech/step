@@ -370,6 +370,7 @@ export const DeclineToVote: Story = {
             markedInvalidLabel="Ballot explicitly marked invalid"
             pointsLabel={() => ""}
             isDeclineToVotePolicyEnabled={true}
+            declineToVoteLabel="Declined to vote"
         />
     ),
     parameters: commonParameters,

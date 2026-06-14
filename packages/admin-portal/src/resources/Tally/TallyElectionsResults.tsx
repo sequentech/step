@@ -271,14 +271,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 editable: false,
                 renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
             },
-            {
-                field: "total_voters_percent",
-                headerName: t("tally.table.total_votes_percent"),
-                flex: 1,
-                editable: false,
-                renderCell: (props: GridRenderCellParams<any, number>) =>
-                    isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
-            },
             ...(showTotalInvalidVotesColumn
                 ? [
                       {
@@ -291,6 +283,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                       } satisfies GridColDef,
                   ]
                 : []),
+            {
+                field: "total_voters_percent",
+                headerName: t("tally.table.total_votes_percent"),
+                flex: 1,
+                editable: false,
+                renderCell: (props: GridRenderCellParams<any, number>) =>
+                    isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
+            },
         ],
         [aliasRenderer, i18n.language, showTotalInvalidVotesColumn, t]
     )
