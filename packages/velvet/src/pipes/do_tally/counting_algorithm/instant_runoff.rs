@@ -94,12 +94,12 @@ impl BallotsStatus<'_> {
                 }
 
                 (false, true, false) => {
-                    count_declined_to_vote = count_declined_to_vote.saturating_add(1);
+                    // decline to vote is should be a blank vote, so it is an implicit invalid vote
+                    count_invalid_votes.implicit = count_invalid_votes.implicit.saturating_add(1);
                     BallotStatus::Invalid
                 }
                 (false, true, true) => {
-                    // decline to vote is should be a blank vote, so it is an implicit invalid vote
-                    count_invalid_votes.implicit += 1;
+                    count_declined_to_vote = count_declined_to_vote.saturating_add(1);
                     BallotStatus::Invalid
                 }
                 (false, false, true) => {
