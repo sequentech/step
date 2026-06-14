@@ -284,7 +284,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                       {
                           field: "total_declined_to_vote",
                           headerName: t("tally.table.total_declined_to_vote"),
-                          flex: 1,
+                          flex: 1.5,
                           editable: false,
                           renderCell: (props: GridRenderCellParams<any, number>) =>
                               props["value"] ?? "-",
