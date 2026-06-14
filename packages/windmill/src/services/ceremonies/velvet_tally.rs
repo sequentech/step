@@ -24,7 +24,8 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
 use sequent_core::ballot::{
-    Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+    Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DeclineToVotePolicy,
+    DecodedBallotsInclusionPolicy,
 };
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -42,7 +43,8 @@ use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
-    Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
+    Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySessionContest,
+    TallySheet,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody};
@@ -614,6 +616,7 @@ async fn build_reports_pipe_config(
         pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
         tally_type: tally_type.clone(),
+        tally_session_configuration: tally_session.configuration.clone(),
     })
 }
 
