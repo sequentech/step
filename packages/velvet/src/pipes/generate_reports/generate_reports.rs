@@ -1108,7 +1108,12 @@ impl Pipe for GenerateReports {
                 let total_decline_to_vote = if is_decline_to_vote_enabled {
                     contest_reports
                         .first()
-                        .and_then(|r| r.contest_result.clone().map(|r| r.invalid_votes.explicit))
+                        .and_then(|r| {
+                            r.contest_result
+                                .clone()
+                                .map(|r| r.extended_metrics.map(|m| m.total_declined_to_vote))
+                        })
+                        .unwrap_or(None)
                 } else {
                     None
                 };

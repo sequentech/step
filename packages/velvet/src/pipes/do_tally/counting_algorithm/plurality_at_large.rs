@@ -41,6 +41,8 @@ impl PluralityAtLarge {
         let mut total_ballots = 0;
         let mut total_weight = 0;
 
+        let mut total_declined_to_vote: u64 = 0;
+
         for (vote, weight_opt) in votes {
             let weight = weight_opt.clone().unwrap_or_default();
             total_ballots += 1;
@@ -72,10 +74,14 @@ impl PluralityAtLarge {
 
                 count_valid += 1;
             }
+            if vote.is_decline_to_vote() {
+                total_declined_to_vote = total_declined_to_vote.saturating_add(1);
+            }
         }
 
         extended_metrics.total_ballots = total_ballots;
         extended_metrics.total_weight = total_weight;
+        extended_metrics.total_declined_to_vote = total_declined_to_vote;
         let percentage_votes_denominator = total_weight;
 
         let candidate_result = match op {

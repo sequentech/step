@@ -87,6 +87,7 @@ const makeContest = (overrides: Partial<IContest> = {}): IContest => ({
 const makePlaintext = (overrides: Partial<IDecodedVoteContest> = {}): IDecodedVoteContest => ({
     contest_id: CONTEST_ID,
     is_explicit_invalid: false,
+    is_decline_to_vote: false,
     invalid_errors: [],
     invalid_alerts: [],
     choices: [

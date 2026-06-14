@@ -71,6 +71,7 @@ export const ballotSelectionsSlice = createSlice({
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
                                     is_explicit_blank: currentContestValue.is_explicit_blank,
+                                    is_decline_to_vote: currentContestValue.is_decline_to_vote,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
                                     choices: currentContestValue.choices,
@@ -81,6 +82,7 @@ export const ballotSelectionsSlice = createSlice({
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
                                 is_explicit_blank: false,
+                                is_decline_to_vote: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
                                 choices: question.candidates.map((answer) => ({
@@ -194,7 +196,7 @@ export const ballotSelectionsSlice = createSlice({
 
             return state
         },
-        setAllBallotSelectionsInvalidVote: (
+        setAllBallotSelectionsDeclineToVote: (
             state,
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
@@ -204,7 +206,7 @@ export const ballotSelectionsSlice = createSlice({
 
             if (!isUndefined(currentElection)) {
                 currentElection.forEach((currentQuestion) => {
-                    currentQuestion.is_explicit_invalid = true
+                    currentQuestion.is_decline_to_vote = true
                     currentQuestion.choices = currentQuestion.choices.map((choice) => {
                         if (choice.selected > -1) {
                             choice.selected = -1
@@ -239,7 +241,7 @@ export const {
     setBallotSelectionInvalidVote,
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
-    setAllBallotSelectionsInvalidVote,
+    setAllBallotSelectionsDeclineToVote,
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =
