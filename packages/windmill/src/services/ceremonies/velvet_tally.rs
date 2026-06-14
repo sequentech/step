@@ -24,7 +24,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
 use sequent_core::ballot::{
-    Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+    BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
 };
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;

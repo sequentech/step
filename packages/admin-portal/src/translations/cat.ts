@@ -666,8 +666,8 @@ const catalanTranslation: TranslationType = {
             declineToVotePolicy: {
                 label: "Política de declinació de vot",
                 options: {
-                    "election-level": "Nivell d’elecció",
-                    "disabled": "Desactivat",
+                    enabled: "Habilitat",
+                    disabled: "Desactivat",
                 },
             },
         },

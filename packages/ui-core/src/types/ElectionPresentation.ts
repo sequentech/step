@@ -87,6 +87,6 @@ export enum EInitializeReportPolicy {
 }
 
 export enum EDeclineToVotePolicy {
-    ELECTION_LEVEL = "election-level",
+    ENABLED = "enabled",
     DISABLED = "disabled",
 }

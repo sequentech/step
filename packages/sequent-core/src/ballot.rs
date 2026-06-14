@@ -2651,8 +2651,8 @@ pub enum DeclineToVotePolicy {
     #[serde(rename = "disabled")]
     /// The user cannot decline to vote.
     DISABLED,
-    #[strum(serialize = "election-level")]
-    #[serde(rename = "election-level")]
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
     /// The user can decline to vote at the election level (for all contests).
-    ELECTION_LEVEL,
+    ENABLED,
 }

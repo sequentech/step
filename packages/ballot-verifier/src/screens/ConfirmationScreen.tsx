@@ -254,7 +254,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
 
     const isDeclineToVotePolicyEnabled =
         confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
-            EDeclineToVotePolicy.ELECTION_LEVEL &&
+            EDeclineToVotePolicy.ENABLED &&
         confirmationBallot?.election_config?.election_event_presentation
             ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
