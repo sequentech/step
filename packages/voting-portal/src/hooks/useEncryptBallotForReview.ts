@@ -75,11 +75,11 @@ export const useEncryptBallotForReview = () => {
                     ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
                     : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
-                if (!isUndefined(decodedSelectionState)) {
+                if (!isUndefined(decodedSelectionState) && decodedSelectionState !== null) {
                     dispatch(
                         setBallotSelection({
                             ballotStyle,
-                            ballotSelection: decodedSelectionState as BallotSelection,
+                            ballotSelection: decodedSelectionState,
                         })
                     )
                 }

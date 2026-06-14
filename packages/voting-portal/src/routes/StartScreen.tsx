@@ -224,7 +224,7 @@ const StartScreen: React.FC = () => {
         }
 
         setOpenDeclineDialog(false)
-        dispatch(setAllBallotSelectionsInvalidVote({ballotStyle, isExplicitInvalid: true}))
+        dispatch(setAllBallotSelectionsInvalidVote({ballotStyle}))
         dispatch(setDeclinedToVote(ballotStyle.election_id))
         dispatch(setIsVoted(ballotStyle.election_id))
 

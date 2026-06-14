@@ -1,10 +1,10 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::{get_areas_by_ids, get_event_areas};
 use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
 use crate::postgres::candidate::export_candidate_csv;
 use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{export_elections, get_elections, get_elections_by_ids};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
@@ -24,8 +24,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
 use sequent_core::ballot::{
-    Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DeclineToVotePolicy,
-    DecodedBallotsInclusionPolicy,
+    Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
 };
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;

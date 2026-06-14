@@ -62,7 +62,7 @@ const catalanTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Confirma que vols declinar votar",
                 content:
-                    "Segur que vols declinar votar?</br>Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
+                    "Segur que vols declinar votar?<br />Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
                 continue: "Declinar votar",
                 cancel: "Cancel·lar",
             },

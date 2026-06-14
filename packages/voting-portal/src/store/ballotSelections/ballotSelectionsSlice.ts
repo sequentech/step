@@ -198,7 +198,6 @@ export const ballotSelectionsSlice = createSlice({
             state,
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
-                isExplicitInvalid: boolean
             }>
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]

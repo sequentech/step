@@ -62,7 +62,7 @@ const dutchTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Bevestig afzien van stemmen",
                 content:
-                    "Weet je zeker dat je wilt afzien van stemmen?</br>Je gaat direct naar de controlepagina en je deelnamestatus wordt opgeslagen als <b>Heeft afgezien van stemmen</b>.",
+                    "Weet je zeker dat je wilt afzien van stemmen?<br />Je gaat direct naar de controlepagina en je deelnamestatus wordt opgeslagen als <b>Heeft afgezien van stemmen</b>.",
                 continue: "Afzien van stemmen",
                 cancel: "Annuleren",
             },

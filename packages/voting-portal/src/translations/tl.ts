@@ -62,7 +62,7 @@ const tagalogTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Kumpirmahin ang pagtangging bumoto",
                 content:
-                    "Sigurado ka bang nais mong tumangging bumoto?</br>Dadalhin ka diretso sa review at mase-save ang iyong status ng partisipasyon bilang <b>Tumangging bumoto</b>.",
+                    "Sigurado ka bang nais mong tumangging bumoto?<br />Dadalhin ka diretso sa review at mase-save ang iyong status ng partisipasyon bilang <b>Tumangging bumoto</b>.",
                 continue: "Tumangging bumoto",
                 cancel: "Kanselahin",
             },
