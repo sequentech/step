@@ -58,12 +58,12 @@ const catalanTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Començar a votar",
-            declineToVoteButton: "Rebutjar el vot",
+            declineToVoteButton: "Declinar votar",
             declineToVoteDialog: {
-                title: "Confirmar el rebuig del vot",
+                title: "Confirma que vols declinar votar",
                 content:
-                    "Esteu segur que voleu rebutjar el vot?</br>Anireu directament a la revisió i el vostre estat de participació es desarà com a <b>Rebutjat el vot</b>.",
-                continue: "Sí, vull REBUTJAR el vot",
+                    "Segur que vols declinar votar?</br>Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
+                continue: "Declinar votar",
                 cancel: "Cancel·lar",
             },
             instructionsTitle: "Instruccions",
@@ -205,7 +205,7 @@ const catalanTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
-            declineToVote: "Rebutjar el vot",
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",

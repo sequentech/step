@@ -58,12 +58,12 @@ const frenchTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Commencer à voter",
-            declineToVoteButton: "Rejeter le vote",
+            declineToVoteButton: "S’abstenir de voter",
             declineToVoteDialog: {
-                title: "Confirmer le rejet du vote",
+                title: "Confirmer l’abstention de vote",
                 content:
-                    "Êtes-vous sûr de vouloir rejeter le vote ?</br>Vous irez directement à la révision et votre statut de participation sera enregistré comme <b>Rejet du vote</b>.",
-                continue: "Oui, je veux REJETER le vote",
+                    "Êtes-vous sûr de vouloir vous abstenir de voter ?</br>Vous accéderez directement à la révision et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
+                continue: "S’abstenir de voter",
                 cancel: "Annuler",
             },
             instructionsTitle: "Instructions",
@@ -203,7 +203,7 @@ const frenchTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
-            declineToVote: "Rejeter le vote",
+            declineToVote: "S’abstenir de voter",
         },
         confirmationScreen: {
             title: "Votre vote a été émis",

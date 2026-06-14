@@ -58,12 +58,12 @@ const basqueTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Hasi Bozketa",
-            declineToVoteButton: "Ezeztatu bozketa",
+            declineToVoteButton: "Bozkatzeari uko egin",
             declineToVoteDialog: {
-                title: "Berretsi bozketa ezeztatzea",
+                title: "Berretsi bozkatzeari uko egitea",
                 content:
-                    "Ziur zaude bozketa ezeztatu nahi duzula?</br>Berrikustera joango zara zuzenean eta zure parte-hartze egoera <b>Bozketa ezeztatua</b> gisa gordeko da.",
-                continue: "Bai, bozketa EZEZTATU nahi dut",
+                    "Ziur zaude bozkatzeari uko egin nahi diozula?</br>Zuzenean berrikuspen pantailara joango zara, eta zure parte-hartze egoera <b>Bozkatzeari uko egina</b> bezala gordeko da.",
+                continue: "Bozkatzeari uko egin",
                 cancel: "Utzi",
             },
             instructionsTitle: "Jarraibideak",
@@ -203,7 +203,7 @@ const basqueTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
-            declineToVote: "Bozketa ezeztatu",
+            declineToVote: "Bozkatzeari uko egin",
         },
         confirmationScreen: {
             title: "Zure botoa eman da",

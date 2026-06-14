@@ -663,10 +663,10 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             declineToVotePolicy: {
-                label: "Patakaran sa Pag-decline ng boto",
+                label: "Patakaran sa pagtangging bumoto",
                 options: {
-                    "election-level": "Nivel ng halalan",
-                    "disabled": "Hindi pinagana",
+                    "election-level": "Antas ng halalan",
+                    "disabled": "Naka-disable",
                 },
             },
         },
