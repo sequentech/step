@@ -33,7 +33,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     elegible_census: number | "-"
     total_voters: number | "-"
     total_voters_percent: number | "-"
-    total_invalid_votes?: number | "-"
+    total_declined_to_vote?: number | "-"
 }
 
 interface GeneralInformationChartsProps {
@@ -206,7 +206,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     let contest_annotations = tallyData?.sequent_backend_results_contest.find(
                         (c) => c.election_id === item.id
                     )?.annotations
-                    let total_invalid_votes =
+                    let total_declined_to_vote =
                         safeParseJson(contest_annotations)?.extended_metrics
                             ?.total_declined_to_vote ?? null
                     const electionPresentation = safeParseJson(item.presentation)
@@ -223,7 +223,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         total_voters: result?.total_voters ?? "-",
                         total_voters_percent: result?.total_voters_percent ?? "-",
                         ...(isDeclineToVote
-                            ? {total_invalid_votes: total_invalid_votes ?? "-"}
+                            ? {total_declined_to_vote: total_declined_to_vote ?? "-"}
                             : {}),
                     }
                 }
@@ -242,7 +242,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     }, [results, elections, selectedElectionId, isTallyDataMatchCurrentResults])
 
     const showTotalInvalidVotesColumn = useMemo(
-        () => resultsData.some((row) => isNumber(row.total_invalid_votes)),
+        () => resultsData.some((row) => isNumber(row.total_declined_to_vote)),
         [resultsData]
     )
 
@@ -282,8 +282,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             ...(showTotalInvalidVotesColumn
                 ? [
                       {
-                          field: "total_invalid_votes",
-                          headerName: t("tally.table.total_invalid_votes"),
+                          field: "total_declined_to_vote",
+                          headerName: t("tally.table.total_declined_to_vote"),
                           flex: 1,
                           editable: false,
                           renderCell: (props: GridRenderCellParams<any, number>) =>

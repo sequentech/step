@@ -55,6 +55,13 @@ impl PluralityAtLarge {
                     count_invalid_votes.implicit += 1;
                 }
                 count_invalid += 1;
+            } else if vote.is_decline_to_vote() {
+                if vote.is_blank() {
+                    total_declined_to_vote = total_declined_to_vote.saturating_add(1);
+                } else {
+                    // decline to vote is should be a blank vote, so it is an implicit invalid vote
+                    count_invalid_votes.implicit += 1;
+                }
             } else {
                 let mut is_blank = true;
 
@@ -73,9 +80,6 @@ impl PluralityAtLarge {
                 }
 
                 count_valid += 1;
-            }
-            if vote.is_decline_to_vote() {
-                total_declined_to_vote = total_declined_to_vote.saturating_add(1);
             }
         }
 
