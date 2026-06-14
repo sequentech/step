@@ -185,7 +185,9 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                             onClick={handleToggleCollapse}
                             aria-label={collapseToggleAriaLabel ?? collapseLabel}
                             aria-expanded={isExpanded}
-                        />
+                        >
+                            <CollapseToggleText>{collapseLabel}</CollapseToggleText>
+                        </CollapseToggleButton>
                     ) : null}
                     <ListTitle
                         color={theme.palette.customGrey.contrastText}

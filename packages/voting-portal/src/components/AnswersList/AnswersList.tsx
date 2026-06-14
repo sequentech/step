@@ -88,8 +88,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
     const defaultExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
     const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
-    const showCandidatesLabel = ""
-    const hideCandidatesLabel = ""
+    const showCandidatesLabel = t("candidatesList.showCandidates")
+    const hideCandidatesLabel = t("candidatesList.hideCandidates")
     const categoryCandidateIds = new Set(category.candidates.map((candidate) => candidate.id))
     const selectedCandidatesCount =
         questionState?.choices.filter((choice) => {
