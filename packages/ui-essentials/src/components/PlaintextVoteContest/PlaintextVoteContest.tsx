@@ -156,7 +156,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     const isBlank = checkIsBlank(questionPlaintext)
 
     const isBallotDeclineToVote =
-        isDeclineToVotePolicyEnabled && questionPlaintext.is_explicit_invalid
+        isDeclineToVotePolicyEnabled && questionPlaintext.is_decline_to_vote
 
     return (
         <>
