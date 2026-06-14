@@ -139,6 +139,7 @@ export const Question: React.FC<IQuestionProps> = ({
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = isPreferential(question.counting_algorithm)
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
+    const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
