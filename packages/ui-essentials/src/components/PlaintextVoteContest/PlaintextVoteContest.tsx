@@ -124,7 +124,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
             isSelectable={false}
             hasCategory={hasCategory}
             isPreferentialVote={isPreferentialVote}
-            selectedPosition={choice.selected + 1}
+            selectedPosition={choice?.selected ? choice.selected + 1 : null}
         >
             {imageUrl ? <Image src={`${publicBucketUrl}${imageUrl}`} duration={100} /> : null}
         </Candidate>
