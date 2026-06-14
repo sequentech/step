@@ -113,8 +113,6 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
     publicBucketUrl,
 }) => {
     const imageUrl = getImageUrl(answer)
-    const selectedPosition =
-        choice && choice.selected > -1 && isPreferentialVote ? choice.selected + 1 : null
 
     return (
         <Candidate
@@ -126,7 +124,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({
             isSelectable={false}
             hasCategory={hasCategory}
             isPreferentialVote={isPreferentialVote}
-            selectedPosition={selectedPosition}
+            selectedPosition={choice.selected + 1}
         >
             {imageUrl ? <Image src={`${publicBucketUrl}${imageUrl}`} duration={100} /> : null}
         </Candidate>
