@@ -37,7 +37,7 @@ import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
-    selectFirstBallotStyle,
+    showDemo,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useMutation, useQuery} from "@apollo/client/react"
@@ -141,8 +141,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const [errorDialog, setErrorDialog] = useState<boolean>(false)
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
+    const isDemo = useAppSelector(showDemo(electionId))
     const [isPolling, setIsPolling] = useState<boolean>(false)
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
@@ -339,7 +338,7 @@ const ConfirmationScreen: React.FC = () => {
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const isDemoStored = useAppSelector(showDemo(electionId))
 
     const getBallotId = (): {
         ballotIdStored: string | undefined
@@ -364,7 +363,6 @@ const ConfirmationScreen: React.FC = () => {
                 ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : hashBallot(auditableBallot as IAuditableSingleBallot)
             const ballotIdStored = (auditableBallot && hashableBallot) || undefined
-            const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
             return {ballotIdStored, isDemoStored}
         }
     }
