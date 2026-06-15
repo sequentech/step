@@ -975,3 +975,69 @@ Mitigation within scope: Keycloak is the existing identity root for all operatio
 system; this endpoint's trust requirement is no stronger than any other authenticated
 endpoint.  A proof-of-possession mechanism (e.g., a challenge signed by `signing_key_sk`)
 would require a two-round protocol change.
+
+---
+
+## 14. Convergence with the Protocol-Change Design
+
+This design is intentionally shaped so that migration to the full protocol-change design
+(see [BBT Protocol Change Proposal](./key_ceremony_bbt_propossal_protoccol_change.md),
+implemented on the `crypto-migration` branch) is mechanical once the unified registration
+path is in place.
+
+### The per-ceremony DB row is the stand-in for an on-board registration message
+
+In the protocol-change design, each trustee posts a signed enrollment message to the board
+before the Configuration is built.  Windmill (or an equivalent orchestrator) reads those
+board messages to construct the Configuration — never the DB.
+
+In this design, the per-ceremony `(trustee_id, election_event_id, keys_ceremony_id,
+public_key)` row in `sequent_backend_trustee` holds the same data as that enrollment
+message, but stored in a mutable DB table rather than the append-only board.  The row is the
+stand-in: same scope, same content, different storage medium.
+
+### Windmill auto-snapshot → braid-native posting a registration message
+
+In the unified path, Windmill copies a server-based trustee's stable `public_key` into a
+per-ceremony DB row at the start of `AWAITING_TRUSTEE_KEYS`.  In the protocol-change
+design, this step is replaced by braid-native posting a signed registration message to the
+board.  The content of that message is identical to the Windmill-written row (the trustee's
+public key); only the storage medium and the act of signing change.  Because braid-native
+trustees always use the same long-lived key, the message content is constant across
+ceremonies — it is "braid-native posting its constant registration."
+
+### The migration is mechanical
+
+Once the unified DB-row path is stable:
+
+1. Add a new board message type for trustee key registration (the protocol-change spec).
+2. Change `/register-trustee-key` (BBT) and the Windmill beat arm (server-based) to post
+   that message to the board **in addition to** writing the DB row — or instead of, if the
+   read path is also switched.
+3. Change `create_keys_impl` to build the `Configuration` from board registration messages
+   rather than DB rows.
+4. The DB rows become redundant and can be deprecated.
+
+No new ceremony-level state machine states are needed.  The `AWAITING_TRUSTEE_KEYS` gate
+logic is unchanged — it just reads a different source.  The `crypto-migration` branch
+supersedes and extends this design at the point where step 3 is implemented.
+
+---
+
+## 15. Future Work: Certificate Chain
+
+Per-ceremony trustee certificates will eventually chain upward:
+
+```
+trustee cert → tenant cert → environment cert → Sequent root cert
+```
+
+This is what gives a fresh per-ceremony key **verifiable meaning**: a verifier who trusts
+the Sequent root can confirm that a given `signing_key_pk` was legitimately generated for
+this trustee, in this tenant, in this environment, for this ceremony — without relying on
+an out-of-band comparison or a Keycloak session as the sole trust anchor.
+
+Until the certificate chain exists, the **on-screen public key comparison** described in
+[§12](#12-trustee-public-key-visibility-in-the-ceremony-ui) is the only available
+verification: trustees manually confirm, out of band, that they all see the same key set.
+It is a usable stopgap but it provides no cryptographic binding to any identity hierarchy.

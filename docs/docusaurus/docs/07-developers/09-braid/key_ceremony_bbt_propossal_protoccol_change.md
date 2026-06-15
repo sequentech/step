@@ -11,6 +11,12 @@ Browser-Based Trustees (BBT).  The redesign removes `public_key` from the truste
 entirely and manages trustee identity exclusively through new B4 board messages, making the
 protocol self-contained and auditable.
 
+See [BBT Signing Keypair — No Protocol Change](./key_ceremony_bbt_propossal_no_protoccol_change.md)
+for the lower-risk interim design.  The `crypto-migration` branch supersedes and extends that
+design: the per-ceremony DB row it introduces is the direct stand-in for the on-board
+trustee registration message defined here, making the migration mechanical once the interim
+path is stable.
+
 See [Key Ceremony Design](./key_ceremony_design.md) for the current architecture baseline.
 
 ---
