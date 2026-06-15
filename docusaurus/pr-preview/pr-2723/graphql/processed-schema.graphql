@@ -717,6 +717,7 @@ type PublishTallyOutput {
 
 input RegisterTrusteeKeyInput {
   election_event_id: String!
+  keys_ceremony_id: String!
   public_key: String!
 }
 
@@ -19410,6 +19411,7 @@ type trustee {
   created_at: timestamptz
   election_event_id: uuid
   id: uuid!
+  keys_ceremony_id: uuid
   labels(
     """JSON select path"""
     path: String
@@ -19483,6 +19485,7 @@ input trustee_bool_exp {
   created_at: timestamptz_comparison_exp
   election_event_id: uuid_comparison_exp
   id: uuid_comparison_exp
+  keys_ceremony_id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
   name: String_comparison_exp
@@ -19532,6 +19535,7 @@ input trustee_insert_input {
   created_at: timestamptz
   election_event_id: uuid
   id: uuid
+  keys_ceremony_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
   name: String
@@ -19544,6 +19548,7 @@ type trustee_max_fields {
   created_at: timestamptz
   election_event_id: uuid
   id: uuid
+  keys_ceremony_id: uuid
   last_updated_at: timestamptz
   name: String
   public_key: String
@@ -19557,6 +19562,7 @@ input trustee_max_order_by {
   created_at: order_by
   election_event_id: order_by
   id: order_by
+  keys_ceremony_id: order_by
   last_updated_at: order_by
   name: order_by
   public_key: order_by
@@ -19568,6 +19574,7 @@ type trustee_min_fields {
   created_at: timestamptz
   election_event_id: uuid
   id: uuid
+  keys_ceremony_id: uuid
   last_updated_at: timestamptz
   name: String
   public_key: String
@@ -19581,6 +19588,7 @@ input trustee_min_order_by {
   created_at: order_by
   election_event_id: order_by
   id: order_by
+  keys_ceremony_id: order_by
   last_updated_at: order_by
   name: order_by
   public_key: order_by
@@ -19612,6 +19620,7 @@ input trustee_order_by {
   created_at: order_by
   election_event_id: order_by
   id: order_by
+  keys_ceremony_id: order_by
   labels: order_by
   last_updated_at: order_by
   name: order_by
@@ -19643,6 +19652,8 @@ enum trustee_select_column {
   """column name"""
   id
   """column name"""
+  keys_ceremony_id
+  """column name"""
   labels
   """column name"""
   last_updated_at
@@ -19662,6 +19673,7 @@ input trustee_set_input {
   created_at: timestamptz
   election_event_id: uuid
   id: uuid
+  keys_ceremony_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
   name: String
@@ -19685,6 +19697,7 @@ input trustee_stream_cursor_value_input {
   created_at: timestamptz
   election_event_id: uuid
   id: uuid
+  keys_ceremony_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
   name: String
@@ -19704,6 +19717,8 @@ enum trustee_update_column {
   election_event_id
   """column name"""
   id
+  """column name"""
+  keys_ceremony_id
   """column name"""
   labels
   """column name"""
