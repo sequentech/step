@@ -27,8 +27,8 @@
           };
           configureRustTargets = targets : pkgs
             .rust-bin
-            .nightly
-            ."2025-01-29"
+            .stable
+            ."1.96.0"
             .default
             .override {
                 extensions = [ "rust-src" ];
@@ -124,6 +124,9 @@
               export CXX=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
               export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
               export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+              -
+              # Nix hardening flags are not supported when compiling C code for WebAssembly
+              export NIX_HARDENING_ENABLE=""
               -
               # Set up the clang resource directory properly
               CLANG_MAJOR_VERSION="19"

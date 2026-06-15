@@ -12,7 +12,7 @@ ARG AWS_S3_MAX_UPLOAD_BYTES=""
 ARG AWS_S3_UPLOAD_EXPIRATION_SECS=""
 ARG AWS_S3_FETCH_EXPIRATION_SECS=""
 
-FROM rust:1.90.0-slim-bookworm AS builder
+FROM rust:1.96.0-slim-bookworm AS builder
 ARG FEATURES
 
 RUN apt-get update && \
