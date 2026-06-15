@@ -1840,6 +1840,33 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
+      },
+      {
+        "id": "5581273b-21f1-4cad-a0db-e2a52b4fd2e3",
+        "name": "phone-blacklist-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "92171f8a-3cfc-4847-9f32-b7a45b6dffab",
+        "name": "phone-blacklist-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "92fb4a5d-f1bb-4983-b33a-90c7223fffe7",
+        "name": "phone-blacklist-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2433,7 +2460,10 @@
         "transmission-report-generate",
         "preview-read",
         "generate-preview",
-        "tally-resolution-submit"
+        "tally-resolution-submit",
+        "phone-blacklist-read",
+        "phone-blacklist-create",
+        "phone-blacklist-delete"
       ],
       "clientRoles": {}
     },
@@ -3275,26 +3305,26 @@
           }
         },
         {
-        "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
-        "name": "auth_time",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usersessionmodel-note-mapper",
-        "consentRequired": false,
-        "config": {
-          "user.session.note": "AUTH_TIME",
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/auth_time",
-          "jsonType.label": "long",
-          "access.tokenResponse.claim": "false"
-        }
-      },
-       {
-        "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
-        "name": "x-hasura-allowed-roles",
+          "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/auth_time",
+            "jsonType.label": "long",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
+          "name": "x-hasura-allowed-roles",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
           "consentRequired": false,
@@ -3306,58 +3336,58 @@
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
             "jsonType.label": "String"
           }
-      },
-      {
-        "id": "31417714-666b-41c7-ae05-a9c3a4948443",
-        "name": "x-hasura-permission-labels",
-        "protocol": "openid-connect",
-        "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "permission_labels",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
-          "jsonType.label": "String"
-        }
-      },
-      {
-        "id": "04319485-b298-4701-a8db-76c1ab682378",
-        "name": "x-hasura-user-id",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usermodel-property-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "id",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
-          "jsonType.label": "String"
-        }
-      },
-      {
-        "id": "5c333dda-dcd9-49eb-b680-d5c082304e27",
-        "name": "trustee",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usermodel-attribute-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "trustee",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "trustee",
-          "jsonType.label": "String"
-        }
-      },
+        },
+        {
+          "id": "31417714-666b-41c7-ae05-a9c3a4948443",
+          "name": "x-hasura-permission-labels",
+          "protocol": "openid-connect",
+          "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "permission_labels",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "04319485-b298-4701-a8db-76c1ab682378",
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "5c333dda-dcd9-49eb-b680-d5c082304e27",
+          "name": "trustee",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "trustee",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "trustee",
+            "jsonType.label": "String"
+          }
+        },
         {
           "id": "046b121c-b86d-4bb5-82cf-98da389b7eb2",
           "name": "Client Host",
@@ -5014,36 +5044,40 @@
       ]
     },
     {
-    "id": "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
-    "alias": "LoA step-up",
-    "description": "",
-    "providerId": "basic-flow",
-    "topLevel": false,
-    "builtIn": false,
-    "authenticationExecutions": [ {
-      "authenticatorConfig": "gold - LoA2",
-      "authenticator": "conditional-level-of-authentication",
-      "authenticatorFlow": false,
-      "requirement": "REQUIRED",
-      "priority": 0,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    }, {
-      "authenticator": "direct-grant-validate-username",
-      "authenticatorFlow": false,
-      "requirement": "REQUIRED",
-      "priority": 1,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    }, {
-      "authenticator": "direct-grant-validate-password",
-      "authenticatorFlow": false,
-      "requirement": "DISABLED",
-      "priority": 2,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    } ]
-  },
+      "id": "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
+      "alias": "LoA step-up",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "gold - LoA2",
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "direct-grant-validate-username",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "direct-grant-validate-password",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
     {
       "id": "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
       "alias": "Message OTP Subflow",
@@ -5576,20 +5610,21 @@
       ]
     },
     {
-        "id": "7191847e-d249-4a3d-b513-84d16d1de9a2",
-        "alias": "gold direct grant",
-        "description": "OpenID Connect Resource Owner Grant",
-        "providerId": "basic-flow",
-        "topLevel": true,
-        "builtIn": false,
-        "authenticationExecutions": [ {
+      "id": "7191847e-d249-4a3d-b513-84d16d1de9a2",
+      "alias": "gold direct grant",
+      "description": "OpenID Connect Resource Owner Grant",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
           "priority": 32,
           "autheticatorFlow": true,
           "flowAlias": "LoA step-up",
           "userSetupAllowed": false
-        } 
+        }
       ]
     },
     {
@@ -5892,14 +5927,15 @@
         "loa-max-age": "0"
       }
     },
-      {
+    {
       "id": "d0b1b9bb-22c3-4585-b094-c4e10e32bbe2",
       "alias": "gold - LoA2",
       "config": {
         "loa-condition-level": "2",
         "loa-max-age": "0"
       }
-    }, {
+    },
+    {
       "id": "7caf408d-0ad1-45e7-89f6-095565b1b1a5",
       "alias": "gold - LoA2",
       "config": {
