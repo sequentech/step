@@ -59,7 +59,7 @@ jobs:
         working-directory: packages
         run: cargo clippy --all-targets --all-features --release --message-format=json -- -D warnings > ../clippy-report.json || true
       - name: SonarQube Scan for Rust
-        uses: sonarsource/sonarqube-scan-action@master
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -95,7 +95,7 @@ jobs:
         run: yarn install --frozen-lockfile --non-interactive
         working-directory: packages
       - name: SonarQube Scan for JS/TS
-        uses: sonarsource/sonarqube-scan-action@master
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -129,6 +129,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'corretto'
+      - name: Install Maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y maven
       - name: SonarQube Scan for Java
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
