@@ -12834,6 +12834,7 @@ type phone_blacklist {
   phone_e164: String!
   reason: String
   tenant_id: uuid!
+  updated_at: timestamptz!
 }
 
 """
@@ -12867,6 +12868,7 @@ input phone_blacklist_bool_exp {
   phone_e164: String_comparison_exp
   reason: String_comparison_exp
   tenant_id: uuid_comparison_exp
+  updated_at: timestamptz_comparison_exp
 }
 
 """
@@ -12894,6 +12896,7 @@ input phone_blacklist_insert_input {
   phone_e164: String
   reason: String
   tenant_id: uuid
+  updated_at: timestamptz
 }
 
 """aggregate max on columns"""
@@ -12905,6 +12908,7 @@ type phone_blacklist_max_fields {
   phone_e164: String
   reason: String
   tenant_id: uuid
+  updated_at: timestamptz
 }
 
 """aggregate min on columns"""
@@ -12916,6 +12920,7 @@ type phone_blacklist_min_fields {
   phone_e164: String
   reason: String
   tenant_id: uuid
+  updated_at: timestamptz
 }
 
 """
@@ -12948,6 +12953,7 @@ input phone_blacklist_order_by {
   phone_e164: order_by
   reason: order_by
   tenant_id: order_by
+  updated_at: order_by
 }
 
 """primary key columns input for table: sequent_backend.phone_blacklist"""
@@ -12973,6 +12979,8 @@ enum phone_blacklist_select_column {
   reason
   """column name"""
   tenant_id
+  """column name"""
+  updated_at
 }
 
 """
@@ -12986,6 +12994,7 @@ input phone_blacklist_set_input {
   phone_e164: String
   reason: String
   tenant_id: uuid
+  updated_at: timestamptz
 }
 
 """
@@ -13007,6 +13016,7 @@ input phone_blacklist_stream_cursor_value_input {
   phone_e164: String
   reason: String
   tenant_id: uuid
+  updated_at: timestamptz
 }
 
 """
@@ -13027,6 +13037,8 @@ enum phone_blacklist_update_column {
   reason
   """column name"""
   tenant_id
+  """column name"""
+  updated_at
 }
 
 input phone_blacklist_updates {
