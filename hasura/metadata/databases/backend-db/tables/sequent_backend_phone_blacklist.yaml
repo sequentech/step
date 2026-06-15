@@ -2,7 +2,7 @@ table:
     name: phone_blacklist
     schema: sequent_backend
 insert_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           check:
               tenant_id:
@@ -16,8 +16,8 @@ insert_permissions:
               - reason
               - tenant_id
               - updated_at
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           check: {}
           columns:
@@ -29,9 +29,9 @@ insert_permissions:
               - id
               - tenant_id
               - updated_at
-      comment: ""
+      role: service-account
 select_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - phone_e164
@@ -45,8 +45,8 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: phone-blacklist-read
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - election_event_id
@@ -56,8 +56,8 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      comment: ""
-    - role: service-account
+      role: phone-blacklist-read
+    - comment: ""
       permission:
           columns:
               - phone_e164
@@ -69,9 +69,9 @@ select_permissions:
               - tenant_id
               - updated_at
           filter: {}
-      comment: ""
+      role: service-account
 update_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           columns:
               - phone_e164
@@ -88,8 +88,8 @@ update_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           columns:
               - phone_e164
@@ -102,15 +102,15 @@ update_permissions:
               - updated_at
           filter: {}
           check: {}
-      comment: ""
+      role: service-account
 delete_permissions:
-    - role: admin-user
+    - comment: ""
       permission:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-      comment: ""
-    - role: service-account
+      role: admin-user
+    - comment: ""
       permission:
           filter: {}
-      comment: ""
+      role: service-account
