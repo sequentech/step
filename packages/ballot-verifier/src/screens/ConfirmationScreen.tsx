@@ -11,7 +11,7 @@ import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {IDecodedVoteContest, checkIsBlank} from "@sequentech/ui-core"
+import {IDecodedVoteContest, checkIsBlank, sortContestList} from "@sequentech/ui-core"
 import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
@@ -422,6 +422,27 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
     const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
+    const contestsOrderType =
+        confirmationBallot?.election_config.election_presentation?.contests_order
+    const sortedPlaintextVoteQuestions = useMemo(() => {
+        if (!plaintextVoteQuestions.length) {
+            return []
+        }
+
+        const sortedContests = sortContestList(
+            confirmationBallot?.election_config.contests || [],
+            contestsOrderType
+        )
+        const contestIndexMap = new Map(
+            sortedContests.map((contest, index) => [contest.id, index] as const)
+        )
+
+        return [...plaintextVoteQuestions].sort((a, b) => {
+            const firstIndex = contestIndexMap.get(a.contest_id) ?? Number.MAX_SAFE_INTEGER
+            const secondIndex = contestIndexMap.get(b.contest_id) ?? Number.MAX_SAFE_INTEGER
+            return firstIndex - secondIndex
+        })
+    }, [confirmationBallot?.election_config.contests, contestsOrderType, plaintextVoteQuestions])
     const {globalSettings} = useContext(SettingsContext)
 
     return (
@@ -477,7 +498,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                 </>
             ) : (
                 <>
-                    {plaintextVoteQuestions.map((voteQuestion) => (
+                    {sortedPlaintextVoteQuestions.map((voteQuestion) => (
                         <PlaintextVoteQuestion
                             questionPlaintext={voteQuestion}
                             question={questionsMap[voteQuestion.contest_id] ?? null}
