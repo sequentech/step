@@ -1254,6 +1254,17 @@ type mutation_root {
   """
   delete_sequent_backend_notification_by_pk(id: uuid!): notification
   """
+  delete data from the table: "sequent_backend.phone_blacklist"
+  """
+  delete_sequent_backend_phone_blacklist(
+    """filter the rows which have to be deleted"""
+    where: phone_blacklist_bool_exp!
+  ): phone_blacklist_mutation_response
+  """
+  delete single row from the table: "sequent_backend.phone_blacklist"
+  """
+  delete_sequent_backend_phone_blacklist_by_pk(id: uuid!): phone_blacklist
+  """
   delete data from the table: "sequent_backend.preview"
   """
   delete_sequent_backend_preview(
@@ -1857,6 +1868,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: notification_on_conflict
   ): notification
+  """
+  insert data into the table: "sequent_backend.phone_blacklist"
+  """
+  insert_sequent_backend_phone_blacklist(
+    """the rows to be inserted"""
+    objects: [phone_blacklist_insert_input!]!
+    """upsert condition"""
+    on_conflict: phone_blacklist_on_conflict
+  ): phone_blacklist_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.phone_blacklist"
+  """
+  insert_sequent_backend_phone_blacklist_one(
+    """the row to be inserted"""
+    object: phone_blacklist_insert_input!
+    """upsert condition"""
+    on_conflict: phone_blacklist_on_conflict
+  ): phone_blacklist
   """
   insert data into the table: "sequent_backend.preview"
   """
@@ -3213,6 +3242,30 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [notification_updates!]!
   ): [notification_mutation_response]
+  """
+  update data of the table: "sequent_backend.phone_blacklist"
+  """
+  update_sequent_backend_phone_blacklist(
+    """sets the columns of the filtered rows to the given values"""
+    _set: phone_blacklist_set_input
+    """filter the rows which have to be updated"""
+    where: phone_blacklist_bool_exp!
+  ): phone_blacklist_mutation_response
+  """
+  update single row of the table: "sequent_backend.phone_blacklist"
+  """
+  update_sequent_backend_phone_blacklist_by_pk(
+    """sets the columns of the filtered rows to the given values"""
+    _set: phone_blacklist_set_input
+    pk_columns: phone_blacklist_pk_columns_input!
+  ): phone_blacklist
+  """
+  update multiples rows of table: "sequent_backend.phone_blacklist"
+  """
+  update_sequent_backend_phone_blacklist_many(
+    """updates to execute, in order"""
+    updates: [phone_blacklist_updates!]!
+  ): [phone_blacklist_mutation_response]
   """
   update data of the table: "sequent_backend.preview"
   """
@@ -5101,6 +5154,40 @@ type query_root {
   fetch data from the table: "sequent_backend.notification" using primary key columns
   """
   sequent_backend_notification_by_pk(id: uuid!): notification
+  """
+  fetch data from the table: "sequent_backend.phone_blacklist"
+  """
+  sequent_backend_phone_blacklist(
+    """distinct select on columns"""
+    distinct_on: [phone_blacklist_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [phone_blacklist_order_by!]
+    """filter the rows returned"""
+    where: phone_blacklist_bool_exp
+  ): [phone_blacklist!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.phone_blacklist"
+  """
+  sequent_backend_phone_blacklist_aggregate(
+    """distinct select on columns"""
+    distinct_on: [phone_blacklist_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [phone_blacklist_order_by!]
+    """filter the rows returned"""
+    where: phone_blacklist_bool_exp
+  ): phone_blacklist_aggregate!
+  """
+  fetch data from the table: "sequent_backend.phone_blacklist" using primary key columns
+  """
+  sequent_backend_phone_blacklist_by_pk(id: uuid!): phone_blacklist
   """
   fetch data from the table: "sequent_backend.preview"
   """
@@ -10048,6 +10135,10 @@ unique or primary key constraints on table "sequent_backend.election_event"
 """
 enum election_event_constraint {
   """
+  unique or primary key constraint on columns "id", "tenant_id"
+  """
+  election_event_id_tenant_id_key
+  """
   unique or primary key constraint on columns "id"
   """
   event_pkey
@@ -12729,6 +12820,219 @@ input notification_updates {
   _set: notification_set_input
   """filter the rows which have to be updated"""
   where: notification_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.phone_blacklist"
+"""
+type phone_blacklist {
+  created_at: timestamptz!
+  created_by: uuid!
+  election_event_id: uuid
+  id: uuid!
+  phone_e164: String!
+  reason: String
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.phone_blacklist"
+"""
+type phone_blacklist_aggregate {
+  aggregate: phone_blacklist_aggregate_fields
+  nodes: [phone_blacklist!]!
+}
+
+"""
+aggregate fields of "sequent_backend.phone_blacklist"
+"""
+type phone_blacklist_aggregate_fields {
+  count(columns: [phone_blacklist_select_column!], distinct: Boolean): Int!
+  max: phone_blacklist_max_fields
+  min: phone_blacklist_min_fields
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.phone_blacklist". All fields are combined with a logical 'AND'.
+"""
+input phone_blacklist_bool_exp {
+  _and: [phone_blacklist_bool_exp!]
+  _not: phone_blacklist_bool_exp
+  _or: [phone_blacklist_bool_exp!]
+  created_at: timestamptz_comparison_exp
+  created_by: uuid_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  phone_e164: String_comparison_exp
+  reason: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.phone_blacklist"
+"""
+enum phone_blacklist_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  phone_blacklist_pkey
+  """
+  unique or primary key constraint on columns "phone_e164", "tenant_id", "election_event_id"
+  """
+  phone_blacklist_tenant_id_election_event_id_phone_e164_key
+}
+
+"""
+input type for inserting data into table "sequent_backend.phone_blacklist"
+"""
+input phone_blacklist_insert_input {
+  created_at: timestamptz
+  created_by: uuid
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String
+  reason: String
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type phone_blacklist_max_fields {
+  created_at: timestamptz
+  created_by: uuid
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String
+  reason: String
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type phone_blacklist_min_fields {
+  created_at: timestamptz
+  created_by: uuid
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String
+  reason: String
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.phone_blacklist"
+"""
+type phone_blacklist_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [phone_blacklist!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.phone_blacklist"
+"""
+input phone_blacklist_on_conflict {
+  constraint: phone_blacklist_constraint!
+  update_columns: [phone_blacklist_update_column!]! = []
+  where: phone_blacklist_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.phone_blacklist".
+"""
+input phone_blacklist_order_by {
+  created_at: order_by
+  created_by: order_by
+  election_event_id: order_by
+  id: order_by
+  phone_e164: order_by
+  reason: order_by
+  tenant_id: order_by
+}
+
+"""primary key columns input for table: sequent_backend.phone_blacklist"""
+input phone_blacklist_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.phone_blacklist"
+"""
+enum phone_blacklist_select_column {
+  """column name"""
+  created_at
+  """column name"""
+  created_by
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  phone_e164
+  """column name"""
+  reason
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.phone_blacklist"
+"""
+input phone_blacklist_set_input {
+  created_at: timestamptz
+  created_by: uuid
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String
+  reason: String
+  tenant_id: uuid
+}
+
+"""
+Streaming cursor of the table "sequent_backend_phone_blacklist"
+"""
+input phone_blacklist_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: phone_blacklist_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input phone_blacklist_stream_cursor_value_input {
+  created_at: timestamptz
+  created_by: uuid
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String
+  reason: String
+  tenant_id: uuid
+}
+
+"""
+update columns of table "sequent_backend.phone_blacklist"
+"""
+enum phone_blacklist_update_column {
+  """column name"""
+  created_at
+  """column name"""
+  created_by
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  phone_e164
+  """column name"""
+  reason
+  """column name"""
+  tenant_id
+}
+
+input phone_blacklist_updates {
+  """sets the columns of the filtered rows to the given values"""
+  _set: phone_blacklist_set_input
+  """filter the rows which have to be updated"""
+  where: phone_blacklist_bool_exp!
 }
 
 """
@@ -21862,6 +22166,51 @@ type subscription_root {
     """filter the rows returned"""
     where: notification_bool_exp
   ): [notification!]!
+  """
+  fetch data from the table: "sequent_backend.phone_blacklist"
+  """
+  sequent_backend_phone_blacklist(
+    """distinct select on columns"""
+    distinct_on: [phone_blacklist_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [phone_blacklist_order_by!]
+    """filter the rows returned"""
+    where: phone_blacklist_bool_exp
+  ): [phone_blacklist!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.phone_blacklist"
+  """
+  sequent_backend_phone_blacklist_aggregate(
+    """distinct select on columns"""
+    distinct_on: [phone_blacklist_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [phone_blacklist_order_by!]
+    """filter the rows returned"""
+    where: phone_blacklist_bool_exp
+  ): phone_blacklist_aggregate!
+  """
+  fetch data from the table: "sequent_backend.phone_blacklist" using primary key columns
+  """
+  sequent_backend_phone_blacklist_by_pk(id: uuid!): phone_blacklist
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.phone_blacklist"
+  """
+  sequent_backend_phone_blacklist_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [phone_blacklist_stream_cursor_input]!
+    """filter the rows returned"""
+    where: phone_blacklist_bool_exp
+  ): [phone_blacklist!]!
   """
   fetch data from the table: "sequent_backend.preview"
   """
