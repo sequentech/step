@@ -31,7 +31,7 @@ Understand our release process and support policies:
 
 ## Latest Release
 
-Check out the [latest release notes](../08-releases/06-release-9.4/release-9.4.0.md) to see what's new.
+Check out the [latest release notes](../releases/06-Release-9.3/release-9.3.0.md) to see what's new.
 
 ## Need Help?
 
