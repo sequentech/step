@@ -38,10 +38,10 @@ others are unchanged from the current architecture.
 
 | # | Origin | Destination | Protocol | What |
 |---|--------|-------------|----------|------|
-| 1–6 | Admin-portal (TypeScript) | Harvest (Hasura action) | HTTP POST | `create-keys-ceremony`, `list-keys-ceremonies`, `get-private-key`, `check-private-key` (existing)<hr/>`register_trustee_key` **BBT new** — registers the BBT signing public key for `(trustee, election_event_id, keys_ceremony_id)` (no secret material)<hr/>`confirm_key_backup` **BBT new** — writes `encryption_key_commitment` at Download Step; advances trustee to `KEY_RETRIEVED`<hr/>`issue_key_check_nonce` **BBT new** — issues a short-lived nonce for the signed-attestation Check Step<hr/>`submit_key_check_attestation` **BBT new** — accepts signed attestation `{ payload, signature, nonce, commitment }`; advances trustee to `KEY_CHECKED`; receives no secret material<hr/>`cancel_keys_ceremony` **BBT new** — atomic `CANCELLED` transition + clears `election.keys_ceremony_id` |
+| 1–6 | Admin-portal (TypeScript) | Harvest (Hasura action) | HTTP POST | `create-keys-ceremony`, `list-keys-ceremonies`, `get-private-key`, `check-private-key` (existing)<hr/>`register_trustee_key` **BBT new** — registers the BBT signing public key for `(trustee, election_event_id, keys_ceremony_id)` (no secret material)<hr/>`confirm_key_backup` **BBT new** — trustee self-reports backup downloaded; advances to `KEY_RETRIEVED` (JWT-authenticated, trustee-confirmed)<hr/>`confirm_key_check` **BBT new** — trustee self-reports local check passed; advances to `KEY_CHECKED` (JWT-authenticated, trustee-confirmed)<hr/>`cancel_keys_ceremony` **BBT new** — atomic `CANCELLED` transition + clears `election.keys_ceremony_id` |
 | 7 | Admin-portal (TypeScript) | Hasura | GraphQL/HTTP | Read-only queries: trustee config (`GET_TRUSTEE_CONFIG`), election events, ceremony `execution_status`, all entity reads |
 | 8 | Admin-portal (braid-wasm) | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol (Channel, Shares, PublicKey…), every message signed locally in the browser |
-| 9 | Harvest / Windmill | PostgreSQL (Hasura DB) | SQL direct | Read/write `keys_ceremony`, `trustee`, `election_event`, `sequent_backend_trustee_verification_nonce` tables.  **BBT change:** `trustee` now has `election_event_id`; `get_trustees_by_id` / `get_trustees_by_name` filter `public_key` by event |
+| 9 | Harvest / Windmill | PostgreSQL (Hasura DB) | SQL direct | Read/write `keys_ceremony`, `trustee`, `election_event` tables.  **BBT change:** `trustee` now has `election_event_id`; `get_trustees_by_id` / `get_trustees_by_name` filter `public_key` by event |
 | 10 | Windmill (Celery) | B4 PostgreSQL | SQL direct (`PgsqlB3Client`) | INSERT `Configuration` message (`add_config_to_board`), SELECT `PublicKey` message (`get_board_public_key`) |
 | 11 | Braid-native | B4 | HTTP | `GET /boards`, `GET /messages`, `POST /messages` — full DKG protocol, same as wasm |
 | 12 | Braid-native | Keycloak | HTTP | Fetch JWT access token using `TRUSTEE_NAME` / `TRUSTEE_PSW` env vars |
@@ -60,8 +60,8 @@ others are unchanged from the current architecture.
 > **B4 signing invariant.** BBT trustees sign every B4 message locally in the browser using
 > their in-memory `signing_key_sk`.  Harvest never signs on behalf of a BBT trustee and never
 > holds BBT signing material.  The browser posts signed B4 messages directly to B4 (path 8),
-> and separately notifies Harvest/Hasura for ceremony state transitions and for recording the
-> `encryption_key_commitment` (path 1–6).  If a future audit requirement ever justifies
+> and separately notifies Harvest/Hasura for ceremony state transitions (path 1–6).  If a
+> future audit requirement ever justifies
 > routing B4 traffic through Harvest, the relay must forward the already-signed envelope
 > verbatim — never open, modify, or re-sign it.
 
@@ -314,12 +314,13 @@ Backing up the identity keys is therefore sufficient and more portable than down
 raw board data.
 
 For BBTs, advancing to `KEY_RETRIEVED` is the responsibility of a **new** Hasura action,
-`confirm_key_backup` (see [§10](#10-component-changes)).  The browser computes an
-`encryption_key_commitment` over the canonical ceremony data using the in-memory
-`encryption_key`, exports the TOML for the trustee to save locally, and POSTs **only** the
-commitment to Harvest.  Harvest writes the commitment onto the trustee's row and advances
-the status.  The TOML and `encryption_key` itself never leave the browser.  The legacy
-`/get-private-key` endpoint is not used by BBTs.
+`confirm_key_backup` (see [§10](#10-component-changes)).  The browser exports the identity
+keys to a local TOML file for the trustee to save, then makes a plain JWT-authenticated
+call to Harvest to self-report the backup as done and advance the status.  No secret
+material reaches the server.  The legacy `/get-private-key` endpoint is not used by BBTs.
+
+`KEY_RETRIEVED` is **trustee-confirmed**, not cryptographically proven.  Harvest accepts the
+self-report; it cannot verify that the trustee actually saved the file.
 
 ### KEY_CHECKED
 
@@ -327,20 +328,17 @@ Set by the Harvest `/check-private-key` endpoint when the trustee re-uploads and
 key matches the one stored on the board.  When **all** trustees in the ceremony reach
 `KEY_CHECKED`, the ceremony `execution_status` transitions to `SUCCESS`.
 
-**BBT impact**: the check for BBTs happens in two layers and the board is never involved.
+**BBT impact**: the board is never involved.
 (a) **Browser-local sanity check** (always run, also reused outside the formal Check Step):
-parse the uploaded TOML, verify that `signing_key_sk` derives the expected `signing_key_pk`,
-recompute the `encryption_key_commitment`, and compare locally against the in-memory
-ceremony session.  This gives the trustee immediate feedback.
-(b) **Signed attestation to Harvest** (run only at the formal Check Step, to advance the
-status): the browser requests a short-lived nonce from Harvest, builds a canonical
-verification payload binding `(tenant_id, election_event_id, keys_ceremony_id, trustee_id,
-signing_key_pk, encryption_key_commitment, nonce)`, signs it with `signing_key_sk`, and
-POSTs only `{ payload, signature, nonce, commitment }`.  Harvest verifies the JWT trustee
-binding, the nonce, the signature under the registered `signing_key_pk`, and the commitment
-match against the value previously recorded by `confirm_key_backup`.  No TOML, no
-`signing_key_sk`, and no `encryption_key` ever reach the server.  The legacy
-`/check-private-key` endpoint and its board-key comparison logic are not used by BBTs.
+parse the uploaded TOML and verify that `signing_key_sk` derives the expected
+`signing_key_pk`.  This gives the trustee immediate feedback.
+(b) **Status advance** (formal Check Step only): the browser makes a plain
+JWT-authenticated call to a new Harvest action `confirm_key_check` to self-report the
+check as passed and advance the status.  No secret material is sent.  The legacy
+`/check-private-key` endpoint is not used by BBTs.
+
+`KEY_CHECKED` is **trustee-confirmed**, not cryptographically proven.  Harvest verifies
+only the JWT — it cannot verify that the local TOML check actually passed.
 
 ### Summary table
 
@@ -348,8 +346,8 @@ match against the value previously recorded by `confirm_key_backup`.  No TOML, n
 |---|---|---|---|
 | `WAITING` | `create_keys_ceremony` / `set_public_key_impl` | Ceremony creation or no board message yet | None for initial set; board-message match needs per-event key |
 | `KEY_GENERATED` | `set_public_key_impl` | `PublicKey`/`PublicKeySigned` message found on board for this trustee | Must match per-event `public_key`, not global one |
-| `KEY_RETRIEVED` | `/get-private-key` (Harvest) — server-based only | Trustee downloads `TrusteeShareData` (Channel + Shares) from board | New Hasura action `confirm_key_backup` writes `encryption_key_commitment` and advances status; TOML stays in the browser, no board read |
-| `KEY_CHECKED` | `/check-private-key` (Harvest) — server-based only | Re-uploaded key matches board copy | New Hasura actions `issue_key_check_nonce` + `submit_key_check_attestation`: local parse + sk→pk verification + commitment recompute, then signed attestation (nonce-bound) to Harvest; no TOML / secret material sent; no board read |
+| `KEY_RETRIEVED` | `/get-private-key` (Harvest) — server-based only | Trustee downloads `TrusteeShareData` (Channel + Shares) from board | New Hasura action `confirm_key_backup`: trustee self-reports backup downloaded; no board read; **trustee-confirmed, not proven** |
+| `KEY_CHECKED` | `/check-private-key` (Harvest) — server-based only | Re-uploaded key matches board copy | New Hasura action `confirm_key_check`: browser runs local `sk→pk` verification, then plain JWT-authenticated call advances status; no board read; **trustee-confirmed, not proven** |
 
 ---
 
@@ -409,7 +407,7 @@ ways:
 - **Duplicate from previous** — admin picks any prior ceremony for the same election event
   (typically the just-cancelled one); the new ceremony inherits its trustee set, threshold,
   and naming.  The new ceremony gets a fresh `keys_ceremony_id`; BBT trustees regenerate
-  keys against that new id; no `public_key` or `encryption_key_commitment` is copied over.
+  keys against that new id; no `public_key` is copied over.
 
 UX rule: the duplicate option is offered only when the source election has
 `keys_ceremony_id = NULL`.  If a ceremony is already assigned (active or successful), the
@@ -464,7 +462,7 @@ BBT trustee opens the election event's keys ceremony in admin portal
        is admin cancel + recreate (see §3 gate edge case, §6 cancellation).
   └─ signing_key_pk → POST Harvest /register-trustee-key  (only after ceremony exists)
                        UPSERT (trustee_id, election_event_id, keys_ceremony_id)
-                         SET public_key, encryption_key_commitment = NULL
+                         SET public_key
                     ↓
 beat service (review_boards → process_board) polls each ceremony in AWAITING_TRUSTEE_KEYS:
   checks whether every selected BBT trustee has a public_key for this
@@ -487,42 +485,23 @@ allTrusteesGenerated: all trustees have a PublicKey or PublicKeySigned message o
   → Windmill set_public_key matches board messages against trustee.public_key from DB
   → each trustee status: KEY_GENERATED
                     ↓
-[Download Step — backup file + commitment]
+[Download Step — backup file]
   Download is enabled only after all selected trustees have reached KEY_GENERATED
   Browser exports identity keys to a downloadable TOML (file leaves the browser
     only when the trustee saves it locally):
     { signing_key_sk, signing_key_pk, encryption_key }
-  Browser computes encryption_key_commitment over canonical ceremony data:
-    HMAC(encryption_key,
-         "BBT/key-check/v1" ‖ tenant_id ‖ election_event_id ‖
-                              keys_ceremony_id ‖ trustee_id)
-  Browser POSTs only the commitment → Harvest confirm_key_backup (Hasura action)
-    → server writes encryption_key_commitment on the trustee row
-    → if a commitment was already recorded:
-        - matching value → accept silently (no-op)
-        - differing value → reject (COMMITMENT_MISMATCH)
+  Browser POSTs → Harvest confirm_key_backup (Hasura action, JWT-authenticated)
+    → trustee self-reports backup as downloaded (trustee-confirmed, not proven)
     → trustee status advances to KEY_RETRIEVED
-  Navigate-away guard relaxes once a backup exists (recovery is now possible)
+  Navigate-away guard relaxes once the Download Step is complete (recovery is now possible)
 
-[Check Step — signed attestation, no secret material sent]
+[Check Step — browser-local validation + plain status advance]
   Trustee re-uploads backup TOML
   Browser parses TOML locally:
     - verify signing_key_pk derives from signing_key_sk
-    - recompute encryption_key_commitment over the same canonical ceremony data
-  Browser requests a short-lived nonce from Harvest (issue_key_check_nonce)
-  Browser builds canonical verification payload:
-    { tenant_id, election_event_id, keys_ceremony_id, trustee_id,
-      signing_key_pk, encryption_key_commitment, nonce }
-  Browser signs the payload with signing_key_sk
-  Browser POSTs { payload, signature, nonce, commitment } → Harvest
-    (submit_key_check_attestation).  Never sends signing_key_sk, encryption_key,
-    or the TOML.
-  Harvest verifies:
-    - JWT trustee_id matches payload.trustee_id
-    - nonce was issued for this trustee, is unexpired, and unused
-    - signature verifies under the registered signing_key_pk
-    - commitment matches the value recorded by confirm_key_backup
-  On success: mark nonce consumed; advance trustee status → KEY_CHECKED
+  Browser POSTs → Harvest confirm_key_check (Hasura action, JWT-authenticated)
+    → trustee self-reports local check passed (trustee-confirmed, not proven)
+    → trustee status advances to KEY_CHECKED
   All trustees KEY_CHECKED → ceremony status: SUCCESS
 ```
 
@@ -542,39 +521,34 @@ warning along the lines of:
 The guard is uninstalled once the trustee reaches `KEY_CHECKED`.  The warning is
 best-effort: browsers can suppress the custom message, and tab crashes / OS kills cannot be
 guarded against at all.  The only durable recovery is the downloaded backup file, which is
-why the guard stays active until the backup-plus-attestation round-trip is complete.
+why the guard stays active until the Download and Check steps are both complete.
 
-### What the verify step triggers
+### What the Check Step triggers
 
-When the trustee uploads the backup file in the Check Step, the browser runs the local
-checks (parse TOML, verify `signing_key_sk` derives `signing_key_pk`, recompute
-`encryption_key_commitment`) and gives the trustee immediate match/mismatch feedback.
+When the trustee uploads the backup file in the Check Step, the browser runs local
+validation (parse TOML, verify `signing_key_sk` derives `signing_key_pk`) and gives the
+trustee immediate pass/fail feedback.
 
-For the status advance, the browser then runs the **signed attestation** flow described in
-the diagram above: request a Harvest-issued nonce, sign a canonical payload with
-`signing_key_sk`, POST `{ payload, signature, nonce, commitment }` to Harvest.  Harvest
-**never receives the TOML, `signing_key_sk`, or `encryption_key`** — only proof of
-possession.  If Harvest validates the JWT binding, the nonce, the signature under the
-registered `signing_key_pk`, and the commitment match, the trustee advances to
-`KEY_CHECKED`.  When all trustees reach `KEY_CHECKED` the ceremony status advances to
-`SUCCESS`.
+If the local check passes, the browser calls `confirm_key_check` (a plain
+JWT-authenticated Harvest action) to advance the trustee to `KEY_CHECKED`.  Harvest
+verifies only the JWT — it cannot verify that the local TOML check actually passed.
+`KEY_CHECKED` is trustee-confirmed.  When all trustees reach `KEY_CHECKED` the ceremony
+status advances to `SUCCESS`.
 
 ### Backup validation is reusable, not a one-shot step
 
 The Download/Check pair is drawn above as a linear progression, but the underlying *local*
-validation — parse TOML, verify `sk` derives `pk`, recompute the commitment, compare
-against the in-memory keypair — is available any time after `KEY_GENERATED`.  The admin
-portal should expose a "check my backup" affordance the trustee can use during
-`KEY_RETRIEVED` (to confirm the file is valid before signing off), after `KEY_CHECKED`
-(re-verify days/weeks later), and during tally-ceremony preparation (to re-load keys into
-memory on a fresh device, or just to confirm the file still works before tally begins).
+validation — parse TOML, verify `sk` derives `pk` — is available any time after
+`KEY_GENERATED`.  The admin portal should expose a "check my backup" affordance the trustee
+can use during `KEY_RETRIEVED` (to confirm the file is valid before signing off), after
+`KEY_CHECKED` (re-verify days/weeks later), and during tally-ceremony preparation (to
+re-load keys into memory on a fresh device, or just to confirm the file still works before
+tally begins).
 
 The local logic is identical in every case.  Only the formal Check Step at
-`KEY_RETRIEVED → KEY_CHECKED` invokes the **server-side attestation flow** (nonce + signed
-payload) and advances trustee status.  Outside that window the check is purely local
-feedback to the trustee; no nonce is issued and no Harvest call is made.  Same UI, same
-WASM helpers, reused across the key ceremony and tally preparation with no protocol or DB
-changes.
+`KEY_RETRIEVED → KEY_CHECKED` calls `confirm_key_check` and advances trustee status.
+Outside that window the check is purely local feedback to the trustee; no Harvest call is
+made.  Same UI, same WASM helpers, reused across the key ceremony and tally preparation.
 
 > **Note on the Download step:** the trustee downloads a backup of their **identity keys** —
 > `{ signing_key_sk, signing_key_pk, encryption_key }` — the browser equivalent of
@@ -621,54 +595,24 @@ Residual mitigations to keep in place:
 Harvest is the server-side custodian of ceremony state, but it is **never** a custodian of
 BBT signing material.  In particular:
 
-- Harvest never receives `signing_key_sk`, `encryption_key`, or the TOML.  The verify flow
-  is a signed attestation (see [§7 Flow](#7-flow)); the server sees only `signing_key_pk`
-  (already public) and the one-way `encryption_key_commitment`.
+- Harvest never receives `signing_key_sk`, `encryption_key`, or the TOML.  It holds only
+  `signing_key_pk` (already public).
 - Harvest never signs B4 messages on behalf of a BBT trustee.  Browser sessions sign every
-  B4 message locally with their in-memory `signing_key_sk` and POST directly to B4 (path 4
+  B4 message locally with their in-memory `signing_key_sk` and POST directly to B4 (path 8
   in [§1](#1-service-communication-paths)); see the B4 signing invariant in §1.
 - A compromise of Harvest must not yield BBT impersonation.  Any future feature that
   appears to need a signature for a BBT trustee must round-trip through that trustee's
   browser, not synthesize one server-side.
 
-### Threat-model summary for the verify flow
+### Limits of the trustee-confirmation model
 
-Authorization for the Check Step comes from three independent checks; **none of them
-involve the nonce**:
-
-- Possession of `signing_key_sk` alone is insufficient to forge a Check Step attestation:
-  the attacker would also need `encryption_key` to reproduce the commitment recorded by
-  `confirm_key_backup`.
-- Possession of `encryption_key` alone is insufficient: the attacker would also need
-  `signing_key_sk` to sign the canonical verification payload under the registered
-  `signing_key_pk`.
-- Harvest's per-trustee JWT binding (`payload.trustee_id == JWT trustee`) prevents one
-  trustee from attesting on behalf of another.
-
-The nonce serves a different purpose: it is **not** an authorization secret and is freely
-obtainable by anyone with a valid JWT.  Its only job is to make a signed attestation
-**non-replayable**.  The signed payload `{ tenant_id, election_event_id, keys_ceremony_id,
-trustee_id, signing_key_pk, encryption_key_commitment }` is otherwise constant for the
-life of the trustee's row in the ceremony — without a freshness value, a single legitimate
-`{ payload, signature }` artifact would be a permanently valid Check Step token, replayable
-forever by anyone who observed the request (logs, transient TLS-terminator buffers, memory
-snapshots).  Including a server-issued, single-use, time-bounded nonce in the signed
-payload makes each signature a one-shot proof:
-
-- Captured attestations are useless after the legitimate submission consumes their nonce
-  (or after 5 min, whichever comes first).
-- Attestations cannot be pre-signed and stashed: the payload cannot be constructed until
-  Harvest has issued the challenge.
-- Cross-binding is blocked: a nonce issued for trustee A / ceremony X cannot be lifted into
-  an attestation for trustee B or ceremony Y (the row lookup keys on
-  `(trustee_id, keys_ceremony_id, nonce)`).
-- Even idempotency confusion is blocked: `consumed_at` is set in the same transaction as
-  the `KEY_CHECKED` advance, so one signed payload cannot be processed twice.
-
-Canonicalization (for both the commitment input and the signed payload) must be exact
-across browser and server.  Reuse a single canonicalization implementation, version it
-(`canonicalization_version` field on the attestation), and treat drift as the most likely
-correctness foot-gun.
+`KEY_RETRIEVED` and `KEY_CHECKED` are self-reported status advances authenticated only by
+the trustee's JWT.  Harvest accepts these calls without being able to verify that the
+trustee actually saved the backup file or that the local TOML check actually passed.  This
+is a deliberate simplification: we cannot prove possession of a symmetric key over the
+wire, and a commitment only ever verified a self-report anyway.  The statuses reflect
+trustee intent, not cryptographic assurance.  The navigate-away guard and the local
+browser-side validation exist to make the trustee's self-report accurate in practice.
 
 ---
 
@@ -689,7 +633,7 @@ best-effort warning, not a guarantee.
 
 **Before `Configuration` is posted** (ceremony still in `AWAITING_TRUSTEE_KEYS`):
 the trustee can regenerate a fresh keypair on next visit, re-register the new `public_key`
-in the DB (overwriting the previous entry; the commitment column stays `NULL`), and the
+in the DB (overwriting the previous entry), and the
 beat service will proceed normally.  The ceremony has not used the old key for anything.
 
 **After `Configuration` is posted** (ceremony in `IN_PROGRESS` or later):
@@ -774,39 +718,20 @@ This produces the same three values found in `trustee1.toml`.  All underlying fu
 (`StrandSignatureSk::generate`, `symm::gen_key`) are already present in braid and used in
 `gen_trustee_config.rs` — no new crypto dependency.
 
-### 2 — DB schema: extend `sequent_backend_trustee` and add a verification-nonce table
+### 2 — DB schema: extend `sequent_backend_trustee`
 
-Extend `sequent_backend_trustee` with `election_event_id`, `keys_ceremony_id`, and
-`encryption_key_commitment`.  All three are nullable but, when set, the first two must be
-foreign keys to their respective tables:
+Extend `sequent_backend_trustee` with `election_event_id` and `keys_ceremony_id`.  Both are
+nullable but, when set, must be foreign keys to their respective tables:
 
 | Column | Type | Meaning |
 |---|---|---|
 | `election_event_id` | `uuid \| null` (FK → `election_event.id`) | `null` for server-based trustees; event UUID for BBT |
 | `keys_ceremony_id` | `uuid \| null` (FK → `keys_ceremony.id`) | `null` for server-based trustees; ceremony UUID for BBT |
 | `public_key` | `text \| null` | Ed25519 public key scoped to this `(trustee, event, ceremony)` tuple |
-| `encryption_key_commitment` | `text \| null` | HMAC commitment to the trustee's `encryption_key`; written by `confirm_key_backup` at Download Step.  NULL until the trustee has downloaded their TOML backup. |
 
-Server-based trustees keep all four BBT-only columns NULL — no behaviour change.  BBT
-trustees upsert `(trustee_id, election_event_id, keys_ceremony_id) → public_key` on every
-session start; `encryption_key_commitment` is written separately at Download Step time.
-
-**New table — `sequent_backend_trustee_verification_nonce`** (challenge state, not a durable
-record):
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | `uuid` | primary key |
-| `trustee_id` | `uuid` | FK |
-| `keys_ceremony_id` | `uuid` | FK |
-| `nonce` | `text` | random, ≥256 bits, base64 |
-| `issued_at` | `timestamptz` | |
-| `expires_at` | `timestamptz` | e.g. `issued_at + 5 minutes` |
-| `consumed_at` | `timestamptz \| null` | non-null once an attestation has spent it |
-
-Unique index on `(trustee_id, keys_ceremony_id, nonce)`.  Rows are reaped past
-`expires_at + grace` by a Windmill task (`reap_expired_check_nonces`); no audit trail is
-kept here — successful Check Step is recorded via `TrusteeStatus = KEY_CHECKED`.
+Server-based trustees keep both BBT-only columns NULL — no behaviour change.  BBT trustees
+upsert `(trustee_id, election_event_id, keys_ceremony_id) → public_key` on every session
+start.
 
 ### 3 — `HeadlessTrusteeProvider`: cold-start, generate-or-restore, beforeunload guard
 
@@ -839,85 +764,50 @@ constructing `WasmSession`:
 Input:  { public_key: string, election_event_id: string, keys_ceremony_id: string }
 Auth:   existing Keycloak JWT  — identifies which trustee is calling
 Action: UPSERT sequent_backend_trustee
-          SET public_key = $public_key,
-              encryption_key_commitment = NULL   -- reset on fresh key generation
+          SET public_key = $public_key
           WHERE trustee_id = <from JWT>
             AND election_event_id = $election_event_id
             AND keys_ceremony_id  = $keys_ceremony_id
 ```
 
 The private key and `encryption_key` never reach the server.  Server-based trustees never
-call this endpoint.  The endpoint is idempotent on `public_key`; resetting
-`encryption_key_commitment` on re-registration is intentional so that a regenerated
-keypair starts from a clean slate.
+call this endpoint.  The endpoint is idempotent on `public_key`.
 
 ### 5 — Harvest: new Hasura action `confirm_key_backup`
 
 ```
-Input:  { keys_ceremony_id: string, encryption_key_commitment: string }
+Input:  { keys_ceremony_id: string }
 Auth:   existing Keycloak JWT  — identifies which trustee is calling
 Action (one transaction):
-  1. Load the row for (trustee_id from JWT, election_event_id implied by ceremony,
-     keys_ceremony_id).  Reject NO_PUBLIC_KEY_REGISTERED if public_key is NULL.
-  2. If the row's encryption_key_commitment is already set:
-       - matches input → accept silently (no-op, return ok)
-       - differs from input → reject COMMITMENT_MISMATCH
-  3. Otherwise: write encryption_key_commitment.
-  4. Advance TrusteeStatus → KEY_RETRIEVED via try_transition.
-Errors: NO_PUBLIC_KEY_REGISTERED, COMMITMENT_MISMATCH, INVALID_STATE.
+  1. Load the row for (trustee_id from JWT, keys_ceremony_id).
+     Reject NO_PUBLIC_KEY_REGISTERED if public_key is NULL.
+  2. Advance TrusteeStatus → KEY_RETRIEVED via try_transition (idempotent on KEY_RETRIEVED).
+Returns: { status: "ok" } | error code.
 ```
 
-Server-based trustees never call this endpoint; they use the existing `/get-private-key`
-path.
+Trustee self-reports that the backup was downloaded.  Harvest cannot verify the claim; it
+accepts any call from a JWT holder whose `public_key` is already registered.  Server-based
+trustees never call this endpoint; they use the existing `/get-private-key` path.
 
-### 6 — Harvest: new Hasura action `issue_key_check_nonce`
+### 6 — Harvest: new Hasura action `confirm_key_check`
 
 ```
 Input:  { keys_ceremony_id: string }
 Auth:   existing Keycloak JWT  — identifies which trustee is calling
-Action:
-  1. Generate a random nonce (≥256 bits, base64).
-  2. Insert a row into sequent_backend_trustee_verification_nonce with
-       expires_at = now() + 5 minutes.
-  3. Optionally enforce a per-(trustee, ceremony) cap on un-consumed nonces; evict the
-       oldest or reject past the cap.
-Returns: { nonce, expires_at }
-```
-
-### 7 — Harvest: new Hasura action `submit_key_check_attestation`
-
-```
-Input:
-  {
-    payload: {
-      tenant_id, election_event_id, keys_ceremony_id, trustee_id,
-      signing_key_pk, encryption_key_commitment, nonce
-    },
-    signature: string (base64),
-    canonicalization_version: int
-  }
-Auth: existing Keycloak JWT — identifies the calling trustee.
 Action (one transaction):
-  1. Look up the nonce row by (payload.trustee_id, payload.keys_ceremony_id, payload.nonce).
-     Reject NONCE_NOT_FOUND / NONCE_EXPIRED / NONCE_ALREADY_USED accordingly.
-  2. Reject TRUSTEE_MISMATCH if payload.trustee_id ≠ JWT trustee.
-  3. Reject CEREMONY_MISMATCH if any of payload.tenant_id / .election_event_id /
-     .keys_ceremony_id disagrees with the ceremony record.
-  4. Load the registered row for (trustee_id, election_event_id, keys_ceremony_id).
-     Reject KEY_MISMATCH if payload.signing_key_pk ≠ row.public_key.
-     Reject COMMITMENT_MISMATCH if payload.encryption_key_commitment ≠
-        row.encryption_key_commitment.
-  5. Re-serialize payload using canonicalization_version; verify signature under
-     payload.signing_key_pk.  Reject SIGNATURE_INVALID on failure.
-  6. Mark the nonce consumed (set consumed_at).
-  7. Advance TrusteeStatus → KEY_CHECKED via try_transition.
-Returns: { status: "ok" } | descriptive error code.
+  1. Load the row for (trustee_id from JWT, keys_ceremony_id).
+     Reject NO_PUBLIC_KEY_REGISTERED if public_key is NULL.
+     Reject INVALID_STATE if TrusteeStatus ≠ KEY_RETRIEVED.
+  2. Advance TrusteeStatus → KEY_CHECKED via try_transition.
+Returns: { status: "ok" } | error code.
 ```
 
-Harvest never sees `signing_key_sk`, `encryption_key`, or the TOML file.  Server-based
-trustees never call this endpoint.
+Trustee self-reports that the local TOML validation passed.  Harvest verifies only the JWT;
+it cannot verify that the browser-side check actually ran.  `KEY_CHECKED` is
+trustee-confirmed.  Server-based trustees never call this endpoint; they use the existing
+`/check-private-key` path.
 
-### 8 — Harvest: new Hasura action `cancel_keys_ceremony`
+### 7 — Harvest: new Hasura action `cancel_keys_ceremony`
 
 ```
 Input:  { keys_ceremony_id: string }
@@ -935,22 +825,21 @@ Returns: { status: "ok" } | error code.
 See [§6 Cancellation Window](#6-cancellation-window) for the rationale and the resulting
 "unassigned" election state.
 
-### 9 — Harvest: update `create-keys-ceremony` with `duplicate_from`
+### 8 — Harvest: update `create-keys-ceremony` with `duplicate_from`
 
 Add an optional input field `duplicate_from: keys_ceremony_id?`.
 
 - If present: load the source ceremony; copy trustee set, threshold, and naming convention
   onto the new ceremony.  Reject DUPLICATE_SOURCE_TRUSTEE_MISSING if any source trustee no
   longer exists.  Reject ELECTION_ALREADY_ASSIGNED if the target election already has
-  `keys_ceremony_id` set (admin must cancel first).  Do **not** copy `public_key` or
-  `encryption_key_commitment` — BBT trustees must regenerate against the new
-  `keys_ceremony_id`.
+  `keys_ceremony_id` set (admin must cancel first).  Do **not** copy `public_key` —
+  BBT trustees must regenerate against the new `keys_ceremony_id`.
 - If absent: behaves as today (fresh create).
 
 In both cases, on success set `election.keys_ceremony_id` (on each election in the event)
 to the new ceremony id.
 
-### 10 — Admin portal: ceremony-assignment states on the election page
+### 9 — Admin portal: ceremony-assignment states on the election page
 
 The election-event ceremony page must render different controls depending on
 `election.keys_ceremony_id` (read from the elections within the event — there is no
@@ -964,7 +853,7 @@ The election-event ceremony page must render different controls depending on
   only; no cancel/recreate controls (the state machine + voting-period gate would reject
   anyway).
 
-### 11 — Windmill `get_trustees_by_id` / `get_trustees_by_name`: filter by `(election_event_id, keys_ceremony_id)`
+### 10 — Windmill `get_trustees_by_id` / `get_trustees_by_name`: filter by `(election_event_id, keys_ceremony_id)`
 
 Update both DB queries to prefer the row matching the ceremony's `election_event_id` **and**
 `keys_ceremony_id`, falling back to `(NULL, NULL)` for server-based trustees:
@@ -981,20 +870,10 @@ LIMIT 1
 No change to `create_keys`, `set_public_key`, or `insert_ballots` logic — they already use
 whatever `public_key` the query returns.
 
-### 12 — Windmill: nonce-reap task
-
-Add a periodic Windmill task `reap_expired_check_nonces` that deletes rows from
-`sequent_backend_trustee_verification_nonce` where
-`expires_at < now() - <grace>` OR `consumed_at IS NOT NULL`.  Frequency: every 5–15
-minutes; the table holds only ephemeral challenge state.
-
 ---
 
 ## 11. `trustee.public_key` Column
 
-The column is **retained and extended** with the companion `election_event_id`,
-`keys_ceremony_id`, and `encryption_key_commitment` columns (see [§10.2](#10-component-changes)).
-It remains the single source of truth for the public key in this approach.  The new
-companion `encryption_key_commitment` column is the single source of truth for the trustee's
-encryption-key commitment, written at Download Step time by `confirm_key_backup` and read
-at Check Step time by `submit_key_check_attestation`.
+The column is **retained and extended** with the companion `election_event_id` and
+`keys_ceremony_id` columns (see [§10.2](#10-component-changes)).  It remains the single
+source of truth for the public key in this approach.
