@@ -39,7 +39,6 @@ jobs:
               - added|modified: 'packages/**/*.jsx'
               - added|modified: 'packages/**/*.tsx'
               - added|modified: 'packages/**/package.json'
-              - '!packages/package.json'
 
   scan-rust:
     name: Scan Rust Code
