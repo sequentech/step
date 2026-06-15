@@ -28,4 +28,4 @@ COPY ./.cargo ./.cargo
 # build projects
 
 WORKDIR /app/braid
-RUN cargo build --release --locked --frozen --offline
+RUN cargo +nightly build --release --locked --frozen --offline
