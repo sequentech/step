@@ -13,7 +13,7 @@ This guide explains how to update the Rust version across the entire Step Reposi
 
 ## Overview
 
-The Step Repository uses **Rust stable version 1.90.0** throughout the entire codebase. We maintain a single, consistent version across:
+The Step Repository uses **Rust stable version 1.96.0** throughout the entire codebase. We maintain a single, consistent version across:
 
 - GitHub Actions (CI/CD pipelines)
 - All Dockerfiles (development and production)
@@ -43,7 +43,7 @@ Update the `toolchain` version in these workflow files:
     uses: dtolnay/rust-toolchain@stable
     with:
       profile: minimal
-      toolchain: 1.90.0  # ← Update this
+      toolchain: 1.96.0  # ← Update this
       components: rustfmt
       target: x86_64-unknown-linux-musl
   ```
@@ -54,7 +54,7 @@ Update the `toolchain` version in these workflow files:
     uses: dtolnay/rust-toolchain@stable
     with:
       profile: minimal
-      toolchain: 1.90.0  # ← Update this
+      toolchain: 1.96.0  # ← Update this
       components: rustfmt
       target: x86_64-unknown-linux-musl
   ```
@@ -65,7 +65,7 @@ Update the `toolchain` version in these workflow files:
     uses: dtolnay/rust-toolchain@stable
     with:
       profile: minimal
-      toolchain: 1.90.0  # ← Update this
+      toolchain: 1.96.0  # ← Update this
       components: rustfmt
       target: x86_64-unknown-linux-musl
   ```
@@ -76,12 +76,12 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 
 - **`packages/Dockerfile.cargo-packages`** (line 10)
   ```dockerfile
-  FROM rust:1.90.0-slim-bookworm  # ← Update this
+  FROM rust:1.96.0-slim-bookworm  # ← Update this
   ```
 
 - **`packages/braid/Dockerfile`** (line 5)
   ```dockerfile
-  FROM rust:1.90.0-slim-bookworm  # ← Update this
+  FROM rust:1.96.0-slim-bookworm  # ← Update this
   ```
 
 - **`packages/braid/Dockerfile.prod`**
@@ -112,7 +112,7 @@ Update the Rust channel in the Nix development environment:
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
     channel = "stable";  # ← Should be "stable"
-    version = "1.90.0"; # ← Update this
+    version = "1.96.0"; # ← Update this
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
   ```
@@ -131,7 +131,7 @@ Ensure your `devenv.nix` is using the stable channel and the version is not fixe
 languages.rust = {
   enable = true;
   channel = "stable";
-  # version = "1.90.0"; # ← Comment this out
+  # version = "1.96.0"; # ← Comment this out
   toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
 };
 ```
@@ -152,9 +152,9 @@ devenv shell
 
 # Check the actual Rust version
 rustc --version
-# Output example: rustc 1.90.0 (abc123def 2024-10-01)
+# Output example: rustc 1.96.0 (abc123def 2024-10-01)
 
-# Note the version number (e.g., 1.90.0)
+# Note the version number (e.g., 1.96.0)
 ```
 
 The version shown by `rustc --version` inside `devenv shell` is the version determined by your nixpkgs snapshot. **This is the version you should use for all other files** (GitHub Actions and Dockerfiles).
@@ -202,10 +202,10 @@ To update all versions at once:
 
 ```bash
 # Update stable version in GitHub Actions
-find .github/workflows/ -name "*.yml" -type f -exec sed -i 's/toolchain: 1.90.0/toolchain: X.Y.Z/g' {} +
+find .github/workflows/ -name "*.yml" -type f -exec sed -i 's/toolchain: 1.96.0/toolchain: X.Y.Z/g' {} +
 
 # Update stable version in Dockerfiles
-find packages/ -name "Dockerfile*" -type f -exec sed -i 's/FROM rust:1.90.0/FROM rust:X.Y.Z/g' {} +
+find packages/ -name "Dockerfile*" -type f -exec sed -i 's/FROM rust:1.96.0/FROM rust:X.Y.Z/g' {} +
 
 # Remove any nightly references (if any exist)
 find packages/ -name "Dockerfile*" -type f -exec sed -i '/rustup toolchain install nightly/d' {} +
