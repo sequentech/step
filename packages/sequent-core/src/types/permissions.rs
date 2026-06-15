@@ -377,6 +377,12 @@ pub enum Permissions {
     PREVIEW_READ,
     #[strum(serialize = "tally-resolution-submit")]
     TALLY_RESOLUTION_SUBMIT,
+    #[strum(serialize = "phone-blacklist-read")]
+    PHONE_BLACKLIST_READ,
+    #[strum(serialize = "phone-blacklist-create")]
+    PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-delete")]
+    PHONE_BLACKLIST_DELETE,
 }
 
 #[allow(non_camel_case_types)]

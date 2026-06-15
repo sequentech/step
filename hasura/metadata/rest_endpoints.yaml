@@ -1,1 +1,9 @@
-[]
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrIsPhoneBlacklisted
+  methods:
+      - GET
+  name: IvrIsPhoneBlacklisted
+  url: ivr/phone-blacklist/:event_id/:phone
