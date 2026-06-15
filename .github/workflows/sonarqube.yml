@@ -1,0 +1,139 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: SonarQube Scan
+
+on:
+  pull_request:
+    paths:
+      - 'packages/**'
+
+jobs:
+  detect-changes:
+    name: Detect Code Changes
+    runs-on: gcp-selfhosted-ubuntu24
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      java: ${{ steps.filter.outputs.java }}
+      javascript: ${{ steps.filter.outputs.javascript }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - added|modified: 'packages/**/*.rs'
+              - added|modified: 'packages/**/Cargo.toml'
+            java:
+              - added|modified: 'packages/**/*.java'
+              - added|modified: 'packages/**/pom.xml'
+            javascript:
+              - added|modified: 'packages/**/*.js'
+              - added|modified: 'packages/**/*.ts'
+              - added|modified: 'packages/**/*.jsx'
+              - added|modified: 'packages/**/*.tsx'
+              - added|modified: 'packages/**/package.json'
+              - '!packages/package.json'
+
+  scan-rust:
+    name: Scan Rust Code
+    needs: detect-changes
+    if: needs.detect-changes.outputs.rust == 'true'
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.90.0'
+          components: clippy
+      - name: Build Rust code
+        working-directory: packages
+        run: cargo build --all-targets --release
+      - name: Generate Clippy report
+        working-directory: packages
+        run: cargo clippy --all-targets --all-features --release --message-format=json -- -D warnings > ../clippy-report.json || true
+      - name: SonarQube Scan for Rust
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-backend-rust
+            -Dsonar.sources=packages
+            -Dsonar.inclusions=**/*.rs
+            -Dsonar.exclusions=**/target/**
+            -Dsonar.rust.clippy.reportPaths=clippy-report.json
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+
+  scan-javascript:
+    name: Scan JavaScript/TypeScript Code
+    needs: detect-changes
+    if: needs.detect-changes.outputs.javascript == 'true'
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive
+        working-directory: packages
+      - name: SonarQube Scan for JS/TS
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+        with:
+          projectBaseDir: packages
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-frontend
+            -Dsonar.sources=.
+            -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+
+  scan-java:
+    name: Scan Java Code
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java == 'true'
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+      - name: SonarQube Scan for Java
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn -B verify sonar:sonar -f packages/keycloak-extensions/pom.xml 
+           -Dsonar.organization=sequentech 
+           -Dsonar.projectKey=step-keycloak-extensions 
+           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} 
+           -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }} 
+           -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }} 
+           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
