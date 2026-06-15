@@ -57,7 +57,7 @@
 //! ## building
 //!
 //! ```cargo build```
-//! 
+//!
 //! ### Build with parallelism
 //!
 //! Uses rayon's parallel collections for compute intensive operations
@@ -66,7 +66,7 @@
 //! ## unit tests
 //!
 //! ```cargo test```
-//! 
+//!
 //! because strand is a cryptographic library with compute intensive functionality, you may want to
 //! run the tests in release mode
 //! ```cargo test --release```

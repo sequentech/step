@@ -33,17 +33,13 @@ export const SettingsCountries: React.FC<void> = () => {
         undoable: false,
     })
     const [selectedVotingCountries, setSelectedVotingCountries] = useState<string[]>([])
-    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] =
-        useState<string[]>([])
+    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] = useState<string[]>([])
 
     const handleVotingCountriesChange = (value: string[], _record: RaRecord<Identifier>[]) => {
         setSelectedVotingCountries(value)
     }
 
-    const handleEnrollmentCountriesChange = (
-        value: string[],
-        _record: RaRecord<Identifier>[]
-    ) => {
+    const handleEnrollmentCountriesChange = (value: string[], _record: RaRecord<Identifier>[]) => {
         setSelectedEnrollmentCountries(value)
     }
 
