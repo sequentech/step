@@ -67,19 +67,41 @@ others are unchanged from the current architecture.
 
 ---
 
-## 2. The Per-Event Key Problem
+## 2. Per-Ceremony Key Registration
 
-A BBT trustee may participate in multiple election events simultaneously.  A single global
-`public_key` per trustee row would be overwritten by whichever event registered last, breaking
-DKG verification on any previously started ceremony.
+**Per-ceremony registration is the single mechanism for all trustee types.**
 
-This approach solves it by adding an `election_event_id` **and** `keys_ceremony_id` columns so each
-`(trustee, election_event_id, keys_ceremony_id)` pair has its own independent public key.
+- **BBT trustees** register interactively: the browser calls `/register-trustee-key` after
+  generating keys in WASM.
+- **Server-based trustees** are registered automatically: Windmill copies their stable
+  `public_key` into a per-ceremony row in the same `AWAITING_TRUSTEE_KEYS` arm that checks
+  the gate, before the gate check runs.  The copy is idempotent, so re-runs are safe.
 
-Furthermore, keys ceremonies can be cancelled and a replacement ceremony created for the same
-election event.  Scoping the registered public key to the `keys_ceremony_id` ensures that keys
-registered for a cancelled ceremony are never reused in the replacement, preventing a stale or
-attacker-supplied key from silently surviving a ceremony reset.
+The result is **one gate** ("every trustee selected for this ceremony has a registered key
+row"), one read query with no NULL-fallback branch, and **uniform cancellation**: stale rows
+are scoped by `keys_ceremony_id` for all trustee types and do not interfere with any
+replacement ceremony.  Server-based rows are effectively instant; the gate fires on the
+first beat after ceremony creation.
+
+Snapshots also protect the tally ceremony from future server-key rotation: the key that was
+in the Configuration is frozen in the per-ceremony row at the time of the ceremony, not
+re-read from the live trustee record months later.
+
+### Deferred: braid-native self-registration
+
+A closer-to-final variant exists in which braid-native calls the same `/register-trustee-key`
+Harvest endpoint directly, using its `authorized-boards` Keycloak claim to authenticate.
+This removes the Windmill copy step entirely and makes the registration path identical for
+all three trustee types (BBT browser, braid-native CLI).  It is **deferred**
+because it touches braid-native and requires Keycloak claim changes; the Windmill-copy
+approach is a safe interim step that reaches the same uniform gate with no braid-native
+changes.
+
+### Why `keys_ceremony_id` scope (not just `election_event_id`)
+
+Ceremonies can be cancelled and recreated for the same election event.  Scoping to
+`keys_ceremony_id` ensures that keys registered for a cancelled ceremony — by any trustee
+type — are never reused in the replacement.
 
 ---
 
@@ -121,22 +143,6 @@ The resulting truncated list is passed to `public_keys::create_keys` →
 `is_valid()` requires `trustees.len() > 1` and `threshold <= trustees.len()`, so if any
 keys are silently dropped the assert fires and the Windmill worker **panics**.
 
-### Key-reading must be mode-aware
-
-Once the `election_event_id` column is added to `sequent_backend_trustee`, the logic that
-reads public keys in `create_keys_impl` must differentiate by trustee mode:
-
-| Trustee type | How to read `public_key` |
-|---|---|
-| **Server-based** | Read the global `public_key` directly — no `election_event_id` filter. |
-| **Browser-based** | Filter by both `tenant_id`, `election_event_id` **and** `keys_ceremony_id` to get the per-event key. |
-
-`get_trustee_mode_policy()` in `windmill/src/postgres/trustee.rs` already reads the
-`TrusteeModePolicy` from the trustee's `annotations.trustee_mode_policy` JSON field, so the
-mode is already detectable.  The query in the document's Component Changes section
-(`ORDER BY election_event_id NULLS LAST`) covers both cases in one SQL statement, but the
-calling code must know whether to pass an `election_event_id` parameter at all.
-
 ### Repurpose `USER_CONFIGURATION` as `AWAITING_TRUSTEE_KEYS`
 
 `USER_CONFIGURATION` exists in the enum today but is unused and carries a generic name.
@@ -159,15 +165,19 @@ that advances the status:
 - The call that creates the keys ceremony writes `AWAITING_TRUSTEE_KEYS` instead of
   `STARTED`.
 - The beat-triggered Windmill task that previously took `STARTED → IN_PROGRESS` now operates
-  from `AWAITING_TRUSTEE_KEYS`.  Each beat it checks every trustee in the ceremony:
-  - **BBT trustees**: have they registered a `public_key` for this `(trustee_id,
-    election_event_id, keys_ceremony_id)`?
-  - **Server-based trustees**: is their `public_key` configured?
+  from `AWAITING_TRUSTEE_KEYS` and follows a **single uniform flow for all trustee types**:
 
-  If any key is still missing the ceremony stays in `AWAITING_TRUSTEE_KEYS` and the check
-  retries on the next beat.  Once every key is present, the task posts the `Configuration`
-  message to B4 **and** advances the status to `IN_PROGRESS` in the same step — exactly as
-  today, only now gated on the key-availability check.
+  1. **Populate server-based rows (idempotent)**: for every server-based trustee in the
+     ceremony, copy their stable global `public_key` into a per-ceremony row
+     `(trustee_id, election_event_id, keys_ceremony_id)`.  If the row already exists the
+     upsert is a no-op.  BBT trustees have no global key; they register interactively via
+     `/register-trustee-key` and their rows arrive independently.
+  2. **Uniform gate check**: query whether every trustee selected for this ceremony has a
+     `public_key` row scoped to `(election_event_id, keys_ceremony_id)`.  There is no
+     mode-switch; the same query covers all trustee types.
+  3. If any key is still missing the ceremony stays in `AWAITING_TRUSTEE_KEYS` and the check
+     retries on the next beat.  Once every key is present, the task posts the `Configuration`
+     message to B4 **and** advances the status to `IN_PROGRESS` in the same step.
 
 #### Gate-firing edge case: registered-then-lost
 
@@ -284,9 +294,11 @@ when `execution_status == IN_PROGRESS` and `status.public_key` is not yet set). 
 messages for a `PublicKey` or `PublicKeySigned` message whose sender matches that key.  If
 found, the trustee advances to `KEY_GENERATED`.
 
-**BBT impact**: `get_trustee_status` currently reads the global `public_key` column via
-`get_trustees_by_name`.  For BBTs this must resolve the per-event key (filtered by
-`election_event_id`) so the board-message match is against the correct key.
+**Impact**: `get_trustee_status` currently reads the global `public_key` column via
+`get_trustees_by_name`.  With the unified per-ceremony registration it must filter by
+`keys_ceremony_id` so the board-message match is against the correct key — the same query
+works for all trustee types because all rows are now scoped to `(election_event_id,
+keys_ceremony_id)`.
 
 ### KEY_RETRIEVED
 
@@ -344,8 +356,8 @@ only the JWT — it cannot verify that the local TOML check actually passed.
 
 | Status | Who sets it | Trigger | BBT difference |
 |---|---|---|---|
-| `WAITING` | `create_keys_ceremony` / `set_public_key_impl` | Ceremony creation or no board message yet | None for initial set; board-message match needs per-event key |
-| `KEY_GENERATED` | `set_public_key_impl` | `PublicKey`/`PublicKeySigned` message found on board for this trustee | Must match per-event `public_key`, not global one |
+| `WAITING` | `create_keys_ceremony` / `set_public_key_impl` | Ceremony creation or no board message yet | None for initial set; board-message match uses per-ceremony `public_key` (uniform for all trustee types) |
+| `KEY_GENERATED` | `set_public_key_impl` | `PublicKey`/`PublicKeySigned` message found on board for this trustee | Must match the per-ceremony `public_key` row (same query for all trustee types) |
 | `KEY_RETRIEVED` | `/get-private-key` (Harvest) — server-based only | Trustee downloads `TrusteeShareData` (Channel + Shares) from board | New Hasura action `confirm_key_backup`: trustee self-reports backup downloaded; no board read; **trustee-confirmed, not proven** |
 | `KEY_CHECKED` | `/check-private-key` (Harvest) — server-based only | Re-uploaded key matches board copy | New Hasura action `confirm_key_check`: browser runs local `sk→pk` verification, then plain JWT-authenticated call advances status; no board read; **trustee-confirmed, not proven** |
 
@@ -725,13 +737,18 @@ nullable but, when set, must be foreign keys to their respective tables:
 
 | Column | Type | Meaning |
 |---|---|---|
-| `election_event_id` | `uuid \| null` (FK → `election_event.id`) | `null` for server-based trustees; event UUID for BBT |
-| `keys_ceremony_id` | `uuid \| null` (FK → `keys_ceremony.id`) | `null` for server-based trustees; ceremony UUID for BBT |
+| `election_event_id` | `uuid \| null` (FK → `election_event.id`) | Event UUID; set for every per-ceremony key row |
+| `keys_ceremony_id` | `uuid \| null` (FK → `keys_ceremony.id`) | Ceremony UUID; set for every per-ceremony key row |
 | `public_key` | `text \| null` | Ed25519 public key scoped to this `(trustee, event, ceremony)` tuple |
 
-Server-based trustees keep both BBT-only columns NULL — no behaviour change.  BBT trustees
-upsert `(trustee_id, election_event_id, keys_ceremony_id) → public_key` on every session
-start.
+**All trustee types** upsert a `(trustee_id, election_event_id, keys_ceremony_id) →
+public_key` row when their key is registered:
+
+- **BBT trustees**: row written by the browser calling Harvest `/register-trustee-key`
+  after WASM key generation.
+- **Server-based trustees**: row written by Windmill in the `AWAITING_TRUSTEE_KEYS` beat
+  arm, copying the trustee's stable global `public_key` into a per-ceremony row
+  (idempotent upsert, safe to re-run).
 
 ### 3 — `HeadlessTrusteeProvider`: cold-start, generate-or-restore, beforeunload guard
 
@@ -853,19 +870,22 @@ The election-event ceremony page must render different controls depending on
   only; no cancel/recreate controls (the state machine + voting-period gate would reject
   anyway).
 
-### 10 — Windmill `get_trustees_by_id` / `get_trustees_by_name`: filter by `(election_event_id, keys_ceremony_id)`
+### 10 — Windmill `get_trustees_by_id` / `get_trustees_by_name`: filter by `keys_ceremony_id`
 
-Update both DB queries to prefer the row matching the ceremony's `election_event_id` **and**
-`keys_ceremony_id`, falling back to `(NULL, NULL)` for server-based trustees:
+Update both DB queries to read the per-ceremony row directly.  With the unified registration
+in place, every trustee in the ceremony (server-based and BBT alike) has a row scoped to
+`(election_event_id, keys_ceremony_id)`, so no NULL-fallback branch is needed:
 
 ```sql
 SELECT public_key FROM sequent_backend_trustee
 WHERE id = $trustee_id
-  AND ( (election_event_id = $event_id AND keys_ceremony_id = $ceremony_id)
-        OR (election_event_id IS NULL AND keys_ceremony_id IS NULL) )
-ORDER BY election_event_id NULLS LAST
-LIMIT 1
+  AND election_event_id = $event_id
+  AND keys_ceremony_id = $ceremony_id
 ```
+
+A missing row now means Windmill has not yet written the server-based row or the BBT trustee has not
+yet registered; the gate check upstream will catch this and keep the ceremony in
+`AWAITING_TRUSTEE_KEYS` until all rows are present.
 
 No change to `create_keys`, `set_public_key`, or `insert_ballots` logic — they already use
 whatever `public_key` the query returns.
@@ -877,3 +897,81 @@ whatever `public_key` the query returns.
 The column is **retained and extended** with the companion `election_event_id` and
 `keys_ceremony_id` columns (see [§10.2](#10-component-changes)).  It remains the single
 source of truth for the public key in this approach.
+
+---
+
+## 12. Trustee Public Key Visibility in the Ceremony UI
+
+Each trustee row in the ceremony trustee table must show an info (ℹ) icon.  Clicking it
+opens a popup displaying that trustee's full public key as a text block — for every
+trustee in the ceremony, server-based and BBT alike.
+
+The purpose is **out-of-band verification**: each trustee independently confirms, through a
+side channel (call, Signal message, in-person comparison), that the set of keys they see
+matches what every other trustee sees.  One-line justification: the software is open source,
+and a trustee who trusts the software they run can trust that the displayed keys are exactly
+the ones that went into the Configuration.
+
+### When comparison is meaningful
+
+Key display is only meaningful from **`IN_PROGRESS`** onward — after the Configuration
+message has been posted to the board and the full trustee key set is frozen.  Before that,
+not all BBT trustees may have registered their keys yet.  The comparison therefore
+naturally happens at the Download/Check stage, when every trustee is already on the
+ceremony page with an active board session.
+
+### Board as the authoritative source
+
+Once the ceremony is `IN_PROGRESS`, the public key shown in the popup must be read from the
+**Configuration message on the board**, not from the `trustee.public_key` DB row.  The
+board is the frozen, auditable artifact; the browser session reads it anyway.  Displaying
+the board copy guarantees that what the trustee sees is exactly what was committed to the
+DKG — ruling out a late DB update or a race condition between registration and the
+Configuration post.
+
+### Figma dependency
+
+A Figma design is required before frontend implementation: icon placement in the trustee
+table row, and the popup layout (monospaced key block, selectable text, copy-to-clipboard
+button).  **This design is a blocking dependency for the frontend task.**
+
+---
+
+## 13. Honest Trade-Offs
+
+The unified registration path is a significant improvement but it does not reach full
+cryptographic integrity without protocol-level changes.  The remaining gaps are worth
+naming plainly:
+
+### The key registry is a mutable DB, not the append-only board
+
+Keys are registered into `sequent_backend_trustee`, a regular Postgres table that can be
+updated or deleted with the right DB credentials.  The board is append-only and
+tamper-evident; the DB is neither.  An attacker with DB write access could swap a key
+before Windmill reads it and builds the Configuration.
+
+Mitigation within scope: the per-ceremony row snapshot means that once the Configuration
+is posted, future DB changes to the row have no effect on the running ceremony or the
+tally.  But the window between registration and Configuration posting remains an implicit
+trust boundary on the DB.
+
+### Windmill builds the Configuration from the DB, not from a trustee-signed artifact
+
+There is no trustee-signed enrollment message.  Windmill reads the `public_key` column and
+constructs the Configuration unilaterally.  A server-based trustee whose key Windmill
+copies at ceremony creation has no ceremony-specific act of consent recorded anywhere.
+
+Eliminating this gap would require the Configuration to be constructed from trustee-signed
+enrollment messages posted to the board — a protocol-level change.
+
+### The trustee↔key binding rests entirely on the Keycloak session
+
+`/register-trustee-key` authenticates the caller by their Keycloak JWT.  There is no
+proof-of-possession of `signing_key_sk`: the endpoint accepts any Ed25519 public key the
+JWT bearer supplies.  A compromised Keycloak session could register an attacker-controlled
+key.
+
+Mitigation within scope: Keycloak is the existing identity root for all operations in the
+system; this endpoint's trust requirement is no stronger than any other authenticated
+endpoint.  A proof-of-possession mechanism (e.g., a challenge signed by `signing_key_sk`)
+would require a two-round protocol change.
