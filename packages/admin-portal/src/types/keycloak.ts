@@ -200,4 +200,7 @@ export enum IPermissions {
     PREVIEW_READ = "preview-read",
     GENERATE_PREVIEW = "generate-preview",
     TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
+    PHONE_BLACKLIST_READ = "phone-blacklist-read",
+    PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
+    PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
 }
