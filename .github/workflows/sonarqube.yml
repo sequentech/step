@@ -6,6 +6,9 @@ name: SonarQube Scan
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'feat/meta-7306-gha-that-executes-sonnarqube/main'
   pull_request:
     paths:
       - 'packages/**'
