@@ -39,45 +39,28 @@ export const ensureWasmReady = (): Promise<void> => {
     return wasmInitPromise
 }
 
-// Module-level session registry — one entry per board, persists across route
-// changes for the entire browser tab session. Sessions keep their heartbeat
-// daemons running even when the user navigates away to a different election event.
+// Module-level session registry — one entry per ceremony, keyed by keysCeremonyId.
 const sessionRegistry = new Map<string, WasmSession>()
-// Tracks the trustee identity paired with the registry so we can detect key
-// rotation and flush stale sessions.
+// Tracks the current trustee so we can flush all sessions on user change.
 let registryIdentity = ""
 
-///////////////////////////////////////////////////////////////////////////
-// Trustee key storage (localStorage, keyed by boardName)
-///////////////////////////////////////////////////////////////////////////
-
+// Module-level keys registry — in-memory only, keyed by keysCeremonyId.
+// Keys are never written to localStorage or sessionStorage; they are lost on
+// tab close, which is intentional (TOML backup is the only durable copy).
 interface TrusteeKeys {
     signing_key_sk: string
     signing_key_pk: string
     encryption_key: string
 }
 
-const localStorageKey = (boardName: string) => `bbt_keys_${boardName}`
+const keysRegistry = new Map<string, TrusteeKeys>()
 
-const getStoredKeys = (boardName: string): TrusteeKeys | null => {
-    try {
-        const raw = localStorage.getItem(localStorageKey(boardName))
-        return raw ? (JSON.parse(raw) as TrusteeKeys) : null
-    } catch {
-        return null
-    }
-}
-
-const storeKeys = (boardName: string, keys: TrusteeKeys): void => {
-    localStorage.setItem(localStorageKey(boardName), JSON.stringify(keys))
-}
-
-const ensureKeys = (boardName: string): TrusteeKeys => {
-    const existing = getStoredKeys(boardName)
+const ensureKeys = (keysCeremonyId: string): TrusteeKeys => {
+    const existing = keysRegistry.get(keysCeremonyId)
     if (existing) return existing
     const generated = generate_trustee_keys()
-    storeKeys(boardName, generated)
-    console.info(`[HeadlessTrusteeProvider] Generated new trustee keys for board "${boardName}"`)
+    keysRegistry.set(keysCeremonyId, generated)
+    console.info(`[HeadlessTrusteeProvider] Generated new trustee keys for ceremony "${keysCeremonyId}"`)
     return generated
 }
 
@@ -94,12 +77,14 @@ export const HeadlessTrusteeContext = createContext<HeadlessTrusteeContextValue>
 interface HeadlessTrusteeProviderProps {
     boardName: string | undefined
     electionEventId: string | undefined
+    keysCeremonyId: string | undefined
     children: React.ReactNode
 }
 
 export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = ({
     boardName,
     electionEventId,
+    keysCeremonyId,
     children,
 }) => {
     const {accessToken, trustee: trusteeName, tenantId} = useContext(AuthContext)
@@ -126,23 +111,23 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
         (trusteeRecord?.annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()) ===
         ETrusteeModePolicy.BROWSER_BASED
 
-    // Initialize WASM + session whenever board or trustee config becomes available.
-    // Sessions are stored in the module-level registry so they survive route changes.
+    // Initialize WASM + session when the user enters a specific ceremony screen.
+    // The provider is only mounted for the active ceremony, so keysCeremonyId is
+    // the stable registry key for this session's lifetime.
     useEffect(() => {
-        if (!boardName || !electionEventId || !trusteeRecord || !trusteeName || !isBrowserBased)
+        if (!boardName || !electionEventId || !keysCeremonyId || !trusteeRecord || !trusteeName || !isBrowserBased)
             return
 
-        // Detect trustee identity change (e.g. key rotation) — flush all sessions.
-        const storedPk = getStoredKeys(boardName)?.signing_key_pk ?? ""
-        const identity = `${trusteeName}::${boardName}::${storedPk}`
-        if (identity !== registryIdentity) {
+        // Detect trustee identity change (different user) — flush all sessions and keys.
+        if (trusteeName !== registryIdentity) {
             sessionRegistry.forEach((s) => s.free())
             sessionRegistry.clear()
-            registryIdentity = identity
+            keysRegistry.clear()
+            registryIdentity = trusteeName
         }
 
-        // Reuse the existing session for this board if already initialized.
-        const existing = sessionRegistry.get(boardName)
+        // Reuse the existing session for this ceremony if already initialized.
+        const existing = sessionRegistry.get(keysCeremonyId)
         if (existing) {
             setSession(existing)
             setIsConnected(true)
@@ -155,9 +140,8 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
             try {
                 await ensureWasmReady()
 
-                // Load keys from localStorage or generate fresh ones, then
-                // register the signing public key for this election event in the DB.
-                const keys = ensureKeys(boardName)
+                // Load or generate keys for this ceremony (in-memory only).
+                const keys = ensureKeys(keysCeremonyId)
                 registerTrusteeKey({
                     variables: {publicKey: keys.signing_key_pk, electionEventId},
                 }).catch((e) =>
@@ -178,8 +162,10 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
 
                 if (!cancelled) {
                     newSession.start_heartbeat_daemon(globalSettings.BRAID_B4_HEARTBEAT)
-                    sessionRegistry.set(boardName, newSession)
-                    console.info(`[HeadlessTrusteeProvider] Connected to board "${boardName}"`)
+                    sessionRegistry.set(keysCeremonyId, newSession)
+                    console.info(
+                        `[HeadlessTrusteeProvider] Connected to board "${boardName}" for ceremony "${keysCeremonyId}"`
+                    )
                     setSession(newSession)
                     setIsConnected(true)
                 } else {
@@ -193,13 +179,15 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
         initialize()
         return () => {
             cancelled = true
-            // Don't remove from registry — session keeps running across route changes.
+            // Session stays in registry so it can be reused if the user returns to
+            // this ceremony screen. Heartbeat lifecycle is correction 4.
             setSession(null)
             setIsConnected(false)
         }
     }, [
         boardName,
         electionEventId,
+        keysCeremonyId,
         trusteeRecord,
         trusteeName,
         isBrowserBased,

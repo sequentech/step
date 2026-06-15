@@ -253,10 +253,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     ]
 
     return (
-        <HeadlessTrusteeProvider
-            boardName={isTrustee ? boardName : undefined}
-            electionEventId={isTrustee ? (electionEvent?.id ?? undefined) : undefined}
-        >
+        <>
             {/* Show the notification if the conditions are met */}
             {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">
@@ -287,15 +284,22 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     trusteeNames={trusteeNames?.sequent_backend_trustee}
                 />
             )}
-            {/* Show the trustees keys ceremony steps if the conditions are met */}
+            {/* Show the trustees keys ceremony steps — provider mounts here only,
+                scoped to the specific ceremony the user opened. */}
             {canTrusteeCeremony && showTrusteeCeremony && currentCeremony && (
-                <TrusteeWizard
-                    electionEvent={electionEvent}
-                    currentCeremony={currentCeremony}
-                    setCurrentCeremony={setCurrentCeremony}
-                    goBack={goBack}
-                    trusteeNames={trusteeNames?.sequent_backend_trustee}
-                />
+                <HeadlessTrusteeProvider
+                    boardName={boardName}
+                    electionEventId={electionEvent?.id ?? undefined}
+                    keysCeremonyId={currentCeremony.id}
+                >
+                    <TrusteeWizard
+                        electionEvent={electionEvent}
+                        currentCeremony={currentCeremony}
+                        setCurrentCeremony={setCurrentCeremony}
+                        goBack={goBack}
+                        trusteeNames={trusteeNames?.sequent_backend_trustee}
+                    />
+                </HeadlessTrusteeProvider>
             )}
             {/* Show the keys ceremony table list */}
             {!showCeremony && !showTrusteeCeremony && (
@@ -378,6 +382,6 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     </DatagridConfigurable>
                 </List>
             )}
-        </HeadlessTrusteeProvider>
+        </>
     )
 }
