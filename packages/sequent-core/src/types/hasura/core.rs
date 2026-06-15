@@ -458,6 +458,7 @@ pub struct Trustee {
     pub id: String,
     pub public_key: Option<String>,
     pub election_event_id: Option<String>,
+    pub keys_ceremony_id: Option<String>,
     pub name: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,

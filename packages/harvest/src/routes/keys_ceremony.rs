@@ -406,6 +406,7 @@ pub async fn list_keys_ceremonies(
 pub struct RegisterTrusteeKeyInput {
     pub public_key: String,
     pub election_event_id: String,
+    pub keys_ceremony_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -461,6 +462,7 @@ pub async fn register_trustee_key(
         &tenant_id,
         &trustee.id,
         &input.election_event_id,
+        &input.keys_ceremony_id,
         &input.public_key,
     )
     .await
@@ -474,8 +476,9 @@ pub async fn register_trustee_key(
 
     event!(
         Level::INFO,
-        "Registered trustee key: trustee={trustee_name}, election_event_id={}",
+        "Registered trustee key: trustee={trustee_name}, election_event_id={}, keys_ceremony_id={}",
         input.election_event_id,
+        input.keys_ceremony_id,
     );
 
     Ok(Json(RegisterTrusteeKeyOutput { success: true }))

@@ -45,8 +45,11 @@ const sessionRegistry = new Map<string, WasmSession>()
 let registryIdentity = ""
 
 // Module-level keys registry — in-memory only, keyed by keysCeremonyId.
-// Keys are never written to localStorage or sessionStorage; they are lost on
-// tab close, which is intentional (TOML backup is the only durable copy).
+// Module scope outlives any single component mount, so keys survive the user
+// navigating between ceremonies or election events within the same tab.
+// Keys are cleared only when the trustee identity changes (different user).
+// They are lost on tab close, which is intentional — the downloaded TOML
+// backup is the only durable copy.
 interface TrusteeKeys {
     signing_key_sk: string
     signing_key_pk: string
@@ -60,18 +63,22 @@ const ensureKeys = (keysCeremonyId: string): TrusteeKeys => {
     if (existing) return existing
     const generated = generate_trustee_keys()
     keysRegistry.set(keysCeremonyId, generated)
-    console.info(`[HeadlessTrusteeProvider] Generated new trustee keys for ceremony "${keysCeremonyId}"`)
+    console.info(
+        `[HeadlessTrusteeProvider] Generated new trustee keys for ceremony "${keysCeremonyId}"`
+    )
     return generated
 }
 
 export interface HeadlessTrusteeContextValue {
     session: WasmSession | null
     isConnected: boolean
+    initError: string | null
 }
 
 export const HeadlessTrusteeContext = createContext<HeadlessTrusteeContextValue>({
     session: null,
     isConnected: false,
+    initError: null,
 })
 
 interface HeadlessTrusteeProviderProps {
@@ -92,6 +99,7 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
 
     const [session, setSession] = useState<WasmSession | null>(null)
     const [isConnected, setIsConnected] = useState(false)
+    const [initError, setInitError] = useState<string | null>(null)
 
     const [registerTrusteeKey] = useMutation(REGISTER_TRUSTEE_KEY)
 
@@ -115,7 +123,14 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
     // The provider is only mounted for the active ceremony, so keysCeremonyId is
     // the stable registry key for this session's lifetime.
     useEffect(() => {
-        if (!boardName || !electionEventId || !keysCeremonyId || !trusteeRecord || !trusteeName || !isBrowserBased)
+        if (
+            !boardName ||
+            !electionEventId ||
+            !keysCeremonyId ||
+            !trusteeRecord ||
+            !trusteeName ||
+            !isBrowserBased
+        )
             return
 
         // Detect trustee identity change (different user) — flush all sessions and keys.
@@ -127,8 +142,10 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
         }
 
         // Reuse the existing session for this ceremony if already initialized.
+        // Restart the heartbeat daemon — it was stopped when the provider last unmounted.
         const existing = sessionRegistry.get(keysCeremonyId)
         if (existing) {
+            existing.start_heartbeat_daemon(globalSettings.BRAID_B4_HEARTBEAT)
             setSession(existing)
             setIsConnected(true)
             return
@@ -142,11 +159,13 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
 
                 // Load or generate keys for this ceremony (in-memory only).
                 const keys = ensureKeys(keysCeremonyId)
-                registerTrusteeKey({
-                    variables: {publicKey: keys.signing_key_pk, electionEventId},
-                }).catch((e) =>
-                    console.warn("[HeadlessTrusteeProvider] Failed to register trustee key:", e)
-                )
+                await registerTrusteeKey({
+                    variables: {
+                        publicKey: keys.signing_key_pk,
+                        electionEventId,
+                        keysCeremonyId,
+                    },
+                })
 
                 const config = {
                     name: trusteeName,
@@ -173,16 +192,29 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
                 }
             } catch (e) {
                 console.warn("[HeadlessTrusteeProvider] Initialization failed:", e)
+                if (!cancelled) {
+                    setInitError(e instanceof Error ? e.message : String(e))
+                }
             }
         }
 
         initialize()
         return () => {
             cancelled = true
-            // Session stays in registry so it can be reused if the user returns to
-            // this ceremony screen. Heartbeat lifecycle is correction 4.
+            // Stop the heartbeat — the user left the ceremony screen.
+            // Session stays in registry so it can be reused on return; the heartbeat
+            // restarts when the provider remounts for the same keysCeremonyId.
+            const s = sessionRegistry.get(keysCeremonyId!)
+            if (s) {
+                try {
+                    s.stop_heartbeat_daemon()
+                } catch {
+                    // ignore — session may already be freed
+                }
+            }
             setSession(null)
             setIsConnected(false)
+            setInitError(null)
         }
     }, [
         boardName,
@@ -208,7 +240,7 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
     }, [accessToken])
 
     return (
-        <HeadlessTrusteeContext.Provider value={{session, isConnected}}>
+        <HeadlessTrusteeContext.Provider value={{session, isConnected, initError}}>
             {children}
         </HeadlessTrusteeContext.Provider>
     )

@@ -788,6 +788,7 @@ export type PublishTallyOutput = {
 
 export type RegisterTrusteeKeyInput = {
     election_event_id: Scalars["String"]["input"]
+    keys_ceremony_id: Scalars["String"]["input"]
     public_key: Scalars["String"]["input"]
 }
 
@@ -18375,6 +18376,7 @@ export type Sequent_Backend_Trustee = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id: Scalars["uuid"]["output"]
+    keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
@@ -18453,6 +18455,7 @@ export type Sequent_Backend_Trustee_Bool_Exp = {
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
+    keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     name?: InputMaybe<String_Comparison_Exp>
@@ -18490,6 +18493,7 @@ export type Sequent_Backend_Trustee_Insert_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
@@ -18503,6 +18507,7 @@ export type Sequent_Backend_Trustee_Max_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
     public_key?: Maybe<Scalars["String"]["output"]>
@@ -18514,6 +18519,7 @@ export type Sequent_Backend_Trustee_Max_Order_By = {
     created_at?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
+    keys_ceremony_id?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
     public_key?: InputMaybe<Order_By>
@@ -18526,6 +18532,7 @@ export type Sequent_Backend_Trustee_Min_Fields = {
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     name?: Maybe<Scalars["String"]["output"]>
     public_key?: Maybe<Scalars["String"]["output"]>
@@ -18537,6 +18544,7 @@ export type Sequent_Backend_Trustee_Min_Order_By = {
     created_at?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
+    keys_ceremony_id?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
     public_key?: InputMaybe<Order_By>
@@ -18565,6 +18573,7 @@ export type Sequent_Backend_Trustee_Order_By = {
     created_at?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
+    keys_ceremony_id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     name?: InputMaybe<Order_By>
@@ -18594,6 +18603,8 @@ export enum Sequent_Backend_Trustee_Select_Column {
     /** column name */
     Id = "id",
     /** column name */
+    KeysCeremonyId = "keys_ceremony_id",
+    /** column name */
     Labels = "labels",
     /** column name */
     LastUpdatedAt = "last_updated_at",
@@ -18611,6 +18622,7 @@ export type Sequent_Backend_Trustee_Set_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
@@ -18632,6 +18644,7 @@ export type Sequent_Backend_Trustee_Stream_Cursor_Value_Input = {
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
@@ -18649,6 +18662,8 @@ export enum Sequent_Backend_Trustee_Update_Column {
     ElectionEventId = "election_event_id",
     /** column name */
     Id = "id",
+    /** column name */
+    KeysCeremonyId = "keys_ceremony_id",
     /** column name */
     Labels = "labels",
     /** column name */

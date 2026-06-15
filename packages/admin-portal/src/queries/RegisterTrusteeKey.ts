@@ -4,9 +4,17 @@
 import {gql} from "@apollo/client"
 
 export const REGISTER_TRUSTEE_KEY = gql`
-    mutation RegisterTrusteeKey($publicKey: String!, $electionEventId: String!) {
+    mutation RegisterTrusteeKey(
+        $publicKey: String!
+        $electionEventId: String!
+        $keysCeremonyId: String!
+    ) {
         register_trustee_key(
-            object: {public_key: $publicKey, election_event_id: $electionEventId}
+            object: {
+                public_key: $publicKey
+                election_event_id: $electionEventId
+                keys_ceremony_id: $keysCeremonyId
+            }
         ) {
             success
         }

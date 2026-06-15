@@ -4,8 +4,7 @@
 
 //! WASM bindings for Braid mixnet node and session
 
-use std::cell::Cell;
-use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
@@ -79,8 +78,8 @@ pub struct WasmSession {
     access_token: Arc<RwLock<String>>,
     board_name: Option<String>,
     config: TrusteeConfig,
-    /// Set to true by Drop to signal the background heartbeat daemon to stop.
-    heartbeat_stop: Rc<Cell<bool>>,
+    /// Set to true to signal the background heartbeat daemon to stop.
+    heartbeat_stop: Arc<AtomicBool>,
 }
 
 #[wasm_bindgen]
@@ -111,7 +110,7 @@ impl WasmSession {
             access_token: Arc::new(RwLock::new(wasm_config.access_token)),
             board_name: None,
             config: wasm_config.trustee_config,
-            heartbeat_stop: Rc::new(Cell::new(false)),
+            heartbeat_stop: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -893,12 +892,25 @@ impl WasmSession {
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
-    /// Start a background heartbeat daemon that runs until this session is freed.
+    /// Stop the background heartbeat daemon without freeing the session.
     ///
-    /// Spawns a `spawn_local` task that wakes every `interval_secs` seconds and
-    /// POSTs a heartbeat to B4. The loop exits automatically when the session is
-    /// dropped (via the shared `heartbeat_stop` flag).
-    pub fn start_heartbeat_daemon(&self, interval_secs: u32) {
+    /// The spawned loop checks the flag after each sleep interval, so the stop
+    /// takes effect within one interval. Safe to call multiple times.
+    pub fn stop_heartbeat_daemon(&self) {
+        self.heartbeat_stop.store(true, Ordering::Relaxed);
+    }
+
+    /// Start a background heartbeat daemon that POSTs a heartbeat to B4 every
+    /// `interval_secs` seconds.
+    ///
+    /// Stopping any previously running daemon before starting ensures only one
+    /// loop is active at a time. The loop exits when `stop_heartbeat_daemon` is
+    /// called or when the session is dropped.
+    pub fn start_heartbeat_daemon(&mut self, interval_secs: u32) {
+        // Stop any existing daemon and issue a fresh stop flag for the new one.
+        self.heartbeat_stop.store(true, Ordering::Relaxed);
+        self.heartbeat_stop = Arc::new(AtomicBool::new(false));
+
         let stop = self.heartbeat_stop.clone();
         let b4_url = self.b4_url.clone();
         let board_name = match self.board_name.clone() {
@@ -919,7 +931,7 @@ impl WasmSession {
                 // Sleep first so the very first heartbeat goes out after one interval.
                 sleep_ms((interval_secs * 1000) as i32).await;
 
-                if stop.get() {
+                if stop.load(Ordering::Relaxed) {
                     break;
                 }
 
@@ -995,7 +1007,7 @@ impl WasmSession {
 
 impl Drop for WasmSession {
     fn drop(&mut self) {
-        self.heartbeat_stop.set(true);
+        self.heartbeat_stop.store(true, Ordering::Relaxed);
     }
 }
 

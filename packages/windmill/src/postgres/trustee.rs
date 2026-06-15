@@ -23,6 +23,9 @@ impl TryFrom<Row> for TrusteeWrapper {
             election_event_id: item
                 .try_get::<_, Option<Uuid>>("election_event_id")?
                 .map(|u| u.to_string()),
+            keys_ceremony_id: item
+                .try_get::<_, Option<Uuid>>("keys_ceremony_id")?
+                .map(|u| u.to_string()),
             name: item.try_get::<_, Option<String>>("name")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             created_at: item.get("created_at"),
@@ -186,6 +189,7 @@ pub async fn update_trustee_key_for_event(
     tenant_id: &str,
     trustee_id: &str,
     election_event_id: &str,
+    keys_ceremony_id: &str,
     public_key: &str,
 ) -> Result<()> {
     let statement = hasura_transaction
@@ -193,8 +197,9 @@ pub async fn update_trustee_key_for_event(
             r#"
                 UPDATE sequent_backend.trustee
                 SET public_key = $1,
-                    election_event_id = $2
-                WHERE id = $3 AND tenant_id = $4;
+                    election_event_id = $2,
+                    keys_ceremony_id = $3
+                WHERE id = $4 AND tenant_id = $5;
             "#,
         )
         .await?;
@@ -205,6 +210,7 @@ pub async fn update_trustee_key_for_event(
             &[
                 &public_key,
                 &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(keys_ceremony_id)?,
                 &Uuid::parse_str(trustee_id)?,
                 &Uuid::parse_str(tenant_id)?,
             ],
