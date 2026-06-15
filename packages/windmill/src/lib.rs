@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![recursion_limit = "256"]
-#![feature(result_flattening)]
 #[macro_use]
 extern crate lazy_static;
 

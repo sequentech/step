@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0
+FROM rust:1.96.0
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
@@ -15,9 +15,6 @@ COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
-
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 
 # Use Docker build arguments to determine the architecture
 ARG TARGETARCH
@@ -57,7 +54,6 @@ RUN case "${TARGETARCH}" in \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1
 
 # java -jar ecies-tool.jar create-keys public.pem private.pem
-RUN rustup default nightly
 
 WORKDIR /app/windmill
 RUN cargo build

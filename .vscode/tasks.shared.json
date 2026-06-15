@@ -952,5 +952,31 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "rebuild.sequent-core.full",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",
+              "-c",
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": true
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
 }
