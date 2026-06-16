@@ -38,37 +38,10 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
         let status = keys_ceremony.status()?;
         let execution_status = keys_ceremony.execution_status()?;
         if execution_status == KeysCeremonyExecutionStatus::AWAITING_TRUSTEE_KEYS {
-            // 1. Idempotent stamp for server-based trustees: re-stamp every
-            // server-based trustee with this ceremony's scope. The SQL's own
-            // WHERE ... AND public_key IS NOT NULL guard ensures this is a
-            // no-op if the trustee has no global key yet (still waiting for
-            // out-of-band provisioning). BBT trustees are untouched here;
-            // their rows arrive independently via /register-trustee-key.
-            // Re-running this every beat cycle is harmless.
-            let unscoped_trustees = get_trustees_by_id(
-                &hasura_transaction,
-                &tenant_id,
-                &keys_ceremony.trustee_ids,
-                None,
-                None,
-            )
-            .await?;
-            for trustee in unscoped_trustees
-                .iter()
-                .filter(|trustee| get_trustee_mode_policy(trustee) != TrusteeModePolicy::BROWSER_BASED)
-            {
-                stamp_trustee_ceremony_scope(
-                    &hasura_transaction,
-                    &tenant_id,
-                    &trustee.id,
-                    &election_event_id,
-                    &keys_ceremony.id,
-                )
-                .await?;
-            }
-
-            // 2. Gate check: every trustee in this ceremony must now have a
-            // key scoped to (election_event_id, keys_ceremony_id).
+            // Gate check: every trustee in this ceremony must have a key
+            // scoped to (election_event_id, keys_ceremony_id). Trustees
+            // register themselves via POST /register-trustee-key (both BBT
+            // browsers and native daemons follow the same path).
             let scoped_trustees = get_trustees_by_id(
                 &hasura_transaction,
                 &tenant_id,
@@ -82,9 +55,9 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
                     .iter()
                     .all(|trustee| trustee.public_key.is_some());
 
-            // 3. Dispatch: only once every key is present. This is what
-            // actually posts the Configuration and transitions to
-            // IN_PROGRESS (see create_keys_impl). Otherwise the ceremony
+            // Dispatch create_keys only once the gate is satisfied.
+            // This is what actually posts the Configuration and transitions
+            // to IN_PROGRESS (see create_keys_impl). Otherwise the ceremony
             // stays in AWAITING_TRUSTEE_KEYS and is retried next beat cycle.
             if gate_satisfied {
                 let task = celery_app

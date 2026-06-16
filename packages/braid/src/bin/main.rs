@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
+use braid::native::board::{HttpB3, HttpB3BoardParams};
 use braid::util::{ensure_directory, get_access_token, ProtocolError};
 use clap::Parser;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
@@ -47,20 +47,103 @@ struct Cli {
 // How often the session map (which contains trustee's memory board) is cleared
 const SESSION_RESET_PERIOD: i64 = 20 * 60;
 
+/// A single active keys ceremony returned by Harvest's discovery endpoint.
+#[derive(serde::Deserialize, Debug)]
+struct ActiveCeremony {
+    keys_ceremony_id: String,
+    election_event_id: String,
+    board_name: String,
+    execution_status: String,
+}
+
+/// Response wrapper from Harvest's `POST /active-ceremonies` discovery endpoint.
+#[derive(serde::Deserialize, Debug)]
+struct ActiveCeremonies {
+    ceremonies: Vec<ActiveCeremony>,
+}
+
+/// Discover every active keys ceremony this trustee should participate in via
+/// the Harvest `POST /active-ceremonies` endpoint — one per election event. Each
+/// board name is resolved server-side from the election event's bulletin board
+/// reference, so it is returned verbatim and never reconstructed locally.
+#[instrument(err, skip(access_token))]
+async fn discover_active_ceremonies(
+    harvest_url: &str,
+    access_token: &str,
+) -> Result<Vec<ActiveCeremony>> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("{harvest_url}/active-ceremonies"))
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(anyhow!("Discovery failed: {status}"));
+    }
+
+    let discovered: ActiveCeremonies = response.json().await?;
+
+    info!(
+        "Discovered {} active ceremonies",
+        discovered.ceremonies.len()
+    );
+
+    Ok(discovered.ceremonies)
+}
+
+/// Register this trustee's public key for the active ceremony via Harvest's
+/// `POST /register-trustee-key` endpoint — the same path browser-based trustees
+/// use.
+#[instrument(err, skip(access_token))]
+async fn register_trustee_key(
+    harvest_url: &str,
+    access_token: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+    public_key: &str,
+) -> Result<()> {
+    let client = reqwest::Client::new();
+
+    let response = client
+        .post(format!("{harvest_url}/register-trustee-key"))
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({
+            "election_event_id": election_event_id,
+            "keys_ceremony_id": keys_ceremony_id,
+            "public_key": public_key,
+        }))
+        .send()
+        .await?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(anyhow!("Key registration failed: {status}"));
+    }
+
+    info!("Successfully registered public key for ceremony {keys_ceremony_id}");
+    Ok(())
+}
+
 /*
-Entry point for a braid mixnet trustee.
+Entry point for a braid-native trustee.
 
 Example run command
 
 cargo run --release --bin main  -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
 
-A mixnet trustee will periodically:
+A native trustee will:
 
-    1) Poll the board index for active protocol boards
-    2) For each protocol board
+    1) Authenticate to Keycloak and obtain JWT
+    2) Discover active keys ceremony via Harvest /active-ceremony
+    3) Register its public key via Harvest /register-trustee-key (unified with BBT flow)
+    4) For each heartbeat cycle:
         a) Poll the protocol board for new messages
         b) Update the local store with new messages
         c) Execute the protocol with the existing messages in the local store
+        d) Send heartbeat to B4
 
 The process will loop indefinitely unless an error is encountered and the 'strict'
 command line option is set to true.
@@ -114,15 +197,22 @@ async fn main() -> Result<()> {
 
     // Fetch initial access token for B4 authentication
     let initial_access_token = get_access_token(&trustee_name, &trustee_password).await?;
-    let board_params = HttpB3BoardParams::new(&args.b3_url, initial_access_token).await;
+    let board_params = HttpB3BoardParams::new(&args.b3_url, initial_access_token.clone()).await;
+
+    // Harvest base URL used for ceremony discovery and key registration.
+    let harvest_url =
+        std::env::var(ev::HARVEST_URL).map_err(|_| anyhow!("HARVEST_URL must be set"))?;
 
     let mut session_map: HashMap<
         String,
         Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
     > = HashMap::new();
+    // Ceremonies whose key we have already registered, to keep registration a
+    // one-shot per ceremony (the Harvest endpoint is idempotent regardless).
+    let mut registered_ceremonies: HashSet<String> = HashSet::new();
     let mut loop_count: i64 = 0;
     loop {
-        info!("{} >", loop_count);
+        info!("{loop_count} >");
 
         // Fetch access token for B4 authentication using trustee credentials
         let access_token = match get_access_token(&trustee_name, &trustee_password).await {
@@ -136,17 +226,42 @@ async fn main() -> Result<()> {
         // Update the shared token so all existing sessions see the refresh
         board_params.set_access_token(access_token.clone());
 
-        let b3index = HttpB3Index::new(&args.b3_url, access_token.clone());
-
-        let boards_result = b3index.get_boards().await;
-        let boards: Vec<String> = match boards_result {
-            Ok(boards) => boards,
-            Err(error) => {
-                error!("Error listing board names: '{}' ({})", error, args.b3_url);
+        // Discover the active ceremonies this trustee should participate in
+        // (one per election event). Drives which boards we run DKG on.
+        let ceremonies = match discover_active_ceremonies(&harvest_url, &access_token).await {
+            Ok(ceremonies) => ceremonies,
+            Err(e) => {
+                error!("Failed to discover active ceremonies: {e:?}");
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }
         };
+
+        // Register our public key for any ceremony not yet registered (unified
+        // path with BBT trustees). Idempotent server-side; tracked locally to
+        // avoid redundant calls every loop.
+        for ceremony in &ceremonies {
+            if registered_ceremonies.contains(&ceremony.keys_ceremony_id) {
+                continue;
+            }
+            match register_trustee_key(
+                &harvest_url,
+                &access_token,
+                &ceremony.election_event_id,
+                &ceremony.keys_ceremony_id,
+                &sender_pk,
+            )
+            .await
+            {
+                Ok(()) => {
+                    registered_ceremonies.insert(ceremony.keys_ceremony_id.clone());
+                }
+                Err(e) => error!(
+                    "Failed to register key for ceremony {}: {e:?}",
+                    ceremony.keys_ceremony_id
+                ),
+            }
+        }
 
         if loop_count % SESSION_RESET_PERIOD == 0 {
             info!("* Session memory reset");
@@ -154,31 +269,31 @@ async fn main() -> Result<()> {
         }
 
         let mut step_error = false;
-        for board_name in &boards {
-            if ignored_boards.contains(&board_name) {
-                info!("Ignoring board '{}'..", board_name);
+
+        // Create sessions for the discovered ceremony boards only.
+        for ceremony in &ceremonies {
+            let board_name = &ceremony.board_name;
+            if ignored_boards.contains(board_name) {
+                info!("Ignoring board '{board_name}'..");
                 continue;
             }
             if session_map.contains_key(board_name) {
                 continue;
             }
 
-            info!(
-                "* Creating new session for board '{}'..",
-                board_name.clone()
-            );
+            info!("* Creating new session for discovered board '{board_name}'..");
 
             let storage =
                 braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
             let trustee = Trustee::new(
                 trustee_name.clone(),
-                board_name.to_string(),
+                board_name.clone(),
                 sk.clone(),
                 ek.clone(),
                 storage,
                 None,
             );
-            let session = Session::new(&board_name, trustee, board_params.clone());
+            let session = Session::new(board_name, trustee, board_params.clone());
             session_map.insert(board_name.clone(), session);
         }
 

@@ -11,6 +11,7 @@ pub const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
 // Braid protocol
 pub const BRAID_B4_HEARTBEAT: &str = "BRAID_B4_HEARTBEAT";
 pub const IGNORE_BOARDS: &str = "IGNORE_BOARDS";
+pub const HARVEST_URL: &str = "HARVEST_URL";
 
 pub const DEFAULT_BRAID_B4_HEARTBEAT_SECS: u32 = 5;
 /// A session is considered inactive after this many missed heartbeat cycles.

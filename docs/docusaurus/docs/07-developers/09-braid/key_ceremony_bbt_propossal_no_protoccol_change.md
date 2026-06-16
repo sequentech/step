@@ -571,7 +571,99 @@ made.  Same UI, same WASM helpers, reused across the key ceremony and tally prep
 
 ---
 
-## 8. Security: In-Memory Key Handling
+## 8. Discovery: the `/active-ceremonies` Endpoint
+
+### The endpoint already exists
+
+The Harvest endpoint `POST /active-ceremonies` is **implemented and in use today** — it is the
+discovery mechanism braid-native trustees call each loop to find which ceremonies to join
+(see [§11](#11-component-changes)). It returns the same data for any trustee type:
+
+```
+POST /active-ceremonies
+Auth:   existing Keycloak JWT — identifies which trustee is calling
+Body:   { election_event_id?: string }   // optional filter
+Response: {
+  ceremonies: [
+    {
+      keys_ceremony_id: string,
+      election_event_id: string,
+      tenant_id: string,
+      board_name: string,
+      execution_status: string
+    },
+    ...
+  ]
+}
+```
+
+The endpoint returns **every** ceremony where:
+- The caller's trustee is a registered participant (`trustee_ids` array)
+- The ceremony status is `AWAITING_TRUSTEE_KEYS` or `IN_PROGRESS`
+- Optionally restricted to one event via `election_event_id` in the body
+
+Results are ordered most-recent-first. A trustee can be enrolled in several events at once, so
+the response is a **list, one entry per event** — there is no single "current" ceremony to pick.
+This matches braid-native, which already runs the DKG protocol across many boards concurrently:
+it simply runs over the discovered boards (and only those) instead of every board in the B3
+index. It also removes the ambiguity of a single-ceremony endpoint when two events each have an
+open ceremony.
+
+`board_name` is resolved server-side, per ceremony, from the election event's
+`bulletin_board_reference` (`database_name`) — the authoritative board name — so callers never
+reconstruct it.
+
+Because braid-native already drives the full discover → register → run-DKG flow through this
+endpoint, it is proven against a real caller. **No backend work is needed to extend discovery to
+browser trustees** — only the admin-portal frontend integration described below remains.
+
+### braid-native loop
+
+Each iteration, braid-native:
+
+1. Refreshes its access token.
+2. Calls `POST /active-ceremonies` to get the current set of ceremonies (across all its events).
+3. Registers its public key via `/register-trustee-key` for any ceremony it has not registered
+   yet (idempotent server-side; tracked locally to avoid redundant calls).
+4. Creates a DKG session for each discovered `board_name` not already running, and steps the
+   protocol on those boards only.
+
+New ceremonies created later are picked up on a subsequent loop; completed ceremonies drop out of
+the response and their sessions are released on the periodic session reset.
+
+### Future enhancement: browser-trustee discovery in the admin portal (frontend only)
+
+Browser trustees currently access the key ceremony by manually navigating to
+`/election/{eventId}/keys-ceremony` in the admin portal after ceremony creation, which requires
+the trustee to already know which ceremony to join. The existing `/active-ceremonies` endpoint
+can remove that manual step.
+
+When a browser trustee logs into the admin portal:
+
+1. **Check for active ceremonies** — on login or at the tenant-selection screen, call
+   `/active-ceremonies` to fetch any pending ceremonies for this trustee.
+2. **Show a discovery banner / list** — if one or more ceremonies are returned, display them
+   with, for each:
+   - Ceremony name and election event
+   - Status and progress indicator
+   - **Join ceremony** button linking to that ceremony's screen
+3. **Navigate** — use each entry's `election_event_id` to navigate to
+   `/election/{eventId}/keys-ceremony`. The `board_name` is already provided by the response, so
+   no client-side derivation is needed.
+
+### What remains (frontend only)
+
+The only outstanding work for browser-trustee discovery is in the admin-portal package:
+- Frontend call to `/active-ceremonies` on login (JS/TS)
+- Optional UI for the discovery banner/list (Figma-gated)
+
+There are **no backend or database changes** — the `/active-ceremonies` endpoint is done. This is
+a pure usability improvement and is not blocking the unified registration path or any other core
+BBT functionality; it can be deferred to a later phase.
+
+---
+
+## 9. Security: In-Memory Key Handling
 
 ### Storage rule
 
@@ -628,7 +720,7 @@ browser-side validation exist to make the trustee's self-report accurate in prac
 
 ---
 
-## 9. Key Loss and Recovery
+## 10. Key Loss and Recovery
 
 BBT identity keys live **only in the browser's in-memory ceremony session** — never in
 `localStorage` or `sessionStorage`.  They survive React mount/unmount cycles and in-app
@@ -710,7 +802,7 @@ blocked by the endpoint.
 
 ---
 
-## 10. Component Changes
+## 11. Component Changes
 
 ### 1 — Braid-wasm: new `generate_trustee_keys()` export
 
@@ -892,7 +984,7 @@ whatever `public_key` the query returns.
 
 ---
 
-## 11. `trustee.public_key` Column
+## 12. `trustee.public_key` Column
 
 The column is **retained and extended** with the companion `election_event_id` and
 `keys_ceremony_id` columns (see [§10.2](#10-component-changes)).  It remains the single
@@ -900,7 +992,7 @@ source of truth for the public key in this approach.
 
 ---
 
-## 12. Trustee Public Key Visibility in the Ceremony UI
+## 13. Trustee Public Key Visibility in the Ceremony UI
 
 Each trustee row in the ceremony trustee table must show an info (ℹ) icon.  Clicking it
 opens a popup displaying that trustee's full public key as a text block — for every
@@ -937,7 +1029,7 @@ button).  **This design is a blocking dependency for the frontend task.**
 
 ---
 
-## 13. Honest Trade-Offs
+## 14. Honest Trade-Offs
 
 The unified registration path is a significant improvement but it does not reach full
 cryptographic integrity without protocol-level changes.  The remaining gaps are worth
@@ -978,7 +1070,7 @@ would require a two-round protocol change.
 
 ---
 
-## 14. Convergence with the Protocol-Change Design
+## 15. Convergence with the Protocol-Change Design
 
 This design is intentionally shaped so that migration to the full protocol-change design
 (see [BBT Protocol Change Proposal](./key_ceremony_bbt_propossal_protoccol_change.md),
@@ -1024,7 +1116,7 @@ supersedes and extends this design at the point where step 3 is implemented.
 
 ---
 
-## 15. Future Work: Certificate Chain
+## 16. Future Work: Certificate Chain
 
 Per-ceremony trustee certificates will eventually chain upward:
 

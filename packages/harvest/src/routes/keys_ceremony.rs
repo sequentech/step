@@ -19,6 +19,7 @@ use strum_macros::Display;
 use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
+use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::postgres::trustee::{
     get_trustee_by_name, get_trustee_mode_policy, update_trustee_key_for_event,
 };
@@ -26,6 +27,7 @@ use windmill::services::ceremonies::keys_ceremony::{
     self, validate_permission_labels,
 };
 use windmill::services::database::get_hasura_pool;
+use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::keycloak::add_board_to_trustee_authorized_boards;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,4 +530,138 @@ pub async fn register_trustee_key(
     );
 
     Ok(Json(RegisterTrusteeKeyOutput { success: true }))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Endpoint: /active-ceremonies
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DiscoverActiveCeremoniesInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub election_event_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ActiveCeremony {
+    pub keys_ceremony_id: String,
+    pub election_event_id: String,
+    pub tenant_id: String,
+    pub board_name: String,
+    pub execution_status: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DiscoverActiveCeremoniesOutput {
+    pub ceremonies: Vec<ActiveCeremony>,
+}
+
+/// Discover every active keys ceremony for this trustee.
+/// Returns all ceremonies in AWAITING_TRUSTEE_KEYS or IN_PROGRESS status where
+/// the caller is registered as a trustee — one per election event the trustee
+/// participates in. Optionally narrowed to a single event via `election_event_id`.
+#[instrument(skip(claims))]
+#[post("/active-ceremonies", format = "json", data = "<body>")]
+pub async fn discover_active_ceremonies(
+    body: Json<DiscoverActiveCeremoniesInput>,
+    claims: JwtClaims,
+) -> Result<Json<DiscoverActiveCeremoniesOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let trustee_name = claims.trustee.ok_or_else(|| {
+        (
+            Status::Unauthorized,
+            "trustee name not found in token".to_string(),
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    // Resolve the caller's trustee id from the JWT-provided name.
+    let trustee = get_trustee_by_name(&hasura_transaction, &tenant_id, &trustee_name)
+        .await
+        .map_err(|e| {
+            (
+                Status::NotFound,
+                format!("Trustee '{trustee_name}' not found: {e:?}"),
+            )
+        })?;
+
+    let keys_ceremonies = postgres::keys_ceremony::get_active_ceremonies_for_trustee(
+        &hasura_transaction,
+        &tenant_id,
+        &trustee.id,
+        input.election_event_id.as_deref(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    // Resolve the authoritative board name for each ceremony from its election
+    // event's bulletin_board_reference, so the caller never reconstructs it.
+    let mut ceremonies: Vec<ActiveCeremony> = Vec::with_capacity(keys_ceremonies.len());
+    for keys_ceremony in keys_ceremonies {
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &tenant_id,
+            &keys_ceremony.election_event_id,
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+        let board_name = get_election_event_board(election_event.bulletin_board_reference)
+            .ok_or_else(|| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Election event {} has no bulletin board reference",
+                        keys_ceremony.election_event_id
+                    ),
+                )
+            })?;
+
+        let execution_status = keys_ceremony.execution_status().map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Invalid execution_status: {e:?}"),
+            )
+        })?;
+
+        ceremonies.push(ActiveCeremony {
+            keys_ceremony_id: keys_ceremony.id,
+            election_event_id: keys_ceremony.election_event_id,
+            tenant_id: tenant_id.clone(),
+            board_name,
+            execution_status: execution_status.to_string(),
+        });
+    }
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error committing transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    event!(
+        Level::INFO,
+        "Discovered {} active ceremonies for trustee={trustee_name}",
+        ceremonies.len(),
+    );
+
+    Ok(Json(DiscoverActiveCeremoniesOutput { ceremonies }))
 }
