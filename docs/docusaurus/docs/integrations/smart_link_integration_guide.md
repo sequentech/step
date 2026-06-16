@@ -303,7 +303,7 @@ You can exercise the endpoint without your application:
 The helper script can append required attributes when needed:
 
 ```bash
-./scripts/generate_smart_link.py generate \
+./beyond/scripts/generate_smart_link.py generate \
   --host vote.university.com \
   --tenant acme \
   --event-id 150017 \
