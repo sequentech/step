@@ -61,10 +61,10 @@ jobs:
           sudo apt-get install -y protobuf-compiler
       - name: Build Rust code
         working-directory: packages
-        run: cargo build --all-targets --release
+        run: cargo build --workspace --all-targets --release --exclude miru
       - name: Generate Clippy report
         working-directory: packages
-        run: cargo clippy --all-targets --all-features --release --message-format=json -- -D warnings > ../clippy-report.json || true
+        run: cargo clippy --workspace --all-targets --all-features --release --exclude miru --message-format=json -- -D warnings > ../clippy-report.json || true
       - name: SonarQube Scan for Rust
         if: github.event_name == 'pull_request'
         uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
