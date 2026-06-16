@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+// DUMMY COMMIT: test comment
+// Trigger-only comment for CI
 
 client => {
     const url = "{url}"
