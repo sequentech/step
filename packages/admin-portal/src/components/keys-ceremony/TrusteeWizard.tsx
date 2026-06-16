@@ -151,13 +151,15 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    const {isConnected} = useContext(HeadlessTrusteeContext)
+    const {isConnected, keyMismatchWarning} = useContext(HeadlessTrusteeContext)
 
     if (!electionEvent) {
         return <CircularProgress />
     }
     return (
         <WizardStyles.WizardWrapper>
+            {/* TEMP FIX: loud warning when the local key won't match the board's Configuration */}
+            {!!keyMismatchWarning && <Alert severity="error">{keyMismatchWarning}</Alert>}
             {/* Silently run the braid protocol — session provided by HeadlessTrusteeProvider */}
             {!!trusteeIsInActionablePhase && !isAutomaticCeremony && isConnected && (
                 <HeadlessTrusteeRunner currentCeremony={currentCeremony} />

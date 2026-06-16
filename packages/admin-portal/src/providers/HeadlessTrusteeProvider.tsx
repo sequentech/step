@@ -73,12 +73,14 @@ export interface HeadlessTrusteeContextValue {
     session: WasmSession | null
     isConnected: boolean
     initError: string | null
+    keyMismatchWarning: string | null
 }
 
 export const HeadlessTrusteeContext = createContext<HeadlessTrusteeContextValue>({
     session: null,
     isConnected: false,
     initError: null,
+    keyMismatchWarning: null,
 })
 
 interface HeadlessTrusteeProviderProps {
@@ -100,6 +102,7 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
     const [session, setSession] = useState<WasmSession | null>(null)
     const [isConnected, setIsConnected] = useState(false)
     const [initError, setInitError] = useState<string | null>(null)
+    const [keyMismatchWarning, setKeyMismatchWarning] = useState<string | null>(null)
 
     const [registerTrusteeKey] = useMutation(REGISTER_TRUSTEE_KEY)
 
@@ -118,6 +121,33 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
     const isBrowserBased =
         (trusteeRecord?.annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()) ===
         ETrusteeModePolicy.BROWSER_BASED
+
+    // TEMP FIX: detect when the key held in this browser tab won't match what's
+    // already registered in the DB for this ceremony, before we silently
+    // generate/overwrite it. This does not block anything yet — it only warns.
+    // See Tasks.txt "UI: Key restore flow" for the real fix.
+    useEffect(() => {
+        if (!keysCeremonyId || !trusteeRecord) {
+            setKeyMismatchWarning(null)
+            return
+        }
+        if (trusteeRecord.keys_ceremony_id !== keysCeremonyId || !trusteeRecord.public_key) {
+            setKeyMismatchWarning(null)
+            return
+        }
+        const localKey = keysRegistry.get(keysCeremonyId)?.signing_key_pk
+        if (!localKey) {
+            setKeyMismatchWarning(
+                "TEMP FIX WARNING: a public key is already registered in the database for this ceremony, but this browser tab has no matching key in memory. A new key is about to be generated and will NOT match the key already baked into the on-board Configuration — protocol steps for this trustee will fail. Recreate the ceremony or restore the original key backup."
+            )
+        } else if (localKey !== trusteeRecord.public_key) {
+            setKeyMismatchWarning(
+                "TEMP FIX WARNING: the key held in this browser tab does not match the public key registered in the database for this ceremony. The on-board Configuration was built with a different key — protocol steps for this trustee will fail. Recreate the ceremony or restore the original key backup."
+            )
+        } else {
+            setKeyMismatchWarning(null)
+        }
+    }, [keysCeremonyId, trusteeRecord])
 
     // Initialize WASM + session when the user enters a specific ceremony screen.
     // The provider is only mounted for the active ceremony, so keysCeremonyId is
@@ -240,7 +270,9 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
     }, [accessToken])
 
     return (
-        <HeadlessTrusteeContext.Provider value={{session, isConnected, initError}}>
+        <HeadlessTrusteeContext.Provider
+            value={{session, isConnected, initError, keyMismatchWarning}}
+        >
             {children}
         </HeadlessTrusteeContext.Provider>
     )
