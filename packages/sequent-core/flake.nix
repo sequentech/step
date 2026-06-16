@@ -124,20 +124,17 @@
               export CXX=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
               export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
               export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
-              -
               # Nix hardening flags are not supported when compiling C code for WebAssembly
               export NIX_HARDENING_ENABLE=""
-              -
               # Set up the clang resource directory properly
               CLANG_MAJOR_VERSION="19"
               CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION"
-              -
+              export CLANG_RESOURCE_DIR
               # Use libclang's include directory which has the standard headers
               LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
-              -
+              export LIBCLANG_INCLUDE
               export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
               export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
-              -
               # Debug: Print the paths to verify they exist
               echo "Clang resource dir: $CLANG_RESOURCE_DIR"
               echo "Libclang include dir: $LIBCLANG_INCLUDE"
