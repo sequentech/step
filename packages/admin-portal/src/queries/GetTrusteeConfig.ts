@@ -10,6 +10,8 @@ export const GET_TRUSTEE_CONFIG = gql`
             id
             name
             public_key
+            election_event_id
+            keys_ceremony_id
             annotations
         }
     }

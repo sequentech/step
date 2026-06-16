@@ -56,7 +56,8 @@ pub async fn get_trustees_by_id(
             r#"
                 SELECT
                     id, name, tenant_id, created_at, last_updated_at, labels, annotations,
-                    election_event_id,
+                    
+                    election_event_id, keys_ceremony_id,
                     CASE
                         WHEN ($3::uuid IS NULL
                             OR election_event_id IS NULL
@@ -103,7 +104,7 @@ pub async fn get_trustees_by_name(
             r#"
                 SELECT
                     id, name, tenant_id, created_at, last_updated_at, labels, annotations,
-                    election_event_id,
+                    election_event_id, keys_ceremony_id,
                     CASE
                         WHEN ($3::uuid IS NULL
                             OR election_event_id IS NULL

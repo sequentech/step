@@ -52,7 +52,9 @@ select_permissions:
           columns:
               - annotations
               - created_at
+              - election_event_id
               - id
+              - keys_ceremony_id
               - labels
               - last_updated_at
               - name
@@ -84,6 +86,8 @@ select_permissions:
               - annotations
               - labels
               - public_key
+              - election_event_id
+              - keys_ceremony_id
               - created_at
               - last_updated_at
               - id
@@ -100,6 +104,8 @@ select_permissions:
               - annotations
               - labels
               - public_key
+              - election_event_id
+              - keys_ceremony_id
               - created_at
               - last_updated_at
               - id
