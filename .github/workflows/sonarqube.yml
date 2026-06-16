@@ -62,6 +62,7 @@ jobs:
         working-directory: packages
         run: cargo clippy --all-targets --all-features --release --message-format=json -- -D warnings > ../clippy-report.json || true
       - name: SonarQube Scan for Rust
+        if: github.event_name == 'pull_request'
         uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
@@ -79,6 +80,23 @@ jobs:
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
             -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
             -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+      - name: SonarQube Scan for Rust (branch/manual)
+        if: github.event_name != 'pull_request'
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-backend-rust
+            -Dsonar.sources=packages
+            -Dsonar.inclusions=**/*.rs
+            -Dsonar.exclusions=**/target/**
+            -Dsonar.rust.clippy.reportPaths=clippy-report.json
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.scm.revision=${{ github.sha }}
 
   scan-javascript:
     name: Scan JavaScript/TypeScript Code
@@ -98,6 +116,7 @@ jobs:
         run: yarn install --frozen-lockfile --non-interactive
         working-directory: packages
       - name: SonarQube Scan for JS/TS
+        if: github.event_name == 'pull_request'
         uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
@@ -116,6 +135,24 @@ jobs:
             -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
             -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
             -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+      - name: SonarQube Scan for JS/TS (branch/manual)
+        if: github.event_name != 'pull_request'
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: packages
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-frontend
+            -Dsonar.sources=.
+            -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.scm.revision=${{ github.sha }}
 
   scan-java:
     name: Scan Java Code
@@ -137,6 +174,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y maven
       - name: SonarQube Scan for Java
+        if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -147,3 +185,13 @@ jobs:
            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }} 
            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }} 
            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+      - name: SonarQube Scan for Java (branch/manual)
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify sonar:sonar -f packages/keycloak-extensions/pom.xml 
+           -Dsonar.organization=sequentech 
+           -Dsonar.projectKey=step-keycloak-extensions 
+           -Dsonar.branch.name=${{ github.ref_name }} 
+           -Dsonar.scm.revision=${{ github.sha }}
