@@ -9,7 +9,8 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
+use sequent_core::services::jwt::{decode_permission_labels, JwtClaims, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE};
+use sequent_core::types::ceremonies::TrusteeModePolicy;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,7 @@ use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
 use windmill::postgres::trustee::{
-    get_trustee_by_name, update_trustee_key_for_event,
+    get_trustee_by_name, get_trustee_mode_policy, update_trustee_key_for_event,
 };
 use windmill::services::ceremonies::keys_ceremony::{
     self, validate_permission_labels,
@@ -456,6 +457,51 @@ pub async fn register_trustee_key(
                     format!("Trustee '{trustee_name}' not found: {e:?}"),
                 )
             })?;
+
+    // Validate caller mode matches trustee mode. /register-trustee-key is
+    // exclusively for browser-based trustees (BBT flow). Server-based trustees
+    // use /get-private-key and /check-private-key instead.
+    let trustee_mode = get_trustee_mode_policy(&trustee);
+
+    // Map JWT default_role claim to caller's trustee mode policy.
+    // SERVER_DEFAULT_ROLE ("server", set by native-trustee Keycloak client)
+    // maps to SERVER_BASED; USER_DEFAULT_ROLE ("user", set by voting-portal
+    // and browser clients) maps to BROWSER_BASED. Any other value is rejected.
+    let caller_mode = match claims.hasura_claims.default_role.as_str() {
+        SERVER_DEFAULT_ROLE => TrusteeModePolicy::SERVER_BASED,
+        USER_DEFAULT_ROLE => TrusteeModePolicy::BROWSER_BASED,
+        unknown => {
+            return Err((
+                Status::Unauthorized,
+                format!(
+                    "Unrecognized default_role: '{}'; expected '{}' or '{}'",
+                    unknown, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE
+                ),
+            ))
+        }
+    };
+
+    // Caller and trustee modes must match
+    if trustee_mode != caller_mode {
+        return Err((
+            Status::Forbidden,
+            format!(
+                "Trustee '{}' is configured as {:?} but caller is {:?}",
+                trustee_name, trustee_mode, caller_mode
+            ),
+        ));
+    }
+
+    // /register-trustee-key is exclusively for browser-based trustees
+    if trustee_mode != TrusteeModePolicy::BROWSER_BASED {
+        return Err((
+            Status::Forbidden,
+            format!(
+                "Trustee '{}' is {:?}; this endpoint is only for browser-based trustees",
+                trustee_name, trustee_mode
+            ),
+        ));
+    }
 
     update_trustee_key_for_event(
         &hasura_transaction,

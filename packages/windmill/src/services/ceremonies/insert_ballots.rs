@@ -4,7 +4,7 @@
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::trustee::get_trustees_by_name;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
@@ -53,25 +53,44 @@ pub async fn insert_ballots_messages(
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    keys_ceremony_id: &str,
     board_name: &str,
     trustee_names: Vec<String>,
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
 ) -> Result<Vec<TallySessionContest>> {
-    let trustees =
-        get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names, None).await?;
+    // Read trustee public keys from the keys-ceremony snapshot (status.trustees[].public_key),
+    // not from the live sequent_backend.trustee row — that row can be overwritten by later,
+    // unrelated ceremonies for the same trustee. The snapshot was written once, atomically with
+    // the AWAITING_TRUSTEE_KEYS -> IN_PROGRESS transition, and never changes again, so it's the
+    // only source that's guaranteed to still match this election's on-board Configuration.
+    let keys_ceremony = get_keys_ceremony_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+    )
+    .await
+    .with_context(|| "error finding keys ceremony for ballot insertion")?;
+    let keys_ceremony_status = keys_ceremony
+        .status()
+        .with_context(|| "error parsing keys ceremony status")?;
 
-    event!(Level::INFO, "trustees len: {:?}", trustees.len());
+    event!(Level::INFO, "trustees len: {:?}", trustee_names.len());
 
-    // get trustees keys from input strings
-    let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
-        .clone()
-        .into_iter()
-        .map(|trustee| {
-            let public_key = trustee
+    // get trustees keys from the snapshot
+    let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustee_names
+        .iter()
+        .map(|trustee_name| {
+            let public_key = keys_ceremony_status
+                .trustees
+                .iter()
+                .find(|trustee| &trustee.name == trustee_name)
+                .ok_or(anyhow!("Trustee {trustee_name} not part of the keys ceremony"))?
                 .public_key
-                .ok_or(anyhow!("Missing trustee public key"))?;
+                .clone()
+                .ok_or(anyhow!("Missing trustee public key snapshot for {trustee_name}"))?;
             deserialize_public_key(public_key)
         })
         .collect::<Result<Vec<_>>>()?;

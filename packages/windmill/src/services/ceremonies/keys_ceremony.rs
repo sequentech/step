@@ -138,8 +138,9 @@ pub async fn get_private_key(
             .map(|trustee| {
                 if (trustee.name == trustee_name) {
                     Ok(Trustee {
-                        name: trustee.name,
+                        name: trustee.name.clone(),
                         status: TrusteeStatus::KEY_RETRIEVED,
+                        public_key: trustee.public_key.clone(),
                     })
                 } else {
                     Ok(trustee.clone())
@@ -149,6 +150,9 @@ pub async fn get_private_key(
     })?;
 
     // update keys-ceremony into the database using graphql
+    // Note: execution_status is written back unchanged here — this is not a
+    // transition (get_private_key never changes ceremony status), so it does
+    // not go through try_transition.
     keys_ceremony::update_keys_ceremony_status(
         transaction,
         &tenant_id,
@@ -271,6 +275,7 @@ pub async fn check_private_key(
                     Ok(Trustee {
                         name: trustee.name.clone(),
                         status: TrusteeStatus::KEY_CHECKED,
+                        public_key: trustee.public_key.clone(),
                     })
                 } else {
                     Ok(trustee.clone())
@@ -283,10 +288,13 @@ pub async fn check_private_key(
         .trustees
         .iter()
         .all(|trustee| trustee.status == TrusteeStatus::KEY_CHECKED);
-    let new_execution_status = if all_trustees_checked {
-        KeysCeremonyExecutionStatus::SUCCESS
+    // Only attempt a transition when the status actually changes — staying at
+    // IN_PROGRESS (not all trustees checked yet) is not a transition, and
+    // try_transition has no self-transition arm.
+    let new_execution_status = if all_trustees_checked && current_execution_status != KeysCeremonyExecutionStatus::SUCCESS {
+        current_execution_status.try_transition(KeysCeremonyExecutionStatus::SUCCESS)?
     } else {
-        KeysCeremonyExecutionStatus::IN_PROGRESS
+        current_execution_status
     };
 
     // update keys-ceremony into the database using graphql
@@ -324,9 +332,12 @@ pub async fn create_keys_ceremony(
     name: Option<String>,
     is_automatic_ceremony: bool,
 ) -> Result<(String, String)> {
-    // verify trustee names and fetch their objects to get their ids
-    let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names, None)
-        .await
+    // verify trustee names and fetch their objects to get their ids. No
+    // ceremony exists yet at this point, so no scope to pass — we only need
+    // identity (id/name) here, not public_key.
+    let trustees =
+        trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names, None, None)
+            .await
         .with_context(|| "can't find trustees")?;
 
     if trustee_names.len() != trustees.len() {
@@ -385,7 +396,7 @@ pub async fn create_keys_ceremony(
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
-    let execution_status: String = KeysCeremonyExecutionStatus::STARTED.to_string();
+    let execution_status: String = KeysCeremonyExecutionStatus::AWAITING_TRUSTEE_KEYS.to_string();
     let status: Value = serde_json::to_value(KeysCeremonyStatus {
         stop_date: None,
         public_key: None,
@@ -397,6 +408,7 @@ pub async fn create_keys_ceremony(
                 Ok(Trustee {
                     name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
                     status: TrusteeStatus::WAITING,
+                    public_key: None,
                 })
             })
             .collect::<Result<Vec<Trustee>>>()?,

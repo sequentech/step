@@ -4,17 +4,11 @@
 //! B4-specific permission sets and constraint validation for authentication.
 
 use sequent_core::services::axum_auth::{PermissionSet, ValidateConstraints};
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{JwtClaims, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE};
 use sequent_core::types::permissions::Permissions;
 
 // Re-export commonly used types from sequent-core for convenience
 pub use sequent_core::services::axum_auth::{JwtAuth, RequireConstraints, RequirePermissions};
-
-/// Default role for native server trustees.
-///
-/// When a JWT has `x-hasura-default-role` set to this value, board access
-/// validation is bypassed, allowing the server to access any board.
-pub const SERVER_DEFAULT_ROLE: &str = "server";
 
 /// Permission set requiring TRUSTEE_CEREMONY.
 ///

@@ -47,9 +47,7 @@ const StatusDot = styled("div")<{active: boolean}>`
 `
 
 export const statusColor: (status: EStatus) => string = (status) => {
-    if (status === EStatus.USER_CONFIGURATION) {
-        return theme.palette.warning.light
-    } else if (status === EStatus.STARTED) {
+    if (status === EStatus.AWAITING_TRUSTEE_KEYS) {
         return theme.palette.warning.light
     } else if (status === EStatus.IN_PROGRESS) {
         return theme.palette.info.main
@@ -157,7 +155,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                             sx={{
                                 backgroundColor: statusColor(
                                     (ceremony?.execution_status as EStatus) ??
-                                        EStatus.USER_CONFIGURATION
+                                        EStatus.AWAITING_TRUSTEE_KEYS
                                 ),
                                 color: theme.palette.background.default,
                             }}

@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export enum IKeysCeremonyExecutionStatus {
-    USER_CONFIGURATION = "USER_CONFIGURATION",
-    STARTED = "STARTED",
+    AWAITING_TRUSTEE_KEYS = "AWAITING_TRUSTEE_KEYS",
     IN_PROGRESS = "IN_PROGRESS",
     SUCCESS = "SUCCESS",
     CANCELLED = "CANCELLED",

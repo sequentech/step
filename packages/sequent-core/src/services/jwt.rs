@@ -13,6 +13,20 @@ use serde_json;
 use std::collections::HashMap;
 use tracing::{debug, info, instrument, warn};
 
+/// Default role value for native server-based trustees.
+///
+/// When a JWT has `x-hasura-default-role` set to this value, it indicates
+/// the caller is a server-based (native) trustee. Set by Keycloak's
+/// `native-trustee` client via a hardcoded claim mapper.
+pub const SERVER_DEFAULT_ROLE: &str = "server";
+
+/// Default role value for browser-based clients and users.
+///
+/// Set by Keycloak's `voting-portal` and other browser-based clients.
+/// Browser-based trustees receive this role and must provide per-board
+/// authorization via the `authorized-boards` JWT claim.
+pub const USER_DEFAULT_ROLE: &str = "user";
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
     pub roles: Vec<String>,

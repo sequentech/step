@@ -34,9 +34,9 @@ const HeadlessTrusteeRunner: React.FC<{currentCeremony: Sequent_Backend_Keys_Cer
  * in the given ceremony.
  *
  * Both conditions must hold:
- *  1. The ceremony is in an actionable phase: USER_CONFIGURATION (trustees
- *     still being invited) or IN_PROGRESS (braid protocol actively running).
- *     SUCCESS, CANCELLED and STARTED are intentionally excluded.
+ *  1. The ceremony is in an actionable phase: AWAITING_TRUSTEE_KEYS (trustees
+ *     still being invited / registering keys) or IN_PROGRESS (braid protocol
+ *     actively running). SUCCESS and CANCELLED are intentionally excluded.
  *  2. The logged-in user's trustee name (from JWT claims) appears in the
  *     ceremony's trustee list — i.e. they were explicitly assigned to it.
  *
@@ -50,7 +50,7 @@ export const isTrusteeActionablePhase = (
 ) => {
     const status: IExecutionStatus = ceremony.status
     return (
-        (ceremony.execution_status === EStatus.USER_CONFIGURATION ||
+        (ceremony.execution_status === EStatus.AWAITING_TRUSTEE_KEYS ||
             ceremony.execution_status === EStatus.IN_PROGRESS) &&
         !!status.trustees.find((trustee) => trustee.name === authContext.trustee)
     )
@@ -110,7 +110,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         if (!trusteeIsInActionablePhase) {
             return WizardStep.Status
             // If trustee is participating but is not started, show status step
-        } else if (currentCeremony.execution_status === EStatus.USER_CONFIGURATION) {
+        } else if (currentCeremony.execution_status === EStatus.AWAITING_TRUSTEE_KEYS) {
             return WizardStep.Status
             // If trustee is participating but cancelled or succeeded, show success step (with status)
         } else if (

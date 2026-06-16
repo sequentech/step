@@ -50,10 +50,31 @@ pub async fn create_keys_impl(
         &tenant_id,
         &keys_ceremony.trustee_ids,
         Some(&election_event_id),
+        Some(&keys_ceremony_id),
     )
     .await?;
     info!("trustees: {:?}", trustees);
-    let trustee_pks = trustees
+
+    // Explicit guard: every trustee in this ceremony must have a key
+    // registered and scoped to (election_event_id, keys_ceremony_id) before
+    // we build a Configuration. Configuration::new panics via
+    // assert!(c.is_valid()) if the trustee list is too short — silently
+    // dropping a missing trustee here (the old behavior) risked crashing the
+    // beat worker. This should be unreachable once process_board's gate is
+    // in place (it only dispatches this task once the gate is satisfied),
+    // but stays as a defensive check against beat-task races or a
+    // manually-triggered task.
+    if trustees.len() != keys_ceremony.trustee_ids.len()
+        || trustees.iter().any(|trustee| trustee.public_key.is_none())
+    {
+        info!(
+            "Not all trustees have a registered key yet for ceremony {}; skipping",
+            keys_ceremony_id
+        );
+        return Ok(());
+    }
+
+    let trustee_pks: Vec<String> = trustees
         .clone()
         .into_iter()
         .filter_map(|trustee| trustee.public_key)
@@ -72,7 +93,9 @@ pub async fn create_keys_impl(
     let status = keys_ceremony.status()?;
 
     // check config is not already created
-    if execution_status != KeysCeremonyExecutionStatus::STARTED || status.public_key.is_some() {
+    if execution_status != KeysCeremonyExecutionStatus::AWAITING_TRUSTEE_KEYS
+        || status.public_key.is_some()
+    {
         info!("Unexpected status: {}", execution_status);
         return Ok(());
     }
@@ -92,13 +115,47 @@ pub async fn create_keys_impl(
         .await?;
     }
 
+    // Snapshot each trustee's public key — the exact list just used to build
+    // the Configuration — into status.trustees[i].public_key. This is the
+    // permanent, frozen copy that tally-time code reads later; the live
+    // trustee.public_key column may be overwritten by unrelated, later
+    // ceremonies after this point, but this snapshot, written atomically
+    // with the IN_PROGRESS transition below, never changes again.
+    let KeysCeremonyStatus {
+        stop_date,
+        public_key,
+        logs,
+        trustees: status_trustees,
+    } = status;
+    let snapshotted_trustees: Vec<Trustee> = status_trustees
+        .into_iter()
+        .map(|trustee_status| {
+            let snapshot_key = trustees
+                .iter()
+                .find(|trustee| trustee.name.as_deref() == Some(trustee_status.name.as_str()))
+                .and_then(|trustee| trustee.public_key.clone());
+            Trustee {
+                public_key: snapshot_key,
+                ..trustee_status
+            }
+        })
+        .collect();
+    let snapshotted_status = KeysCeremonyStatus {
+        stop_date,
+        public_key,
+        logs,
+        trustees: snapshotted_trustees,
+    };
+
     update_keys_ceremony_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &keys_ceremony.id,
-        &serde_json::to_value(status)?,
-        &KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
+        &serde_json::to_value(snapshotted_status)?,
+        &execution_status
+            .try_transition(KeysCeremonyExecutionStatus::IN_PROGRESS)?
+            .to_string(),
     )
     .await?;
 

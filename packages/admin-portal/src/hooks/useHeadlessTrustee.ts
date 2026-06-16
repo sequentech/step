@@ -24,7 +24,7 @@ export const useHeadlessTrustee = ({currentCeremony}: UseHeadlessTrusteeProps) =
 
     const isCeremonyActive =
         currentCeremony?.execution_status === EStatus.IN_PROGRESS ||
-        currentCeremony?.execution_status === EStatus.STARTED
+        currentCeremony?.execution_status === EStatus.AWAITING_TRUSTEE_KEYS
 
     useEffect(() => {
         if (!session) return
