@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm
+FROM rust:1.96.0-slim-bookworm
 
 # Copy projects
 WORKDIR /app
