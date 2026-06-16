@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // DUMMY COMMIT: test comment
-// Trigger-only comment for CI
 
 client => {
     const url = "{url}"
