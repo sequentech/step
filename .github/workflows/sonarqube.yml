@@ -43,7 +43,7 @@ jobs:
   scan-rust:
     name: Scan Rust Code
     needs: detect-changes
-    if: needs.detect-changes.outputs.rust == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check Out Repo
