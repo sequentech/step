@@ -603,8 +603,6 @@ services:
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
-    depends_on:
-      - harvest
     volumes:
       - ./keycloak/import:/import:z
       - ../packages/:/app:z
@@ -818,7 +816,7 @@ services:
     # that we can reuse it:
     depends_on:
       - devcontainer
-      - harvest
+      - rabbitmq
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [

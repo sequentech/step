@@ -512,8 +512,6 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: immudb-init
-    depends_on:
-      - harvest
     volumes:
       - ./keycloak/import:/import:z
       - ../packages/:/app:z
@@ -703,7 +701,7 @@ services:
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      - harvest
+      - rabbitmq
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
