@@ -32,11 +32,36 @@
           - name: IvrGetBallotStyles
             query: |
                 query IvrGetBallotStyles ($event_id: uuid!) {
-                  ballot_styles: sequent_backend_ballot_style(where: {deleted_at:{_is_null:true},election_event_id:{_eq:$event_id}}) {
-                    election_id
+                  ballot_styles: sequent_backend_ballot_style(where: {deleted_at:{_is_null:true}, election_event_id: {_eq:$event_id}}) {
+                    id
+                    tenant_id
                     election_event_id
+                    election_id
                     area_id
-                    ballot_publication_id
                     ballot_eml
+                  }
+                }
+          - name: IvrGetBallotStyle
+            query: |
+                query IvrGetBallotStyle ($event_id: uuid!, $style_id: uuid!) {
+                  ballot_styles: sequent_backend_ballot_style(where: {id: {_eq: $style_id}, election_event_id: {_eq:$event_id}}) {
+                    id
+                    tenant_id
+                    election_event_id
+                    election_id
+                    area_id
+                    ballot_eml
+                  }
+                }
+          - name: IvrGetCastVotes
+            query: |
+                query IvrGetCastVotes ($event_id: uuid!) {
+                  cast_votes: sequent_backend_cast_vote(where: {election_event_id: {_eq:$event_id}}) {
+                    id
+                    tenant_id
+                    election_event_id
+                    election_id
+                    area_id
+                    ballot_id
                   }
                 }
