@@ -1424,6 +1424,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.trustee"
   """
   delete_sequent_backend_trustee_by_pk(id: uuid!): trustee
+  """
+  delete data from the table: "sequent_backend.trustee_ceremony_key"
+  """
+  delete_sequent_backend_trustee_ceremony_key(
+    """filter the rows which have to be deleted"""
+    where: trustee_ceremony_key_bool_exp!
+  ): trustee_ceremony_key_mutation_response
+  """
+  delete single row from the table: "sequent_backend.trustee_ceremony_key"
+  """
+  delete_sequent_backend_trustee_ceremony_key_by_pk(id: uuid!): trustee_ceremony_key
   delete_user(election_event_id: String, tenant_id: String!, user_id: String!): DeleteUserOutput
   delete_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   """delete users"""
@@ -2107,6 +2118,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: trustee_on_conflict
   ): trustee_mutation_response
+  """
+  insert data into the table: "sequent_backend.trustee_ceremony_key"
+  """
+  insert_sequent_backend_trustee_ceremony_key(
+    """the rows to be inserted"""
+    objects: [trustee_ceremony_key_insert_input!]!
+    """upsert condition"""
+    on_conflict: trustee_ceremony_key_on_conflict
+  ): trustee_ceremony_key_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.trustee_ceremony_key"
+  """
+  insert_sequent_backend_trustee_ceremony_key_one(
+    """the row to be inserted"""
+    object: trustee_ceremony_key_insert_input!
+    """upsert condition"""
+    on_conflict: trustee_ceremony_key_on_conflict
+  ): trustee_ceremony_key
   """
   insert a single row into the table: "sequent_backend.trustee"
   """
@@ -4163,6 +4192,30 @@ type mutation_root {
     pk_columns: trustee_pk_columns_input!
   ): trustee
   """
+  update data of the table: "sequent_backend.trustee_ceremony_key"
+  """
+  update_sequent_backend_trustee_ceremony_key(
+    """sets the columns of the filtered rows to the given values"""
+    _set: trustee_ceremony_key_set_input
+    """filter the rows which have to be updated"""
+    where: trustee_ceremony_key_bool_exp!
+  ): trustee_ceremony_key_mutation_response
+  """
+  update single row of the table: "sequent_backend.trustee_ceremony_key"
+  """
+  update_sequent_backend_trustee_ceremony_key_by_pk(
+    """sets the columns of the filtered rows to the given values"""
+    _set: trustee_ceremony_key_set_input
+    pk_columns: trustee_ceremony_key_pk_columns_input!
+  ): trustee_ceremony_key
+  """
+  update multiples rows of table: "sequent_backend.trustee_ceremony_key"
+  """
+  update_sequent_backend_trustee_ceremony_key_many(
+    """updates to execute, in order"""
+    updates: [trustee_ceremony_key_updates!]!
+  ): [trustee_ceremony_key_mutation_response]
+  """
   update multiples rows of table: "sequent_backend.trustee"
   """
   update_sequent_backend_trustee_many(
@@ -5457,6 +5510,40 @@ type query_root {
   fetch data from the table: "sequent_backend.trustee" using primary key columns
   """
   sequent_backend_trustee_by_pk(id: uuid!): trustee
+  """
+  fetch data from the table: "sequent_backend.trustee_ceremony_key"
+  """
+  sequent_backend_trustee_ceremony_key(
+    """distinct select on columns"""
+    distinct_on: [trustee_ceremony_key_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [trustee_ceremony_key_order_by!]
+    """filter the rows returned"""
+    where: trustee_ceremony_key_bool_exp
+  ): [trustee_ceremony_key!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.trustee_ceremony_key"
+  """
+  sequent_backend_trustee_ceremony_key_aggregate(
+    """distinct select on columns"""
+    distinct_on: [trustee_ceremony_key_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [trustee_ceremony_key_order_by!]
+    """filter the rows returned"""
+    where: trustee_ceremony_key_bool_exp
+  ): trustee_ceremony_key_aggregate!
+  """
+  fetch data from the table: "sequent_backend.trustee_ceremony_key" using primary key columns
+  """
+  sequent_backend_trustee_ceremony_key_by_pk(id: uuid!): trustee_ceremony_key
 }
 
 """
@@ -19494,6 +19581,238 @@ input trustee_bool_exp {
 }
 
 """
+columns and relationships of "sequent_backend.trustee_ceremony_key"
+"""
+type trustee_ceremony_key {
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  keys_ceremony_id: uuid!
+  last_updated_at: timestamptz!
+  public_key: String!
+  tenant_id: uuid!
+  """An object relationship"""
+  trustee: trustee!
+  trustee_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.trustee_ceremony_key"
+"""
+type trustee_ceremony_key_aggregate {
+  aggregate: trustee_ceremony_key_aggregate_fields
+  nodes: [trustee_ceremony_key!]!
+}
+
+"""
+aggregate fields of "sequent_backend.trustee_ceremony_key"
+"""
+type trustee_ceremony_key_aggregate_fields {
+  count(columns: [trustee_ceremony_key_select_column!], distinct: Boolean): Int!
+  max: trustee_ceremony_key_max_fields
+  min: trustee_ceremony_key_min_fields
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.trustee_ceremony_key". All fields are combined with a logical 'AND'.
+"""
+input trustee_ceremony_key_bool_exp {
+  _and: [trustee_ceremony_key_bool_exp!]
+  _not: trustee_ceremony_key_bool_exp
+  _or: [trustee_ceremony_key_bool_exp!]
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  keys_ceremony_id: uuid_comparison_exp
+  last_updated_at: timestamptz_comparison_exp
+  public_key: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  trustee: trustee_bool_exp
+  trustee_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.trustee_ceremony_key"
+"""
+enum trustee_ceremony_key_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  trustee_ceremony_key_pkey
+  """
+  unique or primary key constraint on columns "keys_ceremony_id", "trustee_id", "tenant_id", "election_event_id"
+  """
+  trustee_ceremony_key_tenant_id_trustee_id_election_event_id_key
+}
+
+"""
+input type for inserting data into table "sequent_backend.trustee_ceremony_key"
+"""
+input trustee_ceremony_key_insert_input {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  last_updated_at: timestamptz
+  public_key: String
+  tenant_id: uuid
+  trustee: trustee_obj_rel_insert_input
+  trustee_id: uuid
+}
+
+"""aggregate max on columns"""
+type trustee_ceremony_key_max_fields {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  last_updated_at: timestamptz
+  public_key: String
+  tenant_id: uuid
+  trustee_id: uuid
+}
+
+"""aggregate min on columns"""
+type trustee_ceremony_key_min_fields {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  last_updated_at: timestamptz
+  public_key: String
+  tenant_id: uuid
+  trustee_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.trustee_ceremony_key"
+"""
+type trustee_ceremony_key_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [trustee_ceremony_key!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.trustee_ceremony_key"
+"""
+input trustee_ceremony_key_on_conflict {
+  constraint: trustee_ceremony_key_constraint!
+  update_columns: [trustee_ceremony_key_update_column!]! = []
+  where: trustee_ceremony_key_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.trustee_ceremony_key".
+"""
+input trustee_ceremony_key_order_by {
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  keys_ceremony_id: order_by
+  last_updated_at: order_by
+  public_key: order_by
+  tenant_id: order_by
+  trustee: trustee_order_by
+  trustee_id: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.trustee_ceremony_key
+"""
+input trustee_ceremony_key_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.trustee_ceremony_key"
+"""
+enum trustee_ceremony_key_select_column {
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  keys_ceremony_id
+  """column name"""
+  last_updated_at
+  """column name"""
+  public_key
+  """column name"""
+  tenant_id
+  """column name"""
+  trustee_id
+}
+
+"""
+input type for updating data in table "sequent_backend.trustee_ceremony_key"
+"""
+input trustee_ceremony_key_set_input {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  last_updated_at: timestamptz
+  public_key: String
+  tenant_id: uuid
+  trustee_id: uuid
+}
+
+"""
+Streaming cursor of the table "sequent_backend_trustee_ceremony_key"
+"""
+input trustee_ceremony_key_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: trustee_ceremony_key_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input trustee_ceremony_key_stream_cursor_value_input {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  keys_ceremony_id: uuid
+  last_updated_at: timestamptz
+  public_key: String
+  tenant_id: uuid
+  trustee_id: uuid
+}
+
+"""
+update columns of table "sequent_backend.trustee_ceremony_key"
+"""
+enum trustee_ceremony_key_update_column {
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  keys_ceremony_id
+  """column name"""
+  last_updated_at
+  """column name"""
+  public_key
+  """column name"""
+  tenant_id
+  """column name"""
+  trustee_id
+}
+
+input trustee_ceremony_key_updates {
+  """sets the columns of the filtered rows to the given values"""
+  _set: trustee_ceremony_key_set_input
+  """filter the rows which have to be updated"""
+  where: trustee_ceremony_key_bool_exp!
+}
+
+"""
 unique or primary key constraints on table "sequent_backend.trustee"
 """
 enum trustee_constraint {
@@ -19603,6 +19922,15 @@ type trustee_mutation_response {
   affected_rows: Int!
   """data from the rows affected by the mutation"""
   returning: [trustee!]!
+}
+
+"""
+input type for inserting object relation for remote table "sequent_backend.trustee"
+"""
+input trustee_obj_rel_insert_input {
+  data: trustee_insert_input!
+  """upsert condition"""
+  on_conflict: trustee_on_conflict
 }
 
 """
@@ -21364,6 +21692,51 @@ type subscription_root {
   fetch data from the table: "sequent_backend.trustee" using primary key columns
   """
   sequent_backend_trustee_by_pk(id: uuid!): trustee
+  """
+  fetch data from the table: "sequent_backend.trustee_ceremony_key"
+  """
+  sequent_backend_trustee_ceremony_key(
+    """distinct select on columns"""
+    distinct_on: [trustee_ceremony_key_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [trustee_ceremony_key_order_by!]
+    """filter the rows returned"""
+    where: trustee_ceremony_key_bool_exp
+  ): [trustee_ceremony_key!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.trustee_ceremony_key"
+  """
+  sequent_backend_trustee_ceremony_key_aggregate(
+    """distinct select on columns"""
+    distinct_on: [trustee_ceremony_key_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [trustee_ceremony_key_order_by!]
+    """filter the rows returned"""
+    where: trustee_ceremony_key_bool_exp
+  ): trustee_ceremony_key_aggregate!
+  """
+  fetch data from the table: "sequent_backend.trustee_ceremony_key" using primary key columns
+  """
+  sequent_backend_trustee_ceremony_key_by_pk(id: uuid!): trustee_ceremony_key
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.trustee_ceremony_key"
+  """
+  sequent_backend_trustee_ceremony_key_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [trustee_ceremony_key_stream_cursor_input]!
+    """filter the rows returned"""
+    where: trustee_ceremony_key_bool_exp
+  ): [trustee_ceremony_key!]!
   """
   fetch data from the table in a streaming manner: "sequent_backend.trustee"
   """
