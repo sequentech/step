@@ -44,7 +44,7 @@
           - name: IvrGetBallotStyle
             query: |
                 query IvrGetBallotStyle ($event_id: uuid!, $style_id: uuid!) {
-                  ballot_styles: sequent_backend_ballot_style(where: {id: {_eq: $style_id}, election_event_id: {_eq:$event_id}}) {
+                  ballot_style: sequent_backend_ballot_style(where: {id: {_eq: $style_id}, election_event_id: {_eq:$event_id}}, limit: 1) {
                     id
                     tenant_id
                     election_event_id
