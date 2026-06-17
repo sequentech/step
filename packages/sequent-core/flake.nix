@@ -38,6 +38,22 @@
           rust-wasm = configureRustTargets [ "wasm32-unknown-unknown" ];
           rust-system  = configureRustTargets [];
 
+          # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
+          # The CLI and crate versions must match exactly
+          wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+            pname = "wasm-bindgen-cli";
+            version = "0.2.104";
+            src = builtins.fetchTarball {
+              url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
+              sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+            };
+            cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
+            nativeBuildInputs = [ pkgs.pkg-config ];
+            buildInputs = [ pkgs.openssl ]
+              ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+            doCheck = false;
+          };
+
           # see https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/rust.section.md#importing-a-cargolock-file-importing-a-cargolock-file
           cargoPatches = {
               cargoLock = let
@@ -65,7 +81,7 @@
               pkgs.nodePackages.npm
               pkgs.binaryen
               pkgs.wasm-pack
-              pkgs.wasm-bindgen-cli
+              wasm-bindgen-cli-pinned
               pkgs.libiconv
               pkgs.m4
 
@@ -133,7 +149,7 @@
               # Use libclang's include directory which has the standard headers
               LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
               export LIBCLANG_INCLUDE
-              export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
+              export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR -O3 -ffunction-sections -fdata-sections -fno-exceptions"
               export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
               # Debug: Print the paths to verify they exist
               echo "Clang resource dir: $CLANG_RESOURCE_DIR"
