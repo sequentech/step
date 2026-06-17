@@ -23,7 +23,6 @@ strum = { version = "0.27", features = ["derive"] }
 
 # Native-only dependencies
 rayon = { version = "1.5", optional = true }
-tonic = { version = "0.13", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 tokio-postgres = { version = "0.7", optional = true }
 bb8-postgres = { version = "0.9", optional = true }
@@ -115,12 +114,11 @@ crate-type = ["cdylib", "rlib"]
 # Default feature for native builds (server mode)
 default = ["native"]
 
-# Native build with gRPC, filesystem, PostgreSQL  
+# Native build with HTTP (via b4), filesystem, PostgreSQL
 native = [
     "dep:strand",
-    "strand/rayon", 
+    "strand/rayon",
     "dep:rayon",
-    "dep:tonic",
     "dep:rusqlite",
     "dep:tokio-postgres",
     "dep:bb8-postgres",

@@ -1621,7 +1621,6 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "toml 0.8.23",
- "tonic",
  "tracing",
  "tracing-attributes",
  "tracing-log",

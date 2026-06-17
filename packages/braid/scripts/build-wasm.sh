@@ -37,7 +37,26 @@ export RUSTC_BOOTSTRAP=1
 # target only (not the global RUSTFLAGS) - otherwise Cargo also applies them
 # to native host build-script/proc-macro compilation, which produces
 # corrupted aarch64 codegen and segfaults at process startup.
-export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="-C target-feature=+atomics,+bulk-memory,+mutable-globals"
+#
+# --shared-memory/--import-memory/--max-memory linker args are also required:
+# the +atomics target feature alone only allows using atomic instructions, it
+# does NOT mark the module's memory as shared or imported - those are wasm-ld
+# decisions. Without --shared-memory, the build succeeds but produces a wasm
+# module with a regular (non-shared) memory, and wasm-bindgen-rayon/
+# wasm-bindgen-futures' threaded code then fails at runtime with "[object
+# Int32Array] is not a shared typed array" when calling Atomics.waitAsync on
+# it. Without --import-memory, wasm-bindgen's thread-support post-processing
+# panics with "assertion failed: mem.import.is_some()" - JS needs to own and
+# inject the same SharedArrayBuffer-backed memory into every worker, which
+# requires the module to import its memory rather than define it internally.
+# Max memory must be a multiple of the 64KiB wasm page size; 1GiB (16384
+# pages) here, tune if needed.
+#
+# wasm-ld generates these thread-local-storage helper symbols whenever
+# there's TLS data in a --shared-memory build, but doesn't export any of
+# them by default. wasm-bindgen's threading post-processor needs them
+# exported to initialize/tear down TLS per-worker.
+export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--shared-memory -C link-arg=--import-memory -C link-arg=--max-memory=1073741824 -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base"
 
 echo "Compiling to WASM..."
 cargo build --lib --target wasm32-unknown-unknown --release --no-default-features --features wasm -Z build-std=panic_abort,std --target-dir target

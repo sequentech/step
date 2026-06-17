@@ -137,6 +137,13 @@ module.exports = function (env, argv) {
             port: 3002, // Run on port 3002
             open: true, // Automatically open the browser
             historyApiFallback: true,
+            headers: {
+                // Required together for SharedArrayBuffer/Atomics support,
+                // needed by braid-wasm's multi-threaded build.
+                "Cross-Origin-Opener-Policy": "same-origin",
+                "Cross-Origin-Embedder-Policy": "require-corp",
+                "Cross-Origin-Resource-Policy": "cross-origin",
+            },
         },
     }
 }
