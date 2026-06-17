@@ -12,7 +12,7 @@ RED="\e[31m"
 RESET="\e[0m"
 
 # Enter crate directory
-cd ../braid
+cd "$(dirname "$0")/.."
 
 echo -e "${GREEN}Building WASM with atomics support...${RESET}"
 
@@ -23,7 +23,6 @@ echo -e "${CYAN}Using nightly toolchain from flake.nix...${RESET}"
 echo -e "${CYAN}Compiling to WASM...${RESET}"
 if ! nix develop --command bash -c 'export RUSTFLAGS="-C target-feature=+atomics,+bulk-memory,+mutable-globals" && cargo build --lib --target wasm32-unknown-unknown --release --no-default-features --features wasm -Z build-std=panic_abort,std --target-dir target'; then
     echo -e "${RED}Cargo build failed!${RESET}"
-    cd ../..
     exit 1
 fi
 
@@ -37,19 +36,17 @@ echo -e "${CYAN}Using WASM file: ${WASM_FILE}${RESET}"
 # Use wasm-bindgen - requires devenv shell or wasm-bindgen in PATH
 if ! command -v wasm-bindgen &> /dev/null; then
     echo -e "${RED}wasm-bindgen not found. Please run this script from devenv shell.${RESET}"
-    cd ../..
     exit 1
 fi
 
-if ! wasm-bindgen "${WASM_FILE}" --out-dir ../wbraid/pkg --target web; then
+if ! wasm-bindgen "${WASM_FILE}" --out-dir pkg --target web; then
     echo -e "${RED}wasm-bindgen failed!${RESET}"
-    cd ../..
     exit 1
 fi
 
 # Package using npm pack
 echo -e "${CYAN}Packaging with npm pack...${RESET}"
-PKG_DIR="../wbraid/pkg"
+PKG_DIR="pkg"
 ADMIN_PORTAL_RUST="../admin-portal/rust"
 
 # Create package.json for npm
@@ -99,7 +96,5 @@ mv yarn.lock.tmp yarn.lock
 # Clean up
 rm -f braid/output.log
 
-cd ..
-
-echo -e "${GREEN}Build complete! WASM bundle ready in packages/wbraid/pkg/${RESET}"
+echo -e "${GREEN}Build complete! WASM bundle ready in packages/braid/pkg/${RESET}"
 echo -e "${GREEN}Admin portal dependency updated in packages/admin-portal/rust/${RESET}"

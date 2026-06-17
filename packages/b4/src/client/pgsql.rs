@@ -28,6 +28,16 @@ const PG_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const PG_DEFAULT_OFFSET: usize = 0;
 const PG_DEFAULT_LIMIT: usize = 2500;
 
+/// Validates that a string is safe to interpolate into a SQL statement as an
+/// identifier or string literal (alphanumeric and underscores only, since
+/// PostgreSQL doesn't support parameterized identifiers).
+fn validate_identifier(name: &str) -> Result<()> {
+    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(anyhow!("Invalid identifier: {name}"));
+    }
+    Ok(())
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // PostgreSql client
 //
@@ -214,6 +224,7 @@ impl TryFrom<&Row> for B3IndexRow {
 /// Utility function to create a database (will not pass a database parameter in the connection string).
 #[instrument(err, skip(c))]
 pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+    validate_identifier(dbname)?;
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
         .unwrap();
@@ -234,6 +245,7 @@ pub async fn create_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<
 /// Utility function to drop a database (will not pass a database parameter in the connection string).
 #[instrument(err, skip(c))]
 pub async fn drop_database(c: &PgsqlConnectionParams, dbname: &str) -> Result<()> {
+    validate_identifier(dbname)?;
     let (client, connection) = tokio_postgres::connect(&c.connection_string(), NoTls)
         .await
         .unwrap();
@@ -506,6 +518,7 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
 /// Uses LIST partitioning with naming convention: messages_{board_name}
 #[instrument(err, skip(client))]
 async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
+    validate_identifier(board)?;
     let transaction = client.transaction().await?;
 
     // Create partition for this board: messages_{board_name}
@@ -873,6 +886,7 @@ async fn insert_messages(
 /// For archived boards, use archive_board() to detach the partition without dropping data.
 #[instrument(err, skip(client))]
 async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
+    validate_identifier(board_name)?;
     let transaction = client.transaction().await?;
 
     // Delete from boards table

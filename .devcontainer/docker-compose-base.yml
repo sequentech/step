@@ -528,7 +528,6 @@ services:
     build:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
-    #entrypoint: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
     environment:
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
@@ -909,6 +908,8 @@ services:
       B4_PG_PASSWORD: ${B4_PG_PASSWORD}
       B4_PG_DATABASE: ${B4_PG_DATABASE}
       B4_BIND: ${B4_BIND}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
 
 volumes:
   db_data:
