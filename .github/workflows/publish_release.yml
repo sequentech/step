@@ -34,31 +34,9 @@ jobs:
   #     push: true
 
   trigger-beyond-release:
-    needs: [resolve-target-commit, build-and-push]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Trigger Beyond Release Workflow
-        uses: the-actions-org/workflow-dispatch@v4
-        with:
-          repo: 'sequentech/beyond'
-          ref: ${{ needs.resolve-target-commit.outputs.target_commitish }}
-          workflow: 'Automated Release Process'
-          token: ${{ secrets.PAT }}
-          inputs: '{}'
-          wait-for-completion: true
-
-  # ===========================================================================
-  # JOB: trigger-deployer
-  # ===========================================================================
-  # Triggers the GitOps Deployer workflow to deploy the new release.
-  # Runs after both build-and-push and trigger-beyond-release complete.
-  # Uses `always()` with explicit success check to run even if beyond-release
-  # is skipped, but only if build-and-push succeeded.
-  # ===========================================================================
-  trigger-deployer:
-    needs: [resolve-target-commit, build-and-push, trigger-beyond-release]
+    needs: [build-and-push]
     if: ${{ always() && needs.build-and-push.result == 'success' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04 #gcp
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -73,7 +51,7 @@ jobs:
   trigger-deployer:
     needs: [build-and-push, trigger-beyond-release]
     if: ${{ always() && needs.build-and-push.result == 'success' }}
-    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    runs-on: ubuntu-24.04 #gcp
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -85,9 +63,10 @@ jobs:
         inputs: '{"version":"${{ github.event.release.tag_name }}", "hash":"${{ github.event.release.target_commitish }}", "infra_only":"false" }'
 
   cleanup:
-    needs: [build-and-push, trigger-beyond-release, trigger-deployer]
-    if: ${{ failure() }}
-    runs-on: ubuntu-24.04
+    if: failure()
+    # Here define the depenency jobs
+    needs: [build-and-push]
+    runs-on: ubuntu-24.04 #gcp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,7 +82,7 @@ jobs:
 
   slack-report:
     needs: [build-and-push, trigger-deployer, cleanup]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04 #gcp
     timeout-minutes: 20
     if: always()
     steps:
