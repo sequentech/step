@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-cli:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
     env:
       CARGO_TARGET_DIR: rust-local-target
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
