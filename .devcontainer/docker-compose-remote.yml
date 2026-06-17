@@ -87,8 +87,6 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
-      harvest:
-        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s
@@ -344,8 +342,6 @@ services:
       "-x",
       "run"
     ]
-    depends_on:
-      - harvest
     environment:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
