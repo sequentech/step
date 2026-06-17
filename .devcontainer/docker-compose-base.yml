@@ -597,7 +597,8 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     volumes:
       - ./keycloak/import:/import:z
       - ../packages/:/app:z
@@ -810,8 +811,9 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - devcontainer
-      - harvest
+      devcontainer:
+      harvest:
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
