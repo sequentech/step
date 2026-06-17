@@ -345,7 +345,8 @@ services:
       "run"
     ]
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     environment:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
@@ -457,6 +458,12 @@ services:
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3030/ready || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 30s
 
   trustee1:
     profiles: ["full"]
@@ -513,7 +520,8 @@ services:
     image: sequentech.local/cargo-packages
     container_name: immudb-init
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     volumes:
       - ./keycloak/import:/import:z
       - ../packages/:/app:z
@@ -703,7 +711,8 @@ services:
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
