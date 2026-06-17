@@ -1,21 +1,17 @@
-# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only 
 
 name: Java Test
 
 on:
     pull_request:
     push:
-      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+      branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test']
 
 jobs:
   build-and-test:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -27,16 +23,9 @@ jobs:
         distribution: 'adopt'
 
     - name: Install Maven
-      command:
-        - /bin/sh
-        - -c
-        - |
-          set -eux
-          apt update
-          # create man folder, otherwise maven doesn't install. it's not there
-          # probably because the image is stripped to make it small
-          mkdir -p /usr/share/man/man1
-          apt install -y build-essential maven
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y maven
 
     - name: Keycloak Extensions Build and Test with Maven
       run: mvn -B clean verify --file packages/keycloak-extensions/pom.xml
