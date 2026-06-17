@@ -14,7 +14,7 @@ on:
 
 jobs:
   e2e:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Set loadtestingImage variable with default fallback
