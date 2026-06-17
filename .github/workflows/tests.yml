@@ -12,7 +12,7 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
