@@ -49,6 +49,6 @@
           collection_name: allowed-queries
           query_name: IvrIsPhoneBlacklisted
   methods:
-      - GET
+      - POST
   name: IvrIsPhoneBlacklisted
-  url: ivr/phone-blacklist/:event_id/:phone
+  url: ivr/election-events/:event_id/check-blacklist
