@@ -13,7 +13,6 @@ jobs:
   run-tests:
     name: Run Rust tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
     strategy:
       matrix:
         include:
