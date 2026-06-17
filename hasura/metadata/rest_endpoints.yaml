@@ -34,7 +34,7 @@
       - GET
   name: IvrGetElectionEvent
   url: ivr/election-events/:event_id
-- comment: ""
+- comment: "Query the blacklist. The 'phone' parameter must be passed in the POST body."
   definition:
       query:
           collection_name: allowed-queries
