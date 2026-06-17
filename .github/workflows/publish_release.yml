@@ -35,7 +35,7 @@ jobs:
 
   trigger-beyond-release:
     needs: [resolve-target-commit, build-and-push]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Trigger Beyond Release Workflow
         uses: the-actions-org/workflow-dispatch@v4
@@ -58,7 +58,7 @@ jobs:
   trigger-deployer:
     needs: [resolve-target-commit, build-and-push, trigger-beyond-release]
     if: ${{ always() && needs.build-and-push.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -87,7 +87,7 @@ jobs:
   cleanup:
     needs: [build-and-push, trigger-beyond-release, trigger-deployer]
     if: ${{ failure() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,7 +103,7 @@ jobs:
 
   slack-report:
     needs: [build-and-push, trigger-deployer, cleanup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     if: always()
     steps:
