@@ -8,6 +8,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
+import {GET_TRUSTEE_CEREMONY_KEY} from "@/queries/GetTrusteeCeremonyKey"
 import {REGISTER_TRUSTEE_KEY} from "@/queries/RegisterTrusteeKey"
 import init, {generate_trustee_keys, initThreadPool, WasmSession} from "braid-wasm"
 
@@ -122,16 +123,28 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
         (trusteeRecord?.annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()) ===
         ETrusteeModePolicy.BROWSER_BASED
 
+    // The per-ceremony public key registered for this (trustee, event, ceremony),
+    // read from trustee_ceremony_key — this is the key actually baked into the
+    // on-board Configuration.
+    const {data: ceremonyKeyData} = useQuery(GET_TRUSTEE_CEREMONY_KEY, {
+        variables: {
+            tenantId,
+            trusteeId: trusteeRecord?.id,
+            electionEventId,
+            keysCeremonyId,
+        },
+        skip: !tenantId || !trusteeRecord?.id || !electionEventId || !keysCeremonyId,
+    })
+    const registeredKey = ceremonyKeyData?.sequent_backend_trustee_ceremony_key?.[0]?.public_key
+
     // TEMP FIX: detect when the key held in this browser tab won't match what's
     // already registered in the DB for this ceremony, before we silently
     // generate/overwrite it. This does not block anything yet — it only warns.
     // See Tasks.txt "UI: Key restore flow" for the real fix.
     useEffect(() => {
-        if (!keysCeremonyId || !trusteeRecord) {
-            setKeyMismatchWarning(null)
-            return
-        }
-        if (trusteeRecord.keys_ceremony_id !== keysCeremonyId || !trusteeRecord.public_key) {
+        // No key registered yet for this ceremony → nothing to mismatch against
+        // (this is the first-registration path).
+        if (!keysCeremonyId || !registeredKey || !isBrowserBased) {
             setKeyMismatchWarning(null)
             return
         }
@@ -140,14 +153,14 @@ export const HeadlessTrusteeProvider: React.FC<HeadlessTrusteeProviderProps> = (
             setKeyMismatchWarning(
                 "TEMP FIX WARNING: a public key is already registered in the database for this ceremony, but this browser tab has no matching key in memory. A new key is about to be generated and will NOT match the key already baked into the on-board Configuration — protocol steps for this trustee will fail. Recreate the ceremony or restore the original key backup."
             )
-        } else if (localKey !== trusteeRecord.public_key) {
+        } else if (localKey !== registeredKey) {
             setKeyMismatchWarning(
                 "TEMP FIX WARNING: the key held in this browser tab does not match the public key registered in the database for this ceremony. The on-board Configuration was built with a different key — protocol steps for this trustee will fail. Recreate the ceremony or restore the original key backup."
             )
         } else {
             setKeyMismatchWarning(null)
         }
-    }, [keysCeremonyId, trusteeRecord])
+    }, [keysCeremonyId, registeredKey, isBrowserBased])
 
     // Initialize WASM + session when the user enters a specific ceremony screen.
     // The provider is only mounted for the active ceremony, so keysCeremonyId is

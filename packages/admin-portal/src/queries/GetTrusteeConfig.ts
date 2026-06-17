@@ -9,9 +9,6 @@ export const GET_TRUSTEE_CONFIG = gql`
         sequent_backend_trustee(where: {tenant_id: {_eq: $tenantId}, name: {_eq: $name}}) {
             id
             name
-            public_key
-            election_event_id
-            keys_ceremony_id
             annotations
         }
     }

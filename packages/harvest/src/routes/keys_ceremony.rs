@@ -10,7 +10,7 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::{
-    decode_permission_labels, JwtClaims, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE,
+    decode_permission_labels, JwtClaims, ADMIN_DEFAULT_ROLE, SERVER_DEFAULT_ROLE,
 };
 use sequent_core::types::ceremonies::TrusteeModePolicy;
 use sequent_core::types::hasura::core::KeysCeremony;
@@ -462,24 +462,28 @@ pub async fn register_trustee_key(
                 )
             })?;
 
-    // Validate caller mode matches trustee mode. /register-trustee-key is
-    // exclusively for browser-based trustees (BBT flow). Server-based trustees
-    // use /get-private-key and /check-private-key instead.
+    // Both browser-based (BBT) and server-based (braid-native) trustees register
+    // through this endpoint in the unified flow. The guard is that the caller's
+    // mode must match the trustee's configured policy mode, so a browser session
+    // cannot register on behalf of a server-based trustee (whose stable key is
+    // provided by its daemon), and vice versa.
     let trustee_mode = get_trustee_mode_policy(&trustee);
 
-    // Map JWT default_role claim to caller's trustee mode policy.
-    // SERVER_DEFAULT_ROLE ("server", set by native-trustee Keycloak client)
-    // maps to SERVER_BASED; USER_DEFAULT_ROLE ("user", set by voting-portal
-    // and browser clients) maps to BROWSER_BASED. Any other value is rejected.
+    // Map the JWT default_role (a hardcoded per-Keycloak-client claim) to the
+    // caller's trustee mode policy:
+    //   - SERVER_DEFAULT_ROLE ("server")     -> native-trustee daemon  -> SERVER_BASED
+    //   - ADMIN_DEFAULT_ROLE  ("admin-user") -> admin-portal session    -> BROWSER_BASED
+    // Anything else (e.g. USER_DEFAULT_ROLE "user", a voter) has no business
+    // registering a trustee key and is rejected.
     let caller_mode = match claims.hasura_claims.default_role.as_str() {
         SERVER_DEFAULT_ROLE => TrusteeModePolicy::SERVER_BASED,
-        USER_DEFAULT_ROLE => TrusteeModePolicy::BROWSER_BASED,
+        ADMIN_DEFAULT_ROLE => TrusteeModePolicy::BROWSER_BASED,
         unknown => {
             return Err((
                 Status::Unauthorized,
                 format!(
                     "Unrecognized default_role: '{}'; expected '{}' or '{}'",
-                    unknown, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE
+                    unknown, SERVER_DEFAULT_ROLE, ADMIN_DEFAULT_ROLE
                 ),
             ))
         }
@@ -492,17 +496,6 @@ pub async fn register_trustee_key(
             format!(
                 "Trustee '{}' is configured as {:?} but caller is {:?}",
                 trustee_name, trustee_mode, caller_mode
-            ),
-        ));
-    }
-
-    // /register-trustee-key is exclusively for browser-based trustees
-    if trustee_mode != TrusteeModePolicy::BROWSER_BASED {
-        return Err((
-            Status::Forbidden,
-            format!(
-                "Trustee '{}' is {:?}; this endpoint is only for browser-based trustees",
-                trustee_name, trustee_mode
             ),
         ));
     }

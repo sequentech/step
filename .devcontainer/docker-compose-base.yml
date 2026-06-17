@@ -536,6 +536,7 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
+        HARVEST_URL: ${HARVEST_URL}
         BRAID_B4_HEARTBEAT: ${BRAID_B4_HEARTBEAT}
     depends_on:
       - immudb
@@ -568,6 +569,7 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
+        HARVEST_URL: ${HARVEST_URL}
         BRAID_B4_HEARTBEAT: ${BRAID_B4_HEARTBEAT}
 
   # trustee3:

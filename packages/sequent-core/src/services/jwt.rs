@@ -20,12 +20,20 @@ use tracing::{debug, info, instrument, warn};
 /// `native-trustee` client via a hardcoded claim mapper.
 pub const SERVER_DEFAULT_ROLE: &str = "server";
 
-/// Default role value for browser-based clients and users.
+/// Default role value for voters.
 ///
-/// Set by Keycloak's `voting-portal` and other browser-based clients.
-/// Browser-based trustees receive this role and must provide per-board
-/// authorization via the `authorized-boards` JWT claim.
+/// Set by Keycloak's `voting-portal` client as a hardcoded claim. This is the
+/// voter role — it is NOT the role browser-based trustees get (those log into
+/// the admin portal and receive [`ADMIN_DEFAULT_ROLE`]).
 pub const USER_DEFAULT_ROLE: &str = "user";
+
+/// Default role value for admin-portal sessions.
+///
+/// Set by Keycloak's `admin-portal` client as a hardcoded claim, for every user
+/// that logs into the admin portal — including browser-based (BBT) trustees.
+/// A JWT with `x-hasura-default-role` set to this value is a browser-based
+/// caller, authorized per-board via the `authorized-boards` JWT claim.
+pub const ADMIN_DEFAULT_ROLE: &str = "admin-user";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
