@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use std::process::Command;
 use tracing::{info, instrument};
 
+/// Runs a shell command and returns its stdout on success.
 #[instrument(err, ret)]
 pub fn run_shell_command(command: &str) -> Result<String> {
     // Run the shell command

@@ -5,8 +5,9 @@ use crate::{ballot::*, types::ceremonies::CountingAlgType};
 use anyhow::Result;
 use std::convert::TryInto;
 
+/// Computes mixed-radix bases for encoding a contest's choices.
 pub trait BasesCodec {
-    // get bases (no write-ins)
+    /// Returns the radix base for each ballot digit (excluding write-in expansion).
     fn get_bases(&self) -> Result<Vec<u64>>;
 }
 

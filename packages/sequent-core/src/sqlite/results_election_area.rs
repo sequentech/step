@@ -8,6 +8,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the results_election_area table and inserts the given results election area.
 pub async fn create_results_election_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -9,6 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the election table and inserts election rows.
 pub async fn create_election_sqlite(
     sqlite_transaction: &Transaction<'_>,
     elections: Vec<Election>,

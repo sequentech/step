@@ -38,6 +38,7 @@ impl From<Permission> for RoleRepresentation {
 }
 
 impl KeycloakAdminClient {
+    /// Lists realm permission roles with optional search and pagination.
     #[instrument(skip(self), err)]
     pub async fn list_permissions(
         self,
@@ -65,6 +66,7 @@ impl KeycloakAdminClient {
         Ok((permissions, count))
     }
 
+    /// Assigns one realm permission role to a group.
     #[instrument(skip(self), err)]
     pub async fn set_role_permission(
         self,
@@ -88,6 +90,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Assigns multiple realm permission roles to a group.
     #[instrument(skip(self), err)]
     pub async fn set_role_permissions(
         self,
@@ -128,6 +131,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Removes one realm permission role from a group.
     #[instrument(skip(self), err)]
     pub async fn delete_role_permission(
         self,
@@ -151,6 +155,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Deletes a realm permission role definition.
     #[instrument(skip(self), err)]
     pub async fn delete_permission(
         self,
@@ -164,6 +169,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates a new realm permission role.
     pub async fn create_permission(
         self,
         realm: &str,

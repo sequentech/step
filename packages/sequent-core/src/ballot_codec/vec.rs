@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Helpers for packing plaintext bytes into fixed 30-byte arrays.
+
 // similar to ballot_codec::encode_vec_to_array but it doesn't add the size.
+/// Pads a byte vector into a 30-byte array without a length prefix.
 pub fn vec_to_30_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     if data.len() > 30 {
         return Err(format!(

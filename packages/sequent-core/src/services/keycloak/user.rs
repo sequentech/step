@@ -20,10 +20,14 @@ use tracing::{info, instrument};
 
 use super::PubKeycloakAdmin;
 
+/// Separator used when joining multi-value Keycloak user attributes.
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+/// Keycloak group membership summary for a user.
 #[derive(Debug)]
 pub struct GroupInfo {
+    /// Keycloak group identifier.
     pub group_id: String,
+    /// Keycloak group display name.
     pub group_name: String,
 }
 
@@ -44,6 +48,7 @@ async fn error_check(
 }
 
 impl User {
+    /// Returns the voter mobile phone from custom attributes, if set.
     pub fn get_mobile_phone(&self) -> Option<String> {
         Some(
             self.attributes
@@ -54,6 +59,7 @@ impl User {
         )
     }
 
+    /// Returns the first value of a named custom attribute.
     pub fn get_attribute_val(&self, attribute_name: &String) -> Option<String> {
         Some(
             self.attributes
@@ -64,6 +70,7 @@ impl User {
         )
     }
 
+    /// Returns a multi-value attribute joined with [`MULTIVALUE_USER_ATTRIBUTE_SEPARATOR`].
     pub fn get_attribute_multival(
         &self,
         attribute_name: &String,
@@ -77,6 +84,7 @@ impl User {
         )
     }
 
+    /// Returns election IDs the user is authorized to access.
     pub fn get_authorized_election_ids(&self) -> Option<Vec<String>> {
         let result = self
             .attributes
@@ -90,6 +98,7 @@ impl User {
         result
     }
 
+    /// Returns the voter area identifier from custom attributes.
     pub fn get_area_id(&self) -> Option<String> {
         Some(
             self.attributes
@@ -100,6 +109,7 @@ impl User {
         )
     }
 
+    /// Returns per-election vote metadata keyed by election ID.
     pub fn get_votes_info_by_election_id(
         &self,
     ) -> Option<HashMap<String, VotesInfo>> {
@@ -189,6 +199,7 @@ impl From<User> for UserRepresentation {
 }
 
 impl KeycloakAdminClient {
+    /// Lists users in a realm with optional search, email filter, and pagination.
     #[instrument(skip(self), err)]
     pub async fn list_users(
         self,
@@ -236,6 +247,7 @@ impl KeycloakAdminClient {
         Ok((users, count))
     }
 
+    /// Fetches one user by ID from a Keycloak realm.
     #[instrument(skip(self), err)]
     pub async fn get_user(&self, realm: &str, user_id: &str) -> Result<User> {
         let current_user: UserRepresentation = self
@@ -246,6 +258,7 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
+    /// Updates user fields and optionally sets a password.
     #[instrument(skip(self, password), err)]
     pub async fn edit_user(
         self,
@@ -294,6 +307,7 @@ impl KeycloakAdminClient {
         .await
     }
 
+    /// Updates user fields with explicit credential representations.
     #[instrument(skip(self, credentials), err)]
     pub async fn edit_user_with_credentials(
         self,
@@ -373,6 +387,7 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
+    /// Deletes a user from a Keycloak realm.
     #[instrument(skip(self), err)]
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
@@ -382,6 +397,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates a user in Keycloak and returns the persisted representation.
     #[instrument(skip(self), err)]
     pub async fn create_user(
         self: &KeycloakAdminClient,
@@ -430,6 +446,7 @@ impl KeycloakAdminClient {
         }
     }
 
+    /// Returns the user-profile attributes for a realm.
     #[instrument(skip(self), err)]
     pub async fn get_user_profile_attributes(
         self: &KeycloakAdminClient,
@@ -448,6 +465,7 @@ impl KeycloakAdminClient {
         }
     }
 
+    /// Returns groups a user belongs to in a Keycloak realm.
     #[instrument(skip(self), err)]
     pub async fn get_user_groups(
         self: &KeycloakAdminClient,
@@ -479,6 +497,7 @@ impl KeycloakAdminClient {
         Ok(groups)
     }
 
+    /// Maps a Keycloak user-profile attribute name to the internal field name.
     pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
         match name.as_deref() {
             Some(FIRST_NAME) => Some("first_name".to_string()),
@@ -488,6 +507,7 @@ impl KeycloakAdminClient {
         }
     }
 
+    /// Converts Keycloak user-profile attributes into API-facing definitions.
     pub fn get_formatted_attributes(
         attributes_res: &Vec<UPAttribute>,
     ) -> Vec<UserProfileAttribute> {

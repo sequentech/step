@@ -154,3 +154,14 @@ sqlite = ["dep:tokio", "dep:rusqlite"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
+
+[lints.rustdoc]
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+
+[lints.rust]
+missing_docs = "deny"
+private_interfaces = "warn"
+private_bounds = "warn"
+unnameable_types = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

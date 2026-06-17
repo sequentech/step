@@ -9,6 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the results_election table and inserts election result rows.
 pub async fn create_results_election_sqlite(
     sqlite_transaction: &Transaction<'_>,
     elections: Vec<ResultsElection>,
@@ -63,6 +64,7 @@ pub async fn create_results_election_sqlite(
 }
 
 #[instrument(err, skip_all)]
+/// Updates document references and hash on an existing results election row.
 pub async fn update_results_election_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -7,6 +7,11 @@ use crate::types::ceremonies::CountingAlgType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// Voting portal screen state derived from contest layout and counting rules.
+#[allow(
+    missing_docs,
+    reason = "Variants name voting-portal screens; the variant identifier is the canonical name."
+)]
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum ContestState {
     ElectionChooserScreen,
@@ -30,6 +35,7 @@ pub enum ContestState {
     ShowPdf,
 }
 
+/// UI layout hints (screen, sort order, preference ordering) for a contest.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestLayoutProperties {
     state: ContestState,
@@ -37,6 +43,7 @@ pub struct ContestLayoutProperties {
     ordered: bool,
 }
 
+/// Maps a contest's counting algorithm to voting-portal layout properties.
 pub fn get_layout_properties(
     contest: &Contest,
 ) -> Option<ContestLayoutProperties> {
@@ -153,6 +160,7 @@ pub fn get_points(
     }
 }
 
+/// Returns whether every choice in the decoded contest is unselected.
 pub fn check_is_blank(decoded_contest: DecodedVoteContest) -> bool {
     !decoded_contest.is_explicit_invalid
         && decoded_contest

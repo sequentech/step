@@ -13,29 +13,44 @@ use serde_json;
 use std::collections::HashMap;
 use tracing::{debug, info, instrument, warn};
 
+/// Keycloak realm or client role list from a JWT `realm_access` or `resource_access` claim.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
+    /// Role names granted to the subject.
     pub roles: Vec<String>,
 }
 
+/// Hasura-specific claims embedded in a Keycloak JWT.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtHasuraClaims {
+    /// Default Hasura role for row-level permissions.
     #[serde(rename = "x-hasura-default-role")]
     pub default_role: String,
+    /// Tenant identifier for Hasura session variables.
     #[serde(rename = "x-hasura-tenant-id")]
     pub tenant_id: String,
+    /// User identifier for Hasura session variables.
     #[serde(rename = "x-hasura-user-id")]
     pub user_id: String,
+    /// Optional area scope for voter access.
     #[serde(rename = "x-hasura-area-id")]
     pub area_id: Option<String>,
+    /// Election IDs the subject may access, when restricted.
     #[serde(rename = "authorized-election-ids")]
     pub authorized_election_ids: Option<Vec<String>>,
+    /// All Hasura roles the subject may assume.
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
+    /// Comma-separated permission label keys for fine-grained checks.
     #[serde(rename = "x-hasura-permission-labels")]
     pub permission_labels: Option<String>,
 }
 
+/// JWT `aud` claim that Keycloak may emit as a string or array.
+#[allow(
+    missing_docs,
+    reason = "Variants mirror Keycloak aud claim shapes; the variant name describes the encoding."
+)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum StringOrVec {
@@ -43,36 +58,62 @@ pub enum StringOrVec {
     Multiple(Vec<String>),
 }
 
+/// Decoded Keycloak OpenID Connect access token payload.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
+    /// Token expiration time (Unix seconds).
     pub exp: i64,
+    /// Token issued-at time (Unix seconds).
     pub iat: i64,
+    /// Time of end-user authentication (Unix seconds), when present.
     pub auth_time: Option<i64>,
+    /// Unique token identifier.
     pub jti: String,
+    /// Token issuer URL.
     pub iss: String,
+    /// Intended audience(s).
     pub aud: Option<StringOrVec>,
+    /// Subject identifier (Keycloak user ID).
     pub sub: String,
+    /// Token type (typically `Bearer`).
     pub typ: String,
+    /// Authorized party (OAuth client ID).
     pub azp: String,
+    /// OpenID Connect nonce, when used.
     pub nonce: Option<String>,
+    /// Keycloak session state identifier.
     pub session_state: Option<String>,
+    /// Authentication context class reference (e.g. step-up level).
     pub acr: String,
+    /// Origins permitted to use this token.
     #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
+    /// Realm-level roles assigned to the subject.
     pub realm_access: Option<JwtRolesAccess>,
+    /// Per-client roles assigned to the subject.
     pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
+    /// Granted OAuth scopes.
     pub scope: String,
+    /// Keycloak session ID.
     pub sid: Option<String>,
+    /// Whether the subject's email address is verified.
     pub email_verified: bool,
+    /// Hasura session variables derived from this token.
     #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
+    /// Display name, when present.
     pub name: Option<String>,
+    /// Preferred username, when present.
     pub preferred_username: Option<String>,
+    /// Given name, when present.
     pub given_name: Option<String>,
+    /// Family name, when present.
     pub family_name: Option<String>,
+    /// Trustee identifier,when present.
     pub trustee: Option<String>,
 }
 
+/// Decodes the payload of a JWT without signature verification.
 #[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
@@ -90,6 +131,7 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     Ok(claims)
 }
 
+/// Parses permission label keys from the Hasura claims embedded in a JWT.
 #[instrument(skip_all, ret)]
 pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {

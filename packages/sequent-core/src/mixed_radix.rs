@@ -1,9 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Mixed-radix encoding and decoding for ballot plaintext digits.
+
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::{One, ToPrimitive, Zero};
 
+/// Packs digit values into one big integer using per-position radix bases.
 pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
     if bases.len() != values.len() {
         return Err(
@@ -20,6 +24,7 @@ pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
     Ok(encoded)
 }
 
+/// Unpacks a big integer into digit values using the given bases and trailing radix.
 pub fn decode(
     bases: &Vec<u64>,
     encoded_value: &BigUint,

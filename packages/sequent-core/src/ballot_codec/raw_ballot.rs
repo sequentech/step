@@ -8,30 +8,38 @@ use crate::types::ceremonies::CountingAlgType;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
+/// Mixed-radix digit vectors for one contest before big-integer packing.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawBallotContest {
+    /// Radix base for each digit position.
     pub bases: Vec<u64>,
+    /// Digit value at each position (must be less than the corresponding base).
     pub choices: Vec<u64>,
 }
 impl RawBallotContest {
     // FIXME add validation (eg all values within range)
     // FIXME ensure this struct is always created with via RawBallotContest::new
+    /// Creates a raw ballot from precomputed bases and choice digits.
     pub fn new(bases: Vec<u64>, choices: Vec<u64>) -> Self {
         RawBallotContest { bases, choices }
     }
 }
 
+/// Converts between decoded votes and mixed-radix digit vectors.
 pub trait RawBallotCodec {
+    /// Encodes a decoded contest vote into raw mixed-radix digits.
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String>;
 
+    /// Decodes raw mixed-radix digits back into a decoded contest vote.
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String>;
 
+    /// Estimates how many write-in characters fit in the remaining plaintext space.
     fn available_write_in_characters_estimate(
         &self,
         plaintext: &DecodedVoteContest,

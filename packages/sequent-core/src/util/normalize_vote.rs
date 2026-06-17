@@ -11,6 +11,7 @@ use crate::{
     types::ceremonies::CountingAlgType,
 };
 
+/// Normalizes a decoded contest for deterministic tally comparison.
 pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
     tally_type: CountingAlgType,
@@ -36,6 +37,7 @@ pub fn normalize_vote_contest(
     original
 }
 
+/// Normalizes all decoded contests in a ballot using ballot-style metadata.
 pub fn normalize_election(
     input: &Vec<DecodedVoteContest>,
     ballot_style: &BallotStyle,
@@ -73,6 +75,7 @@ pub fn normalize_election(
     Ok(result)
 }
 
+/// Normalizes a decoded choice according to the contest counting algorithm.
 pub fn normalize_vote_choice(
     input: &DecodedVoteChoice,
     tally_type: CountingAlgType,

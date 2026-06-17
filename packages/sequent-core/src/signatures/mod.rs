@@ -2,5 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! ECIES encryption and signing via the external `ecies-tool` Java jar.
+
+/// ECIES encrypt, key generation, and bulk signing helpers.
 pub mod ecies_encrypt;
+/// Shell command execution for the ECIES tool.
 pub mod shell;

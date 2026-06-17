@@ -9,6 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the area table and inserts the given areas.
 pub async fn create_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     areas: Vec<Area>,

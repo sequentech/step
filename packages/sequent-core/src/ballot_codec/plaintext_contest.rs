@@ -1,31 +1,39 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
 use num_bigint::BigUint;
 
+/// Fixed-size and variable-length encoding of decoded contest votes for encryption.
 pub trait PlaintextCodec {
+    /// Encodes a decoded contest into a fixed 30-byte ElGamal plaintext.
     fn encode_plaintext_contest(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
 
+    /// Decodes a fixed 30-byte plaintext back into a decoded contest vote.
     fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String>;
+
+    /// Decodes a fixed 30-byte plaintext into its big-integer representation.
     fn decode_plaintext_contest_to_biguint(
         &self,
         code: &[u8; 30],
     ) -> Result<BigUint, String>;
 
+    /// Encodes a decoded contest into variable-length little-endian bytes.
     fn encode_plaintext_contest_to_bytes(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
 
+    /// Decodes variable-length bytes back into a decoded contest vote.
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],

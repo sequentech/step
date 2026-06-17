@@ -7,11 +7,15 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 use crate::error::BallotError;
 
+/// Encodes a strand-serializable value as a standard base64 string.
 pub trait Base64Serialize {
+    /// Serializes `self` to a base64 string without padding.
     fn serialize(&self) -> Result<String, BallotError>;
 }
 
+/// Decodes a base64 string into a strand-deserializable value.
 pub trait Base64Deserialize {
+    /// Deserializes a base64 string into `Self`.
     fn deserialize(value: String) -> Result<Self, BallotError>
     where
         Self: Sized;

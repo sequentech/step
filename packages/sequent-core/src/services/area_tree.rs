@@ -7,22 +7,28 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-// A tree node that corresponds to an area
+/// A tree node that corresponds to an area
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNodeArea {
+    /// Area identifier.
     pub id: String, // area id
+    /// Owning tenant identifier.
     pub tenant_id: String,
+    /// Optional JSON annotations attached to the area.
     pub annotations: Option<Value>,
+    /// Election event this area belongs to.
     pub election_event_id: String,
+    /// Parent area identifier, if any.
     pub parent_id: Option<String>,
 }
 
-// Extra data for an area. We'll use that to create a tree
-// where all nodes have in "contest_ids" both their directly assigned
-// contests and the contests inherited from their ancestors.
+/// Extra data for an area. We'll use that to create a tree
+/// where all nodes have in "contest_ids" both their directly assigned
+/// contests and the contests inherited from their ancestors.
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContestsData {
-    contest_ids: HashSet<String>,
+    /// Set of contest ids assigned to the area.
+    pub contest_ids: HashSet<String>,
 }
 
 impl From<&Area> for TreeNodeArea {
@@ -37,10 +43,14 @@ impl From<&Area> for TreeNodeArea {
     }
 }
 
+/// Generic tree node with optional area metadata and typed payload.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNode<T = ()> {
+    /// Area metadata when this node represents an area.
     pub area: Option<TreeNodeArea>,
+    /// Child nodes in the hierarchy.
     pub children: Vec<TreeNode<T>>,
+    /// Extra data attached to this node.
     pub data: T,
 }
 
@@ -48,7 +58,7 @@ impl<T> TreeNode<T>
 where
     T: Clone + Default,
 {
-    // returns all nodes in the tree
+    /// returns all nodes in the tree
     pub fn get_all_children(&self) -> Vec<TreeNodeArea> {
         let mut children: Vec<TreeNodeArea> = vec![];
         if let Some(area) = self.area.clone() {
@@ -64,7 +74,7 @@ where
         children
     }
 
-    // creates a tree from the list of nodes
+    /// Builds a tree from a flat list of areas linked by parent identifiers.
     pub fn from_areas(areas: Vec<TreeNodeArea>) -> Result<TreeNode<T>> {
         let mut nodes: HashMap<String, TreeNode<T>> = HashMap::new();
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -156,7 +166,7 @@ where
         Ok(new_node)
     }
 
-    // find an area in the tree
+    /// Returns the subtree whose root area matches `area_id`, if present.
     pub fn find_area(&self, area_id: &str) -> Option<TreeNode<T>> {
         if let Some(area) = self.area.clone() {
             if &area.id == area_id {
@@ -171,6 +181,7 @@ where
         None
     }
 
+    /// Returns the path of areas from the root to `area_id`, if it exists.
     pub fn find_path_to_area(
         &self,
         area_id: &str,
@@ -214,8 +225,8 @@ where
         false
     }
 
-    // generate a tree where each node has the data of all related contests
-    // note that areas spread down the tree
+    /// generate a tree where each node has the data of all related contests
+    /// note that areas spread down the tree
     pub fn get_contests_data_tree(
         &self,
         area_contests: &Vec<AreaContest>,
@@ -272,9 +283,9 @@ where
 }
 
 impl TreeNode<ContestsData> {
-    // For a given TreeNode of type ContestsData, return all
-    // area-contests. Note that this will include
-    // indirect/inherited ones.
+    /// For a given TreeNode of type ContestsData, return all
+    /// area-contests. Note that this will include
+    /// indirect/inherited ones.
     pub fn get_contest_matches(
         &self,
         contest_ids: &HashSet<String>,
@@ -301,6 +312,7 @@ impl TreeNode<ContestsData> {
     }
 }
 
+/// Breadth-first iterator over tree nodes.
 pub struct TreeNodeIter<'a, T> {
     queue: VecDeque<&'a TreeNode<T>>,
 }
@@ -321,6 +333,7 @@ impl<'a, T> Iterator for TreeNodeIter<'a, T> {
 }
 
 impl<T> TreeNode<T> {
+    /// Returns a breadth-first iterator starting at this node.
     pub fn iter(&self) -> TreeNodeIter<T> {
         let mut queue = VecDeque::new();
         queue.push_back(self);

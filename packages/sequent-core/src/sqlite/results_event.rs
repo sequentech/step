@@ -11,6 +11,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the results_event table and inserts the given results event.
 pub async fn create_results_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -48,6 +49,7 @@ pub async fn create_results_event_sqlite(
     Ok(results_event_id.to_string())
 }
 
+/// Looks up the results event for a tenant and election event.
 pub fn find_results_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -105,6 +107,7 @@ pub fn find_results_event_sqlite(
         })
 }
 
+/// Updates document references on an existing results event row.
 #[instrument(err, skip_all)]
 pub fn update_results_event_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,

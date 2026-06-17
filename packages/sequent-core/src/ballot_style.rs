@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::env;
 use std::str::FromStr;
 
+/// Extracts a single localized field from a nested i18n presentation object.
 pub fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
     field: &str,
@@ -36,6 +37,11 @@ pub fn parse_i18n_field(
     Some(content)
 }
 
+/// Assembles a [`ballot::BallotStyle`] from election data.
+///
+/// Joins area, event, election, contest, and candidate records into the
+/// self-contained structure the voting portal and WASM encryptor need to
+/// render the ballot and encrypt choices.
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area

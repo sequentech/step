@@ -9,6 +9,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the tally_session_resolution table and inserts resolution rows.
 pub async fn create_tally_session_resolutions_sqlite(
     sqlite_transaction: &Transaction<'_>,
     resolutions: Vec<TallySessionResolution>,

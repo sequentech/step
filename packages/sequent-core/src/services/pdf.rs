@@ -22,13 +22,18 @@ use tempfile::tempdir;
 use tokio::runtime::Runtime;
 use tracing::{debug, error, event, info, instrument, warn, Level};
 
+/// Remote or local backend used to render HTML into PDF.
 #[derive(PartialEq)]
 pub enum DocRendererBackend {
+    /// AWS Lambda doc-renderer function with S3 input/output.
     AWSLambda,
+    /// Apache OpenWhisk doc-renderer action.
     OpenWhisk,
+    /// Headless Chrome rendering in the current process.
     InPlace,
 }
 
+/// Reads `DOC_RENDERER_BACKEND` and returns the configured renderer backend.
 pub fn doc_renderer_backend() -> DocRendererBackend {
     match std::env::var("DOC_RENDERER_BACKEND").as_deref() {
         Ok("aws_lambda") => {
@@ -54,33 +59,46 @@ pub fn doc_renderer_backend() -> DocRendererBackend {
     }
 }
 
+/// How HTML is sent to the PDF renderer and the result retrieved.
 #[derive(PartialEq)]
 pub enum PdfTransport {
+    /// Renders via AWS Lambda using S3 for HTML and PDF payloads.
     AWSLambda {
+        /// Lambda function URL or API Gateway endpoint.
         endpoint: String,
     },
+    /// Renders via an OpenWhisk action.
     OpenWhisk {
+        /// OpenWhisk action URL.
         endpoint: String,
+        /// Optional `user:password` basic auth header value.
         basic_auth: Option<String>,
     },
+    /// Renders locally with headless Chrome.
     InPlace,
 }
 
+/// Async PDF renderer configured from environment variables.
 pub struct PdfRenderer {
+    /// Transport used for rendering requests.
     pub transport: PdfTransport,
 }
 
 /// --- SYNC VERSION ---
+/// Blocking PDF renderer for use outside async runtimes.
 pub mod sync {
     use super::*;
     use std::thread;
     use std::time::Duration;
 
+    /// Blocking PDF renderer configured from environment variables.
     pub struct PdfRenderer {
+        /// Transport used for rendering requests.
         pub transport: PdfTransport,
     }
 
     impl PdfRenderer {
+        /// Renders HTML to PDF bytes using a one-shot blocking renderer.
         pub fn render_pdf(
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
@@ -90,6 +108,7 @@ pub mod sync {
             Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
         }
 
+        /// Creates a blocking renderer from `DOC_RENDERER_BACKEND` and related env vars.
         pub fn new() -> Result<Self> {
             info!("PdfRenderer::new() [sync] - Starting initialization");
 
@@ -176,6 +195,7 @@ pub mod sync {
             }
         }
 
+        /// Renders HTML to PDF using the configured transport.
         pub fn do_render_pdf(
             &self,
             html: String,

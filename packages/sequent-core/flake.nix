@@ -120,25 +120,32 @@
                 geckodriver
               ];
             shellHook = ''
-              export CC=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
-              export CXX=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
+              export CC=${pkgs.llvmPackages_19.clang}/bin/clang
+              export CXX=${pkgs.llvmPackages_19.clang}/bin/clang++
               export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
               export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
-              -
+              export CXX_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
+
+              export OPENSSL_DIR=${pkgs.openssl.dev}
+              export OPENSSL_LIB_DIR=${pkgs.openssl.out}/lib
+              export OPENSSL_INCLUDE_DIR=${pkgs.openssl.dev}/include
+              export PKG_CONFIG_PATH=${pkgs.openssl.dev}/lib/pkgconfig:$PKG_CONFIG_PATH
+
               # Nix hardening flags are not supported when compiling C code for WebAssembly
               export NIX_HARDENING_ENABLE=""
-              -
+
               # Set up the clang resource directory properly
               CLANG_MAJOR_VERSION="19"
               CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION"
-              -
+
               # Use libclang's include directory which has the standard headers
               LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
-              -
+
               export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
               export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
-              -
+
               # Debug: Print the paths to verify they exist
+              echo "Using rustc: $(rustc --version)"
               echo "Clang resource dir: $CLANG_RESOURCE_DIR"
               echo "Libclang include dir: $LIBCLANG_INCLUDE"
               if [ -f "$LIBCLANG_INCLUDE/stddef.h" ]; then

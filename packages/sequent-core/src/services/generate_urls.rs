@@ -2,12 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Voter authentication entry point for portal URLs.
 #[derive(Debug)]
 pub enum AuthAction {
+    /// Standard login flow.
     Login,
+    /// Voter enrollment / registration flow.
     Enroll,
 }
 
+/// Builds a voting-portal authentication URL for a tenant and election event.
 pub fn get_auth_url(
     base_url: &str,
     tenant_id: &str,

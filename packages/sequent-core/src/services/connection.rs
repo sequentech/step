@@ -22,10 +22,14 @@ use tracing::{error, info, instrument, warn};
 const TENANT_ID_HEADER: &str = "tenant-id";
 const EVENT_ID_HEADER: &str = "event-id";
 const AUTHORIZATION_HEADER: &str = "authorization";
+/// Seconds before token expiry at which a cached Datafix token is refreshed.
 pub const PRE_EXPIRATION_SECS: i64 = 5;
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// HTTP header name and value extracted for Hasura or Bearer authentication.
 pub struct AuthHeaders {
+    /// Header name (e.g. `authorization` or `X-Hasura-Admin-Secret`).
     pub key: String,
+    /// Header value.
     pub value: String,
 }
 
@@ -90,8 +94,11 @@ impl<'r> FromRequest<'r> for JwtClaims {
 }
 
 #[derive(Debug)]
+/// Client IP and country derived from proxy headers.
 pub struct UserLocation {
+    /// Client IP from `CF-Connecting-IP` or `X-Forwarded-For`.
     pub ip: Option<IpAddr>,
+    /// ISO country code from `CF-IPCountry`.
     pub country_code: Option<String>,
 }
 
@@ -118,8 +125,11 @@ impl<'r> FromRequest<'r> for UserLocation {
 }
 
 #[derive(Debug)]
+/// JWT claims plus tenant context for Datafix API requests.
 pub struct DatafixClaims {
+    /// Decoded Keycloak JWT from the `Authorization` header.
     pub jwt_claims: JwtClaims,
+    /// Tenant identifier from the `tenant-id` header.
     pub tenant_id: String,
     /// Event ID matching the election event Datafix:id in annotations
     pub datafix_event_id: String,
@@ -212,6 +222,7 @@ struct TokenResponseExtended {
 pub struct LastDatafixAccessToken(RwLock<Option<TokenResponseExtended>>);
 
 impl LastDatafixAccessToken {
+    /// Creates an empty token cache.
     pub fn init() -> Self {
         LastDatafixAccessToken(RwLock::new(None))
     }

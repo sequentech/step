@@ -46,11 +46,15 @@ use num_traits::{ToPrimitive, Zero};
 /// algorithms. It does not support write-ins.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
+    /// When true, the voter explicitly declined to vote.
     pub is_explicit_invalid: bool,
+    /// Per-contest selections included in this multi-contest encoding.
     pub choices: Vec<ContestChoices>,
+    /// Counting algorithm shared by all contests (must be uniform).
     pub counting_algorithm: CountingAlgType,
 }
 impl BallotChoices {
+    /// Creates a new multi-contest ballot choice set.
     pub fn new(
         is_explicit_invalid: bool,
         choices: Vec<ContestChoices>,
@@ -69,11 +73,15 @@ impl BallotChoices {
 /// Does not support write-ins.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
+    /// Contest these choices belong to.
     pub contest_id: String,
+    /// Selected candidates within the contest.
     pub choices: Vec<ContestChoice>,
+    /// When true, the voter explicitly chose invalid options.
     pub is_explicit_invalid: bool,
 }
 impl ContestChoices {
+    /// Creates a new per-contest choice set.
     pub fn new(
         contest_id: String,
         choices: Vec<ContestChoice>,
@@ -113,18 +121,19 @@ impl ContestChoices {
 #[derive(
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
-
-/// A single choice within a Contest.
+/// A single choice within a contest.
 ///
-/// Does not support write-ins.
+/// Does not support write-ins. Values greater than `-1` mean selected; `-1` means unset.
 pub struct ContestChoice {
+    /// Candidate identifier.
     pub candidate_id: String,
-    // This is could be eliminated until we are using some sort of score voting
-    // Currently, a value of > -1 is interpreted as a selection, -1 is
-    // interpreted as Unset.
+    /// This is could be eliminated until we are using some sort of score voting
+    /// Currently, a value of > -1 is interpreted as a selection, -1 is
+    /// interpreted as Unset.
     pub selected: i64,
 }
 impl ContestChoice {
+    /// Creates a new contest choice for the given candidate.
     pub fn new(candidate_id: String, selected: i64) -> Self {
         ContestChoice {
             candidate_id,
@@ -136,13 +145,19 @@ impl ContestChoice {
 /// The choices for a contest returned when decoding.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedContestChoices {
+    /// Contest these choices belong to.
     pub contest_id: String,
+    /// When true, the voter explicitly spoiled this contest only.
     pub is_explicit_invalid: bool,
+    /// Decoded candidate selections.
     pub choices: Vec<DecodedContestChoice>,
+    /// Hard validation failures for this contest.
     pub invalid_errors: Vec<InvalidPlaintextError>,
+    /// Soft warnings for this contest.
     pub invalid_alerts: Vec<InvalidPlaintextError>,
 }
 impl DecodedContestChoices {
+    /// Creates decoded contest choices with any validation messages collected during decode.
     pub fn new(
         contest_id: String,
         choices: Vec<DecodedContestChoice>,
@@ -169,8 +184,11 @@ pub struct DecodedContestChoice(pub String);
 /// ballot.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedBallotChoices {
+    /// When true, the voter explicitly spoiled the entire ballot.
     pub is_explicit_invalid: bool,
+    /// Decoded per-contest choice sets.
     pub choices: Vec<DecodedContestChoices>,
+    /// Optional ballot serial number from the encoding.
     pub serial_number: Option<String>,
 }
 
@@ -787,6 +805,7 @@ impl BallotChoices {
     // representation of this ballot (one per-contest explicit invalid base = 2,
     // and optionally a ballot-level explicit invalid base = 2 when
     // decline-to-vote is enabled).
+    /// Computes mixed-radix bases for a multi-contest plurality ballot.
     pub fn get_bases(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,

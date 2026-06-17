@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Vote-policy validation during ballot encoding and decoding.
+
 use crate::ballot_codec::multi_ballot::DecodedContestChoices;
 use crate::plaintext::DecodedVoteContest;
 use crate::{
@@ -14,13 +16,17 @@ use crate::{
 };
 use std::collections::HashMap;
 
+/// Errors and alerts collected while validating a decoded vote against contest policies.
 #[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub struct CheckerResult {
+    /// Hard validation failures that invalidate the ballot.
     pub invalid_errors: Vec<InvalidPlaintextError>,
+    /// Soft warnings shown to the voter but allowed to proceed.
     pub invalid_alerts: Vec<InvalidPlaintextError>,
 }
 
 impl DecodedVoteContest {
+    /// Merges additional checker results into this decoded contest.
     pub fn update(&mut self, data: CheckerResult) -> () {
         self.invalid_errors.extend(data.invalid_errors);
         self.invalid_alerts.extend(data.invalid_alerts);
@@ -28,12 +34,16 @@ impl DecodedVoteContest {
 }
 
 impl DecodedContestChoices {
+    /// Merges additional checker results into this decoded contest.
     pub fn update(&mut self, data: CheckerResult) -> () {
         self.invalid_errors.extend(data.invalid_errors);
         self.invalid_alerts.extend(data.invalid_alerts);
     }
 }
 
+/// Validates `max_votes` and `min_votes` and returns usable `usize` bounds.
+///
+/// Returns encoding errors when either bound cannot be represented as `usize`.
 pub fn check_max_min_votes_policy(
     max_votes: i64,
     min_votes: i64,
@@ -77,6 +87,7 @@ pub fn check_max_min_votes_policy(
     (max_votes_opt, min_votes_opt, checker_result)
 }
 
+/// Returns an error when fewer candidates are selected than `min_votes` requires.
 pub fn check_min_vote_policy(
     num_selected_candidates: usize,
     min_votes: usize,
@@ -100,6 +111,7 @@ pub fn check_min_vote_policy(
     checker_result
 }
 
+/// Applies the contest blank-vote policy to a selection with no candidates chosen.
 pub fn check_blank_vote_policy(
     presentation: &ContestPresentation,
     num_selected_candidates: usize,
@@ -134,6 +146,7 @@ pub fn check_blank_vote_policy(
     checker_result
 }
 
+/// Applies over-vote policy when too many candidates are selected.
 pub fn check_over_vote_policy(
     presentation: &ContestPresentation,
     num_selected_candidates: usize,
@@ -194,6 +207,7 @@ pub fn check_over_vote_policy(
     checker_result
 }
 
+/// Applies under-vote policy when fewer than the maximum allowed selections are made.
 pub fn check_under_vote_policy(
     presentation: &ContestPresentation,
     num_selected_candidates: usize,
@@ -232,6 +246,7 @@ pub fn check_under_vote_policy(
     checker_result
 }
 
+/// Applies duplicated-rank policy for preferential voting contests.
 pub fn check_duplicated_rank_policy(
     presentation: &ContestPresentation,
 ) -> CheckerResult {
@@ -255,6 +270,7 @@ pub fn check_duplicated_rank_policy(
     checker_result
 }
 
+/// Applies preference-gap policy when ranked choices skip positions.
 pub fn check_preference_gaps_policy(
     presentation: &ContestPresentation,
 ) -> CheckerResult {
@@ -278,6 +294,7 @@ pub fn check_preference_gaps_policy(
     checker_result
 }
 
+/// Applies explicit-invalid vote policy when the voter spoils the ballot intentionally.
 pub fn check_invalid_vote_policy(
     presentation: &ContestPresentation,
     is_explicit_invalid: bool,

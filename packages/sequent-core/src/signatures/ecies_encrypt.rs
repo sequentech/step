@@ -15,13 +15,19 @@ use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 
+/// Path to the ECIES encryption/signing Java jar.
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
+
+/// PEM-encoded ECIES public/private key pair.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
+    /// Private key in PEM format.
     pub private_key_pem: String,
+    /// Public key in PEM format.
     pub public_key_pem: String,
 }
 
+/// Encrypts `password` with the given ECIES public key and returns base64 ciphertext.
 #[instrument(skip(password), err)]
 pub fn ecies_encrypt_string(
     public_key_pem: &str,
@@ -54,6 +60,7 @@ pub fn ecies_encrypt_string(
     Ok(result)
 }
 
+/// Generates a new ECIES key pair via the external ECIES tool.
 #[instrument(err)]
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
@@ -85,6 +92,7 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     })
 }
 
+/// Signs `data` with the private key in `acm_key_pair` and returns base64 signature.
 #[instrument(skip(data), err)]
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
@@ -129,13 +137,15 @@ pub fn ecies_sign_data(
 
     Ok(encrypted_base64)
 }
-
-// A struct you can use to keep track of each item you want to sign
+/// A struct you can use to keep track of each item you want to sign
 pub struct SignRequest {
-    pub id: String,   // or any key you want, to correlate back
-    pub data: String, // the sign_data string
+    /// Or any key you want, to correlate back
+    pub id: String,
+    /// The data to sign.
+    pub data: String,
 }
 
+/// Signs multiple payloads in one invocation of the ECIES tool.
 #[instrument(skip_all, err)]
 pub fn ecies_sign_data_bulk(
     acm_key_pair: &EciesKeyPair,

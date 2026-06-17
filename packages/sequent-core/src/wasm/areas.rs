@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Area tree construction and contest lookup for the voting portal WASM layer.
+
 use crate::services::area_tree::*;
 use crate::types::hasura::core::AreaContest;
 use crate::wasm::wasm::IntoResult;
@@ -15,6 +17,7 @@ use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
 
+/// Builds a contest data tree from area and area-contest JSON inputs.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn create_tree_js(
@@ -42,6 +45,7 @@ pub fn create_tree_js(
         .into_json()
 }
 
+/// Returns area contests that match the given contest id within a tree.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn get_contest_matches_js(

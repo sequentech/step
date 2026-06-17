@@ -2,11 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Serialize structs into JSON object maps for GraphQL variables and templates.
+
 use anyhow::{anyhow, Context, Result};
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+/// Converts a serializable value into a flat JSON object map.
 pub trait ToMap {
+    /// Serializes `self` and returns the resulting JSON object.
+    ///
+    /// Returns an error if serialization fails or the value is not a JSON object.
     fn to_map(&self) -> Result<Map<String, Value>>;
 }
 

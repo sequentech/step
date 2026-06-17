@@ -11,6 +11,7 @@ use crate::{
     },
 };
 
+/// Validates that selections per candidate type do not exceed configured limits.
 pub fn check_max_selections_per_type(
     contest: &Contest,
     decoded_vote: &DecodedVoteContest,
@@ -69,6 +70,7 @@ pub fn check_max_selections_per_type(
     invalid_errors
 }
 
+/// Runs contest-level validation checks and returns an updated decoded vote.
 pub fn check_contest(
     contest: &Contest,
     decoded_vote: &DecodedVoteContest,

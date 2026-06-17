@@ -89,6 +89,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
 }
 
 #[instrument(skip_all, err)]
+/// Renders an inline Handlebars template string with the given variables.
 pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,
@@ -100,6 +101,7 @@ pub fn render_template_text(
 }
 
 #[instrument(skip_all, err)]
+/// Renders a named Handlebars template registered from `template_map`.
 pub fn render_template(
     template_name: &str,
     template_map: HashMap<String, String>,
@@ -115,6 +117,7 @@ pub fn render_template(
     reg.render(template_name, &json!(variables_map))
 }
 
+/// Wraps a Handlebars helper so failures write a fallback value instead of erroring.
 pub fn helper_wrapper_or<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
     or_val: String,
@@ -159,6 +162,7 @@ pub fn helper_wrapper_or<'a>(
     Box::new(WrapperHelper { func, or_val })
 }
 
+/// Wraps a Handlebars helper so failures are logged and propagated.
 pub fn helper_wrapper<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
 ) -> Box<dyn HelperDef + Send + Sync + 'a> {
@@ -199,6 +203,7 @@ pub fn helper_wrapper<'a>(
     Box::new(WrapperHelper { func })
 }
 
+/// Handlebars helper that writes the string form of its first parameter or "-" if null.
 pub fn expr_helper<'reg, 'rc>(
     h: &Helper<'rc>,
     _r: &'reg Handlebars<'reg>,
@@ -224,6 +229,7 @@ pub fn expr_helper<'reg, 'rc>(
     Ok(())
 }
 
+/// Handlebars helper that binds a block-scoped variable name to a value.
 pub fn let_helper<'reg, 'rc>(
     h: &Helper<'rc>,
     _r: &'reg Handlebars<'reg>,
@@ -259,6 +265,7 @@ pub fn let_helper<'reg, 'rc>(
     Ok(())
 }
 
+/// Handlebars helper that sanitizes HTML allowing a small set of inline tags.
 pub fn sanitize_html(
     helper: &Helper,
     _: &Handlebars,
@@ -299,6 +306,7 @@ fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     }
 }
 
+/// Handlebars helper that formats a u64 with locale-aware grouping.
 pub fn format_u64(
     helper: &Helper,
     _: &Handlebars,
@@ -335,6 +343,7 @@ fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars helper that divides two floating-point parameters.
 pub struct divide;
 
 impl HelperDef for divide {
@@ -369,6 +378,7 @@ impl HelperDef for divide {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars helper that sums all numeric parameters.
 pub struct sum;
 
 impl HelperDef for sum {
@@ -400,6 +410,7 @@ impl HelperDef for sum {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars helper that multiplies two floating-point parameters.
 pub struct multiply;
 
 impl HelperDef for multiply {
@@ -430,6 +441,7 @@ impl HelperDef for multiply {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars helper that computes the remainder of two unsigned integers.
 pub struct modulo;
 
 impl HelperDef for modulo {
@@ -464,6 +476,7 @@ impl HelperDef for modulo {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars helper that returns the next array element after an index.
 pub struct next;
 
 impl HelperDef for next {
@@ -503,6 +516,7 @@ impl HelperDef for next {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars helper that parses a string parameter as `i64`.
 pub struct parse_i64;
 
 impl HelperDef for parse_i64 {
@@ -529,6 +543,7 @@ impl HelperDef for parse_i64 {
     }
 }
 
+/// Handlebars helper that formats a decimal fraction as a percentage with two digits.
 pub fn format_dec_percentage(
     helper: &Helper,
     _: &Handlebars,
@@ -555,6 +570,7 @@ pub fn format_dec_percentage(
     Ok(())
 }
 
+/// Handlebars helper that formats a floating-point value with two decimal places.
 pub fn format_percentage(
     helper: &Helper,
     _: &Handlebars,
@@ -579,6 +595,7 @@ pub fn format_percentage(
     Ok(())
 }
 
+/// Handlebars helper that parses and reformats a date string.
 pub fn format_date(
     helper: &Helper,
     _: &Handlebars,
@@ -663,6 +680,7 @@ pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
     Ok(formatted_str)
 }
 
+/// Handlebars helper that increments a u64 parameter by one.
 pub fn inc(
     helper: &Helper,
     _: &Handlebars,
@@ -684,6 +702,7 @@ pub fn inc(
     Ok(())
 }
 
+/// Handlebars helper that increments a u64 parameter by two.
 pub fn inc2(
     helper: &Helper,
     _: &Handlebars,
@@ -705,6 +724,7 @@ pub fn inc2(
     Ok(())
 }
 
+/// Handlebars helper that serializes its first parameter to JSON text.
 pub fn to_json(
     h: &Helper,
     _: &Handlebars,
@@ -724,6 +744,7 @@ pub fn to_json(
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars block helper that renders when two values are equal.
 pub struct eq;
 
 impl HelperDef for eq {
@@ -775,6 +796,7 @@ impl HelperDef for eq {
 }
 
 #[allow(non_camel_case_types)]
+/// Handlebars block helper that renders when a value is present (not null).
 pub struct is_some;
 
 impl HelperDef for is_some {

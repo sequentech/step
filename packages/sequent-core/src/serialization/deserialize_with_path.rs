@@ -7,6 +7,7 @@ use serde_json::{self, Value};
 use serde_path_to_error;
 use serde_path_to_error::Error;
 
+/// Deserializes JSON text into `T`, reporting the field path on failure.
 pub fn deserialize_str<'de, T>(
     contents: &'de str,
 ) -> Result<T, Error<serde_json::Error>>
@@ -18,6 +19,7 @@ where
     serde_path_to_error::deserialize(jd)
 }
 
+/// Deserializes a JSON [`Value`] into `T`, reporting the field path on failure.
 pub fn deserialize_value<T>(value: Value) -> Result<T, Error<serde_json::Error>>
 where
     T: DeserializeOwned, // Use DeserializeOwned since we consume the Value

@@ -13,6 +13,7 @@ use crate::{
     types::hasura::core::{Election, ElectionEvent},
 };
 
+/// Fallback language code when no translation is available, "en" for English.
 pub const DEFAULT_LANG: &str = "en";
 
 fn parse_presentation<P>(presentation: &Option<serde_json::Value>) -> Option<P>
@@ -45,17 +46,22 @@ fn i18n_field(
         })
 }
 
+/// Localized display name lookup for election entities.
 pub trait Name {
+    /// Returns the entity name in `language`, falling back to [`DEFAULT_LANG`].
     fn get_name(&self, language: &str) -> String;
 }
 
+/// Localized short name lookup for election entities.
 pub trait Alias {
+    /// Returns the entity alias in `language`, if defined.
     fn get_alias(&self, language: &str) -> Option<String>;
 }
 
 /* ---------------------- ElectionEvent ---------------------- */
 
 impl ElectionEvent {
+    /// Returns the default language code from event presentation settings.
     pub fn get_default_language(&self) -> String {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.language_conf)
@@ -63,12 +69,14 @@ impl ElectionEvent {
             .unwrap_or_else(|| DEFAULT_LANG.into())
     }
 
+    /// Returns the contest encryption policy from event presentation settings.
     pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.contest_encryption_policy)
             .unwrap_or_default()
     }
 
+    /// Returns the decoded-ballot inclusion policy from event presentation settings.
     pub fn get_decoded_ballots_inclusion_policy(
         &self,
     ) -> DecodedBallotsInclusionPolicy {
@@ -77,12 +85,14 @@ impl ElectionEvent {
             .unwrap_or_default()
     }
 
+    /// Returns the delegated voting policy from event presentation settings.
     pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.delegated_voting_policy)
             .unwrap_or_default()
     }
 
+    /// Returns the language detection policy from event presentation settings.
     pub fn get_language_detection_policy(&self) -> LanguageDetectionPolicy {
         parse_presentation::<ElectionEventPresentation>(&self.presentation)
             .and_then(|p| p.language_conf)
@@ -102,6 +112,7 @@ impl Name for ElectionEvent {
 /* ------------------------- Election ------------------------- */
 
 impl Election {
+    /// Returns the default language code from election presentation settings.
     pub fn get_default_language(&self) -> String {
         parse_presentation::<ElectionPresentation>(&self.presentation)
             .and_then(|p| p.language_conf)

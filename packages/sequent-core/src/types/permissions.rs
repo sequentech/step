@@ -1,9 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
-
+#[allow(
+    missing_docs,
+    reason = "Documenting each would mostly repeat the strum serialize value."
+)]
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -377,15 +381,13 @@ pub enum Permissions {
     PREVIEW_READ,
     #[strum(serialize = "tally-resolution-submit")]
     TALLY_RESOLUTION_SUBMIT,
-    #[strum(serialize = "phone-blacklist-read")]
-    PHONE_BLACKLIST_READ,
-    #[strum(serialize = "phone-blacklist-create")]
-    PHONE_BLACKLIST_CREATE,
-    #[strum(serialize = "phone-blacklist-delete")]
-    PHONE_BLACKLIST_DELETE,
 }
 
 #[allow(non_camel_case_types)]
+#[allow(
+    missing_docs,
+    reason = "Documenting each would mostly repeat the strum serialize value."
+)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]

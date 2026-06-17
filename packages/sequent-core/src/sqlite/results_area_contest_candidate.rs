@@ -8,6 +8,7 @@ use rusqlite::{params, Transaction};
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the results_area_contest_candidate table and inserts rows.
 pub async fn create_results_area_contest_candidates_sqlite(
     sqlite_transaction: &Transaction<'_>,
     area_contest_candidates: Vec<ResultsAreaContestCandidate>,

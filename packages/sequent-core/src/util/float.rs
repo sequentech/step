@@ -4,7 +4,7 @@
 use anyhow::{anyhow, Result};
 use ordered_float::NotNan;
 
-// Newtype wrapper for f64
+/// Newtype wrapper for f64
 pub struct FloatWrapper(pub f64);
 
 // Implement TryFrom for the wrapper type

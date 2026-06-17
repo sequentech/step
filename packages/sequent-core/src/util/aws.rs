@@ -5,7 +5,9 @@ use anyhow::{anyhow, Result};
 use aws_config::{meta::region::RegionProviderChain, Region, SdkConfig};
 use tracing::{info, instrument};
 
+/// Environment variable for the private S3-compatible endpoint URI.
 pub const AWS_S3_PRIVATE_URI_ENV: &str = "AWS_S3_PRIVATE_URI";
+/// Environment variable for the client-facing S3-compatible endpoint URI.
 pub const AWS_S3_PUBLIC_URI_ENV: &str = "AWS_S3_PUBLIC_URI";
 
 /// Resolves the AWS region from the environment and keeps the default chain

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! ElGamal encryption and ballot hashing for auditable ballots.
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
@@ -29,6 +31,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use strand::serialization::StrandSerialize;
 
+/// Base64-encoded development default election public key (Ristretto).
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
 
@@ -36,14 +39,17 @@ pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
 /// only the first 32 bytes.
 pub const SHORT_SHA512_HASH_LENGTH_BYTES: usize = 32;
 
+/// Truncated SHA-512 digest (first 32 bytes) used in ballot identifiers.
 pub type ShortHash = [u8; SHORT_SHA512_HASH_LENGTH_BYTES];
 
 // Labels are used to make the proof of knowledge unique.
 // This is a constant for now but when we implement voter signatures this will
 // be unique to the voter, and it will include the public key of the voter,
 // election event id, election id, contest id etc.
+/// Domain-separation label for plaintext proof-of-knowledge (empty until voter signing is implemented).
 pub const DEFAULT_PLAINTEXT_LABEL: [u8; 0] = [];
 
+/// Returns the default development public key string and deserialized element.
 pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     let pk_str: String = DEFAULT_PUBLIC_KEY_RISTRETTO_STR.to_string();
     let pk_bytes = general_purpose::STANDARD_NO_PAD
@@ -53,6 +59,7 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     (pk_str, pk)
 }
 
+/// Encrypts a plaintext with proof of knowledge, returning the ciphertext and Schnorr proof.
 pub fn encrypt_plaintext_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: <C>::E,
@@ -84,6 +91,7 @@ pub fn encrypt_plaintext_candidate<C: Ctx>(
     ))
 }
 
+/// Parses the election public key from a ballot style configuration.
 pub fn parse_public_key<C: Ctx>(
     election: &BallotStyle,
 ) -> Result<C::E, BallotError> {
@@ -96,6 +104,7 @@ pub fn parse_public_key<C: Ctx>(
     Base64Deserialize::deserialize(public_key_config.public_key)
 }
 
+/// Re-encrypts each contest ciphertext from an auditable ballot using stored randomness.
 pub fn recreate_encrypt_cyphertext<C: Ctx>(
     ctx: &C,
     ballot: &AuditableBallot,
@@ -145,6 +154,7 @@ fn recreate_encrypt_candidate<C: Ctx>(
     })
 }
 
+/// Encodes decoded multi-contest votes into a 30-byte plaintext and [`BallotChoices`].
 pub fn encode_to_plaintext_decoded_multi_contest(
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
@@ -206,6 +216,7 @@ pub fn encode_to_plaintext_decoded_multi_contest(
     Ok((plaintext, ballot_choices))
 }
 
+/// Encrypts decoded multi-contest votes into an [`AuditableMultiBallot`].
 pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
@@ -260,6 +271,7 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     encrypt_multi_ballot(ctx, &ballot, config)
 }
 
+/// Encrypts one ciphertext per decoded contest into an [`AuditableBallot`].
 pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
@@ -328,6 +340,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     Ok(auditable_ballot)
 }
 
+/// Returns the SHA-512 hash of a serialized ballot style.
 pub fn hash_ballot_style_sha512(
     ballot_style: &BallotStyle,
 ) -> Result<Hash, StrandError> {
@@ -335,6 +348,7 @@ pub fn hash_ballot_style_sha512(
     hash::hash_to_array(&bytes)
 }
 
+/// Returns the hex-encoded short hash of a ballot style.
 pub fn hash_ballot_style(
     ballot_style: &BallotStyle,
 ) -> Result<String, BallotError> {
@@ -344,6 +358,7 @@ pub fn hash_ballot_style(
     Ok(hex::encode(short_hash))
 }
 
+/// Returns the SHA-512 hash of a hashable single-contest ballot.
 pub fn hash_ballot_sha512(
     hashable_ballot: &HashableBallot,
 ) -> Result<Hash, StrandError> {
@@ -355,15 +370,16 @@ pub fn hash_ballot_sha512(
     hash::hash_to_array(&bytes)
 }
 
+/// Truncates a SHA-512 hash to the first 32 bytes.
 pub fn shorten_hash(hash: &Hash) -> ShortHash {
     let mut shortened: ShortHash = [0u8; SHORT_SHA512_HASH_LENGTH_BYTES];
     shortened.copy_from_slice(&hash[0..32]);
     shortened
 }
 
-// hash ballot:
-// serialize ballot into string, then hash to sha512, truncate to
-// 256 bits and serialize to hexadecimal
+/// hash ballot:
+/// serialize ballot into string, then hash to sha512, truncate to
+// /256 bits and serialize to hexadecimal
 pub fn hash_ballot(
     hashable_ballot: &HashableBallot,
 ) -> Result<String, BallotError> {
@@ -429,6 +445,7 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     Ok(auditable_ballot)
 }
 
+/// Returns the hex-encoded short hash of a hashable multi-contest ballot.
 pub fn hash_multi_ballot(
     hashable_ballot: &HashableMultiBallot,
 ) -> Result<String, BallotError> {
@@ -438,6 +455,7 @@ pub fn hash_multi_ballot(
     Ok(hex::encode(short_hash))
 }
 
+/// Returns the SHA-512 hash of a hashable multi-contest ballot.
 pub fn hash_multi_ballot_sha512(
     hashable_ballot: &HashableMultiBallot,
 ) -> Result<Hash, StrandError> {

@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Ballot encryption, hashing, sorting, and voting-screen WASM exports.
+
 use crate::ballot::*;
 use crate::ballot::{
     sign_hashable_ballot_with_ephemeral_voter_signing_key,
@@ -50,12 +53,20 @@ use std::panic;
 //     data: String,
 // }
 
+/// Structured ballot processing error returned to JavaScript callers.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ErrorStatus {
+    /// Machine-readable error category.
     pub error_type: BallotError,
+    /// Human-readable error message.
     pub error_msg: String,
 }
 
+/// Ballot processing error categories returned to JavaScript.
+#[allow(
+    missing_docs,
+    reason = "Error codes are self-describing enum variant names consumed by the frontend."
+)]
 #[derive(Debug, Serialize, Deserialize, PartialEq, JsonSchema, Clone, Eq)]
 pub enum BallotError {
     PARSE_ERROR,
@@ -72,7 +83,9 @@ impl From<ErrorStatus> for JsValue {
     }
 }
 
+/// Converts Rust `Result` values into JavaScript-friendly JSON results.
 pub trait IntoResult<T> {
+    /// Maps `Ok` to success or serializes `Err` into a `JsValue`.
     fn into_json(self) -> Result<T, JsValue>;
 }
 
@@ -97,11 +110,13 @@ extern "C" {
     fn postMessage(s: &str);
 }
 
+/// Installs the console panic hook so WASM panics log readable stack traces.
 #[wasm_bindgen]
 pub fn set_hooks() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
 }
 
+/// Converts an auditable ballot JSON value to a signed hashable ballot JSON value.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn to_hashable_ballot_js(
@@ -165,6 +180,7 @@ pub fn to_hashable_ballot_js(
     })
 }
 
+/// Converts an auditable multi-ballot JSON value to a signed hashable multi-ballot JSON value.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn to_hashable_multi_ballot_js(
@@ -237,6 +253,7 @@ pub fn to_hashable_multi_ballot_js(
     })
 }
 
+/// Computes the content hash of an auditable ballot from its JSON representation.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn hash_auditable_ballot_js(
@@ -277,6 +294,7 @@ pub fn hash_auditable_ballot_js(
         .into_json()
 }
 
+/// Computes the content hash of an auditable multi-ballot from its JSON representation.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn hash_auditable_multi_ballot_js(
@@ -312,6 +330,7 @@ pub fn hash_auditable_multi_ballot_js(
         .into_json()
 }
 
+/// Encrypts decoded contests into an auditable ballot for the given ballot style.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn encrypt_decoded_contest_js(
@@ -355,6 +374,7 @@ pub fn encrypt_decoded_contest_js(
         .into_json()
 }
 
+/// Encrypts decoded multi-contests into an auditable multi-ballot for the given ballot style.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn encrypt_decoded_multi_contest_js(
@@ -398,7 +418,7 @@ pub fn encrypt_decoded_multi_contest_js(
         .into_json()
 }
 
-// before: map_to_decoded_ballot
+/// Decodes an auditable ballot JSON value into decoded vote contests.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn decode_auditable_ballot_js(
@@ -434,7 +454,7 @@ pub fn decode_auditable_ballot_js(
         .into_json()
 }
 
-// before: map_to_decoded_ballot
+/// Decodes an auditable multi-ballot JSON value into decoded vote contests.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn decode_auditable_multi_ballot_js(
@@ -472,6 +492,7 @@ pub fn decode_auditable_multi_ballot_js(
         .into_json()
 }
 
+/// Sorts candidates according to the given order, optionally applying random shuffling.
 #[wasm_bindgen]
 pub fn sort_candidates_list_js(
     all_candidates: JsValue,
@@ -541,6 +562,7 @@ pub fn sort_candidates_list_js(
         .into_json()
 }
 
+/// Sorts contests according to the given order, optionally applying random shuffling.
 #[wasm_bindgen]
 pub fn sort_contests_list_js(
     contests_json: JsValue,
@@ -608,6 +630,7 @@ pub fn sort_contests_list_js(
         .into_json()
 }
 
+/// Sorts elections according to the given order, optionally applying random shuffling.
 #[wasm_bindgen]
 pub fn sort_elections_list_js(
     elections_json: JsValue,
@@ -675,6 +698,7 @@ pub fn sort_elections_list_js(
         .into_json()
 }
 
+/// Returns layout properties derived from a contest JSON value.
 #[wasm_bindgen]
 pub fn get_layout_properties_from_contest_js(
     contest_json: JsValue,
@@ -694,6 +718,7 @@ pub fn get_layout_properties_from_contest_js(
         .into_json()
 }
 
+/// Returns the points assigned to a candidate choice within a contest.
 #[wasm_bindgen]
 pub fn get_candidate_points_js(
     contest_json: JsValue,
@@ -717,6 +742,7 @@ pub fn get_candidate_points_js(
         .into_json()
 }
 
+/// Returns whether the given counting algorithm is preferential.
 #[wasm_bindgen]
 pub fn is_preferential_js(
     counting_algorithm_js: JsValue,
@@ -732,6 +758,7 @@ pub fn is_preferential_js(
         .into_json()
 }
 
+/// Round-trips a decoded contest through bigint encoding to verify consistency.
 #[wasm_bindgen]
 pub fn test_contest_reencoding_js(
     decoded_contest_json: JsValue,
@@ -803,6 +830,8 @@ pub fn test_contest_reencoding_js(
         .into_json()
 }
 
+/// Round-trips decoded selection with multi-contests encryption
+/// through encoding to verify consistency.
 #[wasm_bindgen]
 pub fn test_multi_contest_reencoding_js(
     decoded_multi_contest_json: JsValue,
@@ -842,6 +871,7 @@ pub fn test_multi_contest_reencoding_js(
         .into_json()
 }
 
+/// Returns how many write-in characters remain available for a decoded contest.
 #[wasm_bindgen]
 pub fn get_write_in_available_characters_js(
     decoded_contest_json: JsValue,
@@ -886,6 +916,7 @@ pub fn get_write_in_available_characters_js(
         .into_json()
 }
 
+/// Generates a sample auditable ballot with a write-in contest for testing.
 #[wasm_bindgen]
 pub fn generate_sample_auditable_ballot_js() -> Result<JsValue, JsValue> {
     let ctx = RistrettoCtx;
@@ -907,6 +938,7 @@ pub fn generate_sample_auditable_ballot_js() -> Result<JsValue, JsValue> {
         .into_json()
 }
 
+/// Returns whether a decoded contest represents a blank vote.
 #[wasm_bindgen]
 pub fn check_is_blank_js(
     decoded_contest_json: JsValue,
@@ -924,6 +956,7 @@ pub fn check_is_blank_js(
         .into_json()
 }
 
+/// Returns whether navigation to the next voting screen should be blocked.
 #[wasm_bindgen]
 pub fn check_voting_not_allowed_next(
     contests: JsValue,
@@ -947,6 +980,7 @@ pub fn check_voting_not_allowed_next(
     Ok(JsValue::from_bool(voting_not_allowed))
 }
 
+/// Returns whether a confirmation dialog should appear before leaving the screen.
 #[wasm_bindgen]
 pub fn check_voting_error_dialog(
     contests: JsValue,
@@ -970,6 +1004,7 @@ pub fn check_voting_error_dialog(
     Ok(JsValue::from_bool(show_voting_alert))
 }
 
+/// Builds a Keycloak authentication URL for login or enrollment.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn get_auth_url_js(
@@ -1007,6 +1042,7 @@ pub fn get_auth_url_js(
         .into_json()
 }
 
+/// Signs a hashable ballot with an ephemeral voter signing key.
 #[wasm_bindgen]
 pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
     ballot_id: JsValue,
@@ -1058,6 +1094,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()
 }
 
+/// Signs a hashable multi-ballot with an ephemeral voter signing key.
 #[wasm_bindgen]
 pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
     ballot_id: JsValue,
@@ -1109,6 +1146,7 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()
 }
 
+/// Returns the default duplicated-rank policy as a JSON value.
 #[wasm_bindgen]
 pub fn get_default_duplicated_rank_policy_js() -> Result<JsValue, JsValue> {
     let policy = EDuplicatedRankPolicy::default();
@@ -1119,6 +1157,7 @@ pub fn get_default_duplicated_rank_policy_js() -> Result<JsValue, JsValue> {
     })
 }
 
+/// Returns the default preference-gaps policy as a JSON value.
 #[wasm_bindgen]
 pub fn get_default_preference_gaps_policy_js() -> Result<JsValue, JsValue> {
     let policy = EPreferenceGapsPolicy::default();
@@ -1129,8 +1168,8 @@ pub fn get_default_preference_gaps_policy_js() -> Result<JsValue, JsValue> {
     })
 }
 
-// returns true/false if verified/no-signature, error if the signature can't be
-// verified
+/// Verifies a ballot signature; returns true when valid, false when unsigned.
+/// Returns error if the signature can't be verified
 #[wasm_bindgen]
 pub fn verify_ballot_signature_js(
     ballot_id: JsValue,
@@ -1176,6 +1215,7 @@ pub fn verify_ballot_signature_js(
         .into_json()
 }
 
+/// Verifies a multi-ballot signature; returns true when valid, false when unsigned.
 #[wasm_bindgen]
 pub fn verify_multi_ballot_signature_js(
     ballot_id: JsValue,
@@ -1227,6 +1267,7 @@ pub fn verify_multi_ballot_signature_js(
         .into_json()
 }
 
+/// Returns the default consolidated report policy as a JSON value.
 #[wasm_bindgen]
 pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
     let policy: ConsolidatedReportPolicy = ConsolidatedReportPolicy::default();
@@ -1237,6 +1278,7 @@ pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
     })
 }
 
+/// Returns the default language detection policy as a JSON value.
 #[wasm_bindgen]
 pub fn get_default_language_detection_policy_js() -> Result<JsValue, JsValue> {
     let policy: LanguageDetectionPolicy = LanguageDetectionPolicy::default();
@@ -1247,18 +1289,20 @@ pub fn get_default_language_detection_policy_js() -> Result<JsValue, JsValue> {
     })
 }
 
+/// Converts an ISO 639-2/T language code to BCP 47 format.
 #[wasm_bindgen]
 pub fn iso_639_2t_to_bcp47_js(lang: &str) -> String {
     iso_639_2t_to_bcp47(lang).to_string()
 }
 
+/// Converts a locale string to the internal language code used by the platform.
 #[wasm_bindgen]
 pub fn locale_to_internal_language_code_js(lang: &str) -> String {
     locale_to_internal_language_code(lang)
 }
 
+/// Returns the default decline-to-vote policy as a JSON value.
 #[wasm_bindgen]
-/// Returns the default decline to vote policy
 pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
     let policy: DeclineToVotePolicy = DeclineToVotePolicy::default();
     serde_wasm_bindgen::to_value(&policy).map_err(|err| {

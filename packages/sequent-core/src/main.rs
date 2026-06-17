@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Main entry point for the Sequent core library.
 fn main() {
     //let schema = schema_for!(AuditableBallot);
     //println!("{}", serde_json::to_string_pretty(&schema).unwrap());

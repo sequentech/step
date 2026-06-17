@@ -39,6 +39,7 @@ impl From<Role> for GroupRepresentation {
 }
 
 impl KeycloakAdminClient {
+    /// Lists realm groups (roles) with optional search and pagination.
     #[instrument(skip(self), err)]
     pub async fn list_roles(
         self,
@@ -76,6 +77,7 @@ impl KeycloakAdminClient {
         Ok((roles, count))
     }
 
+    /// Returns groups assigned to a Keycloak user.
     #[instrument(skip(self), err)]
     pub async fn list_user_roles(
         self,
@@ -98,6 +100,7 @@ impl KeycloakAdminClient {
         Ok(roles)
     }
 
+    /// Assigns a group (role) to a user.
     #[instrument(skip(self), err)]
     pub async fn set_user_role(
         self: &KeycloakAdminClient,
@@ -114,6 +117,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Removes a group (role) from a user.
     #[instrument(skip(self), err)]
     pub async fn delete_user_role(
         self,
@@ -130,6 +134,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Deletes a realm group (role) by ID.
     #[instrument(skip(self), err)]
     pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
         self.client
@@ -139,6 +144,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates a new realm group (role).
     #[instrument(skip(self), err)]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
         self.client
@@ -148,6 +154,7 @@ impl KeycloakAdminClient {
         Ok(role.clone())
     }
 
+    /// Looks up a role by name, falling back to the provided template when missing.
     #[instrument(skip(self), err)]
     pub async fn get_role_by_name(
         self,

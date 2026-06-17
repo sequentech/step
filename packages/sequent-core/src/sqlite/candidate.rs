@@ -10,6 +10,7 @@ use rusqlite::{params, Transaction as SqliteTransaction};
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
+/// Creates the candidate table schema.
 pub async fn create_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
 ) -> Result<()> {
@@ -37,6 +38,7 @@ pub async fn create_candidate_sqlite(
 }
 
 #[instrument(err, skip_all)]
+/// Imports candidate rows from a CSV file into SQLite.
 pub async fn import_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
     contests_csv: &Path,
