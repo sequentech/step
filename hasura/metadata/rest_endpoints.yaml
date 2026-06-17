@@ -2,11 +2,29 @@
   definition:
       query:
           collection_name: allowed-queries
+          query_name: IvrGetBallotStyle
+  methods:
+      - GET
+  name: IvrGetBallotStyle
+  url: ivr/election-events/:event_id/ballot-styles/:style_id
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
           query_name: IvrGetBallotStyles
   methods:
       - GET
   name: IvrGetBallotStyles
   url: ivr/election-events/:event_id/ballot-styles
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetCastVotes
+  methods:
+      - GET
+  name: IvrGetCastVotes
+  url: ivr/election-events/:event_id/cast-votes
 - comment: ""
   definition:
       query:
