@@ -13,9 +13,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::ceremonies::{
-    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
-};
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -115,44 +113,18 @@ pub async fn create_keys_impl(
         .await?;
     }
 
-    // Snapshot each trustee's public key — the exact list just used to build
-    // the Configuration — into status.trustees[i].public_key. This is the
-    // permanent, frozen copy that tally-time code reads later; the live
-    // trustee.public_key column may be overwritten by unrelated, later
-    // ceremonies after this point, but this snapshot, written atomically
-    // with the IN_PROGRESS transition below, never changes again.
-    let KeysCeremonyStatus {
-        stop_date,
-        public_key,
-        logs,
-        trustees: status_trustees,
-    } = status;
-    let snapshotted_trustees: Vec<Trustee> = status_trustees
-        .into_iter()
-        .map(|trustee_status| {
-            let snapshot_key = trustees
-                .iter()
-                .find(|trustee| trustee.name.as_deref() == Some(trustee_status.name.as_str()))
-                .and_then(|trustee| trustee.public_key.clone());
-            Trustee {
-                public_key: snapshot_key,
-                ..trustee_status
-            }
-        })
-        .collect();
-    let snapshotted_status = KeysCeremonyStatus {
-        stop_date,
-        public_key,
-        logs,
-        trustees: snapshotted_trustees,
-    };
-
+    // Transition AWAITING_TRUSTEE_KEYS -> IN_PROGRESS. The per-ceremony key
+    // rows in `trustee_ceremony_key` (one per (trustee, event, ceremony)) are
+    // never overwritten by other ceremonies, so they already serve as the
+    // frozen record of the keys that went into this Configuration — tally-time
+    // code reads them back via the scoped trustee query. No separate snapshot
+    // into status is needed.
     update_keys_ceremony_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &keys_ceremony.id,
-        &serde_json::to_value(snapshotted_status)?,
+        &serde_json::to_value(status)?,
         &execution_status
             .try_transition(KeysCeremonyExecutionStatus::IN_PROGRESS)?
             .to_string(),

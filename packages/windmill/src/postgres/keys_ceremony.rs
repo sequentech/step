@@ -317,9 +317,7 @@ pub async fn get_active_ceremonies_for_trustee(
         .await?;
 
     rows.into_iter()
-        .map(|row| -> Result<KeysCeremony> {
-            row.try_into().map(|res: KeysCeremonyWrapper| res.0)
-        })
+        .map(|row| -> Result<KeysCeremony> { row.try_into().map(|res: KeysCeremonyWrapper| res.0) })
         .collect()
 }
 

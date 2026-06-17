@@ -20,12 +20,6 @@ impl TryFrom<Row> for TrusteeWrapper {
         Ok(TrusteeWrapper(Trustee {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             public_key: item.try_get::<_, Option<String>>("public_key")?,
-            election_event_id: item
-                .try_get::<_, Option<Uuid>>("election_event_id")?
-                .map(|u| u.to_string()),
-            keys_ceremony_id: item
-                .try_get::<_, Option<Uuid>>("keys_ceremony_id")?
-                .map(|u| u.to_string()),
             name: item.try_get::<_, Option<String>>("name")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
             created_at: item.get("created_at"),
@@ -36,18 +30,23 @@ impl TryFrom<Row> for TrusteeWrapper {
     }
 }
 
-// `public_key` is returned only when BOTH `election_event_id` and
-// `keys_ceremony_id` are provided AND match the row exactly. No scope
-// requested, or scope requested but not matching, both yield NULL — there is
-// no fallback to "whatever key the row currently holds". Callers that only
-// need identity fields (id/name) pass None for both and ignore `public_key`.
-const TRUSTEE_PUBLIC_KEY_SCOPED_CASE: &str = r#"
-    CASE
-        WHEN ($3::uuid IS NOT NULL AND $4::uuid IS NOT NULL
-              AND election_event_id = $3::uuid AND keys_ceremony_id = $4::uuid)
-        THEN public_key
-        ELSE NULL
-    END AS public_key
+// Per-ceremony key lookup. `public_key` comes from the `trustee_ceremony_key`
+// row scoped to the requested `(election_event_id, keys_ceremony_id)` ($3/$4)
+// via a LEFT JOIN. When no scope is requested (both None), or there is no
+// matching per-ceremony row, the join yields NULL — there is no fallback to the
+// trustee's stable/global key. Callers that only need identity fields (id/name)
+// pass None for both and ignore `public_key`.
+const TRUSTEE_CEREMONY_KEY_JOIN: &str = r#"
+    LEFT JOIN sequent_backend.trustee_ceremony_key AS tck
+        ON tck.trustee_id = t.id
+        AND tck.tenant_id = t.tenant_id
+        AND tck.election_event_id = $3::uuid
+        AND tck.keys_ceremony_id = $4::uuid
+"#;
+
+const TRUSTEE_CEREMONY_KEY_COLUMNS: &str = r#"
+    t.id, t.name, t.tenant_id, t.created_at, t.last_updated_at, t.labels, t.annotations,
+    tck.public_key
 "#;
 
 #[instrument(err, skip(hasura_transaction))]
@@ -73,14 +72,13 @@ pub async fn get_trustees_by_id(
         .prepare(&format!(
             r#"
                 SELECT
-                    id, name, tenant_id, created_at, last_updated_at, labels, annotations,
-                    election_event_id, keys_ceremony_id,
-                    {TRUSTEE_PUBLIC_KEY_SCOPED_CASE}
+                    {TRUSTEE_CEREMONY_KEY_COLUMNS}
                 FROM
-                    sequent_backend.trustee
+                    sequent_backend.trustee AS t
+                    {TRUSTEE_CEREMONY_KEY_JOIN}
                 WHERE
-                    tenant_id = $1 AND
-                    id = ANY($2);
+                    t.tenant_id = $1 AND
+                    t.id = ANY($2);
             "#
         ))
         .await?;
@@ -123,14 +121,13 @@ pub async fn get_trustees_by_name(
         .prepare(&format!(
             r#"
                 SELECT
-                    id, name, tenant_id, created_at, last_updated_at, labels, annotations,
-                    election_event_id, keys_ceremony_id,
-                    {TRUSTEE_PUBLIC_KEY_SCOPED_CASE}
+                    {TRUSTEE_CEREMONY_KEY_COLUMNS}
                 FROM
-                    sequent_backend.trustee
+                    sequent_backend.trustee AS t
+                    {TRUSTEE_CEREMONY_KEY_JOIN}
                 WHERE
-                    tenant_id = $1 AND
-                    name = ANY($2);
+                    t.tenant_id = $1 AND
+                    t.name = ANY($2);
             "#
         ))
         .await?;
@@ -161,9 +158,14 @@ pub async fn get_trustee_by_name(
     tenant_id: &str,
     name: &str,
 ) -> Result<Trustee> {
-    let trustees =
-        get_trustees_by_name(hasura_transaction, tenant_id, &vec![name.to_string()], None, None)
-            .await?;
+    let trustees = get_trustees_by_name(
+        hasura_transaction,
+        tenant_id,
+        &vec![name.to_string()],
+        None,
+        None,
+    )
+    .await?;
 
     trustees
         .get(0)
@@ -171,55 +173,12 @@ pub async fn get_trustee_by_name(
         .ok_or(anyhow!("Trustee {name} not found"))
 }
 
-/// Idempotently re-stamps a server-based trustee's existing row with this
-/// ceremony's scope, without touching `public_key` — server-based trustees
-/// keep one stable, long-lived key provisioned out-of-band (CLI /
-/// `gen_trustee_config`), so there is nothing to copy, only the scope
-/// columns need to point at the current ceremony. Safe to re-run every beat
-/// cycle: re-stamping the same values is a no-op. Only stamps rows that
-/// already have a public_key — a server-based trustee with no key yet is
-/// left untouched (the ceremony's gate will simply keep waiting).
-#[instrument(err, skip(hasura_transaction))]
-pub async fn stamp_trustee_ceremony_scope(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    trustee_id: &str,
-    election_event_id: &str,
-    keys_ceremony_id: &str,
-) -> Result<()> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE sequent_backend.trustee
-                SET election_event_id = $1,
-                    keys_ceremony_id = $2,
-                    last_updated_at = NOW()
-                WHERE id = $3 AND tenant_id = $4 AND public_key IS NOT NULL;
-            "#,
-        )
-        .await?;
-
-    hasura_transaction
-        .execute(
-            &statement,
-            &[
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(keys_ceremony_id)?,
-                &Uuid::parse_str(trustee_id)?,
-                &Uuid::parse_str(tenant_id)?,
-            ],
-        )
-        .await
-        .map_err(|err| anyhow!("Error stamping trustee ceremony scope: {err}"))?;
-
-    Ok(())
-}
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_all_trustees(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
 ) -> Result<Vec<Trustee>> {
+    // `public_key` here is the trustee's own stable/global key.
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -248,6 +207,14 @@ pub async fn get_all_trustees(
     Ok(elements)
 }
 
+/// Register (upsert) a trustee's public key for one specific ceremony.
+///
+/// Writes a row in `trustee_ceremony_key` keyed on the
+/// `(tenant_id, trustee_id, election_event_id, keys_ceremony_id)` tuple, so a
+/// trustee participating in several ceremonies has one independent key row per
+/// ceremony — registrations for different ceremonies never overwrite each other.
+/// Re-registering the same ceremony updates that ceremony's key only (the BBT
+/// key-loss/regenerate-before-Configuration path relies on this).
 #[instrument(err, skip(hasura_transaction))]
 pub async fn update_trustee_key_for_event(
     hasura_transaction: &Transaction<'_>,
@@ -260,12 +227,13 @@ pub async fn update_trustee_key_for_event(
     let statement = hasura_transaction
         .prepare(
             r#"
-                UPDATE sequent_backend.trustee
-                SET public_key = $1,
-                    election_event_id = $2,
-                    keys_ceremony_id = $3,
-                    last_updated_at = NOW()
-                WHERE id = $4 AND tenant_id = $5;
+                INSERT INTO sequent_backend.trustee_ceremony_key
+                    (tenant_id, trustee_id, election_event_id, keys_ceremony_id, public_key)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (tenant_id, trustee_id, election_event_id, keys_ceremony_id)
+                DO UPDATE SET
+                    public_key = EXCLUDED.public_key,
+                    last_updated_at = NOW();
             "#,
         )
         .await?;
@@ -274,15 +242,15 @@ pub async fn update_trustee_key_for_event(
         .execute(
             &statement,
             &[
-                &public_key,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(trustee_id)?,
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(keys_ceremony_id)?,
-                &Uuid::parse_str(trustee_id)?,
-                &Uuid::parse_str(tenant_id)?,
+                &public_key,
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error updating trustee key for event: {err}"))?;
+        .map_err(|err| anyhow!("Error registering trustee key for ceremony: {err}"))?;
 
     Ok(())
 }

@@ -41,7 +41,11 @@ pub struct InvalidTransition {
 
 impl std::fmt::Display for InvalidTransition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid ceremony transition {:?} -> {:?}", self.from, self.to)
+        write!(
+            f,
+            "invalid ceremony transition {:?} -> {:?}",
+            self.from, self.to
+        )
     }
 }
 impl std::error::Error for InvalidTransition {}
@@ -57,7 +61,8 @@ impl KeysCeremonyExecutionStatus {
     pub fn try_transition(
         self,
         to: KeysCeremonyExecutionStatus,
-    ) -> std::result::Result<KeysCeremonyExecutionStatus, InvalidTransition> {
+    ) -> std::result::Result<KeysCeremonyExecutionStatus, InvalidTransition>
+    {
         use KeysCeremonyExecutionStatus::*;
 
         let ok = matches!(
@@ -77,7 +82,11 @@ impl KeysCeremonyExecutionStatus {
                 | (SUCCESS, CANCELLED)
         );
 
-        if ok { Ok(to) } else { Err(InvalidTransition { from: self, to }) }
+        if ok {
+            Ok(to)
+        } else {
+            Err(InvalidTransition { from: self, to })
+        }
     }
 
     pub fn is_terminal(self) -> bool {
@@ -91,7 +100,10 @@ mod keys_ceremony_execution_status_tests {
 
     #[test]
     fn happy_path() {
-        assert_eq!(AWAITING_TRUSTEE_KEYS.try_transition(IN_PROGRESS), Ok(IN_PROGRESS));
+        assert_eq!(
+            AWAITING_TRUSTEE_KEYS.try_transition(IN_PROGRESS),
+            Ok(IN_PROGRESS)
+        );
         assert_eq!(IN_PROGRESS.try_transition(SUCCESS), Ok(SUCCESS));
     }
 
@@ -100,7 +112,7 @@ mod keys_ceremony_execution_status_tests {
         assert!(AWAITING_TRUSTEE_KEYS.try_transition(CANCELLED).is_ok());
         assert!(IN_PROGRESS.try_transition(CANCELLED).is_ok());
         assert!(SUCCESS.try_transition(CANCELLED).is_ok()); // caller must additionally
-                                                             // verify voting has not started
+                                                            // verify voting has not started
     }
 
     #[test]
@@ -119,7 +131,8 @@ mod keys_ceremony_execution_status_tests {
     #[test]
     fn round_trips_through_serde_as_the_db_would() {
         let s = serde_json::to_string(&AWAITING_TRUSTEE_KEYS).unwrap();
-        let back: super::KeysCeremonyExecutionStatus = serde_json::from_str(&s).unwrap();
+        let back: super::KeysCeremonyExecutionStatus =
+            serde_json::from_str(&s).unwrap();
         assert_eq!(back.try_transition(IN_PROGRESS), Ok(IN_PROGRESS));
     }
 }
@@ -141,18 +154,9 @@ pub enum TrusteeStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Trustee {
+pub struct TrusteeCeremonyStatus {
     pub name: String,
     pub status: TrusteeStatus,
-    /// Snapshot of the public key actually used to build the on-board
-    /// `Configuration` for this ceremony, written once by `create_keys_impl`
-    /// at the AWAITING_TRUSTEE_KEYS -> IN_PROGRESS transition. Frozen from
-    /// that point on — never re-read from or overwritten by the live
-    /// `sequent_backend.trustee.public_key` column, which other ceremonies
-    /// may later overwrite. `#[serde(default)]` so ceremonies created before
-    /// this field existed still deserialize.
-    #[serde(default)]
-    pub public_key: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -160,7 +164,7 @@ pub struct KeysCeremonyStatus {
     pub stop_date: Option<String>,
     pub public_key: Option<String>,
     pub logs: Vec<Log>,
-    pub trustees: Vec<Trustee>,
+    pub trustees: Vec<TrusteeCeremonyStatus>,
 }
 
 #[derive(

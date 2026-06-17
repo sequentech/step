@@ -5,14 +5,14 @@
 use anyhow::{Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::ceremonies::{KeysCeremonyExecutionStatus, TrusteeModePolicy};
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use tracing::{event, instrument, Level};
 
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::tally_session::get_tally_session_by_election_event_id_pending_post_tally_task;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
-use crate::postgres::trustee::{get_trustee_mode_policy, get_trustees_by_id, stamp_trustee_ceremony_scope};
+use crate::postgres::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::tasks::create_keys::create_keys;

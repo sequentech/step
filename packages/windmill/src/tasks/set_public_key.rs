@@ -19,8 +19,8 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{
-    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee,
-    TrusteeStatus,
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+    TrusteeCeremonyStatus as BasicTrustee, TrusteeStatus,
 };
 use sequent_core::types::hasura::core::Trustee;
 use serde_json::Value;
@@ -155,7 +155,6 @@ pub async fn set_public_key_impl(
                 Ok(BasicTrustee {
                     name: trustee.name.clone(),
                     status: get_trustee_status(&trustee.name, &trustees_by_name, &messages)?,
-                    public_key: trustee.public_key.clone(),
                 })
             })
             .collect::<Result<Vec<BasicTrustee>>>()?,

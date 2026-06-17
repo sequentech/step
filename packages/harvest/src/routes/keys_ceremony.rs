@@ -9,7 +9,9 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::{decode_permission_labels, JwtClaims, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE};
+use sequent_core::services::jwt::{
+    decode_permission_labels, JwtClaims, SERVER_DEFAULT_ROLE, USER_DEFAULT_ROLE,
+};
 use sequent_core::types::ceremonies::TrusteeModePolicy;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
@@ -594,27 +596,30 @@ pub async fn discover_active_ceremonies(
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     // Resolve the caller's trustee id from the JWT-provided name.
-    let trustee = get_trustee_by_name(&hasura_transaction, &tenant_id, &trustee_name)
-        .await
-        .map_err(|e| {
-            (
-                Status::NotFound,
-                format!("Trustee '{trustee_name}' not found: {e:?}"),
-            )
-        })?;
+    let trustee =
+        get_trustee_by_name(&hasura_transaction, &tenant_id, &trustee_name)
+            .await
+            .map_err(|e| {
+                (
+                    Status::NotFound,
+                    format!("Trustee '{trustee_name}' not found: {e:?}"),
+                )
+            })?;
 
-    let keys_ceremonies = postgres::keys_ceremony::get_active_ceremonies_for_trustee(
-        &hasura_transaction,
-        &tenant_id,
-        &trustee.id,
-        input.election_event_id.as_deref(),
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let keys_ceremonies =
+        postgres::keys_ceremony::get_active_ceremonies_for_trustee(
+            &hasura_transaction,
+            &tenant_id,
+            &trustee.id,
+            input.election_event_id.as_deref(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     // Resolve the authoritative board name for each ceremony from its election
     // event's bulletin_board_reference, so the caller never reconstructs it.
-    let mut ceremonies: Vec<ActiveCeremony> = Vec::with_capacity(keys_ceremonies.len());
+    let mut ceremonies: Vec<ActiveCeremony> =
+        Vec::with_capacity(keys_ceremonies.len());
     for keys_ceremony in keys_ceremonies {
         let election_event = get_election_event_by_id(
             &hasura_transaction,
@@ -624,8 +629,9 @@ pub async fn discover_active_ceremonies(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-        let board_name = get_election_event_board(election_event.bulletin_board_reference)
-            .ok_or_else(|| {
+        let board_name =
+            get_election_event_board(election_event.bulletin_board_reference)
+                .ok_or_else(|| {
                 (
                     Status::InternalServerError,
                     format!(
@@ -635,12 +641,13 @@ pub async fn discover_active_ceremonies(
                 )
             })?;
 
-        let execution_status = keys_ceremony.execution_status().map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Invalid execution_status: {e:?}"),
-            )
-        })?;
+        let execution_status =
+            keys_ceremony.execution_status().map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Invalid execution_status: {e:?}"),
+                )
+            })?;
 
         ceremonies.push(ActiveCeremony {
             keys_ceremony_id: keys_ceremony.id,

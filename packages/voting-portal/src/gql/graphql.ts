@@ -1233,6 +1233,10 @@ export type Mutation_Root = {
   delete_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.trustee" */
   delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** delete data from the table: "sequent_backend.trustee_ceremony_key" */
+  delete_sequent_backend_trustee_ceremony_key?: Maybe<Sequent_Backend_Trustee_Ceremony_Key_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.trustee_ceremony_key" */
+  delete_sequent_backend_trustee_ceremony_key_by_pk?: Maybe<Sequent_Backend_Trustee_Ceremony_Key>;
   delete_user?: Maybe<DeleteUserOutput>;
   delete_user_role?: Maybe<SetUserRoleOutput>;
   /** delete users */
@@ -1419,6 +1423,10 @@ export type Mutation_Root = {
   insert_sequent_backend_tenant_one?: Maybe<Sequent_Backend_Tenant>;
   /** insert data into the table: "sequent_backend.trustee" */
   insert_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
+  /** insert data into the table: "sequent_backend.trustee_ceremony_key" */
+  insert_sequent_backend_trustee_ceremony_key?: Maybe<Sequent_Backend_Trustee_Ceremony_Key_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.trustee_ceremony_key" */
+  insert_sequent_backend_trustee_ceremony_key_one?: Maybe<Sequent_Backend_Trustee_Ceremony_Key>;
   /** insert a single row into the table: "sequent_backend.trustee" */
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
   limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>;
@@ -1652,6 +1660,12 @@ export type Mutation_Root = {
   update_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
   /** update single row of the table: "sequent_backend.trustee" */
   update_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** update data of the table: "sequent_backend.trustee_ceremony_key" */
+  update_sequent_backend_trustee_ceremony_key?: Maybe<Sequent_Backend_Trustee_Ceremony_Key_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.trustee_ceremony_key" */
+  update_sequent_backend_trustee_ceremony_key_by_pk?: Maybe<Sequent_Backend_Trustee_Ceremony_Key>;
+  /** update multiples rows of table: "sequent_backend.trustee_ceremony_key" */
+  update_sequent_backend_trustee_ceremony_key_many?: Maybe<Array<Maybe<Sequent_Backend_Trustee_Ceremony_Key_Mutation_Response>>>;
   /** update multiples rows of table: "sequent_backend.trustee" */
   update_sequent_backend_trustee_many?: Maybe<Array<Maybe<Sequent_Backend_Trustee_Mutation_Response>>>;
   update_tally_ceremony?: Maybe<StartTallyOutput>;
@@ -2273,6 +2287,18 @@ export type Mutation_RootDelete_Sequent_Backend_TrusteeArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Trustee_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Trustee_Ceremony_KeyArgs = {
+  where: Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Trustee_Ceremony_Key_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -3066,6 +3092,20 @@ export type Mutation_RootInsert_Sequent_Backend_Tenant_OneArgs = {
 export type Mutation_RootInsert_Sequent_Backend_TrusteeArgs = {
   objects: Array<Sequent_Backend_Trustee_Insert_Input>;
   on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Trustee_Ceremony_KeyArgs = {
+  objects: Array<Sequent_Backend_Trustee_Ceremony_Key_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Trustee_Ceremony_Key_OneArgs = {
+  object: Sequent_Backend_Trustee_Ceremony_Key_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_On_Conflict>;
 };
 
 
@@ -4284,6 +4324,26 @@ export type Mutation_RootUpdate_Sequent_Backend_Trustee_By_PkArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Trustee_Ceremony_KeyArgs = {
+  _set?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Set_Input>;
+  where: Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Trustee_Ceremony_Key_By_PkArgs = {
+  _set?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Set_Input>;
+  pk_columns: Sequent_Backend_Trustee_Ceremony_Key_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Trustee_Ceremony_Key_ManyArgs = {
+  updates: Array<Sequent_Backend_Trustee_Ceremony_Key_Updates>;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Trustee_ManyArgs = {
   updates: Array<Sequent_Backend_Trustee_Updates>;
 };
@@ -4599,6 +4659,12 @@ export type Query_Root = {
   sequent_backend_trustee_aggregate: Sequent_Backend_Trustee_Aggregate;
   /** fetch data from the table: "sequent_backend.trustee" using primary key columns */
   sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** fetch data from the table: "sequent_backend.trustee_ceremony_key" */
+  sequent_backend_trustee_ceremony_key: Array<Sequent_Backend_Trustee_Ceremony_Key>;
+  /** fetch aggregated fields from the table: "sequent_backend.trustee_ceremony_key" */
+  sequent_backend_trustee_ceremony_key_aggregate: Sequent_Backend_Trustee_Ceremony_Key_Aggregate;
+  /** fetch data from the table: "sequent_backend.trustee_ceremony_key" using primary key columns */
+  sequent_backend_trustee_ceremony_key_by_pk?: Maybe<Sequent_Backend_Trustee_Ceremony_Key>;
 };
 
 
@@ -5575,6 +5641,29 @@ export type Query_RootSequent_Backend_Trustee_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Trustee_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Trustee_Ceremony_KeyArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Trustee_Ceremony_Key_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Trustee_Ceremony_Key_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -18993,6 +19082,219 @@ export type Sequent_Backend_Trustee_Bool_Exp = {
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
+/** columns and relationships of "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key = {
+  __typename?: 'sequent_backend_trustee_ceremony_key';
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  keys_ceremony_id: Scalars['uuid']['output'];
+  last_updated_at: Scalars['timestamptz']['output'];
+  public_key: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  /** An object relationship */
+  trustee: Sequent_Backend_Trustee;
+  trustee_id: Scalars['uuid']['output'];
+};
+
+/** aggregated selection of "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Aggregate = {
+  __typename?: 'sequent_backend_trustee_ceremony_key_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Trustee_Ceremony_Key_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Trustee_Ceremony_Key>;
+};
+
+/** aggregate fields of "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Aggregate_Fields = {
+  __typename?: 'sequent_backend_trustee_ceremony_key_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Trustee_Ceremony_Key_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Trustee_Ceremony_Key_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.trustee_ceremony_key". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
+  last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  public_key?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  trustee?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+  trustee_id?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.trustee_ceremony_key" */
+export enum Sequent_Backend_Trustee_Ceremony_Key_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  TrusteeCeremonyKeyPkey = 'trustee_ceremony_key_pkey',
+  /** unique or primary key constraint on columns "keys_ceremony_id", "trustee_id", "tenant_id", "election_event_id" */
+  TrusteeCeremonyKeyTenantIdTrusteeIdElectionEventIdKey = 'trustee_ceremony_key_tenant_id_trustee_id_election_event_id_key'
+}
+
+/** input type for inserting data into table "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Insert_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee?: InputMaybe<Sequent_Backend_Trustee_Obj_Rel_Insert_Input>;
+  trustee_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Trustee_Ceremony_Key_Max_Fields = {
+  __typename?: 'sequent_backend_trustee_ceremony_key_max_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  trustee_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Trustee_Ceremony_Key_Min_Fields = {
+  __typename?: 'sequent_backend_trustee_ceremony_key_min_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  trustee_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Mutation_Response = {
+  __typename?: 'sequent_backend_trustee_ceremony_key_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Trustee_Ceremony_Key>;
+};
+
+/** on_conflict condition type for table "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_On_Conflict = {
+  constraint: Sequent_Backend_Trustee_Ceremony_Key_Constraint;
+  update_columns?: Array<Sequent_Backend_Trustee_Ceremony_Key_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.trustee_ceremony_key". */
+export type Sequent_Backend_Trustee_Ceremony_Key_Order_By = {
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  keys_ceremony_id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  public_key?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  trustee?: InputMaybe<Sequent_Backend_Trustee_Order_By>;
+  trustee_id?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.trustee_ceremony_key */
+export type Sequent_Backend_Trustee_Ceremony_Key_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.trustee_ceremony_key" */
+export enum Sequent_Backend_Trustee_Ceremony_Key_Select_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  KeysCeremonyId = 'keys_ceremony_id',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  PublicKey = 'public_key',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  TrusteeId = 'trustee_id'
+}
+
+/** input type for updating data in table "sequent_backend.trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Set_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_trustee_ceremony_key" */
+export type Sequent_Backend_Trustee_Ceremony_Key_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Trustee_Ceremony_Key_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Trustee_Ceremony_Key_Stream_Cursor_Value_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "sequent_backend.trustee_ceremony_key" */
+export enum Sequent_Backend_Trustee_Ceremony_Key_Update_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  KeysCeremonyId = 'keys_ceremony_id',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  PublicKey = 'public_key',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  TrusteeId = 'trustee_id'
+}
+
+export type Sequent_Backend_Trustee_Ceremony_Key_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp;
+};
+
 /** unique or primary key constraints on table "sequent_backend.trustee" */
 export enum Sequent_Backend_Trustee_Constraint {
   /** unique or primary key constraint on columns "id" */
@@ -19088,6 +19390,13 @@ export type Sequent_Backend_Trustee_Mutation_Response = {
   affected_rows: Scalars['Int']['output'];
   /** data from the rows affected by the mutation */
   returning: Array<Sequent_Backend_Trustee>;
+};
+
+/** input type for inserting object relation for remote table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Trustee_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
 };
 
 /** on_conflict condition type for table "sequent_backend.trustee" */
@@ -19511,6 +19820,14 @@ export type Subscription_Root = {
   sequent_backend_trustee_aggregate: Sequent_Backend_Trustee_Aggregate;
   /** fetch data from the table: "sequent_backend.trustee" using primary key columns */
   sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** fetch data from the table: "sequent_backend.trustee_ceremony_key" */
+  sequent_backend_trustee_ceremony_key: Array<Sequent_Backend_Trustee_Ceremony_Key>;
+  /** fetch aggregated fields from the table: "sequent_backend.trustee_ceremony_key" */
+  sequent_backend_trustee_ceremony_key_aggregate: Sequent_Backend_Trustee_Ceremony_Key_Aggregate;
+  /** fetch data from the table: "sequent_backend.trustee_ceremony_key" using primary key columns */
+  sequent_backend_trustee_ceremony_key_by_pk?: Maybe<Sequent_Backend_Trustee_Ceremony_Key>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.trustee_ceremony_key" */
+  sequent_backend_trustee_ceremony_key_stream: Array<Sequent_Backend_Trustee_Ceremony_Key>;
   /** fetch data from the table in a streaming manner: "sequent_backend.trustee" */
   sequent_backend_trustee_stream: Array<Sequent_Backend_Trustee>;
 };
@@ -20639,6 +20956,36 @@ export type Subscription_RootSequent_Backend_Trustee_AggregateArgs = {
 
 export type Subscription_RootSequent_Backend_Trustee_By_PkArgs = {
   id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_Ceremony_KeyArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_Ceremony_Key_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Ceremony_Key_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_Ceremony_Key_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_Ceremony_Key_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Ceremony_Key_Bool_Exp>;
 };
 
 

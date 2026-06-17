@@ -21,7 +21,8 @@ use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{
-    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, TrusteeCeremonyStatus,
+    TrusteeStatus,
 };
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
@@ -114,12 +115,22 @@ pub async fn get_private_key(
         get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
             .await?;
 
-    let trustee_public_key = trustee::get_trustee_by_name(transaction, &tenant_id, &trustee_name)
-        .await
-        .with_context(|| "can't find trustee in the database")?
-        .public_key
-        .clone()
-        .ok_or(anyhow!("can't get trustee's public key"))?;
+    // Look up the trustee's key for THIS ceremony specifically — server-based
+    // download must use the per-ceremony key that went into the Configuration,
+    // not an unscoped/global lookup.
+    let trustee_public_key = trustee::get_trustees_by_name(
+        transaction,
+        &tenant_id,
+        &vec![trustee_name.clone()],
+        Some(&election_event_id),
+        Some(&keys_ceremony_id),
+    )
+    .await
+    .with_context(|| "can't find trustee in the database")?
+    .into_iter()
+    .next()
+    .and_then(|trustee| trustee.public_key)
+    .ok_or(anyhow!("can't get trustee's public key"))?;
 
     // get the encrypted private key
     let encrypted_private_key =
@@ -137,16 +148,15 @@ pub async fn get_private_key(
             .into_iter()
             .map(|trustee| {
                 if (trustee.name == trustee_name) {
-                    Ok(Trustee {
+                    Ok(TrusteeCeremonyStatus {
                         name: trustee.name.clone(),
                         status: TrusteeStatus::KEY_RETRIEVED,
-                        public_key: trustee.public_key.clone(),
                     })
                 } else {
                     Ok(trustee.clone())
                 }
             })
-            .collect::<Result<Vec<Trustee>>>()?,
+            .collect::<Result<Vec<TrusteeCeremonyStatus>>>()?,
     })?;
 
     // update keys-ceremony into the database using graphql
@@ -189,11 +199,19 @@ pub async fn find_trustee_private_key(
         get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
             .await?;
 
-    let trustee_public_key = trustee::get_trustee_by_name(transaction, tenant_id, trustee_name)
-        .await?
-        .public_key
-        .clone()
-        .ok_or(anyhow!("can't get trustee public key"))?;
+    // Per-ceremony key lookup — see get_private_key for rationale.
+    let trustee_public_key = trustee::get_trustees_by_name(
+        transaction,
+        tenant_id,
+        &vec![trustee_name.to_string()],
+        Some(election_event_id),
+        Some(&keys_ceremony.id),
+    )
+    .await?
+    .into_iter()
+    .next()
+    .and_then(|trustee| trustee.public_key)
+    .ok_or(anyhow!("can't get trustee public key"))?;
 
     // get the encrypted private key
     get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
@@ -272,16 +290,15 @@ pub async fn check_private_key(
             .iter()
             .map(|trustee| {
                 if (trustee.name == trustee_name) {
-                    Ok(Trustee {
+                    Ok(TrusteeCeremonyStatus {
                         name: trustee.name.clone(),
                         status: TrusteeStatus::KEY_CHECKED,
-                        public_key: trustee.public_key.clone(),
                     })
                 } else {
                     Ok(trustee.clone())
                 }
             })
-            .collect::<Result<Vec<Trustee>>>()?,
+            .collect::<Result<Vec<TrusteeCeremonyStatus>>>()?,
     };
 
     let all_trustees_checked = new_status
@@ -291,7 +308,9 @@ pub async fn check_private_key(
     // Only attempt a transition when the status actually changes — staying at
     // IN_PROGRESS (not all trustees checked yet) is not a transition, and
     // try_transition has no self-transition arm.
-    let new_execution_status = if all_trustees_checked && current_execution_status != KeysCeremonyExecutionStatus::SUCCESS {
+    let new_execution_status = if all_trustees_checked
+        && current_execution_status != KeysCeremonyExecutionStatus::SUCCESS
+    {
         current_execution_status.try_transition(KeysCeremonyExecutionStatus::SUCCESS)?
     } else {
         current_execution_status
@@ -338,7 +357,7 @@ pub async fn create_keys_ceremony(
     let trustees =
         trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names, None, None)
             .await
-        .with_context(|| "can't find trustees")?;
+            .with_context(|| "can't find trustees")?;
 
     if trustee_names.len() != trustees.len() {
         return Err(anyhow!("can't find trustees"));
@@ -405,13 +424,12 @@ pub async fn create_keys_ceremony(
             .clone()
             .into_iter()
             .map(|trustee| {
-                Ok(Trustee {
+                Ok(TrusteeCeremonyStatus {
                     name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
                     status: TrusteeStatus::WAITING,
-                    public_key: None,
                 })
             })
-            .collect::<Result<Vec<Trustee>>>()?,
+            .collect::<Result<Vec<TrusteeCeremonyStatus>>>()?,
     })?;
     let is_default = election_id.is_none();
 
