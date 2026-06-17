@@ -7,6 +7,14 @@
       "created_at": "2026-05-05T09:38:37Z",
       "repoId": 643914045,
       "pullRequestNo": 2613
+    },
+    {
+      "name": "yana-sequent",
+      "id": 283950852,
+      "comment_id": 4729683563,
+      "created_at": "2026-06-17T11:56:26Z",
+      "repoId": 643914045,
+      "pullRequestNo": 2764
     }
   ]
 }
