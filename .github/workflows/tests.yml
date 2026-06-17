@@ -7,12 +7,13 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       matrix:
         include:
@@ -22,7 +23,7 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak,default_features
+            extra: --features keycloak
           - service: velvet
           - service: windmill
             build_jobs: 2
@@ -36,9 +37,27 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: 1.96.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: packages/${{ matrix.service }}/target
+          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-${{ matrix.service }}-
 
       - name: Install system dependencies
         run: |
@@ -83,7 +102,7 @@ jobs:
     name: Notify on failure
     needs: run-tests
     if: failure()
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-latest
     steps:
       - name: Slack notification
         uses: slackapi/slack-github-action@v1.24.0

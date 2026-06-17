@@ -7,13 +7,14 @@ name: Build Step CLI Binary
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
   release:
     types: [published]
 
 jobs:
   build-cli:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       CARGO_TARGET_DIR: rust-local-target
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
@@ -30,9 +31,27 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.90.0
+          toolchain: 1.96.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: packages/step-cli/rust-local-target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('packages/step-cli/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
 
       - name: Link openssl
         working-directory: packages/step-cli
@@ -46,6 +65,7 @@ jobs:
           OPENSSL_STATIC: 1
           PKG_CONFIG_ALLOW_CROSS: 1
           OPENSSL_NO_VENDOR: 0
+          CARGO_BUILD_JOBS: 4
         run: cargo build --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
@@ -56,4 +76,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
               name: step-cli-binary
-              path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/step-cli
+              path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/seq
