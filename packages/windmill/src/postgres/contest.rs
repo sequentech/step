@@ -4,11 +4,47 @@
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::pin_mut;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Contest;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::{ToSql, Type};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+/// Contest column for insert operation
+const CONTEST_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, election_id, created_at,
+last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation,
+min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, 
+conditions, winning_candidates_num, image_document_id, alias";
+
+/// Contest columns types for insert operation (same order as the columns)
+const CONTEST_COPY_TYPES: &[Type] = &[
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::TIMESTAMPTZ,
+    Type::TIMESTAMPTZ,
+    Type::JSONB,
+    Type::JSONB,
+    Type::BOOL,
+    Type::BOOL,
+    Type::VARCHAR,
+    Type::TEXT,
+    Type::JSONB,
+    Type::INT4,
+    Type::INT4,
+    Type::VARCHAR,
+    Type::VARCHAR,
+    Type::BOOL,
+    Type::JSONB,
+    Type::JSONB,
+    Type::INT4,
+    Type::TEXT,
+    Type::TEXT,
+];
 
 pub struct ContestWrapper(pub Contest);
 
@@ -53,52 +89,69 @@ pub async fn insert_contest(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
+    if data.contests.is_empty() {
+        return Ok(());
+    }
+
+    let now = chrono::Utc::now();
+    let copy_sql =
+        format!("COPY sequent_backend.contest ({CONTEST_COPY_COLUMNS}) FROM STDIN BINARY");
+
+    let sink = hasura_transaction
+        .copy_in(&copy_sql)
+        .await
+        .with_context(|| format!("Error preparing contest COPY IN: {copy_sql}"))?;
+    let writer = BinaryCopyInWriter::new(sink, CONTEST_COPY_TYPES);
+    pin_mut!(writer);
+
     for contest in &data.contests {
         contest.validate()?;
 
-        let statement = hasura_transaction
-        .prepare(
-            r#"
-                INSERT INTO sequent_backend.contest
-                (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, alias, image_document_id)
-                VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
-            "#,
-        )
-        .await?;
+        let id = parse_uuid_v4(&contest.id)?;
+        let tenant_id = parse_uuid_v4(&contest.tenant_id)?;
+        let election_event_id = parse_uuid_v4(&contest.election_event_id)?;
+        let election_id = parse_uuid_v4(&contest.election_id)?;
+        let min_votes = contest.min_votes.map(|val| val as i32);
+        let max_votes = contest.max_votes.map(|val| val as i32);
+        let winning_candidates_num = contest.winning_candidates_num.map(|val| val as i32);
 
-        let rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &parse_uuid_v4(&contest.id)?,
-                    &parse_uuid_v4(&contest.tenant_id)?,
-                    &parse_uuid_v4(&contest.election_event_id)?,
-                    &parse_uuid_v4(&contest.election_id)?,
-                    &contest.labels,
-                    &contest.annotations,
-                    &contest.is_acclaimed,
-                    &contest.is_active,
-                    &contest.name,
-                    &contest.description,
-                    &contest.presentation,
-                    &contest.min_votes.and_then(|val| Some(val as i32)),
-                    &contest.max_votes.and_then(|val| Some(val as i32)),
-                    &contest.voting_type,
-                    &contest.counting_algorithm,
-                    &contest.is_encrypted,
-                    &contest.tally_configuration,
-                    &contest.conditions,
-                    &contest
-                        .winning_candidates_num
-                        .and_then(|val| Some(val as i32)),
-                    &contest.alias,
-                    &contest.image_document_id,
-                ],
-            )
+        let row: [&(dyn ToSql + Sync); 23] = [
+            &id,
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+            &now,
+            &now,
+            &contest.labels,
+            &contest.annotations,
+            &contest.is_acclaimed,
+            &contest.is_active,
+            &contest.name,
+            &contest.description,
+            &contest.presentation,
+            &min_votes,
+            &max_votes,
+            &contest.voting_type,
+            &contest.counting_algorithm,
+            &contest.is_encrypted,
+            &contest.tally_configuration,
+            &contest.conditions,
+            &winning_candidates_num,
+            &contest.image_document_id,
+            &contest.alias,
+        ];
+
+        writer
+            .as_mut()
+            .write(&row)
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error writing contest COPY row: {err}"))?;
     }
+
+    writer
+        .finish()
+        .await
+        .context("Error finishing contest COPY IN transaction")?;
 
     Ok(())
 }
