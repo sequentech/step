@@ -10,6 +10,8 @@ import {
     translate,
     keyBy,
     ECollapsibleLists,
+    showCategoryOnReview,
+    isCategoryListSelected,
 } from "@sequentech/ui-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
@@ -46,21 +48,6 @@ export interface AnswersListProps {
     setIsTouched: (value: boolean) => void
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
-}
-
-const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
-    if (isUndefined(questionState)) {
-        return false
-    }
-    const answersFromCategory = category.candidates.map((candidate) => candidate.id)
-
-    if (!isUndefined(category.header)) {
-        answersFromCategory.push(category.header.id)
-    }
-
-    return questionState.choices.some(
-        (choice) => choice.selected > -1 && answersFromCategory.includes(choice.id)
-    )
 }
 
 export const AnswersList: React.FC<AnswersListProps> = ({
@@ -119,6 +106,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             : undefined
 
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
+    const isListSelectedOnReview =
+        isReview && isCategoryListSelected(category, questionState?.choices ?? [])
     const setChecked = (value: boolean) => {
         if (isRadioSelection) {
             dispatch(
@@ -203,7 +192,10 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                     (choice) => choice.selected > -1 && subtypeCandidateIds.includes(choice.id)
                 )
 
-                if (0 === subtypeCandidates.length || (isReview && !hasSelectedAnswer)) {
+                if (
+                    0 === subtypeCandidates.length ||
+                    (isReview && !hasSelectedAnswer && !isListSelectedOnReview)
+                ) {
                     return null
                 }
                 return (
@@ -229,6 +221,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 explicitBlank={explicitBlank}
                                 setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
+                                showWhenListSelected={isListSelectedOnReview}
                             />
                         ))}
                     </>
@@ -257,6 +250,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         explicitBlank={explicitBlank}
                         setExplicitBlank={setExplicitBlank}
                         setIsTouched={setIsTouched}
+                        showWhenListSelected={isListSelectedOnReview}
                     />
                 ))}
         </CandidatesList>
