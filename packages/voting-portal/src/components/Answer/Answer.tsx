@@ -52,6 +52,7 @@ export interface IAnswerProps {
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
     setIsTouched: (value: boolean) => void
+    showWhenListSelected?: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -71,6 +72,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     setSelectedChoicesSum,
     disableSelect,
     setIsTouched,
+    showWhenListSelected,
 }) => {
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = useMemo(() => {
@@ -223,7 +225,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    if (isReview && !isChecked()) {
+    if (isReview && !isChecked() && !showWhenListSelected) {
         return null
     }
 

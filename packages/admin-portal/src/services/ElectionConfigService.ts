@@ -11,8 +11,7 @@ export const getImageUrl = (answer: ICandidate): string | undefined =>
 
 export const getLinkUrl = (answer: ICandidate): string | undefined => findUrlByTitle(answer, "URL")
 
-export const checkIsCategoryList = (candidate: ICandidate): boolean =>
-    candidate.presentation?.is_category_list || false
+export {checkIsCategoryList} from "@sequentech/ui-core"
 
 export const checkIsWriteIn = (answer: ICandidate): boolean =>
     answer.presentation?.is_write_in || false
