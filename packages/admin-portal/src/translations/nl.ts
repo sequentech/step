@@ -182,6 +182,13 @@ const dutchTranslation: TranslationType = {
             edit: {
                 title: "Trustee bewerken",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot instellingen.",
@@ -1424,6 +1431,7 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt de Sleutelceremonie te annuleren. Na deze actie moet u een nieuwe aanmaken voor een succesvolle Sleutelceremonie.",
                 },
                 header: {
+                    status: "Status",
                     trusteeName: "Naam Trustee",
                     fragment: "Sleutelfragment Gegenereerd",
                     downloaded: "Privésleutelfragment Gedownload",

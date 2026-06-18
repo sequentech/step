@@ -214,7 +214,7 @@ impl Message {
         username: Option<String>,
         election_id: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::KeyGeneration;
+        let body = StatementBody::KeysCeremonyCreation;
         Self::from_body(event, body, sd, user_id, username, election_id, None, None)
     }
 

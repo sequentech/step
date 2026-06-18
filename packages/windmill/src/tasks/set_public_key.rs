@@ -19,8 +19,8 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{
-    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee,
-    TrusteeStatus,
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+    TrusteeCeremonyStatus as BasicTrustee, TrusteeStatus,
 };
 use sequent_core::types::hasura::core::Trustee;
 use serde_json::Value;
@@ -78,9 +78,9 @@ pub async fn set_public_key_impl(
         info!("Public key already set");
         return Ok(());
     }
-    let execution_status = keys_ceremony.execution_status()?;
-    if execution_status != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        info!("Unexpected status {}", execution_status);
+    let current_execution_status = keys_ceremony.execution_status()?;
+    if current_execution_status != KeysCeremonyExecutionStatus::IN_PROGRESS {
+        info!("Unexpected status {}", current_execution_status);
         return Ok(());
     }
     let (board_name, _) = get_keys_ceremony_board(
@@ -102,6 +102,8 @@ pub async fn set_public_key_impl(
         &hasura_transaction,
         &tenant_id,
         &trustee_names.clone().into_iter().collect::<Vec<_>>(),
+        Some(&election_event_id),
+        Some(&keys_ceremony_id),
     )
     .await?;
 
@@ -130,10 +132,15 @@ pub async fn set_public_key_impl(
 
     let keys_ceremony_policy = keys_ceremony.policy().clone();
 
-    // if we have a public key, and the policy is automated, we can set the status to success
+    // if we have a public key, and the policy is automated, we can set the status to success.
+    // Only attempt a transition when the target actually differs from the current status —
+    // staying at IN_PROGRESS (manual policy, or automated but no public key yet) is not a
+    // transition, and try_transition has no self-transition arm.
     let new_execution_status = match (keys_ceremony_policy.clone(), public_key_opt.clone()) {
-        (CeremoniesPolicy::AUTOMATED_CEREMONIES, Some(_)) => KeysCeremonyExecutionStatus::SUCCESS,
-        _ => KeysCeremonyExecutionStatus::IN_PROGRESS,
+        (CeremoniesPolicy::AUTOMATED_CEREMONIES, Some(_)) => {
+            current_execution_status.try_transition(KeysCeremonyExecutionStatus::SUCCESS)?
+        }
+        _ => current_execution_status,
     };
 
     let new_status: Value = serde_json::to_value(KeysCeremonyStatus {

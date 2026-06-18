@@ -1,0 +1,98 @@
+table:
+    name: trustee_ceremony_key
+    schema: sequent_backend
+object_relationships:
+    - name: trustee
+      using:
+          foreign_key_constraint_on: trustee_id
+insert_permissions:
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - id
+              - tenant_id
+              - trustee_id
+              - election_event_id
+              - keys_ceremony_id
+              - public_key
+              - created_at
+              - last_updated_at
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - trustee_id
+              - election_event_id
+              - keys_ceremony_id
+              - public_key
+              - created_at
+              - last_updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - trustee_id
+              - election_event_id
+              - keys_ceremony_id
+              - public_key
+              - created_at
+              - last_updated_at
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - trustee_id
+              - election_event_id
+              - keys_ceremony_id
+              - public_key
+              - created_at
+              - last_updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - trustee_id
+              - election_event_id
+              - keys_ceremony_id
+              - public_key
+              - created_at
+              - last_updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: trustee-write
+update_permissions:
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - public_key
+              - last_updated_at
+          filter: {}
+      role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

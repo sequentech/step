@@ -183,6 +183,13 @@ const frenchTranslation: TranslationType = {
             edit: {
                 title: "Modifier le fiduciaire",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",
@@ -1437,6 +1444,7 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point d'Annuler la Cérémonie de Clés. Après avoir effectué cette action, pour avoir une Cérémonie de Clés réussie, vous devrez en Créer une nouvelle.",
                 },
                 header: {
+                    status: "État",
                     trusteeName: "Nom de l'Autorité",
                     fragment: "Fragment de Clé Généré",
                     downloaded: "Fragment Privé de Clé Téléchargé",

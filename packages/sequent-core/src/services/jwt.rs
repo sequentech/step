@@ -13,6 +13,28 @@ use serde_json;
 use std::collections::HashMap;
 use tracing::{debug, info, instrument, warn};
 
+/// Default role value for native server-based trustees.
+///
+/// When a JWT has `x-hasura-default-role` set to this value, it indicates
+/// the caller is a server-based (native) trustee. Set by Keycloak's
+/// `native-trustee` client via a hardcoded claim mapper.
+pub const SERVER_DEFAULT_ROLE: &str = "server";
+
+/// Default role value for voters.
+///
+/// Set by Keycloak's `voting-portal` client as a hardcoded claim. This is the
+/// voter role — it is NOT the role browser-based trustees get (those log into
+/// the admin portal and receive [`ADMIN_DEFAULT_ROLE`]).
+pub const USER_DEFAULT_ROLE: &str = "user";
+
+/// Default role value for admin-portal sessions.
+///
+/// Set by Keycloak's `admin-portal` client as a hardcoded claim, for every user
+/// that logs into the admin portal — including browser-based (BBT) trustees.
+/// A JWT with `x-hasura-default-role` set to this value is a browser-based
+/// caller, authorized per-board via the `authorized-boards` JWT claim.
+pub const ADMIN_DEFAULT_ROLE: &str = "admin-user";
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
     pub roles: Vec<String>,
@@ -30,6 +52,8 @@ pub struct JwtHasuraClaims {
     pub area_id: Option<String>,
     #[serde(rename = "authorized-election-ids")]
     pub authorized_election_ids: Option<Vec<String>>,
+    #[serde(rename = "authorized-boards")]
+    pub authorized_boards: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
     #[serde(rename = "x-hasura-permission-labels")]

@@ -11,7 +11,7 @@ pub mod board;
 pub mod session;
 pub mod verify;
 
-pub use session::WasmSession;
+pub use session::{generate_trustee_keys, WasmSession};
 pub use verify::WasmVerifier;
 
 // Re-export wasm-bindgen-rayon's initThreadPool for browser usage

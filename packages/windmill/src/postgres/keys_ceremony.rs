@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -258,6 +259,66 @@ pub async fn update_keys_ceremony_status(
     }
 
     Ok(())
+}
+
+/// Return every active keys ceremony a trustee should participate in.
+///
+/// "Active" means `execution_status` is either `AWAITING_TRUSTEE_KEYS` or
+/// `IN_PROGRESS`. The trustee must be a participant (`trustee_id` is present in
+/// the ceremony's `trustee_ids`). When `election_event_id` is provided the
+/// search is restricted to that event; otherwise ceremonies across every event
+/// the trustee belongs to are returned. Results are ordered most-recent-first so
+/// a freshly recreated ceremony precedes a stale one.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_active_ceremonies_for_trustee(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    trustee_id: &str,
+    election_event_id: Option<&str>,
+) -> Result<Vec<KeysCeremony>> {
+    let active_statuses: Vec<String> = vec![
+        KeysCeremonyExecutionStatus::AWAITING_TRUSTEE_KEYS.to_string(),
+        KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
+    ];
+
+    let election_event_uuid: Option<Uuid> = election_event_id
+        .map(Uuid::parse_str)
+        .transpose()
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.keys_ceremony
+                WHERE
+                    tenant_id = $1 AND
+                    $2 = ANY(trustee_ids) AND
+                    ($3::uuid IS NULL OR election_event_id = $3::uuid) AND
+                    execution_status = ANY($4::text[])
+                ORDER BY
+                    created_at DESC;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(trustee_id)?,
+                &election_event_uuid,
+                &active_statuses,
+            ],
+        )
+        .await?;
+
+    rows.into_iter()
+        .map(|row| -> Result<KeysCeremony> { row.try_into().map(|res: KeysCeremonyWrapper| res.0) })
+        .collect()
 }
 
 #[instrument(skip(hasura_transaction), err)]

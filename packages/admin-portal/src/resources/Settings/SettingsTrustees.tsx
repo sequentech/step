@@ -11,7 +11,16 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
+import {
+    List,
+    TextField,
+    TextInput,
+    useDelete,
+    Identifier,
+    DatagridConfigurable,
+    WrapperField,
+    FunctionField,
+} from "react-admin"
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -21,6 +30,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
+import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 import {SettingsTrusteesCreate} from "./SettingsTrusteesCreate"
 import {SettingsTrusteesEdit} from "./SettingsTrusteesEdit"
 import {PasswordDialog} from "@/components/election-event/export-data/PasswordDialog"
@@ -220,10 +230,18 @@ export const SettingsTrustees: React.FC<void> = () => {
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
-                    <TextField source="public_key" />
                     <TextField source="name" />
-
-                    <ActionsColumn actions={actions} />
+                    <FunctionField
+                        label={String(t("trusteesSettingsScreen.trusteeModePolicy.label"))}
+                        render={(record: any) =>
+                            record?.annotations?.trustee_mode_policy ??
+                            getDefaultTrusteeModePolicy()
+                        }
+                    />
+                    <TextField source="public_key" />
+                    <WrapperField source="actions" label="Actions" textAlign="right">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
                 </DatagridConfigurable>
             </List>
 

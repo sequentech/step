@@ -182,6 +182,13 @@ const englishTranslation = {
             edit: {
                 title: "Edit Trustee",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "You don't have permission to access settings.",
@@ -1415,6 +1422,7 @@ const englishTranslation = {
                         "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
                 },
                 header: {
+                    status: "Status",
                     trusteeName: "Trustee Name",
                     fragment: "Key Fragment Generated",
                     downloaded: "Private Key Fragment Downloaded",

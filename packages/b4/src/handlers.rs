@@ -16,6 +16,11 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use sequent_core::types::ceremonies::{
+    HeartbeatRequest, SessionsListResponse, TrusteeModePolicy, TrusteeSessionResponse,
+    TrusteeSessionStatus,
+};
+use sequent_core::types::env_vars as ev;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -884,4 +889,71 @@ pub async fn confirm_messages_multi(
     tracing::info!("[MULTI-CONFIRM] Complete: {} boards processed", board_count);
 
     Ok(Json(ConfirmMessagesMultiResponse { success: true }))
+}
+
+// ── Trustee session / heartbeat ──────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct GetSessionsQuery {
+    pub board_name: String,
+    pub heartbeat_secs: Option<u32>,
+}
+
+#[tracing::instrument(skip(state, claims), err)]
+pub async fn post_heartbeat(
+    State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
+    Json(req): Json<HeartbeatRequest>,
+) -> Result<StatusCode, StatusCode> {
+    tracing::info!(
+        "Heartbeat from '{}' ({}) on board '{}'",
+        req.trustee_name,
+        req.trustee_mode,
+        req.board_name
+    );
+
+    db::upsert_trustee_session(
+        &state.db,
+        &req.board_name,
+        &req.sender_pk,
+        &req.trustee_name,
+        &req.trustee_mode.to_string(),
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to upsert trustee session: {e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(StatusCode::OK)
+}
+
+#[tracing::instrument(skip(state), err)]
+pub async fn get_sessions(
+    State(state): State<AppState>,
+    Query(params): Query<GetSessionsQuery>,
+) -> Result<Json<SessionsListResponse>, StatusCode> {
+    let heartbeat_secs = params
+        .heartbeat_secs
+        .unwrap_or(ev::DEFAULT_BRAID_B4_HEARTBEAT_SECS);
+
+    let sessions = db::get_trustee_sessions(&state.db, &params.board_name, heartbeat_secs)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to get trustee sessions: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(SessionsListResponse {
+        sessions: sessions
+            .into_iter()
+            .map(|s| TrusteeSessionResponse {
+                board_name: s.board_name,
+                sender_pk: s.sender_pk,
+                trustee_name: s.trustee_name,
+                trustee_mode: s.trustee_mode.parse().unwrap_or_default(),
+                status: s.status.parse().unwrap_or_default(),
+            })
+            .collect(),
+    }))
 }

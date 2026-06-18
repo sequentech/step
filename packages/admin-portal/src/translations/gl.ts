@@ -183,6 +183,13 @@ const galegoTranslation: TranslationType = {
             edit: {
                 title: "Editar fideicomisario",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Non tes permiso para acceder ás configuracións.",
@@ -1427,6 +1434,7 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de Cancelar a Cerimonia de Chaves. Despois de realizar esta acción, para ter unha Cerimonia de Chaves exitosa terás que crear unha nova.",
                 },
                 header: {
+                    status: "Estado",
                     trusteeName: "Nome do Fiduciario",
                     fragment: "Fragmento de Chave Xerado",
                     downloaded: "Fragmento de Chave Privada Descargado",

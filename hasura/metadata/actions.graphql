@@ -1610,3 +1610,19 @@ type Mutation {
 type GenerateGoogleMeetOutput {
     meet_link: String
 }
+
+type Mutation {
+    register_trustee_key(
+        object: RegisterTrusteeKeyInput!
+    ): RegisterTrusteeKeyOutput
+}
+
+input RegisterTrusteeKeyInput {
+    public_key: String!
+    election_event_id: String!
+    keys_ceremony_id: String!
+}
+
+type RegisterTrusteeKeyOutput {
+    success: Boolean!
+}

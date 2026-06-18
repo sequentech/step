@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build:*)",
+      "Bash(nix develop:*)",
+      "Bash(devenv shell:*)",
+      "Bash(timeout 180 bash:*)",
+      "Bash(/nix/store/x8qy669ivsyvlqdawidwxy3hagzxw97v-cargo-1.86.0/bin/cargo build --features native)",
+      "Bash(/nix/store/vf121ns34vbd8dn557zv0878q9avg7qf-cargo-1.86.0-nightly-2025-01-29-aarch64-unknown-linux-gnu/bin/cargo build --features native)",
+      "WebFetch(domain:crates.io)",
+      "Bash(nix build:*)",
+      "Bash(cargo test:*)",
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(git stash:*)",
+      "Bash(find:*)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

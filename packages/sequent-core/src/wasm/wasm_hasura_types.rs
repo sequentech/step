@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::types::ceremonies::TrusteeModePolicy;
 use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn get_default_trustee_mode_policy() -> String {
+    TrusteeModePolicy::default().to_string()
+}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {

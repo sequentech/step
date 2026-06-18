@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::db::DbPool;
+use sequent_core::types::env_vars as ev;
 
 use aws_sdk_s3::Client as S3Client;
 
@@ -16,7 +17,7 @@ pub struct AppState {
 impl AppState {
     pub fn new(db: DbPool, s3_client: S3Client) -> Self {
         let bucket_name =
-            std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+            std::env::var(ev::S3_BUCKET_NAME).unwrap_or_else(|_| ev::DEFAULT_S3_BUCKET.to_string());
 
         Self {
             db,

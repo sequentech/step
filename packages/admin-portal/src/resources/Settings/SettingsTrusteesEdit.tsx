@@ -10,11 +10,15 @@ import {
     Edit,
     useNotify,
     TextInput,
+    SelectInput,
     Identifier,
     SaveButton,
     SimpleForm,
     useRefresh,
+    required,
 } from "react-admin"
+
+import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 
@@ -27,6 +31,13 @@ export const SettingsTrusteesEdit: React.FC<EditProps> = (props) => {
     const {id, close} = props
     const refresh = useRefresh()
     const {t} = useTranslation()
+
+    const trusteeModePolicyChoices = () => {
+        return Object.values(ETrusteeModePolicy).map((value) => ({
+            id: value,
+            name: t(`trusteesSettingsScreen.trusteeModePolicy.options.${value}`),
+        }))
+    }
 
     const onSuccess = async () => {
         refresh()
@@ -60,6 +71,13 @@ export const SettingsTrusteesEdit: React.FC<EditProps> = (props) => {
 
                     <TextInput source="name" />
                     <TextInput source="public_key" />
+                    <SelectInput
+                        source="annotations.trustee_mode_policy"
+                        choices={trusteeModePolicyChoices()}
+                        label={String(t("trusteesSettingsScreen.trusteeModePolicy.label"))}
+                        defaultValue={getDefaultTrusteeModePolicy()}
+                        validate={required()}
+                    />
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </Edit>

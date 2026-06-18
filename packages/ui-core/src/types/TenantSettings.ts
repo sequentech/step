@@ -16,6 +16,11 @@ export interface IHelpLink {
     i18n?: Record<string, Record<string, string>>
 }
 
+export enum ETrusteeModePolicy {
+    BROWSER_BASED = "browser-based",
+    SERVER_BASED = "server-based",
+}
+
 export interface ITenantSettings {
     i18n?: Record<string, Record<string, string>>
     help_links?: Array<IHelpLink>

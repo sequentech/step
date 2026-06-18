@@ -13,9 +13,7 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::ceremonies::{
-    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
-};
+use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -45,10 +43,36 @@ pub async fn create_keys_impl(
     .await
     .with_context(|| "error finding keys ceremony")?;
 
-    let trustees =
-        get_trustees_by_id(&hasura_transaction, &tenant_id, &keys_ceremony.trustee_ids).await?;
+    let trustees = get_trustees_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &keys_ceremony.trustee_ids,
+        Some(&election_event_id),
+        Some(&keys_ceremony_id),
+    )
+    .await?;
     info!("trustees: {:?}", trustees);
-    let trustee_pks = trustees
+
+    // Explicit guard: every trustee in this ceremony must have a key
+    // registered and scoped to (election_event_id, keys_ceremony_id) before
+    // we build a Configuration. Configuration::new panics via
+    // assert!(c.is_valid()) if the trustee list is too short — silently
+    // dropping a missing trustee here (the old behavior) risked crashing the
+    // beat worker. This should be unreachable once process_board's gate is
+    // in place (it only dispatches this task once the gate is satisfied),
+    // but stays as a defensive check against beat-task races or a
+    // manually-triggered task.
+    if trustees.len() != keys_ceremony.trustee_ids.len()
+        || trustees.iter().any(|trustee| trustee.public_key.is_none())
+    {
+        info!(
+            "Not all trustees have a registered key yet for ceremony {}; skipping",
+            keys_ceremony_id
+        );
+        return Ok(());
+    }
+
+    let trustee_pks: Vec<String> = trustees
         .clone()
         .into_iter()
         .filter_map(|trustee| trustee.public_key)
@@ -67,7 +91,9 @@ pub async fn create_keys_impl(
     let status = keys_ceremony.status()?;
 
     // check config is not already created
-    if execution_status != KeysCeremonyExecutionStatus::STARTED || status.public_key.is_some() {
+    if execution_status != KeysCeremonyExecutionStatus::AWAITING_TRUSTEE_KEYS
+        || status.public_key.is_some()
+    {
         info!("Unexpected status: {}", execution_status);
         return Ok(());
     }
@@ -87,13 +113,21 @@ pub async fn create_keys_impl(
         .await?;
     }
 
+    // Transition AWAITING_TRUSTEE_KEYS -> IN_PROGRESS. The per-ceremony key
+    // rows in `trustee_ceremony_key` (one per (trustee, event, ceremony)) are
+    // never overwritten by other ceremonies, so they already serve as the
+    // frozen record of the keys that went into this Configuration — tally-time
+    // code reads them back via the scoped trustee query. No separate snapshot
+    // into status is needed.
     update_keys_ceremony_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &keys_ceremony.id,
         &serde_json::to_value(status)?,
-        &KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
+        &execution_status
+            .try_transition(KeysCeremonyExecutionStatus::IN_PROGRESS)?
+            .to_string(),
     )
     .await?;
 

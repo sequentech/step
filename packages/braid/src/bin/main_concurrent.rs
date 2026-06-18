@@ -10,6 +10,7 @@ use braid::native::session::session_master::SessionMaster;
 use braid::protocol::trustee::TrusteeConfig;
 use braid::util::{ensure_directory, get_access_token};
 use clap::Parser;
+use sequent_core::types::env_vars as ev;
 use sequent_core::util::init_log::init_log;
 use std::collections::HashSet;
 use std::fs;
@@ -134,7 +135,7 @@ async fn run(args: &Cli) -> Result<()> {
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
 
-    let trustee_name = std::env::var("TRUSTEE_NAME").unwrap_or(
+    let trustee_name = std::env::var(ev::TRUSTEE_NAME).unwrap_or(
         args.trustee_config
             .clone()
             .into_os_string()
@@ -143,17 +144,17 @@ async fn run(args: &Cli) -> Result<()> {
     );
 
     let trustee_password =
-        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+        std::env::var(ev::TRUSTEE_PSW).map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
 
     // Fetch initial access token for B4 authentication
-    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
     let mut master =
         SessionMaster::new(&args.b3_url, factory, args.session_workers, access_token).await?;
 
     loop {
         // Refresh access token using trustee credentials (cached)
-        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
+        let (access_token, fresh) = match get_access_token(&trustee_name, &trustee_password).await {
             Ok(token) => token,
             Err(e) => {
                 error!("Failed to get access token: {e:?}");
@@ -161,7 +162,10 @@ async fn run(args: &Cli) -> Result<()> {
                 continue;
             }
         };
-        master.set_access_token(access_token.clone());
+        // Only update the master when the token was freshly fetched.
+        if fresh {
+            master.set_access_token(access_token.clone());
+        }
 
         let b3index = HttpB3Index::new(&args.b3_url, access_token);
         let boards_result = b3index.get_boards().await;
@@ -208,6 +212,6 @@ async fn run(args: &Cli) -> Result<()> {
 ///
 /// Comma separated list of boards.
 fn get_ignored_boards() -> HashSet<String> {
-    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
+    let boards_str: String = std::env::var(ev::IGNORE_BOARDS).unwrap_or_else(|_| "".into());
     HashSet::from_iter(boards_str.split(',').map(|s| s.to_string()))
 }

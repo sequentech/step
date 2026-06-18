@@ -553,6 +553,7 @@ pub async fn upsert_ballots_messages(
             keycloak_transaction,
             tenant_id,
             election_event_id,
+            &tally_session_hasura.keys_ceremony_id,
             board_name,
             trustee_names,
             missing_ballots_batches.clone(),

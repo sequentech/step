@@ -232,20 +232,20 @@ impl TestServer {
             .build(&other_keypair)
     }
 
-    /// Creates a browser trustee token with specific tenant and authorized events.
+    /// Creates a browser trustee token with the given authorized board names.
     ///
     /// Browser trustees do NOT have the server role, so they are subject to
-    /// board access validation based on tenant_id and authorized_election_ids.
+    /// board access validation based on authorized_boards in JWT claims.
     pub fn create_browser_trustee_token(
         &self,
         tenant_id: &str,
-        authorized_event_ids: &[&str],
+        authorized_boards: &[&str],
     ) -> String {
         let permission = Permissions::TRUSTEE_CEREMONY.to_string();
         TestTokenBuilder::new()
             .with_permissions(&[&permission])
             .with_tenant(tenant_id)
-            .with_authorized_election_ids(authorized_event_ids)
+            .with_authorized_boards(authorized_boards)
             .with_trustee(Some("trustee1"))
             .build(&self.keypair)
     }

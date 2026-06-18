@@ -9,6 +9,7 @@ use braid::native::verify::verifier::Verifier;
 use braid::protocol::trustee::Trustee;
 use braid::util::get_access_token;
 use clap::Parser;
+use sequent_core::types::env_vars as ev;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -53,12 +54,12 @@ async fn main() -> Result<()> {
 
     // Get trustee name and password for Keycloak authentication
     let trustee_name =
-        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+        std::env::var(ev::TRUSTEE_NAME).map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
     let trustee_password =
-        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+        std::env::var(ev::TRUSTEE_PSW).map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
 
     // Fetch access token for B4 authentication
-    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
 
     let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),

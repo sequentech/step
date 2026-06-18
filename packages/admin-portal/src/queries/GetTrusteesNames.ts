@@ -9,6 +9,7 @@ export const GET_TRUSTEES_NAMES = gql`
         sequent_backend_trustee(where: {tenant_id: {_eq: $tenantId}}) {
             id
             name
+            annotations
         }
     }
 `

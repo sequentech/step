@@ -162,6 +162,7 @@ impl TestTokenBuilder {
                     user_id: "b2cc4af1-718d-490b-af36-66c957fea791".to_string(),
                     area_id: None,
                     authorized_election_ids: None,
+                    authorized_boards: None,
                     allowed_roles: vec![],
                     permission_labels: Some("{}".to_string()),
                 },
@@ -232,6 +233,14 @@ impl TestTokenBuilder {
     ) -> Self {
         self.claims.hasura_claims.authorized_election_ids =
             Some(election_ids.iter().map(|s| s.to_string()).collect());
+        self
+    }
+
+    /// Sets the authorized boards in `hasura_claims.authorized_boards`.
+    #[instrument(level = "trace", skip(self))]
+    pub fn with_authorized_boards(mut self, board_names: &[&str]) -> Self {
+        self.claims.hasura_claims.authorized_boards =
+            Some(board_names.iter().map(|s| s.to_string()).collect());
         self
     }
 

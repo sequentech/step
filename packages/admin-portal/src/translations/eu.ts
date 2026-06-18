@@ -183,6 +183,13 @@ const basqueTranslation: TranslationType = {
             edit: {
                 title: "Editatu Fideikomisarioa",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Ez duzu ezarpenak atzitzeko baimenik.",
@@ -1423,6 +1430,7 @@ const basqueTranslation: TranslationType = {
                         "Giltzen Zeremonia ezeztatuera zaude. Ekintza hau egin ondoren, Giltzen Zeremonia arrakastatsua izan dadin berri bat sortu beharko duzu.",
                 },
                 header: {
+                    status: "Egoera",
                     trusteeName: "Fideikomisario Izena",
                     fragment: "Giltza Zatia Sortua",
                     downloaded: "Giltza Pribatu Zatia Deskargatua",

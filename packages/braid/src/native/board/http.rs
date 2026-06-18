@@ -306,6 +306,7 @@ impl Board for HttpB3 {
 /// and see updates from the master loop.
 #[derive(Clone)]
 pub struct HttpB3BoardParams {
+    client: reqwest::Client,
     base_url: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
@@ -314,11 +315,11 @@ pub struct HttpB3BoardParams {
 
 impl HttpB3BoardParams {
     pub async fn new(base_url: &str, access_token: String) -> HttpB3BoardParams {
-        // Read S3 configuration from environment variables
-        let s3_endpoint = std::env::var("AWS_ENDPOINT_URL")
-            .unwrap_or_else(|_| "http://localhost:4566".to_string());
+        use sequent_core::types::env_vars as ev;
+        let s3_endpoint = std::env::var(ev::AWS_ENDPOINT_URL)
+            .unwrap_or_else(|_| ev::DEFAULT_S3_ENDPOINT.to_string());
         let bucket_name =
-            std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+            std::env::var(ev::S3_BUCKET_NAME).unwrap_or_else(|_| ev::DEFAULT_S3_BUCKET.to_string());
 
         // Use explicit credentials for LocalStack (avoids IMDS calls)
         let creds =
@@ -326,7 +327,7 @@ impl HttpB3BoardParams {
 
         let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
             .credentials_provider(creds)
-            .region("us-east-1")
+            .region(ev::DEFAULT_AWS_REGION)
             .load()
             .await;
 
@@ -337,6 +338,7 @@ impl HttpB3BoardParams {
         let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
 
         HttpB3BoardParams {
+            client: reqwest::Client::new(),
             base_url: base_url.to_string(),
             s3_client,
             bucket_name,
@@ -358,6 +360,14 @@ impl HttpB3BoardParams {
     /// Reads the current access token.
     fn clone_access_token(&self) -> Arc<RwLock<String>> {
         self.access_token.clone()
+    }
+
+    /// Returns a copy of the current access token value.
+    pub fn access_token(&self) -> String {
+        self.access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone()
     }
 
     /// Create a board client for a specific board (helper for testing)
@@ -640,6 +650,45 @@ impl BoardMulti for HttpB3 {
             );
         }
 
+        Ok(())
+    }
+}
+
+use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
+
+impl HttpB3BoardParams {
+    /// Send a heartbeat to B4 for the given board.
+    #[tracing::instrument(skip(self), fields(board_name, trustee_name), err)]
+    pub async fn send_heartbeat(
+        &self,
+        board_name: &str,
+        sender_pk: &str,
+        trustee_name: &str,
+        trustee_mode: TrusteeModePolicy,
+    ) -> anyhow::Result<()> {
+        let url = format!("{}/boards/{}/sessions/heartbeat", self.base_url, board_name);
+        let access_token = self
+            .access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone();
+
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {access_token}"))
+            .json(&HeartbeatRequest {
+                board_name: board_name.to_string(),
+                sender_pk: sender_pk.to_string(),
+                trustee_name: trustee_name.to_string(),
+                trustee_mode,
+            })
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Heartbeat failed: HTTP {}", resp.status());
+        }
         Ok(())
     }
 }

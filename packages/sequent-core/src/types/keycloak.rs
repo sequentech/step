@@ -32,6 +32,7 @@ pub const ATTR_RESET_VALUE: &str = "NONE";
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
 pub const DATE_OF_BIRTH: &str = "dateOfBirth";
 pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
+pub const AUTHORIZED_BOARDS_NAME: &str = "authorized-boards";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
 pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";

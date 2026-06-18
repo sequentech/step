@@ -43,6 +43,21 @@
           };
           buildRustPackageWithCargo = cargoArgs: pkgs.rustPlatform.buildRustPackage (cargoPatches // cargoArgs);
 
+          # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
+          wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+            pname = "wasm-bindgen-cli";
+            version = "0.2.104";
+            src = builtins.fetchTarball {
+              url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
+              sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+            };
+            cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
+            nativeBuildInputs = [ pkgs.pkg-config ];
+            buildInputs = [ pkgs.openssl ]
+              ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+            doCheck = false;
+          };
+
         # resulting packages of the flake
         in rec {
           packages.braid = buildRustPackageWithCargo {
@@ -72,6 +87,8 @@
               pkgs.bash
               pkgs.reuse
               pkgs.cargo-deny
+              wasm-bindgen-cli-pinned
+              pkgs.nodejs
             ] ++ pkgs.lib.lists.optionals pkgs.stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.Security ];
             nativeBuildInputs = [
               pkgs.pkg-config

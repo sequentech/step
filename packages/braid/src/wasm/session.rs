@@ -4,10 +4,12 @@
 
 //! WASM bindings for Braid mixnet node and session
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
@@ -21,8 +23,11 @@ use b4::api_types::{
     ListMessagesResponse,
 };
 use b4::HttpB3Message;
+use base64::engine::general_purpose::STANDARD_NO_PAD;
+use base64::Engine as _;
+use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
 /// WASM-specific configuration that includes session properties
@@ -64,8 +69,6 @@ pub struct SessionState {
 #[wasm_bindgen]
 pub struct WasmSession {
     session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, IndexedDbStorage>>,
-    // Trustee instance name
-    // FIXME is this used anywhere?
     name: String,
     b4_url: String,
     /// JWT access token for B4 authentication (required).
@@ -75,6 +78,8 @@ pub struct WasmSession {
     access_token: Arc<RwLock<String>>,
     board_name: Option<String>,
     config: TrusteeConfig,
+    /// Set to true to signal the background heartbeat daemon to stop.
+    heartbeat_stop: Arc<AtomicBool>,
 }
 
 #[wasm_bindgen]
@@ -105,6 +110,7 @@ impl WasmSession {
             access_token: Arc::new(RwLock::new(wasm_config.access_token)),
             board_name: None,
             config: wasm_config.trustee_config,
+            heartbeat_stop: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -885,4 +891,174 @@ impl WasmSession {
         serde_wasm_bindgen::to_value(&info)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
+
+    /// Stop the background heartbeat daemon without freeing the session.
+    ///
+    /// The spawned loop checks the flag after each sleep interval, so the stop
+    /// takes effect within one interval. Safe to call multiple times.
+    pub fn stop_heartbeat_daemon(&self) {
+        self.heartbeat_stop.store(true, Ordering::Relaxed);
+    }
+
+    /// Start a background heartbeat daemon that POSTs a heartbeat to B4 every
+    /// `interval_secs` seconds.
+    ///
+    /// Stopping any previously running daemon before starting ensures only one
+    /// loop is active at a time. The loop exits when `stop_heartbeat_daemon` is
+    /// called or when the session is dropped.
+    pub fn start_heartbeat_daemon(&mut self, interval_secs: u32) {
+        // Stop any existing daemon and issue a fresh stop flag for the new one.
+        self.heartbeat_stop.store(true, Ordering::Relaxed);
+        self.heartbeat_stop = Arc::new(AtomicBool::new(false));
+
+        let stop = self.heartbeat_stop.clone();
+        let b4_url = self.b4_url.clone();
+        let board_name = match self.board_name.clone() {
+            Some(n) => n,
+            None => {
+                web_sys::console::warn_1(&JsValue::from_str(
+                    "[WasmSession] start_heartbeat_daemon called before init_session",
+                ));
+                return;
+            }
+        };
+        let access_token = self.access_token.clone();
+        let sender_pk = self.config.signing_key_pk.clone();
+        let trustee_name = self.name.clone();
+
+        spawn_local(async move {
+            loop {
+                // Sleep first so the very first heartbeat goes out after one interval.
+                sleep_ms((interval_secs * 1000) as i32).await;
+
+                if stop.load(Ordering::Relaxed) {
+                    break;
+                }
+
+                let token = access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+                    .clone();
+
+                let url = format!("{b4_url}/boards/{board_name}/sessions/heartbeat");
+
+                let body = match serde_json::to_string(&HeartbeatRequest {
+                    board_name: board_name.clone(),
+                    sender_pk: sender_pk.clone(),
+                    trustee_name: trustee_name.clone(),
+                    trustee_mode: TrusteeModePolicy::BROWSER_BASED,
+                }) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&format!(
+                            "[WasmSession] heartbeat serialize error: {e}"
+                        )));
+                        continue;
+                    }
+                };
+
+                let opts = RequestInit::new();
+                opts.set_method("POST");
+                opts.set_mode(RequestMode::Cors);
+                opts.set_body(&JsValue::from_str(&body));
+
+                let request = match Request::new_with_str_and_init(&url, &opts) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&format!(
+                            "[WasmSession] heartbeat request error: {e:?}"
+                        )));
+                        continue;
+                    }
+                };
+
+                let _ = request
+                    .headers()
+                    .set("Authorization", &format!("Bearer {token}"));
+                let _ = request.headers().set("Content-Type", "application/json");
+
+                let window = match web_sys::window() {
+                    Some(w) => w,
+                    None => break,
+                };
+
+                match JsFuture::from(window.fetch_with_request(&request)).await {
+                    Ok(resp_value) => {
+                        if let Ok(resp) = resp_value.dyn_into::<Response>() {
+                            if !resp.ok() {
+                                web_sys::console::warn_1(&JsValue::from_str(&format!(
+                                    "[WasmSession] heartbeat HTTP {}: {}",
+                                    resp.status(),
+                                    board_name
+                                )));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        web_sys::console::warn_1(&JsValue::from_str(&format!(
+                            "[WasmSession] heartbeat post error: {e:?}"
+                        )));
+                    }
+                }
+            }
+        });
+    }
+}
+
+impl Drop for WasmSession {
+    fn drop(&mut self) {
+        self.heartbeat_stop.store(true, Ordering::Relaxed);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// generate_trustee_keys
+///////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize)]
+struct TrusteeKeys {
+    signing_key_sk: String,
+    signing_key_pk: String,
+    encryption_key: String,
+}
+
+/// Generates a fresh trustee identity: an Ed25519 signing keypair and an
+/// AES-256 symmetric encryption key. Equivalent to what `gen_trustee_config`
+/// produces for server-based trustees.
+///
+/// Returns `{ signing_key_sk, signing_key_pk, encryption_key }` as base64-DER /
+/// base64 strings, ready to pass directly into `WasmSession`.
+#[wasm_bindgen]
+pub fn generate_trustee_keys() -> Result<JsValue, JsValue> {
+    let sk = StrandSignatureSk::generate()
+        .map_err(|e| JsValue::from_str(&format!("Failed to generate signing key: {e:?}")))?;
+    let pk = StrandSignaturePk::from_sk(&sk)
+        .map_err(|e| JsValue::from_str(&format!("Failed to derive public key: {e:?}")))?;
+    let ek = symm::gen_key();
+
+    let signing_key_sk = sk
+        .to_der_b64_string()
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize signing key: {e:?}")))?;
+    let signing_key_pk = pk
+        .to_der_b64_string()
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize public key: {e:?}")))?;
+    let encryption_key = STANDARD_NO_PAD.encode(ek.as_slice());
+
+    serde_wasm_bindgen::to_value(&TrusteeKeys {
+        signing_key_sk,
+        signing_key_pk,
+        encryption_key,
+    })
+    .map_err(|e| JsValue::from_str(&format!("Serialization error: {e}")))
+}
+
+/// Async sleep backed by `window.setTimeout`. Works inside `spawn_local` tasks.
+async fn sleep_ms(ms: i32) {
+    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+        web_sys::window()
+            .expect("no window")
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, ms)
+            .expect("set_timeout failed");
+    });
+    let _ = JsFuture::from(promise).await;
 }

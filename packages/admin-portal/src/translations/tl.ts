@@ -184,6 +184,13 @@ const tagalogTranslation: TranslationType = {
             edit: {
                 title: "I-edit ang Tagapangasiwa",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga setting.",
@@ -1429,6 +1436,7 @@ const tagalogTranslation: TranslationType = {
                         "Malapit mo nang ma-kansela ang Seremonya ng Mga Susi. Pagkatapos isagawa ang aksyong ito, upang magkaroon ng matagumpay na Seremonya ng Mga Susi, kailangan mong lumikha ng bago.",
                 },
                 header: {
+                    status: "Katayuan",
                     trusteeName: "Pangalan ng Trustee",
                     fragment: "Nalikha ang Piraso ng Susi",
                     downloaded: "Nai-download na Piraso ng Pribadong Susi",

@@ -612,6 +612,7 @@ pub async fn export_elections(
     Ok(elections)
 }
 
+/// Sets the keys_ceremony_id for an election, or a list of elections if election_id is None.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_keys_ceremony(
     hasura_transaction: &Transaction<'_>,

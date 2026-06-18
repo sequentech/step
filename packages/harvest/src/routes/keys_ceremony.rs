@@ -9,7 +9,10 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
+use sequent_core::services::jwt::{
+    decode_permission_labels, JwtClaims, ADMIN_DEFAULT_ROLE, SERVER_DEFAULT_ROLE,
+};
+use sequent_core::types::ceremonies::TrusteeModePolicy;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -18,10 +21,16 @@ use strum_macros::Display;
 use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
+use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::postgres::trustee::{
+    get_trustee_by_name, get_trustee_mode_policy, update_trustee_key_for_event,
+};
 use windmill::services::ceremonies::keys_ceremony::{
     self, validate_permission_labels,
 };
 use windmill::services::database::get_hasura_pool;
+use windmill::services::election_event_board::get_election_event_board;
+use windmill::services::keycloak::add_board_to_trustee_authorized_boards;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Endpoint: /check-private-key
@@ -210,6 +219,12 @@ pub async fn create_keys_ceremony(
 
     let username = claims.preferred_username.unwrap_or("-".to_string());
 
+    event!(
+        Level::INFO,
+        "Creating Keys Ceremony, electionEventId={}, electionId={:?}",
+        input.election_event_id,
+        input.election_id,
+    );
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -244,20 +259,40 @@ pub async fn create_keys_ceremony(
         }));
     }
 
-    let keys_ceremony_id = keys_ceremony::create_keys_ceremony(
+    let (keys_ceremony_id, board_name) = keys_ceremony::create_keys_ceremony(
         &hasura_transaction,
-        tenant_id,
+        tenant_id.clone(),
         &user_id,
         &username,
         input.election_event_id.clone(),
         input.threshold,
-        input.trustee_names,
+        input.trustee_names.clone(),
         input.election_id.clone(),
         input.name,
         input.is_automatic_ceremony,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    // Update each trustee's authorized-boards in Keycloak so their JWT
+    // contains the board_name required by BoardAccessValidator.
+    for trustee_name in &input.trustee_names {
+        add_board_to_trustee_authorized_boards(
+            &tenant_id,
+            &board_name,
+            trustee_name,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Error adding board to trustee's authorized boards in Keycloak: {:?}",
+                    e
+                ),
+            )
+        })?;
+    }
 
     hasura_transaction
         .commit()
@@ -267,11 +302,12 @@ pub async fn create_keys_ceremony(
 
     event!(
         Level::INFO,
-        "Creating Keys Ceremony, electionEventId={}, keysCeremonyId={}, electionId={:?}",
+        "Created Keys Ceremony, electionEventId={}, keysCeremonyId={}, electionId={:?}",
         input.election_event_id,
         keys_ceremony_id,
         input.election_id,
     );
+
     Ok(Json(CreateKeysCeremonyOutput {
         keys_ceremony_id,
         error_message: None,
@@ -365,4 +401,267 @@ pub async fn list_keys_ceremonies(
             aggregate: Aggregate { count: count },
         },
     }))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Endpoint: /register-trustee-key
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterTrusteeKeyInput {
+    pub public_key: String,
+    pub election_event_id: String,
+    pub keys_ceremony_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegisterTrusteeKeyOutput {
+    pub success: bool,
+}
+
+#[instrument(skip(claims))]
+#[post("/register-trustee-key", format = "json", data = "<body>")]
+pub async fn register_trustee_key(
+    body: Json<RegisterTrusteeKeyInput>,
+    claims: JwtClaims,
+) -> Result<Json<RegisterTrusteeKeyOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let trustee_name = claims.trustee.ok_or_else(|| {
+        (
+            Status::Unauthorized,
+            "trustee name not found in token".to_string(),
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let trustee =
+        get_trustee_by_name(&hasura_transaction, &tenant_id, &trustee_name)
+            .await
+            .map_err(|e| {
+                (
+                    Status::NotFound,
+                    format!("Trustee '{trustee_name}' not found: {e:?}"),
+                )
+            })?;
+
+    // Both browser-based (BBT) and server-based (braid-native) trustees register
+    // through this endpoint in the unified flow. The guard is that the caller's
+    // mode must match the trustee's configured policy mode, so a browser session
+    // cannot register on behalf of a server-based trustee (whose stable key is
+    // provided by its daemon), and vice versa.
+    let trustee_mode = get_trustee_mode_policy(&trustee);
+
+    // Map the JWT default_role (a hardcoded per-Keycloak-client claim) to the
+    // caller's trustee mode policy:
+    //   - SERVER_DEFAULT_ROLE ("server")     -> native-trustee daemon  -> SERVER_BASED
+    //   - ADMIN_DEFAULT_ROLE  ("admin-user") -> admin-portal session    -> BROWSER_BASED
+    // Anything else (e.g. USER_DEFAULT_ROLE "user", a voter) has no business
+    // registering a trustee key and is rejected.
+    let caller_mode = match claims.hasura_claims.default_role.as_str() {
+        SERVER_DEFAULT_ROLE => TrusteeModePolicy::SERVER_BASED,
+        ADMIN_DEFAULT_ROLE => TrusteeModePolicy::BROWSER_BASED,
+        unknown => {
+            return Err((
+                Status::Unauthorized,
+                format!(
+                    "Unrecognized default_role: '{}'; expected '{}' or '{}'",
+                    unknown, SERVER_DEFAULT_ROLE, ADMIN_DEFAULT_ROLE
+                ),
+            ))
+        }
+    };
+
+    // Caller and trustee modes must match
+    if trustee_mode != caller_mode {
+        return Err((
+            Status::Forbidden,
+            format!(
+                "Trustee '{}' is configured as {:?} but caller is {:?}",
+                trustee_name, trustee_mode, caller_mode
+            ),
+        ));
+    }
+
+    update_trustee_key_for_event(
+        &hasura_transaction,
+        &tenant_id,
+        &trustee.id,
+        &input.election_event_id,
+        &input.keys_ceremony_id,
+        &input.public_key,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error committing transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    event!(
+        Level::INFO,
+        "Registered trustee key: trustee={trustee_name}, election_event_id={}, keys_ceremony_id={}",
+        input.election_event_id,
+        input.keys_ceremony_id,
+    );
+
+    Ok(Json(RegisterTrusteeKeyOutput { success: true }))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Endpoint: /active-ceremonies
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DiscoverActiveCeremoniesInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub election_event_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ActiveCeremony {
+    pub keys_ceremony_id: String,
+    pub election_event_id: String,
+    pub tenant_id: String,
+    pub board_name: String,
+    pub execution_status: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DiscoverActiveCeremoniesOutput {
+    pub ceremonies: Vec<ActiveCeremony>,
+}
+
+/// Discover every active keys ceremony for this trustee.
+/// Returns all ceremonies in AWAITING_TRUSTEE_KEYS or IN_PROGRESS status where
+/// the caller is registered as a trustee — one per election event the trustee
+/// participates in. Optionally narrowed to a single event via `election_event_id`.
+#[instrument(skip(claims))]
+#[post("/active-ceremonies", format = "json", data = "<body>")]
+pub async fn discover_active_ceremonies(
+    body: Json<DiscoverActiveCeremoniesInput>,
+    claims: JwtClaims,
+) -> Result<Json<DiscoverActiveCeremoniesOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TRUSTEE_CEREMONY],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let trustee_name = claims.trustee.ok_or_else(|| {
+        (
+            Status::Unauthorized,
+            "trustee name not found in token".to_string(),
+        )
+    })?;
+
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    // Resolve the caller's trustee id from the JWT-provided name.
+    let trustee =
+        get_trustee_by_name(&hasura_transaction, &tenant_id, &trustee_name)
+            .await
+            .map_err(|e| {
+                (
+                    Status::NotFound,
+                    format!("Trustee '{trustee_name}' not found: {e:?}"),
+                )
+            })?;
+
+    let keys_ceremonies =
+        postgres::keys_ceremony::get_active_ceremonies_for_trustee(
+            &hasura_transaction,
+            &tenant_id,
+            &trustee.id,
+            input.election_event_id.as_deref(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    // Resolve the authoritative board name for each ceremony from its election
+    // event's bulletin_board_reference, so the caller never reconstructs it.
+    let mut ceremonies: Vec<ActiveCeremony> =
+        Vec::with_capacity(keys_ceremonies.len());
+    for keys_ceremony in keys_ceremonies {
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &tenant_id,
+            &keys_ceremony.election_event_id,
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+        let board_name =
+            get_election_event_board(election_event.bulletin_board_reference)
+                .ok_or_else(|| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Election event {} has no bulletin board reference",
+                        keys_ceremony.election_event_id
+                    ),
+                )
+            })?;
+
+        let execution_status =
+            keys_ceremony.execution_status().map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Invalid execution_status: {e:?}"),
+                )
+            })?;
+
+        ceremonies.push(ActiveCeremony {
+            keys_ceremony_id: keys_ceremony.id,
+            election_event_id: keys_ceremony.election_event_id,
+            tenant_id: tenant_id.clone(),
+            board_name,
+            execution_status: execution_status.to_string(),
+        });
+    }
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error committing transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    event!(
+        Level::INFO,
+        "Discovered {} active ceremonies for trustee={trustee_name}",
+        ceremonies.len(),
+    );
+
+    Ok(Json(DiscoverActiveCeremoniesOutput { ceremonies }))
 }

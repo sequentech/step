@@ -4,6 +4,7 @@
 
 pub mod ceremonies;
 pub mod date_time;
+pub mod env_vars;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod hasura;

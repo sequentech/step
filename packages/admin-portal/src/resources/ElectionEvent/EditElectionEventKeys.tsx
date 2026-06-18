@@ -17,16 +17,13 @@ import {
     useRecordContext,
     DateField,
     Identifier,
-    ReferenceArrayField,
-    SingleFieldList,
-    ChipField,
     FunctionField,
     RaRecord,
 } from "react-admin"
 import {Button, Typography, Chip, Alert, Box} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
-import {TrusteeWizard, isTrusteeParticipating} from "@/components/keys-ceremony/TrusteeWizard"
+import {TrusteeWizard, isTrusteeActionablePhase} from "@/components/keys-ceremony/TrusteeWizard"
 import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -44,10 +41,10 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {useQuery} from "@apollo/client"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
-import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
+import {HeadlessTrusteeProvider} from "@/providers/HeadlessTrusteeProvider"
 
 const NotificationLink = styled("span")`
     text-decoration: underline;
@@ -98,7 +95,7 @@ const getActiveCeremony = (
     if (!keyCeremonies) {
         return
     } else {
-        return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
+        return keyCeremonies.find((ceremony) => isTrusteeActionablePhase(ceremony, authContext))
     }
 }
 
@@ -128,6 +125,8 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
+    const boardName: string | undefined = (electionEvent as any)?.bulletin_board_reference
+        ?.database_name
 
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
@@ -282,16 +281,25 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
+                    trusteeNames={trusteeNames?.sequent_backend_trustee}
                 />
             )}
-            {/* Show the trustees keys ceremony steps if the conditions are met */}
+            {/* Show the trustees keys ceremony steps — provider mounts here only,
+                scoped to the specific ceremony the user opened. */}
             {canTrusteeCeremony && showTrusteeCeremony && currentCeremony && (
-                <TrusteeWizard
-                    electionEvent={electionEvent}
-                    currentCeremony={currentCeremony}
-                    setCurrentCeremony={setCurrentCeremony}
-                    goBack={goBack}
-                />
+                <HeadlessTrusteeProvider
+                    boardName={boardName}
+                    electionEventId={electionEvent?.id ?? undefined}
+                    keysCeremonyId={currentCeremony.id}
+                >
+                    <TrusteeWizard
+                        electionEvent={electionEvent}
+                        currentCeremony={currentCeremony}
+                        setCurrentCeremony={setCurrentCeremony}
+                        goBack={goBack}
+                        trusteeNames={trusteeNames?.sequent_backend_trustee}
+                    />
+                </HeadlessTrusteeProvider>
             )}
             {/* Show the keys ceremony table list */}
             {!showCeremony && !showTrusteeCeremony && (

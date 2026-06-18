@@ -536,6 +536,8 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
+        HARVEST_URL: ${HARVEST_URL}
+        BRAID_B4_HEARTBEAT: ${BRAID_B4_HEARTBEAT}
     depends_on:
       - immudb
       - b4
@@ -567,6 +569,8 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
+        HARVEST_URL: ${HARVEST_URL}
+        BRAID_B4_HEARTBEAT: ${BRAID_B4_HEARTBEAT}
 
   # trustee3:
   #   profiles: ["full"]
@@ -589,6 +593,7 @@ services:
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
   #       VAULT_TOKEN: ${VAULT_TOKEN}
   #       B4_URL: ${B4_URL}
+  #       BRAID_B4_HEARTBEAT: ${BRAID_B4_HEARTBEAT}
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -906,8 +911,8 @@ services:
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
-      LOG_LEVEL: ${LOG_LEVEL}
-      # LOG_LEVEL: sequent_core=trace,info
+      # LOG_LEVEL: ${LOG_LEVEL}
+      LOG_LEVEL: sequent_core=trace,info
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       B4_PG_HOST: ${B4_PG_HOST}
       B4_PG_PORT: ${B4_PG_PORT}

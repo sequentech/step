@@ -31,7 +31,7 @@ tokio = { version = "1.40", optional = true }
 aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
 aws-sdk-s3 = { version = "1.52", optional = true }
 chrono = { version = "0.4", optional = true }
-sequent-core = { path = "../sequent-core", features = ["keycloak"], optional = true }
+sequent-core = { path = "../sequent-core", optional = true }
 
 # WASM-only dependencies  
 wasm-bindgen = { version = "=0.2.104", optional = true }
@@ -139,7 +139,8 @@ native = [
     "dep:aws-sdk-s3",
     "dep:reqwest",
     "dep:chrono",
-    "dep:sequent-core"
+    "dep:sequent-core",
+    "sequent-core/keycloak"
 ]
 
 # WASM build with HTTP bulletin board and IndexedDB
@@ -162,6 +163,7 @@ wasm-core = [
     "dep:bincode",
     "dep:b4",
     "b4/wasm-core",
+    "dep:sequent-core",
 ]
 
 # Cryptography backend options (strand features)

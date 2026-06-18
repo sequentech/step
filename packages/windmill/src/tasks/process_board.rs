@@ -12,6 +12,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::tally_session::get_tally_session_by_election_event_id_pending_post_tally_task;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
+use crate::postgres::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::tasks::create_keys::create_keys;
@@ -36,16 +37,38 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
     for keys_ceremony in keys_ceremonies {
         let status = keys_ceremony.status()?;
         let execution_status = keys_ceremony.execution_status()?;
-        if execution_status == KeysCeremonyExecutionStatus::STARTED {
-            // create the public keys in async task
-            let task = celery_app
-                .send_task(create_keys::new(
-                    tenant_id.clone(),
-                    election_event_id.clone(),
-                    keys_ceremony.id.clone(),
-                ))
-                .await?;
-            event!(Level::INFO, "Sent create_keys task {}", task.task_id);
+        if execution_status == KeysCeremonyExecutionStatus::AWAITING_TRUSTEE_KEYS {
+            // Gate check: every trustee in this ceremony must have a key
+            // scoped to (election_event_id, keys_ceremony_id). Trustees
+            // register themselves via POST /register-trustee-key (both BBT
+            // browsers and native daemons follow the same path).
+            let scoped_trustees = get_trustees_by_id(
+                &hasura_transaction,
+                &tenant_id,
+                &keys_ceremony.trustee_ids,
+                Some(&election_event_id),
+                Some(&keys_ceremony.id),
+            )
+            .await?;
+            let gate_satisfied = scoped_trustees.len() == keys_ceremony.trustee_ids.len()
+                && scoped_trustees
+                    .iter()
+                    .all(|trustee| trustee.public_key.is_some());
+
+            // Dispatch create_keys only once the gate is satisfied.
+            // This is what actually posts the Configuration and transitions
+            // to IN_PROGRESS (see create_keys_impl). Otherwise the ceremony
+            // stays in AWAITING_TRUSTEE_KEYS and is retried next beat cycle.
+            if gate_satisfied {
+                let task = celery_app
+                    .send_task(create_keys::new(
+                        tenant_id.clone(),
+                        election_event_id.clone(),
+                        keys_ceremony.id.clone(),
+                    ))
+                    .await?;
+                event!(Level::INFO, "Sent create_keys task {}", task.task_id);
+            }
         } else if execution_status == KeysCeremonyExecutionStatus::IN_PROGRESS
             && status.public_key.is_none()
         {
