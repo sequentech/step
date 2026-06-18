@@ -23,7 +23,7 @@ pub struct TreeNodeArea {
 }
 
 /// Extra data for an area. We'll use that to create a tree
-/// where all nodes have in "contest_ids" both their directly assigned
+/// where all nodes have in "`contest_ids`" both their directly assigned
 /// contests and the contests inherited from their ancestors.
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContestsData {
@@ -75,6 +75,10 @@ where
     }
 
     /// Builds a tree from a flat list of areas linked by parent identifiers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when parent links are invalid or the hierarchy contains a loop.
     pub fn from_areas(areas: Vec<TreeNodeArea>) -> Result<TreeNode<T>> {
         let mut nodes: HashMap<String, TreeNode<T>> = HashMap::new();
         let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
@@ -134,7 +138,8 @@ where
         Ok(root_node)
     }
 
-    // internal function used by from_areas
+    /// Internal function used by `from_areas`.
+    /// Recursively assembles a subtree rooted at `id`.
     fn build_tree<'a>(
         id: &'a str,
         nodes: &'a HashMap<String, TreeNode<T>>,
@@ -195,7 +200,7 @@ where
         }
     }
 
-    // Depth First Helper function to recursively find the path
+    /// Depth First Helper function to recursively find the path
     fn dfs(
         node: &TreeNode<T>,
         area_id: &str,
@@ -249,6 +254,7 @@ where
         self.contests_data_tree(&root_data, &areas_map)
     }
 
+    /// Propagates inherited contest ids down the area hierarchy.
     fn contests_data_tree(
         &self,
         parent_data: &ContestsData,
@@ -283,7 +289,7 @@ where
 }
 
 impl TreeNode<ContestsData> {
-    /// For a given TreeNode of type ContestsData, return all
+    /// For a given `TreeNode` of type `ContestsData`, return all
     /// area-contests. Note that this will include
     /// indirect/inherited ones.
     pub fn get_contest_matches(
@@ -314,6 +320,7 @@ impl TreeNode<ContestsData> {
 
 /// Breadth-first iterator over tree nodes.
 pub struct TreeNodeIter<'a, T> {
+    /// Nodes still to visit in breadth-first order.
     queue: VecDeque<&'a TreeNode<T>>,
 }
 

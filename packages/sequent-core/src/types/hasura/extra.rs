@@ -30,12 +30,12 @@ pub struct VotingChannels {
     pub paper: Option<bool>,
 }
 
-/// Reference to the ImmuDB bulletin board attached to an election event.
+/// Reference to the `ImmuDB` bulletin board attached to an election event.
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct BulletinBoardReference {
-    /// ImmuDB database identifier.
+    /// `ImmuDB` database identifier.
     pub id: i64,
-    /// ImmuDB database name.
+    /// `ImmuDB` database name.
     pub database_name: String,
     /// When true, the bulletin board is archived and read-only.
     pub is_archived: bool,
@@ -43,6 +43,10 @@ pub struct BulletinBoardReference {
 
 impl ElectionEvent {
     /// Validates that JSON columns deserialize into their expected typed views.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any JSON column fails to deserialize.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionEventPresentation>(
@@ -76,6 +80,10 @@ impl ElectionEvent {
 
 impl Election {
     /// Validates that JSON columns deserialize into their expected typed views.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any JSON column fails to deserialize.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionPresentation>(
@@ -101,6 +109,10 @@ impl Election {
 
 impl Contest {
     /// Validates that JSON columns deserialize into their expected typed views.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any JSON column fails to deserialize.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ContestPresentation>(
@@ -114,6 +126,10 @@ impl Contest {
 
 impl Candidate {
     /// Validates that JSON columns deserialize into their expected typed views.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any JSON column fails to deserialize.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<CandidatePresentation>(

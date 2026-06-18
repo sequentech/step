@@ -217,7 +217,7 @@ pub enum TallyType {
 /// Document references produced by a completed tally session.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct TallySessionDocuments {
-    /// URL or path to the SQLite results export.
+    /// URL or path to the `SQLite` results export.
     pub sqlite: Option<String>,
     /// URL or path to the Excel results export.
     pub xlsx: Option<String>,

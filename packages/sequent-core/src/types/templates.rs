@@ -95,7 +95,7 @@ pub struct SmsConfig {
     pub message: String,
 }
 
-/// A replica of headless_chrome::types::PrintToPdfOptions version = "1.0.12"
+/// A replica of `headless_chrome::types::PrintToPdfOptions` version = "1.0.12"
 /// that implements Clone
 #[derive(Deserialize, Debug, Serialize, Clone, Default)]
 pub struct PrintToPdfOptionsLocal {
@@ -241,7 +241,7 @@ pub struct CommunicationTemplatesExtraConfig {
     pub sms_config: SmsConfig,
 }
 
-/// Struct for DEFAULT ReportOptions in `extra_config` JSON file.
+/// Struct for DEFAULT `ReportOptions` in `extra_config` JSON file.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ReportOptions {
     /// Maximum rows included in a single report chunk.

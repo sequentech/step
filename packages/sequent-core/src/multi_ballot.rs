@@ -31,7 +31,7 @@ pub struct AuditableMultiBallot {
     pub issue_date: String,
     /// Ballot style defining contests, keys, and presentation for this voter.
     pub config: BallotStyle,
-    /// String serialization of AuditableMultiBallotContests through
+    /// String serialization of `AuditableMultiBallotContests` through
     /// `serialize_contests` can be deserialized with `deserialize_contests`
     pub contests: String,
     /// Hash fingerprint of the ballot contents for tracking and verification.
@@ -62,7 +62,7 @@ pub struct HashableMultiBallot {
     pub version: u32,
     /// ISO 8601 timestamp when the ballot was generated.
     pub issue_date: String,
-    /// String serialization of HashableMultiBallotContests through
+    /// String serialization of `HashableMultiBallotContests` through
     /// `serialize_contests` can be deserialized with `deserialize_contests`
     pub contests: String,
     /// Ballot style identifier binding this ballot to a voter's configuration.
@@ -95,7 +95,7 @@ pub struct SignedHashableMultiBallot {
 pub struct HashableMultiBallotContests<C: Ctx> {
     /// Identifiers of all contests covered by the combined ciphertext.
     pub contest_ids: Vec<String>,
-    /// Combined ElGamal ciphertext for all contest selections.
+    /// Combined `ElGamal` ciphertext for all contest selections.
     pub ciphertext: Ciphertext<C>,
     /// Proof that the ciphertext is a valid encryption.
     pub proof: Schnorr<C>,
@@ -114,6 +114,10 @@ pub struct RawHashableMultiBallot<C: Ctx> {
 
 impl AuditableMultiBallot {
     /// Decodes the base64 contests blob into a typed multi-contest structure.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when the payload cannot be decoded.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<AuditableMultiBallotContests<C>, BallotError> {
@@ -124,6 +128,10 @@ impl AuditableMultiBallot {
     }
 
     /// Encodes multi-contest auditable data as a base64 string for JSON transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when the payload cannot be encoded.
     pub fn serialize_contests<C: Ctx>(
         contests: &AuditableMultiBallotContests<C>,
     ) -> Result<String, BallotError> {
@@ -133,6 +141,10 @@ impl AuditableMultiBallot {
 
 impl HashableMultiBallot {
     /// Decodes the base64 contests blob into a typed hashable multi-contest structure.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when the payload cannot be decoded.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<HashableMultiBallotContests<C>, BallotError> {
@@ -143,6 +155,10 @@ impl HashableMultiBallot {
     }
 
     /// Encodes hashable multi-contest data as a base64 string for JSON transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when the payload cannot be encoded.
     pub fn serialize_contests<C: Ctx>(
         contest: &HashableMultiBallotContests<C>,
     ) -> Result<String, BallotError> {
@@ -152,6 +168,10 @@ impl HashableMultiBallot {
 
 impl SignedHashableMultiBallot {
     /// Decodes contests via the intermediate [`HashableMultiBallot`] representation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError`] when contest decoding fails.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<HashableMultiBallotContests<C>, BallotError> {
@@ -161,6 +181,10 @@ impl SignedHashableMultiBallot {
     }
 
     /// Encodes hashable multi-contest data (delegates to [`HashableMultiBallot`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when the payload cannot be encoded.
     pub fn serialize_contests<C: Ctx>(
         contest: &HashableMultiBallotContests<C>,
     ) -> Result<String, BallotError> {
@@ -293,6 +317,11 @@ impl<C: Ctx> From<&AuditableMultiBallotContests<C>>
 }
 
 /// Signs a hashable multi-ballot with a freshly generated ephemeral voter key pair.
+///
+/// # Errors
+///
+/// Returns an error when signing bytes cannot be produced or the ephemeral key
+/// cannot be generated or serialized.
 pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
     ballot_id: &str,
     election_id: &str,
@@ -330,6 +359,11 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
 }
 
 /// Verify the signature on a signed hashable multi-ballot.
+///
+/// # Errors
+///
+/// Returns an error when signature or public-key material is invalid or
+/// verification fails.
 pub fn verify_multi_ballot_signature(
     ballot_id: &str,
     election_id: &str,

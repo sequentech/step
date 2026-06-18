@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-/// Creates the results_area_contest table and inserts the given results area-contest.
+/// Creates the `results_area_contest` table and inserts the given results area-contest.
+///
+/// # Errors
+///
+/// Returns an error when table creation or insertion fails.
 pub async fn create_results_area_contests_sqlite(
     sqlite_transaction: &Transaction<'_>,
     area_contests: Vec<ResultsAreaContest>,
@@ -101,6 +105,10 @@ pub async fn create_results_area_contests_sqlite(
 
 #[instrument(err, skip_all)]
 /// Updates document references on an existing results area-contest row.
+///
+/// # Errors
+///
+/// Returns an error when the `SQLite` update fails.
 pub async fn update_results_area_contest_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -46,6 +46,10 @@ pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &'static str =
     "electoral_results_system.hbs";
 
 /// Reads the `PUBLIC_ASSETS_PATH` environment variable.
+///
+/// # Errors
+///
+/// Returns an error when the environment variable is not set.
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
         Ok(path) => Ok(path),
@@ -55,6 +59,10 @@ pub fn get_public_assets_path_env_var() -> Result<String> {
 }
 
 /// Returns the byte size of a file at `filepath`.
+///
+/// # Errors
+///
+/// Returns an error when the file metadata cannot be read.
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata = fs::metadata(filepath)?;
     Ok(metadata.len())
@@ -63,12 +71,16 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
 /// Writes data into a named temp file. The temp file will have the
 /// specificed prefix and suffix.
 ///
-/// Returns the TempPath of the file, the stringified version of the path to
+/// Returns the `TempPath` of the file, the stringified version of the path to
 /// the file and the bytes size of the file.
 ///
-/// NOTE: The file will be dropped when the TempPath goes out of the scope.
-/// Returning the TempPath, even if the variable goes unused, allows the
+/// NOTE: The file will be dropped when the `TempPath` goes out of the scope.
+/// Returning the `TempPath`, even if the variable goes unused, allows the
 /// caller to control the lifetime of the created temp file.
+///
+/// # Errors
+///
+/// Returns an error when temp file creation, writing, or size lookup fails.
 #[instrument(skip(data), err)]
 pub fn write_into_named_temp_file(
     data: &Vec<u8>,
@@ -96,7 +108,11 @@ pub fn write_into_named_temp_file(
     Ok((temp_path, temp_path_string, file_size))
 }
 
-/// Creates a named temporary file with the given prefix and suffix
+/// Creates a named temporary file with the given prefix and suffix.
+///
+/// # Errors
+///
+/// Returns an error when the temp file cannot be created.
 pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
@@ -115,6 +131,10 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
 }
 
 /// Reads all bytes from a rewound named temporary file.
+///
+/// # Errors
+///
+/// Returns an error when rewinding or reading the temp file fails.
 #[instrument(err)]
 pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
@@ -127,6 +147,10 @@ pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
 }
 
 /// Reads all bytes from a persisted temporary file path.
+///
+/// # Errors
+///
+/// Returns an error when opening or reading the temp file fails.
 #[instrument(err)]
 pub fn read_temp_path(temp_path: &TempPath) -> Result<Vec<u8>> {
     let mut file = File::open(temp_path)?;

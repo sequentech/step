@@ -11,7 +11,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-/// Creates the results_event table and inserts the given results event.
+/// Creates the `results_event` table and inserts the given results event.
+///
+/// # Errors
+///
+/// Returns an error when table creation or insertion fails.
 pub async fn create_results_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -50,6 +54,10 @@ pub async fn create_results_event_sqlite(
 }
 
 /// Looks up the results event for a tenant and election event.
+///
+/// # Errors
+///
+/// Returns an error when no matching row exists or deserialization fails.
 pub fn find_results_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -108,6 +116,10 @@ pub fn find_results_event_sqlite(
 }
 
 /// Updates document references on an existing results event row.
+///
+/// # Errors
+///
+/// Returns an error when serialization or the `SQLite` update fails.
 #[instrument(err, skip_all)]
 pub fn update_results_event_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,

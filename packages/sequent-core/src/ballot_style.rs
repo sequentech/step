@@ -42,6 +42,11 @@ pub fn parse_i18n_field(
 /// Joins area, event, election, contest, and candidate records into the
 /// self-contained structure the voting portal and WASM encryptor need to
 /// render the ballot and encrypt choices.
+///
+/// # Errors
+///
+/// Returns an error when required environment configuration is missing or when
+/// presentation or annotation JSON cannot be parsed.
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area
@@ -159,6 +164,7 @@ pub fn create_ballot_style(
     })
 }
 
+/// Builds a ballot [`Contest`] from Hasura contest and candidate records.
 fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,

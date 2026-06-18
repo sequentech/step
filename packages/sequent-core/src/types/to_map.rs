@@ -13,6 +13,10 @@ pub trait ToMap {
     /// Serializes `self` and returns the resulting JSON object.
     ///
     /// Returns an error if serialization fails or the value is not a JSON object.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when serialization fails or the value is not a JSON object.
     fn to_map(&self) -> Result<Map<String, Value>>;
 }
 

@@ -6,6 +6,10 @@ use std::process::Command;
 use tracing::{info, instrument};
 
 /// Runs a shell command and returns its stdout on success.
+///
+/// # Errors
+///
+/// Returns an error when the command fails or stdout is not valid UTF-8.
 #[instrument(err, ret)]
 pub fn run_shell_command(command: &str) -> Result<String> {
     // Run the shell command

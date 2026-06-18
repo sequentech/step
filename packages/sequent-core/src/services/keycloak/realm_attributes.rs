@@ -10,6 +10,10 @@ use std::str::FromStr;
 use tracing::{info, instrument, warn};
 
 /// Updates realm attributes on the election-event Keycloak realm.
+///
+/// # Errors
+///
+/// Returns an error when the admin client cannot be created or the realm update fails.
 pub async fn update_realm_attributes(
     tenant_id: &str,
     election_event_id: &str,
@@ -28,6 +32,10 @@ pub async fn update_realm_attributes(
 
 impl KeycloakAdminClient {
     /// Merges supported attributes into an existing Keycloak realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the realm cannot be fetched or updated.
     #[instrument(skip(self), err)]
     pub async fn update_realm_attributes(
         self,

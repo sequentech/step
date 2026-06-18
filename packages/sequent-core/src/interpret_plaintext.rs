@@ -38,8 +38,11 @@ pub enum ContestState {
 /// UI layout hints (screen, sort order, preference ordering) for a contest.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestLayoutProperties {
+    /// Voting-portal screen to render for this contest.
     state: ContestState,
+    /// Whether candidates should be displayed in sorted order.
     sorted: bool,
+    /// Whether candidates are ordered by preference in the UI.
     ordered: bool,
 }
 

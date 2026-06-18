@@ -32,5 +32,5 @@ pub mod results_election_area;
 pub mod results_event;
 /// Tally session resolution records.
 pub mod tally_session_resolution;
-/// Shared SQLite serialization helpers.
+/// Shared `SQLite` serialization helpers.
 pub mod utils;

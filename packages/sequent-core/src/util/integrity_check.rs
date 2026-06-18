@@ -26,6 +26,10 @@ pub enum HashFileVerifyError {
 impl std::error::Error for HashFileVerifyError {}
 
 /// Verifies that a temporary file's SHA-256 digest matches `sha256`.
+///
+/// # Errors
+///
+/// Returns [`HashFileVerifyError`] when I/O, hashing, or digest comparison fails.
 pub fn integrity_check(
     temp_file_path: &NamedTempFile,
     sha256: String,

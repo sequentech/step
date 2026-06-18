@@ -28,18 +28,30 @@ impl RawBallotContest {
 /// Converts between decoded votes and mixed-radix digit vectors.
 pub trait RawBallotCodec {
     /// Encodes a decoded contest vote into raw mixed-radix digits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the vote cannot be encoded into raw digits.
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String>;
 
     /// Decodes raw mixed-radix digits back into a decoded contest vote.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when digits cannot be decoded into a valid vote.
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String>;
 
     /// Estimates how many write-in characters fit in the remaining plaintext space.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the vote cannot be encoded for estimation.
     fn available_write_in_characters_estimate(
         &self,
         plaintext: &DecodedVoteContest,

@@ -92,6 +92,7 @@ pub struct ManageAllowInitPayload {
     pub allow_init: Option<bool>,
 }
 
+/// Default serde value for [`ManageAllowInitPayload::allow_init`].
 fn default_allow_init() -> Option<bool> {
     Some(true)
 }
@@ -159,6 +160,10 @@ pub fn generate_manage_date_task_name(
 }
 
 /// Extracts voting-period start and end dates from matching scheduled events.
+///
+/// # Errors
+///
+/// Returns an error when event payload JSON cannot be serialized.
 pub fn generate_voting_period_dates(
     scheduled_events: Vec<ScheduledEvent>,
     tenant_id: &str,
@@ -216,12 +221,16 @@ pub fn generate_voting_period_dates(
 }
 
 /// Converts a list of schedule events to a map of date names and
-/// ScheduledEventDates.
+/// `ScheduledEventDates`.
 ///
-/// If election_id is None, it will contain only dates schedule for the election
+/// If `election_id` is None, it will contain only dates schedule for the election
 /// event.
-/// If the election_id is Some(_), it will contain also dates scheduled for this
+/// If the `election_id` is Some(_), it will contain also dates scheduled for this
 /// specific election.
+///
+/// # Errors
+///
+/// Returns an error when a scheduled date cannot be formatted.
 pub fn prepare_scheduled_dates(
     scheduled_events: Vec<ScheduledEvent>,
     election_id: Option<&str>,

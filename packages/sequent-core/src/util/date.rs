@@ -19,6 +19,10 @@ pub fn get_seconds_later(seconds: i64) -> DateTime<Utc> {
 }
 
 /// Returns the current Unix timestamp in seconds.
+///
+/// # Errors
+///
+/// Returns an error when the system clock is before the Unix epoch.
 pub fn timestamp() -> Result<u64> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)

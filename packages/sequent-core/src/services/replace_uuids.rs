@@ -10,6 +10,10 @@ use uuid::Uuid;
 
 #[instrument(skip(input))]
 /// Replaces UUIDs in `input` with new values, preserving IDs listed in `keep`.
+///
+/// # Panics
+///
+/// Panics if the UUID regular expression cannot be compiled.
 pub fn replace_uuids(
     input: &str,
     keep: Vec<String>,

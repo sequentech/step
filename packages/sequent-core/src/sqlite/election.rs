@@ -10,6 +10,10 @@ use tracing::instrument;
 
 #[instrument(err, skip_all)]
 /// Creates the election table and inserts election rows.
+///
+/// # Errors
+///
+/// Returns an error when table creation or insertion fails.
 pub async fn create_election_sqlite(
     sqlite_transaction: &Transaction<'_>,
     elections: Vec<Election>,

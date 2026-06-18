@@ -8,6 +8,14 @@ use num_bigint::{BigUint, ToBigUint};
 use num_traits::{One, ToPrimitive, Zero};
 
 /// Packs digit values into one big integer using per-position radix bases.
+///
+/// # Panics
+///
+/// Panics if a digit or base cannot be converted to a big integer.
+///
+/// # Errors
+///
+/// Returns an error when `values` and `bases` have different lengths.
 pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
     if bases.len() != values.len() {
         return Err(
@@ -25,6 +33,14 @@ pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
 }
 
 /// Unpacks a big integer into digit values using the given bases and trailing radix.
+///
+/// # Panics
+///
+/// Panics if a base or remainder cannot be converted to the expected integer type.
+///
+/// # Errors
+///
+/// Currently infallible at the type level; panics propagate as runtime failures.
 pub fn decode(
     bases: &Vec<u64>,
     encoded_value: &BigUint,

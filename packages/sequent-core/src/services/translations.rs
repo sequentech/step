@@ -16,6 +16,7 @@ use crate::{
 /// Fallback language code when no translation is available, "en" for English.
 pub const DEFAULT_LANG: &str = "en";
 
+/// Deserializes an optional presentation JSON value.
 fn parse_presentation<P>(presentation: &Option<serde_json::Value>) -> Option<P>
 where
     P: for<'de> serde::Deserialize<'de>,
@@ -24,8 +25,8 @@ where
     deserialize_value::<P>(val.clone()).ok()
 }
 
-/// Generic i18n getter for nested shape: I18nContent<I18nContent<Option<String>>>
-/// Reads `field` in this order: `language` -> DEFAULT_LANG.
+/// Generic i18n getter for nested shape: `I18nContent`<`I18nContent`<Option<String>>>
+/// Reads `field` in this order: `language` -> `DEFAULT_LANG`.
 fn i18n_field(
     i18n: &Option<I18nContent<I18nContent<Option<String>>>>,
     language: &str,

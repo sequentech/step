@@ -10,6 +10,10 @@ use tracing::instrument;
 
 #[instrument(err, skip_all)]
 /// Creates the contest table and inserts contest rows.
+///
+/// # Errors
+///
+/// Returns an error when table creation or insertion fails.
 pub async fn create_contest_sqlite(
     sqlite_transaction: &Transaction<'_>,
     contests: Vec<Contest>,

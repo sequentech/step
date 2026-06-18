@@ -11,6 +11,10 @@ use tracing::instrument;
 
 #[instrument(err, skip_all)]
 /// Creates the candidate table schema.
+///
+/// # Errors
+///
+/// Returns an error when table creation fails.
 pub async fn create_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
 ) -> Result<()> {
@@ -38,7 +42,11 @@ pub async fn create_candidate_sqlite(
 }
 
 #[instrument(err, skip_all)]
-/// Imports candidate rows from a CSV file into SQLite.
+/// Imports candidate rows from a CSV file into `SQLite`.
+///
+/// # Errors
+///
+/// Returns an error when CSV parsing or insertion fails.
 pub async fn import_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
     contests_csv: &Path,

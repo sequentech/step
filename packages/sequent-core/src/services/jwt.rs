@@ -58,7 +58,7 @@ pub enum StringOrVec {
     Multiple(Vec<String>),
 }
 
-/// Decoded Keycloak OpenID Connect access token payload.
+/// Decoded Keycloak `OpenID` Connect access token payload.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
     /// Token expiration time (Unix seconds).
@@ -79,7 +79,7 @@ pub struct JwtClaims {
     pub typ: String,
     /// Authorized party (OAuth client ID).
     pub azp: String,
-    /// OpenID Connect nonce, when used.
+    /// `OpenID` Connect nonce, when used.
     pub nonce: Option<String>,
     /// Keycloak session state identifier.
     pub session_state: Option<String>,
@@ -114,6 +114,10 @@ pub struct JwtClaims {
 }
 
 /// Decodes the payload of a JWT without signature verification.
+///
+/// # Errors
+///
+/// Returns an error when the token format, base64 payload, UTF-8, or JSON is invalid.
 #[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();

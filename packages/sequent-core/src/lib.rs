@@ -7,7 +7,7 @@
 //! This crate holds ballot structures, encryption helpers, serialization, and
 //! domain types used across backend services and browser-facing WASM builds
 //! (voting portal, ballot verifier, admin tooling). Feature flags gate
-//! optional integrations such as Keycloak, SQLite, PDF reports, and plugin
+//! optional integrations such as Keycloak, `SQLite`, PDF reports, and plugin
 //! runtimes.
 
 #[macro_use]

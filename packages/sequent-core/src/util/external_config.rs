@@ -88,6 +88,10 @@ pub struct GenerateApplications {
 }
 
 /// Loads [`ExternalConfigData`] from `external_config.json` in `working_dir`.
+///
+/// # Errors
+///
+/// Returns an error when the config file cannot be read or parsed.
 pub fn load_external_config(
     working_dir: &str,
 ) -> Result<ExternalConfigData, Box<dyn Error>> {

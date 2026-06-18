@@ -18,6 +18,10 @@ use std::collections::HashMap;
 use std::panic;
 
 /// Builds a contest data tree from area and area-contest JSON inputs.
+///
+/// # Errors
+///
+/// Returns a JavaScript error value when input parsing, tree construction, or serialization fails.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn create_tree_js(
@@ -46,6 +50,10 @@ pub fn create_tree_js(
 }
 
 /// Returns area contests that match the given contest id within a tree.
+///
+/// # Errors
+///
+/// Returns a JavaScript error value when input parsing or serialization fails.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn get_contest_matches_js(

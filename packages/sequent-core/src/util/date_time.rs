@@ -61,6 +61,10 @@ pub fn generate_timestamp(
 
 /// Check if the date is correct, format must be YYYY-MM-DD.
 /// Date in the future is not valid.
+///
+/// # Errors
+///
+/// Returns a descriptive error string when the format is invalid or the date is in the future.
 pub fn verify_date_format_ymd(date_str: &str) -> Result<DateTime<Utc>, String> {
     let parts: Vec<&str> = date_str.split('-').collect();
     if parts.len() != 3 {

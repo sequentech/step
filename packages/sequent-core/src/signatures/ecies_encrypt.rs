@@ -28,6 +28,10 @@ pub struct EciesKeyPair {
 }
 
 /// Encrypts `password` with the given ECIES public key and returns base64 ciphertext.
+///
+/// # Errors
+///
+/// Returns an error when temp file creation, the external tool, or encryption fails.
 #[instrument(skip(password), err)]
 pub fn ecies_encrypt_string(
     public_key_pem: &str,
@@ -61,6 +65,10 @@ pub fn ecies_encrypt_string(
 }
 
 /// Generates a new ECIES key pair via the external ECIES tool.
+///
+/// # Errors
+///
+/// Returns an error when key generation or file I/O fails.
 #[instrument(err)]
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
@@ -93,6 +101,10 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
 }
 
 /// Signs `data` with the private key in `acm_key_pair` and returns base64 signature.
+///
+/// # Errors
+///
+/// Returns an error when temp file creation, signing, or the external tool fails.
 #[instrument(skip(data), err)]
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
@@ -146,6 +158,10 @@ pub struct SignRequest {
 }
 
 /// Signs multiple payloads in one invocation of the ECIES tool.
+///
+/// # Errors
+///
+/// Returns an error when bulk signing setup, the external tool, or output parsing fails.
 #[instrument(skip_all, err)]
 pub fn ecies_sign_data_bulk(
     acm_key_pair: &EciesKeyPair,

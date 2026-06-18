@@ -6,6 +6,10 @@
 
 // similar to ballot_codec::encode_vec_to_array but it doesn't add the size.
 /// Pads a byte vector into a 30-byte array without a length prefix.
+///
+/// # Errors
+///
+/// Returns an error when the input exceeds 30 bytes.
 pub fn vec_to_30_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     if data.len() > 30 {
         return Err(format!(
@@ -24,6 +28,10 @@ pub fn vec_to_30_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
  *  Encode an input vector of bytes into an array of 30 bytes.
  *  The first byte will indicate the size of the input bytes.
  * . Then follows the input bytes, and the remaining are zeroed bytes.
+ *
+ *  # Errors
+ *
+ *  Returns an error when the input exceeds 29 bytes of payload.
  */
 pub fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     let plaintext_length = data.len();
@@ -43,7 +51,7 @@ pub fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
 
 /**
  * Decode an array of 30 bytes into a vector of bytes.
- * This is the inverse of encode_vec_to_array and in that way
+ * This is the inverse of `encode_vec_to_array` and in that way
  * the first byte indicates the size of the data.
  */
 pub fn decode_array_to_vec(code: &[u8; 30]) -> Vec<u8> {

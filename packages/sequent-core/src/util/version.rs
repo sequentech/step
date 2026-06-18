@@ -18,6 +18,10 @@ pub const VERSION_KEY: &str = "version";
 pub const HISTORICAL_DEFAULT_VERSION: &str = "9.0.0";
 
 /// Checks whether an imported election version is compatible with the running app.
+///
+/// # Errors
+///
+/// Returns an error when either version cannot be parsed or the imported version is incompatible.
 pub fn check_version_compatibility(
     imported_version: &str,
     current_version: &str,

@@ -11,6 +11,10 @@ use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 
 /// Reads the `PUBLIC_ASSETS_PATH` environment variable.
+///
+/// # Errors
+///
+/// Returns an error when the environment variable is not set.
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {
         Ok(path) => Ok(path),
@@ -20,6 +24,10 @@ pub fn get_public_assets_path_env_var() -> Result<String> {
 }
 
 /// Returns the byte size of a file at `filepath`.
+///
+/// # Errors
+///
+/// Returns an error when the file metadata cannot be read.
 pub fn get_file_size(filepath: &str) -> Result<u64> {
     let metadata =
         fs::metadata(filepath).with_context(|| "Error get file size")?;
@@ -38,6 +46,10 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
  * caller to control the lifetime of the created temp file.
  */
 /// Writes bytes to a named temp file and returns its path and size.
+///
+/// # Errors
+///
+/// Returns an error when temp file creation, writing, or size lookup fails.
 pub fn write_into_named_temp_file(
     data: &Vec<u8>,
     prefix: &str,
@@ -65,6 +77,10 @@ pub fn write_into_named_temp_file(
 }
 
 /// Creates a named temporary file with the given prefix and suffix.
+///
+/// # Errors
+///
+/// Returns an error when the temp file cannot be created.
 pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();
@@ -83,6 +99,10 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
 }
 
 /// Reads all bytes from a rewound named temporary file.
+///
+/// # Errors
+///
+/// Returns an error when rewinding or reading the temp file fails.
 pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
     // Rewind the file to the beginning to read its contents
     temp_file
@@ -98,6 +118,10 @@ pub fn read_temp_file(temp_file: &mut NamedTempFile) -> Result<Vec<u8>> {
 }
 
 /// Reads all bytes from a persisted temporary file path.
+///
+/// # Errors
+///
+/// Returns an error when opening or reading the temp file fails.
 pub fn read_temp_path(temp_path: &TempPath) -> Result<Vec<u8>> {
     let mut file =
         File::open(temp_path).with_context(|| "Error opening temp file")?;

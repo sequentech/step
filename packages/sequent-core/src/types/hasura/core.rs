@@ -163,9 +163,9 @@ pub struct ElectionEvent {
     pub voting_channels: Option<Value>,
     /// Voting status JSON (per-channel states and dates).
     pub status: Option<Value>,
-    /// ImmuDB user-board identifier for audit logging.
+    /// `ImmuDB` user-board identifier for audit logging.
     pub user_boards: Option<String>,
-    /// Cryptographic protocol identifier (e.g. exponential ElGamal).
+    /// Cryptographic protocol identifier (e.g. exponential `ElGamal`).
     pub encryption_protocol: String,
     /// When true, this is an audit clone of another event.
     pub is_audit: Option<bool>,
@@ -547,9 +547,9 @@ pub struct KeysCeremony {
     pub election_event_id: String,
     /// List of trustee identifiers.
     pub trustee_ids: Vec<String>,
-    /// Value of KeysCeremonyStatus
+    /// Value of `KeysCeremonyStatus`
     pub status: Option<Value>,
-    /// Value of KeysCeremonyExecutionStatus
+    /// Value of `KeysCeremonyExecutionStatus`
     pub execution_status: Option<String>,
     /// Labels
     pub labels: Option<Value>,
@@ -576,6 +576,10 @@ impl KeysCeremony {
     }
 
     /// Parses the raw `execution_status` string into a typed enum.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the stored value is not a valid execution status.
     pub fn execution_status(&self) -> Result<KeysCeremonyExecutionStatus> {
         let execution_status_str =
             self.execution_status.clone().unwrap_or_default();
@@ -584,6 +588,10 @@ impl KeysCeremony {
     }
 
     /// Deserializes the JSON `status` field into a typed ceremony status.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the JSON cannot be parsed into a ceremony status.
     pub fn status(&self) -> Result<KeysCeremonyStatus> {
         deserialize_value(self.status.clone().unwrap_or_default())
             .map_err(|err| anyhow!("{:?}", err))

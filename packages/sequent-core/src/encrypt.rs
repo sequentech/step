@@ -50,6 +50,10 @@ pub type ShortHash = [u8; SHORT_SHA512_HASH_LENGTH_BYTES];
 pub const DEFAULT_PLAINTEXT_LABEL: [u8; 0] = [];
 
 /// Returns the default development public key string and deserialized element.
+///
+/// # Panics
+///
+/// Panics if the embedded default public key cannot be decoded or deserialized.
 pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     let pk_str: String = DEFAULT_PUBLIC_KEY_RISTRETTO_STR.to_string();
     let pk_bytes = general_purpose::STANDARD_NO_PAD
@@ -60,6 +64,14 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
 }
 
 /// Encrypts a plaintext with proof of knowledge, returning the ciphertext and Schnorr proof.
+///
+/// # Panics
+///
+/// Panics if plaintext encoding, encryption, or proof verification fails unexpectedly.
+///
+/// # Errors
+///
+/// Currently infallible at the type level; panics propagate as runtime failures.
 pub fn encrypt_plaintext_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: <C>::E,
@@ -92,6 +104,10 @@ pub fn encrypt_plaintext_candidate<C: Ctx>(
 }
 
 /// Parses the election public key from a ballot style configuration.
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when the public key is missing or cannot be decoded.
 pub fn parse_public_key<C: Ctx>(
     election: &BallotStyle,
 ) -> Result<C::E, BallotError> {
@@ -105,6 +121,10 @@ pub fn parse_public_key<C: Ctx>(
 }
 
 /// Re-encrypts each contest ciphertext from an auditable ballot using stored randomness.
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when contest counts mismatch or re-encryption fails.
 pub fn recreate_encrypt_cyphertext<C: Ctx>(
     ctx: &C,
     ballot: &AuditableBallot,
@@ -132,6 +152,7 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
         .collect()
 }
 
+/// Re-encrypts one auditable contest choice using stored plaintext and randomness.
 fn recreate_encrypt_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: &C::E,
@@ -155,6 +176,10 @@ fn recreate_encrypt_candidate<C: Ctx>(
 }
 
 /// Encodes decoded multi-contest votes into a 30-byte plaintext and [`BallotChoices`].
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when contest counts or decline-to-vote rules are inconsistent.
 pub fn encode_to_plaintext_decoded_multi_contest(
     decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
@@ -217,6 +242,10 @@ pub fn encode_to_plaintext_decoded_multi_contest(
 }
 
 /// Encrypts decoded multi-contest votes into an [`AuditableMultiBallot`].
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when validation, encoding, or encryption fails.
 pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
@@ -272,6 +301,10 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
 }
 
 /// Encrypts one ciphertext per decoded contest into an [`AuditableBallot`].
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when validation, encoding, or encryption fails.
 pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_contests: &Vec<DecodedVoteContest>,
@@ -341,6 +374,10 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
 }
 
 /// Returns the SHA-512 hash of a serialized ballot style.
+///
+/// # Errors
+///
+/// Returns [`StrandError`] when serialization or hashing fails.
 pub fn hash_ballot_style_sha512(
     ballot_style: &BallotStyle,
 ) -> Result<Hash, StrandError> {
@@ -349,6 +386,10 @@ pub fn hash_ballot_style_sha512(
 }
 
 /// Returns the hex-encoded short hash of a ballot style.
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when hashing or hex encoding fails.
 pub fn hash_ballot_style(
     ballot_style: &BallotStyle,
 ) -> Result<String, BallotError> {
@@ -359,6 +400,10 @@ pub fn hash_ballot_style(
 }
 
 /// Returns the SHA-512 hash of a hashable single-contest ballot.
+///
+/// # Errors
+///
+/// Returns [`StrandError`] when deserialization, serialization, or hashing fails.
 pub fn hash_ballot_sha512(
     hashable_ballot: &HashableBallot,
 ) -> Result<Hash, StrandError> {
@@ -377,9 +422,13 @@ pub fn shorten_hash(hash: &Hash) -> ShortHash {
     shortened
 }
 
-/// hash ballot:
+/// Hash ballot:
 /// serialize ballot into string, then hash to sha512, truncate to
-// /256 bits and serialize to hexadecimal
+/// 256 bits and serialize to hexadecimal.
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when hashing or hex encoding fails.
 pub fn hash_ballot(
     hashable_ballot: &HashableBallot,
 ) -> Result<String, BallotError> {
@@ -393,6 +442,11 @@ pub fn hash_ballot(
 /// Multi ballots
 ////////////////////////////////////////////////////////////////
 
+/// Encrypts multi-contest ballot choices into an [`AuditableMultiBallot`].
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when validation, encoding, or encryption fails.
 pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     ballot_choices: &BallotChoices,
@@ -446,6 +500,10 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
 }
 
 /// Returns the hex-encoded short hash of a hashable multi-contest ballot.
+///
+/// # Errors
+///
+/// Returns [`BallotError`] when hashing or hex encoding fails.
 pub fn hash_multi_ballot(
     hashable_ballot: &HashableMultiBallot,
 ) -> Result<String, BallotError> {
@@ -456,6 +514,10 @@ pub fn hash_multi_ballot(
 }
 
 /// Returns the SHA-512 hash of a hashable multi-contest ballot.
+///
+/// # Errors
+///
+/// Returns [`StrandError`] when serialization or hashing fails.
 pub fn hash_multi_ballot_sha512(
     hashable_ballot: &HashableMultiBallot,
 ) -> Result<Hash, StrandError> {

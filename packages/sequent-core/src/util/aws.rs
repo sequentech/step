@@ -12,6 +12,10 @@ pub const AWS_S3_PUBLIC_URI_ENV: &str = "AWS_S3_PUBLIC_URI";
 
 /// Resolves the AWS region from the environment and keeps the default chain
 /// as a fallback so local and deployed runtimes share the same lookup flow.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_REGION` is not set.
 #[instrument(err, skip_all)]
 pub fn get_region() -> Result<RegionProviderChain> {
     let region = RegionProviderChain::first_try(Region::new(
@@ -25,6 +29,10 @@ pub fn get_region() -> Result<RegionProviderChain> {
 
 /// Loads the shared AWS SDK configuration from the process environment so S3,
 /// SES, SNS, and STS all use the same credentials and region resolution.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_REGION` is not set.
 #[instrument(err, skip_all)]
 pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
     let region = Region::new(
@@ -90,6 +98,10 @@ pub(crate) fn build_s3_aws_config_for_endpoint(
 /// Builds an S3 client configuration for the selected endpoint. <br>
 /// When `use_server_endpoint` is `false`, the client-facing endpoint is used
 /// instead of the server-side endpoint.
+///
+/// # Errors
+///
+/// Returns an error when AWS configuration or the endpoint environment variable is missing.
 #[instrument(err, skip_all)]
 pub async fn get_s3_aws_config(
     use_server_endpoint: bool,
@@ -108,6 +120,10 @@ pub async fn get_s3_aws_config(
 
 /// Returns the maximum upload size so callers can reject oversized payloads
 /// before opening a long-running upload flow.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_S3_MAX_UPLOAD_BYTES` is missing or not a valid integer.
 #[instrument(err, skip_all)]
 pub fn get_max_upload_size() -> Result<usize> {
     Ok(std::env::var("AWS_S3_MAX_UPLOAD_BYTES")
@@ -118,6 +134,10 @@ pub fn get_max_upload_size() -> Result<usize> {
 }
 
 /// Returns the upload URL lifetime so presigned uploads expire predictably.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_S3_UPLOAD_EXPIRATION_SECS` is missing or not a valid integer.
 #[instrument(err, skip_all)]
 pub fn get_upload_expiration_secs() -> Result<u64> {
     Ok(std::env::var("AWS_S3_UPLOAD_EXPIRATION_SECS")
@@ -129,6 +149,10 @@ pub fn get_upload_expiration_secs() -> Result<u64> {
 
 /// Returns the download URL lifetime so generated fetch URLs match the
 /// deployment's cache and access expectations.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_S3_FETCH_EXPIRATION_SECS` is missing or not a valid integer.
 #[instrument(err, skip_all)]
 pub fn get_fetch_expiration_secs() -> Result<u64> {
     Ok(std::env::var("AWS_S3_FETCH_EXPIRATION_SECS")

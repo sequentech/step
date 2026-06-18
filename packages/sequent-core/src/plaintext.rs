@@ -80,19 +80,23 @@ impl DecodedVoteContest {
                 .iter()
                 .all(|choice| choice.selected < 0)
     }
-    /// Get the value of is_decline_to_vote.
+    /// Returns the value of `is_decline_to_vote`.
     #[must_use]
     pub fn is_decline_to_vote(&self) -> bool {
         self.is_decline_to_vote
     }
 
     /// Check the validity of the preference order.
-    /// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+    /// Note: `PreferenceOrderWithGaps` is returned as an error if there are gaps,
     /// but this is generally not considered invalid, so the caller can
     /// handle it depending on the policy or jurisdiction rules.
     /// Returns Ok if the order is valid after sorting it and if it is
     /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
     /// Returns Err with a Vec of all errors found (may contain multiple variants).
+    ///
+    /// # Errors
+    ///
+    /// Returns preference-order validation failures when ranks are duplicated or gapped.
     pub fn validate_preferencial_order(
         &self,
     ) -> Result<(), Vec<PreferencialOrderErrorType>> {
@@ -153,6 +157,10 @@ impl DecodedVoteChoice {
 }
 
 /// Decodes each contest ciphertext in an auditable ballot into [`DecodedVoteContest`].
+///
+/// # Errors
+///
+/// Returns an error when contest counts mismatch or decoding fails.
 pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
@@ -189,6 +197,10 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
 }
 
 /// Maps decoded multi-contest ballot choices onto ballot-style contests.
+///
+/// # Errors
+///
+/// Returns an error when a contest id is missing or mapping fails.
 pub fn map_decoded_ballot_choices_to_decoded_contests(
     decoded_ballot_choices: DecodedBallotChoices,
     contests: &Vec<Contest>,
@@ -246,6 +258,10 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
 }
 
 /// Decodes each contest in an auditable multi-contest ballot into [`DecodedVoteContest`].
+///
+/// # Errors
+///
+/// Returns an error when deserialization, decoding, or contest lookup fails.
 pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableMultiBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {

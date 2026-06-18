@@ -11,9 +11,13 @@ use warp::{http::Response, Filter};
 
 /// HTTP liveness and readiness probe server for Kubernetes health checks.
 pub struct ProbeHandler {
+    /// Socket address the probe server binds to.
     address: SocketAddr,
+    /// HTTP path for the liveness probe.
     live_path: String,
+    /// HTTP path for the readiness probe.
     ready_path: String,
+    /// Async predicate that determines liveness probe success.
     is_live: Arc<
         Mutex<
             Box<
@@ -24,6 +28,7 @@ pub struct ProbeHandler {
             >,
         >,
     >,
+    /// Async predicate that determines readiness probe success.
     is_ready: Arc<
         Mutex<
             Box<
@@ -57,6 +62,10 @@ impl ProbeHandler {
     }
 
     /// Returns a warp server future that serves liveness and readiness endpoints.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an HTTP response body cannot be built.
     pub fn future(&self) -> impl Future<Output = ()> {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);

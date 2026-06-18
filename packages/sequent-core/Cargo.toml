@@ -164,4 +164,10 @@ missing_docs = "deny"
 private_interfaces = "warn"
 private_bounds = "warn"
 unnameable_types = "warn"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)', 'cfg(coverage_nightly)'] }
+
+[lints.clippy]
+missing_docs_in_private_items = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+doc_markdown = "deny"

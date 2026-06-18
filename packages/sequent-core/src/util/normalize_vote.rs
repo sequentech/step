@@ -38,6 +38,10 @@ pub fn normalize_vote_contest(
 }
 
 /// Normalizes all decoded contests in a ballot using ballot-style metadata.
+///
+/// # Errors
+///
+/// Returns an error when a contest ID in the ballot is missing from the ballot style.
 pub fn normalize_election(
     input: &Vec<DecodedVoteContest>,
     ballot_style: &BallotStyle,

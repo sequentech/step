@@ -29,8 +29,8 @@ pub const DISABLE_REASON_MARKVOTED_CALL: &str =
 /// If there is a call to Datafix unmark-voted, we enable the voter and reset
 /// this attribute to NONE.
 ///
-/// In addition the voter list, when setting the has_voted flag will check if
-/// this attribute is set, then set has_voted true.
+/// In addition the voter list, when setting the `has_voted` flag will check if
+/// this attribute is set, then set `has_voted` true.
 pub const VOTED_CHANNEL: &str = "voted-channel";
 
 /// Value stored in [`VOTED_CHANNEL`] when the voter cast via the online portal.

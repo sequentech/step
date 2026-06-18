@@ -39,6 +39,10 @@ impl From<Permission> for RoleRepresentation {
 
 impl KeycloakAdminClient {
     /// Lists realm permission roles with optional search and pagination.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     #[instrument(skip(self), err)]
     pub async fn list_permissions(
         self,
@@ -67,6 +71,10 @@ impl KeycloakAdminClient {
     }
 
     /// Assigns one realm permission role to a group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the role lookup or group mapping request fails.
     #[instrument(skip(self), err)]
     pub async fn set_role_permission(
         self,
@@ -91,6 +99,10 @@ impl KeycloakAdminClient {
     }
 
     /// Assigns multiple realm permission roles to a group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any role lookup or the group mapping request fails.
     #[instrument(skip(self), err)]
     pub async fn set_role_permissions(
         self,
@@ -132,6 +144,10 @@ impl KeycloakAdminClient {
     }
 
     /// Removes one realm permission role from a group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the role lookup or group mapping removal fails.
     #[instrument(skip(self), err)]
     pub async fn delete_role_permission(
         self,
@@ -156,6 +172,10 @@ impl KeycloakAdminClient {
     }
 
     /// Deletes a realm permission role definition.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     #[instrument(skip(self), err)]
     pub async fn delete_permission(
         self,
@@ -170,6 +190,10 @@ impl KeycloakAdminClient {
     }
 
     /// Creates a new realm permission role.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     pub async fn create_permission(
         self,
         realm: &str,

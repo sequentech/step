@@ -19,8 +19,11 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
+/// HTTP header name for the tenant identifier in Datafix requests.
 const TENANT_ID_HEADER: &str = "tenant-id";
+/// HTTP header name for the election event identifier in Datafix requests.
 const EVENT_ID_HEADER: &str = "event-id";
+/// HTTP header name for client credentials in Datafix requests.
 const AUTHORIZATION_HEADER: &str = "authorization";
 /// Seconds before token expiry at which a cached Datafix token is refreshed.
 pub const PRE_EXPIRATION_SECS: i64 = 5;
@@ -136,15 +139,22 @@ pub struct DatafixClaims {
 }
 
 #[derive(Debug)]
+/// OAuth client credentials parsed from a Datafix authorization header.
 struct DatafixCredentials {
+    /// Keycloak client identifier.
     client_id: String,
+    /// Keycloak client secret.
     client_secret: String,
 }
 
 #[derive(Debug)]
+/// Required Datafix request headers after parsing.
 struct DatafixHeaders {
+    /// Tenant identifier from the `tenant-id` header.
     tenant_id: String,
+    /// Election event identifier from the `event-id` header.
     event_id: String,
+    /// Client credentials from the `authorization` header.
     authorization: DatafixCredentials,
 }
 
@@ -199,14 +209,19 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     })
 }
 
-/// TokenResponse, timestamp before sending the request and the credentials to
+/// Token response with timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
+    /// Keycloak token payload from the client-credentials grant.
     token_resp: PubKeycloakAdminToken,
+    /// Time the token was fetched.
     stamp: Instant,
+    /// Client id that requested the token.
     client_id: String,
+    /// Client secret that requested the token.
     client_secret: String,
+    /// Tenant realm the token was issued for.
     tenant_id: String,
 }
 

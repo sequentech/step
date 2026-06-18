@@ -49,7 +49,7 @@ pub type Annotations = HashMap<String, String>;
 /// A voter's encrypted choice.
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
-    /// ElGamal ciphertext encoding the voter's selection for one contest.
+    /// `ElGamal` ciphertext encoding the voter's selection for one contest.
     pub ciphertext: Ciphertext<C>,
     /// Plaintext vote encoded in the contest's mixed-radix representation.
     pub plaintext: C::P,
@@ -117,6 +117,10 @@ pub struct AuditableBallot {
 
 impl AuditableBallot {
     /// Decodes each base64 contest string into a typed auditable contest.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when a contest payload cannot be decoded.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<Vec<AuditableBallotContest<C>>, BallotError> {
@@ -133,6 +137,10 @@ impl AuditableBallot {
     }
 
     /// Encodes auditable contests as base64 strings for JSON transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when a contest payload cannot be encoded.
     pub fn serialize_contests<C: Ctx>(
         contests: &Vec<AuditableBallotContest<C>>,
     ) -> Result<Vec<String>, BallotError> {
@@ -153,7 +161,7 @@ impl AuditableBallot {
 pub struct HashableBallotContest<C: Ctx> {
     /// Identifier of the contest this ciphertext belongs to.
     pub contest_id: String,
-    /// ElGamal ciphertext for the voter's selection.
+    /// `ElGamal` ciphertext for the voter's selection.
     pub ciphertext: Ciphertext<C>,
     /// Proof that the ciphertext is a valid encryption.
     pub proof: Schnorr<C>,
@@ -208,6 +216,10 @@ pub struct RawHashableBallot<C: Ctx> {
 
 impl HashableBallot {
     /// Decodes each base64 contest string into a typed hashable contest.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when a contest payload cannot be decoded.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
@@ -224,6 +236,10 @@ impl HashableBallot {
     }
 
     /// Encodes hashable contests as base64 strings for JSON transport.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when a contest payload cannot be encoded.
     pub fn serialize_contests<C: Ctx>(
         contests: &Vec<HashableBallotContest<C>>,
     ) -> Result<Vec<String>, BallotError> {
@@ -241,6 +257,10 @@ impl HashableBallot {
 
 impl SignedHashableBallot {
     /// Decodes contests via the intermediate [`HashableBallot`] representation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError`] when conversion or contest decoding fails.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
@@ -250,6 +270,10 @@ impl SignedHashableBallot {
     }
 
     /// Encodes hashable contests as base64 strings (delegates to [`HashableBallot`]).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::Serialization`] when a contest payload cannot be encoded.
     pub fn serialize_contests<C: Ctx>(
         contests: &Vec<HashableBallotContest<C>>,
     ) -> Result<Vec<String>, BallotError> {
@@ -360,6 +384,11 @@ pub struct SignedContent {
 /// The signed payload binds `ballot_id`, `election_id`, and the serialized
 /// hashable ballot bytes. Returns the public key and signature to attach to
 /// the cast ballot.
+///
+/// # Errors
+///
+/// Returns an error when signing bytes cannot be produced or the ephemeral key
+/// cannot be generated or serialized.
 pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     ballot_id: &str,
     election_id: &str,
@@ -400,6 +429,11 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
 ///
 /// Returns `Ok(None)` when no signature fields are set. On success returns the
 /// deserialized public key and signature that were verified.
+///
+/// # Errors
+///
+/// Returns an error when signature or public-key material is invalid or
+/// verification fails.
 pub fn verify_ballot_signature(
     ballot_id: &str,
     election_id: &str,
@@ -1187,6 +1221,10 @@ pub struct ElectionEventPresentation {
 
 impl ElectionEvent {
     /// Deserializes the raw JSON presentation into a typed configuration struct.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the presentation JSON cannot be parsed.
     pub fn get_presentation(
         &self,
     ) -> Result<Option<ElectionEventPresentation>, Error<serde_json::Error>>
@@ -1912,6 +1950,10 @@ impl Contest {
     }
 
     /// Stores per-round tie resolutions in the contest `annotations` map.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when tie-resolution data cannot be serialized to JSON.
     pub fn insert_tie_resolutions(
         contest: &mut Contest,
         contest_tie_resolutions: &Vec<TallySessionResolutionData>,
@@ -2210,7 +2252,7 @@ impl ElectionEventStatus {
         }
     }
 
-    /// Close EARLY_VOTING channel's status automatically if the new online
+    /// Close `EARLY_VOTING` channel's status automatically if the new online
     /// status is OPEN or CLOSED
     pub fn close_early_voting_if_online_status_change(
         &mut self,
@@ -2665,6 +2707,7 @@ pub struct ScheduledEventDates {
 }
 
 impl PeriodDates {
+    /// Updates first/last timestamps when a voting period transitions to a new status.
     fn update_period_dates(&mut self, new_status: &VotingStatus) {
         let (first, last) = match new_status {
             VotingStatus::NOT_STARTED => {
@@ -2782,7 +2825,7 @@ impl ElectionStatus {
         }
     }
 
-    /// Close EARLY_VOTING channel's status automatically if the new online
+    /// Close `EARLY_VOTING` channel's status automatically if the new online
     /// status is OPEN or CLOSED
     pub fn close_early_voting_if_online_status_change(
         &mut self,
@@ -2956,6 +2999,10 @@ impl AreaAnnotations {
 
 impl Area {
     /// Parses the raw JSON `annotations` field into structured area metadata.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the annotations JSON cannot be deserialized.
     pub fn read_annotations(
         &self,
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {

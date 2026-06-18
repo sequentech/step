@@ -11,6 +11,10 @@ pub struct ISO8601;
 
 impl ISO8601 {
     /// Parses an RFC 3339 string into a UTC [`DateTime`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the input is not valid RFC 3339.
     pub fn to_date_utc(date_string: &str) -> Result<DateTime<Utc>> {
         let date_time_utc = DateTime::parse_from_rfc3339(date_string)
             .map_err(|err| anyhow!("{:?}", err))?;
@@ -18,6 +22,10 @@ impl ISO8601 {
     }
 
     /// Parses an RFC 3339 string into the local timezone.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the input is not valid RFC 3339.
     pub fn to_date(date_string: &str) -> Result<DateTime<Local>> {
         let date_time_utc = DateTime::parse_from_rfc3339(date_string)
             .map_err(|err| anyhow!("{:?}", err))?;
@@ -44,6 +52,10 @@ impl ISO8601 {
     }
 
     /// Converts a UTC Unix timestamp in milliseconds to local time, or returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the timestamp is ambiguous or out of range.
     pub fn timestamp_ms_utc_to_date_opt(
         millis: i64,
     ) -> Result<DateTime<Local>> {
@@ -60,6 +72,10 @@ impl ISO8601 {
     }
 
     /// Converts a UTC Unix timestamp in seconds to local time, or returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the timestamp is ambiguous or out of range.
     pub fn timestamp_secs_utc_to_date_opt(
         secs: i64,
     ) -> Result<DateTime<Local>> {

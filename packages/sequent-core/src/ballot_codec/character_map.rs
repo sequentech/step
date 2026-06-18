@@ -19,8 +19,16 @@ impl Contest {
 /// Encodes and decodes write-in candidate text for mixed-radix packing.
 pub trait CharacterMap {
     /// Encodes a write-in string into radix digits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a character cannot be mapped to a radix digit.
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String>;
     /// Decodes radix digits back into a write-in string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when digits cannot be mapped back to valid text.
     fn to_string(&self, bytes: &[u8]) -> Result<String, String>;
     /// Radix base used for each write-in character digit.
     fn base(&self) -> u64;

@@ -8,6 +8,10 @@ use std::convert::TryInto;
 /// Computes mixed-radix bases for encoding a contest's choices.
 pub trait BasesCodec {
     /// Returns the radix base for each ballot digit (excluding write-in expansion).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when contest configuration cannot be converted to radix bases.
     fn get_bases(&self) -> Result<Vec<u64>>;
 }
 

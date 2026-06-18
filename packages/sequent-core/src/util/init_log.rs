@@ -10,6 +10,10 @@ use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
 /// Initializes the tracing subscriber and returns a handle to change log level at runtime.
+///
+/// # Panics
+///
+/// Panics if `LOG_LEVEL` is invalid, global subscriber setup fails, or log tracer init fails.
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)

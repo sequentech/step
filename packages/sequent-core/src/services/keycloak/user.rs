@@ -31,6 +31,7 @@ pub struct GroupInfo {
     pub group_name: String,
 }
 
+/// Maps non-success Keycloak HTTP responses to [`KeycloakError`].
 async fn error_check(
     response: reqwest::Response,
 ) -> Result<reqwest::Response, KeycloakError> {
@@ -200,6 +201,10 @@ impl From<User> for UserRepresentation {
 
 impl KeycloakAdminClient {
     /// Lists users in a realm with optional search, email filter, and pagination.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     #[instrument(skip(self), err)]
     pub async fn list_users(
         self,
@@ -248,6 +253,10 @@ impl KeycloakAdminClient {
     }
 
     /// Fetches one user by ID from a Keycloak realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     #[instrument(skip(self), err)]
     pub async fn get_user(&self, realm: &str, user_id: &str) -> Result<User> {
         let current_user: UserRepresentation = self
@@ -259,6 +268,10 @@ impl KeycloakAdminClient {
     }
 
     /// Updates user fields and optionally sets a password.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak user update request fails.
     #[instrument(skip(self, password), err)]
     pub async fn edit_user(
         self,
@@ -308,6 +321,10 @@ impl KeycloakAdminClient {
     }
 
     /// Updates user fields with explicit credential representations.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak user fetch or update request fails.
     #[instrument(skip(self, credentials), err)]
     pub async fn edit_user_with_credentials(
         self,
@@ -388,6 +405,10 @@ impl KeycloakAdminClient {
     }
 
     /// Deletes a user from a Keycloak realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     #[instrument(skip(self), err)]
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
@@ -398,6 +419,10 @@ impl KeycloakAdminClient {
     }
 
     /// Creates a user in Keycloak and returns the persisted representation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when user creation or lookup in Keycloak fails.
     #[instrument(skip(self), err)]
     pub async fn create_user(
         self: &KeycloakAdminClient,
@@ -447,6 +472,10 @@ impl KeycloakAdminClient {
     }
 
     /// Returns the user-profile attributes for a realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak user-profile request fails.
     #[instrument(skip(self), err)]
     pub async fn get_user_profile_attributes(
         self: &KeycloakAdminClient,
@@ -466,6 +495,10 @@ impl KeycloakAdminClient {
     }
 
     /// Returns groups a user belongs to in a Keycloak realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak Admin API request fails.
     #[instrument(skip(self), err)]
     pub async fn get_user_groups(
         self: &KeycloakAdminClient,
