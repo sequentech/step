@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
         std::env::var(ev::TRUSTEE_PSW).map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
 
     // Fetch access token for B4 authentication
-    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
 
     let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),

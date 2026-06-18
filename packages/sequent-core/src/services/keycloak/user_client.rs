@@ -172,17 +172,22 @@ impl KeycloakUserClient {
     /// The cache is simple (single token) since each trustee runs in a separate
     /// container.
     ///
+    /// # Returns
+    /// A tuple of the access token and a boolean that is `true` when the token
+    /// was freshly fetched (via refresh or password grant) and `false` when it
+    /// was served from the cache.
+    ///
     /// # Arguments
     /// * `login_config` - The Keycloak user login configuration
     #[instrument(level = "trace", err, skip(login_config))]
     pub async fn get_cached_token(
         login_config: &KeycloakUserLoginConfig,
-    ) -> Result<String> {
+    ) -> Result<(String, bool)> {
         let cache = get_user_token_cache();
 
         // Fast path: check cache without fetch lock
         if let Some((token_resp, _url)) = cache.read_token() {
-            return Ok(token_resp.access_token);
+            return Ok((token_resp.access_token, false));
         }
 
         // Acquire fetch lock to prevent thundering herd
@@ -190,7 +195,7 @@ impl KeycloakUserClient {
 
         // Double-check: someone else may have fetched while we waited
         if let Some((token_resp, _url)) = cache.read_token() {
-            return Ok(token_resp.access_token);
+            return Ok((token_resp.access_token, false));
         }
 
         // Try to refresh using the cached refresh token first, since
@@ -219,7 +224,7 @@ impl KeycloakUserClient {
                                 anyhow!("Failed to write refreshed token to cache: {err}")
                             })?;
 
-                        return Ok(token_resp.access_token);
+                        return Ok((token_resp.access_token, true));
                     }
                     Err(err) => {
                         warn!(
@@ -249,7 +254,7 @@ impl KeycloakUserClient {
             .write_token(token_resp.clone(), login_config.url.clone())
             .map_err(|err| anyhow!("Failed to write token to cache: {err}"))?;
 
-        Ok(token_resp.access_token)
+        Ok((token_resp.access_token, true))
     }
 
     /// Gets a fresh access token without using the cache.

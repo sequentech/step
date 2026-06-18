@@ -362,6 +362,14 @@ impl HttpB3BoardParams {
         self.access_token.clone()
     }
 
+    /// Returns a copy of the current access token value.
+    pub fn access_token(&self) -> String {
+        self.access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone()
+    }
+
     /// Create a board client for a specific board (helper for testing)
     pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
         HttpB3 {

@@ -88,7 +88,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     let trustee_password =
         std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
     // Fetch access token for B4 authentication
-    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
 
     let _pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
@@ -365,7 +365,7 @@ pub async fn create_protocol_test<C: Ctx>(
     let trustee_password =
         std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
     // Fetch access token for B4 authentication
-    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
 
     // Create HTTP client to initialize board
     let client = reqwest::Client::new();

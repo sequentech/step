@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams};
+use braid::native::board::{self, HttpB3, HttpB3BoardParams, HttpB3Index};
 use braid::util::{ensure_directory, get_access_token, ProtocolError};
 use clap::Parser;
 use std::collections::{HashMap, HashSet};
@@ -48,7 +48,7 @@ struct Cli {
 const SESSION_RESET_PERIOD: i64 = 20 * 60;
 
 /// A single active keys ceremony returned by Harvest's discovery endpoint.
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 struct ActiveCeremony {
     keys_ceremony_id: String,
     election_event_id: String,
@@ -127,6 +127,98 @@ async fn register_trustee_key(
     Ok(())
 }
 
+/// Background loop, spawned alongside the main step loop, that handles the
+/// network-bound, less time-sensitive ceremony discovery + key registration.
+/// The main loop independently steps every board (DKG and tally alike), so this
+/// loop's only job is to make sure the trustee's key is registered for each active
+/// ceremony. `registered_ceremonies` gates `register_trustee_key` so we call it
+/// once per ceremony (the endpoint is idempotent regardless). Discovery runs on a
+/// much larger period than the 1s tick.
+#[instrument(skip(trustee_password, sender_pk, board_params))]
+async fn run_maintenance_loop(
+    harvest_url: String,
+    trustee_name: String,
+    trustee_password: String,
+    sender_pk: String,
+    heartbeat_secs: u64,
+    board_params: HttpB3BoardParams,
+) {
+    const DISCOVERY_PERIOD_SECS: i64 = 30;
+
+    let mut registered_ceremonies: HashSet<String> = HashSet::new();
+    let mut active_ceremonies: Vec<ActiveCeremony> = Vec::new();
+    let mut loop_count: i64 = 0;
+    loop {
+        // Token is only needed for the discovery/registration calls (cached).
+        let (access_token, fresh) = match get_access_token(&trustee_name, &trustee_password).await {
+            Ok(token) => token,
+            Err(e) => {
+                error!("Failed to get access token: {e:?}");
+                sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
+
+        // Only update the board params when the token was freshly fetched.
+        if fresh {
+            board_params.set_access_token(access_token.clone());
+        }
+
+        if loop_count % DISCOVERY_PERIOD_SECS == 0 {
+            match discover_active_ceremonies(&harvest_url, &access_token).await {
+                Ok(ceremonies) => {
+                    active_ceremonies = ceremonies.clone();
+                    // Register our public key for any ceremony not yet registered
+                    // (unified path with BBT trustees).
+                    for ceremony in &ceremonies {
+                        if registered_ceremonies.contains(&ceremony.keys_ceremony_id) {
+                            continue;
+                        }
+                        match register_trustee_key(
+                            &harvest_url,
+                            &access_token,
+                            &ceremony.election_event_id,
+                            &ceremony.keys_ceremony_id,
+                            &sender_pk,
+                        )
+                        .await
+                        {
+                            Ok(()) => {
+                                registered_ceremonies.insert(ceremony.keys_ceremony_id.clone());
+                            }
+                            Err(e) => error!(
+                                "Failed to register key for ceremony {}: {e:?}",
+                                ceremony.keys_ceremony_id
+                            ),
+                        }
+                    }
+                }
+                Err(e) => error!("Failed to discover active ceremonies: {e:?}"),
+            }
+        }
+
+        // Send heartbeat for every active session every heartbeat_secs iterations.
+        if loop_count % heartbeat_secs as i64 == 0 {
+            for ceremony in &active_ceremonies {
+                if let Err(e) = board_params
+                    .send_heartbeat(
+                        &ceremony.board_name,
+                        &sender_pk,
+                        &trustee_name,
+                        TrusteeModePolicy::SERVER_BASED,
+                    )
+                    .await
+                {
+                    tracing::warn!("Heartbeat failed for board '{}': {e}", &ceremony.board_name);
+                }
+            }
+        }
+
+        loop_count = (loop_count + 1) % i64::MAX;
+        sleep(Duration::from_millis(1000)).await;
+    }
+}
+
 /*
 Entry point for a braid-native trustee.
 
@@ -196,72 +288,47 @@ async fn main() -> Result<()> {
     ensure_directory(store_root.clone())?;
 
     // Fetch initial access token for B4 authentication
-    let initial_access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (initial_access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
     let board_params = HttpB3BoardParams::new(&args.b3_url, initial_access_token.clone()).await;
 
     // Harvest base URL used for ceremony discovery and key registration.
     let harvest_url =
         std::env::var(ev::HARVEST_URL).map_err(|_| anyhow!("HARVEST_URL must be set"))?;
 
+    // Spawn the discovery + key-registration loop. The main loop below steps
+    // every board (DKG and tally), so this background loop only ensures the
+    // trustee's key is registered for each active ceremony.
+    tokio::spawn(run_maintenance_loop(
+        harvest_url.clone(),
+        trustee_name.clone(),
+        trustee_password.clone(),
+        sender_pk.clone(),
+        heartbeat_secs,
+        board_params.clone(),
+    ));
+
     let mut session_map: HashMap<
         String,
         Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
     > = HashMap::new();
-    // Ceremonies whose key we have already registered, to keep registration a
-    // one-shot per ceremony (the Harvest endpoint is idempotent regardless).
-    let mut registered_ceremonies: HashSet<String> = HashSet::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{loop_count} >");
 
-        // Fetch access token for B4 authentication using trustee credentials
-        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
-            Ok(token) => token,
-            Err(e) => {
-                error!("Failed to get access token: {e:?}");
+        // List every board and step each one through whatever protocol phase it is
+        // in (DKG, mixing, decryption). This is phase-agnostic, so the same loop
+        // drives both the key ceremony and the tally.
+        // Reuse the token kept fresh by the background maintenance loop, which
+        // owns token refresh and updates `board_params` in place.
+        let b3index = HttpB3Index::new(&args.b3_url, board_params.access_token());
+        let boards: Vec<String> = match b3index.get_boards().await {
+            Ok(boards) => boards,
+            Err(error) => {
+                error!("Error listing board names: '{error}' ({})", args.b3_url);
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }
         };
-        // Update the shared token so all existing sessions see the refresh
-        board_params.set_access_token(access_token.clone());
-
-        // Discover the active ceremonies this trustee should participate in
-        // (one per election event). Drives which boards we run DKG on.
-        let ceremonies = match discover_active_ceremonies(&harvest_url, &access_token).await {
-            Ok(ceremonies) => ceremonies,
-            Err(e) => {
-                error!("Failed to discover active ceremonies: {e:?}");
-                sleep(Duration::from_millis(1000)).await;
-                continue;
-            }
-        };
-
-        // Register our public key for any ceremony not yet registered (unified
-        // path with BBT trustees). Idempotent server-side; tracked locally to
-        // avoid redundant calls every loop.
-        for ceremony in &ceremonies {
-            if registered_ceremonies.contains(&ceremony.keys_ceremony_id) {
-                continue;
-            }
-            match register_trustee_key(
-                &harvest_url,
-                &access_token,
-                &ceremony.election_event_id,
-                &ceremony.keys_ceremony_id,
-                &sender_pk,
-            )
-            .await
-            {
-                Ok(()) => {
-                    registered_ceremonies.insert(ceremony.keys_ceremony_id.clone());
-                }
-                Err(e) => error!(
-                    "Failed to register key for ceremony {}: {e:?}",
-                    ceremony.keys_ceremony_id
-                ),
-            }
-        }
 
         if loop_count % SESSION_RESET_PERIOD == 0 {
             info!("* Session memory reset");
@@ -270,9 +337,8 @@ async fn main() -> Result<()> {
 
         let mut step_error = false;
 
-        // Create sessions for the discovered ceremony boards only.
-        for ceremony in &ceremonies {
-            let board_name = &ceremony.board_name;
+        // Create sessions for every (non-ignored) board not already running.
+        for board_name in &boards {
             if ignored_boards.contains(board_name) {
                 info!("Ignoring board '{board_name}'..");
                 continue;
@@ -281,7 +347,7 @@ async fn main() -> Result<()> {
                 continue;
             }
 
-            info!("* Creating new session for discovered board '{board_name}'..");
+            info!("* Creating new session for board '{board_name}'..");
 
             let storage =
                 braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
@@ -322,23 +388,6 @@ async fn main() -> Result<()> {
             };
         }
 
-        // Send heartbeat for every active session every heartbeat_secs iterations
-        if loop_count % heartbeat_secs as i64 == 0 {
-            for board_name in session_map.keys() {
-                if let Err(e) = board_params
-                    .send_heartbeat(
-                        board_name,
-                        &sender_pk,
-                        &trustee_name,
-                        TrusteeModePolicy::SERVER_BASED,
-                    )
-                    .await
-                {
-                    tracing::warn!("Heartbeat failed for board '{board_name}': {e}");
-                }
-            }
-        }
-
         if args.strict && step_error {
             break;
         }
@@ -353,7 +402,7 @@ async fn main() -> Result<()> {
                 let mb = 1024 * 1024;
 
                 if let(Ok(_), Ok(alloc), Ok(res)) = (e_, alloc, res) {
-                    info!("{} MB allocated / {} MB resident ({} boards)", (alloc / mb), (res / mb), boards.len());
+                    info!("{} MB allocated / {} MB resident ({} boards)", (alloc / mb), (res / mb), session_map.len());
                 }
             }
         }

@@ -148,13 +148,13 @@ async fn run(args: &Cli) -> Result<()> {
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
 
     // Fetch initial access token for B4 authentication
-    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let (access_token, _fresh) = get_access_token(&trustee_name, &trustee_password).await?;
     let mut master =
         SessionMaster::new(&args.b3_url, factory, args.session_workers, access_token).await?;
 
     loop {
         // Refresh access token using trustee credentials (cached)
-        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
+        let (access_token, fresh) = match get_access_token(&trustee_name, &trustee_password).await {
             Ok(token) => token,
             Err(e) => {
                 error!("Failed to get access token: {e:?}");
@@ -162,7 +162,10 @@ async fn run(args: &Cli) -> Result<()> {
                 continue;
             }
         };
-        master.set_access_token(access_token.clone());
+        // Only update the master when the token was freshly fetched.
+        if fresh {
+            master.set_access_token(access_token.clone());
+        }
 
         let b3index = HttpB3Index::new(&args.b3_url, access_token);
         let boards_result = b3index.get_boards().await;
