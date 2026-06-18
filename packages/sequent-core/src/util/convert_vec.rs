@@ -5,7 +5,9 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
+/// Converts a JSON-compatible value into a `Vec<String>` for attribute maps.
 pub trait IntoVec {
+    /// Converts `self` into a string vector.
     fn into_vec(self) -> Vec<String>;
 }
 
@@ -40,6 +42,7 @@ impl IntoVec for Value {
     }
 }
 
+/// Normalizes a JSON attribute map into string-list values.
 pub fn convert_map(
     original_map: HashMap<String, Value>,
 ) -> HashMap<String, Vec<String>> {

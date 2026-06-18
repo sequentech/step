@@ -12,20 +12,32 @@ use crate::plaintext::{
 use crate::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
 
+/// Ballot codec encode/decode test case fixture.
 pub struct BallotCodecFixture {
+    /// Human-readable label for the test case.
     pub title: String,
+    /// Contest configuration used to derive bases and validation rules.
     pub contest: Contest,
+    /// Mixed-radix digit vector before big-integer packing.
     pub raw_ballot: RawBallotContest,
+    /// Decoded voter selections for the contest.
     pub plaintext: DecodedVoteContest,
+    /// Expected mixed-radix encoding as a decimal big-integer string.
     pub encoded_ballot_bigint: String,
+    /// Expected 30-byte `ElGamal` plaintext.
     pub encoded_ballot: [u8; 30],
+    /// Expected validation errors keyed by check name, if any.
     pub expected_errors: Option<HashMap<String, String>>,
 }
+/// Expected mixed-radix bases for a contest configuration.
 pub struct BasesFixture {
+    /// Contest configuration.
     pub contest: Contest,
+    /// Radix base for each digit position.
     pub bases: Vec<u64>,
 }
 
+/// Returns a plurality-at-large contest fixture for codec tests.
 fn get_contest_plurality() -> Contest {
     Contest {
         created_at: None,
@@ -221,6 +233,7 @@ fn get_contest_plurality() -> Contest {
     }
 }
 
+/// Returns a Borda-count contest fixture derived from the plurality template.
 fn get_contest_borda() -> Contest {
     let mut contest = get_contest_plurality();
     contest.counting_algorithm = Some(CountingAlgType::Borda);
@@ -228,6 +241,7 @@ fn get_contest_borda() -> Contest {
     contest
 }
 
+/// Returns an instant-runoff contest fixture derived from the plurality template.
 fn get_contest_irv() -> Contest {
     let mut contest = get_contest_plurality();
     contest.counting_algorithm = Some(CountingAlgType::InstantRunoff);
@@ -235,6 +249,11 @@ fn get_contest_irv() -> Contest {
     contest
 }
 
+/// Valid instant-runoff preference-order fixture for codec tests.
+///
+/// # Panics
+///
+/// Panics if fixture byte arrays cannot be packed into 30-byte plaintexts.
 pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
     BallotCodecFixture {
         title: "irv_fixture".to_string(),
@@ -283,7 +302,11 @@ pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
     }
 }
 
-/// Invalid ballot due to duplicated position
+/// Invalid ballot due to duplicated position.
+///
+/// # Panics
+///
+/// Panics if fixture byte arrays cannot be packed into 30-byte plaintexts.
 pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
     BallotCodecFixture {
         title: "irv_fixture".to_string(),
@@ -332,6 +355,7 @@ pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
     }
 }
 
+/// Minimal decoded contest with three ranked choices.
 pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
@@ -359,6 +383,7 @@ pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
     }
 }
 
+/// Ballot style with a write-in candidate for codec overflow tests.
 pub fn get_writein_ballot_style() -> BallotStyle {
     BallotStyle {
         id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
@@ -565,6 +590,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
     }
 }
 
+/// Decoded vote with a write-in string lengthened by `increase` characters.
 pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
     let write_in = "THERE IS SOME VERY LARGE STRING BEING WRITTEN".to_string();
 
@@ -610,6 +636,7 @@ pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
     }
 }
 
+/// Decoded vote selecting a write-in candidate with sample text.
 pub fn get_writein_plaintext() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
@@ -642,6 +669,7 @@ pub fn get_writein_plaintext() -> DecodedVoteContest {
     }
 }
 
+/// Generic plurality contest used as a baseline in codec tests.
 pub fn get_test_contest() -> Contest {
     Contest {
         created_at:None,
@@ -790,6 +818,7 @@ pub fn get_test_contest() -> Contest {
     }
 }
 
+/// Builds a contest fixture with configurable candidate count and policies.
 pub(crate) fn get_configurable_contest(
     max: i64,
     num_candidates: usize,
@@ -1072,6 +1101,7 @@ pub(crate) fn get_configurable_contest(
     contest
 }
 
+/// Returns a contest with the given number of sequential candidate ids.
 pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
     let candidates: Vec<Candidate> = (0..num_candidates)
         .map(|i| Candidate {
@@ -1162,6 +1192,11 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
     contest
 }
 
+/// Full set of ballot codec round-trip fixtures.
+///
+/// # Panics
+///
+/// Panics if any fixture byte vector cannot be packed into a 30-byte plaintext.
 pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     vec![
         BallotCodecFixture {
@@ -3090,6 +3125,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     ]
 }
 
+/// Expected mixed-radix bases for representative contest configurations.
 pub fn bases_fixture() -> Vec<BasesFixture> {
     vec![
         BasesFixture {

@@ -8,6 +8,10 @@ use uuid::Uuid;
 /// Parses and validates that the given string is a valid v4 UUID.<br>
 /// Returns the parsed `Uuid` on success, or an error if the string is not
 /// a valid UUID or is not version 4 (random).
+///
+/// # Errors
+///
+/// Returns an error when the string is not a valid UUID or is not version 4.
 pub fn parse_uuid_v4(value: &str) -> anyhow::Result<Uuid> {
     let uuid = Uuid::parse_str(value)
         .map_err(|e| anyhow!("invalid UUID '{}': {}", value, e))?;
@@ -22,6 +26,10 @@ pub fn parse_uuid_v4(value: &str) -> anyhow::Result<Uuid> {
 
 /// Parses and validates that the given string is a valid v4 UUID,
 /// returning a descriptive error that includes the field name.
+///
+/// # Errors
+///
+/// Returns an error when the string is not a valid v4 UUID.
 pub fn parse_uuid_v4_field(
     value: &str,
     field_name: &str,

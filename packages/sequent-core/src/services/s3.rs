@@ -28,33 +28,46 @@ use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncReadExt};
 use tracing::{info, instrument, warn};
 
+/// Maximum size in bytes of a single S3 multipart upload chunk.
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
+/// Hostname delimiter between bucket name and AWS S3 service host.
 const AWS_HOSTED_S3_HOST_DELIMITER: &str = ".s3.";
+/// Domain suffix for AWS-hosted S3 endpoints.
 const AWS_HOSTED_S3_DOMAIN_SUFFIX: &str = "amazonaws.com";
+/// Host prefix for AWS S3 service endpoints.
 const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
+/// Maximum number of keys returned per S3 list-objects page.
 const S3_LIST_MAX_KEYS: i32 = 1000;
+/// Fallback message when an S3 error response has no details.
 const S3_ERR_NO_DETAILS: &str = "no additional details available";
 
+/// Parsed bucket, endpoint, and prefix parts for S3 list operations.
 #[derive(Debug, PartialEq, Eq)]
 struct ResolvedS3ListTargetParts {
+    /// Regional S3 service endpoint when using bucket-hosted AWS URLs.
     service_endpoint: Option<String>,
+    /// Physical bucket name to pass to the S3 API.
     bucket: String,
+    /// Logical key prefix root within the bucket.
     prefix_root: Option<String>,
 }
 
 /// Carries the resolved S3 client, real bucket name, and optional logical
-/// prefix root for list-style operations that must work on both MinIO and AWS.
+/// prefix root for list-style operations that must work on both `MinIO` and AWS.
 struct ResolvedS3ListTarget {
+    /// Configured S3 client for the resolved endpoint.
     client: s3::Client,
+    /// Physical bucket name to pass to the S3 API.
     bucket: String,
+    /// Logical key prefix root within the bucket.
     prefix_root: Option<String>,
 }
 
 impl ResolvedS3ListTarget {
     /// Adds the resolved logical prefix root so callers can request the same
     /// effective key space regardless of the underlying endpoint shape.<br>
-    /// I.e. AWS prefix_root is "public/" or "election-event-documents/" (both
-    /// within the same bucket)  while MinIO prefix_root is None and the
+    /// I.e. AWS `prefix_root` is "public/" or "election-event-documents/" (both
+    /// within the same bucket) while `MinIO` `prefix_root` is None and the
     /// bucket name encodes the scope instead.
     #[instrument(skip_all)]
     fn qualify_prefix(&self, prefix: &str) -> String {
@@ -146,8 +159,8 @@ fn parse_aws_bucket_endpoint(
 /// Resolves the bucket and prefix semantics for a list-style S3 call without
 /// constructing a client so both runtime code and tests share the same
 /// rules.<br> When the endpoint is minIO (development/codespaces) the bucket
-/// name is the logical bucket, then service_endpoint is set to None (the raw env
-/// var must be set by the caller) and prefix_root is empty (is already the
+/// name is the logical bucket, then `service_endpoint` is set to None (the raw env
+/// var must be set by the caller) and `prefix_root` is empty (is already the
 /// bucket name).
 #[instrument(err, skip_all)]
 fn resolve_s3_list_target_parts(
@@ -211,6 +224,10 @@ async fn get_s3_list_target(
 
 /// Returns the logical private bucket or root prefix so callers can separate
 /// storage scope from endpoint selection.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_S3_BUCKET` is not set.
 #[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_BUCKET")
@@ -220,6 +237,10 @@ pub fn get_private_bucket() -> Result<String> {
 
 /// Returns the logical public bucket or root prefix used for public assets and
 /// plugin storage.
+///
+/// # Errors
+///
+/// Returns an error when `AWS_S3_PUBLIC_BUCKET` is not set.
 #[instrument(err, skip_all)]
 pub fn get_public_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
@@ -272,6 +293,11 @@ async fn create_bucket_if_not_exists(
 
 /// Wraps S3 client construction so callers rely on one place for config to
 /// client conversion.
+///
+/// # Errors
+///
+/// This function currently always succeeds; the return type preserves consistency
+/// with other S3 helpers.
 pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     let client = s3::Client::from_conf(config);
     Ok(client)
@@ -320,6 +346,10 @@ pub fn get_public_election_event_document_name_key(
 
 /// Creates a presigned download URL for a document so clients can fetch files
 /// without proxying the bytes through the backend.
+///
+/// # Errors
+///
+/// Returns an error when AWS configuration, presigning, or client setup fails.
 #[instrument(err)]
 pub async fn get_document_url(
     key: String,
@@ -344,6 +374,10 @@ pub async fn get_document_url(
 
 /// Creates a presigned upload URL and selects the endpoint that the caller can
 /// actually reach.
+///
+/// # Errors
+///
+/// Returns an error when bucket resolution, AWS configuration, or presigning fails.
 #[instrument(err, ret)]
 pub async fn get_upload_url(
     key: String,
@@ -376,6 +410,10 @@ pub async fn get_upload_url(
 
 /// Downloads one object into a temporary file so downstream code can work with
 /// a filesystem path instead of holding the full payload in memory.
+///
+/// # Errors
+///
+/// Returns an error when AWS configuration, the S3 download, or temp file I/O fails.
 #[instrument(err, skip_all)]
 pub async fn get_object_into_temp_file(
     s3_bucket: &str,
@@ -419,6 +457,10 @@ pub async fn get_object_into_temp_file(
 
 /// Uploads a file path to S3 and switches to multipart uploads only when the
 /// payload is large enough to need chunking.
+///
+/// # Errors
+///
+/// Returns an error when file metadata cannot be read or the upload fails.
 #[instrument(err, skip_all)]
 pub async fn upload_file_to_s3(
     key: String,
@@ -468,6 +510,14 @@ pub async fn upload_file_to_s3(
 
 /// Streams a large file through S3 multipart upload so oversized reports and
 /// exports do not need to be buffered at once.
+///
+/// # Panics
+///
+/// Panics if a multipart chunk byte stream cannot be built from the file path.
+///
+/// # Errors
+///
+/// Returns an error when AWS configuration or any multipart upload step fails.
 #[instrument(err, skip_all)]
 pub async fn upload_multipart_data_to_s3(
     path: &Path,
@@ -575,6 +625,10 @@ pub async fn upload_multipart_data_to_s3(
 
 /// Uploads a single in-memory body to S3 for smaller files where multipart
 /// upload would add unnecessary overhead.
+///
+/// # Errors
+///
+/// Returns an error when AWS configuration or the put-object request fails.
 #[instrument(err, skip_all)]
 pub async fn upload_data_to_s3(
     data: ByteStream,
@@ -616,8 +670,12 @@ pub async fn upload_data_to_s3(
     Ok(())
 }
 
-/// Returns the server-side MinIO URL used by backend services when they need a
+/// Returns the server-side `MinIO` URL used by backend services when they need a
 /// direct path to the public bucket.
+///
+/// # Errors
+///
+/// Returns an error when required environment variables are not set.
 pub fn get_minio_url() -> Result<String> {
     let minio_private_uri = env::var(AWS_S3_PRIVATE_URI_ENV)
         .map_err(|_err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
@@ -626,8 +684,12 @@ pub fn get_minio_url() -> Result<String> {
     Ok(format!("{}/{}", minio_private_uri, bucket))
 }
 
-/// Returns the client-facing MinIO URL used when generated links must be
+/// Returns the client-facing `MinIO` URL used when generated links must be
 /// reachable from outside the backend network.
+///
+/// # Errors
+///
+/// Returns an error when required environment variables are not set.
 pub fn get_minio_public_url() -> Result<String> {
     let minio_public_uri = env::var(AWS_S3_PUBLIC_URI_ENV)
         .map_err(|_err| anyhow!("AWS_S3_PUBLIC_URI must be set"))?;
@@ -636,8 +698,12 @@ pub fn get_minio_public_url() -> Result<String> {
     Ok(format!("{}/{}", minio_public_uri, bucket))
 }
 
-/// Builds the URL for a public asset stored in S3 or MinIO so templates can
+/// Builds the URL for a public asset stored in S3 or `MinIO` so templates can
 /// reference it directly.
+///
+/// # Errors
+///
+/// Returns an error when `MinIO` or public asset path configuration is missing.
 pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
     let minio_endpoint_base =
         get_minio_url().with_context(|| "Error fetching get_minio_url")?;
@@ -651,6 +717,10 @@ pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
 
 /// Downloads a file via HTTP into a string for flows that consume public text
 /// assets rather than raw S3 SDK responses.
+///
+/// # Errors
+///
+/// Returns an error when the HTTP request fails or the response is not valid UTF-8.
 #[instrument(err)]
 pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
     let client = reqwest::Client::new();
@@ -672,6 +742,10 @@ pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
 
 /// Deletes every object under a prefix and resolves AWS bucket-hosted endpoints
 /// into the real bucket plus key prefix before listing.
+///
+/// # Errors
+///
+/// Returns an error when listing or deleting objects from S3 fails.
 #[instrument(err, ret)]
 pub async fn delete_files_from_s3(
     s3_bucket: String,
@@ -771,6 +845,10 @@ pub async fn delete_files_from_s3(
 }
 
 /// Downloads one object into memory when callers need its bytes immediately.
+///
+/// # Errors
+///
+/// Returns an error when AWS configuration, the S3 download, or stream reading fails.
 #[instrument(err)]
 pub async fn get_file_from_s3(
     s3_bucket: String,
@@ -802,6 +880,10 @@ pub async fn get_file_from_s3(
 
 /// Lists a prefix and streams each matching file into a temporary path so
 /// export code can package files without buffering them all in memory.
+///
+/// # Errors
+///
+/// Returns an error when listing objects or downloading any matching file fails.
 #[instrument(err)]
 pub async fn get_files_from_s3(
     s3_bucket: String,
@@ -879,6 +961,14 @@ pub async fn get_files_from_s3(
 #[instrument(err)]
 /// Lists a prefix and returns each file as name plus bytes for startup paths,
 /// such as plugin loading, that need the content in memory.
+///
+/// # Panics
+///
+/// Panics if an object key has no final path segment.
+///
+/// # Errors
+///
+/// Returns an error when listing objects or downloading any matching file fails.
 pub async fn get_files_names_bytes_from_s3(
     s3_bucket: String,
     prefix: String,

@@ -12,6 +12,11 @@ use std::env;
 use tracing::{error, info, instrument};
 
 #[instrument(skip(claims))]
+/// Verifies JWT tenant and role claims against required admin permissions.
+///
+/// # Errors
+///
+/// Returns error status and message when the tenant, super-admin config, or required roles are invalid.
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
@@ -70,6 +75,11 @@ pub fn authorize(
 
 // returns area_id
 #[instrument(skip(claims))]
+/// Verifies voter JWT claims for a specific election and returns the area ID and channel.
+///
+/// # Errors
+///
+/// Returns error status and message when roles, area scope, or election authorization checks fail.
 pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,

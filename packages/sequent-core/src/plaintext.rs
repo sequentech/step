@@ -15,43 +15,63 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use strand::context::Ctx;
 
+/// Category of plaintext validation failure.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum InvalidPlaintextErrorType {
+    /// Voter explicitly marked the ballot invalid.
     Explicit,
+    /// Encoding or selection rules were violated.
     Implicit,
+    /// Ballot could not be encoded into the available plaintext space.
     EncodingError,
 }
 
+/// Preference-order validation failure for ranked-choice contests.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum PreferencialOrderErrorType {
+    /// Ranked positions skip a number in the sequence (e.g. 1, 3 without 2).
     PreferenceOrderWithGaps,
+    /// The same rank was assigned to more than one candidate.
     DuplicatedPosition,
 }
 
+/// Validation error attached to a decoded contest vote.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct InvalidPlaintextError {
+    /// How the invalid state was detected.
     pub error_type: InvalidPlaintextErrorType,
+    /// Candidate associated with the error, when applicable.
     pub candidate_id: Option<String>,
+    /// Default-locale error message.
     pub message: Option<String>,
+    /// Localized error messages keyed by locale code.
     pub message_map: HashMap<String, String>,
 }
 
+/// Decoded voter selections and validation state for one contest.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteContest {
+    /// Contest identifier from the ballot style.
     pub contest_id: String,
+    /// Whether the voter explicitly chose invalid options.
     pub is_explicit_invalid: bool,
     /// Whether the Voter has declined to vote (can be true only for multi-contest ballots with decline to vote policy enabled).
     /// and will be the same for all contests in the ballot.
     pub is_decline_to_vote: bool,
+    /// Hard validation errors that reject the ballot.
     pub invalid_errors: Vec<InvalidPlaintextError>,
+    /// Soft validation alerts shown to the voter but not always blocking.
     pub invalid_alerts: Vec<InvalidPlaintextError>,
+    /// Per-candidate selection state and write-in text.
     pub choices: Vec<DecodedVoteChoice>,
 }
 
 impl DecodedVoteContest {
+    /// Returns whether the contest is explicitly or implicitly invalid.
     pub fn is_invalid(&self) -> bool {
         self.is_explicit_invalid || !self.invalid_errors.is_empty()
     }
+    /// Returns whether no candidate was selected in this contest.
     pub fn is_blank(&self) -> bool {
         !self.is_invalid()
             && self
@@ -60,19 +80,23 @@ impl DecodedVoteContest {
                 .iter()
                 .all(|choice| choice.selected < 0)
     }
-    /// Get the value of is_decline_to_vote.
+    /// Returns the value of `is_decline_to_vote`.
     #[must_use]
     pub fn is_decline_to_vote(&self) -> bool {
         self.is_decline_to_vote
     }
 
     /// Check the validity of the preference order.
-    /// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+    /// Note: `PreferenceOrderWithGaps` is returned as an error if there are gaps,
     /// but this is generally not considered invalid, so the caller can
     /// handle it depending on the policy or jurisdiction rules.
     /// Returns Ok if the order is valid after sorting it and if it is
     /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
     /// Returns Err with a Vec of all errors found (may contain multiple variants).
+    ///
+    /// # Errors
+    ///
+    /// Returns preference-order validation failures when ranks are duplicated or gapped.
     pub fn validate_preferencial_order(
         &self,
     ) -> Result<(), Vec<PreferencialOrderErrorType>> {
@@ -114,19 +138,29 @@ impl DecodedVoteContest {
     }
 }
 
+/// Selection state for one candidate within a decoded contest.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteChoice {
+    /// Candidate identifier from the ballot style.
     pub id: String,
+    /// Selection weight or rank; negative means not selected.
     pub selected: i64,
+    /// Write-in text when the candidate is a write-in option.
     pub write_in_text: Option<String>,
 }
 
 impl DecodedVoteChoice {
+    /// Returns whether the candidate was selected.
     pub fn is_selected(&self) -> bool {
         self.selected >= 0
     }
 }
 
+/// Decodes each contest ciphertext in an auditable ballot into [`DecodedVoteContest`].
+///
+/// # Errors
+///
+/// Returns an error when contest counts mismatch or decoding fails.
 pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {
@@ -162,6 +196,11 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
     Ok(decoded_contests)
 }
 
+/// Maps decoded multi-contest ballot choices onto ballot-style contests.
+///
+/// # Errors
+///
+/// Returns an error when a contest id is missing or mapping fails.
 pub fn map_decoded_ballot_choices_to_decoded_contests(
     decoded_ballot_choices: DecodedBallotChoices,
     contests: &Vec<Contest>,
@@ -218,6 +257,11 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
     Ok(decoded_contests)
 }
 
+/// Decodes each contest in an auditable multi-contest ballot into [`DecodedVoteContest`].
+///
+/// # Errors
+///
+/// Returns an error when deserialization, decoding, or contest lookup fails.
 pub fn map_to_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableMultiBallot,
 ) -> Result<Vec<DecodedVoteContest>, String> {

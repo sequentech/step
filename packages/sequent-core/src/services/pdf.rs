@@ -22,13 +22,18 @@ use tempfile::tempdir;
 use tokio::runtime::Runtime;
 use tracing::{debug, error, event, info, instrument, warn, Level};
 
+/// Remote or local backend used to render HTML into PDF.
 #[derive(PartialEq)]
 pub enum DocRendererBackend {
+    /// AWS Lambda doc-renderer function with S3 input/output.
     AWSLambda,
+    /// Apache `OpenWhisk` doc-renderer action.
     OpenWhisk,
+    /// Headless Chrome rendering in the current process.
     InPlace,
 }
 
+/// Reads `DOC_RENDERER_BACKEND` and returns the configured renderer backend.
 pub fn doc_renderer_backend() -> DocRendererBackend {
     match std::env::var("DOC_RENDERER_BACKEND").as_deref() {
         Ok("aws_lambda") => {
@@ -54,33 +59,50 @@ pub fn doc_renderer_backend() -> DocRendererBackend {
     }
 }
 
+/// How HTML is sent to the PDF renderer and the result retrieved.
 #[derive(PartialEq)]
 pub enum PdfTransport {
+    /// Renders via AWS Lambda using S3 for HTML and PDF payloads.
     AWSLambda {
+        /// Lambda function URL or API Gateway endpoint.
         endpoint: String,
     },
+    /// Renders via an `OpenWhisk` action.
     OpenWhisk {
+        /// `OpenWhisk` action URL.
         endpoint: String,
+        /// Optional `user:password` basic auth header value.
         basic_auth: Option<String>,
     },
+    /// Renders locally with headless Chrome.
     InPlace,
 }
 
+/// Async PDF renderer configured from environment variables.
 pub struct PdfRenderer {
+    /// Transport used for rendering requests.
     pub transport: PdfTransport,
 }
 
 /// --- SYNC VERSION ---
+/// Blocking PDF renderer for use outside async runtimes.
 pub mod sync {
     use super::*;
     use std::thread;
     use std::time::Duration;
 
+    /// Blocking PDF renderer configured from environment variables.
     pub struct PdfRenderer {
+        /// Transport used for rendering requests.
         pub transport: PdfTransport,
     }
 
     impl PdfRenderer {
+        /// Renders HTML to PDF bytes using a one-shot blocking renderer.
+        ///
+        /// # Errors
+        ///
+        /// Returns an error when renderer initialization or PDF generation fails.
         pub fn render_pdf(
             html: String,
             pdf_options: Option<PrintToPdfOptions>,
@@ -90,6 +112,11 @@ pub mod sync {
             Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options)?)
         }
 
+        /// Creates a blocking renderer from `DOC_RENDERER_BACKEND` and related env vars.
+        ///
+        /// # Errors
+        ///
+        /// Returns an error when required environment variables are missing or invalid.
         pub fn new() -> Result<Self> {
             info!("PdfRenderer::new() [sync] - Starting initialization");
 
@@ -135,7 +162,7 @@ pub mod sync {
             Ok(PdfRenderer { transport })
         }
 
-        /// Synchronous send_request using reqwest::blocking and our own retry
+        /// Synchronous `send_request` using `reqwest::blocking` and our own retry
         /// loop.
         fn send_request(
             &self,
@@ -176,6 +203,11 @@ pub mod sync {
             }
         }
 
+        /// Renders HTML to PDF using the configured transport.
+        ///
+        /// # Errors
+        ///
+        /// Returns an error when remote rendering, S3 access, or local PDF generation fails.
         pub fn do_render_pdf(
             &self,
             html: String,
@@ -327,7 +359,11 @@ pub mod sync {
 
 /// --- ASYNC VERSION ---
 impl PdfRenderer {
-    /// Public async render_pdf that preserves the async signature.
+    /// Public async `render_pdf` that preserves the async signature.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when renderer initialization or PDF generation fails.
     pub async fn render_pdf(
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
@@ -335,7 +371,11 @@ impl PdfRenderer {
         Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
     }
 
-    /// Creates a new PdfRenderer based on environment configuration.
+    /// Creates a new `PdfRenderer` based on environment configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when required environment variables are missing or invalid.
     pub fn new() -> Result<Self> {
         info!("PdfRenderer::new() [async] - Starting initialization");
 
@@ -380,8 +420,16 @@ impl PdfRenderer {
         Ok(PdfRenderer { transport })
     }
 
-    /// Async do_render_pdf uses retry_with_exponential_backoff for the HTTP
+    /// Async `do_render_pdf` uses `retry_with_exponential_backoff` for the HTTP
     /// request.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the HTTP request builder cannot be cloned for retry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when remote rendering, S3 access, or local PDF generation fails.
     pub async fn do_render_pdf(
         &self,
         html: String,
@@ -573,31 +621,45 @@ impl PdfRenderer {
 /// S3 helper functions.
 cfg_if::cfg_if! {
     if #[cfg(feature = "s3")] {
+        /// Returns the configured private S3 bucket name, if available.
         fn s3_private_bucket() -> Option<String> {
             s3::get_private_bucket().ok()
         }
+        /// Returns the S3 object path for `path`.
         fn s3_bucket_path(path: String) -> Option<String> {
             Some(path)
         }
+        /// Downloads a rendered PDF object from S3.
         async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
             s3::get_file_from_s3(bucket, output_filename)
                 .await
                 .map_err(|err| anyhow!("could not retrieve file from S3: {err:?}"))
         }
     } else {
+        /// Returns `None` when the crate is built without S3 support.
         fn s3_private_bucket() -> Option<String> {
             None
         }
+        /// Returns `None` when the crate is built without S3 support.
         fn s3_bucket_path(path: String) -> Option<String> {
             None
         }
+        /// Unavailable when the crate is built without S3 support.
         async fn get_file_from_s3(_bucket: String, _output_filename: String) -> Result<Vec<u8>> {
             unimplemented!()
         }
     }
 }
 
-/// Converts HTML to PDF using headless_chrome.
+/// Converts HTML to PDF using `headless_chrome`.
+///
+/// # Panics
+///
+/// Panics if the temporary HTML file path is not valid UTF-8.
+///
+/// # Errors
+///
+/// Returns an error when temp file creation, writing, or PDF rendering fails.
 #[instrument(skip_all, err)]
 pub fn html_to_pdf(
     html: String,
@@ -638,7 +700,7 @@ pub fn html_to_pdf(
     print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
-/// Uses headless_chrome to print the file to PDF, with retry on transient
+/// Uses `headless_chrome` to print the file to PDF, with retry on transient
 /// failures.
 #[instrument(skip_all, err)]
 fn print_to_pdf(

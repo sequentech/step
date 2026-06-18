@@ -1,31 +1,59 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
 use num_bigint::BigUint;
 
+/// Fixed-size and variable-length encoding of decoded contest votes for encryption.
 pub trait PlaintextCodec {
+    /// Encodes a decoded contest into a fixed 30-byte `ElGamal` plaintext.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when encoding fails or the result exceeds 30 bytes.
     fn encode_plaintext_contest(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
 
+    /// Decodes a fixed 30-byte plaintext back into a decoded contest vote.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when decoding fails or the vote is invalid.
     fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String>;
+
+    /// Decodes a fixed 30-byte plaintext into its big-integer representation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the byte slice cannot be interpreted as a big integer.
     fn decode_plaintext_contest_to_biguint(
         &self,
         code: &[u8; 30],
     ) -> Result<BigUint, String>;
 
+    /// Encodes a decoded contest into variable-length little-endian bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the vote cannot be encoded.
     fn encode_plaintext_contest_to_bytes(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
 
+    /// Decodes variable-length bytes back into a decoded contest vote.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the bytes cannot be decoded into a valid vote.
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],

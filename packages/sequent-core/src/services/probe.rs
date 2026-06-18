@@ -9,10 +9,15 @@ use tokio::sync::Mutex;
 use warp::Future;
 use warp::{http::Response, Filter};
 
+/// HTTP liveness and readiness probe server for Kubernetes health checks.
 pub struct ProbeHandler {
+    /// Socket address the probe server binds to.
     address: SocketAddr,
+    /// HTTP path for the liveness probe.
     live_path: String,
+    /// HTTP path for the readiness probe.
     ready_path: String,
+    /// Async predicate that determines liveness probe success.
     is_live: Arc<
         Mutex<
             Box<
@@ -23,6 +28,7 @@ pub struct ProbeHandler {
             >,
         >,
     >,
+    /// Async predicate that determines readiness probe success.
     is_ready: Arc<
         Mutex<
             Box<
@@ -36,6 +42,7 @@ pub struct ProbeHandler {
 }
 
 impl ProbeHandler {
+    /// Creates a probe handler bound to `address` serving `live_path` and `ready_path`.
     pub fn new(
         live_path: &str,
         ready_path: &str,
@@ -54,6 +61,11 @@ impl ProbeHandler {
         }
     }
 
+    /// Returns a warp server future that serves liveness and readiness endpoints.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an HTTP response body cannot be built.
     pub fn future(&self) -> impl Future<Output = ()> {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
@@ -114,6 +126,7 @@ impl ProbeHandler {
         warp::serve(filter).bind(self.address)
     }
 
+    /// Sets the async predicate that determines liveness probe success.
     pub async fn set_live(
         &self,
         f: impl Fn() -> std::pin::Pin<
@@ -126,6 +139,7 @@ impl ProbeHandler {
         *l = Box::new(f);
     }
 
+    /// Sets the async predicate that determines readiness probe success.
     pub async fn set_ready(
         &self,
         f: impl Fn() -> std::pin::Pin<

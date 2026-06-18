@@ -5,6 +5,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Lists all subdirectories under `path`.
 pub fn list_subfolders(path: &Path) -> Vec<PathBuf> {
     let mut subfolders = Vec::new();
     if let Ok(entries) = fs::read_dir(path) {
@@ -20,6 +21,7 @@ pub fn list_subfolders(path: &Path) -> Vec<PathBuf> {
     subfolders
 }
 
+/// Returns the final path component as a string, if valid UTF-8.
 pub fn get_folder_name(path: &Path) -> Option<String> {
     path.components()
         .last()
@@ -28,6 +30,7 @@ pub fn get_folder_name(path: &Path) -> Option<String> {
         .map(|component| component.to_string())
 }
 
+/// Replaces or adds a file extension on `filename_str`.
 pub fn change_file_extension(
     filename_str: &str,
     new_extention: &str,

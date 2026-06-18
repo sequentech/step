@@ -8,8 +8,10 @@ use chrono::{
     TimeZone as ChronoTimeZone, Utc,
 };
 
+/// Default timezone offset (+8) used for Philippine elections.
 pub const PHILIPPINO_TIMEZONE: TimeZone = TimeZone::Offset(8);
 
+/// Detects the local system timezone as a [`TimeZone`] offset or UTC.
 pub fn get_system_timezone() -> TimeZone {
     let now = Local::now();
     let offset = now.offset();
@@ -22,12 +24,14 @@ pub fn get_system_timezone() -> TimeZone {
     }
 }
 
+/// Returns the current local date-time as an RFC 3339 string.
 pub fn get_date_and_time() -> String {
     let current_date_time = Local::now();
     let printed_datetime = current_date_time.to_rfc3339();
     printed_datetime
 }
 
+/// Formats a UTC datetime using the given timezone and date format.
 pub fn generate_timestamp(
     time_zone: Option<TimeZone>,
     date_format: Option<DateFormat>,
@@ -57,6 +61,10 @@ pub fn generate_timestamp(
 
 /// Check if the date is correct, format must be YYYY-MM-DD.
 /// Date in the future is not valid.
+///
+/// # Errors
+///
+/// Returns a descriptive error string when the format is invalid or the date is in the future.
 pub fn verify_date_format_ymd(date_str: &str) -> Result<DateTime<Utc>, String> {
     let parts: Vec<&str> = date_str.split('-').collect();
     if parts.len() != 3 {

@@ -18,16 +18,25 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{event, info, instrument, warn, Level};
 
+/// Serializable Keycloak token response from the client-credentials endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
+    /// OAuth access token string.
     pub access_token: String,
+    /// Token lifetime in seconds.
     pub expires_in: usize,
     #[serde(rename = "not-before-policy")]
+    /// Minimum time before the token is accepted, when set by Keycloak.
     pub not_before_policy: Option<usize>,
+    /// Refresh token lifetime in seconds, when a refresh token is issued.
     pub refresh_expires_in: Option<usize>,
+    /// Refresh token, when issued.
     pub refresh_token: Option<String>,
+    /// Granted OAuth scopes.
     pub scope: String,
+    /// Keycloak session state identifier.
     pub session_state: Option<String>,
+    /// Token type (typically `Bearer`).
     pub token_type: String,
 }
 
@@ -58,14 +67,20 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
 }
 
 #[derive(Debug)]
+/// Keycloak OAuth client-credentials login parameters.
 struct KeycloakLoginConfig {
+    /// Keycloak base URL.
     url: String,
+    /// OAuth client identifier.
     client_id: String,
+    /// OAuth client secret.
     client_secret: String,
+    /// Target realm name.
     realm: String,
 }
 
 impl KeycloakLoginConfig {
+    /// Builds login config from credentials and a tenant id (derives the tenant realm).
     pub fn new(
         client_id: String,
         client_secret: String,
@@ -83,6 +98,7 @@ impl KeycloakLoginConfig {
     }
 }
 
+/// Reads default service client credentials from environment variables.
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
     let client_id = env::var("KEYCLOAK_CLIENT_ID")
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
@@ -93,6 +109,7 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
+/// Reads admin client credentials from environment variables.
 fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
@@ -103,6 +120,15 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
+/// Requests an OAuth token from Keycloak using client credentials.
+///
+/// # Panics
+///
+/// Panics if the fixed client-credentials form body cannot be URL-encoded.
+///
+/// # Errors
+///
+/// Returns an error when the HTTP request fails or the response body cannot be read.
 #[instrument(err)]
 pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
@@ -150,6 +176,11 @@ pub async fn get_credentials_inner(
 
 // Client Credentials OpenID Authentication flow.
 // This enables servers to authenticate, without using a browser.
+/// Returns Bearer auth headers using the default service client credentials.
+///
+/// # Errors
+///
+/// Returns an error when token acquisition or deserialization fails.
 #[instrument(err)]
 pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let login_config = get_keycloak_login_config();
@@ -171,6 +202,11 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     })
 }
 
+/// Returns a Keycloak admin token using the default service client credentials.
+///
+/// # Errors
+///
+/// Returns an error when token acquisition or deserialization fails.
 #[instrument(err)]
 pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     let login_config = get_keycloak_login_config();
@@ -185,8 +221,12 @@ pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     Ok(credentials)
 }
 
-/// Authenticate a party client in keycloak with specific client credentials and
-/// tenant_id
+/// Authenticate a third-party client in Keycloak with specific client credentials and
+/// `tenant_id`.
+///
+/// # Errors
+///
+/// Returns an error when token acquisition or deserialization fails.
 #[instrument(err)]
 pub async fn get_third_party_client_access_token(
     client_id: String,
@@ -208,28 +248,38 @@ pub async fn get_third_party_client_access_token(
     Ok(keycloak_adm_tkn)
 }
 
+/// Wrapper around the generated Keycloak Admin REST client with token caching.
 pub struct KeycloakAdminClient {
+    /// Underlying Keycloak admin API client.
     pub client: KeycloakAdmin,
 }
 
+/// Low-level HTTP client and token supplier for direct Keycloak admin REST calls.
 pub struct PubKeycloakAdmin {
+    /// Keycloak base URL.
     pub url: String,
+    /// Shared HTTP client.
     pub client: reqwest::Client,
+    /// Supplier that refreshes the admin access token on demand.
     pub token_supplier: KeycloakAdminToken,
 }
 
-/// TokenResponse, timestamp before sending the request and url to avoid having
+/// Token response, timestamp before sending the request and url to avoid having
 /// to retrieve it again from the ENV.
 #[derive(Debug, Clone)]
 struct TokenResponseAdminCli {
+    /// Keycloak token payload from the client-credentials grant.
     token_resp: PubKeycloakAdminToken,
+    /// Time the token was fetched.
     timestamp: Instant,
+    /// Keycloak base URL used for the request.
     url: String,
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
 /// requesting a new token to Keycloak everytime.
 type LastAdminCliToken = RwLock<Option<TokenResponseAdminCli>>;
+/// Process-wide cache of the last acquired admin CLI token.
 static LAST_ADMIN_CLI_TOKEN: LastAdminCliToken = RwLock::new(None);
 
 /// Reads the access token if it has been requested successfully before and
@@ -280,6 +330,10 @@ async fn write_access_token(
 impl KeycloakAdminClient {
     /// Tries to read the token from the cache, if expired requests it to
     /// Keycloak.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when token acquisition, conversion, or cache write fails.
     #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
         match read_access_token().await {
@@ -323,7 +377,11 @@ impl KeycloakAdminClient {
         }
     }
 
-    /// Creates a KeycloakAdminClient via fresh token requesting to Keycloak
+    /// Creates a `KeycloakAdminClient` via fresh token requesting to Keycloak.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when token acquisition fails.
     #[instrument(err)]
     pub async fn new_requested() -> Result<KeycloakAdminClient> {
         let login_config = get_keycloak_login_admin_config();
@@ -341,6 +399,7 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
+    /// Builds a client from an already-acquired admin token and base URL.
     #[instrument(err, skip_all)]
     async fn new_with(
         admin_token: KeycloakAdminToken,
@@ -351,6 +410,11 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
+    /// Creates a [`PubKeycloakAdmin`] with a freshly acquired admin token.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when token acquisition fails.
     #[instrument(err)]
     pub async fn pub_new() -> Result<PubKeycloakAdmin> {
         let login_config = get_keycloak_login_admin_config();

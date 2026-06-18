@@ -39,18 +39,22 @@ use num_traits::{ToPrimitive, Zero};
 /// provided there is sufficient space.
 ///
 /// An upper bound on the bytes needed to encode a multi contest ballot
-/// can be computed with BallotChoices::maximum_size_bytes, given a list
+/// can be computed with `BallotChoices::maximum_size_bytes`, given a list
 /// of contests.
 ///
 /// This ballot only supports plurality counting
 /// algorithms. It does not support write-ins.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
+    /// When true, the voter explicitly declined to vote.
     pub is_explicit_invalid: bool,
+    /// Per-contest selections included in this multi-contest encoding.
     pub choices: Vec<ContestChoices>,
+    /// Counting algorithm shared by all contests (must be uniform).
     pub counting_algorithm: CountingAlgType,
 }
 impl BallotChoices {
+    /// Creates a new multi-contest ballot choice set.
     pub fn new(
         is_explicit_invalid: bool,
         choices: Vec<ContestChoices>,
@@ -69,11 +73,15 @@ impl BallotChoices {
 /// Does not support write-ins.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ContestChoices {
+    /// Contest these choices belong to.
     pub contest_id: String,
+    /// Selected candidates within the contest.
     pub choices: Vec<ContestChoice>,
+    /// When true, the voter explicitly chose invalid options.
     pub is_explicit_invalid: bool,
 }
 impl ContestChoices {
+    /// Creates a new per-contest choice set.
     pub fn new(
         contest_id: String,
         choices: Vec<ContestChoice>,
@@ -86,7 +94,7 @@ impl ContestChoices {
         }
     }
 
-    /// Return contest choices from a DecodedVoteContest
+    /// Return contest choices from a `DecodedVoteContest`
     ///
     /// Used in testing when generating ballots with the non-sparse
     /// encoding (non multi-contest ballots)
@@ -113,18 +121,19 @@ impl ContestChoices {
 #[derive(
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
-
-/// A single choice within a Contest.
+/// A single choice within a contest.
 ///
-/// Does not support write-ins.
+/// Does not support write-ins. Values greater than `-1` mean selected; `-1` means unset.
 pub struct ContestChoice {
+    /// Candidate identifier.
     pub candidate_id: String,
-    // This is could be eliminated until we are using some sort of score voting
-    // Currently, a value of > -1 is interpreted as a selection, -1 is
-    // interpreted as Unset.
+    /// This is could be eliminated until we are using some sort of score voting
+    /// Currently, a value of > -1 is interpreted as a selection, -1 is
+    /// interpreted as Unset.
     pub selected: i64,
 }
 impl ContestChoice {
+    /// Creates a new contest choice for the given candidate.
     pub fn new(candidate_id: String, selected: i64) -> Self {
         ContestChoice {
             candidate_id,
@@ -136,13 +145,19 @@ impl ContestChoice {
 /// The choices for a contest returned when decoding.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedContestChoices {
+    /// Contest these choices belong to.
     pub contest_id: String,
+    /// When true, the voter explicitly spoiled this contest only.
     pub is_explicit_invalid: bool,
+    /// Decoded candidate selections.
     pub choices: Vec<DecodedContestChoice>,
+    /// Hard validation failures for this contest.
     pub invalid_errors: Vec<InvalidPlaintextError>,
+    /// Soft warnings for this contest.
     pub invalid_alerts: Vec<InvalidPlaintextError>,
 }
 impl DecodedContestChoices {
+    /// Creates decoded contest choices with any validation messages collected during decode.
     pub fn new(
         contest_id: String,
         choices: Vec<DecodedContestChoice>,
@@ -162,15 +177,18 @@ impl DecodedContestChoices {
 #[derive(
     Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
 )]
-/// A decoded contest choice contains the candidate_id as a String.
+/// A decoded contest choice contains the `candidate_id` as a String.
 pub struct DecodedContestChoice(pub String);
 
 /// The choices for the set of contests returned when decoding a multi-content
 /// ballot.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedBallotChoices {
+    /// When true, the voter explicitly spoiled the entire ballot.
     pub is_explicit_invalid: bool,
+    /// Decoded per-contest choice sets.
     pub choices: Vec<DecodedContestChoices>,
+    /// Optional ballot serial number from the encoding.
     pub serial_number: Option<String>,
 }
 
@@ -190,6 +208,10 @@ impl BallotStyle {
     }
 
     /// Returns Error if all counting algorithms are not the same.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BallotError::ConsistencyCheck`] when contests use different counting algorithms.
     pub fn get_counting_algorithm(
         &self,
     ) -> Result<CountingAlgType, BallotError> {
@@ -216,12 +238,16 @@ impl BallotChoices {
     ///
     /// The following steps take place:
     ///
-    /// 1) BallotChoices -> RawBallotContest (this is a mixed-radix structure)
-    /// 2) RawBallotContest -> BigUint
-    /// 3) BigUint -> Vec<u8>
-    /// 4) Vec<u8> -> [u8; 30]
+    /// 1) `BallotChoices` -> `RawBallotContest` (this is a mixed-radix structure)
+    /// 2) `RawBallotContest` -> `BigUint`
+    /// 3) `BigUint` -> `Vec<u8>`
+    /// 4) `Vec<u8>` -> `[u8; 30]`
     ///
     /// Returns a fixed-size array of 30 bytes encoding this ballot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when encoding or size conversion fails.
     pub fn encode_to_30_bytes(
         &self,
         config: &BallotStyle,
@@ -242,26 +268,26 @@ impl BallotChoices {
     ///
     /// * The plaintexts for a given contest were not found.
     /// * The length of a contest choice vector was greater than
-    ///   contest.max_votes.
+    ///   `contest.max_votes`.
     /// * The length of a contest choice vector was smaller than
-    ///   contest.min_votes.
+    ///   `contest.min_votes`.
     /// * The set choices (!=0) for a contest had duplicates.
     /// * The number of set choices (!= 0) for a given contest choice vector was
-    ///   smaller than contest.min_votes.
+    ///   smaller than `contest.min_votes`.
     /// * A choice id in a given contest choice vector was invalid.
     ///
     /// The resulting encoded choice vector is a
     /// contiguous list of contest choices groups, each of
-    /// size contest.max_votes. An alternative implementation
+    /// size `contest.max_votes`. An alternative implementation
     /// could add explicit separators between contest choice
     /// groups.
     ///
     /// Returns the encoded ballot, with n sets of contest choices
-    /// each of size contest.max_votes, plus one invalid flag per contest.
+    /// each of size `contest.max_votes`, plus one invalid flag per contest.
     /// When decline-to-vote is enabled, a ballot-level invalid flag is also
     /// included.
     /// The total number of choices is given by the following:
-    /// contests.iter().fold(0, |a, b| a + b.max_votes) + contests.len()
+    /// `contests.iter().fold(0, |a, b| a + b.max_votes) + contests.len()`
     /// + (1 if decline-to-vote enabled else 0)
     fn encode_to_raw_ballot(
         &self,
@@ -324,7 +350,7 @@ impl BallotChoices {
 
     /// Encodes one contest in the ballot
     ///
-    /// Returns a choice vector of length contest.max_votes,
+    /// Returns a choice vector of length `contest.max_votes`,
     /// which the caller will append to the overall ballot choice vector.
     fn encode_contest(
         &self,
@@ -451,10 +477,10 @@ impl BallotChoices {
     ///
     /// The following steps take place:
     ///
-    /// 1) [u8; 30] -> Vec<u8>
-    /// 2) Vec<u8> -> BigUint
-    /// 3) BigUint -> RawBallotContest (this is a mixed-radix structure)
-    /// 4) RawBallotContest -> DecodedBallotChoices
+    /// 1) `[u8; 30]` -> `Vec<u8>`
+    /// 2) `Vec<u8>` -> `BigUint`
+    /// 3) `BigUint` -> `RawBallotContest` (this is a mixed-radix structure)
+    /// 4) `RawBallotContest` -> `DecodedBallotChoices`
     ///
     /// The following conditions will return an error.
     ///
@@ -463,45 +489,49 @@ impl BallotChoices {
     /// In the current implementation these errors short
     /// circuit the operation.
     ///
-    /// * choices.len() != expected_choices + 1
+    /// * `choices.len()` != `expected_choices` + 1
     /// * let Some(candidate) = candidate else {
     /// return Err(format!(
     ///    "Candidate selection out of range {} (length: {})",
     ///    next,
-    ///    sorted_candidates.len()
+    ///    `sorted_candidates.len()`
     /// ));};
-    /// * let next = usize::try_from(next).map_err(|_| { format!("u64 -> usize
+    /// * let next = `usize::try_from(next).map_err`(|_| { format!("u64 -> usize
     ///   conversion on plaintext choice") })?;
-    /// * is_explicit_invalid && !self.allow_explicit_invalid() {
-    /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
-    /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
-    /// * decoded_contest = handle_over_vote_policy(
-    /// * num_selected_candidates < min_votes
-    /// * under_vote_policy != EUnderVotePolicy::ALLOWED &&
-    ///   num_selected_candidates < max_votes && num_selected_candidates >=
-    ///   min_votes
-    /// * if let Some(blank_vote_policy) = presentation.blank_vote_policy { if
-    ///   num_selected_candidates == 0
+    /// * `is_explicit_invalid` && !`self.allow_explicit_invalid()` {
+    /// * `max_votes`: Option<usize> = match `usize::try_from(self.max_votes)`
+    /// * `min_votes`: Option<usize> = match `usize::try_from(self.min_votes)`
+    /// * `decoded_contest` = `handle_over_vote_policy`(
+    /// * `num_selected_candidates` < `min_votes`
+    /// * `under_vote_policy` != `EUnderVotePolicy::ALLOWED` &&
+    ///   `num_selected_candidates` < `max_votes` && `num_selected_candidates` >=
+    ///   `min_votes`
+    /// * if let `Some(blank_vote_policy)` = `presentation.blank_vote_policy` { if
+    ///   `num_selected_candidates` == 0
     /// =================================
     ///
     /// * The number of overall choices does not match the expected value
     /// * A contest choice is out of range (larger than the number of
     ///   candidates)
-    /// * There are fewer contest choices than contest.min_votes
+    /// * There are fewer contest choices than `contest.min_votes`
     /// * There is an i64 -> u64 conversion error on
-    /// * contest.min_votes
-    /// * contest.max_votes
+    /// * `contest.min_votes`
+    /// * `contest.max_votes`
     /// * There is a u64 -> usize conversion error on a choice
     ///
     /// The decoding processes the choices vector as a
     /// contiguous list of contest choices groups, each of
-    /// size contest.max_votes. An alternative implementation
+    /// size `contest.max_votes`. An alternative implementation
     /// could add explicit separators between contest choice
     /// groups.
     ///
     /// Returns the decoded ballot. Because this is a multi
-    /// contest ballot, it will have n ContestChoices and
+    /// contest ballot, it will have n `ContestChoices` and
     /// an overall invalid flag.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when decoding, validation, or vote-policy checks fail.
     pub fn decode_from_30_bytes(
         bytes: &[u8; 30],
         style: &BallotStyle,
@@ -517,9 +547,13 @@ impl BallotChoices {
         )
     }
 
-    /// Returns a decoded ballot from a BigUint
+    /// Returns a decoded ballot from a `BigUint`
     ///
     /// Convenience method.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when bigint expansion or vote decoding fails.
     pub fn decode_from_bigint(
         bigint: &BigUint,
         contests: &Vec<Contest>,
@@ -541,6 +575,10 @@ impl BallotChoices {
     }
 
     /// Decode a mixed radix representation of the ballot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when choice counts or per-contest decoding fail.
     pub fn decode(
         raw_ballot: &RawBallotContest,
         contests: &Vec<Contest>,
@@ -624,10 +662,10 @@ impl BallotChoices {
 
     /// Decodes one contest in the ballot
     ///
-    /// Returns a ContestChoice for the choices slice argument,
-    /// which will be read up to position contest.max_votes. This
-    /// ContestChoice will be added to the overall DecodedBallotChoices.
-    /// Values set to 0 (unset) will not return a ContestChoice.
+    /// Returns a `ContestChoice` for the choices slice argument,
+    /// which will be read up to position `contest.max_votes`. This
+    /// `ContestChoice` will be added to the overall `DecodedBallotChoices`.
+    /// Values set to 0 (unset) will not return a `ContestChoice`.
     /// It is the responsibility of the caller to advance the choice slice
     /// as choices are decoded.
     fn decode_contest(
@@ -787,6 +825,11 @@ impl BallotChoices {
     // representation of this ballot (one per-contest explicit invalid base = 2,
     // and optionally a ballot-level explicit invalid base = 2 when
     // decline-to-vote is enabled).
+    /// Computes mixed-radix bases for a multi-contest plurality ballot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a contest uses an unsupported counting algorithm.
     pub fn get_bases(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
@@ -869,6 +912,10 @@ impl BallotChoices {
     }
 
     /// Decodes a bigint into a raw ballot (mixed radix representation).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when bases cannot be computed or mixed-radix decoding fails.
     pub fn bigint_to_raw_ballot(
         bigint: &BigUint,
         contests: &Vec<Contest>,
@@ -884,8 +931,12 @@ impl BallotChoices {
 
     /// Decode the choices in the given mixed radix bigint
     ///
-    /// This function is adapted from mixed_radix::decode
+    /// This function is adapted from `mixed_radix::decode`
     /// to remove its write-in functionality.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a base or remainder cannot be converted.
     pub fn decode_mixed_radix(
         bases: &Vec<u64>,
         encoded_value: &BigUint,
@@ -925,7 +976,11 @@ impl BallotChoices {
     ///
     /// Returns a conservative upper bound, choosing the maximum
     /// value possible for each base. This value will be greater
-    /// than any valid ballot
+    /// than any valid ballot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when bases or encoding steps fail.
     pub fn maximum_size_bytes(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
@@ -952,6 +1007,10 @@ impl BallotChoices {
     /// Returns a bigint representation of this ballot
     ///
     /// Convenience method used in velvet test.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when raw-ballot encoding or mixed-radix packing fails.
     pub fn encode_to_bigint(
         &self,
         config: &BallotStyle,
@@ -962,7 +1021,11 @@ impl BallotChoices {
     }
 }
 
-/// Test multi-contest reencoding functionality
+/// Test multi-contest reencoding functionality.
+///
+/// # Errors
+///
+/// Returns an error when encoding or decoding fails consistency checks.
 pub fn test_multi_contest_reencoding(
     decoded_multi_contests: &Vec<DecodedVoteContest>,
     ballot_style: &BallotStyle,

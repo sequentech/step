@@ -9,18 +9,27 @@ use strand::util::StrandError;
 use strum_macros::Display;
 use tempfile::NamedTempFile;
 
+/// Error returned when verifying a file's SHA-256 digest fails.
 #[derive(Debug, Display)]
 pub enum HashFileVerifyError {
+    /// Error reading voters file
     #[strum(serialize = "io-error")]
-    IoError(String, std::io::Error), // Error reading voters file
+    IoError(String, std::io::Error),
+    /// Voters file hash does not match
     #[strum(serialize = "hash-mismatch")]
-    HashMismatch(String, String), // Voters file hash does not match
+    HashMismatch(String, String),
+    /// Error computing the hash
     #[strum(serialize = "hash-computing-error")]
-    HashComputingError(String, StrandError), // Error computing the hash
+    HashComputingError(String, StrandError),
 }
 
 impl std::error::Error for HashFileVerifyError {}
 
+/// Verifies that a temporary file's SHA-256 digest matches `sha256`.
+///
+/// # Errors
+///
+/// Returns [`HashFileVerifyError`] when I/O, hashing, or digest comparison fails.
 pub fn integrity_check(
     temp_file_path: &NamedTempFile,
     sha256: String,

@@ -19,13 +19,20 @@ use std::sync::RwLock;
 use std::time::{Duration, Instant};
 use tracing::{error, info, instrument, warn};
 
+/// HTTP header name for the tenant identifier in Datafix requests.
 const TENANT_ID_HEADER: &str = "tenant-id";
+/// HTTP header name for the election event identifier in Datafix requests.
 const EVENT_ID_HEADER: &str = "event-id";
+/// HTTP header name for client credentials in Datafix requests.
 const AUTHORIZATION_HEADER: &str = "authorization";
+/// Seconds before token expiry at which a cached Datafix token is refreshed.
 pub const PRE_EXPIRATION_SECS: i64 = 5;
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// HTTP header name and value extracted for Hasura or Bearer authentication.
 pub struct AuthHeaders {
+    /// Header name (e.g. `authorization` or `X-Hasura-Admin-Secret`).
     pub key: String,
+    /// Header value.
     pub value: String,
 }
 
@@ -90,8 +97,11 @@ impl<'r> FromRequest<'r> for JwtClaims {
 }
 
 #[derive(Debug)]
+/// Client IP and country derived from proxy headers.
 pub struct UserLocation {
+    /// Client IP from `CF-Connecting-IP` or `X-Forwarded-For`.
     pub ip: Option<IpAddr>,
+    /// ISO country code from `CF-IPCountry`.
     pub country_code: Option<String>,
 }
 
@@ -118,23 +128,33 @@ impl<'r> FromRequest<'r> for UserLocation {
 }
 
 #[derive(Debug)]
+/// JWT claims plus tenant context for Datafix API requests.
 pub struct DatafixClaims {
+    /// Decoded Keycloak JWT from the `Authorization` header.
     pub jwt_claims: JwtClaims,
+    /// Tenant identifier from the `tenant-id` header.
     pub tenant_id: String,
     /// Event ID matching the election event Datafix:id in annotations
     pub datafix_event_id: String,
 }
 
 #[derive(Debug)]
+/// OAuth client credentials parsed from a Datafix authorization header.
 struct DatafixCredentials {
+    /// Keycloak client identifier.
     client_id: String,
+    /// Keycloak client secret.
     client_secret: String,
 }
 
 #[derive(Debug)]
+/// Required Datafix request headers after parsing.
 struct DatafixHeaders {
+    /// Tenant identifier from the `tenant-id` header.
     tenant_id: String,
+    /// Election event identifier from the `event-id` header.
     event_id: String,
+    /// Client credentials from the `authorization` header.
     authorization: DatafixCredentials,
 }
 
@@ -189,14 +209,19 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     })
 }
 
-/// TokenResponse, timestamp before sending the request and the credentials to
+/// Token response with timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
+    /// Keycloak token payload from the client-credentials grant.
     token_resp: PubKeycloakAdminToken,
+    /// Time the token was fetched.
     stamp: Instant,
+    /// Client id that requested the token.
     client_id: String,
+    /// Client secret that requested the token.
     client_secret: String,
+    /// Tenant realm the token was issued for.
     tenant_id: String,
 }
 
@@ -212,6 +237,7 @@ struct TokenResponseExtended {
 pub struct LastDatafixAccessToken(RwLock<Option<TokenResponseExtended>>);
 
 impl LastDatafixAccessToken {
+    /// Creates an empty token cache.
     pub fn init() -> Self {
         LastDatafixAccessToken(RwLock::new(None))
     }

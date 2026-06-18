@@ -10,7 +10,7 @@
 /// three-letter ISO 639-2/T codes that have a different two-letter form need
 /// mapping.
 ///
-/// Reference: https://www.loc.gov/standards/iso639-2/php/code_list.php
+/// Reference: <https://www.loc.gov/standards/iso639-2/php/code_list.php>
 pub fn iso_639_2t_to_bcp47(lang: &str) -> &str {
     match lang {
         "aar" => "aa", // Afar

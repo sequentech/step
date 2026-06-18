@@ -6,12 +6,22 @@ use anyhow::{anyhow, Result};
 #[cfg(feature = "log")]
 use tracing::info;
 
+/// Version string used in development builds.
 pub const DEV_APP_VERSION: &str = "dev";
+/// Environment variable holding the running application version.
 pub const ENV_VAR_APP_VERSION: &str = "APP_VERSION";
+/// Environment variable holding the running application build hash.
 pub const ENV_VAR_APP_HASH: &str = "APP_HASH";
+/// JSON key used for version fields in imported election data.
 pub const VERSION_KEY: &str = "version";
+/// Default version assumed for legacy imports without an explicit version.
 pub const HISTORICAL_DEFAULT_VERSION: &str = "9.0.0";
 
+/// Checks whether an imported election version is compatible with the running app.
+///
+/// # Errors
+///
+/// Returns an error when either version cannot be parsed or the imported version is incompatible.
 pub fn check_version_compatibility(
     imported_version: &str,
     current_version: &str,

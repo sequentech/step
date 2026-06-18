@@ -9,36 +9,69 @@ use crate::plaintext::*;
 use crate::services::error_checker::check_contest;
 use num_bigint::BigUint;
 
+/// Packs a big integer into little-endian base-256 bytes for `ElGamal` encryption.
+///
+/// # Errors
+///
+/// Currently infallible; reserved for future validation errors.
 pub fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
     Ok(b.to_radix_le(256))
 }
+
+/// Unpacks little-endian base-256 bytes into a big integer.
+///
+/// # Errors
+///
+/// Returns an error when the byte slice cannot be interpreted as a base-256 integer.
 pub fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
     BigUint::from_radix_le(b, 256)
         .ok_or(format!("Conversion failed for bytes {:?}", b))
 }
 
+/// Converts between decoded votes, raw ballots, and big integers.
 pub trait BigUIntCodec {
+    /// Encodes a decoded contest vote as a single mixed-radix integer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the vote cannot be encoded for this contest layout.
     fn encode_plaintext_contest_bigint(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String>;
 
+    /// Decodes a mixed-radix integer back into a decoded contest vote.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the integer cannot be decoded into a valid vote.
     fn decode_plaintext_contest_bigint(
         &self,
         bigint: &BigUint,
     ) -> Result<DecodedVoteContest, String>;
 
+    /// Expands a big integer into raw mixed-radix digit vectors.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the integer cannot be expanded into raw ballot digits.
     fn bigint_to_raw_ballot(
         &self,
         bigint: &BigUint,
     ) -> Result<RawBallotContest, String>;
 
+    /// Returns how many write-in characters can be added or must be removed to fit the 29-byte limit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when write-in capacity cannot be computed for the vote.
     fn available_write_in_characters(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<i32, String>;
 }
 
+/// Removes one trailing write-in digit from a raw ballot to shrink its encoding.
 fn remove_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
@@ -54,6 +87,7 @@ fn remove_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     }
 }
 
+/// Adds one write-in digit to a raw ballot to expand its encoding.
 fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();

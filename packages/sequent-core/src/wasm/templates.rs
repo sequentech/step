@@ -1,6 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! TypeScript extern types for template and communication enums/interfaces.
+#![allow(
+    missing_docs,
+    reason = "TypeScript extern types; names match the generated interface definitions."
+)]
+
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]

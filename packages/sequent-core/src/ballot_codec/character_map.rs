@@ -6,6 +6,7 @@ use phf::phf_map;
 use std::str;
 
 impl Contest {
+    /// Returns the write-in character map configured for this contest.
     pub fn get_char_map(&self) -> Box<dyn CharacterMap> {
         if self.base32_writeins() {
             Box::new(Base32Map)
@@ -15,13 +16,27 @@ impl Contest {
     }
 }
 
+/// Encodes and decodes write-in candidate text for mixed-radix packing.
 pub trait CharacterMap {
+    /// Encodes a write-in string into radix digits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a character cannot be mapped to a radix digit.
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String>;
+    /// Decodes radix digits back into a write-in string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when digits cannot be mapped back to valid text.
     fn to_string(&self, bytes: &[u8]) -> Result<String, String>;
+    /// Radix base used for each write-in character digit.
     fn base(&self) -> u64;
 }
 
+/// UTF-8 character map (256-valued digits).
 pub struct Utf8Map;
+/// Restricted Base32 character map for compact write-ins.
 pub struct Base32Map;
 
 impl CharacterMap for Utf8Map {
@@ -71,6 +86,7 @@ impl CharacterMap for Base32Map {
     }
 }
 
+/// Maps Base32 write-in characters to digit values (0 reserved for null terminator).
 pub static TO_BYTE: phf::Map<char, u8> = phf_map! {
     // 0 is reserved for null terminator
     'A' => 1u8,
@@ -105,6 +121,7 @@ pub static TO_BYTE: phf::Map<char, u8> = phf_map! {
     '.' => 30u8,
     ',' => 31u8,
 };
+/// Maps Base32 digit values back to write-in characters.
 pub static TO_CHAR: phf::Map<u8, char> = phf_map! {
     // 0 is reserved for null terminator
     1u8 => 'A',

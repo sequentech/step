@@ -9,8 +9,8 @@ use crate::util::console_log;
 
 use std::collections::HashMap;
 
-// Function used to decide if the voter needs to change his/her ballot before
-// continuing
+/// Function used to decide if the voter needs to change his/her ballot before
+/// continuing
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
@@ -111,8 +111,9 @@ pub fn check_voting_not_allowed_next_util(
     voting_not_allowed
 }
 
-// if returns true, when the user click next, there will be a dialog that
-// prompts the user to confirm before going to the next screen
+/// Returns whether a confirmation dialog should appear before leaving the screen.
+/// if returns true, when the user click next, there will be a dialog that
+/// prompts the user to confirm before going to the next screen
 pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
@@ -228,6 +229,7 @@ pub fn check_voting_error_dialog_util(
     show_voting_alert
 }
 
+/// Returns a plurality contest fixture with the given vote policies.
 pub fn get_contest_plurality(
     over_vote_policy: EOverVotePolicy,
     blank_vote_policy: EBlankVotePolicy,
@@ -429,6 +431,7 @@ pub fn get_contest_plurality(
     }
 }
 
+/// Returns a blank decoded plurality contest for testing against `contest`.
 pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
     let message_map = [
         ("max".to_string(), "1".to_string()),

@@ -26,21 +26,27 @@ use uuid::Uuid;
 
 use super::PubKeycloakAdmin;
 
+/// Whether to add or remove realm roles from a group mapping.
 #[derive(Debug, Clone, Copy)]
 pub enum RoleAction {
+    /// Add roles to the group.
     Add,
+    /// Remove roles from the group.
     Remove,
 }
 
 impl RoleAction {
+    /// Returns whether this action removes roles from a group mapping.
     fn is_delete(&self) -> bool {
         matches!(self, RoleAction::Remove)
     }
 }
 
+/// Returns the Keycloak realm name for an election event.
 pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
     format!("tenant-{}-event-{}", tenant_id, election_event_id)
 }
+/// Parses a tenant or event realm name into tenant and optional event IDs.
 pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     let parts: Vec<&str> = realm.split('-').collect();
 
@@ -66,25 +72,26 @@ pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     None
 }
 
+/// Returns the Keycloak realm name for a tenant.
 pub fn get_tenant_realm(tenant_id: &str) -> String {
     format!("tenant-{}", tenant_id)
 }
 
-/// Extracts tenant_id and election_event_id replacements from a realm config.
+/// Extracts `tenant_id` and `election_event_id` replacements from a realm config.
 ///
-/// This function parses the realm name to extract the old tenant_id and
-/// election_event_id, and compares them with the new values to determine if
+/// This function parses the realm name to extract the old `tenant_id` and
+/// `election_event_id`, and compares them with the new values to determine if
 /// replacements are needed.
 ///
 /// # Arguments
 /// * `realm_config` -  Realm config
-/// * `new_tenant_id` - The new tenant_id to use
-/// * `new_election_event_id` - Optional new election_event_id to use
+/// * `new_tenant_id` - The new `tenant_id` to use
+/// * `new_election_event_id` - Optional new `election_event_id` to use
 ///
 /// # Returns
 /// A tuple of:
-/// * Optional (old_tenant_id, new_tenant_id) for replacement
-/// * Optional (old_event_id, new_event_id) for replacement
+/// * Optional (`old_tenant_id`, `new_tenant_id`) for replacement
+/// * Optional (`old_event_id`, `new_event_id`) for replacement
 pub fn extract_realm_replacements(
     realm_config: &RealmRepresentation,
     new_tenant_id: &str,
@@ -131,15 +138,19 @@ pub fn extract_realm_replacements(
 /// * `json_realm_config` - The original JSON string representation of the realm
 ///   configuration
 /// * `keep` - A list of UUID strings that should NOT be replaced with new ones
-/// * `tenant_id_replacement` - Optional tuple of (old_tenant_id, new_tenant_id)
+/// * `tenant_id_replacement` - Optional tuple of (`old_tenant_id`, `new_tenant_id`)
 ///   for explicit replacement
-/// * `election_event_id_replacement` - Optional tuple of (old_event_id,
-///   new_event_id) for explicit replacement
+/// * `election_event_id_replacement` - Optional tuple of (`old_event_id`,
+///   `new_event_id`) for explicit replacement
 ///
 /// # Returns
 /// A tuple containing:
 /// * The modified JSON string with replaced UUIDs
-/// * A HashMap mapping old UUIDs to their new replacements
+/// * A `HashMap` mapping old UUIDs to their new replacements
+///
+/// # Errors
+///
+/// Returns an error when the realm JSON cannot be deserialized.
 #[instrument(err, skip(json_realm_config))]
 pub fn replace_realm_ids(
     json_realm_config: &str,
@@ -206,6 +217,7 @@ pub fn generate_client_secret() -> String {
         .collect()
 }
 
+/// Maps non-success Keycloak HTTP responses to [`KeycloakError`].
 async fn error_check(
     response: reqwest::Response,
 ) -> Result<reqwest::Response, KeycloakError> {
@@ -223,6 +235,11 @@ async fn error_check(
 }
 
 impl KeycloakAdminClient {
+    /// Exports a realm configuration via the Keycloak partial-export API.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KeycloakError`] when authentication, the HTTP request, or JSON parsing fails.
     pub async fn get_realm(
         self,
         client: &PubKeycloakAdmin,
@@ -266,6 +283,11 @@ impl KeycloakAdminClient {
         )
     }
 
+    /// Returns authentication flow executions for the named flow.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KeycloakError`] when authentication, the HTTP request, or JSON parsing fails.
     pub async fn get_flow_executions(
         &self,
         client: &PubKeycloakAdmin,
@@ -289,6 +311,11 @@ impl KeycloakAdminClient {
         Ok(error_check(response).await?.json().await?)
     }
 
+    /// Creates or updates one authentication flow execution from JSON config.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when execution JSON is invalid or the Keycloak request fails.
     pub async fn upsert_flow_execution(
         &self,
         client: &PubKeycloakAdmin,
@@ -324,6 +351,11 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Partially imports groups and roles into a tenant realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak partial-import request fails.
     pub async fn partial_import_realm_with_cleanup(
         &self,
         client: &PubKeycloakAdmin,
@@ -361,6 +393,11 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Deletes a realm resource by type and identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KeycloakError`] when the Keycloak delete request fails.
     pub async fn realm_delete(
         &self,
         client: &PubKeycloakAdmin,
@@ -386,6 +423,11 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates a new realm group and returns its Keycloak ID when available.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KeycloakError`] when the Keycloak group creation request fails.
     pub async fn create_new_group(
         &self,
         tenant_id: &str,
@@ -430,6 +472,11 @@ impl KeycloakAdminClient {
         Ok(None)
     }
 
+    /// Adds or removes realm role mappings on a group.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`KeycloakError`] when the Keycloak role-mapping request fails.
     pub async fn add_roles_to_group(
         &self,
         tenant_id: &str,
@@ -483,6 +530,11 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Returns realm roles currently assigned to a group.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak role-mapping request or JSON parsing fails.
     pub async fn get_group_assigned_roles(
         &self,
         tenant_id: &str,
@@ -511,6 +563,15 @@ impl KeycloakAdminClient {
         Ok(roles)
     }
 
+    /// Updates an existing realm group representation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `group.id` is missing.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the Keycloak group update request fails.
     pub async fn update_group(
         &self,
         tenant_id: &str,
@@ -541,6 +602,11 @@ impl KeycloakAdminClient {
         }
     }
 
+    /// Uploads imported localization texts to the tenant realm.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a localization upload request fails.
     pub async fn update_localization_texts_from_import(
         &self,
         imported_localization_texts: Option<
@@ -574,6 +640,12 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates or updates a realm from JSON, optionally replacing embedded IDs.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when realm JSON is invalid, required environment variables are
+    /// missing, or the Keycloak create/update request fails.
     #[instrument(skip(self, json_realm_config), err)]
     pub async fn upsert_realm(
         self,

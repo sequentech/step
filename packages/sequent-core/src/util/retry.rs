@@ -14,6 +14,10 @@ use tracing::{info, instrument};
 ///   each time (`initial_backoff`, `2 * initial_backoff`, etc.)
 ///
 /// Returns `Ok(T)` on success or the last `Err(E)` on failure.
+///
+/// # Errors
+///
+/// Returns the last error from `op` after all retry attempts are exhausted.
 #[instrument(skip(op))]
 pub async fn retry_with_exponential_backoff<F, Fut, T, E>(
     mut op: F,
