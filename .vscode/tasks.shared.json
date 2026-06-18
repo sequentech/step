@@ -873,7 +873,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose down trustee1 trustee2; docker compose up -d --no-deps --build trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2"
+                "docker compose down trustee1 trustee2; docker compose build --no-cache trustee1 && docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2"
             ],
             "options": {
                 "env": {
