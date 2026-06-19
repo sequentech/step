@@ -61,7 +61,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.user_id,
                 &area_id,
                 voting_channel,
-                &claims.auth_time,
+                &claims.auth_time.or(Some(claims.iat)),
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
                     .country_code
