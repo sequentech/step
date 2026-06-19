@@ -55,6 +55,7 @@ export interface IAnswerProps {
     explicitBlank: boolean
     setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
+    showWhenListSelected?: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -76,6 +77,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     explicitBlank,
     setExplicitBlank,
     setIsTouched,
+    showWhenListSelected,
 }) => {
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = useMemo(() => {
@@ -231,7 +233,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    if (isReview && !isChecked()) {
+    if (isReview && !isChecked() && !showWhenListSelected) {
         return null
     }
 
