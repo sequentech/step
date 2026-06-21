@@ -61,9 +61,6 @@ pub const REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS: &str =
     "smart-link-clock-skew-secs";
 /// OIDC client the voter is logged into (default `voting-portal`).
 pub const REALM_ATTR_SMARTLINK_CLIENT_ID: &str = "smart-link-client-id";
-/// Public Smart Link election id used in the URL and HMAC message. Defaults to
-/// the realm name when unset.
-pub const REALM_ATTR_SMARTLINK_ELECTION_ID: &str = "smart-link-election-id";
 /// Comma-separated request/user attributes that must match after HMAC validation.
 pub const REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES: &str =
     "smart-link-required-attributes";
@@ -72,8 +69,6 @@ pub const REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES: &str =
 pub const SMARTLINK_SHARED_SECRET_MAX_LEN: usize = 1000;
 /// Maximum accepted length of the comma-separated Smart Link required attributes.
 pub const SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN: usize = 1000;
-/// Maximum accepted length of the Smart Link public election id.
-pub const SMARTLINK_ELECTION_ID_MAX_LEN: usize = 255;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {

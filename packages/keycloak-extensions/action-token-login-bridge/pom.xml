@@ -20,6 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<keycloak.version>26.6.1</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.14.0</maven.compiler.version>
+		<junit.version>5.13.4</junit.version>
 	</properties>
 
 	<dependencyManagement>
@@ -55,6 +56,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<dependency>
 			<groupId>com.google.auto.service</groupId>
 			<artifactId>auto-service</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

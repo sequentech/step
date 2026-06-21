@@ -1,20 +1,22 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
-use crate::types::keycloak::{
-    REALM_ATTR_SMARTLINK_CLIENT_ID, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
-    REALM_ATTR_SMARTLINK_ELECTION_ID, REALM_ATTR_SMARTLINK_ENABLED,
-    REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
-    REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
-    REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_ELECTION_ID_MAX_LEN,
-    SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN, SMARTLINK_SHARED_SECRET_MAX_LEN,
-};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use std::collections::HashMap;
-use std::str::FromStr;
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument};
+
+pub async fn get_realm_attributes(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, String>> {
+    KeycloakAdminClient::new()
+        .await
+        .map_err(|e| anyhow!("Error creating Keycloak admin client: {e:?}"))?
+        .get_realm_attributes(&get_event_realm(tenant_id, election_event_id))
+        .await
+        .map_err(|e| anyhow!("Error getting Keycloak realm attributes: {e:?}"))
+}
 
 pub async fn update_realm_attributes(
     tenant_id: &str,
@@ -34,114 +36,38 @@ pub async fn update_realm_attributes(
 
 impl KeycloakAdminClient {
     #[instrument(skip(self), err)]
+    pub async fn get_realm_attributes(
+        self,
+        realm: &str,
+    ) -> Result<HashMap<String, String>> {
+        let current_realm = self
+            .client
+            .realm_get(realm)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
+        Ok(current_realm.attributes.unwrap_or_default())
+    }
+
+    #[instrument(skip(self), err)]
     pub async fn update_realm_attributes(
         self,
         realm: &str,
         attributes: HashMap<String, String>,
     ) -> Result<()> {
+        validate_realm_attributes(&attributes)?;
+
         let mut current_realm = self
             .client
             .realm_get(realm)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
-        let mut current_attributes =
-            current_realm.attributes.unwrap_or_default();
-
-        for (key, value) in attributes {
-            if key == REALM_ATTR_VOTER_CERTIFICATE_POLICY {
-                match VoterCertificatePolicy::from_str(&value) {
-                    Ok(policy) => {
-                        current_attributes.insert(key, policy.to_string());
-                    }
-                    Err(_) => {
-                        warn!(
-                            "Ignoring invalid value {:?} for realm attribute {:?}",
-                            value, key
-                        );
-                    }
-                }
-            } else if key == REALM_ATTR_SMARTLINK_SHARED_SECRET {
-                // Freeform secret, but bounded and non-blank so it cannot
-                // accidentally disable the feature with a blank value.
-                if value.trim().is_empty()
-                    || value.len() > SMARTLINK_SHARED_SECRET_MAX_LEN
-                {
-                    warn!(
-                        "Ignoring invalid Smart Link shared secret (blank or \
-                         longer than {SMARTLINK_SHARED_SECRET_MAX_LEN} chars)"
-                    );
-                } else {
-                    current_attributes.insert(key, value);
-                }
-            } else if key == REALM_ATTR_SMARTLINK_TIMEOUT_SECS
-                || key == REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS
-            {
-                match normalize_positive_integer(&value) {
-                    Some(normalized) => {
-                        current_attributes.insert(key, normalized);
-                    }
-                    None => {
-                        warn!(
-                            "Ignoring non-positive or non-integer value {:?} for realm \
-                             attribute {:?}",
-                            value, key
-                        );
-                    }
-                }
-            } else if key == REALM_ATTR_SMARTLINK_CLIENT_ID {
-                if value.is_empty() {
-                    warn!("Ignoring empty Smart Link client id");
-                } else {
-                    current_attributes.insert(key, value);
-                }
-            } else if key == REALM_ATTR_SMARTLINK_ELECTION_ID {
-                match normalize_election_id(&value) {
-                    Some(normalized) => {
-                        current_attributes.insert(key, normalized);
-                    }
-                    None => {
-                        warn!(
-                            "Ignoring invalid Smart Link election id {:?}",
-                            value
-                        );
-                    }
-                }
-            } else if key == REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES {
-                match normalize_required_attributes(&value) {
-                    Some(normalized) => {
-                        current_attributes.insert(key, normalized);
-                    }
-                    None => {
-                        warn!(
-                            "Ignoring invalid Smart Link required attributes {:?}",
-                            value
-                        );
-                    }
-                }
-            } else if key == REALM_ATTR_SMARTLINK_ENABLED {
-                match value.parse::<bool>() {
-                    Ok(_) => {
-                        current_attributes.insert(key, value);
-                    }
-                    Err(_) => {
-                        warn!(
-                            "Ignoring non-boolean value {:?} for realm \
-                             attribute {:?}",
-                            value, key
-                        );
-                    }
-                }
-            } else {
-                warn!("Ignoring unknown realm attribute {:?}", key);
-            }
-        }
-
         info!(
             "Updating realm {realm} with attributes: {:?}",
-            redacted_attributes(&current_attributes)
+            redacted_attributes(&attributes)
         );
-        current_realm.attributes = Some(current_attributes);
+        current_realm.attributes = Some(attributes);
 
         self.client
             .realm_put(realm, current_realm)
@@ -152,143 +78,90 @@ impl KeycloakAdminClient {
     }
 }
 
-fn normalize_required_attributes(value: &str) -> Option<String> {
-    if value.len() > SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN {
-        return None;
-    }
-
-    let mut attributes = Vec::<String>::new();
-    for attribute in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-        if !is_valid_required_attribute_name(attribute) {
-            return None;
+fn validate_realm_attributes(
+    attributes: &HashMap<String, String>,
+) -> Result<()> {
+    for key in attributes.keys() {
+        if key.trim().is_empty() {
+            bail!("Realm attribute names cannot be blank");
         }
-        if !attributes.iter().any(|existing| existing == attribute) {
-            attributes.push(attribute.to_string());
+        if key.chars().any(char::is_control) {
+            bail!("Realm attribute names cannot contain control characters");
         }
     }
-
-    Some(attributes.join(","))
-}
-
-fn normalize_election_id(value: &str) -> Option<String> {
-    let value = value.trim();
-    if value.len() > SMARTLINK_ELECTION_ID_MAX_LEN {
-        return None;
-    }
-    if value.is_empty() {
-        return Some(String::new());
-    }
-    if !value
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
-    {
-        return None;
-    }
-    Some(value.to_string())
-}
-
-fn normalize_positive_integer(value: &str) -> Option<String> {
-    let parsed = value.trim().parse::<u64>().ok()?;
-    (parsed > 0).then(|| parsed.to_string())
-}
-
-fn is_valid_required_attribute_name(attribute: &str) -> bool {
-    attribute
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+    Ok(())
 }
 
 fn redacted_attributes(
     attributes: &HashMap<String, String>,
 ) -> HashMap<String, String> {
     let mut redacted = attributes.clone();
-    if redacted.contains_key(REALM_ATTR_SMARTLINK_SHARED_SECRET) {
-        redacted.insert(
-            REALM_ATTR_SMARTLINK_SHARED_SECRET.to_string(),
-            "<redacted>".to_string(),
-        );
+    let sensitive_keys: Vec<String> = redacted
+        .keys()
+        .filter(|key| is_sensitive_attribute_key(key))
+        .cloned()
+        .collect();
+    for key in sensitive_keys {
+        redacted.insert(key, "<redacted>".to_string());
     }
     redacted
 }
 
+fn is_sensitive_attribute_key(key: &str) -> bool {
+    let lower_key = key.to_ascii_lowercase();
+    lower_key.contains("secret")
+        || lower_key.contains("password")
+        || lower_key.contains("token")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{
-        normalize_election_id, normalize_positive_integer,
-        normalize_required_attributes, redacted_attributes,
-    };
-    use crate::types::keycloak::REALM_ATTR_SMARTLINK_SHARED_SECRET;
+    use super::{redacted_attributes, validate_realm_attributes};
     use std::collections::HashMap;
 
     #[test]
-    fn normalize_required_attributes_trims_and_deduplicates() {
-        assert_eq!(
-            normalize_required_attributes(
-                " email, tlf,,area-id,email,sequent.read-only.mobile-number "
-            ),
-            Some(
-                "email,tlf,area-id,sequent.read-only.mobile-number".to_string()
-            )
-        );
+    fn validate_realm_attributes_accepts_generic_names() {
+        let mut attributes = HashMap::new();
+        attributes.insert("acr.loa.map".to_string(), "{}".to_string());
+        attributes.insert("smart-link-enabled".to_string(), "true".to_string());
+
+        assert!(validate_realm_attributes(&attributes).is_ok());
     }
 
     #[test]
-    fn normalize_required_attributes_allows_clearing_the_list() {
-        assert_eq!(normalize_required_attributes(" "), Some("".to_string()));
+    fn validate_realm_attributes_rejects_blank_names() {
+        let mut attributes = HashMap::new();
+        attributes.insert(" ".to_string(), "value".to_string());
+
+        assert!(validate_realm_attributes(&attributes).is_err());
     }
 
     #[test]
-    fn normalize_required_attributes_rejects_invalid_names() {
-        assert_eq!(normalize_required_attributes("email,bad/value"), None);
+    fn validate_realm_attributes_rejects_control_characters_in_names() {
+        let mut attributes = HashMap::new();
+        attributes.insert("bad\nkey".to_string(), "value".to_string());
+
+        assert!(validate_realm_attributes(&attributes).is_err());
     }
 
     #[test]
-    fn normalize_positive_integer_rejects_zero_and_invalid_values() {
-        assert_eq!(normalize_positive_integer("90"), Some("90".to_string()));
-        assert_eq!(normalize_positive_integer(" 90 "), Some("90".to_string()));
-        assert_eq!(normalize_positive_integer("0"), None);
-        assert_eq!(normalize_positive_integer("-1"), None);
-        assert_eq!(normalize_positive_integer("soon"), None);
-    }
-
-    #[test]
-    fn normalize_election_id_trims_text_value() {
-        assert_eq!(
-            normalize_election_id(" 150017 "),
-            Some("150017".to_string())
-        );
-    }
-
-    #[test]
-    fn normalize_election_id_allows_realm_name_default_shape() {
-        assert_eq!(
-            normalize_election_id("tenant-acme-event-150017"),
-            Some("tenant-acme-event-150017".to_string())
-        );
-    }
-
-    #[test]
-    fn normalize_election_id_allows_clearing_to_default_realm_name() {
-        assert_eq!(normalize_election_id(" "), Some(String::new()));
-    }
-
-    #[test]
-    fn normalize_election_id_rejects_path_or_token_separators() {
-        assert_eq!(normalize_election_id("tenant/acme"), None);
-        assert_eq!(normalize_election_id("tenant:acme"), None);
-    }
-
-    #[test]
-    fn redacted_attributes_hides_smart_link_secret() {
+    fn redacted_attributes_hides_sensitive_values() {
         let mut attributes = HashMap::new();
         attributes.insert(
-            REALM_ATTR_SMARTLINK_SHARED_SECRET.to_string(),
+            "smart-link-shared-secret".to_string(),
             "the cake is in the oven".to_string(),
         );
+        attributes.insert("api-token".to_string(), "hello".to_string());
 
         assert_eq!(
             redacted_attributes(&attributes)
-                .get(REALM_ATTR_SMARTLINK_SHARED_SECRET)
+                .get("smart-link-shared-secret")
+                .map(String::as_str),
+            Some("<redacted>")
+        );
+        assert_eq!(
+            redacted_attributes(&attributes)
+                .get("api-token")
                 .map(String::as_str),
             Some("<redacted>")
         );

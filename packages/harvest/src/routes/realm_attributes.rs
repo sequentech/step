@@ -7,11 +7,23 @@ use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak::update_realm_attributes;
+use sequent_core::services::keycloak::{
+    get_realm_attributes, update_realm_attributes,
+};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, instrument};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetRealmAttributesInput {
+    pub election_event_id: String,
+}
+
+#[derive(Serialize)]
+pub struct GetRealmAttributesOutput {
+    pub attributes: HashMap<String, String>,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateRealmAttributesInput {
@@ -22,6 +34,38 @@ pub struct UpdateRealmAttributesInput {
 #[derive(Serialize)]
 pub struct UpdateRealmAttributesOutput {
     pub updated: bool,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-realm-attributes", format = "json", data = "<input>")]
+pub async fn get_realm_attributes_route(
+    claims: JwtClaims,
+    input: Json<GetRealmAttributesInput>,
+) -> Result<Json<GetRealmAttributesOutput>, (Status, String)> {
+    let body = input.into_inner();
+
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::KEYCLOAK_REALM_ATTRIBUTES_READ],
+    )
+    .map_err(|err| {
+        error!("Authorization failed: {:?}", err);
+        (Status::Forbidden, "Authorization failed".to_string())
+    })?;
+
+    let attributes = get_realm_attributes(
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|e| {
+        error!("Failed to get realm attributes: {:?}", e);
+        (Status::InternalServerError, format!("{:?}", e))
+    })?;
+
+    Ok(Json(GetRealmAttributesOutput { attributes }))
 }
 
 #[instrument(skip(claims))]
@@ -36,7 +80,7 @@ pub async fn update_realm_attributes_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_WRITE],
+        vec![Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE],
     )
     .map_err(|err| {
         error!("Authorization failed: {:?}", err);

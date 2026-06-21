@@ -262,6 +262,8 @@ const basqueTranslation: TranslationType = {
                 importCandidates: "Inportatu Hautagaiak",
                 custom_filters: "Iragazki pertsonalizatuak",
                 voter_authentication: "Bozkatzaile Autentifikazioa",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
             },
             customUrls: {
                 login: "Sarrera",
@@ -811,6 +813,8 @@ const basqueTranslation: TranslationType = {
                 "election-event-create": "Sortu Hauteskunde Gertaera",
                 "election-event-read": "Irakurri Hauteskunde Gertaera",
                 "election-event-write": "Editatu Hauteskunde Gertaera",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Ezabatu Hauteskunde Gertaera",
                 "voter-create": "Sortu Bozkatzailea",
                 "voter-read": "Irakurri Bozkatzailea",

@@ -261,6 +261,8 @@ const dutchTranslation: TranslationType = {
                 importCandidates: "Kandidaten importeren",
                 custom_filters: "Aangepaste filters",
                 voter_authentication: "Kiezersauthenticatie",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
             },
             customUrls: {
                 login: "Login",
@@ -811,6 +813,8 @@ const dutchTranslation: TranslationType = {
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Verkiezingsevenement Verwijderen",
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",

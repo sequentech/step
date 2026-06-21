@@ -260,6 +260,8 @@ const englishTranslation = {
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
                 voter_authentication: "Voter Authentication",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
             },
             customUrls: {
                 login: "Login",
@@ -810,6 +812,8 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",

@@ -79,14 +79,12 @@ the login session. The `auth-token` parameter is byte-for-byte compatible with
 first generation.
 
 The `<realm>` is the resolved Keycloak event realm, for example
-`tenant-acme-event-150017`. The `<election-id>` is the Smart Link public election
-id. By default it is the realm name itself. If Sequent configures
-`smart-link-election-id`, that text value is used instead. It may contain only
-URL-safe text such as `150017` or `spring-2026`.
+`tenant-acme-event-150017`. The `<election-id>` is the election event id parsed
+from that realm name, for example `150017`.
 
 For example, with Keycloak at `vote.university.com`, tenant `acme` and election
-event `150017`, and `smart-link-election-id=150017`, a Smart Link for the voter
-whose `user-id` is `example@sequentech.io` looks like:
+event `150017`, a Smart Link for the voter whose `user-id` is
+`example@sequentech.io` looks like:
 
 ```
 https://vote.university.com/realms/tenant-acme-event-150017/election/150017/public/login?auth-token=
@@ -97,9 +95,8 @@ khmac:///sha-256;89034fa3af76759f6edc658260afb30106c243fe86b60b652f714
 The direct URL has a Keycloak realm prefix because Keycloak now owns the login
 session. The public login segment and the `auth-token` itself — its envelope,
 message and HMAC — match first generation, so existing token generators only
-need to point at the new host/path. If `smart-link-election-id` is not
-configured, use `tenant-acme-event-150017` instead of `150017` in both the
-`/election/...` path and the token message.
+need to point at the new host/path and use the second-generation election event
+id in both the `/election/...` path and the token message.
 
 ### Differences from first generation
 
@@ -108,9 +105,8 @@ now Keycloak:
 
 - The direct URL is namespaced under `/realms/<realm>`. A root URL such as
   `/election/<election-id>/public/login` requires a reverse-proxy rule.
-- The public election id is configurable with `smart-link-election-id`; if unset,
-  it defaults to the Keycloak realm name instead of a numeric first-generation
-  AuthEvent id.
+- The public election id is the election event id parsed from the Keycloak event
+  realm name, not a separate realm attribute.
 - Second generation rejects tokens minted too far in the future, using
   `smart-link-clock-skew-secs` as tolerance.
 - Extra-field checks are limited to `email`, `tlf` and exact text user
@@ -160,10 +156,9 @@ example@sequentech.io:AuthEvent:150017:vote:1780869273
   the signed message fields.
 - **AuthEvent** / **vote** — fixed literals identifying the permission being
   granted. They must appear exactly as shown.
-- **election-id** — binds the token to one Smart Link election. It must equal
-  the `/election/<election-id>/...` path segment. By default this value is the
-  realm name, for example `tenant-acme-event-150017`; if
-  `smart-link-election-id` is configured, it is that configured text value.
+- **election-id** — binds the token to one Smart Link election event. It must
+  equal the `/election/<election-id>/...` path segment and the election event id
+  parsed from the Keycloak event realm name.
 - **timestamp** — the Unix timestamp, in seconds, at which the token was minted:
   an integer count of seconds since `1970-01-01 00:00:00 UTC`. Do not send a
   local date/time string. It is what lets Sequent expire the token and reject
@@ -177,13 +172,12 @@ In any language with an HMAC library:
 ```python
 import hmac, hashlib, time, urllib.parse
 
-def build_smart_link(keycloak_host, tenant, event_id, user_id, secret, election_id=None):
+def build_smart_link(keycloak_host, tenant, event_id, user_id, secret):
     realm = f"tenant-{tenant}-event-{event_id}"
-    smartlink_election_id = election_id or realm
-    message = f"{user_id}:AuthEvent:{smartlink_election_id}:vote:{int(time.time())}"
+    message = f"{user_id}:AuthEvent:{event_id}:vote:{int(time.time())}"
     code = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
     token = f"khmac:///sha-256;{code}/{message}"
-    election_path = urllib.parse.quote(smartlink_election_id, safe='')
+    election_path = urllib.parse.quote(event_id, safe='')
     return (f"https://{keycloak_host}/realms/{realm}/election/{election_path}/public/login"
             f"?auth-token={urllib.parse.quote(token, safe='')}")
 ```
@@ -250,7 +244,6 @@ attribute keys are:
 | `smart-link-timeout-secs` | How long a token stays valid after its timestamp. Must be positive. | `90` |
 | `smart-link-clock-skew-secs` | Tolerance for tokens slightly ahead of Sequent's clock. Must be positive. | `5` |
 | `smart-link-client-id` | OIDC client the voter lands in. | `voting-portal` |
-| `smart-link-election-id` | Public election id used in the URL path and HMAC message. Text, not an integer. | realm name |
 | `smart-link-required-attributes` | Comma-separated extra attributes that must match the census user. | _(empty)_ |
 
 If `smart-link-enabled` is unset or `false`, the endpoint returns `404`. If it
@@ -300,22 +293,9 @@ You can exercise the endpoint without your application:
 3. Open the resulting URL in a browser — you should be redirected into the
    voting portal, logged in and ready to cast a vote.
 
-The helper script can append required attributes when needed:
-
-```bash
-./beyond/scripts/generate_smart_link.py generate \
-  --host vote.university.com \
-  --tenant acme \
-  --event-id 150017 \
-  --election-id 150017 \
-  --user-id example@sequentech.io \
-  --secret "the cake is in the oven" \
-  --attribute email=example@sequentech.io \
-  --attribute tlf=+34600111222
-```
-
-Omit `--election-id` if the realm uses the default Smart Link election id, which
-is the realm name.
+When required attributes are configured, append them as ordinary query
+parameters after the encoded `auth-token`, as shown above. They are checked
+after the HMAC validates and are not part of the signed message.
 
 If it fails, check the Keycloak logs for a line like
 `SmartLink HMAC rejected: error=TOKEN_EXPIRED ...`, which names the exact reason.

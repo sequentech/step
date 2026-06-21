@@ -73,8 +73,8 @@ Different:
   `/realms/{realm}/election/{election-id}/public/login`, because Keycloak owns
   the realm context and OIDC session. A root
   `/election/{election-id}/public/login` URL needs a reverse-proxy rule.
-- The expected election id is `smart-link-election-id` when configured, otherwise
-  the realm name. First generation used the IAM AuthEvent id directly.
+- The expected election id is the election event id parsed from the event realm
+  name. First generation used the IAM AuthEvent id directly.
 - First generation only checked expiry. This implementation also rejects tokens
   minted too far in the future, controlled by `smart-link-clock-skew-secs`.
 - Required attributes are intentionally smaller: `email`, `tlf` and exact text
@@ -140,7 +140,6 @@ Config is stored as realm attributes on the event realm, set through harvest's
 | `smart-link-timeout-secs` | `90` |
 | `smart-link-clock-skew-secs` | `5` |
 | `smart-link-client-id` | `voting-portal` |
-| `smart-link-election-id` | realm name |
 | `smart-link-required-attributes` | empty |
 
 `smart-link-enabled=true` is the feature switch. The shared secret is required
@@ -153,15 +152,12 @@ non-numeric values also return `404` and log a misconfiguration warning.
 `update_realm_attributes` in
 `packages/sequent-core/src/services/keycloak/realm_attributes.rs` validates each
 value (boolean enable flag; non-blank bounded secret; positive integer timeouts;
-URL-safe election id text; comma-separated required attribute names) and drops
-anything malformed.
+comma-separated required attribute names) and drops anything malformed.
 
-`smart-link-election-id` is the public election id used in both the
-`/election/<election-id>/public/login` path and the HMAC message. It is text,
-not an integer. If the attribute is missing or blank, the realm name is used as
-the default election id. For example, realm `tenant-acme-event-150017` defaults
-to election id `tenant-acme-event-150017`, but setting
-`smart-link-election-id=150017` makes the path and token use `150017`.
+The Smart Link election id used in both the `/election/<election-id>/public/login`
+path and the HMAC message is the election event id parsed from the event realm
+name. For example, realm `tenant-acme-event-150017` makes the path and token use
+`150017`.
 
 `smart-link-required-attributes` is the second-generation equivalent of the
 first-generation Smart Link required extra-field check. It is intentionally
@@ -206,15 +202,13 @@ sequenceDiagram
 
 Event realms are still resolved by name, usually
 `tenant-<tenant_id>-event-<election_event_id>` (`get_event_realm` in
-sequent-core). Smart Link does not parse that event id for authentication. It
-chooses the expected Smart Link election id from the realm attribute
-`smart-link-election-id`; when that attribute is missing or blank, it uses the
-realm name itself.
+sequent-core). Smart Link parses that realm name with the same Java helper used
+by the voting-portal token mapper and uses `<election_event_id>` as the expected
+Smart Link election id.
 
 The path election id and the token's `AuthEvent:<election-id>:vote` field must
-both equal that expected Smart Link election id. This lets deployments keep the
-first-generation numeric path when they configure one, while defaulting to the
-realm name without adding another required setting.
+both equal that parsed election event id. There is no separate realm attribute
+for overriding the Smart Link election id.
 
 ## 8. Security considerations
 
@@ -259,8 +253,8 @@ realm name without adding another required setting.
 `HmacSmartLinkTest` covers the happy path plus every rejection: wrong secret,
 tampered message, mismatched election id, expired, future-dated, missing secret,
 malformed envelope, unsupported digest, wrong permission, empty user id,
-malformed short messages, configured/default Smart Link election id selection,
-and rejection of `:` inside `user-id`. The "known vector" test asserts the Java
+malformed short messages, realm-derived Smart Link election id selection, and
+rejection of `:` inside `user-id`. The "known vector" test asserts the Java
 HMAC equals the value produced by the Python/Scala/Go generators for the same
 message, locking token-level compatibility.
 `SmartLinkRequiredAttributesTest` covers comma-separated parsing and the
