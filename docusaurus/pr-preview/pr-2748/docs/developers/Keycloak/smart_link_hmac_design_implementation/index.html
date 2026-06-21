@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Smart Link (HMAC) Design &amp; Implementation | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Smart Link (HMAC) Design &amp; Implementation | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2748/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Smart Link (HMAC) Design & Implementation","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/developers/Keycloak/smart_link_hmac_design_implementation"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2748/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2748/assets/js/runtime~main.f9787a19.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2748/assets/js/runtime~main.05044290.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2748/assets/js/main.6e8d769b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -66,8 +66,8 @@ shared secret.</li>
 <code>/realms/{realm}/election/{election-id}/public/login</code>, because Keycloak owns
 the realm context and OIDC session. A root
 <code>/election/{election-id}/public/login</code> URL needs a reverse-proxy rule.</li>
-<li>The expected election id is <code>smart-link-election-id</code> when configured, otherwise
-the realm name. First generation used the IAM AuthEvent id directly.</li>
+<li>The expected election id is the election event id parsed from the event realm
+name. First generation used the IAM AuthEvent id directly.</li>
 <li>First generation only checked expiry. This implementation also rejects tokens
 minted too far in the future, controlled by <code>smart-link-clock-skew-secs</code>.</li>
 <li>Required attributes are intentionally smaller: <code>email</code>, <code>tlf</code> and exact text
@@ -112,7 +112,7 @@ replayed.</p>
 <p>Config is stored as realm attributes on the event realm, set through harvest&#x27;s
 <code>update-realm-attributes</code> route. Keys are defined once in
 <code>packages/sequent-core/src/types/keycloak.rs</code> and mirrored in <code>HmacSmartLink</code>:</p>
-<table><thead><tr><th>Attribute (<code>REALM_ATTR_SMARTLINK_*</code>)</th><th>Default</th></tr></thead><tbody><tr><td><code>smart-link-enabled</code></td><td><code>false</code></td></tr><tr><td><code>smart-link-shared-secret</code></td><td>unset</td></tr><tr><td><code>smart-link-timeout-secs</code></td><td><code>90</code></td></tr><tr><td><code>smart-link-clock-skew-secs</code></td><td><code>5</code></td></tr><tr><td><code>smart-link-client-id</code></td><td><code>voting-portal</code></td></tr><tr><td><code>smart-link-election-id</code></td><td>realm name</td></tr><tr><td><code>smart-link-required-attributes</code></td><td>empty</td></tr></tbody></table>
+<table><thead><tr><th>Attribute (<code>REALM_ATTR_SMARTLINK_*</code>)</th><th>Default</th></tr></thead><tbody><tr><td><code>smart-link-enabled</code></td><td><code>false</code></td></tr><tr><td><code>smart-link-shared-secret</code></td><td>unset</td></tr><tr><td><code>smart-link-timeout-secs</code></td><td><code>90</code></td></tr><tr><td><code>smart-link-clock-skew-secs</code></td><td><code>5</code></td></tr><tr><td><code>smart-link-client-id</code></td><td><code>voting-portal</code></td></tr><tr><td><code>smart-link-required-attributes</code></td><td>empty</td></tr></tbody></table>
 <p><code>smart-link-enabled=true</code> is the feature switch. The shared secret is required
 only once the feature is enabled. A realm with <code>smart-link-enabled</code> unset or
 <code>false</code> returns <code>404</code> from the HMAC endpoint; a realm with Smart Link enabled
@@ -122,14 +122,11 @@ non-numeric values also return <code>404</code> and log a misconfiguration warni
 <p><code>update_realm_attributes</code> in
 <code>packages/sequent-core/src/services/keycloak/realm_attributes.rs</code> validates each
 value (boolean enable flag; non-blank bounded secret; positive integer timeouts;
-URL-safe election id text; comma-separated required attribute names) and drops
-anything malformed.</p>
-<p><code>smart-link-election-id</code> is the public election id used in both the
-<code>/election/&lt;election-id&gt;/public/login</code> path and the HMAC message. It is text,
-not an integer. If the attribute is missing or blank, the realm name is used as
-the default election id. For example, realm <code>tenant-acme-event-150017</code> defaults
-to election id <code>tenant-acme-event-150017</code>, but setting
-<code>smart-link-election-id=150017</code> makes the path and token use <code>150017</code>.</p>
+comma-separated required attribute names) and drops anything malformed.</p>
+<p>The Smart Link election id used in both the <code>/election/&lt;election-id&gt;/public/login</code>
+path and the HMAC message is the election event id parsed from the event realm
+name. For example, realm <code>tenant-acme-event-150017</code> makes the path and token use
+<code>150017</code>.</p>
 <p><code>smart-link-required-attributes</code> is the second-generation equivalent of the
 first-generation Smart Link required extra-field check. It is intentionally
 small: a comma-separated list of request parameter names. The external token
@@ -144,14 +141,12 @@ same endpoint after <code>auth-token</code>.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="7-realm--smart-link-election-id">7. Realm ↔ Smart Link Election Id<a href="#7-realm--smart-link-election-id" class="hash-link" aria-label="Direct link to 7. Realm ↔ Smart Link Election Id" title="Direct link to 7. Realm ↔ Smart Link Election Id">​</a></h2>
 <p>Event realms are still resolved by name, usually
 <code>tenant-&lt;tenant_id&gt;-event-&lt;election_event_id&gt;</code> (<code>get_event_realm</code> in
-sequent-core). Smart Link does not parse that event id for authentication. It
-chooses the expected Smart Link election id from the realm attribute
-<code>smart-link-election-id</code>; when that attribute is missing or blank, it uses the
-realm name itself.</p>
+sequent-core). Smart Link parses that realm name with the same Java helper used
+by the voting-portal token mapper and uses <code>&lt;election_event_id&gt;</code> as the expected
+Smart Link election id.</p>
 <p>The path election id and the token&#x27;s <code>AuthEvent:&lt;election-id&gt;:vote</code> field must
-both equal that expected Smart Link election id. This lets deployments keep the
-first-generation numeric path when they configure one, while defaulting to the
-realm name without adding another required setting.</p>
+both equal that parsed election event id. There is no separate realm attribute
+for overriding the Smart Link election id.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="8-security-considerations">8. Security considerations<a href="#8-security-considerations" class="hash-link" aria-label="Direct link to 8. Security considerations" title="Direct link to 8. Security considerations">​</a></h2>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="verification-order">Verification order<a href="#verification-order" class="hash-link" aria-label="Direct link to Verification order" title="Direct link to Verification order">​</a></h3>
 <ol>
@@ -193,8 +188,8 @@ config secret. Rotate per event as needed.</li>
 <p><code>HmacSmartLinkTest</code> covers the happy path plus every rejection: wrong secret,
 tampered message, mismatched election id, expired, future-dated, missing secret,
 malformed envelope, unsupported digest, wrong permission, empty user id,
-malformed short messages, configured/default Smart Link election id selection,
-and rejection of <code>:</code> inside <code>user-id</code>. The &quot;known vector&quot; test asserts the Java
+malformed short messages, realm-derived Smart Link election id selection, and
+rejection of <code>:</code> inside <code>user-id</code>. The &quot;known vector&quot; test asserts the Java
 HMAC equals the value produced by the Python/Scala/Go generators for the same
 message, locking token-level compatibility.
 <code>SmartLinkRequiredAttributesTest</code> covers comma-separated parsing and the
