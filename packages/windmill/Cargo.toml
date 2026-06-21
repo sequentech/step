@@ -79,7 +79,7 @@ aws-sdk-secretsmanager = "1.66"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immudb-rs = { path = "../immudb-rs" }
-b3 = { path = "../b3", features = ["client"] }
+b4 = { path = "../b4", features = ["client"] }
 electoral-log = { path = "../electoral-log" }
 strand = { path = "../strand" }
 sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite"] }
@@ -111,7 +111,7 @@ rand = "0.9"
 regex = { version = "1.10" }
 futures = "0.3"
 # for hashing passwords in import users
-sha2 = "0.10"
+sha2 = { version = "0.10", features = ["oid"] }
 ring = "0.17"
 # serializing
 hex = "0.4"
