@@ -33,6 +33,7 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
+use rand::{CryptoRng, RngCore};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -126,6 +127,17 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         ciphertexts: &[Ciphertext<C>],
     ) -> (Vec<Ciphertext<C>>, Vec<C::X>, Vec<usize>) {
         let perm: Vec<usize> = gen_permutation(ciphertexts.len());
+
+        let (result, rs) = self.apply_permutation(&perm, ciphertexts);
+        (result, rs, perm)
+    }
+
+    pub fn gen_shuffle_with_perm_rng<R: RngCore + CryptoRng>(
+        &self,
+        ciphertexts: &[Ciphertext<C>],
+        rng: &mut R,
+    ) -> (Vec<Ciphertext<C>>, Vec<C::X>, Vec<usize>) {
+        let perm: Vec<usize> = gen_permutation_with_rng(rng, ciphertexts.len());
 
         let (result, rs) = self.apply_permutation(&perm, ciphertexts);
         (result, rs, perm)
@@ -690,9 +702,10 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
             .map(|i| {
+                let i_u64 = i as u64;
                 let next = [
                     ("prefix", &prefix_hash[0..]),
-                    ("counter", &i.to_le_bytes()[0..]),
+                    ("counter", &i_u64.to_le_bytes()[0..]),
                 ];
                 /*let next = ChallengeInput::from_bytes(vec![
                     ("prefix", prefix_hash.clone()),
@@ -756,6 +769,16 @@ pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
 
     let mut ret: Vec<usize> = (0..size).collect();
     ret.shuffle(&mut rng);
+
+    ret
+}
+
+pub(crate) fn gen_permutation_with_rng<R: RngCore + CryptoRng>(
+    rng: &mut R,
+    size: usize,
+) -> Vec<usize> {
+    let mut ret: Vec<usize> = (0..size).collect();
+    ret.shuffle(rng);
 
     ret
 }

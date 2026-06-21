@@ -144,7 +144,7 @@ pub async fn upsert_b3_and_elog(
     let mut board_client = get_b3_pgsql_client().await?;
 
     // Create board and protocol manager keys for election event (assert)
-    let existing: Option<b3::client::pgsql::B3IndexRow> =
+    let existing: Option<b4::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
     // insert into the index of boards
     board_client.create_index_ine().await?;
@@ -179,7 +179,7 @@ pub async fn upsert_b3_and_elog(
         // Create board and protocol manager keys for election (insert, not asssert)
         let board_name = get_election_board(tenant_id, &election_id, &slug);
 
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
+        let existing: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 
         // assert board table

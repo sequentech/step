@@ -939,6 +939,36 @@ pub async fn get_files_names_bytes_from_s3(
     Ok(files_data)
 }
 
+/// Get the size (in bytes) of an object in S3 using HEAD Object (very cheap, no download)
+#[instrument(fields(bucket = %bucket, key = %key), err)]
+pub async fn get_object_size(bucket: &str, key: &str) -> Result<usize> {
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting s3 aws config")?;
+    let client = get_s3_client(config.clone())
+        .await
+        .with_context(|| "Error getting s3 client")?;
+
+    let head_result = client
+        .head_object()
+        .bucket(bucket)
+        .key(key)
+        .send()
+        .await
+        .with_context(|| {
+            format!("HEAD Object failed for s3://{bucket}/{key}")
+        })?;
+
+    let size = head_result
+        .content_length()
+        .ok_or_else(|| anyhow!("S3 HEAD response missing Content-Length"))?
+        as usize;
+
+    tracing::debug!(size, "Retrieved object size via HEAD");
+
+    Ok(size)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
