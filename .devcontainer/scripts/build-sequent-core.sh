@@ -6,7 +6,7 @@ set -euo pipefail
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Note: NIX_HARDENING_ENABLE and CFLAGS are now configured in flake.nix shellHook
-# wasm-bindgen-cli is pinned to version 0.2.104 in flake.nix to match Cargo.toml
+# wasm-bindgen-cli is pinned to a version in flake.nix to match Cargo.toml
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"

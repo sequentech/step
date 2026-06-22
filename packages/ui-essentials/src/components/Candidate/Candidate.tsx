@@ -12,6 +12,7 @@ import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {useTranslation} from "react-i18next"
 import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {getOrdinalSuffix} from "./ordinalUtils"
 
 // Type wrapper for MUI icons to work with React 19
 const RadioButtonUncheckedIconFixed: React.FC<any> = (props) => {
@@ -24,11 +25,11 @@ const RadioButtonCheckedIconFixed: React.FC<any> = (props) => {
     return <Icon {...props} />
 }
 
-const UnselectableTypography = styled(Typography)`
+export const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
 
-const BorderBox = styled("li")<{
+export const BorderBox = styled("li")<{
     isSelectable: boolean
     hasCategory: boolean
     isInvalidVote: boolean
@@ -118,6 +119,7 @@ export interface CandidateProps extends PropsWithChildren {
     className?: string
     isPreferentialVote?: boolean
     totalCandidates?: number
+    maxVotes?: number
     selectedPosition?: number | null
     handlePreferentialChange?: (value: number | null) => void
 }
@@ -142,6 +144,7 @@ const Candidate: React.FC<CandidateProps> = ({
     className,
     isPreferentialVote = false,
     totalCandidates = 0,
+    maxVotes,
     selectedPosition,
     handlePreferentialChange,
 }) => {
@@ -175,14 +178,12 @@ const Candidate: React.FC<CandidateProps> = ({
         }
     }
 
-    const getOrdinalSuffix = (num: number): string => {
-        if (num === 1) return `${num}${t("candidate.preferential.ordinals.first")}`
-        if (num === 2) return `${num}${t("candidate.preferential.ordinals.second")}`
-        if (num === 3) return `${num}${t("candidate.preferential.ordinals.third")}`
-        return `${num}${t("candidate.preferential.ordinals.other")}`
-    }
+    const maxSelectablePositions =
+        typeof maxVotes === "number" && maxVotes > 0
+            ? Math.min(maxVotes, totalCandidates)
+            : totalCandidates
 
-    const scrollablePreferentialVote = totalCandidates > 4
+    const scrollablePreferentialVote = maxSelectablePositions > 4
 
     return (
         <BorderBox
@@ -243,45 +244,65 @@ const Candidate: React.FC<CandidateProps> = ({
             ) : null}
 
             {isPreferentialVote ? (
-                <Select
-                    displayEmpty
-                    value={selectedPosition ?? 0}
-                    onChange={handlePositionChange}
-                    disabled={!isSelectable}
-                    renderValue={(value) => {
-                        if (typeof value === "number" && value > 0) {
-                            return getOrdinalSuffix(value)
-                        }
-                        return t("candidate.preferential.position")
-                    }}
-                    MenuProps={{
-                        PaperProps: {
-                            style: {
-                                maxHeight: 200,
-                                overflowY: scrollablePreferentialVote ? "auto" : "visible",
+                isSelectable ? (
+                    <Select
+                        displayEmpty
+                        value={selectedPosition ?? 0}
+                        onChange={handlePositionChange}
+                        renderValue={(value) => {
+                            if (typeof value === "number" && value > 0) {
+                                return getOrdinalSuffix(value, t)
+                            }
+                            return t("candidate.preferential.position")
+                        }}
+                        MenuProps={{
+                            PaperProps: {
+                                style: {
+                                    maxHeight: 200,
+                                    overflowY: scrollablePreferentialVote ? "auto" : "visible",
+                                },
                             },
-                        },
-                        autoFocus: false,
-                    }}
-                    sx={{
-                        "minWidth": 120,
-                        "marginRight": 1,
-                        "& .MuiSelect-select": {
-                            paddingTop: "6px",
-                            paddingBottom: "6px",
-                        },
-                    }}
-                    className="candidate-position-select"
-                >
-                    <MenuItem value={0}>
-                        <em>{t("candidate.preferential.none")}</em>
-                    </MenuItem>
-                    {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
-                        <MenuItem key={num} value={num}>
-                            {getOrdinalSuffix(num)}
+                            autoFocus: false,
+                        }}
+                        sx={{
+                            "minWidth": 120,
+                            "marginRight": 1,
+                            "& .MuiSelect-select": {
+                                paddingTop: "6px",
+                                paddingBottom: "6px",
+                            },
+                        }}
+                        className="candidate-position-select"
+                    >
+                        <MenuItem value={0}>
+                            <em>{t("candidate.preferential.none")}</em>
                         </MenuItem>
-                    ))}
-                </Select>
+                        {Array.from({length: maxSelectablePositions}, (_, i) => i + 1).map(
+                            (num) => (
+                                <MenuItem key={num} value={num}>
+                                    {getOrdinalSuffix(num, t)}
+                                </MenuItem>
+                            )
+                        )}
+                    </Select>
+                ) : selectedPosition && selectedPosition > 0 ? (
+                    <Typography
+                        className="candidate-position-label"
+                        variant="body2"
+                        sx={{
+                            minWidth: 52,
+                            textAlign: "center",
+                            fontWeight: "bold",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            border: `1px solid ${theme.palette.customGrey.light}`,
+                            whiteSpace: "nowrap",
+                            marginRight: 1,
+                        }}
+                    >
+                        {getOrdinalSuffix(selectedPosition, t)}
+                    </Typography>
+                ) : null
             ) : isSelectable ? (
                 iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox

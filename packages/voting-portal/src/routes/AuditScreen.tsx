@@ -113,7 +113,7 @@ const AuditScreen: React.FC = () => {
     }>()
     const {globalSettings} = useContext(SettingsContext)
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
@@ -140,6 +140,10 @@ const AuditScreen: React.FC = () => {
             navigate(backLink)
         }
     })
+
+    const verifierSearchParams = new URLSearchParams(location.search)
+    verifierSearchParams.set("lang", i18n.language)
+    const verifierHref = `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start?${verifierSearchParams.toString()}`
 
     const downloadAuditableBallot = () => {
         if (!auditableBallot) {
@@ -230,12 +234,7 @@ const AuditScreen: React.FC = () => {
                     <Trans
                         i18nKey="auditScreen.step2Description"
                         components={{
-                            VerifierLink: (
-                                <a
-                                    target="_blank"
-                                    href={`${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`}
-                                />
-                            ),
+                            VerifierLink: <a target="_blank" href={verifierHref} />,
                         }}
                     />
                 </StyledLinkContainer>

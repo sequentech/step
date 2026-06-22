@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
+// cargo run --bin verify -- --b4-url http://[::1]:50051 --board testboard
 use anyhow::{anyhow, Result};
 use braid::native::board::{HttpB3, HttpB3BoardParams};
 use braid::native::verify::verifier::Verifier;

@@ -36,7 +36,7 @@ import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/grap
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ITemplateMethod, IEmail, ISendTemplateBody} from "@/types/templates"
-import {useLocation} from "react-router"
+import {useLocation} from "react-router-dom"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",

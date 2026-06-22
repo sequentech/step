@@ -5,9 +5,9 @@
 use crate::api_types::{
     BoardMessagesResponse, ConfirmMessageRequest, ConfirmMessageResponse,
     ConfirmMessagesMultiRequest, ConfirmMessagesMultiResponse, ContentType, GetMessageResponse,
-    GetMessagesMultiRequest, GetMessagesMultiResponse, InitiateMessageRequest,
+    GetMessagesMultiRequest, GetMessagesMultiResponse, GetMessagesResponse, InitiateMessageRequest,
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
-    ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
+    ListMessagesResponse, Message, MessageWithUrl, MAX_INLINE_MESSAGE_SIZE,
 };
 use crate::auth::{BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony};
 use axum::{
@@ -398,8 +398,6 @@ pub async fn get_messages(
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {
-    use crate::api_types::{GetMessagesResponse, MessageWithUrl};
-
     tracing::debug!(
         "User {} getting messages from board '{}'",
         claims.sub,
@@ -477,8 +475,6 @@ pub async fn get_messages_multi(
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Json(req): Json<GetMessagesMultiRequest>,
 ) -> Result<Json<GetMessagesMultiResponse>, StatusCode> {
-    use crate::api_types::MessageWithUrl;
-
     tracing::info!(
         "[MULTI-GET] User {} requesting {} boards in single request",
         claims.sub,

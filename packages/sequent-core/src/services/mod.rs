@@ -28,7 +28,6 @@ pub mod s3;
 pub mod error_checker;
 pub mod generate_urls;
 
-#[cfg(feature = "reports")]
 pub mod translations;
 
 #[cfg(feature = "keycloak")]
@@ -36,6 +35,9 @@ pub mod replace_uuids;
 
 #[cfg(feature = "keycloak")]
 pub mod authorization;
+
+#[cfg(feature = "keycloak")]
+pub mod uuid_validation;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;

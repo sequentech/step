@@ -116,7 +116,7 @@ crate-type = ["cdylib", "rlib"]
 # Default feature for native builds (server mode)
 default = ["native"]
 
-# Native build with gRPC, filesystem, PostgreSQL  
+# Native build with HTTP (via b4), filesystem, PostgreSQL
 native = [
     "dep:strand",
     "strand/rayon",

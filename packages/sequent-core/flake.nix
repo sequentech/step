@@ -28,7 +28,7 @@
           configureRustTargets = targets : pkgs
             .rust-bin
             .stable
-            ."1.93.0"
+            ."1.96.0"
             .default
             .override {
                 extensions = [ "rust-src" ];
@@ -84,16 +84,15 @@
               wasm-bindgen-cli-pinned
               pkgs.libiconv
               pkgs.m4
-              pkgs.glibc.dev
 
               # Add all the necessary LLVM/Clang packages
-              pkgs.llvmPackages_19.clang
+              pkgs.llvmPackages_19.clang-unwrapped
               pkgs.llvmPackages_19.llvm
               pkgs.llvmPackages_19.libclang
             ];
             buildPhase = ''
               echo 'Build: wasm-pack build'
-              wasm-pack build --out-name index --release --target web --features=wasmtest
+              wasm-pack build --out-name index --release --target web --features=wasmtest,default_features
             '';
             installPhase = "
               # set HOME temporarily to fix npm pack
@@ -131,44 +130,27 @@
                 cargo-deny
                 ack
                 wasm-pack
-                glibc.dev
-
-                # Needed for building dependencies that use openssl-sys
-                pkg-config
-                openssl
-                openssl.dev
-
-                # Needed by crates/build scripts relying on protoc
-                protobuf
 
                 # Add these two lines for browser testing
                 firefox
                 geckodriver
               ];
             shellHook = ''
-              # Disable Nix hardening flags that are incompatible with wasm32 target
-              # (ring crate fails with -fzero-call-used-regs=used-gpr)
-              export NIX_HARDENING_ENABLE=""
-
-              export CC=${pkgs.llvmPackages_19.clang}/bin/clang
-              export CXX=${pkgs.llvmPackages_19.clang}/bin/clang++
+              export CC=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+              export CXX=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
               export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
-              # Use unwrapped clang for wasm32 target to avoid glibc header issues
-              # (wrapped clang adds host glibc includes which fail on cross-compile)
               export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
-
-              export PROTOC=${pkgs.protobuf}/bin/protoc
-
-              # Set up the clang resource directory properly (use unwrapped for wasm32)
+              # Nix hardening flags are not supported when compiling C code for WebAssembly
+              export NIX_HARDENING_ENABLE=""
+              # Set up the clang resource directory properly
               CLANG_MAJOR_VERSION="19"
               CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION"
-
+              export CLANG_RESOURCE_DIR
               # Use libclang's include directory which has the standard headers
               LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
-
+              export LIBCLANG_INCLUDE
               export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR -O3 -ffunction-sections -fdata-sections -fno-exceptions"
               export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
-
               # Debug: Print the paths to verify they exist
               echo "Clang resource dir: $CLANG_RESOURCE_DIR"
               echo "Libclang include dir: $LIBCLANG_INCLUDE"

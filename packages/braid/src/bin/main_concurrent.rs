@@ -34,7 +34,7 @@ cfg_if::cfg_if! {
 struct Cli {
     /// The url of the braid bulletin board grpc server.
     #[arg(short, long)]
-    b3_url: String,
+    b4_url: String,
 
     /// The trustee configuration file including signature and symmetric encryption keys.
     #[arg(short, long)]
@@ -100,7 +100,7 @@ fn main() -> Result<()> {
 ///
 /// Example run command
 ///
-/// cargo run --release --bin main_concurrent -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
+/// cargo run --release --bin main_concurrent -- --b4-url http://127.0.0.1:50051 --trustee-config trustee.toml
 ///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {
@@ -170,7 +170,7 @@ async fn run(args: &Cli) -> Result<()> {
             error!(
                 "Concurrent error listing board names: '{}' ({})",
                 boards_result.err().unwrap(),
-                args.b3_url
+                args.b4_url
             );
             sleep(Duration::from_millis(1000)).await;
             continue;

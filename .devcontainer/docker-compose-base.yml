@@ -68,10 +68,11 @@ services:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b4_db_logs:/b4_logs
+      - b4_db_logs:/b4_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs    
 
   postgres:
     profiles: ["full", "base"]
@@ -504,11 +505,18 @@ services:
       B4_PG_DATABASE: ${B4_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
+      APP_VERSION: ${APP_VERSION}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3030/ready || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 30s
 
   trustee1:
     profiles: ["full"]
@@ -610,7 +618,8 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     volumes:
       - ./keycloak/import:/import:z
       - ../packages/:/app:z
@@ -823,8 +832,12 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - devcontainer
-      - harvest
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      harvest:
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
@@ -914,8 +927,10 @@ services:
       B4_PG_USER: ${B4_PG_USER}
       B4_PG_PASSWORD: ${B4_PG_PASSWORD}
       B4_PG_DATABASE: ${B4_PG_DATABASE}
-      B4_ALLOWED_ORIGINS: ${B4_ALLOWED_ORIGINS}
       B4_BIND: ${B4_BIND}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
+      B4_ALLOWED_ORIGINS: ${B4_ALLOWED_ORIGINS}
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_JWKS_CERTS_PATH: ${AWS_S3_JWKS_CERTS_PATH}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
@@ -924,6 +939,7 @@ services:
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
       AWS_REGION: ${AWS_REGION}
       ENV_SLUG: ${ENV_SLUG}
+      
 
 volumes:
   db_data:

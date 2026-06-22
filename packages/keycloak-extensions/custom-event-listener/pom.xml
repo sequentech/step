@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<aws.version>2.18.6</aws.version>
-		<keycloak.version>24.0.0</keycloak.version>
+		<keycloak.version>26.6.1</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.11.0</maven.compiler.version>
 		<maven.shade.version>3.2.4</maven.shade.version>
@@ -55,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<dependency>
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
-			<version>5.16.0</version>
+			<version>5.18.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.freemarker</groupId>
@@ -86,12 +86,12 @@ SPDX-License-Identifier: AGPL-3.0-only
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.12.0</version>
+            <version>3.18.0</version>
         </dependency>
 		<dependency>
     		<groupId>org.postgresql</groupId>
     		<artifactId>postgresql</artifactId>
-    		<version>42.5.4</version>
+    		<version>42.5.5</version>
 		</dependency>
 		<dependency>
     		<groupId>com.google.code.gson</groupId>

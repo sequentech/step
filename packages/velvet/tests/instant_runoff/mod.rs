@@ -3,4 +3,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod irv_integration_tests;
+pub mod irv_tie_breaking_tests;
 pub mod irv_unit_tests;

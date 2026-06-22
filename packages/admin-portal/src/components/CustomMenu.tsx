@@ -19,7 +19,7 @@ import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useLocation, useNavigate} from "react-router"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;

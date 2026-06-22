@@ -10,7 +10,7 @@ import {FetchDocumentQuery} from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
-import {EExportFormat, IResultDocuments} from "@/types/results"
+import {ALL_AREAS_PREFIX, EExportFormat, IResultDocuments} from "@/types/results"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {MiruExport} from "../MiruExport"
@@ -22,6 +22,7 @@ import {ETemplateType} from "@/types/templates"
 import {GenerateReport} from "./GenerateReport"
 import {GeneratePDF} from "./GeneratePdf"
 import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
+import {ExportMenuItem} from "./ExportMenuItem"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -230,44 +231,20 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                     <React.Fragment
                                         key={`${documents.class_type}:${documents.name}:${format.value}`}
                                     >
-                                        <MenuItem
-                                            className={getMenuClassName(
-                                                format.value,
-                                                documents.class_type,
-                                                documents.class_subtype
-                                            )}
-                                            key={format.value}
-                                            onClick={(e: React.MouseEvent<HTMLElement>) => {
-                                                e.preventDefault()
-                                                e.stopPropagation()
-                                                setTimeout(() => handleClose(), 0)
-                                                handleExport(documents.documents, format.value)
-                                            }}
-                                            disabled={isExportFormatDisabled(
-                                                documents.documents,
-                                                format.value
-                                            )}
-                                        >
-                                            <Box
-                                                sx={{
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                }}
-                                            >
-                                                <span
-                                                    title={t("common.label.exportFormat", {
-                                                        item: documents.name,
-                                                        format: format.label,
-                                                    })}
-                                                >
-                                                    {t("common.label.exportFormat", {
-                                                        item: documents.name,
-                                                        format: format.label,
-                                                    })}
-                                                </span>
-                                            </Box>
-                                        </MenuItem>
+                                        {!format.value.includes(ALL_AREAS_PREFIX) && (
+                                            <ExportMenuItem
+                                                documents={documents}
+                                                className={getMenuClassName(
+                                                    format.value,
+                                                    documents.class_type,
+                                                    documents.class_subtype
+                                                )}
+                                                formatValue={format.value}
+                                                formatLabel={format.label}
+                                                handleExport={handleExport}
+                                                handleClose={handleClose}
+                                            />
+                                        )}
                                         {format.value === EExportFormat.HTML ? (
                                             <GeneratePDF
                                                 key={documents.name}
@@ -278,6 +255,47 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                 handleClose={handleClose}
                                             />
                                         ) : null}
+                                        {tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                                            format.value.includes(ALL_AREAS_PREFIX) &&
+                                            electionId &&
+                                            documents.class_type === "election" && (
+                                                <ExportMenuItem
+                                                    documents={documents}
+                                                    className={getMenuClassName(
+                                                        format.value,
+                                                        documents.class_type,
+                                                        documents.class_subtype
+                                                    )}
+                                                    formatValue={format.value}
+                                                    formatLabel={format.label}
+                                                    handleExport={handleExport}
+                                                    handleClose={handleClose}
+                                                    label={t("tally.exportAllAreas", {
+                                                        item: documents.name,
+                                                        format: format.label.toUpperCase(),
+                                                    })}
+                                                />
+                                            )}
+                                        {tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                                            format.value === EExportFormat.ALL_AREAS_HTML &&
+                                            electionId &&
+                                            documents.class_type === "election" && (
+                                                <GeneratePDF
+                                                    key={documents.name}
+                                                    documents={documents.documents}
+                                                    name={documents.name}
+                                                    electionEventId={electionEventId}
+                                                    tallySessionId={tallySessionId}
+                                                    handleClose={handleClose}
+                                                    documentTypeToConvertFrom={
+                                                        EExportFormat.ALL_AREAS_HTML
+                                                    }
+                                                    label={t("tally.exportAllAreas", {
+                                                        item: documents.name,
+                                                        format: EExportFormat.PDF.toUpperCase(),
+                                                    })}
+                                                />
+                                            )}
                                     </React.Fragment>
                                 )
                             )}

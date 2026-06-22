@@ -87,6 +87,7 @@ const basqueTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -341,6 +342,11 @@ const basqueTranslation: TranslationType = {
                     "no-signature": "Sinadurarik ez",
                     "with-signature": "Sinadura batekin",
                 },
+                VoterCertificatePolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
                 enrollment: {
                     policyLabel: "Matrikula",
                     options: {
@@ -374,6 +380,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         enabled: "Gaituta",
                         disabled: "Desgaituta",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Hizkuntza detekzio politika",
+                    options: {
+                        "browser-detect": "Arakatzailetik detektatu",
+                        "force-default": "Lehenetsia behartu",
                     },
                 },
             },
@@ -438,6 +451,7 @@ const basqueTranslation: TranslationType = {
                 notifications: "Jakinarazpenak",
                 reports: "Txostenak",
                 approvals: "Onespenak",
+                cas: "Ziurtagiriak",
             },
             tally: {
                 emptyHeader: "Ez dago Zenbaketarik oraindik.",
@@ -543,6 +557,7 @@ const basqueTranslation: TranslationType = {
                 reports: "Txostenak",
                 applications: "Aplikazioak",
                 tally: "Zenbaketa",
+                certificates: "Ziurtagiriak",
             },
             taskNotification:
                 "{{action}} hasi da. Bere egoera Ataza Exekuzio taulan ikus dezakezu.",
@@ -586,6 +601,7 @@ const basqueTranslation: TranslationType = {
                 alias: "Ezizena",
                 description: "Deskribapena",
                 securityConfirmationHtml: "Segurtasun-berrespena HTML",
+                externalId: "Kanpoko IDa",
             },
             securityConfirmationPolicy: {
                 label: "Segurtasun-berrespeneko kontrol-laukiaren politika",
@@ -638,6 +654,20 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "election": "Hauteskundearen titulua",
                     "election-event": "Hauteskunde-ekitaldiaren titulua",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Txosten bateratuaren politika",
+                options: {
+                    "generate": "Sortu",
+                    "do-not-generate": "Ez sortu",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Bozkatzeari uko egiteko politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
                 },
             },
         },
@@ -1051,6 +1081,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 AUDIT_LOGS: "Auditoria Egunkariak",
@@ -1317,8 +1348,12 @@ const basqueTranslation: TranslationType = {
                 "plurality-at-large": "Pluralitatea Orokorrean",
                 "instant-runoff": "Berehalako Bigarren Itzulia",
                 "random": "Ausazkoa",
+                "external-procedure": "Kanpoko prozedura",
                 "custom": "Pertsonalizatua",
                 "alphabetical": "Alfabetikoa",
+            },
+            tieBreakingPolicy: {
+                label: "Berdinketa hausteko politika",
             },
             auditButtonConfig: {
                 "label": "Auditoria Botoi Erakutsi Aukerak",
@@ -1352,6 +1387,12 @@ const basqueTranslation: TranslationType = {
                 "allow-selecting-lists": "Zerrendak Soilik",
                 "disabled": "Desgaituta",
             },
+            collapsibleListsPolicy: {
+                "label": "Zerrenda tolesgarriak",
+                "disabled": "Desgaituta",
+                "enabled-expanded": "Gaituta (zabalik hasten da)",
+                "enabled-collapsed": "Gaituta (tolestuta hasten da)",
+            },
             blankVotePolicy: {
                 "label": "Boto Zuri Politika",
                 "allowed": "Baimenduta",
@@ -1368,8 +1409,31 @@ const basqueTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Ez Baimenduta Abisu mezuarekin eta Gehiago hautatzea Desgaitu",
             },
+            duplicatedRankPolicy: {
+                "label": "Boto baliogabea - Bikoiztutako Rankaren Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Boto baliogabea - Saltatutako Ranken Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
             paginationPolicy: {
                 label: "Orri Izena",
+            },
+            allowWriteins: {
+                label: "Eskuzko hautagaitzak baimendu",
+            },
+            maxVotes: {
+                helperText:
+                    "Hautesleak aukeratu ahal dituen hautagai kopuru maximoa (ez-hobesentziazko botazioa).",
+                helperTextPreferential:
+                    "Hautesleek erabil dezaketen posizio altuena (adib. '5' 1-5 posizioak ahalbidetzen ditu). Ordenatu beharreko hautagai kopurua baino gehiago izan behar du (hobesentziazko botazioa).",
             },
             error: {},
             createContestSuccess: "Lehiaketa sortua",
@@ -1669,6 +1733,38 @@ const basqueTranslation: TranslationType = {
                     eliminated: "Baztertua",
                     round: "Txanda",
                 },
+                total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
+            },
+            pendingResolutions: {
+                round: "Txanda {{round}}",
+                tieResolutionRequired: "Berdinketa ebazpena beharrezkoa",
+                tieResolved: "Berdinketa ebatzita",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Ebazpen zain",
+                pendingResolutionStatus: "Ebazpen zain",
+                resolvedStatus: "Ebatzita",
+                resolutionTitle: "Ebazpena",
+                selectContest: "Hautatu elementu bat ezkerraldean xehetasunak ikusteko",
+                selectCandidateToAdvance: "Hautatu aurreratzeko hautagaia",
+                undoResolution: "Ebazpena desegin",
+                applyResolutions: "Ebazpenak aplikatu eta birkalkulatu",
+                submitSuccess: "Ebazpenak bidali dira. Zenbaketa berriro hasten ari da...",
+                submitError: "Errorea ebazpenak bidaltzean. Saiatu berriro.",
+                filter: "Iragazi",
+                save: "Gorde",
+                pendingApplyStatus: "Kalkulua zain",
+                filterElection: "Hauteskundea",
+                filterContest: "Lehiaketa",
+                filterArea: "Eremua",
+                filterStatusLabel: "Egoera",
+                clearFilters: "Iragazkiak garbitu",
+                candidateWithVotes: "{{name}} ({{votes}} boto)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
+                tieInfoTitle: "Zenbaketa etenda berdinketa konpondu gabeagatik (Txanda {{round}})",
+                tieInfoBody:
+                    "Berdinketako hautagaiak ({{votes}} boto, {{percent}}%): {{candidates}}. Eskuzko desempatea behar da zenbaketa jarraitzeko.",
+                tallyResumedTitle: "Zenbaketa berriro hasi da ebazpena aplikatu ondoren",
+                tallyResumedBody: "Berdinketa {{date}} egunean {{user}} erabiltzaileak ebatzi zuen",
             },
             chart: {
                 votesForCandidates: "Hautagaientzako Botoak",
@@ -1677,6 +1773,8 @@ const basqueTranslation: TranslationType = {
                 totalVoters: "Bozkatzaile Guztiak",
                 nonVoters: "Ez-bozkatzaileak",
             },
+            exportAllAreas:
+                "Eremu guztien emaitzak {{format}} formatuan esportatu '{{item}}'-rentzat",
         },
         publish: {
             preview: {
@@ -1934,6 +2032,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ACTIVITY_LOGS: "Jarduera Egunkariak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
             },
             method: {
                 email: "Emaila",
@@ -1998,6 +2097,21 @@ const basqueTranslation: TranslationType = {
                     keycloakConfigOption: "Inportatu Keycloak Konfigurazioak",
                     RolesConfigOption: "Inportatu Rol eta Baimen Konfigurazioak",
                 },
+            },
+            previewScreen: {
+                label: "Aurreikuspenak",
+                noContent: "Ez da aurreikuspenik aurkitu",
+                table: {
+                    title: "Kanpoko aurrebistak",
+                    description:
+                        "Kanpoko eskaeren bidez sortutako hautestontzi-estiloen aurrebisten erregistroa",
+                    requestedBy: "Eskatzailea",
+                    document: "Dokumentua",
+                    url: "URLa",
+                },
+            },
+            languages: {
+                default: "Lehenetsitako hizkuntza",
             },
         },
         approvalsScreen: {
@@ -2072,6 +2186,69 @@ const basqueTranslation: TranslationType = {
                 title: "Probak",
                 testElectionVoterCount: "Proba Hauteskunde Bozkatzaile Kopurua",
             },
+        },
+        certificateAuthorities: {
+            title: "Ziurtagiriak",
+            subtitle:
+                "Hauteskunde-ekitaldi honetarako fidagarriak diren ziurtagiri-agintariak (CA). Inportatutako CA-k hautesleen ziurtagiriak egiaztatzeko erabiltzen dira.",
+            importButton: "Ziurtagiriak inportatu",
+            type: {
+                root: "Erroa",
+                intermediate: "Tartekoa",
+            },
+            expiry: {
+                expired: "Iraungita",
+                expiringSoon: "Laster iraungiko da",
+                valid: "Baliozkoa",
+            },
+            columns: {
+                commonName: "Izen arrunta",
+                type: "Mota",
+                issuerCn: "Eragilearen CN",
+                notBefore: "Baliozko hasieratik",
+                notAfter: "Iraungitzen da",
+                fingerprint: "SHA256 Hatz-marka",
+            },
+            importDialog: {
+                title: "Ziurtagiri-agintaritzak inportatu",
+                subtitle: "PEM fitxategi batetik CA ziurtagiri bat edo gehiago inportatu",
+                description:
+                    "Hautatu ziurtagiri bat edo gehiago dituen PEM fitxategia. Multzoak onartzen dira — ziurtagiri bakoitza banaka inportatzen da.",
+                selectFile: "PEM fitxategia hautatu",
+                fileLoaded: "Fitxategia kargatuta ({{bytes}} byte)",
+                importButton: "Inportatu",
+            },
+            notify: {
+                importSuccess: "{{inserted}} ziurtagiri inportatuta.",
+                importSkipped: "{{count}} saltatu (dagoeneko badaude).",
+                importErrors: "Inportazio arazoak: {{errors}}",
+                importError: "Inportazioa huts egin du: {{error}}",
+                deleteSuccess: "Ziurtagiria ezabatuta.",
+                deleteError: "Errorea ziurtagiria ezabatzean.",
+                exportSuccess: "Ziurtagiri(ak) arrakastaz esportatu da(dira).",
+                exportError: "Errorea ziurtagiriak esportatzean.",
+            },
+            exportDialog: {
+                title: "Ziurtagiri-agintaritzak esportatu",
+                description: "{{amount}} ziurtagiri esportatuko duzu.",
+                all: "guztiak",
+            },
+            deleteDialog: {
+                description: "Ziur zaude {{count}} ziurtagiri(ak) ezabatu nahi dituzula?",
+            },
+            emptyHeader:
+                "Ez da ziurtagiri-agintaritzarik inportatu hauteskunde-ekitaldi honetarako.",
+            fileReadError: "Fitxategia irakurtzean huts egin du.",
+            viewDialog: {
+                title: "Ziurtagiri-agintaritzaren xehetasunak",
+                subject: "Gaia",
+                issuer: "Eragilea",
+                serialNumber: "Serie-zenbakia",
+                pemContent: "PEM edukia",
+            },
+            confirmDelete: "Ziurtagiri-agintaritza ezabatu",
+            confirmDeleteDescription:
+                'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
         },
     },
 }

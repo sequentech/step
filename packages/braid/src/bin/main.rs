@@ -33,7 +33,7 @@ cfg_if::cfg_if! {
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
-    b3_url: String,
+    b4_url: String,
 
     #[arg(short, long)]
     trustee_config: PathBuf,
@@ -50,7 +50,7 @@ Entry point for a braid mixnet trustee.
 
 Example run command
 
-cargo run --release --bin main  -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
+cargo run --release --bin main  -- --b4-url http://127.0.0.1:50051 --trustee-config trustee.toml
 
 A mixnet trustee will periodically:
 
@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
-                error!("Error listing board names: '{}' ({})", error, args.b3_url);
+                error!("Error listing board names: '{}' ({})", error, args.b4_url);
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }
@@ -225,4 +225,18 @@ async fn main() -> Result<()> {
 fn get_ignored_boards() -> Vec<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
+}
+
+/// Checks for and creates a directory if needed.
+fn ensure_directory(folder: PathBuf) -> Result<()> {
+    let path = folder.as_path();
+    if path.exists() {
+        if path.is_dir() {
+            Ok(())
+        } else {
+            Err(anyhow!("Path is not a folder: {}", path.display()))
+        }
+    } else {
+        fs::create_dir(path).map_err(|err| anyhow!(err))
+    }
 }
