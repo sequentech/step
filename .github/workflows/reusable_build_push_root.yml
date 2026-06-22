@@ -42,6 +42,11 @@ jobs:
             file: packages/Dockerfile.prod
             spa_name: "ballot-verifier"
 
+          - service: results-portal
+            context: packages
+            file: packages/Dockerfile.prod
+            spa_name: "results-portal"
+
           - service: harvest
             context: packages
             file: packages/harvest/Dockerfile.prod

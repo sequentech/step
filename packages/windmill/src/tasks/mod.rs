@@ -42,6 +42,7 @@ pub mod plugins_tasks;
 pub mod post_tally;
 pub mod prepare_publication_preview;
 pub mod process_board;
+pub mod publish_results_website;
 pub mod render_document_pdf;
 pub mod render_report;
 pub mod review_boards;

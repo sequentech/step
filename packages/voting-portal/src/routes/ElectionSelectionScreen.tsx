@@ -129,6 +129,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const isKiosk = authContext.isKiosk()
     let [getElectionClassName] = useElectionClassName()
 
@@ -209,6 +210,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
+    const resultsUrl =
+        globalSettings.RESULTS_PORTAL_URL && eventId && !isVotingOpen()
+            ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}/elections/${electionId}`
+            : undefined
+
     useEffect(() => {
         if (visitedBypassChooser) {
             console.log("visitedBypassChooser")
@@ -229,6 +235,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
+            resultsUrl={resultsUrl}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}

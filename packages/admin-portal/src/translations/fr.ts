@@ -860,6 +860,8 @@ const frenchTranslation: TranslationType = {
                 "tally-results-read": "Lire Résultats de Comptage",
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
+                "publish-results-read": "Lire Publication des Résultats",
+                "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
