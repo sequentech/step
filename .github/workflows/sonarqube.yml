@@ -175,10 +175,28 @@ jobs:
         with:
           java-version: '17'
           distribution: 'corretto'
-      - name: Install Maven
+      - name: Ensure Maven
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y maven
+          if command -v mvn >/dev/null 2>&1; then
+            echo "Maven already available: $(mvn -v | head -n 1)"
+            exit 0
+          fi
+
+          sudo mkdir -p /usr/share/man/man1
+          for attempt in 1 2 3; do
+            echo "Installing Maven (attempt $attempt/3)"
+            if sudo apt-get update && sudo apt-get install -y maven; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Failed to install Maven after 3 attempts."
+              exit 1
+            fi
+            sleep 15
+          done
+
+          mvn -v
       - name: SonarQube Scan for Java
         if: github.event_name == 'pull_request'
         env:
