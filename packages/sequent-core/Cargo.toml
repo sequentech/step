@@ -152,8 +152,8 @@ default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]
-jwt = ["time"]
 tracing = ["dep:tracing"]
+jwt = ["time", "tracing"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
