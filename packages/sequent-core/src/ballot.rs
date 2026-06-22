@@ -1817,9 +1817,11 @@ pub struct ElectionEventStatus {
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
     pub early_voting_status: VotingStatus,
+    pub telephone_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
     pub early_voting_period_dates: PeriodDates,
+    pub telephone_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
@@ -1829,9 +1831,11 @@ impl Default for ElectionEventStatus {
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             early_voting_status: VotingStatus::NOT_STARTED,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
             early_voting_period_dates: Default::default(),
+            telephone_voting_period_dates: Default::default(),
         }
     }
 }
@@ -1846,6 +1850,9 @@ impl ElectionEventStatus {
             VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status.clone()
             }
         }
     }
@@ -1889,6 +1896,10 @@ impl ElectionEventStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status = new_status.clone();
+                &mut self.telephone_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -2020,6 +2031,7 @@ pub enum VotingStatusChannel {
     ONLINE,
     KIOSK,
     EARLY_VOTING,
+    TELEPHONE,
 }
 
 impl VotingStatusChannel {
@@ -2031,6 +2043,7 @@ impl VotingStatusChannel {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
             &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
             &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
+            &VotingStatusChannel::TELEPHONE => channels.telephone.clone(),
         }
     }
 }
@@ -2296,9 +2309,11 @@ pub struct ElectionStatus {
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
     pub early_voting_status: VotingStatus,
+    pub telephone_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
     pub early_voting_period_dates: PeriodDates,
+    pub telephone_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
 }
 
@@ -2310,9 +2325,11 @@ impl Default for ElectionStatus {
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             early_voting_status: VotingStatus::NOT_STARTED,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
             early_voting_period_dates: Default::default(),
+            telephone_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
         }
     }
@@ -2329,6 +2346,9 @@ impl ElectionStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
             }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status.clone()
+            }
         }
     }
 
@@ -2343,6 +2363,9 @@ impl ElectionStatus {
             }
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_period_dates.clone()
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_period_dates.clone()
             }
         }
     }
@@ -2386,6 +2409,10 @@ impl ElectionStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status = new_status.clone();
+                &mut self.telephone_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);

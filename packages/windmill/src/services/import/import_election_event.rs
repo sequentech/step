@@ -620,8 +620,10 @@ pub async fn process_election_event_file(
 
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
                 serde_json::to_value(status)
