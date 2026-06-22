@@ -1,14 +1,13 @@
 # B4 Testing Scripts - Summary
 
 ## Overview
-Created B4 equivalents of the existing testing scripts with support for the new **ciphertext width (W)** parameter.
+Testing scripts for the B4 / braid stack with support for the **ciphertext width (W)** parameter.
 
-## Scripts Created
+## Scripts
 
 ### 1. **demo-multi.ps1** ✅
 - **Purpose**: Native-only multi-board protocol demo
-- **Equivalent to**: demo-multi.ps1
-- **NEW Parameters**:
+- **Parameters**:
   - `-CiphertextWidth <int>` (default: 2) - Sets the W parameter for ciphertext width
 - **Usage Examples**:
   ```powershell
@@ -27,12 +26,12 @@ Created B4 equivalents of the existing testing scripts with support for the new 
 
 ### 2. **demo-browser.ps1** ✅
 - **Purpose**: Browser + Native trustees demo
-- **Equivalent to**: demo-browser.ps1
-- **NEW Parameters**:
+- **Parameters**:
   - `-CiphertextWidth <int>` (default: 2) - Sets the W parameter
 - **Prerequisites**:
   - LocalStack running (`.\localstack.ps1`)
   - WASM build complete (`.\build-wasm.ps1`)
+  - Web server running in a separate terminal (`.\serve.ps1`) so the browser trustee page is reachable
 - **Usage Examples**:
   ```powershell
   # Default W=2
@@ -49,36 +48,29 @@ Created B4 equivalents of the existing testing scripts with support for the new 
 
 ### 3. **b4.ps1** ✅
 - **Purpose**: Launch B4 bulletin board server
-- **Equivalent to**: b4.ps1
 - **Changes**: Targets `b4` package
 
 ### 4. **build-wasm.ps1** ✅
 - **Purpose**: Build braid for WebAssembly
-- **Equivalent to**: build-wasm.ps1
-- **Already exists**: Located in workspace root
+- **Location**: Workspace root
 
-## Key Differences from Original Scripts
+## Invocation Details
 
 ### Package Targeting
-- **Old**: `--bin demo_tool` (from braid package)
-- **New**: `--package braid --bin demo_tool`
-
-- **Old**: `--bin b4` (from b4 package)
-- **New**: `--package b4 --bin b4`
-
-- **Old**: `--bin main_concurrent` (from braid)
-- **New**: `--package braid --bin main_concurrent`
+- `--package braid --bin demo_tool`
+- `--package b4 --bin b4`
+- `--package braid --bin main_concurrent`
 
 ### Ciphertext Width Parameter
-All new scripts accept `-CiphertextWidth <int>` parameter:
+All scripts accept the `-CiphertextWidth <int>` parameter:
 - Passed to `demo_tool gen-configs --ciphertext-width $CiphertextWidth`
-- Default value: 2 (backward compatible with old code)
+- Default value: 2
 - Supported values: 1, 2, 3, 4 (per dispatch macro)
 
-### Stack Usage
+### Stack
 - **Messages**: b4
-- **Protocol**: braid (instead of braid)
-- **Crypto**: cryptography (instead of strand)
+- **Protocol**: braid
+- **Crypto**: cryptography (vsc crate)
 - **Server**: b4 binary
 
 ## Testing Workflow
@@ -106,8 +98,8 @@ cargo build --package braid --package b4 --release
 # 1. Start LocalStack (required for S3)
 .\localstack.ps1
 
-# 2. Build WASM (in separate terminal)
-.\build-wasm.ps1
+# 2. Start the web server in a separate terminal (also builds WASM)
+.\serve.ps1
 
 # 3. Run browser demo (in another terminal)
 .\demo-browser.ps1 -CiphertextWidth 2
@@ -135,12 +127,11 @@ cargo build --package braid --package b4 --release
 4. **Start B4 Server**: Launch bulletin board
 5. **Initialize Board**: Single board for browser test
 6. **Extract Browser Config**: Get keys for browser trustee
-7. **Start Web Server**: Python http.server on port 8080
-8. **Start Native Trustees**: All except one slot
-9. **Display Instructions**: Show browser setup steps
-10. **Wait for User**: Pause until browser connects
-11. **Post Ballots**: After browser trustee ready
-12. **Monitor**: Wait indefinitely (Ctrl+C to exit)
+7. **Start Native Trustees**: All except one slot
+8. **Display Instructions**: Show browser setup steps (including running `serve.ps1`)
+9. **Wait for User**: Pause until browser connects
+10. **Post Ballots**: After browser trustee ready
+11. **Monitor**: Wait indefinitely (Ctrl+C to exit)
 
 ## Binaries Used
 
@@ -213,17 +204,8 @@ $env:AWS_FORCE_PATH_STYLE = "true"
 - Check trustee windows for errors
 - Verify threshold ≤ number of active trustees
 
-## Next Steps
-
-1. ✅ **Scripts Created**: demo-multi.ps1, demo-browser.ps1
-2. ⏳ **Run Tests**: Execute with different W values
-3. ⏳ **Verify Results**: Check protocol completion
-4. ⏳ **Test Browser**: Verify WASM integration
-5. ⏳ **Performance**: Benchmark W=1,2,3,4
-
 ## Notes
 
-- **Database**: Scripts use `b4.db` filename
-- **Monitor Tool**: Original demo-multi.ps1 uses a monitor binary - not ported yet to B4
-- **Serve Script**: Can use existing serve.ps1 or create serve.ps1 if needed
+- **Database**: Scripts use the `b4.db` filename
+- **Serve Script**: Browser testing uses `serve.ps1`, which builds the WASM client and starts the Python web server on port 8080
 - **Quick Test**: `-QuickTest` flag reduces trustees/ballots for fast validation
