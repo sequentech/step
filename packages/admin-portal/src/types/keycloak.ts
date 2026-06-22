@@ -56,6 +56,8 @@ export enum IPermissions {
     TALLY_RESULTS_READ = "tally-results-read",
     PUBLISH_READ = "publish-read",
     PUBLISH_WRITE = "publish-write",
+    PUBLISH_RESULTS_READ = "publish-results-read",
+    PUBLISH_RESULTS_WRITE = "publish-results-write",
     LOGS_READ = "logs-read",
     KEYS_READ = "keys-read",
     TASKS_READ = "tasks-read",

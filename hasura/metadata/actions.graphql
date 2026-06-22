@@ -20,6 +20,15 @@ type Query {
     count_users(body: CountUsersInput!): CountUsersOutput!
 }
 
+type Query {
+    fetchResultsArtifact(
+        election_event_id: String!
+        election_id: String
+        publication_id: String!
+        area_ids: [String!]
+    ): FetchResultsArtifactOutput!
+}
+
 type Mutation {
     createScheduledEvent(
         tenant_id: String!
@@ -221,6 +230,35 @@ type Mutation {
         tenant_id: String!
         election_event_id: String!
     ): ExportTasksExecutionOutput
+}
+
+type Mutation {
+    publishResultsWebsite(
+        election_event_id: String!
+        tally_session_id: String!
+        tally_session_execution_id: String!
+        results_event_id: String!
+        route_scope: String!
+        route_election_id: String
+        election_ids: [String!]!
+        contest_ids: [String!]!
+        access: String!
+        visibility_scope: String!
+    ): PublishResultsWebsiteOutput!
+}
+
+type Mutation {
+    revokeResultsPublication(
+        election_event_id: String!
+        publication_id: String!
+    ): RevokeResultsPublicationOutput!
+}
+
+type Query {
+    resolveResultsPublication(
+        ee_id: String!
+        election_id: String
+    ): ResolveResultsPublicationOutput
 }
 
 type Mutation {
@@ -1781,4 +1819,35 @@ type PhoneBlacklistEntry {
 
 type IdOutput {
     id: String!
+}
+
+type PublishResultsWebsiteOutput {
+    publication_id: String!
+    task_execution_id: String!
+    publication_status: String!
+    task_execution: tasks_execution_type!
+    error_msg: String
+}
+
+type ResolveResultsPublicationOutput {
+    tenant_id: String!
+    election_event_id: String!
+    access: String!
+    route_scope: String!
+    election_ids: [String!]!
+    publication_id: String!
+    manifest_public_path: String
+    manifest_url: String
+    manifest: jsonb
+}
+
+type FetchResultsArtifactOutput {
+    url: String
+    urls: [String!]!
+    artifacts: jsonb!
+}
+
+type RevokeResultsPublicationOutput {
+    publication_id: String!
+    publication_status: String!
 }

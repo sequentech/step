@@ -34,6 +34,7 @@ pub mod secret;
 pub mod tally_session;
 pub mod tally_session_contest;
 pub mod tally_session_execution;
+pub mod tally_results_publication;
 pub mod tally_session_resolution;
 pub mod tally_sheet;
 pub mod tally_sheet_import;

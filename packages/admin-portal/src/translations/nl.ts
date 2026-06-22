@@ -1006,6 +1006,8 @@ const dutchTranslation: TranslationType = {
                 "tally-results-read": "Telresultaten Lezen",
                 "publish-read": "Publicatie Lezen",
                 "publish-write": "Publicatie Bewerken",
+                "publish-results-read": "Resultatenpublicatie Lezen",
+                "publish-results-write": "Resultatenpublicatie Bewerken",
                 "logs-read": "Logs Lezen",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",

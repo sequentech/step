@@ -1006,6 +1006,8 @@ const basqueTranslation: TranslationType = {
                 "tally-results-read": "Irakurri Zenbaketa Emaitzak",
                 "publish-read": "Irakurri Argitalpena",
                 "publish-write": "Editatu Argitalpena",
+                "publish-results-read": "Irakurri Emaitzen Argitalpena",
+                "publish-results-write": "Editatu Emaitzen Argitalpena",
                 "logs-read": "Irakurri Egunkariak",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",

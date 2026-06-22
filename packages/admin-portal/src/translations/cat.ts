@@ -1008,6 +1008,8 @@ const catalanTranslation: TranslationType = {
                 "tally-results-read": "Llegir Resultats de Recompte",
                 "publish-read": "Llegir Publicació",
                 "publish-write": "Editar Publicació",
+                "publish-results-read": "Llegir Publicació de Resultats",
+                "publish-results-write": "Editar Publicació de Resultats",
                 "logs-read": "Llegir Registres",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",

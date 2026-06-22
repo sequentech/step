@@ -280,6 +280,18 @@ services:
       - 3000:8000
     stdin_open: true
 
+  results-portal:
+    profiles: ["full"]
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/results-portal:STEP_VERSION
+    platform: linux/amd64
+    container_name: results-portal
+    depends_on:
+      - admin-portal
+    restart: always
+    ports:
+      - 3004:8000
+    stdin_open: true
+
   immudb:
     profiles: ["full", "base"]
     container_name: immudb

@@ -83,6 +83,21 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: fetchResultsArtifact
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/fetch-results-artifact
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: admin-user
+      comment: Fetch voter-authorized results website artifact URLs
     - name: createScheduledEvent
       definition:
           kind: synchronous
@@ -490,6 +505,57 @@ actions:
               version: 2
       permissions:
           - role: tasks-read
+    - name: publishResultsWebsite
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/publish-results-website
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Publish selected tally contests to the results website
+    - name: resolveResultsPublication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/resolve-results-publication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+          - role: admin-user
+      comment: Resolve the active results website publication for authenticated viewers
+    - name: revokeResultsPublication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/revoke-results-publication
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Revoke an active results website publication
     - name: export_template
       definition:
           kind: synchronous
@@ -1709,4 +1775,8 @@ custom_types:
         - name: DeleteCertificateAuthorityOutput
         - name: PhoneBlacklistEntry
         - name: IdOutput
+        - name: PublishResultsWebsiteOutput
+        - name: ResolveResultsPublicationOutput
+        - name: FetchResultsArtifactOutput
+        - name: RevokeResultsPublicationOutput
     scalars: []

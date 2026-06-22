@@ -1004,6 +1004,8 @@ const englishTranslation = {
                 "tally-results-read": "Read Tally Results",
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
+                "publish-results-read": "Read Results Publication",
+                "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",

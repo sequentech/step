@@ -39,6 +39,7 @@ import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
 import {TallyResolutionPanel} from "./TallyResolutionPanel"
+import {ResultsWebsitePublication} from "./ResultsWebsitePublication"
 import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
@@ -1185,6 +1186,31 @@ export const TallyCeremony: React.FC = () => {
                                         }
                                         loading={transmissionLoading}
                                     />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
+
+                            <Accordion sx={{width: "100%"}}>
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                    <WizardStyles.AccordionTitle>
+                                        Publish to results website
+                                    </WizardStyles.AccordionTitle>
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    {tenantId && record?.id ? (
+                                        <ResultsWebsitePublication
+                                            tenantId={tenantId}
+                                            electionEventId={record.id}
+                                            tallySession={tally}
+                                            tallySessionExecution={tallySessionExecutions?.[0]}
+                                            resultsEventId={resultsEventId}
+                                            contests={contests ?? []}
+                                            elections={elections ?? []}
+                                        />
+                                    ) : (
+                                        <Alert severity="info">
+                                            Results publication is loading election context.
+                                        </Alert>
+                                    )}
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 

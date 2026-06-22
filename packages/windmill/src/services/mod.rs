@@ -47,6 +47,7 @@ pub mod providers;
 pub mod public_keys;
 pub mod reports;
 pub mod reports_vault;
+pub mod results_publication;
 pub mod serialize_tasks_logs;
 pub mod sql_utils;
 pub mod tally_sheet_import;
