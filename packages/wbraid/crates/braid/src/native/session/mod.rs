@@ -4,7 +4,7 @@
 
 // Native-specific session implementations with tokio optimizations
 pub mod session_m;
-pub mod session_master;
+pub mod session_manager;
 
 // Re-export generic Session from protocol (for backward compatibility)
 pub use crate::protocol::session::Session;

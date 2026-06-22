@@ -3,31 +3,46 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::Hasher;
+use cryptography::utils::hash::Hasher as HasherTrait;
 use crate::messages::artifact::Configuration;
-use strand::context::Ctx;
-use strand::hash::Hash;
-use strand::serialization::StrandSerialize;
+use cryptography::context::Context;
+use cryptography::utils::serialization::VSerializable;
+use cryptography::VSerializable as VSer;
+use sha3::Digest;
 
-pub const MAX_TRUSTEES: usize = 12;
+pub const MAX_TRUSTEES: usize = 8;
+pub const MAX_CIPHERTEXT_WIDTH: usize = 8; 
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
 pub const VERIFIER_INDEX: usize = 2000;
 pub const NULL_TRUSTEE: usize = 1001;
+
+// Hash type: using 64-byte SHA3-512 output
+pub type Hash = crate::CryptographicHash;
+
+/// Zero hash constant for comparisons
+#[inline]
+pub fn zero_hash() -> Hash {
+    use sha3::digest::array::Array;
+    Array([0u8; 64])
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Newtypes
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct ConfigurationHash(pub Hash);
+
 impl ConfigurationHash {
-    pub fn from_configuration<C: Ctx>(
+    pub fn from_configuration<C: Context>(
         configuration: &Configuration<C>,
     ) -> Result<ConfigurationHash> {
-        let bytes = configuration.strand_serialize()?;
-        let hash = strand::hash::hash(&bytes)?;
-        Ok(ConfigurationHash(strand::util::to_hash_array(&hash)?))
+        let bytes = configuration.ser();
+        let mut hasher = Hasher::hasher();
+        hasher.update(&bytes);
+        Ok(ConfigurationHash(hasher.finalize()))
     }
 }
 impl std::fmt::Debug for ConfigurationHash {
@@ -36,7 +51,7 @@ impl std::fmt::Debug for ConfigurationHash {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct ChannelHash(pub Hash);
 impl std::fmt::Debug for ChannelHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -44,7 +59,7 @@ impl std::fmt::Debug for ChannelHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct ChannelsHashes(pub THashes);
 impl std::fmt::Debug for ChannelsHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,7 +67,7 @@ impl std::fmt::Debug for ChannelsHashes {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct SharesHash(pub Hash);
 impl std::fmt::Debug for SharesHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -60,7 +75,7 @@ impl std::fmt::Debug for SharesHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct SharesHashes(pub THashes);
 impl std::fmt::Debug for SharesHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -68,7 +83,7 @@ impl std::fmt::Debug for SharesHashes {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct PublicKeyHash(pub Hash);
 impl std::fmt::Debug for PublicKeyHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -80,7 +95,7 @@ impl std::fmt::Debug for PublicKeyHash {
 // This allows accessing either one when pointing to a source of
 // ciphertexts (ballots or mix). The same typed hash is propagated
 // all the way from Ballots to DecryptionFactors predicates.
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct CiphertextsHash(pub Hash);
 impl std::fmt::Debug for CiphertextsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -88,7 +103,7 @@ impl std::fmt::Debug for CiphertextsHash {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct DecryptionFactorsHash(pub Hash);
 impl std::fmt::Debug for DecryptionFactorsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -96,7 +111,7 @@ impl std::fmt::Debug for DecryptionFactorsHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct DecryptionFactorsHashes(pub THashes);
 impl std::fmt::Debug for DecryptionFactorsHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -104,7 +119,7 @@ impl std::fmt::Debug for DecryptionFactorsHashes {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct MixingHashes(pub THashes);
 impl std::fmt::Debug for MixingHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -112,7 +127,7 @@ impl std::fmt::Debug for MixingHashes {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct PlaintextsHash(pub Hash);
 impl std::fmt::Debug for PlaintextsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -150,8 +165,9 @@ fn dbg_hash(h: &Hash) -> String {
     hex::encode(h)[0..10].to_string()
 }
 fn dbg_hashes<const N: usize>(hs: &[Hash; N]) -> String {
+    let zero = zero_hash();
     hs.map(|h| {
-        if h == [0u8; 64] {
+        if h == zero {
             "-".to_string()
         } else {
             hex::encode(h)[0..10].to_string()

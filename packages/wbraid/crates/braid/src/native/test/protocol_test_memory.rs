@@ -12,12 +12,14 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use strand::context::Ctx;
-use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use cryptography::context::Context;
+use cryptography::traits::groups::CryptographicGroup;
+use cryptography::cryptosystem::elgamal::PublicKey;
+use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::utils::serialization::variable::VSerializable;
+use cryptography::context::RistrettoCtx;
 
-use b4::messages::artifact::{Ballots, Configuration, Plaintexts};
+use b4::messages::artifact::{Configuration, Plaintexts};
 use b4::messages::message::Message;
 use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
@@ -25,11 +27,18 @@ use b4::messages::newtypes::NULL_TRUSTEE;
 use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::protocol::trustee::Trustee;
+use crate::protocol::board::NoOpStorage;
 use crate::native::test::vector_board::VectorBoard;
 use crate::native::test::vector_session::VectorSession;
 
-pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
-    let n_trustees = rand::rng().random_range(2..13);
+pub fn run<C: Context + 'static>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
+    crate::dispatch_ciphertext_width!(ciphertext_width, {
+        run_with_width::<C, W>(ciphertexts, batches)
+    })
+}
+
+fn run_with_width<C: Context + 'static, const W: usize>(ciphertexts: u32, batches: usize) {
+    let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
     // let n_trustees = 12;
@@ -43,8 +52,8 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
         .collect();
 
     let now = Instant::now();
-    let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
-    run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
+    let test: ProtocolTest<RistrettoCtx> = create_protocol_test::<RistrettoCtx, W>(n_trustees, &threshold).unwrap();
+    run_protocol_test::<RistrettoCtx, W>(test, ciphertexts, batches, &threshold).unwrap();
 
     let time = now.elapsed().as_millis() as f64 / 1000.0;
     info!(
@@ -55,14 +64,13 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
-fn run_protocol_test<C: Ctx + 'static>(
+fn run_protocol_test<C: Context + 'static, const W: usize>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
     let remote = test.remote.clone();
-    let ctx = test.ctx.clone();
     let mut sessions = vec![];
     let data = Arc::new(Mutex::new(remote));
 
@@ -91,28 +99,27 @@ fn run_protocol_test<C: Ctx + 'static>(
 
     let dkgpk = dkg_pk.unwrap();
 
-    let pk_bytes = dkgpk.strand_serialize()?;
-    let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
+    let pk_bytes = dkgpk.ser();
+    let pk_h = b4::hash_to_array(&pk_bytes)?;
 
     let pk_element = dkgpk.pk;
-    let pk = strand::elgamal::PublicKey::from_element(&pk_element, &test.ctx);
+    let pk = PublicKey::<C>::new(pk_element);
 
     let mut plaintexts_in = vec![];
-    let mut rng = ctx.get_rng();
+    let mut rng = C::get_rng();
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
+        let next_p: Vec<[C::Element; W]> = (0..count).map(|_| std::array::from_fn(|_| C::G::random_element(&mut rng))).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
-        let ballots: Vec<Ciphertext<C>> = next_p
+        let ballots: Vec<Ciphertext<C, W>> = next_p
             .par_iter()
             .map(|p| {
-                let encoded = ctx.encode(p).unwrap();
-                pk.encrypt(&encoded)
+                pk.encrypt(p)
             })
             .collect();
-        let ballot_batch = Ballots::new(ballots);
+        let ballot_batch = b4::messages::artifact::Ballots::new(ballots);
 
         let message = Message::ballots_msg(
             &test.cfg,
@@ -126,7 +133,7 @@ fn run_protocol_test<C: Ctx + 'static>(
         data.lock().unwrap().add(message);
     }
 
-    let mut plaintexts_out: Option<Vec<Plaintexts<C>>> = None;
+    let mut plaintexts_out: Option<Vec<b4::messages::artifact::Plaintexts<C, W>>> = None;
     for i in 0..30 {
         info!("Cycle {}", i);
 
@@ -135,9 +142,9 @@ fn run_protocol_test<C: Ctx + 'static>(
         });
 
         let decryptor = selected_trustees[0] - 1;
-        let plaintexts: Vec<Plaintexts<C>> = (0..batches)
-            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash((b + 1) as u64, decryptor))
-            .map(|p| Plaintexts::<C>(p.0.clone()))
+        let plaintexts: Vec<b4::messages::artifact::Plaintexts<C, W>> = (0..batches)
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash::<W>((b + 1) as u64, decryptor))
+            .map(|p| Plaintexts::<C, W>(p.0.clone()))
             .collect();
 
         if plaintexts.len() == batches {
@@ -148,8 +155,8 @@ fn run_protocol_test<C: Ctx + 'static>(
 
     if let Some(plaintexts) = plaintexts_out {
         for (i, p) in plaintexts.iter().enumerate() {
-            let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[i].clone());
-            let actual: HashSet<C::P> = HashSet::from_iter(p.0.clone().0);
+            let expected: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts_in[i].clone());
+            let actual: HashSet<[C::Element; W]> = HashSet::from_iter(p.0.clone());
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
@@ -162,45 +169,45 @@ fn run_protocol_test<C: Ctx + 'static>(
     info!("* Completed");
     info!("* Trustees = {}", sessions.len());
     info!("* Threshold = {}", threshold.len());
-    info!("* Ciphertexts = {}", count);
+    info!("* Ciphertexts = {} (width = {})", count, W);
     info!("***************************************************************");
 
     Ok(())
 }
 
-pub struct ProtocolTest<C: Ctx> {
-    pub ctx: C,
+pub struct ProtocolTest<C: Context> {
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
+    pub trustees: Vec<Trustee<C, NoOpStorage>>,
     pub remote: VectorBoard,
 }
 
-pub fn create_protocol_test<C: Ctx>(
+pub fn create_protocol_test<C: Context, const W: usize>(
     n_trustees: usize,
     threshold: &[usize],
-    ctx: C,
 ) -> Result<ProtocolTest<C>> {
     let session_id = 0;
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
+    use cryptography::utils::signatures::SignatureScheme;
+    let mut rng = C::get_rng();
+    let pmkey = C::SignatureScheme::gen_signing_key(&mut rng);
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<Trustee<C, NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
         .map(|i| {
-            let sk = StrandSignatureSk::generate().unwrap();
+            let sk = C::SignatureScheme::gen_signing_key(&mut rng);
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
-            let encryption_key = strand::symm::gen_key();
-            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
+            let pk = C::SignatureScheme::verifying_key(&sk);
             (
                 Trustee::new(
                     i.to_string(),
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    crate::native::board::NoOpStorage::new(),
+                    NoOpStorage::new(),
                     None,
                 ),
                 pk,
@@ -210,9 +217,10 @@ pub fn create_protocol_test<C: Ctx>(
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+        C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
+        W, // ciphertext_width (now generic)
         PhantomData,
     );
 
@@ -221,7 +229,6 @@ pub fn create_protocol_test<C: Ctx>(
     remote.add(message);
 
     Ok(ProtocolTest {
-        ctx,
         cfg,
         protocol_manager: pm,
         trustees,

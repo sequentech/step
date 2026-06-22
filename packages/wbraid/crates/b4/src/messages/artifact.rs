@@ -6,34 +6,52 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use borsh::{BorshDeserialize, BorshSerialize};
-use strand::shuffler_product::StrandRectangle;
-use strand::zkp::{ChaumPedersen, Schnorr};
-
+use crate::Hasher;
+use cryptography::utils::hash::Hasher as HasherTrait;
 use crate::messages::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::messages::newtypes::{BatchNumber, MixNumber};
 
-use strand::serialization::StrandSerialize;
-use strand::shuffler::ShuffleProof;
-use strand::signature::StrandSignaturePk;
-use strand::symm;
-use strand::{context::Ctx, elgamal::Ciphertext};
+use cryptography::context::Context;
+use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::dkgd::recipient::DecryptionFactor;
+use cryptography::utils::serialization::{VSerializable, VDeserializable};
+use cryptography::VSerializable as VSer;
+use cryptography::utils::signatures::SignatureScheme;
+use cryptography::utils::symm;
+use cryptography::zkp::schnorr::SchnorrProof;
+use cryptography::zkp::shuffle::ShuffleProof;
+use sha3::Digest;
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct Configuration<C: Ctx> {
+#[derive(VSer)]
+pub struct Configuration<C: Context> {
     pub id: u128,
-    pub protocol_manager: StrandSignaturePk,
-    pub trustees: Vec<StrandSignaturePk>,
+    pub protocol_manager: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
+    pub trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
     pub threshold: usize,
+    pub ciphertext_width: usize,
     pub phantom: PhantomData<C>,
 }
 
-impl<C: Ctx> Configuration<C> {
+impl<C: Context> Clone for Configuration<C> {
+    fn clone(&self) -> Self {
+        Configuration {
+            id: self.id,
+            protocol_manager: self.protocol_manager.clone(),
+            trustees: self.trustees.clone(),
+            threshold: self.threshold,
+            ciphertext_width: self.ciphertext_width,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<C: Context> Configuration<C> {
     pub fn new(
         id: u128,
-        protocol_manager: StrandSignaturePk,
-        trustees: Vec<StrandSignaturePk>,
+        protocol_manager: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
+        trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
         threshold: usize,
+        ciphertext_width: usize,
         _phantom: PhantomData<C>,
     ) -> Configuration<C> {
         let c = Configuration {
@@ -41,6 +59,7 @@ impl<C: Ctx> Configuration<C> {
             protocol_manager,
             trustees,
             threshold,
+            ciphertext_width,
             phantom: PhantomData,
         };
         assert!(c.is_valid());
@@ -49,15 +68,16 @@ impl<C: Ctx> Configuration<C> {
     }
 
     pub fn is_valid(&self) -> bool {
-        let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(self.trustees.clone());
+        let unique: HashSet<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier> = HashSet::from_iter(self.trustees.clone());
 
         (unique.len() == self.trustees.len())
             && (self.trustees.len() > 1
                 && self.trustees.len() <= crate::messages::newtypes::MAX_TRUSTEES)
             && (self.threshold > 1 && self.threshold <= self.trustees.len())
+            && (self.ciphertext_width >= 1 && self.ciphertext_width <= crate::messages::newtypes::MAX_CIPHERTEXT_WIDTH)
     }
 
-    pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
+    pub fn get_trustee_position(&self, trustee_pk: &<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier) -> Option<usize> {
         if trustee_pk == &self.protocol_manager {
             Some(PROTOCOL_MANAGER_INDEX as usize)
         } else {
@@ -78,17 +98,35 @@ impl<C: Ctx> Configuration<C> {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct Channel<C: Ctx> {
+pub struct Channel<C: Context> {
     // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
-    pub channel_pk: C::E,
-    pub pk_proof: Schnorr<C>,
+    pub channel_pk: C::Element,
+    pub pk_proof: SchnorrProof<C>,
     pub encrypted_channel_sk: symm::EncryptionData,
 }
-impl<C: Ctx> Channel<C> {
+
+impl<C: Context> VSerializable for Channel<C> {
+    fn ser(&self) -> Vec<u8> {
+        (&self.channel_pk, &self.pk_proof, &self.encrypted_channel_sk).ser()
+    }
+}
+
+impl<C: Context> VDeserializable for Channel<C> {
+    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let (channel_pk, pk_proof, encrypted_channel_sk) = 
+            <(C::Element, SchnorrProof<C>, symm::EncryptionData)>::deser(buffer)?;
+        Ok(Channel {
+            channel_pk,
+            pk_proof,
+            encrypted_channel_sk,
+        })
+    }
+}
+
+impl<C: Context> Channel<C> {
     pub fn new(
-        channel_pk: C::E,
-        pk_proof: Schnorr<C>,
+        channel_pk: C::Element,
+        pk_proof: SchnorrProof<C>,
         encrypted_channel_sk: symm::EncryptionData,
     ) -> Channel<C> {
         Channel {
@@ -106,29 +144,30 @@ impl<C: Ctx> Channel<C> {
 ///
 /// Strictly speaking this is not an artifact posted to
 /// bulletin board, but we define it here anyway.
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct TrusteeShareData<C: Ctx> {
+#[derive(VSer)]
+pub struct TrusteeShareData<C: Context> {
     pub channel: Channel<C>,
     pub shares: Vec<Shares<C>>,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct Shares<C: Ctx> {
+#[derive(Debug, VSer)]
+pub struct Shares<C: Context> {
     // Commitments to the coefficients of the generated polynomial
-    pub commitments: Vec<C::E>,
+    pub commitments: Vec<C::Element>,
     // One vector of bytes per trustee, including the share sent to
     // itself. The bytes are the serialization of the ElGamal
     // encryption of the share. See Ctx::encrypt_exp.
     pub encrypted_shares: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct DkgPublicKey<C: Ctx> {
-    pub pk: C::E,
-    pub verification_keys: Vec<C::E>,
+#[derive(Debug, VSer)]
+pub struct DkgPublicKey<C: Context> {
+    pub pk: C::Element,
+    pub verification_keys: Vec<C::Element>,
 }
-impl<C: Ctx> DkgPublicKey<C> {
-    pub fn new(pk: C::E, verification_keys: Vec<C::E>) -> DkgPublicKey<C> {
+
+impl<C: Context> DkgPublicKey<C> {
+    pub fn new(pk: C::Element, verification_keys: Vec<C::Element>) -> DkgPublicKey<C> {
         DkgPublicKey {
             pk,
             verification_keys,
@@ -136,131 +175,103 @@ impl<C: Ctx> DkgPublicKey<C> {
     }
 }
 
-use strand::serialization::StrandVector;
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct Ballots<C: Ctx> {
-    pub ciphertexts: StrandVector<Ciphertext<C>>,
+#[derive(Debug, VSer)]
+pub struct Ballots<C: Context, const W: usize> {
+    pub ciphertexts: Vec<Ciphertext<C, W>>,
 }
-impl<C: Ctx> Ballots<C> {
-    pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
-        Ballots {
-            ciphertexts: StrandVector(ciphertexts),
-        }
+
+impl<C: Context, const W: usize> Ballots<C, W> {
+    pub fn new(ciphertexts: Vec<Ciphertext<C, W>>) -> Ballots<C, W> {
+        Ballots { ciphertexts }
     }
 }
 
-#[derive(Clone, BorshSerialize, BorshDeserialize)]
-pub struct Mix<C: Ctx> {
-    pub ciphertexts: StrandVector<Ciphertext<C>>,
-    pub proof: Option<ShuffleProof<C>>,
+#[derive(Clone)]
+pub struct Mix<C: Context, const W: usize> {
+    pub ciphertexts: Vec<Ciphertext<C, W>>,
+    pub proof: Option<ShuffleProof<C, W>>,
     pub mix_number: MixNumber,
 }
-impl<C: Ctx> Mix<C> {
+
+impl<C: Context, const W: usize> VSerializable for Mix<C, W> {
+    fn ser(&self) -> Vec<u8> {
+        (&self.ciphertexts, &self.proof, &self.mix_number).ser()
+    }
+}
+
+impl<C: Context, const W: usize> VDeserializable for Mix<C, W> {
+    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let (ciphertexts, proof, mix_number) = 
+            <(Vec<Ciphertext<C, W>>, Option<ShuffleProof<C, W>>, MixNumber)>::deser(buffer)?;
+        Ok(Mix { ciphertexts, proof, mix_number })
+    }
+}
+
+impl<C: Context, const W: usize> Mix<C, W> {
     pub fn new(
-        ciphertexts: Vec<Ciphertext<C>>,
-        proof: ShuffleProof<C>,
+        ciphertexts: Vec<Ciphertext<C, W>>,
+        proof: ShuffleProof<C, W>,
         mix_number: MixNumber,
-    ) -> Mix<C> {
+    ) -> Mix<C, W> {
         Mix {
-            ciphertexts: StrandVector(ciphertexts),
-            proof: Some(proof),
-            mix_number,
-        }
-    }
-    pub fn null(mix_number: MixNumber) -> Mix<C> {
-        Mix {
-            ciphertexts: StrandVector(vec![]),
-            proof: None,
-            mix_number,
-        }
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct DecryptionFactors<C: Ctx> {
-    pub factors: StrandVector<C::E>,
-    pub proofs: StrandVector<ChaumPedersen<C>>,
-}
-impl<C: Ctx> DecryptionFactors<C> {
-    pub fn new(factors: Vec<C::E>, proofs: StrandVector<ChaumPedersen<C>>) -> DecryptionFactors<C> {
-        DecryptionFactors {
-            factors: StrandVector(factors),
-            proofs,
-        }
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct Plaintexts<C: Ctx>(pub StrandVector<C::P>);
-
-///////////////////////////////////////////////////////////////////////////
-// Wide artifacts
-///////////////////////////////////////////////////////////////////////////
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct BallotsWide<C: Ctx> {
-    pub ciphertexts: StrandRectangle<Ciphertext<C>>,
-}
-impl<C: Ctx> BallotsWide<C> {
-    pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
-        BallotsWide { ciphertexts }
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct MixWide<C: Ctx> {
-    pub ciphertexts: StrandRectangle<Ciphertext<C>>,
-    pub proof: Option<ShuffleProof<C>>,
-    pub mix_number: MixNumber,
-}
-impl<C: Ctx> MixWide<C> {
-    pub fn new(
-        ciphertexts: StrandRectangle<Ciphertext<C>>,
-        proof: ShuffleProof<C>,
-        mix_number: MixNumber,
-    ) -> MixWide<C> {
-        MixWide {
             ciphertexts,
             proof: Some(proof),
             mix_number,
         }
     }
-    pub fn null(mix_number: MixNumber) -> MixWide<C> {
-        let c = StrandRectangle::new(vec![vec![]]).expect("impossible");
-
-        MixWide {
-            ciphertexts: c,
+    pub fn null(mix_number: MixNumber) -> Mix<C, W> {
+        Mix {
+            ciphertexts: vec![],
             proof: None,
             mix_number,
         }
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct DecryptionFactorsWide<C: Ctx> {
-    pub factors: StrandRectangle<C::E>,
-    pub proofs: StrandRectangle<ChaumPedersen<C>>,
+/// Partial decryption data for transmission over the wire.
+///
+/// Contains decryption factors (value + proof pairs) without participant position.
+/// The position is determined by the message signature, not the message content.
+///
+/// This is the message-layer representation. The cryptography layer uses
+/// [`cryptography::dkgd::recipient::DecryptionFactors`] which includes the source position.
+#[derive(Debug)]
+pub struct PartialDecryption<C: Context, const W: usize> {
+    pub factors: Vec<DecryptionFactor<C, W>>,
 }
-impl<C: Ctx> DecryptionFactorsWide<C> {
-    pub fn new(
-        factors: StrandRectangle<C::E>,
-        proofs: StrandRectangle<ChaumPedersen<C>>,
-    ) -> DecryptionFactorsWide<C> {
-        DecryptionFactorsWide { factors, proofs }
+
+impl<C: Context, const W: usize> VSerializable for PartialDecryption<C, W> {
+    fn ser(&self) -> Vec<u8> {
+        self.factors.ser()
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct PlaintextsWide<C: Ctx>(pub StrandRectangle<C::P>);
+impl<C: Context, const W: usize> VDeserializable for PartialDecryption<C, W> {
+    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let factors = Vec::<DecryptionFactor<C, W>>::deser(buffer)?;
+        Ok(PartialDecryption { factors })
+    }
+}
+
+impl<C: Context, const W: usize> PartialDecryption<C, W> {
+    pub fn new(factors: Vec<DecryptionFactor<C, W>>) -> PartialDecryption<C, W> {
+        PartialDecryption { factors }
+    }
+}
+
+#[derive(Debug, VSer)]
+pub struct Plaintexts<C: Context, const W: usize>(pub Vec<[C::Element; W]>);
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
-impl<C: Ctx> std::fmt::Debug for Configuration<C> {
+impl<C: Context> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let hashed = strand::hash::hash(&self.strand_serialize().unwrap()).unwrap();
+        let bytes = self.ser();
+        let mut hasher = Hasher::hasher();
+        hasher.update(&bytes);
+        let hashed = hasher.finalize();
         write!(
             f,
             "hash={:?}, trustees={:?}, pm={:?}, threshold={}",
@@ -272,13 +283,13 @@ impl<C: Ctx> std::fmt::Debug for Configuration<C> {
     }
 }
 
-impl<C: Ctx> std::fmt::Debug for Channel<C> {
+impl<C: Context> std::fmt::Debug for Channel<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "channel_pk={:?},", self.channel_pk,)
     }
 }
 
-impl<C: Ctx> std::fmt::Debug for Mix<C> {
+impl<C: Context, const W: usize> std::fmt::Debug for Mix<C, W> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mix_number={:?}", self.mix_number)
     }

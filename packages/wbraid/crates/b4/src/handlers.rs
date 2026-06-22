@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use cryptography::context::Context;
 use uuid::Uuid;
 use crate::api_types::{
     ContentType, GetMessageResponse, ListMessagesResponse, Message,
@@ -12,33 +12,11 @@ use crate::api_types::{
     GetMessagesMultiRequest, GetMessagesMultiResponse, BoardMessagesResponse,
     InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ConfirmMessagesMultiRequest, ConfirmMessagesMultiResponse,
+    BoardResponse, BoardsListResponse, CreateBoardRequest, GetMessagesQuery,
     MAX_INLINE_MESSAGE_SIZE,
 };
 
 use crate::{db, s3, state::AppState};
-
-#[derive(Debug, Serialize)]
-pub struct BoardResponse {
-    pub name: String,
-    pub created_at: i64,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BoardsListResponse {
-    pub boards: Vec<BoardResponse>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CreateBoardRequest {
-    pub name: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GetMessagesQuery {
-    pub last_id: Option<i64>,
-    pub limit: Option<i64>,
-}
 
 pub async fn create_board(
     State(state): State<AppState>,
@@ -147,9 +125,9 @@ pub async fn initiate_message(
     }
 }
 
-pub async fn confirm_message(
+pub async fn confirm_message<C: Context>(
     State(state): State<AppState>,
-    Path((board_name, id)): Path<(String, String)>,
+    Path((board_name, s3_message_id)): Path<(String, String)>,
     Json(req): Json<ConfirmMessageRequest>,
 ) -> Result<Json<ConfirmMessageResponse>, StatusCode> {
     // Validate board exists
@@ -165,23 +143,44 @@ pub async fn confirm_message(
         })?;
     
     let timestamp = Utc::now().timestamp();
-    let version = "1".to_string(); // Use schema version
+    let version = req.version;
 
     // Check if this is an S3 message or inline message
     if let Some(data) = req.data {
-        // Inline message
+        // Inline message - deserialize to extract metadata
+        use cryptography::utils::serialization::{VDeserializable, VSerializable};
+        use crate::messages::message::Message as B4Message;
+        use base64::{Engine as _, engine::general_purpose};
+        
+        let parsed_msg = B4Message::<C>::deser(&data)
+            .map_err(|e| {
+                tracing::error!("Failed to deserialize message for board '{}': {}", board_name, e);
+                StatusCode::BAD_REQUEST
+            })?;
+        
+        // Extract metadata from the deserialized message
+        let sender_pk_bytes = parsed_msg.sender.pk.ser();
+        let sender_pk = general_purpose::STANDARD.encode(&sender_pk_bytes);
+        
+        let statement_kind = format!("{:?}", parsed_msg.statement.get_kind());
+        let batch: i32 = parsed_msg.statement.get_batch_number().try_into()
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+        let mix_number: i32 = parsed_msg.statement.get_mix_number().try_into()
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+        
         let size = data.len();
         let content_type = ContentType::Inline { data: data.clone() };
         
         let msg = Message {
-            id: id.clone(),
+            id: s3_message_id.clone(),
             timestamp,
             size,
             content_type,
-            sender_pk: req.sender_pk.clone(),
-            statement_kind: req.statement_kind.clone(),
-            batch: req.batch,
-            mix_number: req.mix_number,
+            sender_pk: sender_pk.clone(),
+            statement_kind: statement_kind.clone(),
+            batch,
+            mix_number,
+            version: version.clone(),
         };
 
         db::insert_message(
@@ -191,10 +190,10 @@ pub async fn confirm_message(
             Some(data.as_slice()),
             None,
             &version,
-            &req.sender_pk,
-            &req.statement_kind,
-            req.batch,
-            req.mix_number,
+            &sender_pk,
+            &statement_kind,
+            batch,
+            mix_number,
         )
             .await
             .map_err(|e| {
@@ -203,40 +202,68 @@ pub async fn confirm_message(
             })?;
 
     } else {
-        // S3 message - verify upload and get size
-        let s3_key = format!("{}/messages/{}", board_name, id);
+        // S3 message - download, deserialize to extract metadata
+        let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
         
-        // Get object metadata from S3 to determine size
-        tracing::debug!("[S3] HEAD s3://{}/{}", state.bucket_name, s3_key);
-        let size = match state.s3_client
-            .head_object()
+        // Download the message from S3 to extract metadata
+        tracing::debug!("[S3] GET s3://{}/{} for metadata extraction", state.bucket_name, s3_key);
+        let data = match state.s3_client
+            .get_object()
             .bucket(&state.bucket_name)
             .key(&s3_key)
             .send()
             .await
         {
             Ok(output) => {
-                let size = output.content_length().unwrap_or(0) as usize;
-                tracing::debug!("[S3] Object found: {} bytes", size);
-                size
+                let bytes = output.body.collect().await
+                    .map_err(|e| {
+                        tracing::error!("[S3] Failed to read object body: {}", e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?
+                    .to_vec();
+                tracing::debug!("[S3] Downloaded {} bytes", bytes.len());
+                bytes
             },
             Err(e) => {
-                tracing::error!("[S3] Failed to HEAD object: {}", e);
+                tracing::error!("[S3] Failed to GET object for confirmation: {}", e);
                 return Err(StatusCode::BAD_REQUEST);
             }
         };
+        
+        // Deserialize to extract metadata
+        use cryptography::utils::serialization::{VDeserializable, VSerializable};
+        use crate::messages::message::Message as B4Message;
+        use base64::{Engine as _, engine::general_purpose};
+        
+        let parsed_msg = B4Message::<C>::deser(&data)
+            .map_err(|e| {
+                tracing::error!("Failed to deserialize S3 message for board '{}': {}", board_name, e);
+                StatusCode::BAD_REQUEST
+            })?;
+        
+        // Extract metadata from the deserialized message
+        let sender_pk_bytes = parsed_msg.sender.pk.ser();
+        let sender_pk = general_purpose::STANDARD.encode(&sender_pk_bytes);
+        
+        let statement_kind = format!("{:?}", parsed_msg.statement.get_kind());
+        let batch: i32 = parsed_msg.statement.get_batch_number().try_into()
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+        let mix_number: i32 = parsed_msg.statement.get_mix_number().try_into()
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
 
+        let size = data.len();
         let content_type = ContentType::S3 { key: s3_key.clone() };
         
         let msg = Message {
-            id: id.clone(),
+            id: s3_message_id.clone(),
             timestamp,
             size,
             content_type,
-            sender_pk: req.sender_pk.clone(),
-            statement_kind: req.statement_kind.clone(),
-            batch: req.batch,
-            mix_number: req.mix_number,
+            sender_pk: sender_pk.clone(),
+            statement_kind: statement_kind.clone(),
+            batch,
+            mix_number,
+            version: version.clone(),
         };
 
         db::insert_message(
@@ -246,10 +273,10 @@ pub async fn confirm_message(
             None,
             Some(s3_key.as_str()),
             &version,
-            &req.sender_pk,
-            &req.statement_kind,
-            req.batch,
-            req.mix_number,
+            &sender_pk,
+            &statement_kind,
+            batch,
+            mix_number,
         )
             .await
             .map_err(|e| {
@@ -259,6 +286,7 @@ pub async fn confirm_message(
 
     }
 
+    tracing::info!("confirm_message: inserted one message to board '{}', s3_message_id {}", board_name, s3_message_id);
     Ok(Json(ConfirmMessageResponse { success: true }))
 }
 
@@ -391,7 +419,7 @@ pub async fn get_messages(
         });
     }
     
-    tracing::debug!("get_messages: returning {} messages with download URLs", enriched_messages.len());
+    tracing::info!("get_messages: returning {} messages with download URLs", enriched_messages.len());
     Ok(Json(GetMessagesResponse { messages: enriched_messages }))
 }
 
@@ -489,12 +517,12 @@ pub async fn initiate_messages_multi(
         let mut uploads = Vec::new();
         
         for msg_meta in board_req.messages {
-            let message_id = Uuid::new_v4().to_string();
+            let s3_message_id = Uuid::new_v4().to_string();
             let size = msg_meta.size;
             
             if size > MAX_INLINE_MESSAGE_SIZE {
                 // Large message - generate S3 upload URL
-                let s3_key = format!("{}/messages/{}", board_name, message_id);
+                let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
                 
                 tracing::debug!("[S3] Generating upload URL for s3://{}/{}", state.bucket_name, s3_key);
                 let upload_url = s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
@@ -506,14 +534,14 @@ pub async fn initiate_messages_multi(
                 tracing::debug!("[S3] Generated upload URL for board '{}'", board_name);
                 
                 uploads.push(MessageUploadInfo {
-                    message_id,
+                    message_id: s3_message_id,
                     upload_url: Some(upload_url),
                     should_upload: true,
                 });
             } else {
                 // Small message - client should send data in confirm request
                 uploads.push(MessageUploadInfo {
-                    message_id,
+                    message_id: s3_message_id,
                     upload_url: None,
                     should_upload: false,
                 });
@@ -533,7 +561,7 @@ pub async fn initiate_messages_multi(
     }))
 }
 
-pub async fn confirm_messages_multi(
+pub async fn confirm_messages_multi<C: Context>(
     State(state): State<AppState>,
     Json(req): Json<ConfirmMessagesMultiRequest>,
 ) -> Result<Json<ConfirmMessagesMultiResponse>, StatusCode> {
@@ -558,14 +586,14 @@ pub async fn confirm_messages_multi(
             })?;
         
         let timestamp = Utc::now().timestamp();
-        let version = "1".to_string();
         
         let mut inline_count = 0;
         let mut s3_count = 0;
         let confirmation_count = board_req.confirmations.len();
         
         for confirmation in board_req.confirmations {
-            let message_id = &confirmation.message_id;
+            let s3_message_id = &confirmation.message_id;
+            let version = &confirmation.version;
             
             if let Some(data) = confirmation.data {
                 // Inline message - extract metadata from message data
@@ -573,20 +601,20 @@ pub async fn confirm_messages_multi(
                 let size = data.len();
                 
                 // Deserialize to extract metadata
-                use strand::serialization::StrandDeserialize;
+                use cryptography::utils::serialization::{VDeserializable, VSerializable};
                 use crate::messages::message::Message as B4Message;
+
+                use base64::{Engine as _, engine::general_purpose};
                 
-                let parsed_msg = B4Message::strand_deserialize(&data)
+                let parsed_msg = B4Message::<C>::deser(&data)
                     .map_err(|e| {
                         tracing::error!("Failed to deserialize message for board '{}': {}", board_name, e);
                         StatusCode::BAD_REQUEST
                     })?;
                 
-                let sender_pk = parsed_msg.sender.pk.to_der_b64_string()
-                    .map_err(|e| {
-                        tracing::error!("Failed to encode sender_pk for board '{}': {}", board_name, e);
-                        StatusCode::INTERNAL_SERVER_ERROR
-                    })?;
+                let sender_pk_bytes = parsed_msg.sender.pk.ser();
+                let sender_pk = general_purpose::STANDARD.encode(&sender_pk_bytes);
+                
                 let statement_kind = format!("{:?}", parsed_msg.statement.get_kind());
                 let batch: i32 = parsed_msg.statement.get_batch_number().try_into()
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -596,7 +624,7 @@ pub async fn confirm_messages_multi(
                 let content_type = ContentType::Inline { data: data.clone() };
                 
                 let msg = Message {
-                    id: message_id.clone(),
+                    id: s3_message_id.clone(),
                     timestamp,
                     size,
                     content_type,
@@ -604,6 +632,7 @@ pub async fn confirm_messages_multi(
                     statement_kind: statement_kind.clone(),
                     batch,
                     mix_number,
+                    version: version.clone(),
                 };
                 
                 db::insert_message(
@@ -612,7 +641,7 @@ pub async fn confirm_messages_multi(
                     &msg,
                     Some(data.as_slice()),
                     None,
-                    &version,
+                    version,
                     &sender_pk,
                     &statement_kind,
                     batch,
@@ -626,7 +655,7 @@ pub async fn confirm_messages_multi(
             } else {
                 // S3 message - download to extract metadata
                 s3_count += 1;
-                let s3_key = format!("{}/messages/{}", board_name, message_id);
+                let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
                 
                 // Download message from S3 to extract metadata
                 tracing::debug!("[S3] GET s3://{}/{} (multi-board confirm)", state.bucket_name, s3_key);
@@ -651,20 +680,19 @@ pub async fn confirm_messages_multi(
                 tracing::debug!("[S3] Downloaded {} bytes from s3://{}/{}", size, state.bucket_name, s3_key);
                 
                 // Deserialize to extract metadata
-                use strand::serialization::StrandDeserialize;
+                use cryptography::utils::serialization::{VDeserializable, VSerializable};
                 use crate::messages::message::Message as B4Message;
+                use base64::{Engine as _, engine::general_purpose};
                 
-                let parsed_msg = B4Message::strand_deserialize(&data)
+                let parsed_msg = B4Message::<C>::deser(&data)
                     .map_err(|e| {
                         tracing::error!("Failed to deserialize S3 message for board '{}': {}", board_name, e);
                         StatusCode::BAD_REQUEST
                     })?;
                 
-                let sender_pk = parsed_msg.sender.pk.to_der_b64_string()
-                    .map_err(|e| {
-                        tracing::error!("Failed to encode sender_pk for board '{}': {}", board_name, e);
-                        StatusCode::INTERNAL_SERVER_ERROR
-                    })?;
+                let sender_pk_bytes = parsed_msg.sender.pk.ser();
+                let sender_pk = general_purpose::STANDARD.encode(&sender_pk_bytes);
+                
                 let statement_kind = format!("{:?}", parsed_msg.statement.get_kind());
                 let batch: i32 = parsed_msg.statement.get_batch_number().try_into()
                     .map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -674,7 +702,7 @@ pub async fn confirm_messages_multi(
                 let content_type = ContentType::S3 { key: s3_key.clone() };
                 
                 let msg = Message {
-                    id: message_id.clone(),
+                    id: s3_message_id.clone(),
                     timestamp,
                     size,
                     content_type,
@@ -682,6 +710,7 @@ pub async fn confirm_messages_multi(
                     statement_kind: statement_kind.clone(),
                     batch,
                     mix_number,
+                    version: version.clone(),
                 };
                 
                 db::insert_message(
@@ -690,7 +719,7 @@ pub async fn confirm_messages_multi(
                     &msg,
                     None,
                     Some(&s3_key),
-                    &version,
+                    version,
                     &sender_pk,
                     &statement_kind,
                     batch,

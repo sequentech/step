@@ -2,16 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::messages::newtypes::*;
-use borsh::{BorshDeserialize, BorshSerialize};
-use strand::hash::Hash;
+use crate::{CryptographicHash, messages::newtypes::*};
+use cryptography::utils::serialization::{VSerializable, VDeserializable};
 use strum::Display;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Display, Debug)]
+#[derive(Clone, Display, Debug)]
 pub enum Statement {
     Configuration(Timestamp, ConfigurationHash),
     ConfigurationSigned(Timestamp, ConfigurationHash),
@@ -277,7 +276,7 @@ impl Statement {
     pub fn get_data(&self) -> (StatementType, Hash, BatchNumber, MixNumber, Timestamp) {
         let kind: StatementType;
         let ts: u64;
-        let cfg: [u8; 64];
+        let cfg: CryptographicHash;
         let mut batch = 0;
         let mut mix_number = 0;
 
@@ -360,15 +359,137 @@ impl Statement {
     }
 }
 
+impl VSerializable for Statement {
+    fn ser(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        match self {
+            Statement::Configuration(ts, cfg) => {
+                bytes.extend(0u8.ser());
+                bytes.extend((ts, cfg).ser());
+            },
+            Statement::ConfigurationSigned(ts, cfg) => {
+                bytes.extend(1u8.ser());
+                bytes.extend((ts, cfg).ser());
+            },
+            Statement::Channel(ts, cfg, ch) => {
+                bytes.extend(2u8.ser());
+                bytes.extend((ts, cfg, ch).ser());
+            },
+            Statement::ChannelsAllSigned(ts, cfg, chs) => {
+                bytes.extend(3u8.ser());
+                bytes.extend((ts, cfg, chs).ser());
+            },
+            Statement::Shares(ts, cfg, sh) => {
+                bytes.extend(4u8.ser());
+                bytes.extend((ts, cfg, sh).ser());
+            },
+            Statement::PublicKey(ts, cfg, pk, shs, chs) => {
+                bytes.extend(5u8.ser());
+                bytes.extend((ts, cfg, pk, shs, chs).ser());
+            },
+            Statement::PublicKeySigned(ts, cfg, pk, shs, chs) => {
+                bytes.extend(6u8.ser());
+                bytes.extend((ts, cfg, pk, shs, chs).ser());
+            },
+            Statement::Ballots(ts, cfg, bn, cth, pk, tset) => {
+                bytes.extend(7u8.ser());
+                bytes.extend((ts, cfg, bn, cth, pk, tset).ser());
+            },
+            Statement::Mix(ts, cfg, bn, cth1, cth2, mn) => {
+                bytes.extend(8u8.ser());
+                bytes.extend((ts, cfg, bn, cth1, cth2, mn).ser());
+            },
+            Statement::MixSigned(ts, cfg, bn, mn, cth1, cth2) => {
+                bytes.extend(9u8.ser());
+                bytes.extend((ts, cfg, bn, mn, cth1, cth2).ser());
+            },
+            Statement::DecryptionFactors(ts, cfg, bn, dfh, cth, shs) => {
+                bytes.extend(10u8.ser());
+                bytes.extend((ts, cfg, bn, dfh, cth, shs).ser());
+            },
+            Statement::Plaintexts(ts, cfg, bn, pth, dfhs, cth, pk) => {
+                bytes.extend(11u8.ser());
+                bytes.extend((ts, cfg, bn, pth, dfhs, cth, pk).ser());
+            },
+            Statement::PlaintextsSigned(ts, cfg, bn, pth, dfhs, cth, pk) => {
+                bytes.extend(12u8.ser());
+                bytes.extend((ts, cfg, bn, pth, dfhs, cth, pk).ser());
+            },
+        }
+        bytes
+    }
+}
+
+impl VDeserializable for Statement {
+    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let discriminant = u8::deser(&buffer[0..1])?;
+        let rest = &buffer[1..];
+        
+        Ok(match discriminant {
+            0 => {
+                let (ts, cfg) = VDeserializable::deser(rest)?;
+                Statement::Configuration(ts, cfg)
+            },
+            1 => {
+                let (ts, cfg) = VDeserializable::deser(rest)?;
+                Statement::ConfigurationSigned(ts, cfg)
+            },
+            2 => {
+                let (ts, cfg, ch) = VDeserializable::deser(rest)?;
+                Statement::Channel(ts, cfg, ch)
+            },
+            3 => {
+                let (ts, cfg, chs) = VDeserializable::deser(rest)?;
+                Statement::ChannelsAllSigned(ts, cfg, chs)
+            },
+            4 => {
+                let (ts, cfg, sh) = VDeserializable::deser(rest)?;
+                Statement::Shares(ts, cfg, sh)
+            },
+            5 => {
+                let (ts, cfg, pk, shs, chs) = VDeserializable::deser(rest)?;
+                Statement::PublicKey(ts, cfg, pk, shs, chs)
+            },
+            6 => {
+                let (ts, cfg, pk, shs, chs) = VDeserializable::deser(rest)?;
+                Statement::PublicKeySigned(ts, cfg, pk, shs, chs)
+            },
+            7 => {
+                let (ts, cfg, bn, cth, pk, tset) = VDeserializable::deser(rest)?;
+                Statement::Ballots(ts, cfg, bn, cth, pk, tset)
+            },
+            8 => {
+                let (ts, cfg, bn, cth1, cth2, mn) = VDeserializable::deser(rest)?;
+                Statement::Mix(ts, cfg, bn, cth1, cth2, mn)
+            },
+            9 => {
+                let (ts, cfg, bn, mn, cth1, cth2) = VDeserializable::deser(rest)?;
+                Statement::MixSigned(ts, cfg, bn, mn, cth1, cth2)
+            },
+            10 => {
+                let (ts, cfg, bn, dfh, cth, shs) = VDeserializable::deser(rest)?;
+                Statement::DecryptionFactors(ts, cfg, bn, dfh, cth, shs)
+            },
+            11 => {
+                let (ts, cfg, bn, pth, dfhs, cth, pk) = VDeserializable::deser(rest)?;
+                Statement::Plaintexts(ts, cfg, bn, pth, dfhs, cth, pk)
+            },
+            12 => {
+                let (ts, cfg, bn, pth, dfhs, cth, pk) = VDeserializable::deser(rest)?;
+                Statement::PlaintextsSigned(ts, cfg, bn, pth, dfhs, cth, pk)
+            },
+            _ => return Err(cryptography::utils::error::Error::DeserializationError(format!("Invalid Statement discriminant: {}", discriminant))),
+        })
+    }
+}
+
+
 ///////////////////////////////////////////////////////////////////////////
 // Enums necessary to store statements and artifacts in LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(
-    BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Display, Debug, core::hash::Hash,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, Display, Debug, core::hash::Hash)]
 #[repr(u8)]
-#[borsh(use_discriminant = true)]
 pub enum StatementType {
     Configuration = 0,
     ConfigurationSigned = 1,
@@ -385,91 +506,31 @@ pub enum StatementType {
     PlaintextsSigned = 12,
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Manual serialization necessary as [u8; 64] does not implement Default
-///////////////////////////////////////////////////////////////////////////
-
-impl BorshSerialize for ChannelsHashes {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| borsh::to_vec(t)).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
+impl VSerializable for StatementType {
+    fn ser(&self) -> Vec<u8> {
+        (*self as u8).ser()
     }
 }
 
-impl BorshDeserialize for ChannelsHashes {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-
-        let inner: std::io::Result<Vec<[u8; 64]>> = vectors
-            .iter()
-            .map(|v| <[u8; 64]>::try_from_slice(v))
-            .collect();
-
-        let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner?);
-
-        Ok(ChannelsHashes(ret))
-    }
-}
-
-impl BorshSerialize for SharesHashes {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| borsh::to_vec(t)).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl BorshDeserialize for SharesHashes {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-
-        let inner: std::io::Result<Vec<[u8; 64]>> = vectors
-            .iter()
-            .map(|v| <[u8; 64]>::try_from_slice(v))
-            .collect();
-
-        let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner?);
-
-        Ok(SharesHashes(ret))
-    }
-}
-
-impl BorshSerialize for DecryptionFactorsHashes {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        let vector = &self.0;
-
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| borsh::to_vec(t)).collect();
-        let inside = vecs?;
-
-        inside.serialize(writer)
-    }
-}
-
-impl BorshDeserialize for DecryptionFactorsHashes {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-
-        let inner: std::io::Result<Vec<[u8; 64]>> = vectors
-            .iter()
-            .map(|v| <[u8; 64]>::try_from_slice(v))
-            .collect();
-
-        let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner?);
-
-        Ok(DecryptionFactorsHashes(ret))
+impl VDeserializable for StatementType {
+    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        let disc = u8::deser(buffer)?;
+        match disc {
+            0 => Ok(StatementType::Configuration),
+            1 => Ok(StatementType::ConfigurationSigned),
+            2 => Ok(StatementType::Channel),
+            3 => Ok(StatementType::ChannelsAllSigned),
+            4 => Ok(StatementType::Shares),
+            5 => Ok(StatementType::PublicKey),
+            6 => Ok(StatementType::PublicKeySigned),
+            7 => Ok(StatementType::Ballots),
+            8 => Ok(StatementType::Mix),
+            9 => Ok(StatementType::MixSigned),
+            10 => Ok(StatementType::DecryptionFactors),
+            11 => Ok(StatementType::Plaintexts),
+            12 => Ok(StatementType::PlaintextsSigned),
+            _ => Err(cryptography::utils::error::Error::DeserializationError(format!("Invalid StatementType discriminant: {}", disc))),
+        }
     }
 }
 
@@ -477,39 +538,203 @@ impl BorshDeserialize for DecryptionFactorsHashes {
 pub(crate) mod tests {
 
     use super::*;
-    use strand::serialization::{StrandDeserialize, StrandSerialize};
+    use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
     #[test]
     fn test_serialize_channelshashes() {
-        let hashes = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
+        let hashes = [crate::messages::newtypes::zero_hash(); crate::messages::newtypes::MAX_TRUSTEES];
         let cs = ChannelsHashes(hashes);
-        let bytes = cs.strand_serialize().unwrap();
+        let bytes = cs.ser();
 
-        let d_cs: ChannelsHashes = ChannelsHashes::strand_deserialize(&bytes).unwrap();
+        let d_cs: ChannelsHashes = ChannelsHashes::deser(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }
 
     #[test]
     fn test_serialize_shareshashes() {
-        let hashes = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
+        let hashes = [crate::messages::newtypes::zero_hash(); crate::messages::newtypes::MAX_TRUSTEES];
         let cs = SharesHashes(hashes);
-        let bytes = cs.strand_serialize().unwrap();
+        let bytes = cs.ser();
 
-        let d_cs: SharesHashes = SharesHashes::strand_deserialize(&bytes).unwrap();
+        let d_cs: SharesHashes = SharesHashes::deser(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }
 
     #[test]
     fn test_serialize_decryptionfactorshs() {
-        let hashes = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
+        let hashes = [crate::messages::newtypes::zero_hash(); crate::messages::newtypes::MAX_TRUSTEES];
         let cs = DecryptionFactorsHashes(hashes);
-        let bytes = cs.strand_serialize().unwrap();
+        let bytes = cs.ser();
 
         let d_cs: DecryptionFactorsHashes =
-            DecryptionFactorsHashes::strand_deserialize(&bytes).unwrap();
+            DecryptionFactorsHashes::deser(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
+    }
+
+    #[test]
+    fn test_serialize_statement_configuration() {
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let stmt = Statement::Configuration(12345, cfg_hash);
+        
+        let bytes = stmt.ser();
+        println!("Serialized bytes length: {}", bytes.len());
+        println!("First 20 bytes: {:?}", &bytes[0..20.min(bytes.len())]);
+        
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (Statement::Configuration(ts1, cfg1), Statement::Configuration(ts2, cfg2)) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_publickey() {
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
+        let shares_hashes = SharesHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
+        let channels_hashes = ChannelsHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
+        
+        let stmt = Statement::PublicKey(
+            67890,
+            cfg_hash,
+            pk_hash,
+            shares_hashes,
+            channels_hashes,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::PublicKey(ts1, cfg1, pk1, shs1, chs1),
+                Statement::PublicKey(ts2, cfg2, pk2, shs2, chs2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(pk1.0, pk2.0);
+                assert_eq!(shs1.0, shs2.0);
+                assert_eq!(chs1.0, chs2.0);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_ballots() {
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
+        let cth = CiphertextsHash(crate::messages::newtypes::zero_hash());
+        let trustee_set: TrusteeSet = [1usize; MAX_TRUSTEES];
+        
+        let stmt = Statement::Ballots(
+            11111,
+            cfg_hash,
+            5,
+            cth,
+            pk_hash,
+            trustee_set,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::Ballots(ts1, cfg1, bn1, cth1, pk1, tset1),
+                Statement::Ballots(ts2, cfg2, bn2, cth2, pk2, tset2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(bn1, bn2);
+                assert_eq!(cth1.0, cth2.0);
+                assert_eq!(pk1.0, pk2.0);
+                assert_eq!(tset1, tset2);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_mix() {
+        use sha3::digest::array::Array;
+        
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let cth1 = CiphertextsHash(crate::messages::newtypes::zero_hash());
+        let cth2 = CiphertextsHash(Array([1u8; 64]));
+        
+        let stmt = Statement::Mix(
+            22222,
+            cfg_hash,
+            3,
+            cth1,
+            cth2,
+            2,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::Mix(ts1, cfg1, bn1, cth1a, cth2a, mn1),
+                Statement::Mix(ts2, cfg2, bn2, cth1b, cth2b, mn2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(bn1, bn2);
+                assert_eq!(cth1a.0, cth1b.0);
+                assert_eq!(cth2a.0, cth2b.0);
+                assert_eq!(mn1, mn2);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_plaintexts() {
+        use sha3::digest::array::Array;
+        
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
+        let pth = PlaintextsHash(Array([2u8; 64]));
+        let dfhs = DecryptionFactorsHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
+        let cth = CiphertextsHash(Array([3u8; 64]));
+        
+        let stmt = Statement::Plaintexts(
+            33333,
+            cfg_hash,
+            7,
+            pth,
+            dfhs,
+            cth,
+            pk_hash,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::Plaintexts(ts1, cfg1, bn1, pth1, dfhs1, cth1, pk1),
+                Statement::Plaintexts(ts2, cfg2, bn2, pth2, dfhs2, cth2, pk2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(bn1, bn2);
+                assert_eq!(pth1.0, pth2.0);
+                assert_eq!(dfhs1.0, dfhs2.0);
+                assert_eq!(cth1.0, cth2.0);
+                assert_eq!(pk1.0, pk2.0);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
     }
 }

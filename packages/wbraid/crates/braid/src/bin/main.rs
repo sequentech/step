@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
+use braid::native::board::{HttpB4, HttpB4BoardParams, HttpB4Index};
 use braid::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
@@ -16,9 +16,9 @@ use tracing::{error, info};
 use braid::native::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
-use strand::symm;
+use cryptography::context::{RistrettoCtx, Context};
+use cryptography::utils::signatures::SignatureScheme;
+use cryptography::utils::symm;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
@@ -81,7 +81,8 @@ async fn main() -> Result<()> {
         .expect("Should have been able to read the trustee configuration file");
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
+    let sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::signer_from_base64_string(&tc.signing_key_sk)
+        .map_err(|e| anyhow!("Failed to decode signing key: {}", e))?;
 
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
@@ -92,14 +93,14 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB4, braid::native::board::SqliteStorage>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
-        let b3index = HttpB3Index::new(&args.b3_url);
+        let b4index = HttpB4Index::new(&args.b3_url);
 
-        let boards_result = b3index.get_boards().await;
+        let boards_result = b4index.get_boards().await;
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
@@ -138,7 +139,7 @@ async fn main() -> Result<()> {
                 storage,
                 None,
             );
-            let board = HttpB3BoardParams::new(&args.b3_url);
+            let board = HttpB4BoardParams::new(&args.b3_url);
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);

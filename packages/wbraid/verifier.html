@@ -309,7 +309,7 @@
 </head>
 <body>
     <h1>🔍 Election Verifier</h1>
-    <p class="subtitle">election verifier (braid-vsc v0.5.0, built 2026-04-25 07:10:06)</p>
+    <p class="subtitle">election verifier (braid-vsc v0.6.0, built 2026-06-22 23:03:10)</p>
 
     <div class="intro">
         <h3>What is this?</h3>
@@ -364,7 +364,7 @@
         // Dynamic import with timestamp to force cache refresh
         const timestamp = new Date().getTime();
         console.log('Loading WASM verifier with cache-busting timestamp:', timestamp);
-        const { default: init, initThreadPool, WasmVerifier } = await import(`./crates/braid_b5/pkg/braid_b5.js?v=${timestamp}`);
+        const { default: init, initThreadPool, WasmVerifier } = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
 
         // Console logging with max entries limit
         const consoleEl = document.getElementById('console');

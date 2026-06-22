@@ -26,7 +26,7 @@
 //!
 //! **Transient (in-memory, NOT persisted):**
 //! - `last_external_id: i64` - Optimization for fetching new messages within session
-//! - `message_buffer: Vec<HttpB3Message>` - Messages between store/retrieve calls
+//! - `message_buffer: Vec<HttpB4Message>` - Messages between store/retrieve calls
 //!
 //! # Why No Persistent last_external_id?
 //!
@@ -72,10 +72,12 @@ use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{IdbDatabase, IdbRequest, IdbTransactionMode};
+use cryptography::utils::signatures::SignatureScheme;
 
 use b4::messages::message::Message;
-use b4::HttpB3Message;
-use strand::serialization::StrandDeserialize;
+use b4::HttpB4Message;
+use cryptography::context::Context;
+use cryptography::utils::serialization::variable::VDeserializable;
 
 use crate::protocol::board::local_storage::{LocalBoardStorage, StorageInfo};
 
@@ -118,7 +120,7 @@ struct TransientState {
     last_external_id: i64,
     
     /// Messages buffered between store_messages() and retrieve_messages() calls
-    message_buffer: Vec<HttpB3Message>,
+    message_buffer: Vec<HttpB4Message>,
 }
 
 /// IndexedDB-backed storage for browser trustees
@@ -453,17 +455,18 @@ impl IndexedDbStorage {
     }
     
     /// Compute hash of message bytes
-    fn compute_hash(msg: &HttpB3Message) -> Result<Vec<u8>> {
-        let hash = strand::hash::hash_to_array(&msg.message)?;
+    fn compute_hash(msg: &HttpB4Message) -> Result<Vec<u8>> {
+        let hash = b4::hash_to_array(&msg.message)?;
         Ok(hash.to_vec())
     }
     
     /// Extract metadata from message for duplicate detection
-    fn extract_metadata(msg: &HttpB3Message) -> Result<MessageMetadata> {
-        let message = Message::strand_deserialize(&msg.message)?;
+    fn extract_metadata<C: Context>(msg: &HttpB4Message) -> Result<MessageMetadata> {
+        let message = Message::<C>::deser(&msg.message)?;
         
         Ok(MessageMetadata {
-            sender_pk: message.sender.pk.to_der_b64_string()?,
+            sender_pk: <C as Context>::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
+                .map_err(|e| anyhow::anyhow!("Failed to encode sender PK: {}", e))?,
             statement_kind: message.statement.get_kind().to_string(),
             batch: message.statement.get_batch_number().try_into()?,
             mix_number: message.statement.get_mix_number().try_into()?,
@@ -482,50 +485,50 @@ impl IndexedDbStorage {
     /// hash_list is 0-indexed (hash_list[0] = hash of message with id=1)
     ///
     /// Therefore: hash_list[id - 1] = hash for message with local_id=id
-    fn verify_and_store(
+    fn verify_and_store<C: Context>(
         &self,
-        messages: &[HttpB3Message],
+        messages: &[HttpB4Message],
         local_board_id: i64,
         ignore_existing: bool,
     ) -> Result<(usize, usize)> { // Returns (verified_count, new_count)
         let mut persistent = self.persistent.borrow_mut();
         let mut transient = self.transient.borrow_mut();
         
-        let S = persistent.hash_list.len() as i64;
-        let B = local_board_id;
+        let big_s = persistent.hash_list.len() as i64;
+        let big_b = local_board_id;
         
         // Normalize B: -1 is our initialization sentinel, treat as 0 for verification
-        let B_normalized = if B == -1 { 0 } else { B };
+        let big_b_normalized = if big_b == -1 { 0 } else { big_b };
         
         web_sys::console::log_1(&JsValue::from_str(&format!(
             "📊 VERIFICATION: S={} (store size), B={} (last_local_board_id, normalized={}), incoming={} messages",
-            S, B, B_normalized, messages.len()
+            big_s, big_b, big_b_normalized, messages.len()
         )));
         
         // Invariant check: LocalBoard cannot be ahead of metadata store
-        if B_normalized > S {
+        if big_b_normalized > big_s {
             bail!(
                 "Corruption: LocalBoard has {} messages but metadata store only has {}",
-                B_normalized, S
+                big_b_normalized, big_s
             );
         }
         
         // How many messages need verification against stored hashes?
-        let verify_count = (S - B_normalized) as usize;
+        let verify_count = (big_s - big_b_normalized) as usize;
         
         if verify_count > 0 {
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "🔍 Need to verify {} historical messages (hash_list positions {} through {})",
                 verify_count,
-                B_normalized,
-                S - 1
+                big_b_normalized,
+                big_s - 1
             )));
         }
         
         if messages.len() < verify_count {
             bail!(
                 "BB returned {} messages but we need {} to verify history (S={}, B={})",
-                messages.len(), verify_count, S, B
+                messages.len(), verify_count, big_s, big_b
             );
         }
         
@@ -541,8 +544,8 @@ impl IndexedDbStorage {
             // hash_list is 0-indexed, IDs are 1-indexed
             // For B_normalized=0: verify hash_list[0], hash_list[1], ...
             // For B_normalized=1: verify hash_list[1], hash_list[2], ...
-            let hash_index = B_normalized as usize + i;
-            let next_id = B_normalized + (i as i64) + 1;
+            let hash_index = big_b_normalized as usize + i;
+            let next_id = big_b_normalized + (i as i64) + 1;
             
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "  ✓ msg[{}] → hash_list[{}] (will be local_id={})",
@@ -566,7 +569,7 @@ impl IndexedDbStorage {
         
         if verify_count > 0 {
             web_sys::console::log_1(&JsValue::from_str(&format!(
-                "✅ Verified {} messages (S={}, B={})", verify_count, S, B
+                "✅ Verified {} messages (S={}, B={})", verify_count, big_s, big_b
             )));
             // Log prominent security verification message
             web_sys::console::log_1(&JsValue::from_str(&format!(
@@ -582,17 +585,17 @@ impl IndexedDbStorage {
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "💾 Storing {} new messages (will assign local_ids {} through {})",
                 new_messages.len(),
-                S + 1,
-                S + new_messages.len() as i64
+                big_s + 1,
+                big_s + new_messages.len() as i64
             )));
         }
         
         let mut new_count = 0;
         for (idx, msg) in new_messages.iter().enumerate() {
             let hash = Self::compute_hash(msg)?;
-            let metadata = Self::extract_metadata(msg)?;
+            let metadata = Self::extract_metadata::<C>(msg)?;
             
-            let new_local_id = S + 1 + idx as i64;
+            let new_local_id = big_s + 1 + idx as i64;
             
             // Check for duplicates
             if persistent.metadata_set.contains(&metadata) {
@@ -635,7 +638,6 @@ impl IndexedDbStorage {
         }
         
         // Store messages in transient buffer for retrieve_messages()
-        // transient.message_buffer = messages.to_vec();
         transient.message_buffer = new_messages.to_vec();
         
         Ok((verify_count, new_count))
@@ -643,7 +645,7 @@ impl IndexedDbStorage {
 }
 
 impl LocalBoardStorage for IndexedDbStorage {
-    fn store_messages(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB4Message], _ignore_existing: bool) -> Result<()> {
         // NOTE: We don't know last_local_board_id here, so we assume B = S (normal case)
         // The verification will happen in retrieve_messages() where we have access to B
         
@@ -659,7 +661,7 @@ impl LocalBoardStorage for IndexedDbStorage {
         Ok(())
     }
     
-    fn retrieve_messages(&self, last_local_board_id: i64) -> Result<Vec<(Message, i64)>> {
+    fn retrieve_messages<C: Context>(&self, last_local_board_id: i64) -> Result<Vec<(Message<C>, i64)>> where C: 'static {
         // Clone messages to avoid borrow issues during verify_and_store
         let messages = {
             let transient = self.transient.borrow();
@@ -667,7 +669,7 @@ impl LocalBoardStorage for IndexedDbStorage {
         };
         
         // Perform verification and update metadata
-        let (verified_count, _new_count) = self.verify_and_store(&messages, last_local_board_id, false)?;
+        let (verified_count, _new_count) = self.verify_and_store::<C>(&messages, last_local_board_id, false)?;
         
         // If we verified historical messages, this is a security-critical operation worth highlighting
         if verified_count > 0 {
@@ -682,26 +684,26 @@ impl LocalBoardStorage for IndexedDbStorage {
         // We need messages with local_id > last_local_board_id
         // These are at hash_list positions [last_local_board_id, last_local_board_id+1, ..., S-1]
         // which correspond to local_ids [last_local_board_id+1, last_local_board_id+2, ..., S]
-        let S = {
+        let big_s = {
             let persistent = self.persistent.borrow();
             persistent.hash_list.len() as i64
         };
         
-        let B = last_local_board_id;
-        let messages_to_return = (S - B) as usize;
+        let big_b = last_local_board_id;
+        let messages_to_return = (big_s - big_b) as usize;
         
         // The messages we need are at the END of the buffer (most recent)
         // because verify_and_store ensures buffer has [verified_messages, new_messages]
-        let mut result: Vec<(Message, i64)> = messages
+        let mut result: Vec<(Message<C>, i64)> = messages
             .iter()
             .rev()  // Start from the end
             .take(messages_to_return)
             .enumerate()
             .map(|(idx, msg)| {
                 // idx=0 is the last message (local_id=S), idx=1 is second-to-last (local_id=S-1), etc.
-                let local_id = S - (idx as i64);
+                let local_id = big_s - (idx as i64);
                 
-                match Message::strand_deserialize(&msg.message) {
+                match Message::<C>::deser(&msg.message) {
                     Ok(message) => Ok((message, local_id)),
                     Err(e) => Err(anyhow::anyhow!("Failed to deserialize message: {}", e)),
                 }

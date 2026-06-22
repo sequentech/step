@@ -4,7 +4,7 @@
 
 [package]
 name = "braid"
-version = "0.4.0"
+version = "0.6.0"
 authors = [
   "David Ruescas <david@sequentech.io>",
   "Eduardo Robles <edu@sequentech.io>"
@@ -15,8 +15,8 @@ license = "AGPL-3.0-only"
 [dependencies]
 rand = "0.9"
 
-strand = { path="../strand", optional = true }
-b4 = { path="../b4", optional = true }
+vsc = { path="../vsc", optional = true }
+b4 = { path="../b4", optional = true, default-features = false }
 crepe = "0.1"
 strum = { version = "0.27", features = ["derive"] }
 
@@ -31,7 +31,9 @@ aws-sdk-s3 = { version = "1.52", optional = true }
 chrono = { version = "0.4", optional = true }
 
 # WASM-only dependencies  
-wasm-bindgen = { version = "0.2", optional = true }
+# Pinned exactly: the wasm-bindgen crate schema must match the installed
+# wasm-bindgen-cli version. This also transitively constrains js-sys/web-sys.
+wasm-bindgen = { version = "=0.2.123", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
 wasm-bindgen-rayon = { version = "1.3", features = ["no-bundler"], optional = true }
 js-sys = { version = "0.3", optional = true }
@@ -115,8 +117,8 @@ default = ["native"]
 
 # Native build with gRPC, filesystem, SQLite  
 native = [
-    "dep:strand",
-    "strand/rayon", 
+    "dep:vsc",
+    "vsc/server",
     "dep:rayon",
     "dep:tonic",
     "dep:rusqlite",
@@ -139,9 +141,9 @@ native = [
 
 # WASM build with HTTP bulletin board and SQLite WASM storage
 wasm-core = [
-    "dep:strand",
-    "strand/wasm",
-    "strand/wasmrayon",
+    "dep:vsc",
+    "dep:toml",
+    "vsc/wasm",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
     "dep:wasm-bindgen-rayon",

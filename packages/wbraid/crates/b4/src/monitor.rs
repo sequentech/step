@@ -20,7 +20,7 @@ use sqlx::SqlitePool;
 
 const DEFAULT_DB_PATH: &'static str = "sqlite://b4.db";
 
-// Equivalent to b3's B3IndexRow - board metadata for monitoring
+// Board metadata for monitoring
 struct BoardInfo {
     board_name: String,
     trustees_no: i32,
@@ -412,8 +412,7 @@ fn get_progress(row: &BoardInfo) -> (f64, f64) {
 async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
     let pool = SqlitePool::connect(db_path).await?;
     
-    // Query boards table directly (equivalent to b3's INDEX table query)
-    // SELECT * FROM INDEX WHERE is_archived = false
+    // Query boards table directly
     let boards: Vec<(String, i32, i32, i32, i32, String)> = sqlx::query_as(
         r#"SELECT 
             name,

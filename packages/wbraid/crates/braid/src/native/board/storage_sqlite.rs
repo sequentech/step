@@ -8,7 +8,7 @@
 //! Messages are stored with locally-controlled auto-increment IDs that
 //! establish immutable ordering, preventing bulletin board manipulation.
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use rusqlite::{params, Connection};
 use std::fs::{self, File};
 use std::io::{Read, Write};
@@ -16,8 +16,9 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use b4::messages::message::Message;
-use b4::HttpB3Message;
-use strand::serialization::StrandDeserialize;
+use b4::HttpB4Message;
+use cryptography::context::Context;
+use cryptography::utils::serialization::variable::VDeserializable;
 
 use crate::protocol::board::local_storage::LocalBoardStorage;
 
@@ -76,6 +77,7 @@ impl SqliteStorage {
                 statement_kind TEXT NOT NULL, \
                 batch INT4 NOT NULL, \
                 mix_number INT4 NOT NULL, \
+                version TEXT NOT NULL, \
                 UNIQUE(sender_pk, statement_kind, batch, mix_number)\
             )",
             [],
@@ -86,7 +88,7 @@ impl SqliteStorage {
 }
 
 impl LocalBoardStorage for SqliteStorage {
-    fn store_messages(&self, messages: &[HttpB3Message], ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB4Message], ignore_existing: bool) -> Result<()> {
         let now = Instant::now();
 
         // Ensure blob store directory exists if configured
@@ -102,11 +104,11 @@ impl LocalBoardStorage for SqliteStorage {
         // The trustee triggers a full message update via the RETRIEVE_ALL_MESSAGES_PERIOD,
         // so we can ignore duplicates in that case.
         let sql = if ignore_existing {
-            "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) \
-             VALUES(?1, ?2, ?3, ?4, ?5, ?6)"
+            "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number, version) \
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         } else {
-            "INSERT INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) \
-             VALUES(?1, ?2, ?3, ?4, ?5, ?6)"
+            "INSERT INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number, version) \
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         };
 
         let mut statement = connection.prepare(sql)?;
@@ -114,18 +116,10 @@ impl LocalBoardStorage for SqliteStorage {
         connection.execute("BEGIN TRANSACTION", [])?;
 
         for m in messages {
-            // Verify schema version compatibility
-            if m.version != b4::get_schema_version() {
-                return Err(anyhow::anyhow!(
-                    "Mismatched schema version: {} != {}",
-                    m.version,
-                    b4::get_schema_version()
-                ));
-            }
-
             // Deserialize to extract metadata
-            let message = Message::strand_deserialize(&m.message)?;
-            let sender_pk = message.sender.pk.to_der_b64_string()?;
+            let message = Message::<C>::deser(&m.message)?;
+            let sender_pk = <<C as Context>::SignatureScheme as cryptography::utils::signatures::SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
+                .map_err(|e| anyhow!("Failed to encode verifying key: {}", e))?;
             let kind = message.statement.get_kind().to_string();
             let batch: i32 = message.statement.get_batch_number().try_into()?;
             let mix_number: i32 = message.statement.get_mix_number().try_into()?;
@@ -146,10 +140,10 @@ impl LocalBoardStorage for SqliteStorage {
                 }
 
                 // Store metadata only (empty message bytes)
-                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
+                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number, &m.version])?;
             } else {
                 // Store message bytes inline in database
-                statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number])?;
+                statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number, &m.version])?;
             }
         }
 
@@ -167,13 +161,13 @@ impl LocalBoardStorage for SqliteStorage {
         Ok(())
     }
 
-    fn retrieve_messages(&self, last_local_board_id: i64) -> Result<Vec<(Message, i64)>> {
+    fn retrieve_messages<C: Context>(&self, last_local_board_id: i64) -> Result<Vec<(Message<C>, i64)>> {
         let connection = self.get_connection()?;
 
         // SECURITY CRITICAL: ORDER BY id ASC ensures messages are processed in the
         // order established by our local AUTOINCREMENT ID, not the bulletin board's order
         let mut stmt = connection.prepare(
-            "SELECT id, message, sender_pk, statement_kind, batch, mix_number \
+            "SELECT id, message, sender_pk, statement_kind, batch, mix_number, version \
              FROM MESSAGES \
              WHERE id > ?1 \
              ORDER BY id ASC",
@@ -187,10 +181,11 @@ impl LocalBoardStorage for SqliteStorage {
                 kind: row.get(3)?,
                 batch: row.get(4)?,
                 mix_number: row.get(5)?,
+                version: row.get(6)?,
             })
         })?;
 
-        let messages: Result<Vec<(Message, i64)>> = rows
+        let messages: Result<Vec<(Message<C>, i64)>> = rows
             .map(|mr| {
                 let row = mr?;
                 let id = row.id;
@@ -217,10 +212,10 @@ impl LocalBoardStorage for SqliteStorage {
                         path
                     );
 
-                    Message::strand_deserialize(&buffer)?
+                    Message::deser(&buffer)?
                 } else {
                     // Read message bytes from database
-                    Message::strand_deserialize(&row.message)?
+                    Message::deser(&row.message)?
                 };
 
                 Ok((message, id))
@@ -283,4 +278,5 @@ struct SqliteStoreMessageRow {
     kind: String,
     batch: i32,
     mix_number: i32,
+    version: String,
 }

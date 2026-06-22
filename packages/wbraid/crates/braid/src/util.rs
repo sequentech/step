@@ -9,8 +9,8 @@ use std::fmt::Debug;
 use thiserror::Error;
 
 use b4::messages::statement::StatementType;
-use strand::hash::Hash;
-use strand::util::StrandError;
+use b4::CryptographicHash as Hash;
+use cryptography::utils::error::Error as CryptographyError;
 
 /// An error that occurs during protocol execution.
 #[derive(Error, Debug)]
@@ -24,7 +24,7 @@ pub enum ProtocolError {
     #[error("{0}")]
     MessageConfigurationMismatch(String),
     #[error("{0}")]
-    StrandError(#[from] strand::util::StrandError),
+    CryptographyError(#[from] cryptography::utils::error::Error),
     #[error("{0}: {1}")]
     WrappedError(String, Box<ProtocolError>),
     #[error("{0}")]
@@ -65,8 +65,8 @@ impl<T> ProtocolContext<T> for Result<T, ProtocolError> {
         }
     }
 }
-/// Allows attaching a context string to a StrandError result.
-impl<T> ProtocolContext<T> for Result<T, StrandError> {
+/// Allows attaching a context string to a CryptographyError result.
+impl<T> ProtocolContext<T> for Result<T, CryptographyError> {
     fn add_context(self, context: &str) -> Result<T, ProtocolError> {
         if let Err(e) = self {
             Err(ProtocolError::WrappedError(
@@ -87,8 +87,14 @@ pub(crate) fn dbg_hash(h: &Hash) -> String {
 }
 
 /// Returns a fixed-size array Hash from the given vector.
-pub fn hash_from_vec(bytes: &[u8]) -> Result<Hash, StrandError> {
-    strand::util::to_hash_array(bytes)
+pub fn hash_from_vec(bytes: &[u8]) -> Result<Hash, CryptographyError> {
+    if bytes.len() == 64 {
+        Ok(Hash::try_from(bytes)?)
+    } else {
+        Err(CryptographyError::DeserializationError(
+            format!("Expected 64 bytes, got {}", bytes.len()),
+        ))
+    }
 }
 
 /// Returns base64 no pad decode.

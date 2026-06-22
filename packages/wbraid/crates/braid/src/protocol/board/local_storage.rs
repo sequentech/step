@@ -9,9 +9,11 @@
 //! LocalBoard business logic.
 
 use anyhow::Result;
-use b4::HttpB3Message;
+use b4::HttpB4Message;
 use b4::messages::message::Message;
 use serde::{Deserialize, Serialize};
+
+use cryptography::context::Context;
 
 /// Storage diagnostics information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +60,7 @@ pub trait LocalBoardStorage: Send + Sync {
     ///
     /// - `messages`: Messages from bulletin board with external IDs
     /// - `ignore_existing`: If true, silently ignore duplicate inserts (for full refresh)
-    fn store_messages(&self, messages: &[HttpB3Message], ignore_existing: bool) -> Result<()>;
+    fn store_messages<C: Context>(&self, messages: &[HttpB4Message], ignore_existing: bool) -> Result<()>;
 
     /// Retrieve messages with local_id > last_local_board_id
     ///
@@ -70,7 +72,7 @@ pub trait LocalBoardStorage: Send + Sync {
     /// # Returns
     ///
     /// Vector of (Message, local_id) pairs in ascending local_id order
-    fn retrieve_messages(&self, last_local_board_id: i64) -> Result<Vec<(Message, i64)>>;
+    fn retrieve_messages<C: Context>(&self, last_local_board_id: i64) -> Result<Vec<(Message<C>, i64)>>;
 
     /// Get the maximum external_id stored
     ///

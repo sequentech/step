@@ -8,17 +8,18 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::native::board::{HttpB3, HttpB3BoardParams};
+use braid::native::board::{HttpB4, HttpB4BoardParams};
 use braid::protocol::trustee::Trustee;
-use braid::native::verify::verifier::Verifier;
+use braid::protocol::verify::verifier::Verifier;
+use braid::protocol::board::NoOpStorage;
 
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
+use cryptography::context::{RistrettoCtx, Context};
+use cryptography::utils::signatures::SignatureScheme;
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
 struct Cli {
-    /// URL of the grpc bulletin board server
+    /// URL of the bulletin board server
     #[arg(long)]
     server_url: String,
 
@@ -35,16 +36,16 @@ struct Cli {
 
 /// Entry point for the braid verifier.
 ///
-/// Executes verification against the specified
-/// board on a grpc bulletin board.
+/// Executes verification against the specified board.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
     braid::native::logging::init_log(true);
 
     // generate dummy values, these are not important
-    let dummy_sk = StrandSignatureSk::generate().unwrap();
-    let dummy_encryption_key = strand::symm::gen_key();
+    let mut rng = RistrettoCtx::get_rng();
+    let dummy_sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::gen_signing_key(&mut rng);
+    let dummy_encryption_key = cryptography::utils::symm::gen_key().unwrap();
 
     let args = Cli::parse();
 
@@ -52,17 +53,17 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
     
-    let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
+    let trustee: Trustee<RistrettoCtx, NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
         dummy_sk,
         dummy_encryption_key,
-        braid::native::board::NoOpStorage::new(),
+        NoOpStorage::new(),
         None,
     );
-    let board_params = HttpB3BoardParams::new(&args.server_url);
-    let board: HttpB3 = board_params.create_board(&args.board, None);
-    let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> = 
+    let board_params = HttpB4BoardParams::new(&args.server_url);
+    let board: HttpB4 = board_params.create_board(&args.board, None);
+    let mut session: Verifier<RistrettoCtx, HttpB4, NoOpStorage> = 
         Verifier::new(trustee, board, &args.board);
     let _result = session.run().await?;
 

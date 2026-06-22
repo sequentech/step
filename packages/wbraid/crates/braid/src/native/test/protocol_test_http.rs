@@ -12,20 +12,23 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::time::Instant;
 
-use strand::context::Ctx;
-use strand::elgamal::Ciphertext;
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use cryptography::context::Context;
+use cryptography::cryptosystem::elgamal::PublicKey;
+use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::traits::groups::GroupElement;
+use cryptography::utils::serialization::variable::VDeserializable;
+use cryptography::context::RistrettoCtx;
 
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey};
 use b4::messages::message::Message;
 use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
 
-use crate::native::board::HttpB3;
-use crate::native::board::HttpB3BoardParams;
+use crate::native::board::HttpB4;
+use crate::native::board::HttpB4BoardParams;
 use crate::protocol::board::Board;
+use crate::protocol::board::NoOpStorage;
 
 use crate::native::session::Session;
 use crate::protocol::trustee::Trustee;
@@ -35,8 +38,14 @@ const TEST_BOARD: &'static str = "protocoltest";
 const S3_ENDPOINT: &'static str = "http://127.0.0.1:4566";
 const BUCKET_NAME: &'static str = "wbraid-messages";
 
-pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
-    let n_trustees = rand::rng().random_range(2..13);
+pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
+    crate::dispatch_ciphertext_width!(ciphertext_width, {
+        run_with_width::<C, W>(ciphertexts, batches).await
+    })
+}
+
+async fn run_with_width<C: Context + 'static, const W: usize>(ciphertexts: u32, batches: usize) {
+    let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
     // let n_trustees = 2;
@@ -51,11 +60,11 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
 
     let now = Instant::now();
 
-    let test = create_protocol_test(n_trustees, &threshold, ctx)
+    let test: ProtocolTest<RistrettoCtx> = create_protocol_test::<RistrettoCtx, W>(n_trustees, &threshold)
         .await
         .unwrap();
 
-    run_protocol_test_http(test, ciphertexts, batches, &threshold)
+    run_protocol_test_http::<RistrettoCtx, W>(test, ciphertexts, batches, &threshold)
         .await
         .unwrap();
 
@@ -68,27 +77,26 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
-pub struct ProtocolTest<C: Ctx> {
-    pub ctx: C,
+pub struct ProtocolTest<C: Context> {
     pub cfg: Configuration<C>,
     pub protocol_manager: b4::messages::protocol_manager::ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
+    pub trustees: Vec<Trustee<C, NoOpStorage>>,
 }
 
-async fn run_protocol_test_http<C: Ctx + 'static>(
+async fn run_protocol_test_http<C: Context + 'static, const W: usize>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
-    let ctx = test.ctx.clone();
     let mut sessions = vec![];
 
-    let _pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
+    let _pks: Vec<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier> = 
+        test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
     for t in test.trustees.into_iter() {
-        let board_params = HttpB3BoardParams::new(HTTP_URL);
-        let session: Session<C, HttpB3, crate::native::board::NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
+        let board_params = HttpB4BoardParams::new(HTTP_URL);
+        let session: Session<C, HttpB4, NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
 
@@ -171,28 +179,29 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
         panic!("Unknown content_type format: {:?}", message_obj["content_type"]);
     };
     
-    let pk_message = Message::strand_deserialize(&pk_bytes_encoded).unwrap();
+    let pk_message = Message::<C>::deser(&pk_bytes_encoded).unwrap();
     
     let pk_bytes = pk_message.artifact.unwrap();
-    let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
-    let dkg_pk = DkgPublicKey::<C>::strand_deserialize(&pk_bytes).unwrap();
-    let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &test.ctx);
+    let pk_h = b4::hash_to_array(&pk_bytes).unwrap();
+    let dkg_pk = DkgPublicKey::<C>::deser(&pk_bytes).unwrap();
+    let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
 
     let mut plaintexts_in = vec![];
-    let mut rng = ctx.get_rng();
+    let mut rng = C::get_rng();
 
     // Encrypt and submit ballots
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
+        let next_p: Vec<[C::Element; W]> = (0..count).map(|_| {
+            std::array::from_fn(|_| C::Element::random(&mut rng))
+        }).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
-        let ballots: Vec<Ciphertext<C>> = next_p
+        let ballots: Vec<Ciphertext<C, W>> = next_p
             .par_iter()
             .map(|p| {
-                let encoded = ctx.encode(p).unwrap();
-                pk.encrypt(&encoded)
+                pk.encrypt(p)
             })
             .collect();
         let ballot_batch = Ballots::new(ballots);
@@ -208,13 +217,14 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
         plaintexts_in.push(next_p);
         
         // Insert ballot message using a temporary board
-        let board_params = HttpB3BoardParams::new(HTTP_URL);
-        let mut temp_board = board_params.create_board(TEST_BOARD, None);
-        temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
+        let board_params = HttpB4BoardParams::new(HTTP_URL);
+        let mut temp_board: HttpB4 = board_params.create_board(TEST_BOARD, None);
+        let http_msg = b4::HttpB4Message::from_protocol_message::<C>(message.try_into().unwrap());
+        Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
     }
 
     // Wait for decryption
-    let mut plaintexts_out: Vec<(i64, Message)> = vec![];
+    let mut plaintexts_out: Vec<(i64, Message<C>)> = vec![];
     for i in 0..150 {
         info!("Decryption Cycle {}", i);
 
@@ -256,7 +266,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
                             continue;
                         };
                         
-                        if let Ok(message) = Message::strand_deserialize(&message_bytes) {
+                        if let Ok(message) = Message::deser(&message_bytes) {
                             if let Some(id_str) = msg["id"].as_str() {
                                 if let Ok(id) = id_str.parse::<i64>() {
                                     plaintexts_out.push((id, message));
@@ -277,9 +287,9 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     
     for (_, message) in plaintexts_out {
         let batch = message.statement.get_batch_number();
-        let plaintexts = Plaintexts::<C>::strand_deserialize(&message.artifact.unwrap()).unwrap();
-        let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
-        let actual: HashSet<C::P> = HashSet::from_iter(plaintexts.0.clone().0);
+        let plaintexts = b4::messages::artifact::Plaintexts::<C, W>::deser(&message.artifact.unwrap()).unwrap();
+        let expected: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
+        let actual: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts.0.clone());
         info!("expected {} actual {}", expected.len(), actual.len());
 
         assert!(expected == actual, "Plaintext mismatch for batch {}", batch);
@@ -296,28 +306,29 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     Ok(())
 }
 
-pub async fn create_protocol_test<C: Ctx>(
+pub async fn create_protocol_test<C: Context, const W: usize>(
     n_trustees: usize,
     threshold: &[usize],
-    ctx: C,
 ) -> Result<ProtocolTest<C>> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
+    use cryptography::utils::signatures::SignatureScheme;
+    let mut rng = C::get_rng();
+    let pmkey = C::SignatureScheme::gen_signing_key(&mut rng);
     let pm = b4::messages::protocol_manager::ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<Trustee<C, NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
         .map(|i| {
-            let sk = StrandSignatureSk::generate().unwrap();
-            let encryption_key = strand::symm::gen_key();
-            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+            let sk = C::SignatureScheme::gen_signing_key(&mut rng);
+            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
+            let pk = C::SignatureScheme::verifying_key(&sk);
             (
                 Trustee::new(
                     i.to_string(),
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    crate::native::board::NoOpStorage::new(),
+                    NoOpStorage::new(),
                     None,
                 ),
                 pk,
@@ -327,9 +338,10 @@ pub async fn create_protocol_test<C: Ctx>(
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+        C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
+        W, // ciphertext_width (now generic)
         PhantomData,
     );
 
@@ -349,12 +361,12 @@ pub async fn create_protocol_test<C: Ctx>(
         .await;
     
     // Send bootstrap message
-    let board_params = HttpB3BoardParams::new(HTTP_URL);
-    let mut temp_board = board_params.create_board(TEST_BOARD, None);
-    temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
+    let board_params = HttpB4BoardParams::new(HTTP_URL);
+    let mut temp_board: HttpB4 = board_params.create_board(TEST_BOARD, None);
+    let http_msg = b4::HttpB4Message::from_protocol_message::<C>(message.try_into().unwrap());
+    Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
 
     Ok(ProtocolTest {
-        ctx,
         cfg,
         protocol_manager: pm,
         trustees,

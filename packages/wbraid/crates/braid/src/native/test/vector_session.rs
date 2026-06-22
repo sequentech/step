@@ -4,23 +4,23 @@
 
 use crate::protocol::trustee::Trustee;
 use crate::native::test::vector_board::VectorBoard;
-use b4::messages::artifact::{DkgPublicKey, Plaintexts};
+use b4::messages::artifact::DkgPublicKey;
 use b4::messages::message::Message;
 use log::{error, info};
 use std::sync::{Arc, Mutex};
-use strand::context::Ctx;
+use cryptography::context::Context;
 
 use b4::messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]
-pub struct VectorSession<C: Ctx, S: crate::protocol::board::LocalBoardStorage> {
+pub struct VectorSession<C: Context, S: crate::protocol::board::LocalBoardStorage> {
     trustee: Trustee<C, S>,
     remote: Arc<Mutex<VectorBoard>>,
     last_message: i64,
 }
 
-impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
+impl<C: Context, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
     pub fn new(trustee: Trustee<C, S>, remote: Arc<Mutex<VectorBoard>>) -> VectorSession<C, S> {
         VectorSession {
             trustee,
@@ -53,19 +53,19 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
         }
     }
 
-    pub(crate) fn get_plaintexts_nohash(
+    pub(crate) fn get_plaintexts_nohash<const W: usize>(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
-        self.trustee._get_plaintexts_nohash(batch, signer_position)
+    ) -> Option<b4::messages::artifact::Plaintexts<C, W>> {
+        self.trustee._get_plaintexts_nohash::<W>(batch, signer_position)
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee._get_dkg_public_key_nohash()
     }
 }
 
-fn send(messages: Vec<Message>, remote: &mut VectorBoard) {
+fn send<C: cryptography::context::Context>(messages: Vec<Message<C>>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Sending message to vector board {:?}", m);
         remote.add(m.try_clone().unwrap());

@@ -38,7 +38,7 @@
 - **Candidates for Review**:
   - `DkgPublicKey<C, T>` → likely should be `DkgPublicKey<C>`
   - `DecryptionFactors<C, W, P>` → check if P appears in structure
-  - All artifacts in `crates/b5/src/messages/artifact.rs`
+  - All artifacts in `crates/b4/src/messages/artifact.rs`
   - All artifacts in `crates/cryptography/src/dkgd/`
 - **Priority**: Medium - maintainability and API clarity
 - **Status**: 🔄 IN PROGRESS - Principle defined, awaiting systematic audit
@@ -75,11 +75,11 @@
 - **Issue**: Version field propagation and validation for schema compatibility
 - **Implementation Status**: ✅ Version propagation complete, validation pending
 - **Completed**:
-  - ✅ **HttpB5Message Symmetric Usage**: Board trait now uses `HttpB5Message` for both `get_messages()` and `post_messages()`, establishing clean architectural boundary between protocol layer (Message<C>) and wire format (HttpB5Message)
+  - ✅ **HttpB4Message Symmetric Usage**: Board trait now uses `HttpB4Message` for both `get_messages()` and `post_messages()`, establishing clean architectural boundary between protocol layer (Message<C>) and wire format (HttpB4Message)
   - ✅ **Version Field Propagation**: Version now flows bidirectionally through entire system:
-    - **Posting**: Client sends actual version from `HttpB5Message::from_protocol_message()` which calls `get_schema_version()` (currently returns "1")
+    - **Posting**: Client sends actual version from `HttpB4Message::from_protocol_message()` which calls `get_schema_version()` (currently returns "1")
     - **Retrieval**: Server returns version from database in all API responses (`api_types::Message`, `MessageWithUrl`)
-    - **Construction**: Client uses returned version when creating `HttpB5Message` (no hardcoded "1")
+    - **Construction**: Client uses returned version when creating `HttpB4Message` (no hardcoded "1")
   - ✅ **API Updates**:
     - Added `version: String` to `api_types::Message`
     - Added `version: String` to `ConfirmMessageRequest` (single-board API)
@@ -98,22 +98,22 @@
   - **Purpose**: Prevent schema incompatibility between clients, servers, and storage
   - **Note**: All infrastructure is now in place; validation is deliberately deferred for separate design discussion
   - **Tentative Validation Points**:
-    - **(a) Server receives message from client**: When b5 handler processes `ConfirmMessageRequest` or `MessageConfirmation`, validate `request.version == get_schema_version()` before deserializing message bytes
-      - Location: `crates/b5/src/handlers.rs` - `confirm_message()`, `confirm_messages_multi()`
+    - **(a) Server receives message from client**: When b4 handler processes `ConfirmMessageRequest` or `MessageConfirmation`, validate `request.version == get_schema_version()` before deserializing message bytes
+      - Location: `crates/b4/src/handlers.rs` - `confirm_message()`, `confirm_messages_multi()`
       - Both S3 and inline message paths
       - **Rationale**: Reject incompatible messages at ingestion boundary
-    - **(b) Client receives message from server**: When client constructs `HttpB5Message` from API response, validate `message.version == get_schema_version()` before processing
-      - Location: `crates/braid_b5/src/native/board/http.rs` - `get_messages()`, `get_messages_multi()`
-      - Location: `crates/braid_b5/src/wasm/board/http.rs` - `fetch_messages_internal()`
-      - Location: `crates/braid_b5/src/wasm/session.rs` - `fetch_messages()`
+    - **(b) Client receives message from server**: When client constructs `HttpB4Message` from API response, validate `message.version == get_schema_version()` before processing
+      - Location: `crates/braid/src/native/board/http.rs` - `get_messages()`, `get_messages_multi()`
+      - Location: `crates/braid/src/wasm/board/http.rs` - `fetch_messages_internal()`
+      - Location: `crates/braid/src/wasm/session.rs` - `fetch_messages()`
       - Both S3 and inline message paths
       - **Rationale**: Client shouldn't process messages it can't understand
-    - **(c) Server reads from database**: When b5 retrieves messages from SQLite, validate version matches current schema
-      - Location: `crates/b5/src/db.rs` - `get_messages_after()`, `get_message_by_id()`, `list_messages()`
+    - **(c) Server reads from database**: When b4 retrieves messages from SQLite, validate version matches current schema
+      - Location: `crates/b4/src/db.rs` - `get_messages_after()`, `get_message_by_id()`, `list_messages()`
       - **Rationale**: Handle schema upgrades - old database, new server code
       - Could reject mismatched versions or implement migration logic
     - **(d) Native client reads from storage**: When native client retrieves messages from SQLite after app upgrade, validate version
-      - Location: `crates/braid_b5/src/native/board/storage_sqlite.rs` - `retrieve_messages()`
+      - Location: `crates/braid/src/native/board/storage_sqlite.rs` - `retrieve_messages()`
       - **Rationale**: Handle schema upgrades - old database, new client code
       - **Infrastructure**: ✅ Version now stored in database and returned in SqliteStoreMessageRow
       - Could reject mismatched versions or implement migration logic
@@ -124,12 +124,12 @@
   - Should validation log warnings before errors?
   - Consider semantic versioning (major.minor.patch) vs simple incrementing?
 - **Files Modified**:
-  - `crates/b5/src/api_types.rs` - Added version fields to Message, ConfirmMessageRequest, MessageConfirmation
-  - `crates/b5/src/db.rs` - Return version from queries
-  - `crates/b5/src/handlers.rs` - Use version from requests instead of hardcoding
-  - `crates/braid_b5/src/native/board/http.rs` - Send/receive version in all operations
-  - `crates/braid_b5/src/wasm/board/http.rs` - Send/receive version in WASM board
-  - `crates/braid_b5/src/wasm/session.rs` - Use version from API responses
+  - `crates/b4/src/api_types.rs` - Added version fields to Message, ConfirmMessageRequest, MessageConfirmation
+  - `crates/b4/src/db.rs` - Return version from queries
+  - `crates/b4/src/handlers.rs` - Use version from requests instead of hardcoding
+  - `crates/braid/src/native/board/http.rs` - Send/receive version in all operations
+  - `crates/braid/src/wasm/board/http.rs` - Send/receive version in WASM board
+  - `crates/braid/src/wasm/session.rs` - Use version from API responses
 - **Priority**: Medium - architectural clarity and maintainability
 - **Status**: 🔄 IN PROGRESS - Propagation complete ✅, validation design and implementation pending
 
@@ -155,54 +155,37 @@
 - **Priority**: Low - user experience
 - **Status**: TODO
 
-### 7. Integration Testing
-- **Action**: Run full protocol end-to-end tests
-  - Multi-board scenarios
-  - DKG round-trip
-  - Encryption/decryption pipeline
-  - Browser trustee compatibility
-- **Priority**: High - validation
-- **Status**: In Progress (compilation errors resolved)
-
-### 10. Cleanup
-- **Action**: Remove migration artifacts
-  - Unused imports warnings
-  - Dead code warnings
-  - Commented-out code
-  - Temporary helper functions
-- **Priority**: Low - code hygiene
-
 ## Completed tasks
 
 ### 12. B3 Nomenclature Audit and Cleanup
-- **Issue**: Despite HttpB3Message → HttpB5Message rename, many B3 references remained
+- **Issue**: Despite HttpB3Message → HttpB4Message rename, many B3 references remained
 - **Changes Completed**:
-  - Renamed `HttpB3` → `HttpB5` (struct, impl, all usage)
-  - Renamed `HttpB3BoardParams` → `HttpB5BoardParams` (struct, impl, factory)
-  - Renamed `HttpB3Index` → `HttpB5Index` (struct, impl, usage)
-  - Updated variable names: `b3index` → `b5index`
+  - Renamed `HttpB3` → `HttpB4` (struct, impl, all usage)
+  - Renamed `HttpB3BoardParams` → `HttpB4BoardParams` (struct, impl, factory)
+  - Renamed `HttpB3Index` → `HttpB4Index` (struct, impl, usage)
+  - Updated variable names: `b3index` → `b4index`
   - Removed GRPC references from comments (7 locations)
-  - Updated b5 crate comments removing b3 historical references (8 locations)
-  - Updated WASM board comments: HttpB3Message → HttpB5Message
+  - Updated b4 crate comments removing b3 historical references (8 locations)
+  - Updated WASM board comments: HttpB3Message → HttpB4Message
 - **Files Modified** (20 files):
-  - `crates/braid_b5/src/native/board/http.rs` - All struct renames, BoardFactoryMulti impl
-  - `crates/braid_b5/src/native/board/mod.rs` - Updated exports
-  - `crates/braid_b5/src/native/session/session_master.rs` - All type references
-  - `crates/braid_b5/src/native/test/protocol_test_http.rs` - Imports and usage
-  - `crates/braid_b5/src/bin/main.rs` - Imports, type annotations, variable names
-  - `crates/braid_b5/src/bin/verify.rs` - Imports, usage, removed grpc comments
-  - `crates/braid_b5/src/bin/main_concurrent.rs` - Imports, usage, removed grpc comments
-  - `crates/braid_b5/src/wasm/board/http.rs` - Comments
-  - `crates/braid_b5/src/wasm/session.rs` - Comments
-  - `crates/b5/src/db.rs` - Comment updates (4 locations)
-  - `crates/b5/src/monitor.rs` - Comment updates (3 locations)
-  - `crates/b5/src/messages/http_message.rs` - Removed GRPC references (2 locations)
+  - `crates/braid/src/native/board/http.rs` - All struct renames, BoardFactoryMulti impl
+  - `crates/braid/src/native/board/mod.rs` - Updated exports
+  - `crates/braid/src/native/session/session_master.rs` - All type references
+  - `crates/braid/src/native/test/protocol_test_http.rs` - Imports and usage
+  - `crates/braid/src/bin/main.rs` - Imports, type annotations, variable names
+  - `crates/braid/src/bin/verify.rs` - Imports, usage, removed grpc comments
+  - `crates/braid/src/bin/main_concurrent.rs` - Imports, usage, removed grpc comments
+  - `crates/braid/src/wasm/board/http.rs` - Comments
+  - `crates/braid/src/wasm/session.rs` - Comments
+  - `crates/b4/src/db.rs` - Comment updates (4 locations)
+  - `crates/b4/src/monitor.rs` - Comment updates (3 locations)
+  - `crates/b4/src/messages/http_message.rs` - Removed GRPC references (2 locations)
 - **Skipped (Legacy/Historical)**:
   - `crates/braid/` - Old braid crate kept for reference
   - `crates/b4/` - Old b4 crate kept for reference
   - `crates/strand/` - Hex constants unrelated to protocol
   - `summary.md` - File will be removed
-- **Compilation**: ✅ All code compiles successfully (cargo check -p braid_b5, cargo check -p b5)
+- **Compilation**: ✅ All code compiles successfully (cargo check -p braid, cargo check -p b4)
 - **Priority**: Low-Medium - consistency and clarity (no functional impact)
 - **Status**: COMPLETE ✅
 
@@ -212,9 +195,9 @@
   - ✅ Test compilation to `wasm32-unknown-unknown`
   - ✅ Fix dependency issues (removed ring/aws-lc-rs from WASM build)
   - ✅ Configure getrandom with wasm_js/js features
-  - ✅ Update WASM code to use b5 instead of b4
-  - ✅ Fix b5 helper function usage in WASM code
-  - ✅ Fix HttpB5Message duplication in WASM session
+  - ✅ Update WASM code to use b4
+  - ✅ Fix b4 helper function usage in WASM code
+  - ✅ Fix HttpB4Message duplication in WASM session
 - **Deferred to System Testing**:
   - Browser integration testing (trustee.html)
   - Full protocol execution in browser environment
@@ -235,30 +218,30 @@
   - ✅ LocalBoard accessors generic over W
   - ✅ All action implementations (DKG, mix, decrypt) dispatch correctly
   - ✅ Test helper functions made generic (get_plaintexts_nohash, etc.)
-  - ✅ Created demo-multi-b5.ps1 with -CiphertextWidth parameter
-  - ✅ Created demo-browser-b5.ps1 with W parameter support
-  - ✅ Created B5_TESTING_SCRIPTS.md documentation
-  - ✅ Tested demo-multi-b5.ps1 with native multi-board protocol (W=2 verified)
+  - ✅ Created demo-multi.ps1 with -CiphertextWidth parameter
+  - ✅ Created demo-browser.ps1 with W parameter support
+  - ✅ Created TESTING_SCRIPTS.md documentation
+  - ✅ Tested demo-multi.ps1 with native multi-board protocol (W=2 verified)
   - ✅ All production code generic, no hardcoded W assumptions
   - ✅ Fixed-type boundary pattern working correctly
 - **Remaining Actions**:
-  - ⏭️ Create serve-b5.ps1 script to build and serve WASM braid_b5 trustee (reuse trustee.html)
-  - ⏭️ Test demo-browser-b5.ps1 with serve-b5.ps1 for full browser+native protocol with W parameter
-  - ⏭️ Test webassembly verifier for braid_b5 (reuse verifier.html frontend)
+  - ⏭️ Create serve.ps1 script to build and serve WASM braid trustee (reuse trustee.html)
+  - ⏭️ Test demo-browser.ps1 with serve.ps1 for full browser+native protocol with W parameter
+  - ⏭️ Test webassembly verifier for braid (reuse verifier.html frontend)
   - ⏭️ Fix test data generation code that currently hardcodes W=2 in:
-    - `crates/braid_b5/src/native/test/protocol_test_http.rs`
-    - `crates/braid_b5/src/native/test/protocol_test_memory.rs`
-    - `crates/braid_b5/src/native/test/dbg.rs`
+    - `crates/braid/src/native/test/protocol_test_http.rs`
+    - `crates/braid/src/native/test/protocol_test_memory.rs`
+    - `crates/braid/src/native/test/dbg.rs`
   - ⏭️ Test protocol execution with W=1, 3, 4 to validate full genericity
 - **Files Modified**:
-  - `crates/braid_b5/src/lib.rs` - dispatch_ciphertext_width! macro
-  - `crates/braid_b5/src/protocol/board/local_board.rs` - Generic accessors
-  - `crates/braid_b5/src/protocol/action/*.rs` - All actions dispatch on W
-  - `crates/braid_b5/src/protocol/trustee.rs` - Generic test helpers
+  - `crates/braid/src/lib.rs` - dispatch_ciphertext_width! macro
+  - `crates/braid/src/protocol/board/local_board.rs` - Generic accessors
+  - `crates/braid/src/protocol/action/*.rs` - All actions dispatch on W
+  - `crates/braid/src/protocol/trustee.rs` - Generic test helpers
   - Various test files - Updated with turbofish syntax for W=2
-  - `demo-multi-b5.ps1` - Multi-board testing with W parameter
-  - `demo-browser-b5.ps1` - Browser testing with W parameter
-  - `B5_TESTING_SCRIPTS.md` - Complete testing documentation
+  - `demo-multi.ps1` - Multi-board testing with W parameter
+  - `demo-browser.ps1` - Browser testing with W parameter
+  - `TESTING_SCRIPTS.md` - Complete testing documentation
 - **Priority**: Medium - flexibility for future use cases
 - **Status**: ✅ COMPLETE - Migration-specific work done, system-wide testing is out of scope
 
@@ -273,11 +256,11 @@
   - Type parameters standardized to `C, W, P` order for consistency
 - **Files Modified**:
   - `crates/cryptography/src/dkgd/recipient.rs`
-  - `crates/b5/src/messages/artifact.rs`
-  - `crates/b5/src/messages/message.rs`
-  - `crates/braid_b5/src/protocol/action/decrypt.rs`
-  - `crates/braid_b5/src/protocol/board/local_board.rs`
-  - `crates/braid_b5/src/protocol/trustee.rs`
+  - `crates/b4/src/messages/artifact.rs`
+  - `crates/b4/src/messages/message.rs`
+  - `crates/braid/src/protocol/action/decrypt.rs`
+  - `crates/braid/src/protocol/board/local_board.rs`
+  - `crates/braid/src/protocol/trustee.rs`
 - **Priority**: High - correctness issue
 - **Status**: ✅ COMPLETE - Security vulnerability eliminated
 
@@ -290,18 +273,18 @@
     - `verifier_to_base64_string(verifier: &Self::Verifier) -> Result<String, String>`
     - `verifier_from_base64_string(s: &str) -> Result<Self::Verifier, String>`
   - Updated all board traits to be generic: `Board<C>`, `BoardMulti<C>`, `BoardFactory<C, B>`, `BoardFactoryMulti<C, B>`
-  - `HttpB5` board now fully generic over any Context while supporting HTTP serialization
+  - `HttpB4` board now fully generic over any Context while supporting HTTP serialization
   - Updated storage backends with generic `retrieve_messages<C: Context>()`
-  - Cleaned up `HttpB5Message` (removed unused metadata fields: sender_pk, statement_kind, batch, mix_number)
-  - Consolidated API types in `b5/src/api_types.rs`
+  - Cleaned up `HttpB4Message` (removed unused metadata fields: sender_pk, statement_kind, batch, mix_number)
+  - Consolidated API types in `b4/src/api_types.rs`
 - **Architectural Decision**:
-  - **b5 crate**: Message types are now **generic over Context**
+  - **b4 crate**: Message types are now **generic over Context**
     - `Message<C: Context>` with generic signatures
     - Direct generic signature creation and verification (no conversion)
     - Artifacts remain generic `<C: Context>`
-  - **braid_b5 crate**: Fully generic over `C: Context`
+  - **braid crate**: Fully generic over `C: Context`
     - Protocol layer works with any Context
-    - Board implementations generic (including HttpB5)
+    - Board implementations generic (including HttpB4)
     - Can be tested with different contexts
   - **cryptography crate**: Hashing is **intentionally fixed infrastructure**
     - `CryptographicHasher` type alias = SHA3-512 globally
@@ -312,7 +295,7 @@
 - **Benefits Achieved**:
   - Eliminated code smell: no more wasteful serialize/deserialize conversion
   - Clean generic architecture throughout
-  - HttpB5 supports wire protocol via trait methods (elegant solution)
+  - HttpB4 supports wire protocol via trait methods (elegant solution)
   - Full type safety at compile time
   - More flexible and testable code
   - Honest design: clear separation between configurable components and fixed infrastructure
@@ -322,20 +305,39 @@
   - `crates/cryptography/src/groups/ristretto255/group.rs` - Uses CryptographicHasher with explanatory comment
   - `crates/cryptography/src/groups/p256/group.rs` - Uses CryptographicHasher with explanatory comment
   - `crates/cryptography/src/utils/signatures.rs` - Added serialization methods to SignatureScheme trait
-  - `crates/b5/src/lib.rs` - Re-exports Hasher and defines CryptographicHash output type
-  - `crates/b5/src/messages/message.rs` - Made Message, Sender generic
-  - `crates/b5/src/messages/newtypes.rs` - Uses concrete Hash type from b5 crate
-  - `crates/b5/src/messages/http_message.rs` - Cleaned up HttpB5Message structure
-  - `crates/b5/src/api_types.rs` - Consolidated API types
-  - `crates/b5/src/handlers.rs` - Updated to use consolidated API types
-  - `crates/braid_b5/src/protocol/board.rs` - All board traits generic, documented cfg gating
-  - `crates/braid_b5/src/protocol/trustee.rs` - StepResult generic
-  - `crates/braid_b5/src/native/board/http.rs` - HttpB5 fully generic (struct still named HttpB3)
-  - `crates/braid_b5/src/native/storage/` - All storage backends updated
-  - `crates/braid_b5/src/wasm/board/http.rs` - WASM HttpB5 board updated
-  - `crates/braid_b5/src/wasm/board/storage_indexeddb.rs` - WASM storage updated
-  - `crates/braid_b5/src/wasm/session.rs` - WASM session updated
-  - `crates/braid_b5/src/wasm/verify.rs` - WASM verifier updated
+  - `crates/b4/src/lib.rs` - Re-exports Hasher and defines CryptographicHash output type
+  - `crates/b4/src/messages/message.rs` - Made Message, Sender generic
+  - `crates/b4/src/messages/newtypes.rs` - Uses concrete Hash type from b4 crate
+  - `crates/b4/src/messages/http_message.rs` - Cleaned up HttpB4Message structure
+  - `crates/b4/src/api_types.rs` - Consolidated API types
+  - `crates/b4/src/handlers.rs` - Updated to use consolidated API types
+  - `crates/braid/src/protocol/board.rs` - All board traits generic, documented cfg gating
+  - `crates/braid/src/protocol/trustee.rs` - StepResult generic
+  - `crates/braid/src/native/board/http.rs` - HttpB4 fully generic (struct still named HttpB3)
+  - `crates/braid/src/native/storage/` - All storage backends updated
+  - `crates/braid/src/wasm/board/http.rs` - WASM HttpB4 board updated
+  - `crates/braid/src/wasm/board/storage_indexeddb.rs` - WASM storage updated
+  - `crates/braid/src/wasm/session.rs` - WASM session updated
+  - `crates/braid/src/wasm/verify.rs` - WASM verifier updated
   - Various test files - Type annotations updated
 - **Priority**: Medium - developer experience
 - **Status**: ✅ COMPLETE - Full genericity achieved with proper separation between configurable and fixed components
+
+## Deferred tasks
+
+### 7. Integration Testing
+- **Action**: Run full protocol end-to-end tests
+  - Multi-board scenarios
+  - DKG round-trip
+  - Encryption/decryption pipeline
+  - Browser trustee compatibility
+- **Priority**: High - validation
+- **Status**: In Progress (compilation errors resolved)
+
+### 10. Cleanup
+- **Action**: Remove migration artifacts
+  - Unused imports warnings
+  - Dead code warnings
+  - Commented-out code
+  - Temporary helper functions
+- **Priority**: Low - code hygiene

@@ -10,27 +10,27 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use tracing_attributes::instrument;
 
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::{context::Ctx, elgamal::PrivateKey};
+use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
+use cryptography::context::Context;
+use cryptography::utils::signatures::SignatureScheme;
 
 use crate::protocol::action::Action;
 use crate::protocol::board::{LocalBoard, LocalBoardStorage};
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
-use b4::HttpB3Message;
+use b4::HttpB4Message;
 use b4::messages::artifact::Channel;
 use b4::messages::artifact::Configuration;
 use b4::messages::artifact::DkgPublicKey;
 use b4::messages::artifact::Shares;
-use b4::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use b4::messages::artifact::Plaintexts;
 use b4::messages::message::Message;
 use b4::messages::newtypes::*;
 use b4::messages::statement::StatementType;
-use strand::util::StrandError;
+use cryptography::utils::error::Error as CryptographyError;
 
-use strand::symm::{self, EncryptionData};
+use cryptography::utils::symm::{self, EncryptionData};
 
 const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 
@@ -101,11 +101,11 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// of actions that can be executed in parallel. Higher
 /// values may increase core utilization, but also
 /// peak memory usage.
-pub struct Trustee<C: Ctx, S: LocalBoardStorage> {
+pub struct Trustee<C: Context, S: LocalBoardStorage> {
     pub(crate) name: String,
     #[allow(dead_code)]
     pub(crate) board_name: String,
-    pub(crate) signing_key: StrandSignatureSk,
+    pub(crate) signing_key: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Signer,
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
     pub local_board: LocalBoard<C, S>,
@@ -113,7 +113,7 @@ pub struct Trustee<C: Ctx, S: LocalBoardStorage> {
     pub(crate) max_concurrent_actions: Option<usize>,
 }
 
-impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
+impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// Constructs a trustee instance.
     ///
     /// A trustee instance exists in the context of a session, and therefore
@@ -121,7 +121,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     pub fn new(
         name: String,
         board_name: String,
-        signing_key: StrandSignatureSk,
+        signing_key: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Signer,
         encryption_key: symm::SymmetricKey,
         storage: S,
         max_concurrent_actions: Option<usize>,
@@ -160,16 +160,17 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     #[instrument(name = "Trustee::step", skip(remote_messages, self), level="trace")]
     pub fn step(
         &mut self,
-        remote_messages: &Vec<HttpB3Message>,
-    ) -> Result<StepResult, ProtocolError> {
+        remote_messages: &Vec<HttpB4Message>,
+    ) -> Result<StepResult<C>, ProtocolError> {
         
         // When retrieving all messages, some of them will already exist in 
         // the local store: this is not an error
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        
         // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
         let parsed_messages = self.local_board
             .store_and_return_messages(&remote_messages, ignore_existing)
-            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))?;
+            .map_err(|e| ProtocolError::BoardError(format!("error here: {}", e)))?;
 
         // Update the in-memory board with parsed messages. Returns count of added messages.
         let added_messages = self.update_local_board(parsed_messages)?;
@@ -210,7 +211,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<HttpB4Message>) -> Result<(), ProtocolError> {
         self.local_board
             .update_store(messages, false)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
@@ -261,11 +262,11 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     pub fn update_local_board(
         &mut self,
-        messages: Vec<(Message, i64)>,
+        messages: Vec<(Message<C>, i64)>,
     ) -> Result<i64, ProtocolError> {
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
-            self.update(messages, configuration)
+            self.update(messages, &configuration)
         } else {
             self.update_bootstrap(messages)
         }
@@ -281,8 +282,8 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     ///////////////////////////////////////////////////////////////////////////
     fn update(
         &mut self,
-        messages: Vec<(Message, i64)>,
-        configuration: Configuration<C>,
+        messages: Vec<(Message<C>, i64)>,
+        configuration: &Configuration<C>,
     ) -> Result<i64, ProtocolError> {
         let mut added = 0;
 
@@ -340,7 +341,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     ///////////////////////////////////////////////////////////////////////////
     fn update_bootstrap(
         &mut self,
-        mut messages: Vec<(Message, i64)>,
+        mut messages: Vec<(Message<C>, i64)>,
     ) -> Result<i64, ProtocolError> {
         let mut added = 0;
 
@@ -366,7 +367,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         }
 
         let artifact = zero.artifact.as_ref().expect("impossible");
-        let configuration = Configuration::strand_deserialize(artifact)?;
+        let configuration = Configuration::deser(artifact)?;
 
         if !configuration.is_valid() {
             return Err(ProtocolError::InvalidConfiguration(format!(
@@ -390,7 +391,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         
         // Process the rest of the messages
         if !messages.is_empty() {
-            return self.update(messages, configuration);
+            return self.update(messages, &configuration);
         }
 
         Ok(added)
@@ -458,7 +459,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         &self,
         predicates: &Vec<Predicate>,
         verifying_mode: bool,
-    ) -> Result<(Vec<Message>, HashSet<Action>), ProtocolError> {
+    ) -> Result<(Vec<Message<C>>, HashSet<Action>), ProtocolError> {
         let _ = self
             .local_board
             .get_configuration_raw()
@@ -490,7 +491,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
         // #[cfg(feature = "native")]
-        let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
+        let results: Result<Vec<Vec<Message<C>>>, ProtocolError> = actions
             .into_par_iter()
             .map(|a| {
                 info!("Running action {:?}..", a);
@@ -511,7 +512,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
 
         /*    
         #[cfg(not(feature = "native"))]
-        let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
+        let results: Result<Vec<Vec<Message<C>>>, ProtocolError> = actions
             .into_iter()
             .map(|a| {
                 info!("Running action {:?}..", a);
@@ -544,7 +545,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// Runs the trustee in verifying mode.
     ///
     /// This function is used as part of the braid verifier.
-    pub(crate) fn verify(&mut self, messages: Vec<(Message, i64)>) -> Result<Vec<Message>> {
+    pub(crate) fn verify(&mut self, messages: Vec<(Message<C>, i64)>) -> Result<Vec<Message<C>>> {
         self.update_local_board(messages)?;
 
         let predicates = self.derive_predicates(true)?;
@@ -620,12 +621,12 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_ballots(
+    pub(crate) fn get_ballots<const W: usize>(
         &self,
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>, ProtocolError> {
+    ) -> Result<b4::messages::artifact::Ballots<C, W>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -635,12 +636,12 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_mix(
+    pub(crate) fn get_mix<const W: usize>(
         &self,
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>, ProtocolError> {
+    ) -> Result<b4::messages::artifact::Mix<C, W>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -650,12 +651,12 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_decryption_factors(
+    pub(crate) fn get_decryption_factors<const W: usize, const P: usize>(
         &self,
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, W, P>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -666,12 +667,12 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_plaintexts(
+    pub(crate) fn get_plaintexts<const W: usize>(
         &self,
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>, ProtocolError> {
+    ) -> Result<Plaintexts<C, W>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -687,20 +688,20 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     ///
     /// Trustee signing public keys are also used to
     /// identify trustees in protocol Configurations.
-    pub fn get_pk(&self) -> Result<StrandSignaturePk, StrandError> {
-        Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
+    pub fn get_pk(&self) -> Result<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier, CryptographyError> {
+        Ok(C::SignatureScheme::verifying_key(&self.signing_key))
     }
 
-    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-        let bytes: &[u8] = &sk.strand_serialize()?;
-        let ed = symm::encrypt(self.encryption_key, bytes)?;
+    pub(crate) fn encrypt_share_sk(&self, sk: &cryptography::cryptosystem::elgamal::KeyPair<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
+        let bytes = sk.ser();
+        let ed = symm::encrypt(self.encryption_key, &bytes)?;
 
         Ok(ed)
     }
 
-    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
+    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<cryptography::cryptosystem::elgamal::KeyPair<C>, ProtocolError> {
         let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
-        let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
+        let ret = cryptography::cryptosystem::elgamal::KeyPair::<C>::deser(&decrypted)?;
 
         Ok(ret)
     }
@@ -711,21 +712,21 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     }
 
     /// Convenience function used by tests and dbg
-    pub fn _get_plaintexts_nohash(
+    pub fn _get_plaintexts_nohash<const W: usize>(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Option<b4::messages::artifact::Plaintexts<C, W>> {
         self.local_board
-            .get_plaintexts_nohash(batch, signer_position)
+            .get_plaintexts_nohash::<W>(batch, signer_position)
     }
 
     ///////////////////////////////////////////////////////////////////////////
 }
 
 /// Trustees can sign Messages
-impl<C: Ctx, S: LocalBoardStorage> b4::messages::message::Signer for Trustee<C, S> {
-    fn get_signing_key(&self) -> &StrandSignatureSk {
+impl<C: Context, S: LocalBoardStorage> b4::messages::message::Signer<C> for Trustee<C, S> {
+    fn get_signing_key(&self) -> &<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Signer {
         &self.signing_key
     }
     fn get_name(&self) -> String {
@@ -737,7 +738,7 @@ impl<C: Ctx, S: LocalBoardStorage> b4::messages::message::Signer for Trustee<C, 
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
-impl<C: Ctx, S: LocalBoardStorage> std::fmt::Debug for Trustee<C, S> {
+impl<C: Context, S: LocalBoardStorage> std::fmt::Debug for Trustee<C, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Trustee({})", self.name)
     }
@@ -762,25 +763,18 @@ pub struct TrusteeConfig {
 }
 impl TrusteeConfig {
     /// Construct a TrusteeConfig from keys in serialized base64 form.
-    pub fn new(signing_key_sk: &str, signing_key_pk: &str, symm_key: &str) -> Self {
-        TrusteeConfig {
-            signing_key_sk: signing_key_sk.to_string(),
-            signing_key_pk: signing_key_pk.to_string(),
-            encryption_key: symm_key.to_string(),
-        }
+    pub fn from_toml_str(toml_str: &str) -> Result<Self, toml::de::Error> {
+        toml::from_str::<TrusteeConfig>(toml_str)
     }
 
     /// Construct a TrusteeConfig from keys in object form.
-    pub fn new_from_objects(
-        signing_key: StrandSignatureSk,
+    pub fn new_from_objects<C: Context>(
+        signing_key: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer,
         encryption_key: symm::SymmetricKey,
     ) -> Self {
-        let sk_string = signing_key.to_der_b64_string().unwrap();
-        let pk_string = StrandSignaturePk::from_sk(&signing_key)
-            .unwrap()
-            .to_der_b64_string()
-            .unwrap();
-
+        let sk_string = <C::SignatureScheme as SignatureScheme<C::Rng>>::signer_to_base64_string(&signing_key).unwrap();
+        let vk = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifying_key(&signing_key);
+        let pk_string = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifier_to_base64_string(&vk).unwrap();
         // Compatible with both aes and chacha20poly backends
         let ek_bytes = encryption_key.as_slice();
         let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
@@ -798,15 +792,15 @@ impl TrusteeConfig {
 /// Contains the messages generated by the trustee as well as
 /// statistics about the step execution.
 #[derive(Debug)]
-pub struct StepResult {
-    pub messages: Vec<Message>,
+pub struct StepResult<C: Context> {
+    pub messages: Vec<Message<C>>,
     pub actions: HashSet<Action>,
     pub added_messages: i64,
     pub last_id: i64,
 }
-impl StepResult {
+impl<C: Context> StepResult<C> {
     fn new(
-        messages: Vec<Message>,
+        messages: Vec<Message<C>>,
         actions: HashSet<Action>,
         added_messages: i64,
         last_id: i64,

@@ -16,10 +16,11 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::registry::Registry;
 use tracing_subscriber::reload::Handle;
 
-use strand::context::Ctx;
-use strand::elgamal::Ciphertext;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use cryptography::context::Context;
+use cryptography::traits::groups::CryptographicGroup;
+use cryptography::cryptosystem::elgamal::PublicKey;
+use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::utils::serialization::variable::VSerializable;
 
 use crate::protocol::action::Action;
 use crate::protocol::board::{ArtifactEntryIdentifier, StatementEntryIdentifier};
@@ -60,11 +61,11 @@ use b4::messages::newtypes::MAX_TRUSTEES;
 /// When launching, the initial number of trustees is 2, with threshold
 /// participants = (1,2).
 #[instrument(skip(log_reload))]
-pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
+pub fn dbg<C: Context>(log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
     let trustees = 2;
     let threshold = [1, 2];
 
-    let mut demo = mk_context(ctx, trustees, &threshold);
+    let mut demo = mk_context::<C>(trustees, &threshold);
     demo.log_reload = Some(log_reload);
 
     let mut repl = Repl::new(demo)
@@ -118,18 +119,17 @@ pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<
 }
 
 /// Contains all the information necessary to interact with the protocol from the repl.
-struct ReplContext<C: Ctx> {
-    pub ctx: C,
+struct ReplContext<C: Context> {
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
-    pub trustee_pks: Vec<StrandSignaturePk>,
+    pub trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>>,
+    pub trustee_pks: Vec<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier>,
     pub remote: VectorBoard,
-    pub last_messages: Vec<Message>,
+    pub last_messages: Vec<Message<C>>,
     pub last_actions: HashSet<Action>,
     pub log_reload: Option<Handle<LevelFilter, Registry>>,
-    pub plaintexts: Vec<C::P>,
-    pub selected_trustees: [usize; 12],
+    pub plaintexts: Vec<[C::Element; 2]>,
+    pub selected_trustees: [usize; MAX_TRUSTEES],
 }
 
 /// The information that is displayed with the status command.
@@ -140,22 +140,22 @@ struct ReplContext<C: Ctx> {
 /// * Each trustee's view of the bulletin board.
 /// * The Messages posted in the last step.
 /// * The Actions executed in the last step.
-struct Status<C: Ctx> {
+struct Status<C: Context> {
     cfg: Configuration<C>,
     // locals: Vec<LocalBoard<C>>,
     statement_keys: Vec<Vec<StatementEntryIdentifier>>,
     artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
     remote: VectorBoard,
-    last_messages: Vec<Message>,
+    last_messages: Vec<Message<C>>,
     last_actions: HashSet<Action>,
 }
-impl<C: Ctx> Status<C> {
+impl<C: Context> Status<C> {
     fn new(
         cfg: Configuration<C>,
         statement_keys: Vec<Vec<StatementEntryIdentifier>>,
         artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
         remote: VectorBoard,
-        last_messages: Vec<Message>,
+        last_messages: Vec<Message<C>>,
         last_actions: HashSet<Action>,
     ) -> Status<C> {
         Status {
@@ -218,7 +218,11 @@ impl<C: Ctx> Status<C> {
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
         for m in self.last_messages.iter() {
-            let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
+            use cryptography::utils::serialization::{VSerializable, VDeserializable};
+            let pk_bytes = m.sender.pk.ser();
+            let generic_pk: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier = 
+                VDeserializable::deser(&pk_bytes).unwrap();
+            let sender = self.cfg.get_trustee_position(&generic_pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
                 format!("{}", sender),
@@ -253,8 +257,12 @@ impl<C: Ctx> Status<C> {
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
         for m in self.remote.messages.iter() {
-            let m = Message::strand_deserialize(&m.message).unwrap();
-            let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
+            let m = Message::<C>::deser(&m.message).unwrap();
+            use cryptography::utils::serialization::{VSerializable, VDeserializable};
+            let pk_bytes = m.sender.pk.ser();
+            let generic_pk: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier = 
+                VDeserializable::deser(&pk_bytes).unwrap();
+            let sender = self.cfg.get_trustee_position(&generic_pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
                 format!("{}", sender),
@@ -277,43 +285,46 @@ impl<C: Ctx> Status<C> {
 }
 
 /// Constructs the repl context used to interact with the protocol.
-fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
+fn mk_context<C: Context>(n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
+    use cryptography::utils::signatures::SignatureScheme;
+    let mut rng = C::get_rng();
+    let pmkey = C::SignatureScheme::gen_signing_key(&mut rng);
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
 
-    let trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>> = (0..n_trustees)
+    let trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>> = (0..n_trustees)
         .into_iter()
         .map(|i| {
-            let kp = StrandSignatureSk::generate().unwrap();
+            let kp = C::SignatureScheme::gen_signing_key(&mut rng);
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
-            let encryption_key = strand::symm::gen_key();
+            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
             Trustee::new(
                 i.to_string(),
                 "foo".to_string(),
                 kp,
                 encryption_key,
-                crate::native::board::NoOpStorage::new(),
+                crate::protocol::board::NoOpStorage::new(),
                 None,
             )
         })
         .collect();
 
-    let trustee_pks: Vec<StrandSignaturePk> = trustees
+    let trustee_pks: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier> = trustees
         .iter()
-        .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
+        .map(|t| C::SignatureScheme::verifying_key(&t.signing_key))
         .collect();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+        C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks.clone(),
         threshold.len(),
+        2, // ciphertext_width
         PhantomData,
     );
 
@@ -327,7 +338,6 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     );
 
     ReplContext {
-        ctx,
         cfg,
         protocol_manager: pm,
         trustees,
@@ -342,7 +352,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
 }
 
 /// Sets or displays the current log level.
-fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+fn log<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let new_level;
     let l = args.get_one::<String>("level");
     if let Some(level) = l {
@@ -389,7 +399,7 @@ fn quit<T>(_args: ArgMatches, _context: &mut T) -> Result<Option<String>> {
 /// when the key generation is completed in order to post ballots, and
 /// when shuffling and decryption is completed in order to check output
 /// plaintexts.
-fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+fn status<C: Context>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let stmt_keys: Vec<Vec<StatementEntryIdentifier>> = context
         .trustees
         .iter()
@@ -430,8 +440,7 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 /// can be shown with the plaintexts command. When the protocol
 /// is complete, the plaintexts and decrypted commands can
 /// show the correspondence.
-fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let ctx = context.ctx.clone();
+fn ballots<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let ballot_no = args
         .get_one::<String>("count")
         .and_then(|s| s.parse::<usize>().ok())
@@ -442,21 +451,20 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .unwrap_or(1);
     let dkgpk = context.trustees[0]._get_dkg_public_key_nohash().unwrap();
 
-    let pk_bytes = dkgpk.strand_serialize().unwrap();
-    let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
+    let pk_bytes = dkgpk.ser();
+    let pk_h = b4::hash_to_array(&pk_bytes).unwrap();
 
     let pk_element = dkgpk.pk;
-    let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
+    let pk = PublicKey::<C>::new(pk_element);
 
-    let mut rng = ctx.get_rng();
-    let ps: Vec<C::P> = (0..ballot_no)
-        .map(|_| ctx.rnd_plaintext(&mut rng))
+    let mut rng = C::get_rng();
+    let ps: Vec<[C::Element; 2]> = (0..ballot_no)
+        .map(|_| [C::G::random_element(&mut rng), C::G::random_element(&mut rng)])
         .collect();
-    let ballots: Vec<Ciphertext<C>> = ps
+    let ballots: Vec<Ciphertext<C, 2>> = ps
         .iter()
         .map(|p| {
-            let encoded = ctx.encode(&p).unwrap();
-            pk.encrypt(&encoded)
+            pk.encrypt(&p)
         })
         .collect();
     context.plaintexts = ps;
@@ -485,14 +493,9 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 }
 
 /// Shows the last plaintexts generated during ballot posting.
-fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let encoded: Vec<C::E> = context
-        .plaintexts
-        .iter()
-        .map(|p| context.ctx.encode(p).unwrap())
-        .collect();
-    if encoded.len() > 0 {
-        Ok(Some(format!("Plaintexts {:?}", encoded)))
+fn plaintexts<C: Context>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+    if context.plaintexts.len() > 0 {
+        Ok(Some(format!("Plaintexts count: {}", context.plaintexts.len())))
     } else {
         Ok(Some(format!("No plaintexts found")))
     }
@@ -502,23 +505,16 @@ fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result
 /// Validity is checked by comparing the decrypted
 /// values with the plaintext values generated when
 /// posting with the ballots command.
-fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+fn decrypted<C: Context>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     // FIXME hardcoded batch 1, use command line argument
     let decryptor = context.selected_trustees[0] - 1;
-    if let Some(plaintexts) = context.trustees[decryptor]._get_plaintexts_nohash(1, decryptor) {
-        let decrypted: Vec<C::E> = plaintexts
-            .0
-             .0
-            .iter()
-            .map(|p| context.ctx.encode(p).unwrap())
-            .collect();
-
-        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0 .0.clone());
+    if let Some(plaintexts) = context.trustees[decryptor]._get_plaintexts_nohash::<2>(1, decryptor) {
+        let set1: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts.0.clone());
         let set2 = HashSet::from_iter(context.plaintexts.iter().cloned());
 
         Ok(Some(format!(
-            "Decrypted {:?}, matches={}",
-            decrypted,
+            "Decrypted {} plaintexts, matches={}",
+            plaintexts.0.len(),
             set1 == set2
         )))
     } else {
@@ -529,7 +525,7 @@ fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<
 /// Resets the protocol with given trustees and threshold.
 ///
 /// All trustee and bulletin board information is reset.
-fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+fn reset<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let n_trustees = args
         .get_one::<String>("trustees")
         .unwrap()
@@ -550,7 +546,7 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
     info!("Num trustees: {:?}", n_trustees);
     info!("Threshold: {:?}", threshold);
 
-    let reset = mk_context(context.ctx.clone(), n_trustees, &threshold);
+    let reset = mk_context(n_trustees, &threshold);
 
     context.remote = reset.remote;
     context.trustees = reset.trustees;
@@ -569,14 +565,14 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
 /// If a trustee index is specified, the protocol will
 /// only execute for that trustee. Otherwise it will
 /// execute for all trustees.
-fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+fn step<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     context.last_actions = HashSet::from([]);
     context.last_messages = vec![];
 
     let trustee = args.get_one::<String>("trustee");
     if let Some(value) = trustee {
         let t = value.parse::<u8>()?;
-        let trustee_: Option<&mut Trustee<C, crate::native::board::NoOpStorage>> = context.trustees.get_mut(t as usize);
+        let trustee_: Option<&mut Trustee<C, crate::protocol::board::NoOpStorage>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
             // let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
             let step_result = trustee.step(&context.remote.get(-1)).unwrap();
@@ -605,7 +601,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
 }
 
 /// Simulates posting to the bulletin board.
-fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
+fn send<C: cryptography::context::Context>(messages: &Vec<Message<C>>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);
         remote.add(m.try_clone().unwrap());

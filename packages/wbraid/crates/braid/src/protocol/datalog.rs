@@ -10,10 +10,12 @@ pub(self) use crate::protocol::predicate::*;
 
 pub(self) use crate::util::ProtocolError;
 pub(self) use b4::messages::newtypes::*;
-pub(self) use strand::hash::Hash;
+pub(self) use b4::CryptographicHash as Hash;
 
+// pub(crate) const NULL_HASH: Hash = unsafe { std::mem::transmute([0u8; 64]) };
+// pub(crate) const NULL_HASH: Hash = GenericArray::from_slice(&[0u8; 64]).clone();
 /// Marks a value in a THashes array as empty.
-pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
+use b4::messages::newtypes::zero_hash;
 
 /// Returns a new empty THashes array.
 ///
@@ -21,7 +23,7 @@ pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
 /// to the maximum possible number of trustees. The array is marked
 /// as empty with all values equal to the constant NULL_HASH.
 pub(crate) fn hashes_init(value: Hash) -> THashes {
-    let mut ret = [NULL_HASH; MAX_TRUSTEES];
+    let mut ret = [Hash::default(); MAX_TRUSTEES];
     ret[0] = value;
 
     ret
@@ -42,7 +44,7 @@ pub(crate) fn hashes_set(mut input: THashes, index: usize, value: Hash) -> THash
 pub(crate) fn hashes_add(mut input: THashes, value: Hash) -> THashes {
     let index = input
         .iter()
-        .position(|t| t == &NULL_HASH)
+        .position(|t| t == &zero_hash())
         // expect: cannot happen due to (n < threshold) condition in decrypt.rs logic
         .expect("impossible");
     input[index] = value;
@@ -95,7 +97,7 @@ pub(crate) fn trustees_count(input: TrusteeSet) -> usize {
 /// The size is defined as the number of values that are not
 /// NULL_HASH.
 pub(crate) fn hashes_count(input: &THashes) -> usize {
-    input.iter().filter(|t| *t != &NULL_HASH).count()
+    input.iter().filter(|t| *t != &zero_hash()).count()
 }
 
 /// Returns the Phases that make up the protocol's main steps.

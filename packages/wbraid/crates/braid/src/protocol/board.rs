@@ -8,18 +8,20 @@ pub mod storage_schema;
 // Storage trait (persistence abstraction)
 pub mod local_storage;
 
+pub mod storage_noop;
+
 // Universal LocalBoard implementation and data structures
 pub mod local_board;
 
 // Re-export LocalBoard and its data structures
 pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, StatementEntryIdentifier};
+pub use storage_noop::NoOpStorage;
 
 // Re-export storage trait and types
 pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
-use b4::messages::message::Message;
-use b4::HttpB3Message;
+use b4::HttpB4Message;
 
 /// Defines the interface with a bulletin board.
 ///
@@ -28,8 +30,8 @@ use b4::HttpB3Message;
 ///
 /// 1) retrieving messages greater than some id (as defined by the bulletin board).
 /// 2) Posting new messages.
-pub trait Board: Sized {
-    type Factory: BoardFactory<Self>;
+pub trait Board<C: cryptography::context::Context>: Sized {
+    type Factory: BoardFactory<C, Self>;
 
     /// Return messages with an id greater than the supplied last_id value from
     /// the given board of the bulletin board.
@@ -40,40 +42,49 @@ pub trait Board: Sized {
     /// ids do not determine the message history; this history is defined
     /// locally by each trustee according to the order in which those messages
     /// were received.
+    
+    // Native: Requires Send bound for multi-threaded runtime
     #[cfg(not(target_arch = "wasm32"))]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
-    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB4Message>>> + Send;
 
+    // WASM: Cannot satisfy Send (browser APIs use Rc, raw pointers)
     #[cfg(target_arch = "wasm32")]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
-    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>>;
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB4Message>>>;
 
-    /// Posts a messages to the given board of the bulletin board.
+    /// Posts messages to the given board of the bulletin board.
+    /// 
+    /// Takes HttpB4Message (wire format) rather than Message<C> (protocol format)
+    /// to maintain clean separation between protocol and transport layers.
+    
+    // Native: Requires Send bound for multi-threaded runtime
     #[cfg(not(target_arch = "wasm32"))]
-    fn insert_messages(
+    fn post_messages(
         &mut self,
         board: &str,
-        messages: Vec<Message>,
+        messages: Vec<HttpB4Message>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 
+    // WASM: Cannot satisfy Send (browser APIs use Rc, raw pointers)
     #[cfg(target_arch = "wasm32")]
-    fn insert_messages(
+    fn post_messages(
         &mut self,
         board: &str,
-        messages: Vec<Message>,
+        messages: Vec<HttpB4Message>,
     ) -> impl std::future::Future<Output = Result<()>>;
 }
 
 /// Allows abstracting over a board client implementation
 ///
 /// FIXME: probably overengineered.
-pub trait BoardFactory<B: Board>: Sized {
+pub trait BoardFactory<C: cryptography::context::Context, B: Board<C>>: Sized {
     fn get_board(&self) -> B;
 }
 
@@ -87,8 +98,8 @@ pub trait BoardFactory<B: Board>: Sized {
 ///
 /// This version allows receiving and posting messages in batches that span
 /// more than one board.
-pub trait BoardMulti: Sized {
-    type Factory: BoardFactoryMulti<Self>;
+pub trait BoardMulti<C: cryptography::context::Context>: Sized {
+    type Factory: BoardFactoryMulti<C, Self>;
 
     /// Returns a list of HttpBoardMessages for the given requests.
     ///
@@ -98,15 +109,18 @@ pub trait BoardMulti: Sized {
         requests: &Vec<(String, i64)>,
     ) -> impl std::future::Future<Output = Result<(Vec<b4::HttpBoardMessages>, bool)>> + Send;
 
-    fn insert_messages_multi(
+    /// Posts messages to multiple boards.
+    /// 
+    /// Takes HttpB4Message (wire format) for clean layer separation.
+    fn post_messages_multi(
         &self,
-        requests: Vec<(String, Vec<Message>)>,
+        requests: Vec<(String, Vec<HttpB4Message>)>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 }
 
 /// Allows abstracting over a board client implementation
 ///
 /// FIXME: probably overengineered.
-pub trait BoardFactoryMulti<B: BoardMulti>: Sized {
+pub trait BoardFactoryMulti<C: cryptography::context::Context, B: BoardMulti<C>>: Sized {
     fn get_board(&self) -> B;
 }

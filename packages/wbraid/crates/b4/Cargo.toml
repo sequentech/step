@@ -1,6 +1,6 @@
 [package]
 name = "b4"
-version = "0.1.0"
+version = "0.6.0"
 edition = "2021"
 
 [[bin]]
@@ -13,19 +13,23 @@ path = "src/monitor.rs"
 required-features = ["monitor"]
 
 [features]
+default = ["native"]
 monitor = ["dep:cursive", "dep:clap"]
-wasm-core = ["strand/wasm", "dep:js-sys"]
+wasm-core = ["vsc/wasm", "dep:js-sys"]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
 
 [dependencies]
-strand = { path = "../strand" }
+vsc = { path = "../vsc" }
 tokio = { workspace = true, optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# Cryptography dependencies
+# sha3 = "0.10"
+sha3 = "0.11"
+
 # Message types dependencies
-borsh = { version = "1.5", features = ["derive"] }
 strum = { version = "0.27", features = ["derive"] }
 hex = "0.4"
 base64 = "0.22"

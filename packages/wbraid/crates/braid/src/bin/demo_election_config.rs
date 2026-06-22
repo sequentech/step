@@ -6,11 +6,11 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::marker::PhantomData;
 
-use strand::backend::ristretto::RistrettoCtx;
-use strand::context::Ctx;
-use strand::serialization::StrandSerialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::symm;
+use cryptography::context::RistrettoCtx;
+use cryptography::context::Context;
+use cryptography::utils::serialization::variable::VSerializable;
+use cryptography::utils::signatures::SignatureScheme;
+use cryptography::utils::symm;
 
 use b4::messages::artifact::Configuration;
 use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
@@ -36,30 +36,32 @@ fn main() {
     gen_election_config::<RistrettoCtx>(3, &threshold);
 }
 
-fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
+fn gen_election_config<C: Context>(n_trustees: usize, threshold: &[usize]) {
+    let mut rng = C::get_rng();
+    let pmkey = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<<<C as Context>::SignatureScheme as SignatureScheme<<C as Context>::Rng>>::Verifier>) = (0..n_trustees)
         .map(|_i| {
-            let sk = StrandSignatureSk::generate().unwrap();
-            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-            let encryption_key: symm::SymmetricKey = symm::gen_key();
-            let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
+            let sk = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
+            let pk = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifying_key(&sk);
+            let encryption_key: symm::SymmetricKey = symm::gen_key().unwrap();
+            let tc = TrusteeConfig::new_from_objects::<C>(sk, encryption_key);
             (tc, pk)
         })
         .unzip();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+        <<C as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
+        2, // ciphertext_width
         PhantomData,
     );
-    let cfg_bytes = cfg.strand_serialize().unwrap();
+    let cfg_bytes = cfg.ser();
     let mut file = File::create(CONFIG).unwrap();
     file.write_all(&cfg_bytes).unwrap();
 

@@ -1,85 +1,41 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::path::PathBuf;
 use tracing::info;
 
 use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
+    GetMessagesResponse, ContentType,
 };
-use b4::messages::message::Message;
-use b4::HttpB3Message;
-use strand::serialization::StrandSerialize;
+use b4::HttpB4Message;
+use cryptography::context::Context;
 
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
 
-#[derive(Debug, Deserialize)]
-struct GetMessagesResponse {
-    messages: Vec<MessageWithUrl>,
-}
-
-#[derive(Debug, Deserialize)]
-struct MessageWithUrl {
-    id: String,
-    #[allow(dead_code)]
-    timestamp: i64,
-    #[allow(dead_code)]
-    size: usize,
-    content_type: ContentTypeDto,
-    sender_pk: String,
-    statement_kind: String,
-    batch: i32,
-    mix_number: i32,
-    download_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum ContentTypeDto {
-    Inline { message: String },  // base64 encoded
-    S3 {
-        #[allow(dead_code)]
-        key: String
-    },
-}
-
 /// HTTP client for bulletin board using Service API
-pub struct HttpB3 {
+pub struct HttpB4 {
     client: reqwest::Client,
     base_url: String,
 }
 
-impl HttpB3 {
-    pub async fn new(base_url: &str) -> HttpB3 {
-        HttpB3 {
+impl HttpB4 {
+    pub async fn new(base_url: &str) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
         }
     }
 
-    /// Helper to post a single message to a specific board
-    async fn post_message_to_board(&self, board: &str, message: &Message) -> Result<()> {
-        // Extract metadata from message
-        let sender_pk = message.sender.pk.to_der_b64_string()?;
-        let statement_kind = message.statement.get_kind().to_string();
-        let batch: i32 = message.statement.get_batch_number().try_into()?;
-        let mix_number: i32 = message.statement.get_mix_number().try_into()?;
-        
-        // Serialize the message
-        let message_bytes = message.strand_serialize()?;
+    /// Helper to post a single HttpB4Message to a specific board
+    async fn post_http_message_to_board(&self, board: &str, http_message: &HttpB4Message) -> Result<()> {
+        // Message is already serialized in HttpB4Message
+        let message_bytes = &http_message.message;
         let size = message_bytes.len();
 
         // Phase 1: Initiate message
         let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, board);
         let initiate_req = InitiateMessageRequest {
             size,
-            sender_pk: sender_pk.clone(),
-            statement_kind: statement_kind.clone(),
-            batch,
-            mix_number,
         };
 
         let initiate_response = self
@@ -120,10 +76,7 @@ impl HttpB3 {
                 );
                 let confirm_req = ConfirmMessageRequest {
                     data: None,
-                    sender_pk: sender_pk.clone(),
-                    statement_kind: statement_kind.clone(),
-                    batch,
-                    mix_number,
+                    version: http_message.version.clone(),
                 };
 
                 let confirm_response = self
@@ -149,11 +102,8 @@ impl HttpB3 {
                 self.base_url, board, init_resp.message_id
             );
             let confirm_req = ConfirmMessageRequest {
-                data: Some(message_bytes),
-                sender_pk,
-                statement_kind,
-                batch,
-                mix_number,
+                data: Some(message_bytes.clone()),
+                version: http_message.version.clone(),
             };
 
             let confirm_response = self
@@ -180,10 +130,10 @@ impl HttpB3 {
     }
 }
 
-impl Board for HttpB3 {
-    type Factory = HttpB3BoardParams;
+impl<C: Context> Board<C> for HttpB4 {
+    type Factory = HttpB4BoardParams;
     
-    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
+    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB4Message>> {
         let url = format!(
             "{}/boards/{}/messages?last_id={}",
             self.base_url, board, last_id
@@ -209,12 +159,12 @@ impl Board for HttpB3 {
         // With pre-signed URLs already available, there's no dependency between downloads.
 
         for msg in get_response.messages {
-            let message_bytes = match msg.content_type {
-                ContentTypeDto::Inline { message } => {
-                    // Decode base64
-                    base64::prelude::Engine::decode(&base64::prelude::BASE64_STANDARD, message)?
+            let message_bytes = match msg.message.content_type {
+                ContentType::Inline { data } => {
+                    // Already decoded by ContentType's Deserialize impl
+                    data
                 }
-                ContentTypeDto::S3 { key: _ } => {
+                ContentType::S3 { key: _ } => {
                     // Use pre-signed download URL from response
                     let download_url = msg.download_url
                         .ok_or_else(|| anyhow::anyhow!("S3 message missing download_url"))?;
@@ -234,73 +184,68 @@ impl Board for HttpB3 {
                 }
             };
 
-            let id: i64 = msg.id.parse()?;
+            let id: i64 = msg.message.id.parse()?;
 
-            result.push(HttpB3Message::new(
+            result.push(HttpB4Message::new(
                 id,
                 message_bytes,
-                "1".to_string(),
-                msg.sender_pk,
-                msg.statement_kind,
-                msg.batch,
-                msg.mix_number,
+                msg.message.version,
             ));
         }
 
         Ok(result)
     }
 
-    async fn insert_messages(&mut self, board: &str, messages: Vec<Message>) -> Result<()> {
-        for message in messages {
-            self.post_message_to_board(board, &message).await?;
+    async fn post_messages(&mut self, board: &str, messages: Vec<HttpB4Message>) -> Result<()> {
+        for http_message in messages {
+            self.post_http_message_to_board(board, &http_message).await?;
         }
         Ok(())
     }
 }
 
-/// Factory for creating HttpB3 board clients
+/// Factory for creating HttpB4 board clients
 #[derive(Clone)]
-pub struct HttpB3BoardParams {
-    base_url: String,
+pub struct HttpB4BoardParams {
+    pub base_url: String,
 }
 
-impl HttpB3BoardParams {
-    pub fn new(base_url: &str) -> HttpB3BoardParams {
-        HttpB3BoardParams {
+impl HttpB4BoardParams {
+    pub fn new(base_url: &str) -> HttpB4BoardParams {
+        HttpB4BoardParams {
             base_url: base_url.to_string(),
         }
     }
     
     /// Create a board client for a specific board (helper for testing)
-    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
-        HttpB3 {
+    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
         }
     }
 }
 
-impl BoardFactory<HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
-        // Board name will be set when used with Session
-        HttpB3 {
+impl<C: Context> BoardFactory<C, HttpB4> for HttpB4BoardParams {
+    fn get_board(&self) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
         }
     }
 }
 
-impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
-        HttpB3 {
+impl<C: Context> BoardFactoryMulti<C, HttpB4> for HttpB4BoardParams {
+    fn get_board(&self) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
         }
     }
 }
 
-impl BoardMulti for HttpB3 {
-    type Factory = HttpB3BoardParams;
+impl<C: Context> BoardMulti<C> for HttpB4 {
+    type Factory = HttpB4BoardParams;
 
     async fn get_messages_multi(
         &self,
@@ -370,14 +315,10 @@ impl BoardMulti for HttpB3 {
                 
                 let id: i64 = msg_with_url.message.id.parse()?;
                 
-                http_messages.push(HttpB3Message::new(
+                http_messages.push(HttpB4Message::new(
                     id,
                     message_bytes,
-                    "1".to_string(),
-                    msg_with_url.message.sender_pk,
-                    msg_with_url.message.statement_kind,
-                    msg_with_url.message.batch,
-                    msg_with_url.message.mix_number,
+                    msg_with_url.message.version,
                 ));
             }
             
@@ -390,20 +331,18 @@ impl BoardMulti for HttpB3 {
         Ok((all_boards, has_more))
     }
 
-    async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
+    async fn post_messages_multi(&self, requests: Vec<(String, Vec<HttpB4Message>)>) -> Result<()> {
         use b4::api_types::{
             InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
             ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
         };
-        use strand::serialization::StrandSerialize;
-        
         if requests.is_empty() {
             return Ok(());
         }
         
         // Phase 1: Initiate multi-board upload - get S3 URLs for all messages
         let mut initiate_requests = Vec::new();
-        let mut messages_by_board: std::collections::HashMap<String, Vec<Message>> = std::collections::HashMap::new();
+        let mut messages_by_board: std::collections::HashMap<String, Vec<HttpB4Message>> = std::collections::HashMap::new();
         
         for (board_name, messages) in requests {
             if messages.is_empty() {
@@ -411,19 +350,9 @@ impl BoardMulti for HttpB3 {
             }
             
             let mut metadata_list = Vec::new();
-            for message in &messages {
-                let sender_pk = message.sender.pk.to_der_b64_string()?;
-                let statement_kind = message.statement.get_kind().to_string();
-                let batch: i32 = message.statement.get_batch_number().try_into()?;
-                let mix_number: i32 = message.statement.get_mix_number().try_into()?;
-                let message_bytes = message.strand_serialize()?;
-                
+            for http_message in &messages {
                 metadata_list.push(MessageMetadata {
-                    size: message_bytes.len(),
-                    sender_pk,
-                    statement_kind,
-                    batch,
-                    mix_number,
+                    size: http_message.message.len(),
                 });
             }
             
@@ -471,15 +400,15 @@ impl BoardMulti for HttpB3 {
             
             let mut confirmations = Vec::new();
             
-            for (message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
-                let message_bytes = message.strand_serialize()?;
+            for (http_message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
+                let message_bytes = &http_message.message;
                 
                 if upload_info.should_upload {
                     // Large message - upload to S3
                     if let Some(upload_url) = &upload_info.upload_url {
                         let s3_response = self.client
                             .put(upload_url)
-                            .body(message_bytes)
+                            .body(message_bytes.clone())
                             .send()
                             .await?;
                         
@@ -495,6 +424,7 @@ impl BoardMulti for HttpB3 {
                         confirmations.push(MessageConfirmation {
                             message_id: upload_info.message_id.clone(),
                             data: None,
+                            version: http_message.version.clone(),
                         });
                     } else {
                         anyhow::bail!("Server indicated upload needed but provided no URL");
@@ -503,7 +433,8 @@ impl BoardMulti for HttpB3 {
                     // Small message - send inline in confirmation
                     confirmations.push(MessageConfirmation {
                         message_id: upload_info.message_id.clone(),
-                        data: Some(message_bytes),
+                        data: Some(message_bytes.clone()),
+                        version: http_message.version.clone(),
                     });
                 }
             }
@@ -535,14 +466,14 @@ impl BoardMulti for HttpB3 {
 }
 
 /// HTTP client for bulletin board index (list of boards)
-pub struct HttpB3Index {
+pub struct HttpB4Index {
     client: reqwest::Client,
     base_url: String,
 }
 
-impl HttpB3Index {
-    pub fn new(base_url: &str) -> HttpB3Index {
-        HttpB3Index {
+impl HttpB4Index {
+    pub fn new(base_url: &str) -> HttpB4Index {
+        HttpB4Index {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
         }

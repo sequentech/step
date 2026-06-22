@@ -46,7 +46,7 @@ pub async fn init_db() -> Result<SqlitePool> {
     .execute(&pool)
     .await?;
 
-    // Create messages table with B3-compatible schema
+    // Create messages table
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS messages (
@@ -194,14 +194,14 @@ pub async fn insert_message(
 
     let message_id = result.last_insert_rowid();
 
-    // Update board statistics (similar to b3's insert() function)
+    // Update board statistics
     // We don't care if these fail - they are statistics for monitoring
     let _ = update_board_statistics(pool, board_name, statement_kind).await;
 
     Ok(message_id)
 }
 
-/// Update board statistics after message insertion (like b3's INDEX table updates)
+/// Update board statistics after message insertion
 /// This is best-effort - failures are logged but don't fail the insertion
 async fn update_board_statistics(
     pool: &SqlitePool,
@@ -242,7 +242,7 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+    Ok(row.map(|(id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)| {
         let content_type = match content_type.as_str() {
             "inline" => crate::api_types::ContentType::Inline {
                 data: inline_data.unwrap_or_default(),
@@ -262,6 +262,7 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
             statement_kind,
             batch,
             mix_number,
+            version,
         }
     }))
 }
@@ -278,7 +279,7 @@ pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Me
 
     Ok(rows
         .into_iter()
-        .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+        .map(|(id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)| {
             let content_type = match content_type.as_str() {
                 "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
@@ -298,6 +299,7 @@ pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Me
                 statement_kind,
                 batch,
                 mix_number,
+                version,
             }
         })
         .collect())
@@ -326,7 +328,7 @@ pub async fn get_messages_after(
     let messages: Vec<Message> = rows
         .into_iter()
         .take(limit as usize)
-        .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+        .map(|(id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)| {
             let content_type = match content_type.as_str() {
                 "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
@@ -346,6 +348,7 @@ pub async fn get_messages_after(
                 statement_kind,
                 batch,
                 mix_number,
+                version,
             }
         })
         .collect();
@@ -353,7 +356,7 @@ pub async fn get_messages_after(
     Ok((messages, truncated))
 }
 
-/// Update board metadata when Configuration is posted (similar to b3's update_index)
+/// Update board metadata when Configuration is posted
 /// This is called separately from insert_message because it needs to parse the Configuration artifact
 pub async fn update_board_config_metadata(
     pool: &SqlitePool,

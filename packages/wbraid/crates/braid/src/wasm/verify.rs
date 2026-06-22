@@ -8,13 +8,13 @@ use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::trustee::Trustee;
-use crate::native::verify::verifier::Verifier;
+use crate::protocol::verify::verifier::Verifier;
 use crate::wasm::board::{WasmHttpBoard, WasmHttpBoardParams};
-use crate::native::board::NoOpStorage;
+use crate::protocol::board::NoOpStorage;
 
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
-use strand::symm;
+use cryptography::context::{RistrettoCtx, Context};
+use cryptography::utils::symm;
+use cryptography::utils::signatures::SignatureScheme;
 
 /// Individual verification check result
 #[derive(Serialize, Deserialize)]
@@ -82,9 +82,9 @@ impl WasmVerifier {
         )));
 
         // Generate dummy trustee credentials (not used for verification)
-        let dummy_sk = StrandSignatureSk::generate()
-            .map_err(|e| JsValue::from_str(&format!("Failed to generate key: {}", e)))?;
-        let dummy_encryption_key = symm::gen_key();
+        let mut rng = RistrettoCtx::get_rng();
+        let dummy_sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::gen_signing_key(&mut rng);
+        let dummy_encryption_key = symm::gen_key().unwrap();
 
         // Create NoOp storage (verifier doesn't need persistence)
         let storage = NoOpStorage::new();

@@ -10,10 +10,10 @@ use super::*;
 /// in addition to general validation already performed in
 /// Configuration::is_valid, which is called when
 /// the trustee's LocalBoard is bootstrapped.
-pub(super) fn sign_config<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn sign_config<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(configuration_h)?;
     // FIXME assert
     assert!(trustee.is_config_approved(cfg));

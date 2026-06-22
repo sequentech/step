@@ -4,8 +4,8 @@
 
 use anyhow::{anyhow, Result};
 
-use braid::native::board::HttpB3Index;
 use clap::Parser;
+use cryptography::context::RistrettoCtx;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
@@ -16,7 +16,7 @@ use tracing::instrument;
 use tracing::{error, info};
 
 use braid::native::session::session_m::SessionFactory;
-use braid::native::session::session_master::SessionMaster;
+use braid::native::session::session_manager::SessionMaster;
 use braid::protocol::trustee::TrusteeConfig;
 
 cfg_if::cfg_if! {
@@ -33,7 +33,7 @@ cfg_if::cfg_if! {
 /// This entry point supports concurrency, multiplexing and chunking.
 #[derive(Parser)]
 struct Cli {
-    /// The url of the braid bulletin board grpc server.
+    /// The url of the braid bulletin board server.
     #[arg(short, long)]
     b3_url: String,
 
@@ -49,7 +49,7 @@ struct Cli {
 
     /// The number of SessionSets that will run the protocol.
     ///
-    /// SessionSets run concurrently as tokio threads and multiplex grpc b3
+    /// SessionSets run concurrently as tokio threads and multiplex
     /// requests. Setting this value greater than the number of cores
     /// has no effect.
     #[arg(short, long, default_value_t = 1)]
@@ -125,7 +125,7 @@ async fn run(args: &Cli) -> Result<()> {
     let contents = fs::read_to_string(args.trustee_config.clone())
         .expect("Should have been able to read the trustee configuration file");
 
-    let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
+    let tc: TrusteeConfig = TrusteeConfig::from_toml_str(&contents).unwrap();
 
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
@@ -143,12 +143,12 @@ async fn run(args: &Cli) -> Result<()> {
             .unwrap(),
     );
 
-    let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
+    let factory: SessionFactory<RistrettoCtx> = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
     let mut master = SessionMaster::new(&args.b3_url, factory, args.session_workers).await?;
 
     loop {
-        let b3index = HttpB3Index::new(&args.b3_url);
-        let boards_result = b3index.get_boards().await;
+        let b4index = braid::native::board::HttpB4Index::new(&args.b3_url);
+        let boards_result = b4index.get_boards().await;
 
         let Ok(mut boards) = boards_result else {
             error!(
