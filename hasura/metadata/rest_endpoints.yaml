@@ -54,10 +54,10 @@
   url: ivr/elections/:election_id/status
 - comment: ""
   definition:
-    query:
-      collection_name: allowed-queries
-      query_name: IvrInsertCastVote
+      query:
+          collection_name: allowed-queries
+          query_name: IvrInsertCastVote
   methods:
-    - POST
+      - POST
   name: IvrInsertCastVote
   url: ivr/elections/:election_id/cast-vote
