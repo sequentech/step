@@ -11,6 +11,7 @@ export interface GlobalSettings {
     DEFAULT_EVENT_ID: string
     ONLINE_VOTING_CLIENT_ID: string
     BALLOT_VERIFIER_URL: string
+    RESULTS_PORTAL_URL: string
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
@@ -41,6 +42,7 @@ const defaultSettingsValues: SettingsContextValues = {
         APP_VERSION: "-",
         APP_HASH: "-",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
+        RESULTS_PORTAL_URL: "http://127.0.0.1:3004",
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,

@@ -157,6 +157,7 @@ export interface SelectElectionProps {
     hasVoted: boolean
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
+    resultsUrl?: string
     electionDates?: IElectionDates
     isStarted: boolean
     className?: string | null
@@ -231,6 +232,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     hasVoted,
     onClickToVote,
     onClickBallotLocator,
+    resultsUrl,
     electionDates,
     isStarted,
     className,
@@ -262,6 +264,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     }
 
     const displayBallotLocator = !!onClickBallotLocator
+    const displayResults = !!resultsUrl
 
     return (
         <Box>
@@ -334,6 +337,23 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         >
                             {t("selectElection.ballotLocator")}
                         </StyledButton>
+                    )}
+                    {displayResults && (
+                        <Button
+                            sx={{
+                                padding: "10px 24px",
+                                minWidth: "unset",
+                                marginRight: "16px",
+                            }}
+                            variant="secondary"
+                            component="a"
+                            href={resultsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            {t("selectElection.resultsButton")}
+                        </Button>
                     )}
                     {isOpen && (
                         <StyledButton

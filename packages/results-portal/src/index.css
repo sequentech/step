@@ -1,0 +1,27 @@
+/* SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> */
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    font-family:
+        Inter,
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+    background: #f7f8fa;
+}
+
+a {
+    color: inherit;
+}

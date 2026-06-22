@@ -1,0 +1,130 @@
+table:
+    name: tally_results_publication
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - tally_session_id
+              - tally_session_execution_id
+              - results_event_id
+              - task_execution_id
+              - route_scope
+              - route_election_id
+              - election_ids
+              - access
+              - visibility_scope
+              - published_contest_ids
+              - contest_publication_state
+              - documents
+              - manifest
+              - publication_status
+              - version
+              - error_message
+              - published_at
+              - published_by_user_id
+              - revoked_at
+              - created_at
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - tally_session_id
+              - tally_session_execution_id
+              - results_event_id
+              - task_execution_id
+              - route_scope
+              - route_election_id
+              - election_ids
+              - access
+              - visibility_scope
+              - published_contest_ids
+              - contest_publication_state
+              - documents
+              - manifest
+              - publication_status
+              - version
+              - error_message
+              - published_at
+              - published_by_user_id
+              - revoked_at
+              - created_at
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-results-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - tally_session_id
+              - tally_session_execution_id
+              - results_event_id
+              - task_execution_id
+              - route_scope
+              - route_election_id
+              - election_ids
+              - access
+              - visibility_scope
+              - published_contest_ids
+              - contest_publication_state
+              - documents
+              - manifest
+              - publication_status
+              - version
+              - error_message
+              - published_at
+              - published_by_user_id
+              - revoked_at
+              - created_at
+              - updated_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: publish-results-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - tally_session_id
+              - tally_session_execution_id
+              - results_event_id
+              - task_execution_id
+              - route_scope
+              - route_election_id
+              - election_ids
+              - access
+              - visibility_scope
+              - published_contest_ids
+              - contest_publication_state
+              - documents
+              - manifest
+              - publication_status
+              - version
+              - error_message
+              - published_at
+              - published_by_user_id
+              - revoked_at
+              - created_at
+              - updated_at
+          filter: {}
+      role: service-account

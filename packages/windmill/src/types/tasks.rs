@@ -32,6 +32,7 @@ pub enum ETasksExecution {
     PREPARE_PUBLICATION_PREVIEW,
     EXPORT_TALLY_RESULTS_XLSX,
     EXPORT_CERTIFICATE_AUTHORITIES,
+    PUBLISH_RESULTS_WEBSITE,
 }
 
 impl ETasksExecution {
@@ -63,6 +64,7 @@ impl ETasksExecution {
             ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
             ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",
             ETasksExecution::EXPORT_CERTIFICATE_AUTHORITIES => "Export Certificate Authorities",
+            ETasksExecution::PUBLISH_RESULTS_WEBSITE => "Publish Results Website",
         }
     }
 }

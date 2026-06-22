@@ -850,6 +850,8 @@ const tagalogTranslation: TranslationType = {
                 "tally-results-read": "Basahin ang Mga Resulta ng Tally",
                 "publish-read": "Basahin ang Publish",
                 "publish-write": "I-edit ang Publish",
+                "publish-results-read": "Basahin ang Results Publication",
+                "publish-results-write": "I-edit ang Results Publication",
                 "logs-read": "Basahin ang Logs",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
