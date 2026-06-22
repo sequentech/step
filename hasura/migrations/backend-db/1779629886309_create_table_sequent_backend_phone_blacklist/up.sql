@@ -2,7 +2,7 @@ CREATE TABLE "sequent_backend"."phone_blacklist"
 (
     "id"                uuid        NOT NULL DEFAULT gen_random_uuid(),
     "tenant_id"         uuid        NOT NULL,
-    "election_event_id" uuid,                                                  -- Null for tenant-wide blacklisting.
+    "election_event_id" uuid        NOT NULL,
     "phone_e164"        text        NOT NULL,
     "reason"            text,
     "created_at"        timestamptz NOT NULL DEFAULT now(),
@@ -17,5 +17,5 @@ CREATE TABLE "sequent_backend"."phone_blacklist"
         REFERENCES "sequent_backend"."election_event" ("tenant_id", "id")
         ON UPDATE RESTRICT
         ON DELETE RESTRICT,
-    UNIQUE NULLS NOT DISTINCT ("tenant_id", "election_event_id", "phone_e164") -- Null election_event_id means tenant-wide, prevent duplicates
+    UNIQUE ("tenant_id", "election_event_id", "phone_e164")
 );
