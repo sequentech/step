@@ -97,7 +97,7 @@
         "attributes": {}
       },
       {
-        "id": "cdae6410-2c8f-40a1-8fed-abbd916f5019",
+        "id": "bb8c9da3-1f1d-4360-97ec-a8675d84cd53",
         "name": "phone-blacklist-read",
         "description": "Allow reading phone blacklist entries.",
         "composite": false,
