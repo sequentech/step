@@ -4,7 +4,7 @@
 
 // cargo run --bin verify -- --b4-url http://[::1]:50051 --board testboard
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams};
+use braid::native::board::{HttpB3BoardParams, HttpB4};
 use braid::native::verify::verifier::Verifier;
 use braid::protocol::trustee::Trustee;
 use braid::util::get_access_token;
@@ -69,8 +69,8 @@ async fn main() -> Result<()> {
         None,
     );
     let board_params = HttpB3BoardParams::new(&args.server_url, access_token).await;
-    let board: HttpB3 = board_params.create_board(&args.board, None);
-    let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> =
+    let board: HttpB4 = board_params.create_board(&args.board, None);
+    let mut session: Verifier<RistrettoCtx, HttpB4, braid::native::board::NoOpStorage> =
         Verifier::new(trustee, board, &args.board);
     let _result = session.run().await?;
 

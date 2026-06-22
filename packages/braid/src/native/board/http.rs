@@ -77,7 +77,7 @@ enum ContentTypeDto {
 }
 
 /// HTTP client for bulletin board using Service API
-pub struct HttpB3 {
+pub struct HttpB4 {
     client: reqwest::Client,
     base_url: String,
     s3_client: aws_sdk_s3::Client,
@@ -85,14 +85,14 @@ pub struct HttpB3 {
     access_token: Arc<RwLock<String>>,
 }
 
-impl HttpB3 {
+impl HttpB4 {
     pub async fn new(
         base_url: &str,
         s3_client: aws_sdk_s3::Client,
         bucket_name: &str,
         access_token: String,
-    ) -> HttpB3 {
-        HttpB3 {
+    ) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
             s3_client,
@@ -228,7 +228,7 @@ impl HttpB3 {
     }
 }
 
-impl Board for HttpB3 {
+impl Board for HttpB4 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
@@ -361,8 +361,8 @@ impl HttpB3BoardParams {
     }
 
     /// Create a board client for a specific board (helper for testing)
-    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
-        HttpB3 {
+    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
@@ -372,10 +372,10 @@ impl HttpB3BoardParams {
     }
 }
 
-impl BoardFactory<HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
+impl BoardFactory<HttpB4> for HttpB3BoardParams {
+    fn get_board(&self) -> HttpB4 {
         // Board name will be set when used with Session
-        HttpB3 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
@@ -385,9 +385,9 @@ impl BoardFactory<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
-        HttpB3 {
+impl BoardFactoryMulti<HttpB4> for HttpB3BoardParams {
+    fn get_board(&self) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
@@ -397,7 +397,7 @@ impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl BoardMulti for HttpB3 {
+impl BoardMulti for HttpB4 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages_multi(

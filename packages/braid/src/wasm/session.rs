@@ -15,6 +15,7 @@ use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::board::BoardEntry;
 use crate::protocol::session::Session;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
+use crate::wasm::board::http::add_auth_header;
 use crate::wasm::board::{IndexedDbStorage, WasmHttpBoardFactory, WasmHttpBoardParams};
 use b4::api_types::{
     ConfirmMessageRequest, ContentType, InitiateMessageRequest, InitiateMessageResponse,
@@ -233,17 +234,7 @@ impl WasmSession {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
-
-        // Add Authorization header
-        request.headers().set(
-            "Authorization",
-            &format!(
-                "Bearer {}",
-                self.access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ),
-        )?;
+        add_auth_header(&request, &self.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -295,17 +286,7 @@ impl WasmSession {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
-
-        // Add Authorization header
-        request.headers().set(
-            "Authorization",
-            &format!(
-                "Bearer {}",
-                self.access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ),
-        )?;
+        add_auth_header(&request, &self.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -349,17 +330,7 @@ impl WasmSession {
                     opts.set_mode(RequestMode::Cors);
 
                     let request = Request::new_with_str_and_init(&message_url, &opts)?;
-
-                    // Add Authorization header
-                    request.headers().set(
-                        "Authorization",
-                        &format!(
-                            "Bearer {}",
-                            self.access_token
-                                .read()
-                                .expect("access_token lock poisoned")
-                        ),
-                    )?;
+                    add_auth_header(&request, &self.access_token)?;
 
                     let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
                     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -509,17 +480,7 @@ impl WasmSession {
 
             let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
             request.headers().set("Content-Type", "application/json")?;
-
-            // Add Authorization header
-            request.headers().set(
-                "Authorization",
-                &format!(
-                    "Bearer {}",
-                    self.access_token
-                        .read()
-                        .expect("access_token lock poisoned")
-                ),
-            )?;
+            add_auth_header(&request, &self.access_token)?;
 
             let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
             let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -600,17 +561,7 @@ impl WasmSession {
 
                 let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
                 request3.headers().set("Content-Type", "application/json")?;
-
-                // Add Authorization header
-                request3.headers().set(
-                    "Authorization",
-                    &format!(
-                        "Bearer {}",
-                        self.access_token
-                            .read()
-                            .expect("access_token lock poisoned")
-                    ),
-                )?;
+                add_auth_header(&request3, &self.access_token)?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -649,17 +600,7 @@ impl WasmSession {
 
                 let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
                 request3.headers().set("Content-Type", "application/json")?;
-
-                // Add Authorization header
-                request3.headers().set(
-                    "Authorization",
-                    &format!(
-                        "Bearer {}",
-                        self.access_token
-                            .read()
-                            .expect("access_token lock poisoned")
-                    ),
-                )?;
+                add_auth_header(&request3, &self.access_token)?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;

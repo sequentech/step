@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
+use braid::native::board::{HttpB3BoardParams, HttpB3Index, HttpB4};
 use braid::util::{ensure_directory, get_access_token, ProtocolError};
 use clap::Parser;
 use std::collections::HashMap;
@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
 
     let mut session_map: HashMap<
         String,
-        Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
+        Session<RistrettoCtx, HttpB4, braid::native::board::SqliteStorage>,
     > = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {

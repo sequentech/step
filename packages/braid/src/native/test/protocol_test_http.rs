@@ -23,8 +23,8 @@ use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
 
-use crate::native::board::HttpB3;
 use crate::native::board::HttpB3BoardParams;
+use crate::native::board::HttpB4;
 use crate::native::session::Session;
 use crate::protocol::board::Board;
 use crate::protocol::trustee::Trustee;
@@ -94,7 +94,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
 
     for t in test.trustees.into_iter() {
         let board_params = HttpB3BoardParams::new(HTTP_URL, access_token.clone()).await;
-        let session: Session<C, HttpB3, crate::native::board::NoOpStorage> =
+        let session: Session<C, HttpB4, crate::native::board::NoOpStorage> =
             Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }

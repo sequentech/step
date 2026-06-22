@@ -19,6 +19,20 @@ use b4::messages::message::Message;
 use b4::HttpB3Message;
 use strand::serialization::StrandSerialize;
 
+/// Adds the Authorization header for B4 authentication
+pub(crate) fn add_auth_header(
+    request: &Request,
+    access_token: &RwLock<String>,
+) -> Result<(), JsValue> {
+    request.headers().set(
+        "Authorization",
+        &format!(
+            "Bearer {}",
+            access_token.read().expect("access_token lock poisoned")
+        ),
+    )
+}
+
 /// Parameters for creating a WASM HTTP board connection
 ///
 /// The access token is wrapped in `Arc<RwLock<>>` so that all clones
@@ -61,18 +75,7 @@ impl WasmHttpBoard {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
-
-        // Add Authorization header
-        request.headers().set(
-            "Authorization",
-            &format!(
-                "Bearer {}",
-                self.params
-                    .access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ),
-        )?;
+        add_auth_header(&request, &self.params.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -193,18 +196,7 @@ impl WasmHttpBoard {
 
         let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
         request.headers().set("Content-Type", "application/json")?;
-
-        // Add Authorization header
-        request.headers().set(
-            "Authorization",
-            &format!(
-                "Bearer {}",
-                self.params
-                    .access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ),
-        )?;
+        add_auth_header(&request, &self.params.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -271,18 +263,7 @@ impl WasmHttpBoard {
 
             let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
             request3.headers().set("Content-Type", "application/json")?;
-
-            // Add Authorization header
-            request3.headers().set(
-                "Authorization",
-                &format!(
-                    "Bearer {}",
-                    self.params
-                        .access_token
-                        .read()
-                        .expect("access_token lock poisoned")
-                ),
-            )?;
+            add_auth_header(&request3, &self.params.access_token)?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
             let resp3: Response = resp_value3.dyn_into()?;
@@ -318,18 +299,7 @@ impl WasmHttpBoard {
 
             let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
             request3.headers().set("Content-Type", "application/json")?;
-
-            // Add Authorization header
-            request3.headers().set(
-                "Authorization",
-                &format!(
-                    "Bearer {}",
-                    self.params
-                        .access_token
-                        .read()
-                        .expect("access_token lock poisoned")
-                ),
-            )?;
+            add_auth_header(&request3, &self.params.access_token)?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
             let resp3: Response = resp_value3.dyn_into()?;
