@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::document::get_document;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_results_publication::{
     get_publication_by_id, list_active_public_publications, mark_publication_published,
     TallyResultsPublication,
@@ -12,7 +13,7 @@ use crate::services::documents::{
 };
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use rusqlite::{params_from_iter, Connection, ToSql};
+use rusqlite::{params_from_iter, Connection, OptionalExtension, ToSql};
 use sequent_core::services::s3;
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::types::ceremonies::TallySessionDocuments;
@@ -31,6 +32,20 @@ fn selected_contest_ids(publication: &TallyResultsPublication) -> Result<Vec<Str
         .map_err(|err| anyhow!("Invalid published_contest_ids: {err:?}"))
 }
 
+pub fn results_website_policy_value<'a>(
+    presentation: Option<&'a Value>,
+    key: &str,
+) -> Option<&'a str> {
+    presentation
+        .and_then(|value| value.get("results_website"))
+        .and_then(|value| value.get(key))
+        .and_then(Value::as_str)
+}
+
+pub fn is_results_website_enabled(presentation: Option<&Value>) -> bool {
+    results_website_policy_value(presentation, "status") == Some("enabled")
+}
+
 fn table_exists(conn: &Connection, table: &str) -> bool {
     conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?)",
@@ -44,7 +59,7 @@ fn table_exists(conn: &Connection, table: &str) -> bool {
 fn execute_delete_not_in(conn: &Connection, table: &str, contest_ids: &[String]) -> Result<()> {
     if contest_ids.is_empty() {
         conn.execute(&format!("DELETE FROM {table}"), [])?;
-        return Ok(())
+        return Ok(());
     }
 
     let sql = format!(
@@ -75,11 +90,17 @@ fn filter_result_tables(
     if let Some(area_id) = area_id {
         for table in ["results_area_contest_candidate", "results_area_contest"] {
             if table_exists(conn, table) {
-                conn.execute(&format!("DELETE FROM {table} WHERE area_id <> ?"), [area_id])?;
+                conn.execute(
+                    &format!("DELETE FROM {table} WHERE area_id <> ?"),
+                    [area_id],
+                )?;
             }
         }
         if table_exists(conn, "results_election_area") {
-            conn.execute("DELETE FROM results_election_area WHERE area_id <> ?", [area_id])?;
+            conn.execute(
+                "DELETE FROM results_election_area WHERE area_id <> ?",
+                [area_id],
+            )?;
         }
     }
 
@@ -172,6 +193,147 @@ fn query_manifest_contests(
     Ok(contests)
 }
 
+fn css_from_presentation(presentation: Option<String>) -> Option<String> {
+    let presentation = presentation?;
+    let parsed: Value = serde_json::from_str(&presentation).ok()?;
+    let css = parsed.get("css")?.as_str()?.trim();
+
+    if css.is_empty() {
+        None
+    } else {
+        Some(css.to_string())
+    }
+}
+
+fn query_manifest_custom_css(
+    source_path: &Path,
+    publication: &TallyResultsPublication,
+) -> Result<Value> {
+    let conn = Connection::open(source_path)?;
+
+    let election_event_css = if table_exists(&conn, "election_event") {
+        let presentation = conn
+            .query_row(
+                "SELECT presentation FROM election_event WHERE id = ? LIMIT 1",
+                [&publication.election_event_id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()?
+            .flatten();
+
+        css_from_presentation(presentation)
+    } else {
+        None
+    };
+
+    let mut election_css = serde_json::Map::new();
+    if table_exists(&conn, "election") && !publication.election_ids.is_empty() {
+        let sql = format!(
+            "SELECT id, presentation FROM election WHERE id IN ({})",
+            placeholders(publication.election_ids.len())
+        );
+        let params = publication.election_ids.iter().map(|id| id as &dyn ToSql);
+        let mut statement = conn.prepare(&sql)?;
+        let mut rows = statement.query(params_from_iter(params))?;
+
+        while let Some(row) = rows.next()? {
+            let election_id: String = row.get("id")?;
+            let presentation: Option<String> = row.get("presentation")?;
+
+            if let Some(css) = css_from_presentation(presentation) {
+                election_css.insert(election_id, Value::String(css));
+            }
+        }
+    }
+
+    Ok(json!({
+        "election_event": election_event_css,
+        "elections": election_css,
+    }))
+}
+
+#[derive(Clone)]
+struct ManifestLanguageConfig {
+    default_locale: String,
+    available_languages: Vec<String>,
+}
+
+fn normalize_language_config(
+    default_locale: Option<&str>,
+    available_languages: Option<&Vec<Value>>,
+) -> ManifestLanguageConfig {
+    let default_locale = default_locale
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("en")
+        .to_string();
+
+    let mut languages = Vec::new();
+    if let Some(values) = available_languages {
+        for value in values {
+            let Some(language) = value
+                .as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            else {
+                continue;
+            };
+            if !languages.iter().any(|existing| existing == language) {
+                languages.push(language.to_string());
+            }
+        }
+    }
+
+    if languages.is_empty() {
+        languages.push(default_locale.clone());
+    }
+
+    ManifestLanguageConfig {
+        default_locale,
+        available_languages: languages,
+    }
+}
+
+fn language_config_from_presentation(presentation: Option<String>) -> ManifestLanguageConfig {
+    let Some(presentation) = presentation else {
+        return normalize_language_config(None, None);
+    };
+    let Ok(parsed) = serde_json::from_str::<Value>(&presentation) else {
+        return normalize_language_config(None, None);
+    };
+    let language_conf = parsed.get("language_conf");
+    let default_locale = language_conf
+        .and_then(|value| value.get("default_language_code"))
+        .and_then(Value::as_str);
+    let available_languages = language_conf
+        .and_then(|value| value.get("enabled_language_codes"))
+        .and_then(Value::as_array);
+
+    normalize_language_config(default_locale, available_languages)
+}
+
+fn query_manifest_language_config(
+    source_path: &Path,
+    publication: &TallyResultsPublication,
+) -> Result<ManifestLanguageConfig> {
+    let conn = Connection::open(source_path)?;
+
+    if !table_exists(&conn, "election_event") {
+        return Ok(normalize_language_config(None, None));
+    }
+
+    let presentation = conn
+        .query_row(
+            "SELECT presentation FROM election_event WHERE id = ? LIMIT 1",
+            [&publication.election_event_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+
+    Ok(language_config_from_presentation(presentation))
+}
+
 fn query_area_ids(source_path: &Path, selected_contests: &[String]) -> Result<Vec<String>> {
     if selected_contests.is_empty() {
         return Ok(vec![]);
@@ -218,11 +380,16 @@ async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
         s3::get_public_bucket()?,
         "application/json".to_string(),
         path,
-        None,
+        Some("no-store, max-age=0".to_string()),
         Some("results-index.json".to_string()),
     )
     .await?;
     Ok(())
+}
+
+async fn delete_public_results_artifacts(tenant_id: &str, election_event_id: &str) -> Result<()> {
+    let prefix = event_public_path(tenant_id, election_event_id, "results");
+    s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, true).await
 }
 
 async fn source_sqlite_file(
@@ -283,6 +450,8 @@ fn build_manifest(
     publication: &TallyResultsPublication,
     contests: Vec<Value>,
     artifacts: Value,
+    custom_css: Value,
+    language_config: &ManifestLanguageConfig,
 ) -> Value {
     json!({
         "schema_version": 1,
@@ -298,8 +467,10 @@ fn build_manifest(
         "version": publication.version,
         "access": publication.access,
         "visibility_scope": publication.visibility_scope,
-        "default_locale": "en",
+        "default_locale": language_config.default_locale,
+        "available_languages": language_config.available_languages,
         "title": {"en": "Election Results"},
+        "custom_css": custom_css,
         "contests": contests,
         "artifacts": artifacts
     })
@@ -311,6 +482,8 @@ async fn publish_public_artifacts(
     source_path: &Path,
     selected_contests: &[String],
     contests: Vec<Value>,
+    custom_css: Value,
+    language_config: &ManifestLanguageConfig,
 ) -> Result<(Value, Value)> {
     let base = publication_base_path(publication);
     let sqlite_name = format!("{base}/full-v{}.sqlite", publication.version);
@@ -341,7 +514,13 @@ async fn publish_public_artifacts(
             )
         }
     });
-    let manifest = build_manifest(publication, contests, artifacts.clone());
+    let manifest = build_manifest(
+        publication,
+        contests,
+        artifacts.clone(),
+        custom_css,
+        language_config,
+    );
     let (_manifest_file, manifest_path, manifest_size) =
         write_json_file("results-manifest", &manifest)?;
 
@@ -394,6 +573,8 @@ async fn publish_private_artifacts(
     source_path: &Path,
     selected_contests: &[String],
     contests: Vec<Value>,
+    custom_css: Value,
+    language_config: &ManifestLanguageConfig,
 ) -> Result<(Value, Value)> {
     if publication.visibility_scope == "area_based" {
         let mut area_documents = serde_json::Map::new();
@@ -417,7 +598,13 @@ async fn publish_private_artifacts(
         }
 
         let artifacts = json!({"areas": area_documents});
-        let manifest = build_manifest(publication, contests, artifacts.clone());
+        let manifest = build_manifest(
+            publication,
+            contests,
+            artifacts.clone(),
+            custom_css,
+            language_config,
+        );
         return Ok((json!({"area_sqlite": artifacts["areas"]}), manifest));
     }
 
@@ -438,7 +625,13 @@ async fn publish_private_artifacts(
     .await?;
 
     let artifacts = json!({"full_sqlite": {"document_id": document.id}});
-    let manifest = build_manifest(publication, contests, artifacts.clone());
+    let manifest = build_manifest(
+        publication,
+        contests,
+        artifacts.clone(),
+        custom_css,
+        language_config,
+    );
     Ok((json!({"full_sqlite": artifacts["full_sqlite"]}), manifest))
 }
 
@@ -447,8 +640,13 @@ pub async fn refresh_public_results_index(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let active_publications =
-        list_active_public_publications(tx, tenant_id, election_event_id).await?;
+    let election_event = get_election_event_by_id(tx, tenant_id, election_event_id).await?;
+    let active_publications = if is_results_website_enabled(election_event.presentation.as_ref()) {
+        list_active_public_publications(tx, tenant_id, election_event_id).await?
+    } else {
+        delete_public_results_artifacts(tenant_id, election_event_id).await?;
+        Vec::new()
+    };
     let publications = active_publications
         .into_iter()
         .map(|active| {
@@ -502,17 +700,37 @@ pub async fn publish_results_website_artifacts(
     election_event_id: &str,
     publication_id: &str,
 ) -> Result<()> {
-    let publication = get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
+    let publication =
+        get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
     let selected_contests = selected_contest_ids(&publication)?;
     let source_sqlite = source_sqlite_file(tx, &publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
     let contests = query_manifest_contests(&source_path, &publication, &selected_contests)?;
+    let custom_css = query_manifest_custom_css(&source_path, &publication)?;
+    let language_config = query_manifest_language_config(&source_path, &publication)?;
 
     let (documents, manifest) = if publication.access == "public" {
-        publish_public_artifacts(tx, &publication, &source_path, &selected_contests, contests).await?
+        publish_public_artifacts(
+            tx,
+            &publication,
+            &source_path,
+            &selected_contests,
+            contests,
+            custom_css,
+            &language_config,
+        )
+        .await?
     } else {
-        publish_private_artifacts(tx, &publication, &source_path, &selected_contests, contests)
-            .await?
+        publish_private_artifacts(
+            tx,
+            &publication,
+            &source_path,
+            &selected_contests,
+            contests,
+            custom_css,
+            &language_config,
+        )
+        .await?
     };
 
     mark_publication_published(tx, &publication, documents, manifest).await?;

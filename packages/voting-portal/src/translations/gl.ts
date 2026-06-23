@@ -287,6 +287,7 @@ const galegoTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Sen papeletas por agora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:

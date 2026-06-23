@@ -147,6 +147,7 @@ const catalanTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
+                PUBLISH_RESULTS_WEBSITE: "Publicar el lloc web de resultats",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",

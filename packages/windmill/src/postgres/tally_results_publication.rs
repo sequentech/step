@@ -130,9 +130,14 @@ pub async fn insert_publishing_publication(
     contest_ids: &[String],
     published_by_user_id: Option<&str>,
 ) -> Result<TallyResultsPublication> {
-    let version =
-        next_publication_version(tx, tenant_id, election_event_id, route_scope, route_election_id)
-            .await?;
+    let version = next_publication_version(
+        tx,
+        tenant_id,
+        election_event_id,
+        route_scope,
+        route_election_id,
+    )
+    .await?;
     let election_uuids = election_ids
         .iter()
         .map(|id| parse_uuid_v4(id))
@@ -302,7 +307,10 @@ pub async fn list_active_public_publications(
     let rows = tx
         .query(
             &statement,
-            &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?],
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
         )
         .await?;
 
@@ -436,15 +444,20 @@ pub async fn revoke_publication(
             "#,
         )
         .await?;
-    tx.execute(
-        &statement,
-        &[
-            &parse_uuid_v4(tenant_id)?,
-            &parse_uuid_v4(election_event_id)?,
-            &parse_uuid_v4(publication_id)?,
-        ],
-    )
-    .await?;
+    let affected_rows = tx
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(publication_id)?,
+            ],
+        )
+        .await?;
+
+    if affected_rows == 0 {
+        return Err(anyhow!("Publication not found or not currently published"));
+    }
 
     Ok(())
 }

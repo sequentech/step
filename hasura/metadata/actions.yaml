@@ -556,6 +556,24 @@ actions:
           - role: admin-user
           - role: publish-results-write
       comment: Revoke an active results website publication
+    - name: refreshResultsPublicationIndex
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/refresh-results-publication-index
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Refresh the public results publication index using the current results website policy
     - name: export_template
       definition:
           kind: synchronous

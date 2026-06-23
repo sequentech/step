@@ -7,24 +7,44 @@ import ReactDOM from "react-dom/client"
 import {createBrowserRouter, RouterProvider} from "react-router-dom"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
+import {useTranslation} from "react-i18next"
 import "./services/i18n"
 import "./index.css"
 import {SettingsWrapper} from "@/providers/SettingsContextProvider"
+import {CustomCssContextProvider} from "@/providers/CustomCssContextProvider"
+import {ResultsManifestContextProvider} from "@/providers/ResultsManifestContextProvider"
 import {App} from "@/App"
 import {ResultsRoute} from "@/routes/ResultsRoute"
 import {StateMessage} from "@/components/StateMessage"
+
+const UnexpectedResultsError: React.FC = () => {
+    const {t} = useTranslation()
+
+    return (
+        <StateMessage
+            title={t("resultsPortal.state.unexpectedErrorTitle")}
+            message={t("resultsPortal.state.loadErrorMessage")}
+        />
+    )
+}
+
+const ResultsNotPublished: React.FC = () => {
+    const {t} = useTranslation()
+
+    return (
+        <StateMessage
+            title={t("resultsPortal.state.notPublishedTitle")}
+            message={t("resultsPortal.state.notPublishedMessage")}
+        />
+    )
+}
 
 const router = createBrowserRouter(
     [
         {
             path: "/",
             element: <App />,
-            errorElement: (
-                <StateMessage
-                    title="Unexpected error"
-                    message="We could not load results right now. Please try again in a few minutes."
-                />
-            ),
+            errorElement: <UnexpectedResultsError />,
             children: [
                 {
                     path: ":eeId",
@@ -36,12 +56,7 @@ const router = createBrowserRouter(
                 },
                 {
                     path: "*",
-                    element: (
-                        <StateMessage
-                            title="Results not published yet"
-                            message="Results are not available at this time. Please check back later."
-                        />
-                    ),
+                    element: <ResultsNotPublished />,
                 },
             ],
         },
@@ -52,9 +67,13 @@ const router = createBrowserRouter(
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
         <SettingsWrapper>
-            <ThemeProvider theme={theme}>
-                <RouterProvider router={router} />
-            </ThemeProvider>
+            <CustomCssContextProvider>
+                <ResultsManifestContextProvider>
+                    <ThemeProvider theme={theme}>
+                        <RouterProvider router={router} />
+                    </ThemeProvider>
+                </ResultsManifestContextProvider>
+            </CustomCssContextProvider>
         </SettingsWrapper>
     </React.StrictMode>
 )

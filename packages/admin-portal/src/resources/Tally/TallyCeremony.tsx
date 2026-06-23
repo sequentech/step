@@ -1205,6 +1205,9 @@ export const TallyCeremony: React.FC = () => {
                                             resultsEventId={resultsEventId}
                                             contests={contests ?? []}
                                             elections={elections ?? []}
+                                            resultsWebsitePolicy={
+                                                record.presentation?.results_website ?? null
+                                            }
                                         />
                                     ) : (
                                         <Alert severity="info">

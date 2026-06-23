@@ -16,6 +16,7 @@ import {
     IElectionStatus,
     EEarlyVotingPolicy,
     IAreaPresentation,
+    EResultsWebsiteStatus,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -111,6 +112,18 @@ const isElectionEventEarlyVotingOpen = (electionEvent?: IElectionEvent): boolean
     return (
         ((electionEvent?.status as IElectionEventStatus | null)?.early_voting_status ??
             EVotingStatus.CLOSED) === EVotingStatus.OPEN
+    )
+}
+
+const isResultsWebsiteEnabled = (electionEvent?: IElectionEvent): boolean => {
+    return electionEvent?.presentation?.results_website?.status === EResultsWebsiteStatus.ENABLED
+}
+
+const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean => {
+    return (
+        !isElectionEventOnlineVotingOpen(electionEvent) &&
+        !isElectionEventKioskOpen(electionEvent) &&
+        !isElectionEventEarlyVotingOpen(electionEvent)
     )
 }
 
@@ -212,7 +225,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const resultsUrl =
-        globalSettings.RESULTS_PORTAL_URL && eventId && !isVotingOpen()
+        globalSettings.RESULTS_PORTAL_URL &&
+        eventId &&
+        !isVotingOpen() &&
+        isResultsWebsiteEnabled(electionEvent)
             ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}/elections/${electionId}`
             : undefined
 
@@ -308,6 +324,13 @@ const ElectionSelectionScreen: React.FC = () => {
         | undefined
     >(undefined)
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+    const eventResultsUrl =
+        globalSettings.RESULTS_PORTAL_URL &&
+        eventId &&
+        isResultsWebsiteEnabled(electionEvent) &&
+        isElectionEventVotingClosed(electionEvent)
+            ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
+            : undefined
 
     const {
         error: errorBallotStyles,
@@ -589,9 +612,23 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Typography>
                     )}
                 </Box>
-                {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
-                ) : null}
+                <Box sx={{display: "flex", gap: 2, alignItems: "center"}}>
+                    {eventResultsUrl ? (
+                        <Button
+                            component="a"
+                            href={eventResultsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {t("electionSelectionScreen.resultsButton")}
+                        </Button>
+                    ) : null}
+                    {isMaterialsActivated ? (
+                        <Button onClick={handleNavigateMaterials}>
+                            {t("materials.common.label")}
+                        </Button>
+                    ) : null}
+                </Box>
             </Box>
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (

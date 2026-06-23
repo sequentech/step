@@ -254,6 +254,12 @@ type Mutation {
     ): RevokeResultsPublicationOutput!
 }
 
+type Mutation {
+    refreshResultsPublicationIndex(
+        election_event_id: String!
+    ): RefreshResultsPublicationIndexOutput!
+}
+
 type Query {
     resolveResultsPublication(
         ee_id: String!
@@ -1850,4 +1856,9 @@ type FetchResultsArtifactOutput {
 type RevokeResultsPublicationOutput {
     publication_id: String!
     publication_status: String!
+}
+
+type RefreshResultsPublicationIndexOutput {
+    election_event_id: String!
+    results_enabled: Boolean!
 }

@@ -180,6 +180,7 @@ const galegoTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
+                PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",

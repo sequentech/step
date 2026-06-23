@@ -40,6 +40,11 @@ export interface ResultsManifestArtifact {
     document_id?: string
 }
 
+export interface ResultsManifestCustomCss {
+    election_event?: string | null
+    elections?: Record<string, string | null>
+}
+
 export interface ResultsManifest {
     schema_version: number
     tenant_id: string
@@ -56,7 +61,9 @@ export interface ResultsManifest {
     access: ResultsAccess
     visibility_scope: ResultsVisibilityScope
     default_locale?: string
+    available_languages?: string[]
     title?: Record<string, string> | string
+    custom_css?: ResultsManifestCustomCss
     contests: ResultsManifestContest[]
     artifacts: {
         full_sqlite?: ResultsManifestArtifact

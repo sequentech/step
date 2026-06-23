@@ -137,6 +137,7 @@ async fn rocket() -> _ {
                 routes::results_publication::resolve_results_publication,
                 routes::results_publication::fetch_results_artifact,
                 routes::results_publication::revoke_results_publication,
+                routes::results_publication::refresh_results_publication_index,
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,

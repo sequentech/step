@@ -4,10 +4,11 @@
 
 import React from "react"
 import {Box, Chip, Stack, Typography} from "@mui/material"
+import {useTranslation} from "react-i18next"
 import {ResultsManifest, ResultsSqliteDataset} from "@/types/results"
 import {manifestTitle} from "@/services/resultLabels"
 import {ResultsSummary} from "./ResultsSummary"
-import {ContestResultsBlock} from "./ContestResultsBlock"
+import {ResultsSelectorTabs} from "./ResultsSelectorTabs"
 
 interface ResultsPageContentProps {
     manifest: ResultsManifest
@@ -15,29 +16,57 @@ interface ResultsPageContentProps {
 }
 
 export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({manifest, dataset}) => {
-    const locale = manifest.default_locale ?? "en"
-    const title = manifestTitle(manifest.title, locale, "Election Results")
+    const {i18n, t} = useTranslation()
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? manifest.default_locale ?? "en"
+    const title = manifestTitle(manifest.title, locale, t("resultsPortal.pageTitle"))
 
     return (
-        <Box sx={{width: "100%", maxWidth: 1180, mx: "auto", px: {xs: 2, sm: 3}, py: {xs: 3, md: 5}}}>
+        <Box
+            className="seq-results-page"
+            sx={{width: "100%", maxWidth: 1180, mx: "auto", px: {xs: 2, sm: 3}, py: {xs: 3, md: 5}}}
+        >
             <Stack
+                className="seq-results-page__header"
                 direction={{xs: "column", md: "row"}}
                 spacing={2}
                 justifyContent="space-between"
                 alignItems={{xs: "flex-start", md: "center"}}
             >
-                <Box>
-                    <Typography component="h1" variant="h3" sx={{fontSize: {xs: 32, md: 44}}}>
+                <Box className="seq-results-page__intro">
+                    <Typography
+                        className="seq-results-page__title"
+                        component="h1"
+                        variant="h3"
+                        sx={{fontSize: {xs: 32, md: 44}}}
+                    >
                         {title}
                     </Typography>
-                    <Typography color="text.secondary" sx={{mt: 1}}>
-                        Published results for this election event.
+                    <Typography
+                        className="seq-results-page__description"
+                        color="text.secondary"
+                        sx={{mt: 1}}
+                    >
+                        {t("resultsPortal.publishedResultsDescription")}
                     </Typography>
                 </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                    <Chip label={`Version ${manifest.version}`} variant="outlined" />
+                <Stack
+                    className="seq-results-page__meta"
+                    direction="row"
+                    spacing={1}
+                    flexWrap="wrap"
+                >
                     <Chip
-                        label={manifest.access === "public" ? "Public access" : "Signed-in access"}
+                        className="seq-results-page__version-chip"
+                        label={t("resultsPortal.version", {version: manifest.version})}
+                        variant="outlined"
+                    />
+                    <Chip
+                        className="seq-results-page__access-chip"
+                        label={
+                            manifest.access === "public"
+                                ? t("resultsPortal.publicAccess")
+                                : t("resultsPortal.signedInAccess")
+                        }
                         color={manifest.access === "public" ? "success" : "primary"}
                         variant="outlined"
                     />
@@ -52,18 +81,16 @@ export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({manifest,
                 />
             )}
 
-            <Box sx={{mt: {xs: 3, md: 5}}}>
-                <Typography component="h2" variant="h5" sx={{mb: 2}}>
-                    Contests
+            <Box className="seq-results-page__contests" sx={{mt: {xs: 3, md: 5}}}>
+                <Typography
+                    className="seq-results-page__contests-title"
+                    component="h2"
+                    variant="h5"
+                    sx={{mb: 2}}
+                >
+                    {t("resultsPortal.resultsAndParticipationTitle")}
                 </Typography>
-                {manifest.contests.map((contest) => (
-                    <ContestResultsBlock
-                        key={`${contest.election_id}-${contest.contest_id}-${contest.area_id ?? "global"}`}
-                        manifestContest={contest}
-                        dataset={dataset}
-                        locale={locale}
-                    />
-                ))}
+                <ResultsSelectorTabs manifest={manifest} dataset={dataset} locale={locale} />
             </Box>
         </Box>
     )

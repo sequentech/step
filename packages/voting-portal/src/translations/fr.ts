@@ -287,6 +287,7 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",
+            resultsButton: "Voir les résultats",
             demoDialog: {
                 title: "Bureau de vote de démonstration",
                 content:

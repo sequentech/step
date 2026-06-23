@@ -180,6 +180,7 @@ const basqueTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
+                PUBLISH_RESULTS_WEBSITE: "Argitaratu emaitzen webgunea",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",

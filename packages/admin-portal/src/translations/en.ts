@@ -179,6 +179,7 @@ const englishTranslation = {
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
+                PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

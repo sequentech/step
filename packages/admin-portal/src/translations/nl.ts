@@ -179,6 +179,7 @@ const dutchTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
+                PUBLISH_RESULTS_WEBSITE: "Resultatenwebsite publiceren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",

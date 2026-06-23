@@ -59,6 +59,9 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EResultsWebsiteAccess,
+    EResultsWebsiteStatus,
+    EResultsWebsiteVisibilityScope,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
@@ -581,6 +584,21 @@ export const EditElectionEventDataForm: React.FC = () => {
             name: t(`electionEventScreen.field.delegatedVotingPolicy.options.${value}`),
         }))
     }
+
+    const resultsWebsiteStatusOptions = () => [
+        {id: EResultsWebsiteStatus.DISABLED, name: "Disabled"},
+        {id: EResultsWebsiteStatus.ENABLED, name: "Enabled"},
+    ]
+
+    const resultsWebsiteAccessOptions = () => [
+        {id: EResultsWebsiteAccess.PUBLIC, name: "Public access"},
+        {id: EResultsWebsiteAccess.AUTHENTICATED, name: "Authenticated access"},
+    ]
+
+    const resultsWebsiteVisibilityOptions = () => [
+        {id: EResultsWebsiteVisibilityScope.FULL_EVENT, name: "Full event"},
+        {id: EResultsWebsiteVisibilityScope.AREA_BASED, name: "Area based"},
+    ]
 
     const languageDetectionPolicyOptions = () => {
         return Object.values(ELanguageDetectionPolicy).map((value) => ({
@@ -1229,6 +1247,41 @@ export const EditElectionEventDataForm: React.FC = () => {
                             choices={delegatedVotingPolicyOptions()}
                             label={"Delegated Voting Policy"}
                             defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <Typography
+                            variant="body1"
+                            component="span"
+                            sx={{
+                                fontWeight: "bold",
+                                margin: 0,
+                                display: {xs: "none", sm: "block"},
+                            }}
+                        >
+                            Results Website
+                        </Typography>
+                        <SelectInput
+                            source={"presentation.results_website.status"}
+                            choices={resultsWebsiteStatusOptions()}
+                            label={"Results Website"}
+                            defaultValue={EResultsWebsiteStatus.DISABLED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.results_website.access"}
+                            choices={resultsWebsiteAccessOptions()}
+                            label={"Results Website Access"}
+                            defaultValue={EResultsWebsiteAccess.PUBLIC}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.results_website.visibility_scope"}
+                            choices={resultsWebsiteVisibilityOptions()}
+                            label={"Results Website Visibility"}
+                            defaultValue={EResultsWebsiteVisibilityScope.FULL_EVENT}
                             emptyText={undefined}
                             validate={required()}
                         />

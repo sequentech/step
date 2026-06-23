@@ -180,6 +180,7 @@ const frenchTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
+                PUBLISH_RESULTS_WEBSITE: "Publier le site des résultats",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",

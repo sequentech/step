@@ -48,3 +48,12 @@ export const REVOKE_RESULTS_PUBLICATION = gql`
         }
     }
 `
+
+export const REFRESH_RESULTS_PUBLICATION_INDEX = gql`
+    mutation RefreshResultsPublicationIndex($election_event_id: String!) {
+        refreshResultsPublicationIndex(election_event_id: $election_event_id) {
+            election_event_id
+            results_enabled
+        }
+    }
+`

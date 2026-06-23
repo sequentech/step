@@ -181,6 +181,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "I-export ang mga awtoridad sa sertipikasyon",
+                PUBLISH_RESULTS_WEBSITE: "I-publish ang website ng mga resulta",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",

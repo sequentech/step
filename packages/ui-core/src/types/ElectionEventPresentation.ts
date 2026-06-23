@@ -95,6 +95,27 @@ export enum EVoterCertificatePolicy {
     DISABLED = "disabled",
 }
 
+export enum EResultsWebsiteStatus {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
+export enum EResultsWebsiteAccess {
+    PUBLIC = "public",
+    AUTHENTICATED = "authenticated",
+}
+
+export enum EResultsWebsiteVisibilityScope {
+    FULL_EVENT = "full_event",
+    AREA_BASED = "area_based",
+}
+
+export interface IResultsWebsitePolicy {
+    status?: EResultsWebsiteStatus
+    access?: EResultsWebsiteAccess
+    visibility_scope?: EResultsWebsiteVisibilityScope
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -118,5 +139,6 @@ export interface IElectionEventPresentation {
     weighted_voting_policy?: EElectionEventWeightedVotingPolicy
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy
+    results_website?: IResultsWebsitePolicy
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
 }
