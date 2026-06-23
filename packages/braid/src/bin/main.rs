@@ -102,7 +102,7 @@ async fn main() -> Result<()> {
 
     // Fetch initial access token for B4 authentication
     let initial_access_token = get_access_token(&trustee_name, &trustee_password).await?;
-    let board_params = HttpB3BoardParams::new(&args.b3_url, initial_access_token).await;
+    let board_params = HttpB3BoardParams::new(&args.b4_url, initial_access_token).await;
 
     let mut session_map: HashMap<
         String,
@@ -124,7 +124,7 @@ async fn main() -> Result<()> {
         // Update the shared token so all existing sessions see the refresh
         board_params.set_access_token(access_token.clone());
 
-        let b3index = HttpB3Index::new(&args.b3_url, access_token.clone());
+        let b3index = HttpB3Index::new(&args.b4_url, access_token.clone());
 
         let boards_result = b3index.get_boards().await;
         let boards: Vec<String> = match boards_result {
@@ -225,18 +225,4 @@ async fn main() -> Result<()> {
 fn get_ignored_boards() -> Vec<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
-}
-
-/// Checks for and creates a directory if needed.
-fn ensure_directory(folder: PathBuf) -> Result<()> {
-    let path = folder.as_path();
-    if path.exists() {
-        if path.is_dir() {
-            Ok(())
-        } else {
-            Err(anyhow!("Path is not a folder: {}", path.display()))
-        }
-    } else {
-        fs::create_dir(path).map_err(|err| anyhow!(err))
-    }
 }

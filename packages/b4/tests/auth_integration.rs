@@ -18,8 +18,14 @@ mod common;
 
 use axum::http::{header::AUTHORIZATION, StatusCode};
 use common::TestServer;
+use sequent_core::services::test_utils::{
+    create_test_board_name, TEST_ELECTION_EVENT_ID, TEST_SLUG, TEST_TENANT_ID,
+};
 use sequent_core::types::permissions::Permissions;
 use serial_test::serial;
+
+/// A tenant ID distinct from `TEST_TENANT_ID`, used for cross-tenant tests.
+const OTHER_TENANT_ID: &str = "12345678-1234-1234-1234-123456789012";
 
 // ============================================================================
 // Authentication Header Tests
@@ -275,6 +281,119 @@ async fn test_case_sensitive_permission() {
         .await;
 
     resp.assert_status(StatusCode::FORBIDDEN);
+}
+
+// ============================================================================
+// Cross-Tenant Board Isolation Tests (body-driven endpoints)
+// ============================================================================
+//
+// The multi-board endpoints and board creation take the board name from the
+// request body, so the path-param `BoardAccessValidator` cannot reach them.
+// These tests verify the explicit per-board authorization (authorized-boards
+// membership) in those handlers.
+
+#[tokio::test]
+#[serial]
+async fn test_multi_get_other_tenant_board_returns_403() {
+    let server = TestServer::new().await;
+
+    // Browser trustee authorized only for its own board requests another board.
+    let own_board = create_test_board_name(TEST_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    let other_board = create_test_board_name(OTHER_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[own_board.as_str()]);
+
+    let resp = server
+        .server
+        .post("/boards/messages/multi/get")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&serde_json::json!({
+            "requests": [{ "board": other_board, "last_id": 0, "limit": 100 }]
+        }))
+        .await;
+
+    resp.assert_status(StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_multi_get_own_tenant_board_allowed() {
+    let server = TestServer::new().await;
+    // Clean slate: the server is shared across serial tests, so avoid a
+    // duplicate-create conflict on the board name.
+    server.cleanup().await;
+
+    // Own-tenant board: create it (server token), then read via multi-get as a
+    // browser trustee in the same tenant. The tenant check must pass (not 403).
+    let own_board = create_test_board_name(TEST_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    server.create_board(&own_board).await;
+
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[own_board.as_str()]);
+    let resp = server
+        .server
+        .post("/boards/messages/multi/get")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&serde_json::json!({
+            "requests": [{ "board": own_board, "last_id": 0, "limit": 100 }]
+        }))
+        .await;
+
+    resp.assert_status_ok();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_create_board_other_tenant_returns_403() {
+    let server = TestServer::new().await;
+
+    // Browser trustee authorized only for its own board tries to create another.
+    let own_board = create_test_board_name(TEST_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    let other_board = create_test_board_name(OTHER_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[own_board.as_str()]);
+
+    let resp = server
+        .server
+        .post("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&serde_json::json!({ "name": other_board }))
+        .await;
+
+    resp.assert_status(StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_list_boards_excludes_other_tenant() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+
+    // Two boards in different tenants, both created by the server role.
+    let own_board = create_test_board_name(TEST_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    let other_board = create_test_board_name(OTHER_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+    server.create_board(&own_board).await;
+    server.create_board(&other_board).await;
+
+    // A browser trustee authorized only for its own board lists boards.
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[own_board.as_str()]);
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+    let body: serde_json::Value = resp.json();
+    let names: Vec<String> = body["boards"]
+        .as_array()
+        .expect("boards array")
+        .iter()
+        .map(|b| b["name"].as_str().unwrap_or_default().to_string())
+        .collect();
+
+    assert!(names.contains(&own_board), "own board should be listed");
+    assert!(
+        !names.contains(&other_board),
+        "other-tenant board must be hidden"
+    );
 }
 
 #[tokio::test]

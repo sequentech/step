@@ -149,7 +149,7 @@ async fn run(args: &Cli) -> Result<()> {
     // Fetch initial access token for B4 authentication
     let access_token = get_access_token(&trustee_name, &trustee_password).await?;
     let mut master =
-        SessionMaster::new(&args.b3_url, factory, args.session_workers, access_token).await?;
+        SessionMaster::new(&args.b4_url, factory, args.session_workers, access_token).await?;
 
     loop {
         // Refresh access token using trustee credentials (cached)
@@ -163,7 +163,7 @@ async fn run(args: &Cli) -> Result<()> {
         };
         master.set_access_token(access_token.clone());
 
-        let b3index = HttpB3Index::new(&args.b3_url, access_token);
+        let b3index = HttpB3Index::new(&args.b4_url, access_token);
         let boards_result = b3index.get_boards().await;
 
         let Ok(mut boards) = boards_result else {

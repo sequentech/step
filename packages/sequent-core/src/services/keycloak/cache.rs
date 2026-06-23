@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 /// Token response with common fields for both admin and user tokens.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -143,6 +143,11 @@ impl TokenCache {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as usize)
             .unwrap_or(0);
+        // Print expiration params to check whether they are relative or absilute time stamps
+        info!(
+            "write_token: now: {now}, expires_in: {}, refresh_expires_in: {:?}",
+            token_resp.expires_in, token_resp.refresh_expires_in
+        );
         token_resp.expires_in = now + token_resp.expires_in;
         if let Some(refresh_exp) = token_resp.refresh_expires_in {
             token_resp.refresh_expires_in = Some(now + refresh_exp);

@@ -9,7 +9,10 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MessageWithUrl, MAX_INLINE_MESSAGE_SIZE,
 };
-use crate::auth::{BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony};
+use crate::auth::{
+    authorize_board_for_claims, claims_can_access_board, BoardAccessValidator, RequireConstraints,
+    RequirePermissions, TrusteeCeremony,
+};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -49,6 +52,9 @@ pub async fn create_board(
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Json(req): Json<CreateBoardRequest>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
+    // Restrict board creation to the caller's tenant (server role bypasses).
+    authorize_board_for_claims(&claims, &req.name)?;
+
     tracing::info!("User {} creating board '{}'", claims.sub, req.name);
 
     let board = db::create_board(&state.db, &req.name).await.map_err(|e| {
@@ -97,8 +103,10 @@ pub async fn list_boards(
     })?;
 
     Ok(Json(BoardsListResponse {
+        // Only expose boards the caller's tenant may access (server role sees all).
         boards: boards
             .into_iter()
+            .filter(|b| claims_can_access_board(&claims, &b.name))
             .map(|b| BoardResponse {
                 name: b.name,
                 created_at: b.created_at,
@@ -481,6 +489,12 @@ pub async fn get_messages_multi(
         req.requests.len()
     );
 
+    // Board names arrive in the body, so the path-param validator cannot reach
+    // them: authorize each board against the caller's tenant explicitly.
+    for board_req in &req.requests {
+        authorize_board_for_claims(&claims, &board_req.board)?;
+    }
+
     let mut boards = Vec::new();
 
     for board_req in req.requests {
@@ -564,6 +578,12 @@ pub async fn initiate_messages_multi(
         claims.sub,
         req.requests.len()
     );
+
+    // Board names arrive in the body, so the path-param validator cannot reach
+    // them: authorize each board against the caller's tenant explicitly.
+    for board_req in &req.requests {
+        authorize_board_for_claims(&claims, &board_req.board)?;
+    }
 
     let mut board_responses = Vec::new();
 
@@ -654,6 +674,12 @@ pub async fn confirm_messages_multi(
         claims.sub,
         board_count
     );
+
+    // Board names arrive in the body, so the path-param validator cannot reach
+    // them: authorize each board against the caller's tenant explicitly.
+    for board_req in &req.requests {
+        authorize_board_for_claims(&claims, &board_req.board)?;
+    }
 
     for board_req in req.requests {
         let board_name = &board_req.board;

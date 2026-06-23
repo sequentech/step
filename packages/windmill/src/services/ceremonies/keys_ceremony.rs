@@ -323,7 +323,7 @@ pub async fn create_keys_ceremony(
     election_id: Option<String>,
     name: Option<String>,
     is_automatic_ceremony: bool,
-) -> Result<String> {
+) -> Result<(String, String)> {
     // verify trustee names and fetch their objects to get their ids
     let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
         .await
@@ -475,7 +475,7 @@ pub async fn create_keys_ceremony(
         .await
         .with_context(|| "error posting to the electoral log")?;
 
-    Ok(keys_ceremony_id)
+    Ok((keys_ceremony_id, board_name))
 }
 
 #[instrument(skip(hasura_transaction), err)]
