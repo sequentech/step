@@ -424,6 +424,36 @@ pub async fn mark_publication_failed(
     Ok(())
 }
 
+pub async fn mark_publication_superseded(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+) -> Result<()> {
+    let statement = tx
+        .prepare(
+            r#"
+                UPDATE sequent_backend.tally_results_publication
+                SET publication_status = 'Superseded',
+                    updated_at = now()
+                WHERE tenant_id = $1
+                  AND election_event_id = $2
+                  AND id = $3
+                  AND publication_status = 'Published';
+            "#,
+        )
+        .await?;
+    tx.execute(
+        &statement,
+        &[
+            &parse_uuid_v4(&publication.tenant_id)?,
+            &parse_uuid_v4(&publication.election_event_id)?,
+            &parse_uuid_v4(&publication.id)?,
+        ],
+    )
+    .await?;
+
+    Ok(())
+}
+
 pub async fn revoke_publication(
     tx: &Transaction<'_>,
     tenant_id: &str,

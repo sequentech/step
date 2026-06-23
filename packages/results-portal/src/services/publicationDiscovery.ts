@@ -51,7 +51,6 @@ const isRouteMatch = (
         if (publication.route_scope === "election") {
             return (
                 publication.route_election_id === electionId ||
-                publication.election_ids?.includes(electionId) ||
                 publication.route === `/${eeId}/elections/${electionId}`
             )
         }

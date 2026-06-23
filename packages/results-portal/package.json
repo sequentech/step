@@ -12,10 +12,8 @@
     "@sequentech/ui-essentials": "*",
     "apexcharts": "3.41.1",
     "graphql": "16.11.0",
-    "fs-extra": "^11.2.0",
     "i18next": "^25.5.2",
     "i18next-browser-languagedetector": "^8.2.0",
-    "idb": "7.1.1",
     "keycloak-js": "^26.2.0",
     "react": "19.1.1",
     "react-apexcharts": "1.4.1",
@@ -40,8 +38,7 @@
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts",
-    "postinstall": "node ./postinstall.cjs"
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts"
   },
   "browserslist": {
     "production": [

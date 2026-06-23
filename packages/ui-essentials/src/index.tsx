@@ -51,6 +51,10 @@ export {
     PreferentialCandidateResults,
     sortCandidateResults,
 } from "./components/TallyResults/TallyResults"
+export {
+    default as ResultsSelectorTabs,
+    ResultsSelectorTabs as ResultsSelectorTabsComponent,
+} from "./components/TallyResults/ResultsSelectorTabs"
 export type {
     CandidateReference,
     CandidateResultRow,
@@ -60,3 +64,10 @@ export type {
     PreferentialProcessResults,
     PreferentialRound,
 } from "./components/TallyResults/TallyResults"
+export type {
+    ResultsSelectorAreaOption,
+    ResultsSelectorLabels,
+    ResultsSelectorOption,
+    ResultsSelectorSelection,
+    ResultsSelectorTabsProps,
+} from "./components/TallyResults/ResultsSelectorTabs"

@@ -6,31 +6,25 @@ use crate::utils::read_config::read_config;
 use clap::Args;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
-
-const GET_ELECTION_EVENT_PRESENTATION_QUERY: &str = r#"
-query GetElectionEventPresentation($election_event_id: uuid!) {
-  sequent_backend_election_event(
-    where: { id: { _eq: $election_event_id } }
-    limit: 1
-  ) {
-    id
-    presentation
-  }
-}
-"#;
+use serde_json::Value;
 
 const CONFIGURE_RESULTS_WEBSITE_MUTATION: &str = r#"
-mutation ConfigureResultsWebsite($election_event_id: uuid!, $presentation: jsonb!) {
-  update_sequent_backend_election_event(
-    where: { id: { _eq: $election_event_id } }
-    _set: { presentation: $presentation }
+mutation ConfigureResultsWebsite(
+  $election_event_id: String!
+  $status: String!
+  $access: String!
+  $visibility_scope: String!
+) {
+  configureResultsWebsitePolicy(
+    election_event_id: $election_event_id
+    status: $status
+    access: $access
+    visibility_scope: $visibility_scope
   ) {
-    affected_rows
-    returning {
-      id
-      presentation
-    }
+    election_event_id
+    status
+    access
+    visibility_scope
   }
 }
 "#;
@@ -204,36 +198,17 @@ struct GraphqlError {
 }
 
 #[derive(Serialize)]
-struct ElectionEventPresentationVariables {
-    election_event_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ElectionEventPresentationRow {
-    id: String,
-    presentation: Option<Value>,
-}
-
-#[derive(Deserialize)]
-struct GetElectionEventPresentationData {
-    sequent_backend_election_event: Vec<ElectionEventPresentationRow>,
-}
-
-#[derive(Serialize)]
 struct ConfigureResultsWebsiteVariables {
     election_event_id: String,
-    presentation: Value,
-}
-
-#[derive(Deserialize)]
-struct UpdateElectionEventResult {
-    affected_rows: i64,
-    returning: Vec<ElectionEventPresentationRow>,
+    status: String,
+    access: String,
+    visibility_scope: String,
 }
 
 #[derive(Deserialize)]
 struct ConfigureResultsWebsiteData {
-    update_sequent_backend_election_event: Option<UpdateElectionEventResult>,
+    #[serde(rename = "configureResultsWebsitePolicy")]
+    configure_results_website_policy: Option<ConfigureResultsWebsitePayload>,
 }
 
 #[derive(Serialize)]
@@ -360,62 +335,21 @@ pub fn configure_results_website(
 ) -> Result<ConfigureResultsWebsitePayload, Box<dyn std::error::Error>> {
     validate_results_website_policy(&command.status, &command.access, &command.visibility_scope)?;
 
-    let existing_presentation = get_election_event_presentation(&command.election_event_id)?;
-    let mut presentation = match existing_presentation {
-        Some(Value::Null) | None => json!({}),
-        Some(value) => value,
-    };
-    let presentation_object =
-        match presentation.as_object_mut() {
-            Some(object) => object,
-            None => return Err(
-                "election event presentation must be a JSON object to configure results website"
-                    .into(),
-            ),
-        };
-    presentation_object.insert(
-        "results_website".to_string(),
-        json!({
-            "status": command.status,
-            "access": command.access,
-            "visibility_scope": command.visibility_scope,
-        }),
-    );
-
     let variables = ConfigureResultsWebsiteVariables {
         election_event_id: command.election_event_id.clone(),
-        presentation,
+        status: command.status.clone(),
+        access: command.access.clone(),
+        visibility_scope: command.visibility_scope.clone(),
     };
     let request_body = GraphqlRequest {
         query: CONFIGURE_RESULTS_WEBSITE_MUTATION,
         variables,
     };
-    let response: GraphqlResponse<ConfigureResultsWebsiteData> =
-        post_graphql_with_role(request_body, "election-event-write")?;
+    let response: GraphqlResponse<ConfigureResultsWebsiteData> = post_graphql(request_body)?;
 
     if let Some(data) = response.data {
-        if let Some(update_result) = data.update_sequent_backend_election_event {
-            if update_result.affected_rows == 0 {
-                return Err("election event not found or not writable".into());
-            }
-            let updated_row = update_result
-                .returning
-                .first()
-                .ok_or("results website policy update returned no row")?;
-            let policy = updated_row
-                .presentation
-                .as_ref()
-                .and_then(|presentation| presentation.get("results_website"))
-                .and_then(Value::as_object)
-                .ok_or("results website policy was not stored")?;
-            refresh_results_publication_index(&command.election_event_id)?;
-
-            return Ok(ConfigureResultsWebsitePayload {
-                election_event_id: updated_row.id.clone(),
-                status: policy_string(policy, "status")?,
-                access: policy_string(policy, "access")?,
-                visibility_scope: policy_string(policy, "visibility_scope")?,
-            });
+        if let Some(payload) = data.configure_results_website_policy {
+            return Ok(payload);
         }
     }
 
@@ -535,31 +469,6 @@ fn post_graphql_with_role<V: Serialize, T: for<'de> Deserialize<'de>>(
     }
 }
 
-fn get_election_event_presentation(
-    election_event_id: &str,
-) -> Result<Option<Value>, Box<dyn std::error::Error>> {
-    let variables = ElectionEventPresentationVariables {
-        election_event_id: election_event_id.to_string(),
-    };
-    let request_body = GraphqlRequest {
-        query: GET_ELECTION_EVENT_PRESENTATION_QUERY,
-        variables,
-    };
-    let response: GraphqlResponse<GetElectionEventPresentationData> =
-        post_graphql_with_role(request_body, "election-event-write")?;
-
-    if let Some(data) = response.data {
-        return data
-            .sequent_backend_election_event
-            .into_iter()
-            .next()
-            .map(|row| row.presentation)
-            .ok_or_else(|| "election event not found or not readable".into());
-    }
-
-    Err(graphql_error_message(response.errors, "failed to read election event").into())
-}
-
 fn validate_publish_config(command: &PublishResults) -> Result<(), Box<dyn std::error::Error>> {
     validate_value("route-scope", &command.route_scope, &["event", "election"])?;
     validate_results_website_policy("enabled", &command.access, &command.visibility_scope)?;
@@ -605,17 +514,6 @@ fn validate_value(
         )
         .into())
     }
-}
-
-fn policy_string(
-    policy: &Map<String, Value>,
-    key: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    policy
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::to_string)
-        .ok_or_else(|| format!("results website policy is missing {key}").into())
 }
 
 fn graphql_error_message(errors: Option<Vec<GraphqlError>>, fallback: &str) -> String {

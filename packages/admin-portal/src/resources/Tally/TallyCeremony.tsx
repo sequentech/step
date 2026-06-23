@@ -1187,7 +1187,7 @@ export const TallyCeremony: React.FC = () => {
                             <Accordion sx={{width: "100%"}}>
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                     <WizardStyles.AccordionTitle>
-                                        Publish to results website
+                                        {t("tally.resultsPublication.sectionTitle")}
                                     </WizardStyles.AccordionTitle>
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1206,7 +1206,7 @@ export const TallyCeremony: React.FC = () => {
                                         />
                                     ) : (
                                         <Alert severity="info">
-                                            Results publication is loading election context.
+                                            {t("tally.resultsPublication.loadingElectionContext")}
                                         </Alert>
                                     )}
                                 </WizardStyles.AccordionDetails>

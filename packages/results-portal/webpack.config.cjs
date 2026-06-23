@@ -103,6 +103,14 @@ module.exports = function (env, argv) {
                             ignore: ["**/index.html", "**/favicon.ico"],
                         },
                     },
+                    {
+                        from: path.resolve(__dirname, "../node_modules/sql.js/dist/sql-wasm.js"),
+                        to: path.resolve(__dirname, "dist/sql-wasm.js"),
+                    },
+                    {
+                        from: path.resolve(__dirname, "../node_modules/sql.js/dist/sql-wasm.wasm"),
+                        to: path.resolve(__dirname, "dist/sql-wasm.wasm"),
+                    },
                 ],
             }),
             new ProgressPlugin(),
