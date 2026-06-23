@@ -188,6 +188,7 @@ impl RawBallotCodec for Contest {
         let mut decoded_contest = DecodedVoteContest {
             contest_id: self.id.clone(),
             is_explicit_invalid,
+            is_decline_to_vote: false, // only for multi-contest encryption
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![],

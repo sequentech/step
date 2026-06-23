@@ -12,7 +12,7 @@ use crate::services::{
     ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
 };
 use anyhow::{anyhow, Context, Result};
-use b3::client::pgsql::B3MessageRow;
+use b4::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::{Client as DbClient, Transaction};

@@ -48,6 +48,7 @@ import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     EAllowTally,
     EElectionEventCeremoniesPolicy,
+    EElectionEventContestEncryptionPolicy,
     EInitializeReportPolicy,
     EInitReport,
     EVotingStatus,
@@ -811,6 +812,10 @@ export const TallyCeremony: React.FC = () => {
         return steps
     }
 
+    const isMultiContest =
+        tally?.configuration?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
@@ -995,6 +1000,7 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
+                                        isMultiContest={isMultiContest}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -1113,6 +1119,7 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
+                                        isMultiContest={isMultiContest}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
