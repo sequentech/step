@@ -50,7 +50,10 @@ spec:
           imagePullPolicy: Never
           env:
             - name: POSTGRES_PASSWORD
-              value: "password"
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: POSTGRES_PASSWORD
           volumeMounts:
             - name: pg-data
               mountPath: /var/lib/postgresql
@@ -114,7 +117,10 @@ spec:
             - name: RUSTFS_ROOT_USER
               value: "admin"
             - name: RUSTFS_ROOT_PASSWORD
-              value: "password"
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: RUSTFS_ROOT_PASSWORD
           ports:
             - containerPort: 9000
             - containerPort: 9001
@@ -219,7 +225,10 @@ spec:
             - name: KC_DB_USERNAME
               value: postgres
             - name: KC_DB_PASSWORD
-              value: "password"
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: KC_DB_PASSWORD
           ports:
             - containerPort: 8090
           volumeMounts:

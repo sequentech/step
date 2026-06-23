@@ -13,7 +13,7 @@ The solution is designed to provide a secure, production-grade "Cloud-in-a-Box" 
                   |         Client (Ubuntu 26.04)         |
                   +---------------------------------------+
                                       |
-                     (HTTPS / Port 443 | HTTP / Port 80)
+                     (HTTPS / Port 443 | SSH / Port 2222)
                                       v
 +---------------------------------------------------------------------------------+
 |                            Server VM (Ubuntu 26.04)                             |
@@ -28,9 +28,9 @@ The solution is designed to provide a secure, production-grade "Cloud-in-a-Box" 
 |  |  |  * Routes /realms & /resources -> keycloak (Port 8090)              |  |  |
 |  |  +---------------------------------------------------------------------+  |  |
 |  |                                                                           |  |
-|  |  +-- http://gitea.local -----------------------------------------------+  |  |
-|  |  |  * Port 80 (Plain HTTP)                                             |  |  |
-|  |  |  * Routes / -> gitea (Port 3000)                                    |  |  |
+|  |  +-- https://gitea.local ---------------------------------------------+  |  |
+|  |  |  * Port 443 (TLS) / SSH Port 2222 (TCP passthrough)               |  |  |
+|  |  |  * Routes / -> gitea (Port 3000)                                   |  |  |
 |  |  +---------------------------------------------------------------------+  |  |
 |  +---------------------------------------------------------------------------+  |
 |                                                                                 |
@@ -175,18 +175,22 @@ sudo ./manage.sh --deploy
 ## 7. Development Workflow
 
 ### Initial Code Push
-1.  Log in to Gitea at `http://gitea.local` (Plain HTTP) using **admin / admin123**.
-2.  Create a new repository called **`step`** under the **admin** user.
-3.  Prepare your source code:
+1.  Prepare your source code and register your SSH key with Gitea in one step:
     ```bash
     ./manage.sh --run-dev
     ```
-4.  Push to the local registry:
+    This extracts the source, registers your `~/.ssh/id_ed25519.pub` (or `id_rsa.pub`) with
+    the Gitea admin account via the API, and prints the push instructions.
+    If you don't have an SSH key yet, generate one first: `ssh-keygen -t ed25519`
+
+2.  Push to Gitea (the repository is auto-created on first push):
     ```bash
     cd source
-    git remote add origin http://gitea.local/admin/step.git
+    git remote add origin ssh://git@gitea.local:2222/admin/step.git
     git push -u origin main
     ```
+    Accept the host key fingerprint on first connect. Gitea is accessible in a browser
+    at `https://gitea.local` (accept the self-signed certificate warning).
 
 ---
 
@@ -200,7 +204,8 @@ Once deployed, access each service using the mapping below:
 | **Keycloak (Auth)** | **HTTPS (Port 443)** | `https://portal.local/realms/...` | Handled on the same single-domain to prevent browser cookie-blocks. |
 | **Hasura Engine** | **HTTPS (Port 443)** | `https://portal.local/hasura/v1/graphql` | Public-facing GraphQL API. |
 | **RustFS (S3)** | **HTTPS (Port 443)** | `https://portal.local/storage/public/` | Public asset storage bucket. |
-| **Gitea** | **HTTP (Port 80)** | `http://gitea.local` | Source control and internal docker registry (Port 3000 mapped). |
+| **Gitea (Web UI)** | **HTTPS (Port 443)** | `https://gitea.local` | Source control web interface. |
+| **Gitea (SSH git)** | **SSH (Port 2222)** | `ssh://git@gitea.local:2222/<repo>.git` | Git push/clone via SSH (TCP passthrough via Traefik). |
 
 ### Important Note on Self-Signed Certificates:
 Since `https://portal.local` uses a self-signed TLS certificate generated natively:

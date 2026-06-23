@@ -19,7 +19,7 @@ jobs:
           git checkout "${{ github.sha }}"
 
       - name: Login to Local Gitea Registry
-        run: echo "admin123" | docker login http://gitea.gitea:3000 -u "admin" --password-stdin
+        run: echo "${{ secrets.GITEA_REGISTRY_PASSWORD }}" | docker login http://gitea.gitea:3000 -u "admin" --password-stdin
 
       - name: Build and Push Harvest
         run: |

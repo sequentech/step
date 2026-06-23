@@ -75,20 +75,63 @@ EOF
         ;;
 
     --deploy)
+        echo "--- Setting Passwords (override with env vars before running) ---"
+        POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-password}"
+        RUSTFS_PASSWORD="${RUSTFS_PASSWORD:-password}"
+        GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+        HASURA_ADMIN_SECRET="${HASURA_ADMIN_SECRET:-admin123}"
+        ACTIONS_ADMIN_SECRET="${ACTIONS_ADMIN_SECRET:-admin123}"
+        MASTER_SECRET="${MASTER_SECRET:-dummy_master_secret_for_airgap_certification}"
+        S3_SECRET="${S3_SECRET:-password}"
+
         echo "--- Ensuring TLS Certificate is Provisioned ---"
         if ! sudo k3s kubectl get secret step-tls-cert -n step-apps &>/dev/null; then
-            echo "Generating self-signed TLS certificate for portal.local..."
+            echo "Generating self-signed TLS certificate for portal.local and gitea.local..."
             sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
               -keyout /tmp/tls.key -out /tmp/tls.crt \
               -subj '/CN=portal.local' \
-              -addext 'subjectAltName = DNS:portal.local'
+              -addext 'subjectAltName = DNS:portal.local,DNS:gitea.local'
 
-            sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n step-apps --dry-run=client -o yaml | sudo k3s kubectl apply -f -
-            sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n step-infra --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+            for ns in step-apps step-infra gitea; do
+                sudo k3s kubectl create secret tls step-tls-cert --key=/tmp/tls.key --cert=/tmp/tls.crt -n "$ns" --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+            done
             rm -f /tmp/tls.key /tmp/tls.crt
         else
             echo "TLS certificate already exists."
         fi
+
+        echo "--- Provisioning Application Secrets ---"
+        sudo k3s kubectl create secret generic step-secrets \
+          -n step-infra \
+          --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=RUSTFS_ROOT_PASSWORD="${RUSTFS_PASSWORD}" \
+          --from-literal=KC_DB_PASSWORD="${POSTGRES_PASSWORD}" \
+          --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+
+        sudo k3s kubectl create secret generic step-secrets \
+          -n step-apps \
+          --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=AWS_S3_ACCESS_SECRET="${S3_SECRET}" \
+          --from-literal=KEYCLOAK_DB__PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=HASURA_DB__PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=B3_PG_PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=ACTIONS_ADMIN_SECRET="${ACTIONS_ADMIN_SECRET}" \
+          --from-literal=MASTER_SECRET="${MASTER_SECRET}" \
+          --from-literal=HASURA_GRAPHQL_ADMIN_SECRET="${HASURA_ADMIN_SECRET}" \
+          --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+
+        sudo k3s kubectl create secret generic step-secrets \
+          -n gitea \
+          --from-literal=GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD}" \
+          --from-literal=GITEA_REGISTRY_PASSWORD="${GITEA_ADMIN_PASSWORD}" \
+          --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+
+        sudo k3s kubectl create secret docker-registry gitea-pull-secret \
+          -n step-apps \
+          --docker-server=gitea.gitea:3000 \
+          --docker-username=admin \
+          --docker-password="${GITEA_ADMIN_PASSWORD}" \
+          --dry-run=client -o yaml | sudo k3s kubectl apply -f -
 
         echo "--- Loading Infrastructure Images into K3s (Background) ---"
         sudo mkdir -p /var/lib/rancher/k3s/agent/images/
@@ -102,6 +145,8 @@ EOF
         ;;
 
     --run-dev)
+        GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+
         echo "--- Preparing Development Source ---"
         if [ ! -d "$PROJECT_ROOT/source" ]; then
             mkdir -p "$PROJECT_ROOT/source"
@@ -110,14 +155,44 @@ EOF
         echo "Source extracted to $PROJECT_ROOT/source"
         echo ""
         echo "--- Configuring Local DNS Resolution ---"
-        echo "Adding *.local domains to your /etc/hosts file..."
         sudo sh -c 'grep -q "gitea.local" /etc/hosts || echo "127.0.0.1 gitea.local portal.local" >> /etc/hosts'
         echo "Domains configured."
         echo ""
+        echo "--- Registering SSH Key with Gitea ---"
+        SSH_PUB_KEY=""
+        KEY_FILE=""
+        for candidate in "$HOME/.ssh/id_ed25519.pub" "$HOME/.ssh/id_rsa.pub"; do
+            if [ -f "$candidate" ]; then
+                SSH_PUB_KEY=$(cat "$candidate")
+                KEY_FILE="$candidate"
+                break
+            fi
+        done
+        if [ -z "$SSH_PUB_KEY" ]; then
+            echo "No SSH public key found. Generate one first:"
+            echo "  ssh-keygen -t ed25519"
+            echo "Then re-run: ./manage.sh --run-dev"
+            exit 1
+        fi
+        echo "Found key: $KEY_FILE"
+        KEY_JSON=$(jq -n --arg key "$SSH_PUB_KEY" --arg title "airgap-$(hostname)" \
+            '{"key": $key, "read_only": false, "title": $title}')
+        HTTP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" \
+            -X POST "https://gitea.local/api/v1/user/keys" \
+            -u "admin:${GITEA_ADMIN_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -d "$KEY_JSON")
+        case "$HTTP_STATUS" in
+            201) echo "SSH key registered with Gitea." ;;
+            422) echo "SSH key already registered with Gitea." ;;
+            *)   echo "Warning: Gitea API returned HTTP $HTTP_STATUS. Add the key manually at https://gitea.local/-/user/settings/keys" ;;
+        esac
+        echo ""
         echo "To start developing:"
-        echo "1. Log in to Gitea at http://gitea.local (admin/admin123)"
-        echo "2. Create your 'step' repo and push source:"
-        echo "   cd source && git remote add origin http://gitea.local/admin/step.git"
+        echo "1. Browse to https://gitea.local (accept the self-signed certificate warning)"
+        echo "2. Push the source to Gitea:"
+        echo "   cd source"
+        echo "   git remote add origin ssh://git@gitea.local:2222/admin/step.git"
         echo "   git push -u origin main"
         ;;
 

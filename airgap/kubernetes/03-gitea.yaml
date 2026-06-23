@@ -48,7 +48,10 @@ spec:
             - name: GITEA_ADMIN_USERNAME
               value: "admin"
             - name: GITEA_ADMIN_PASSWORD
-              value: "admin123"
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: GITEA_ADMIN_PASSWORD
             - name: GITEA_ADMIN_EMAIL
               value: "admin@example.com"
             - name: GITEA__repository__ENABLE_PUSH_CREATE_USER

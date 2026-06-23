@@ -1,12 +1,46 @@
+# Configure Traefik with an SSH entrypoint on port 2222 for Gitea git-over-SSH access.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      ssh:
+        port: 2222
+        expose:
+          default: true
+        exposedPort: 2222
+        protocol: TCP
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: gitea-ssh
+  namespace: gitea
+spec:
+  entryPoints:
+    - ssh
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: gitea
+          port: 22
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: step-ingress
   namespace: gitea
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - gitea.local
+      secretName: step-tls-cert
   rules:
     - host: gitea.local
       http:
