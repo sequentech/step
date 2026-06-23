@@ -586,18 +586,27 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const resultsWebsiteStatusOptions = () => [
-        {id: EResultsWebsiteStatus.DISABLED, name: "Disabled"},
-        {id: EResultsWebsiteStatus.ENABLED, name: "Enabled"},
+        {id: EResultsWebsiteStatus.DISABLED, name: t("tally.resultsPublication.disabled")},
+        {id: EResultsWebsiteStatus.ENABLED, name: t("tally.resultsPublication.enabled")},
     ]
 
     const resultsWebsiteAccessOptions = () => [
-        {id: EResultsWebsiteAccess.PUBLIC, name: "Public access"},
-        {id: EResultsWebsiteAccess.AUTHENTICATED, name: "Authenticated access"},
+        {id: EResultsWebsiteAccess.PUBLIC, name: t("tally.resultsPublication.publicAccess")},
+        {
+            id: EResultsWebsiteAccess.AUTHENTICATED,
+            name: t("tally.resultsPublication.authenticatedAccess"),
+        },
     ]
 
     const resultsWebsiteVisibilityOptions = () => [
-        {id: EResultsWebsiteVisibilityScope.FULL_EVENT, name: "Full event"},
-        {id: EResultsWebsiteVisibilityScope.AREA_BASED, name: "Area based"},
+        {
+            id: EResultsWebsiteVisibilityScope.FULL_EVENT,
+            name: t("tally.resultsPublication.fullEvent"),
+        },
+        {
+            id: EResultsWebsiteVisibilityScope.AREA_BASED,
+            name: t("tally.resultsPublication.areaBased"),
+        },
     ]
 
     const languageDetectionPolicyOptions = () => {
@@ -1259,12 +1268,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 display: {xs: "none", sm: "block"},
                             }}
                         >
-                            Results Website
+                            {t("tally.resultsPublication.policyTitle")}
                         </Typography>
                         <SelectInput
                             source={"presentation.results_website.status"}
                             choices={resultsWebsiteStatusOptions()}
-                            label={"Results Website"}
+                            label={t("tally.resultsPublication.policyTitle")}
                             defaultValue={EResultsWebsiteStatus.DISABLED}
                             emptyText={undefined}
                             validate={required()}
@@ -1272,7 +1281,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <SelectInput
                             source={"presentation.results_website.access"}
                             choices={resultsWebsiteAccessOptions()}
-                            label={"Results Website Access"}
+                            label={t("tally.resultsPublication.policyAccess")}
                             defaultValue={EResultsWebsiteAccess.PUBLIC}
                             emptyText={undefined}
                             validate={required()}
@@ -1280,7 +1289,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <SelectInput
                             source={"presentation.results_website.visibility_scope"}
                             choices={resultsWebsiteVisibilityOptions()}
-                            label={"Results Website Visibility"}
+                            label={t("tally.resultsPublication.policyVisibility")}
                             defaultValue={EResultsWebsiteVisibilityScope.FULL_EVENT}
                             emptyText={undefined}
                             validate={required()}

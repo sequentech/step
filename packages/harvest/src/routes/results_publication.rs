@@ -8,10 +8,11 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::postgres::tally_results_publication::{
     get_active_publication_for_route, get_publication_by_id,
@@ -22,7 +23,8 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::documents::get_document_url;
 use windmill::services::results_publication::{
-    is_results_website_enabled, refresh_public_results_index,
+    delete_public_publication_route_artifacts, is_results_website_enabled,
+    publication_matches_results_website_policy, refresh_public_results_index,
 };
 use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
@@ -82,6 +84,153 @@ fn validate_publish_input(input: &PublishResultsWebsiteInput) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn validate_results_website_policy_values(
+    status: &str,
+    access: &str,
+    visibility_scope: &str,
+) -> Result<()> {
+    if status != "enabled" && status != "disabled" {
+        return Err(anyhow!("Invalid results website status"));
+    }
+
+    if access != "public" && access != "authenticated" {
+        return Err(anyhow!("Invalid results access"));
+    }
+
+    if visibility_scope != "full_event" && visibility_scope != "area_based" {
+        return Err(anyhow!("Invalid visibility scope"));
+    }
+
+    if access == "public" && visibility_scope != "full_event" {
+        return Err(anyhow!("Public results must use full_event visibility"));
+    }
+
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConfigureResultsWebsitePolicyInput {
+    election_event_id: String,
+    status: String,
+    access: String,
+    visibility_scope: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ConfigureResultsWebsitePolicyOutput {
+    election_event_id: String,
+    status: String,
+    access: String,
+    visibility_scope: String,
+}
+
+#[post("/configure-results-website-policy", format = "json", data = "<body>")]
+pub async fn configure_results_website_policy(
+    body: Json<ConfigureResultsWebsitePolicyInput>,
+    claims: JwtClaims,
+) -> Result<Json<ConfigureResultsWebsitePolicyOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::PUBLISH_RESULTS_WRITE],
+    )?;
+
+    let input = body.into_inner();
+    validate_results_website_policy_values(
+        &input.status,
+        &input.access,
+        &input.visibility_scope,
+    )
+    .map_err(|err| {
+        (
+            Status::BadRequest,
+            format!("Invalid results website policy: {err:?}"),
+        )
+    })?;
+
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let election_event = get_election_event_by_id(
+        &transaction,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
+    let mut presentation = election_event
+        .presentation
+        .unwrap_or_else(|| Value::Object(Map::new()));
+
+    let Some(presentation_object) = presentation.as_object_mut() else {
+        return Err((
+            Status::BadRequest,
+            "Election event presentation must be a JSON object".to_string(),
+        ));
+    };
+
+    presentation_object.insert(
+        "results_website".to_string(),
+        json!({
+            "status": input.status.clone(),
+            "access": input.access.clone(),
+            "visibility_scope": input.visibility_scope.clone(),
+        }),
+    );
+
+    let statement = transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.election_event
+                SET presentation = $3
+                WHERE tenant_id = $1
+                  AND id = $2
+                RETURNING id;
+            "#,
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    transaction
+        .query_one(
+            &statement,
+            &[
+                &parse_uuid_v4(&tenant_id)
+                    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?,
+                &parse_uuid_v4(&input.election_event_id)
+                    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?,
+                &presentation,
+            ],
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    refresh_public_results_index(
+        &transaction,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    transaction
+        .commit()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(ConfigureResultsWebsitePolicyOutput {
+        election_event_id: input.election_event_id,
+        status: input.status,
+        access: input.access,
+        visibility_scope: input.visibility_scope,
+    }))
 }
 
 fn results_website_policy_value<'a>(
@@ -321,6 +470,26 @@ fn manifest_public_path(
         .map(str::to_string)
 }
 
+fn publication_matches_requested_route(
+    publication: &TallyResultsPublication,
+    election_id: Option<&str>,
+) -> bool {
+    match publication.route_scope.as_str() {
+        "election" => {
+            publication.route_election_id.as_deref().is_some()
+                && publication.route_election_id.as_deref() == election_id
+        }
+        _ => election_id
+            .map(|id| {
+                publication
+                    .election_ids
+                    .iter()
+                    .any(|election| election == id)
+            })
+            .unwrap_or(true),
+    }
+}
+
 #[post("/resolve-results-publication", format = "json", data = "<body>")]
 pub async fn resolve_results_publication(
     body: Json<ResolveResultsPublicationInput>,
@@ -376,6 +545,20 @@ pub async fn resolve_results_publication(
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    }
+
+    let should_hide_publication =
+        publication.as_ref().is_some_and(|publication| {
+            !publication_matches_requested_route(
+                publication,
+                input.election_id.as_deref(),
+            ) || !publication_matches_results_website_policy(
+                election_event.presentation.as_ref(),
+                publication,
+            )
+        });
+    if should_hide_publication {
+        publication = None;
     }
     transaction
         .commit()
@@ -465,6 +648,26 @@ pub async fn fetch_results_artifact(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     if publication.publication_status != "Published" {
+        return Err((
+            Status::NotFound,
+            "Results publication is not available".to_string(),
+        ));
+    }
+
+    if !publication_matches_requested_route(
+        &publication,
+        input.election_id.as_deref(),
+    ) {
+        return Err((
+            Status::NotFound,
+            "Results publication is not available for this route".to_string(),
+        ));
+    }
+
+    if !publication_matches_results_website_policy(
+        election_event.presentation.as_ref(),
+        &publication,
+    ) {
         return Err((
             Status::NotFound,
             "Results publication is not available".to_string(),
@@ -570,6 +773,14 @@ pub async fn revoke_results_publication(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let publication = get_publication_by_id(
+        &transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.publication_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     revoke_publication(
         &transaction,
         &tenant_id,
@@ -578,6 +789,9 @@ pub async fn revoke_results_publication(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    delete_public_publication_route_artifacts(&publication)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     refresh_public_results_index(
         &transaction,
         &tenant_id,

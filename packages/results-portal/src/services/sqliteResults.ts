@@ -3,34 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import initSqlJs, {Database} from "sql.js"
-import {openDB} from "idb"
 import {ResultsRow, ResultsSqliteDataset} from "@/types/results"
 
-const IDB_NAME = "results-portal-artifacts"
-const IDB_STORE_NAME = "sqlite-cache"
-
-const initCache = () =>
-    openDB(IDB_NAME, 1, {
-        upgrade(db) {
-            db.createObjectStore(IDB_STORE_NAME)
-        },
-    })
-
 const fetchArtifactBytes = async (url: string): Promise<Uint8Array> => {
-    const cache = await initCache()
-    const cached = await cache.get(IDB_STORE_NAME, url)
-    if (cached) {
-        return cached as Uint8Array
-    }
-
-    const response = await fetch(url)
+    const response = await fetch(url, {cache: "no-store"})
     if (!response.ok) {
         throw new Error(`Unable to load results artifact: HTTP ${response.status}`)
     }
 
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    await cache.put(IDB_STORE_NAME, bytes, url)
-    return bytes
+    return new Uint8Array(await response.arrayBuffer())
 }
 
 export const loadSqliteDatabase = async (url: string): Promise<Database> => {

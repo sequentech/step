@@ -98,6 +98,24 @@ actions:
           - role: user
           - role: admin-user
       comment: Fetch voter-authorized results website artifact URLs
+    - name: configureResultsWebsitePolicy
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/configure-results-website-policy
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: publish-results-write
+      comment: Configure the results website policy for an election event
     - name: createScheduledEvent
       definition:
           kind: synchronous
@@ -1793,6 +1811,7 @@ custom_types:
         - name: DeleteCertificateAuthorityOutput
         - name: PhoneBlacklistEntry
         - name: IdOutput
+        - name: ConfigureResultsWebsitePolicyOutput
         - name: PublishResultsWebsiteOutput
         - name: ResolveResultsPublicationOutput
         - name: FetchResultsArtifactOutput

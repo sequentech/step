@@ -30,6 +30,7 @@ import {
 import {useMutation} from "@apollo/client"
 import {useGetList, useNotify} from "react-admin"
 import {useAtomValue} from "jotai"
+import {useTranslation} from "react-i18next"
 import {
     EResultsWebsiteAccess,
     EResultsWebsiteStatus,
@@ -109,6 +110,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
     elections,
     resultsWebsitePolicy,
 }) => {
+    const {t} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
@@ -213,20 +215,39 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         )
     }, [tallyData?.sequent_backend_results_contest])
 
-    const eligibleContests = useMemo(() => {
+    const scopedElectionIds = useMemo(() => {
         const tallyElectionIds = tallySession?.election_ids ?? []
+        return routeScope === "election" && routeElectionId ? [routeElectionId] : tallyElectionIds
+    }, [routeElectionId, routeScope, tallySession?.election_ids])
+
+    const eligibleContests = useMemo(() => {
         return contests.filter((contest) => {
-            const inTally = tallyElectionIds.includes(contest.election_id)
-            const hasResults = talliedContestIds.size === 0 || talliedContestIds.has(contest.id)
-            return inTally && hasResults
+            const inPublishedScope = scopedElectionIds.includes(contest.election_id)
+            const hasResults = talliedContestIds.has(contest.id)
+            return inPublishedScope && hasResults
         })
-    }, [contests, tallySession?.election_ids, talliedContestIds])
+    }, [contests, scopedElectionIds, talliedContestIds])
+
+    const eligibleContestIds = useMemo(
+        () => eligibleContests.map((contest) => contest.id),
+        [eligibleContests]
+    )
 
     useEffect(() => {
-        if (selectedContestIds.length === 0 && eligibleContests.length > 0) {
-            setSelectedContestIds(eligibleContests.map((contest) => contest.id))
-        }
-    }, [eligibleContests, selectedContestIds.length])
+        setSelectedContestIds((current) => {
+            const retained = current.filter((contestId) => eligibleContestIds.includes(contestId))
+            const next = retained.length > 0 ? retained : eligibleContestIds
+
+            if (
+                next.length === current.length &&
+                next.every((id, index) => current[index] === id)
+            ) {
+                return current
+            }
+
+            return next
+        })
+    }, [eligibleContestIds])
 
     useEffect(() => {
         if (access === "public") {
@@ -234,13 +255,19 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         }
     }, [access])
 
+    const selectedEligibleContestIds = useMemo(
+        () => selectedContestIds.filter((contestId) => eligibleContestIds.includes(contestId)),
+        [eligibleContestIds, selectedContestIds]
+    )
+
     const canPublish =
         canWriteResultsPublication &&
         policyEnabled &&
         !!tallySession?.id &&
         !!tallySessionExecution?.id &&
         !!resultsEventId &&
-        selectedContestIds.length > 0 &&
+        selectedEligibleContestIds.length > 0 &&
+        scopedElectionIds.length > 0 &&
         (routeScope === "event" || !!routeElectionId)
 
     const routeUrl = (publication?: any) => {
@@ -294,8 +321,8 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                     results_event_id: resultsEventId,
                     route_scope: routeScope,
                     route_election_id: routeScope === "election" ? routeElectionId : null,
-                    election_ids: tallySession.election_ids ?? [],
-                    contest_ids: selectedContestIds,
+                    election_ids: scopedElectionIds,
+                    contest_ids: selectedEligibleContestIds,
                     access,
                     visibility_scope: visibilityScope,
                 },
@@ -307,7 +334,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                 notify(errorMsg, {type: "warning"})
                 updateWidgetFail(currWidget.identifier)
             } else {
-                notify("Results publication started", {type: "success"})
+                notify(t("tally.resultsPublication.publishStarted"), {type: "success"})
                 publishResult?.task_execution_id
                     ? setWidgetTaskId(currWidget.identifier, publishResult.task_execution_id, () =>
                           refetchPublications?.()
@@ -317,7 +344,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
             refetchPublications?.()
         } catch (error) {
             console.error(error)
-            notify("Could not start results publication", {type: "error"})
+            notify(t("tally.resultsPublication.publishError"), {type: "error"})
             currWidget && updateWidgetFail(currWidget.identifier)
         }
         setConfirmOpen(false)
@@ -335,52 +362,55 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                     publication_id: publicationId,
                 },
             })
-            notify("Results publication revoked", {type: "success"})
+            notify(t("tally.resultsPublication.revoked"), {type: "success"})
             refetchPublications?.()
         } catch (error) {
             console.error(error)
-            notify("Could not revoke results publication", {type: "error"})
+            notify(t("tally.resultsPublication.revokeError"), {type: "error"})
         }
     }
 
     return (
         <Stack spacing={3} sx={{width: "100%"}}>
             {!resultsEventId || !tallySessionExecution?.id ? (
-                <Alert severity="info">
-                    Results can be published after this tally has completed.
-                </Alert>
+                <Alert severity="info">{t("tally.resultsPublication.waitingForTally")}</Alert>
             ) : null}
             {!canWriteResultsPublication ? (
                 <Alert severity="warning">
-                    You need publish-results-write permission to publish or revoke results.
+                    {t("tally.resultsPublication.writePermissionRequired")}
                 </Alert>
             ) : null}
             {!policyEnabled ? (
-                <Alert severity="warning">
-                    Results website publishing is disabled for this election event. Enable it in the
-                    election event data before publishing results.
-                </Alert>
+                <Alert severity="warning">{t("tally.resultsPublication.disabledPolicy")}</Alert>
             ) : null}
 
             <Stack direction={{xs: "column", md: "row"}} spacing={2}>
                 <FormControl fullWidth>
-                    <InputLabel id="results-route-scope-label">Route</InputLabel>
+                    <InputLabel id="results-route-scope-label">
+                        {t("tally.resultsPublication.route")}
+                    </InputLabel>
                     <Select
                         labelId="results-route-scope-label"
-                        label="Route"
+                        label={t("tally.resultsPublication.route")}
                         value={routeScope}
                         onChange={(event) => setRouteScope(event.target.value as RouteScope)}
                     >
-                        <MenuItem value="event">Event results</MenuItem>
-                        <MenuItem value="election">Election results</MenuItem>
+                        <MenuItem value="event">
+                            {t("tally.resultsPublication.eventResults")}
+                        </MenuItem>
+                        <MenuItem value="election">
+                            {t("tally.resultsPublication.electionResults")}
+                        </MenuItem>
                     </Select>
                 </FormControl>
                 {routeScope === "election" && (
                     <FormControl fullWidth>
-                        <InputLabel id="results-route-election-label">Election</InputLabel>
+                        <InputLabel id="results-route-election-label">
+                            {t("tally.resultsPublication.election")}
+                        </InputLabel>
                         <Select
                             labelId="results-route-election-label"
-                            label="Election"
+                            label={t("tally.resultsPublication.election")}
                             value={routeElectionId}
                             onChange={(event) => setRouteElectionId(event.target.value)}
                         >
@@ -396,36 +426,48 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
 
             <Stack direction={{xs: "column", md: "row"}} spacing={2}>
                 <FormControl fullWidth disabled={accessLockedByPolicy}>
-                    <InputLabel id="results-access-label">Access</InputLabel>
+                    <InputLabel id="results-access-label">
+                        {t("tally.resultsPublication.access")}
+                    </InputLabel>
                     <Select
                         labelId="results-access-label"
-                        label="Access"
+                        label={t("tally.resultsPublication.access")}
                         value={access}
                         onChange={(event) => setAccess(event.target.value as ResultsAccess)}
                     >
-                        <MenuItem value="public">Public access</MenuItem>
-                        <MenuItem value="authenticated">Authenticated access</MenuItem>
+                        <MenuItem value="public">
+                            {t("tally.resultsPublication.publicAccess")}
+                        </MenuItem>
+                        <MenuItem value="authenticated">
+                            {t("tally.resultsPublication.authenticatedAccess")}
+                        </MenuItem>
                     </Select>
                 </FormControl>
                 <FormControl fullWidth disabled={access === "public" || visibilityLockedByPolicy}>
-                    <InputLabel id="results-visibility-label">Visibility</InputLabel>
+                    <InputLabel id="results-visibility-label">
+                        {t("tally.resultsPublication.visibility")}
+                    </InputLabel>
                     <Select
                         labelId="results-visibility-label"
-                        label="Visibility"
+                        label={t("tally.resultsPublication.visibility")}
                         value={visibilityScope}
                         onChange={(event) =>
                             setVisibilityScope(event.target.value as VisibilityScope)
                         }
                     >
-                        <MenuItem value="full_event">Full published scope</MenuItem>
-                        <MenuItem value="area_based">Personal visibility</MenuItem>
+                        <MenuItem value="full_event">
+                            {t("tally.resultsPublication.fullPublishedScope")}
+                        </MenuItem>
+                        <MenuItem value="area_based">
+                            {t("tally.resultsPublication.personalVisibility")}
+                        </MenuItem>
                     </Select>
                 </FormControl>
             </Stack>
 
             <Box>
                 <Typography variant="h6" sx={{mb: 1}}>
-                    Contests
+                    {t("tally.resultsPublication.contests")}
                 </Typography>
                 <Stack spacing={1}>
                     {eligibleContests.map((contest) => (
@@ -442,7 +484,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                     ))}
                     {eligibleContests.length === 0 && (
                         <Typography color="text.secondary">
-                            No tallied contests available.
+                            {t("tally.resultsPublication.noTalliedContests")}
                         </Typography>
                     )}
                 </Stack>
@@ -454,30 +496,33 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                     disabled={!canPublish || publishing}
                     onClick={() => setConfirmOpen(true)}
                 >
-                    Publish selected contests
+                    {t("tally.resultsPublication.publishSelectedContests")}
                 </Button>
                 <Typography color="text.secondary">
-                    {selectedContestIds.length} contest{selectedContestIds.length === 1 ? "" : "s"}{" "}
-                    selected
+                    {t("tally.resultsPublication.selectedContestCount", {
+                        count: selectedEligibleContestIds.length,
+                    })}
                 </Typography>
             </Stack>
 
             {canReadResultsPublication ? (
                 <Box>
                     <Typography variant="h6" sx={{mb: 1}}>
-                        Publication history
+                        {t("tally.resultsPublication.history")}
                     </Typography>
                     <TableContainer>
                         <Table size="small">
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Version</TableCell>
-                                    <TableCell>Status</TableCell>
-                                    <TableCell>Route</TableCell>
-                                    <TableCell>Access</TableCell>
-                                    <TableCell>Contests</TableCell>
-                                    <TableCell>Published</TableCell>
-                                    <TableCell align="right">Actions</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.version")}</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.status")}</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.route")}</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.access")}</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.contests")}</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.published")}</TableCell>
+                                    <TableCell align="right">
+                                        {t("tally.resultsPublication.actions")}
+                                    </TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -513,7 +558,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                                         target="_blank"
                                                         rel="noreferrer"
                                                     >
-                                                        Open
+                                                        {t("tally.resultsPublication.open")}
                                                     </Button>
                                                 )}
                                                 {publication.publication_status === "Published" && (
@@ -525,7 +570,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                                         }
                                                         onClick={() => handleRevoke(publication.id)}
                                                     >
-                                                        Revoke
+                                                        {t("tally.resultsPublication.revoke")}
                                                     </Button>
                                                 )}
                                             </Stack>
@@ -536,7 +581,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                     <TableRow>
                                         <TableCell colSpan={7}>
                                             <Typography color="text.secondary">
-                                                No publications yet.
+                                                {t("tally.resultsPublication.noPublications")}
                                             </Typography>
                                         </TableCell>
                                     </TableRow>
@@ -547,22 +592,21 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                 </Box>
             ) : (
                 <Alert severity="warning">
-                    You need publish-results-read permission to view publication history.
+                    {t("tally.resultsPublication.readPermissionRequired")}
                 </Alert>
             )}
 
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-                <DialogTitle>Start publish to results website?</DialogTitle>
+                <DialogTitle>{t("tally.resultsPublication.confirmTitle")}</DialogTitle>
                 <DialogContent>
-                    <Typography>
-                        This will create a new publication from the current tally execution. The
-                        existing voter-facing results stay active until this publish task succeeds.
-                    </Typography>
+                    <Typography>{t("tally.resultsPublication.confirmDescription")}</Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmOpen(false)}>Close</Button>
+                    <Button onClick={() => setConfirmOpen(false)}>
+                        {t("tally.resultsPublication.close")}
+                    </Button>
                     <Button variant="contained" disabled={publishing} onClick={handlePublish}>
-                        Publish selected contests
+                        {t("tally.resultsPublication.publishSelectedContests")}
                     </Button>
                 </DialogActions>
             </Dialog>

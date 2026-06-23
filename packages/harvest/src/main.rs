@@ -133,6 +133,7 @@ async fn rocket() -> _ {
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
+                routes::results_publication::configure_results_website_policy,
                 routes::results_publication::publish_results_website,
                 routes::results_publication::resolve_results_publication,
                 routes::results_publication::fetch_results_artifact,

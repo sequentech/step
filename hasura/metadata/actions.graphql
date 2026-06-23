@@ -30,6 +30,15 @@ type Query {
 }
 
 type Mutation {
+    configureResultsWebsitePolicy(
+        election_event_id: String!
+        status: String!
+        access: String!
+        visibility_scope: String!
+    ): ConfigureResultsWebsitePolicyOutput!
+}
+
+type Mutation {
     createScheduledEvent(
         tenant_id: String!
         election_event_id: uuid
@@ -1833,6 +1842,13 @@ type PublishResultsWebsiteOutput {
     publication_status: String!
     task_execution: tasks_execution_type!
     error_msg: String
+}
+
+type ConfigureResultsWebsitePolicyOutput {
+    election_event_id: String!
+    status: String!
+    access: String!
+    visibility_scope: String!
 }
 
 type ResolveResultsPublicationOutput {

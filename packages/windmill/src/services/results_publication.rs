@@ -6,7 +6,7 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_results_publication::{
     get_publication_by_id, list_active_public_publications, mark_publication_published,
-    TallyResultsPublication,
+    mark_publication_superseded, TallyResultsPublication,
 };
 use crate::services::documents::{
     get_document_as_temp_file, upload_and_return_document, upload_and_return_public_event_document,
@@ -44,6 +44,29 @@ pub fn results_website_policy_value<'a>(
 
 pub fn is_results_website_enabled(presentation: Option<&Value>) -> bool {
     results_website_policy_value(presentation, "status") == Some("enabled")
+}
+
+pub fn publication_matches_results_website_policy(
+    presentation: Option<&Value>,
+    publication: &TallyResultsPublication,
+) -> bool {
+    if !is_results_website_enabled(presentation) {
+        return false;
+    }
+
+    if let Some(access) = results_website_policy_value(presentation, "access") {
+        if access != publication.access {
+            return false;
+        }
+    }
+
+    if let Some(visibility_scope) = results_website_policy_value(presentation, "visibility_scope") {
+        if visibility_scope != publication.visibility_scope {
+            return false;
+        }
+    }
+
+    true
 }
 
 fn table_exists(conn: &Connection, table: &str) -> bool {
@@ -392,6 +415,35 @@ async fn delete_public_results_artifacts(tenant_id: &str, election_event_id: &st
     s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, true).await
 }
 
+pub async fn delete_public_publication_route_artifacts(
+    publication: &TallyResultsPublication,
+) -> Result<()> {
+    match publication.route_scope.as_str() {
+        "election" => {
+            let prefix = event_public_path(
+                &publication.tenant_id,
+                &publication.election_event_id,
+                &publication_base_path(publication),
+            );
+            s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, true).await
+        }
+        _ => {
+            let full_prefix = event_public_path(
+                &publication.tenant_id,
+                &publication.election_event_id,
+                "results/full-",
+            );
+            let manifest_prefix = event_public_path(
+                &publication.tenant_id,
+                &publication.election_event_id,
+                "results/manifest-",
+            );
+            s3::delete_files_from_s3(s3::get_public_bucket()?, full_prefix, true).await?;
+            s3::delete_files_from_s3(s3::get_public_bucket()?, manifest_prefix, true).await
+        }
+    }
+}
+
 async fn source_sqlite_file(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
@@ -641,10 +693,29 @@ pub async fn refresh_public_results_index(
     election_event_id: &str,
 ) -> Result<()> {
     let election_event = get_election_event_by_id(tx, tenant_id, election_event_id).await?;
+    let active_publications =
+        list_active_public_publications(tx, tenant_id, election_event_id).await?;
     let active_publications = if is_results_website_enabled(election_event.presentation.as_ref()) {
-        list_active_public_publications(tx, tenant_id, election_event_id).await?
+        let mut policy_matching_publications = Vec::new();
+
+        for publication in active_publications {
+            if publication_matches_results_website_policy(
+                election_event.presentation.as_ref(),
+                &publication,
+            ) {
+                policy_matching_publications.push(publication);
+            } else {
+                delete_public_publication_route_artifacts(&publication).await?;
+                mark_publication_superseded(tx, &publication).await?;
+            }
+        }
+
+        policy_matching_publications
     } else {
         delete_public_results_artifacts(tenant_id, election_event_id).await?;
+        for publication in active_publications {
+            mark_publication_superseded(tx, &publication).await?;
+        }
         Vec::new()
     };
     let publications = active_publications
@@ -734,6 +805,9 @@ pub async fn publish_results_website_artifacts(
     };
 
     mark_publication_published(tx, &publication, documents, manifest).await?;
+    if publication.access != "public" {
+        delete_public_publication_route_artifacts(&publication).await?;
+    }
     refresh_public_results_index(tx, &publication.tenant_id, &publication.election_event_id)
         .await?;
 

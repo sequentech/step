@@ -1,24 +1,40 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, memo, useMemo} from "react"
-import {RaRecord, Identifier} from "react-admin"
 
-import {
-    Sequent_Backend_Election,
-    Sequent_Backend_Results_Election,
-    Sequent_Backend_Results_Election_Area,
-    Sequent_Backend_Tally_Session,
-} from "../../gql/graphql"
-import {TallyResultsContestsTabs} from "./TallyResultsContestsTabs"
-import {Box, Tab, Tabs, Typography} from "@mui/material"
+import React, {memo, useCallback, useMemo} from "react"
+import {Identifier, RaRecord} from "react-admin"
+import {Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {useAtomValue} from "jotai"
+import {
+    IContest,
+    ICountingAlgorithm,
+    IElectionPresentation,
+    sortContestList,
+} from "@sequentech/ui-core"
+import {
+    ResultsSelectorAreaOption,
+    ResultsSelectorOption,
+    ResultsSelectorSelection,
+    ResultsSelectorTabs,
+} from "@sequentech/ui-essentials"
+import {
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Election,
+    Sequent_Backend_Tally_Session,
+    GetTallyDataQuery,
+} from "../../gql/graphql"
 import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {IResultDocuments} from "@/types/results"
-import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
+import {TallyResultsSectionGlobal} from "./TallyResultsSectionGlobal"
+import {TallyResultsSectionArea} from "./TallyResultsSectionArea"
+import {convertContestsArray} from "./utils"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -27,229 +43,416 @@ interface TallyResultsProps {
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
+type ElectionOption = ResultsSelectorOption<Sequent_Backend_Election>
+type ContestOption = ResultsSelectorOption<IContest>
+type AreaOption = ResultsSelectorAreaOption<Sequent_Backend_Area_Contest | null>
+type TallyContestRow = GetTallyDataQuery["sequent_backend_contest"][number]
+type TallyResultsSelection = ResultsSelectorSelection<
+    Sequent_Backend_Election,
+    IContest,
+    Sequent_Backend_Area_Contest | null
+>
+
+const parseDocuments = (rawDocuments: unknown): IResultDocuments | null => {
+    if (!rawDocuments) return null
+
+    try {
+        return typeof rawDocuments === "string"
+            ? (JSON.parse(rawDocuments) as IResultDocuments)
+            : (rawDocuments as IResultDocuments)
+    } catch (error) {
+        console.error("Failed to parse documents JSON string:", error)
+        return null
+    }
+}
+
+const presentationFromElection = (presentation: unknown): IElectionPresentation | undefined => {
+    if (!presentation) return undefined
+
+    try {
+        return typeof presentation === "string"
+            ? (JSON.parse(presentation) as IElectionPresentation)
+            : (presentation as IElectionPresentation)
+    } catch (error) {
+        console.error("Failed to parse election presentation:", error)
+        return undefined
+    }
+}
+
+const withoutNestedContestData = (contest: TallyContestRow): Sequent_Backend_Contest => ({
+    ...contest,
+    candidates: [],
+    candidates_aggregate: {nodes: []},
+})
+
 const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
 
         const {t, i18n} = useTranslation()
-        const [value, setValue] = React.useState<number | null>(0)
-        const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
-        const [electionId, setElectionId] = useState<string | null>(null)
-        const [data, setData] = useState<Sequent_Backend_Tally_Session | undefined>()
-        const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
         const tallyData = useAtomValue(tallyQueryData)
-
-        const {canExportCeremony} = useKeysPermissions()
         const aliasRenderer = useAliasRenderer()
+        const {canExportCeremony} = useKeysPermissions()
 
         const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
             () => tallyData?.sequent_backend_area?.map((area): RaRecord<Identifier> => area),
             [tallyData?.sequent_backend_area]
         )
 
-        const resultsElection: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-            () =>
-                tallyData?.sequent_backend_results_election?.filter(
-                    (election) => election.election_id === electionId
-                ),
-            [electionId, tallyData?.sequent_backend_results_election]
-        )
-
-        const resultsElectionArea: Array<Sequent_Backend_Results_Election_Area> | undefined =
-            useMemo(
-                () =>
-                    tallyData?.sequent_backend_results_election_area?.filter(
-                        (election) => election.election_id === electionId
-                    ),
-                [electionId, tallyData?.sequent_backend_results_election_area]
+        const elections = useMemo<Sequent_Backend_Election[]>(() => {
+            const electionById = new Map(
+                tallyData?.sequent_backend_election?.map((election) => [election.id, election]) ??
+                    []
             )
 
-        const elections: Array<Sequent_Backend_Election> | undefined = useMemo(
-            () =>
-                tallyData?.sequent_backend_election
-                    ?.filter((election) => data?.election_ids?.includes(election.id))
-                    ?.map(
-                        (election): Sequent_Backend_Election => ({
-                            ...election,
-                            contests: [],
-                            contests_aggregate: {nodes: []},
-                        })
-                    ),
-            [tallyData?.sequent_backend_election, data?.election_ids]
+            return (tally?.election_ids ?? [])
+                .map((electionId) => electionById.get(electionId))
+                .filter((election): election is Sequent_Backend_Election => !!election)
+                .map(
+                    (election): Sequent_Backend_Election => ({
+                        ...election,
+                        contests: [],
+                        contests_aggregate: {nodes: []},
+                    })
+                )
+        }, [tally?.election_ids, tallyData?.sequent_backend_election])
+
+        const defaultLangByElectionId = useMemo(() => {
+            const map = new Map<string, string | undefined>()
+            elections.forEach((election) => {
+                map.set(
+                    election.id,
+                    getDefaultElectionLang(tallyData, election.id, election.election_event_id)
+                )
+            })
+            return map
+        }, [elections, tallyData?.sequent_backend_election_event])
+
+        const getElectionAlias = useCallback(
+            (election: Sequent_Backend_Election) =>
+                aliasRenderer(election.presentation, defaultLangByElectionId.get(election.id)),
+            [aliasRenderer, defaultLangByElectionId]
         )
 
-        useEffect(() => {
-            if (tally) {
-                setData(tally)
-            }
-        }, [tally])
+        const electionOptions = useMemo<ElectionOption[]>(
+            () =>
+                elections.map((election) => ({
+                    id: election.id,
+                    label: getElectionAlias(election),
+                    data: election,
+                })),
+            [elections, getElectionAlias]
+        )
 
-        useEffect(() => {
-            if (areas) {
-                setAreasData(areas)
-            }
-        }, [areas])
+        const contestsByElectionId = useMemo(() => {
+            const map = new Map<string, IContest[]>()
+            const contests = tallyData?.sequent_backend_contest ?? []
 
-        useEffect(() => {
-            if (elections) {
-                setElectionsData(elections)
-                tabClicked(elections?.[0]?.id, 0)
-            }
-        }, [elections])
+            elections.forEach((election) => {
+                const backendContests = contests
+                    .map(withoutNestedContestData)
+                    .filter((contest) => contest.election_id === election.id)
+                const contestOrder = presentationFromElection(election.presentation)?.contests_order
+                const convertedContests = convertContestsArray(backendContests)
+                map.set(election.id, sortContestList(convertedContests, contestOrder))
+            })
 
-        const getElectionAlias = (election: Sequent_Backend_Election) => {
-            return aliasRenderer(election.presentation)
-        }
+            return map
+        }, [elections, tallyData?.sequent_backend_contest])
 
-        interface TabPanelProps {
-            children?: React.ReactNode | Iterable<React.ReactNode>
-            index: number
-            value: number | null
-        }
+        const getContestOptions = useCallback(
+            (selection: Pick<TallyResultsSelection, "election">): ContestOption[] => {
+                const contests = selection.election
+                    ? (contestsByElectionId.get(selection.election.id) ?? [])
+                    : []
 
-        function CustomTabPanel(props: TabPanelProps) {
-            const {children, value, index, ...other} = props
+                return contests.map((contest) => ({
+                    id: contest.id,
+                    label: aliasRenderer(contest),
+                    data: contest,
+                }))
+            },
+            [aliasRenderer, contestsByElectionId, i18n.language]
+        )
 
-            return (
-                <div role="tabpanel" hidden={value !== index} {...other}>
-                    {value === index && <Box>{children}</Box>}
-                </div>
-            )
-        }
+        const getAreaOptions = useCallback(
+            (selection: Pick<TallyResultsSelection, "contest">): AreaOption[] => {
+                const contestId = selection.contest?.id
+                const contestAreas =
+                    tallyData?.sequent_backend_area_contest?.filter(
+                        (areaContest) => contestId === areaContest.contest_id
+                    ) ?? []
 
-        const tabClicked = (id: string, index: number) => {
-            setElectionId(id)
-            setValue(index)
-        }
+                return [
+                    {
+                        id: null,
+                        label: String(t("tally.common.global")),
+                        data: null,
+                    },
+                    ...contestAreas.map((areaContest) => ({
+                        id: areaContest.area_id,
+                        label: aliasRenderer(
+                            areas?.find((item) => item.id === areaContest.area_id)
+                        ),
+                        data: areaContest,
+                    })),
+                ]
+            },
+            [aliasRenderer, areas, tallyData?.sequent_backend_area_contest, t]
+        )
 
-        const currentElection = useMemo(() => {
-            return elections?.find((election) => election.id === electionId)
-        }, [elections, electionId])
+        const getElectionDocuments = useCallback(
+            (selection: TallyResultsSelection): IResultDocumentsData[] | null => {
+                const electionId = selection.electionId
+                if (!resultsEventId || !electionId) return null
 
-        let documents: IResultDocumentsData | null = useMemo(() => {
-            let parsedDocuments: IResultDocuments | null = null
-            try {
-                const rawDocuments =
-                    !!resultsEventId &&
-                    !!electionId &&
-                    !!resultsElection &&
-                    resultsElection?.[0]?.results_event_id === resultsEventId &&
-                    resultsElection?.[0]?.election_id === electionId &&
-                    (resultsElection[0]?.documents as IResultDocuments | null)
-                if (rawDocuments) {
-                    // Check if the documents are already an object.
-                    // If they are a string, parse them.
-                    parsedDocuments =
-                        typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+                const resultsElection = tallyData?.sequent_backend_results_election?.find(
+                    (election) =>
+                        election.results_event_id === resultsEventId &&
+                        election.election_id === electionId
+                )
+                const electionDocuments = parseDocuments(resultsElection?.documents)
+                const documentsList: IResultDocumentsData[] = []
+
+                if (electionDocuments) {
+                    documentsList.push({
+                        documents: electionDocuments,
+                        name: selection.election?.data
+                            ? getElectionAlias(selection.election.data)
+                            : "election",
+                        class_type: "election",
+                    })
                 }
-            } catch (e) {
-                console.error("Failed to parse documents JSON string:", e)
-                return null // Return null if parsing fails
-            }
 
-            return parsedDocuments
-                ? {
-                      documents: parsedDocuments,
-                      name: currentElection ? getElectionAlias(currentElection) : "election",
-                      class_type: "election",
-                  }
-                : null
-        }, [
-            resultsEventId,
-            resultsElection,
-            resultsElection?.[0]?.id,
-            currentElection,
-            i18n.language,
-        ])
+                tallyData?.sequent_backend_results_election_area
+                    ?.filter(
+                        (area) =>
+                            area.results_event_id === resultsEventId &&
+                            area.election_id === electionId
+                    )
+                    .forEach((area) => {
+                        const areaDocuments = parseDocuments(area.documents)
+                        if (!areaDocuments) return
 
-        let areasDocuments: IResultDocumentsData[] | null = useMemo(
-            () =>
-                (!!resultsEventId &&
-                    !!electionId &&
-                    !!resultsElectionArea &&
-                    resultsElectionArea
-                        .filter(
-                            (area) =>
-                                area.results_event_id === resultsEventId &&
-                                area.election_id == electionId
-                        )
-                        ?.map((area) => {
-                            return {
-                                documents: area.documents,
-                                name: area.name ?? "area",
-                                class_type: "election",
-                                class_subtype: "election-area",
-                            }
-                        })) ||
-                null,
-            [resultsEventId, resultsElectionArea]
+                        documentsList.push({
+                            documents: areaDocuments,
+                            name: area.name ?? "area",
+                            class_type: "election",
+                            class_subtype: "election-area",
+                        })
+                    })
+
+                return documentsList.length ? documentsList : null
+            },
+            [
+                getElectionAlias,
+                resultsEventId,
+                tallyData?.sequent_backend_results_election,
+                tallyData?.sequent_backend_results_election_area,
+            ]
         )
 
-        const documentsList: IResultDocumentsData[] | null = useMemo(() => {
-            if (documents && areasDocuments) {
-                return [documents, ...areasDocuments]
-            }
-            if (documents) {
-                return [documents]
-            }
-            if (areasDocuments) {
-                return [...areasDocuments]
-            }
-            return null
-        }, [documents, areasDocuments])
+        const getContestDocuments = useCallback(
+            (selection: TallyResultsSelection): IResultDocumentsData | null => {
+                const contestId = selection.contestId
+                const electionId = selection.electionId
+                if (!contestId || !electionId) return null
+
+                const resultsContest = tallyData?.sequent_backend_results_contest?.find(
+                    (contest) =>
+                        contest.contest_id === contestId &&
+                        contest.election_id === electionId &&
+                        (!resultsEventId || contest.results_event_id === resultsEventId)
+                )
+                const documents = parseDocuments(resultsContest?.documents)
+
+                return documents
+                    ? {
+                          documents,
+                          name: selection.contest?.data
+                              ? aliasRenderer(selection.contest.data)
+                              : "contest",
+                          class_type: "contest",
+                      }
+                    : null
+            },
+            [aliasRenderer, resultsEventId, tallyData?.sequent_backend_results_contest]
+        )
+
+        const getAreaDocuments = useCallback(
+            (selection: TallyResultsSelection): IResultDocumentsData | null => {
+                const contestId = selection.contestId
+                const electionId = selection.electionId
+                const areaId = selection.areaId
+                if (!contestId || !electionId || !areaId) return null
+
+                const resultsContest = tallyData?.sequent_backend_results_area_contest?.find(
+                    (areaContest) =>
+                        areaContest.contest_id === contestId &&
+                        areaContest.election_id === electionId &&
+                        areaContest.area_id === areaId &&
+                        (!resultsEventId || areaContest.results_event_id === resultsEventId)
+                )
+                const documents = parseDocuments(resultsContest?.documents)
+
+                return documents
+                    ? {
+                          documents,
+                          name: selection.contest?.data
+                              ? aliasRenderer(selection.contest.data)
+                              : "contest",
+                          class_type: "contest-area",
+                      }
+                    : null
+            },
+            [aliasRenderer, resultsEventId, tallyData?.sequent_backend_results_area_contest]
+        )
+
+        const renderElectionActions = useCallback(
+            (selection: TallyResultsSelection) => {
+                const documentsList = getElectionDocuments(selection)
+                if (!documentsList || !canExportCeremony || !tally?.id) return null
+
+                return (
+                    <ExportElectionMenu
+                        documentsList={documentsList}
+                        electionEventId={selection.election?.data?.election_event_id}
+                        itemName={
+                            selection.election?.data
+                                ? getElectionAlias(selection.election.data)
+                                : "election"
+                        }
+                        tallyType={tally.tally_type}
+                        electionId={selection.electionId}
+                        onCreateTransmissionPackage={onCreateTransmissionPackage}
+                        miruExportloading={loading}
+                        tallySessionId={tally.id}
+                    />
+                )
+            },
+            [
+                canExportCeremony,
+                getElectionAlias,
+                getElectionDocuments,
+                loading,
+                onCreateTransmissionPackage,
+                tally?.id,
+                tally?.tally_type,
+            ]
+        )
+
+        const renderContestActions = useCallback(
+            (selection: TallyResultsSelection) => {
+                const documents = getContestDocuments(selection)
+                if (
+                    !documents ||
+                    !selection.election?.data?.election_event_id ||
+                    !canExportCeremony ||
+                    !tally?.id
+                ) {
+                    return null
+                }
+
+                return (
+                    <ExportElectionMenu
+                        documentsList={[documents]}
+                        electionEventId={selection.election.data.election_event_id}
+                        itemName={
+                            selection.contest?.data
+                                ? aliasRenderer(selection.contest.data)
+                                : "contest"
+                        }
+                        tallySessionId={tally.id}
+                    />
+                )
+            },
+            [aliasRenderer, canExportCeremony, getContestDocuments, tally?.id]
+        )
+
+        const renderAreaActions = useCallback(
+            (selection: TallyResultsSelection) => {
+                const documents = getAreaDocuments(selection)
+                if (
+                    !documents ||
+                    !selection.election?.data?.election_event_id ||
+                    !canExportCeremony ||
+                    !tally?.id
+                ) {
+                    return null
+                }
+
+                return (
+                    <ExportElectionMenu
+                        documentsList={[documents]}
+                        electionEventId={selection.election.data.election_event_id}
+                        itemName={
+                            selection.contest?.data
+                                ? aliasRenderer(selection.contest.data)
+                                : "contest"
+                        }
+                        tallySessionId={tally.id}
+                    />
+                )
+            },
+            [aliasRenderer, canExportCeremony, getAreaDocuments, tally?.id]
+        )
+
+        const renderResult = useCallback(
+            (selection: TallyResultsSelection) => {
+                const contest = selection.contest?.data
+                if (!contest) {
+                    return (
+                        <Typography color="text.secondary" sx={{mt: 3}}>
+                            {t("common.label.noResult")}
+                        </Typography>
+                    )
+                }
+
+                if (!selection.areaId) {
+                    return (
+                        <TallyResultsSectionGlobal
+                            electionEventId={contest.election_event_id}
+                            tenantId={contest.tenant_id}
+                            electionId={contest.election_id}
+                            contestId={contest.id}
+                            resultsEventId={resultsEventId}
+                            counting_algorithm={contest.counting_algorithm as ICountingAlgorithm}
+                        />
+                    )
+                }
+
+                return (
+                    <TallyResultsSectionArea
+                        electionEventId={contest.election_event_id}
+                        tenantId={contest.tenant_id}
+                        electionId={contest.election_id}
+                        contestId={contest.id}
+                        areaId={selection.areaId}
+                        resultsEventId={resultsEventId}
+                        counting_algorithm={contest.counting_algorithm as ICountingAlgorithm}
+                    />
+                )
+            },
+            [resultsEventId, t]
+        )
 
         return (
-            <>
-                <Box
-                    sx={{
-                        borderBottom: 1,
-                        borderColor: "divider",
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "flex-start",
-                        alignItems: "center",
-                    }}
-                >
-                    <Typography variant="body2" component="div" sx={{width: "80px"}}>
-                        {t("electionEventScreen.stats.elections")}.{" "}
-                    </Typography>
-                    <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
-                        {electionsData?.map((election, index) => (
-                            <Tab
-                                key={index}
-                                label={getElectionAlias(election)}
-                                onClick={() => tabClicked(election.id, index)}
-                            />
-                        ))}
-                    </Tabs>
-                    {documentsList && canExportCeremony && tally?.id ? (
-                        <ExportElectionMenu
-                            documentsList={documentsList}
-                            electionEventId={data?.election_event_id}
-                            itemName={
-                                currentElection ? getElectionAlias(currentElection) : "election"
-                            }
-                            tallyType={data?.tally_type}
-                            electionId={electionId}
-                            onCreateTransmissionPackage={onCreateTransmissionPackage}
-                            miruExportloading={loading}
-                            tallySessionId={tally.id}
-                        />
-                    ) : null}
-                </Box>
-                {electionsData?.map((election, index) => (
-                    <CustomTabPanel key={index} index={index} value={value}>
-                        <TallyResultsContestsTabs
-                            areas={areasData}
-                            electionId={electionId}
-                            electionEventId={election.election_event_id}
-                            tenantId={election.tenant_id}
-                            resultsEventId={resultsEventId}
-                            tallySessionId={tally?.id ?? null}
-                        />
-                    </CustomTabPanel>
-                ))}
-            </>
+            <ResultsSelectorTabs
+                className="seq-admin-tally-results-selector"
+                labels={{
+                    elections: t("electionEventScreen.stats.elections"),
+                    contests: t("electionEventScreen.stats.contests"),
+                    areas: t("electionEventScreen.stats.areas"),
+                    empty: t("common.label.noResult"),
+                }}
+                elections={electionOptions}
+                getContests={getContestOptions}
+                getAreas={getAreaOptions}
+                renderElectionActions={renderElectionActions}
+                renderContestActions={renderContestActions}
+                renderAreaActions={renderAreaActions}
+                renderResult={renderResult}
+            />
         )
     }
 )
