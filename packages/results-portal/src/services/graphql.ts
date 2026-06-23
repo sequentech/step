@@ -7,7 +7,7 @@ export interface GraphqlResponse<T> {
     errors?: Array<{message: string}>
 }
 
-export const graphqlFetch = async <T,>(
+export const graphqlFetch = async <T>(
     hasuraUrl: string,
     query: string,
     variables: Record<string, unknown>,

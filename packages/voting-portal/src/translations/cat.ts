@@ -280,6 +280,7 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
+            resultsButton: "Veure resultats",
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:

@@ -30,15 +30,24 @@ import {
 import {useMutation} from "@apollo/client"
 import {useGetList, useNotify} from "react-admin"
 import {useAtomValue} from "jotai"
-import {translateFromPresentation} from "@sequentech/ui-core"
+import {
+    EResultsWebsiteAccess,
+    EResultsWebsiteStatus,
+    EResultsWebsiteVisibilityScope,
+    IResultsWebsitePolicy,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {
     PUBLISH_RESULTS_WEBSITE,
     REVOKE_RESULTS_PUBLICATION,
 } from "@/queries/ResultsWebsitePublication"
 import {IPermissions} from "@/types/keycloak"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {WidgetProps} from "@/components/Widget"
 import {
     Sequent_Backend_Contest,
     Sequent_Backend_Election,
@@ -54,6 +63,7 @@ interface ResultsWebsitePublicationProps {
     resultsEventId: string | null
     contests: Sequent_Backend_Contest[]
     elections: Sequent_Backend_Election[]
+    resultsWebsitePolicy?: IResultsWebsitePolicy | null
 }
 
 type RouteScope = "event" | "election"
@@ -78,6 +88,17 @@ const statusColor = (
     }
 }
 
+const normalizeAccess = (value?: string): ResultsAccess =>
+    value === EResultsWebsiteAccess.AUTHENTICATED ? "authenticated" : "public"
+
+const normalizeVisibilityScope = (
+    value?: string,
+    access: ResultsAccess = "public"
+): VisibilityScope =>
+    value === EResultsWebsiteVisibilityScope.AREA_BASED && access === "authenticated"
+        ? "area_based"
+        : "full_event"
+
 export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps> = ({
     tenantId,
     electionEventId,
@@ -86,10 +107,12 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
     resultsEventId,
     contests,
     elections,
+    resultsWebsitePolicy,
 }) => {
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const tallyData = useAtomValue(tallyQueryData)
     const [routeScope, setRouteScope] = useState<RouteScope>(
         (tallySession?.election_ids?.length ?? 0) > 1 ? "event" : "election"
@@ -97,8 +120,12 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
     const [routeElectionId, setRouteElectionId] = useState<string>(
         tallySession?.election_ids?.[0] ?? ""
     )
-    const [access, setAccess] = useState<ResultsAccess>("public")
-    const [visibilityScope, setVisibilityScope] = useState<VisibilityScope>("full_event")
+    const [access, setAccess] = useState<ResultsAccess>(
+        normalizeAccess(resultsWebsitePolicy?.access)
+    )
+    const [visibilityScope, setVisibilityScope] = useState<VisibilityScope>(
+        normalizeVisibilityScope(resultsWebsitePolicy?.visibility_scope, access)
+    )
     const [selectedContestIds, setSelectedContestIds] = useState<string[]>([])
     const [confirmOpen, setConfirmOpen] = useState(false)
     const canReadResultsPublication = authContext.isAuthorized(
@@ -111,6 +138,14 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         tenantId,
         IPermissions.PUBLISH_RESULTS_WRITE
     )
+    const policyEnabled = resultsWebsitePolicy?.status === EResultsWebsiteStatus.ENABLED
+    const policyAccess = normalizeAccess(resultsWebsitePolicy?.access)
+    const policyVisibilityScope = normalizeVisibilityScope(
+        resultsWebsitePolicy?.visibility_scope,
+        policyAccess
+    )
+    const accessLockedByPolicy = !!resultsWebsitePolicy?.access
+    const visibilityLockedByPolicy = !!resultsWebsitePolicy?.visibility_scope
 
     const [publishResultsWebsite, {loading: publishing}] = useMutation(PUBLISH_RESULTS_WEBSITE, {
         context: {
@@ -141,6 +176,21 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
             setRouteScope("event")
         }
     }, [routeElectionId, routeScope, tallySession?.election_ids])
+
+    useEffect(() => {
+        if (resultsWebsitePolicy?.access) {
+            setAccess(policyAccess)
+        }
+
+        if (resultsWebsitePolicy?.visibility_scope) {
+            setVisibilityScope(policyVisibilityScope)
+        }
+    }, [
+        policyAccess,
+        policyVisibilityScope,
+        resultsWebsitePolicy?.access,
+        resultsWebsitePolicy?.visibility_scope,
+    ])
 
     const {data: publications, refetch: refetchPublications} = useGetList<any>(
         "sequent_backend_tally_results_publication",
@@ -186,6 +236,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
 
     const canPublish =
         canWriteResultsPublication &&
+        policyEnabled &&
         !!tallySession?.id &&
         !!tallySessionExecution?.id &&
         !!resultsEventId &&
@@ -197,16 +248,10 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         if (!base) return undefined
         const scope = publication?.route_scope ?? routeScope
         const electionId = publication?.route_election_id ?? routeElectionId
-        const routePath = scope === "election"
-            ? `${base}/${electionEventId}/elections/${electionId}`
-            : `${base}/${electionEventId}`
-        const manifestPath =
-            publication?.documents?.manifest?.public_path ??
-            publication?.documents?.manifest?.latest_public_path
-
-        if (publication?.access === "public" && manifestPath) {
-            return `${routePath}?manifestPath=${encodeURIComponent(manifestPath)}`
-        }
+        const routePath =
+            scope === "election"
+                ? `${base}/${electionEventId}/elections/${electionId}`
+                : `${base}/${electionEventId}`
 
         return publication?.publication_status === "Published" ? routePath : undefined
     }
@@ -237,29 +282,45 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
             return
         }
 
-        const result = await publishResultsWebsite({
-            variables: {
-                election_event_id: electionEventId,
-                tally_session_id: tallySession.id,
-                tally_session_execution_id: tallySessionExecution.id,
-                results_event_id: resultsEventId,
-                route_scope: routeScope,
-                route_election_id: routeScope === "election" ? routeElectionId : null,
-                election_ids: tallySession.election_ids ?? [],
-                contest_ids: selectedContestIds,
-                access,
-                visibility_scope: visibilityScope,
-            },
-        })
+        let currWidget: WidgetProps | undefined
+        try {
+            currWidget = addWidget(ETasksExecution.PUBLISH_RESULTS_WEBSITE, undefined)
 
-        const errorMsg = result.data?.publishResultsWebsite?.error_msg
-        if (errorMsg) {
-            notify(errorMsg, {type: "warning"})
-        } else {
-            notify("Results publication started", {type: "success"})
+            const result = await publishResultsWebsite({
+                variables: {
+                    election_event_id: electionEventId,
+                    tally_session_id: tallySession.id,
+                    tally_session_execution_id: tallySessionExecution.id,
+                    results_event_id: resultsEventId,
+                    route_scope: routeScope,
+                    route_election_id: routeScope === "election" ? routeElectionId : null,
+                    election_ids: tallySession.election_ids ?? [],
+                    contest_ids: selectedContestIds,
+                    access,
+                    visibility_scope: visibilityScope,
+                },
+            })
+
+            const publishResult = result.data?.publishResultsWebsite
+            const errorMsg = publishResult?.error_msg
+            if (errorMsg) {
+                notify(errorMsg, {type: "warning"})
+                updateWidgetFail(currWidget.identifier)
+            } else {
+                notify("Results publication started", {type: "success"})
+                publishResult?.task_execution_id
+                    ? setWidgetTaskId(currWidget.identifier, publishResult.task_execution_id, () =>
+                          refetchPublications?.()
+                      )
+                    : updateWidgetFail(currWidget.identifier)
+            }
+            refetchPublications?.()
+        } catch (error) {
+            console.error(error)
+            notify("Could not start results publication", {type: "error"})
+            currWidget && updateWidgetFail(currWidget.identifier)
         }
         setConfirmOpen(false)
-        refetchPublications?.()
     }
 
     const handleRevoke = async (publicationId: string) => {
@@ -267,24 +328,37 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
             return
         }
 
-        await revokeResultsPublication({
-            variables: {
-                election_event_id: electionEventId,
-                publication_id: publicationId,
-            },
-        })
-        notify("Results publication revoked", {type: "success"})
-        refetchPublications?.()
+        try {
+            await revokeResultsPublication({
+                variables: {
+                    election_event_id: electionEventId,
+                    publication_id: publicationId,
+                },
+            })
+            notify("Results publication revoked", {type: "success"})
+            refetchPublications?.()
+        } catch (error) {
+            console.error(error)
+            notify("Could not revoke results publication", {type: "error"})
+        }
     }
 
     return (
         <Stack spacing={3} sx={{width: "100%"}}>
             {!resultsEventId || !tallySessionExecution?.id ? (
-                <Alert severity="info">Results can be published after this tally has completed.</Alert>
+                <Alert severity="info">
+                    Results can be published after this tally has completed.
+                </Alert>
             ) : null}
             {!canWriteResultsPublication ? (
                 <Alert severity="warning">
                     You need publish-results-write permission to publish or revoke results.
+                </Alert>
+            ) : null}
+            {!policyEnabled ? (
+                <Alert severity="warning">
+                    Results website publishing is disabled for this election event. Enable it in the
+                    election event data before publishing results.
                 </Alert>
             ) : null}
 
@@ -321,7 +395,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
             </Stack>
 
             <Stack direction={{xs: "column", md: "row"}} spacing={2}>
-                <FormControl fullWidth>
+                <FormControl fullWidth disabled={accessLockedByPolicy}>
                     <InputLabel id="results-access-label">Access</InputLabel>
                     <Select
                         labelId="results-access-label"
@@ -333,7 +407,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                         <MenuItem value="authenticated">Authenticated access</MenuItem>
                     </Select>
                 </FormControl>
-                <FormControl fullWidth disabled={access === "public"}>
+                <FormControl fullWidth disabled={access === "public" || visibilityLockedByPolicy}>
                     <InputLabel id="results-visibility-label">Visibility</InputLabel>
                     <Select
                         labelId="results-visibility-label"
@@ -367,7 +441,9 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                         />
                     ))}
                     {eligibleContests.length === 0 && (
-                        <Typography color="text.secondary">No tallied contests available.</Typography>
+                        <Typography color="text.secondary">
+                            No tallied contests available.
+                        </Typography>
                     )}
                 </Stack>
             </Box>
@@ -381,7 +457,8 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                     Publish selected contests
                 </Button>
                 <Typography color="text.secondary">
-                    {selectedContestIds.length} contest{selectedContestIds.length === 1 ? "" : "s"} selected
+                    {selectedContestIds.length} contest{selectedContestIds.length === 1 ? "" : "s"}{" "}
+                    selected
                 </Typography>
             </Stack>
 
@@ -443,7 +520,9 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                                     <Button
                                                         size="small"
                                                         color="error"
-                                                        disabled={!canWriteResultsPublication || revoking}
+                                                        disabled={
+                                                            !canWriteResultsPublication || revoking
+                                                        }
                                                         onClick={() => handleRevoke(publication.id)}
                                                     >
                                                         Revoke
@@ -476,8 +555,8 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                 <DialogTitle>Start publish to results website?</DialogTitle>
                 <DialogContent>
                     <Typography>
-                        This will create a new publication from the current tally execution.
-                        The existing voter-facing results stay active until this publish task succeeds.
+                        This will create a new publication from the current tally execution. The
+                        existing voter-facing results stay active until this publish task succeeds.
                     </Typography>
                 </DialogContent>
                 <DialogActions>

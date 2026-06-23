@@ -19,6 +19,7 @@ export const StateMessage: React.FC<StateMessageProps> = ({
     onAction,
 }) => (
     <Box
+        className="seq-results-state-message"
         sx={{
             width: "100%",
             maxWidth: 760,
@@ -32,13 +33,19 @@ export const StateMessage: React.FC<StateMessageProps> = ({
             bgcolor: "background.paper",
         }}
     >
-        <Stack spacing={2} alignItems="flex-start">
-            <Typography component="h1" variant="h4">
+        <Stack className="seq-results-state-message__content" spacing={2} alignItems="flex-start">
+            <Typography className="seq-results-state-message__title" component="h1" variant="h4">
                 {title}
             </Typography>
-            <Typography color="text.secondary">{message}</Typography>
+            <Typography className="seq-results-state-message__message" color="text.secondary">
+                {message}
+            </Typography>
             {actionLabel && onAction && (
-                <Button variant="contained" onClick={onAction}>
+                <Button
+                    className="seq-results-state-message__action"
+                    variant="contained"
+                    onClick={onAction}
+                >
                     {actionLabel}
                 </Button>
             )}

@@ -23,7 +23,8 @@ export const resolveSqliteArtifactUrl = async (
     electionId?: string
 ): Promise<string> => {
     const fullSqlite = manifest.artifacts.full_sqlite
-    const directUrl = fullSqlite?.url ?? publicBucketUrl(settings.PUBLIC_BUCKET_URL, fullSqlite?.public_path)
+    const directUrl =
+        fullSqlite?.url ?? publicBucketUrl(settings.PUBLIC_BUCKET_URL, fullSqlite?.public_path)
 
     if (directUrl) {
         return directUrl
@@ -46,7 +47,8 @@ export const resolveSqliteArtifactUrl = async (
     )
 
     const output = data.fetchResultsArtifact
-    const signedUrl = output?.url ?? output?.urls?.[0] ?? output?.artifacts?.find((artifact) => artifact.url)?.url
+    const signedUrl =
+        output?.url ?? output?.urls?.[0] ?? output?.artifacts?.find((artifact) => artifact.url)?.url
 
     if (!signedUrl) {
         throw new Error("No accessible results artifact was returned for this account.")

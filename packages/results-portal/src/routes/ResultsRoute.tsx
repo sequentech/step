@@ -6,13 +6,17 @@ import React, {useEffect, useMemo, useState} from "react"
 import {useParams, useSearchParams} from "react-router-dom"
 import {Box} from "@mui/material"
 import {Loader} from "@sequentech/ui-essentials"
+import {useTranslation} from "react-i18next"
 import {useSettings} from "@/providers/SettingsContextProvider"
+import {useCustomCss} from "@/providers/CustomCssContextProvider"
+import {useResultsManifest} from "@/providers/ResultsManifestContextProvider"
 import {useAuthenticatedResults} from "@/hooks/useAuthenticatedResults"
 import {discoverPublication, PublicationDiscoveryResult} from "@/services/publicationDiscovery"
 import {resolveSqliteArtifactUrl} from "@/services/artifacts"
 import {loadSqliteDatabase, readResultsDataset} from "@/services/sqliteResults"
 import {ResultsManifest, ResultsSqliteDataset} from "@/types/results"
 import {publicBucketUrl} from "@/services/urls"
+import {manifestCustomCss} from "@/services/customCss"
 import {StateMessage} from "@/components/StateMessage"
 import {ResultsPageContent} from "@/components/ResultsPageContent"
 
@@ -45,7 +49,8 @@ const loadManifest = async (
 
     if (!discovery.manifestUrl) {
         const manifestPath =
-            discovery.indexEntry?.manifest_public_path ?? discovery.resolverEntry?.manifest_public_path
+            discovery.indexEntry?.manifest_public_path ??
+            discovery.resolverEntry?.manifest_public_path
         const manifestUrl = publicBucketUrl(settingsPublicBucketUrl, manifestPath)
 
         if (!manifestUrl) {
@@ -71,12 +76,17 @@ export const ResultsRoute: React.FC = () => {
     const {eeId, electionId} = useParams() as unknown as ResultsRouteParams
     const [searchParams] = useSearchParams()
     const {globalSettings} = useSettings()
+    const {setCustomCss} = useCustomCss()
+    const {setManifestLanguageConfig, resetManifestLanguageConfig} = useResultsManifest()
+    const {t} = useTranslation()
     const [state, setState] = useState<RouteState>(initialState)
     const manifestPath = searchParams.get("manifestPath") ?? undefined
 
-    const authTenantId = state.discovery?.resolverEntry?.tenant_id ?? state.discovery?.index?.tenant_id
+    const authTenantId =
+        state.discovery?.resolverEntry?.tenant_id ?? state.discovery?.index?.tenant_id
     const authEventId =
-        state.discovery?.resolverEntry?.election_event_id ?? state.discovery?.index?.election_event_id
+        state.discovery?.resolverEntry?.election_event_id ??
+        state.discovery?.index?.election_event_id
 
     const auth = useAuthenticatedResults(
         globalSettings,
@@ -87,6 +97,30 @@ export const ResultsRoute: React.FC = () => {
 
     const authReady = !state.requiresAuth || !!auth.token || globalSettings.DISABLE_AUTH
     const authToken = globalSettings.DISABLE_AUTH ? undefined : auth.token
+    const customCss = useMemo(
+        () =>
+            manifestCustomCss(
+                state.manifest,
+                electionId ?? state.manifest?.route_election_id ?? undefined
+            ),
+        [state.manifest, electionId]
+    )
+
+    useEffect(() => {
+        setCustomCss(customCss)
+
+        return () => setCustomCss("")
+    }, [customCss, setCustomCss])
+
+    useEffect(() => {
+        if (state.manifest) {
+            setManifestLanguageConfig(state.manifest)
+        } else {
+            resetManifestLanguageConfig()
+        }
+
+        return () => resetManifestLanguageConfig()
+    }, [resetManifestLanguageConfig, setManifestLanguageConfig, state.manifest])
 
     useEffect(() => {
         let mounted = true
@@ -106,7 +140,13 @@ export const ResultsRoute: React.FC = () => {
             }
 
             try {
-                setState((current) => ({...current, loading: true, error: undefined}))
+                setState((current) => ({
+                    ...current,
+                    loading: true,
+                    error: undefined,
+                    manifest: undefined,
+                    dataset: undefined,
+                }))
                 const discovery = await discoverPublication(
                     globalSettings,
                     eeId,
@@ -165,7 +205,7 @@ export const ResultsRoute: React.FC = () => {
                     setState({
                         loading: false,
                         requiresAuth: false,
-                        error: error instanceof Error ? error.message : "Unexpected error",
+                        error: error instanceof Error ? error.message : "unexpected_error",
                     })
                 }
             }
@@ -176,20 +216,15 @@ export const ResultsRoute: React.FC = () => {
         return () => {
             mounted = false
         }
-    }, [
-        eeId,
-        electionId,
-        manifestPath,
-        globalSettings,
-        authReady,
-        authToken,
-        state.requiresAuth,
-    ])
+    }, [eeId, electionId, manifestPath, globalSettings, authReady, authToken, state.requiresAuth])
 
     const content = useMemo(() => {
         if (state.loading || auth.loading) {
             return (
-                <Box sx={{display: "flex", justifyContent: "center", py: 10}}>
+                <Box
+                    className="seq-results-route__loader"
+                    sx={{display: "flex", justifyContent: "center", py: 10}}
+                >
                     <Loader />
                 </Box>
             )
@@ -198,8 +233,8 @@ export const ResultsRoute: React.FC = () => {
         if (auth.error) {
             return (
                 <StateMessage
-                    title="Unexpected error"
-                    message="We could not complete sign-in for results right now. Please try again in a few minutes."
+                    title={t("resultsPortal.state.unexpectedErrorTitle")}
+                    message={t("resultsPortal.state.signInErrorMessage")}
                 />
             )
         }
@@ -207,8 +242,8 @@ export const ResultsRoute: React.FC = () => {
         if (state.error) {
             return (
                 <StateMessage
-                    title="Unexpected error"
-                    message="We could not load results right now. Please try again in a few minutes."
+                    title={t("resultsPortal.state.unexpectedErrorTitle")}
+                    message={t("resultsPortal.state.loadErrorMessage")}
                 />
             )
         }
@@ -216,8 +251,8 @@ export const ResultsRoute: React.FC = () => {
         if (state.requiresAuth) {
             return (
                 <StateMessage
-                    title="Sign in required"
-                    message="Please sign in with your voter account to view these results."
+                    title={t("resultsPortal.state.signInRequiredTitle")}
+                    message={t("resultsPortal.state.signInRequiredMessage")}
                 />
             )
         }
@@ -225,8 +260,8 @@ export const ResultsRoute: React.FC = () => {
         if (!state.discovery) {
             return (
                 <StateMessage
-                    title="Results not published yet"
-                    message="Results are not available at this time. Please check back later."
+                    title={t("resultsPortal.state.notPublishedTitle")}
+                    message={t("resultsPortal.state.notPublishedMessage")}
                 />
             )
         }
@@ -234,8 +269,8 @@ export const ResultsRoute: React.FC = () => {
         if (!state.manifest || !state.dataset) {
             return (
                 <StateMessage
-                    title="Results not published yet"
-                    message="Results are not available at this time. Please check back later."
+                    title={t("resultsPortal.state.notPublishedTitle")}
+                    message={t("resultsPortal.state.notPublishedMessage")}
                 />
             )
         }
@@ -243,14 +278,14 @@ export const ResultsRoute: React.FC = () => {
         if (state.manifest.contests.length === 0) {
             return (
                 <StateMessage
-                    title="Results not published yet"
-                    message="Results are not available at this time. Please check back later."
+                    title={t("resultsPortal.state.notPublishedTitle")}
+                    message={t("resultsPortal.state.notPublishedMessage")}
                 />
             )
         }
 
         return <ResultsPageContent manifest={state.manifest} dataset={state.dataset} />
-    }, [auth.error, auth.loading, state])
+    }, [auth.error, auth.loading, state, t])
 
-    return content
+    return <Box className="seq-results-route">{content}</Box>
 }

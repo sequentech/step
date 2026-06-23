@@ -278,6 +278,7 @@ const basqueTranslation: TranslationType = {
                 ok: "Ados",
             },
             noResults: "Ez dago bozketarik oraingoz.",
+            resultsButton: "Ikusi emaitzak",
             demoDialog: {
                 title: "Demo bozketa kabina",
                 content:

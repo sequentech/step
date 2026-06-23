@@ -43,6 +43,8 @@ module.exports = function (env, argv) {
             "@emotion/react": "@emotion/react",
             "@emotion/styled": "@emotion/styled",
             "react-i18next": "react-i18next",
+            "react-apexcharts": "react-apexcharts",
+            "@mui/x-data-grid": "@mui/x-data-grid",
             "@sequentech/ui-core": "@sequentech/ui-core",
         },
         resolve: {

@@ -278,6 +278,7 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Walang mga balota sa ngayon.",
+            resultsButton: "Tingnan ang mga resulta",
             demoDialog: {
                 title: "Demo Voting Booth",
                 content:

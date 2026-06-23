@@ -12,6 +12,82 @@ interface AuthState {
     error?: string
 }
 
+interface AuthSession {
+    keycloak: Keycloak
+    initPromise?: Promise<AuthState>
+}
+
+const authSessions = new Map<string, AuthSession>()
+
+const getAuthSession = (
+    sessionKey: string,
+    settings: GlobalSettings,
+    realm: string
+): AuthSession => {
+    const existing = authSessions.get(sessionKey)
+    if (existing) {
+        return existing
+    }
+
+    const session = {
+        keycloak: new Keycloak({
+            url: settings.KEYCLOAK_URL,
+            realm,
+            clientId: settings.ONLINE_VOTING_CLIENT_ID,
+        }),
+    }
+    authSessions.set(sessionKey, session)
+    return session
+}
+
+const authenticateSession = (session: AuthSession): Promise<AuthState> => {
+    if (session.initPromise) {
+        return session.initPromise
+    }
+
+    session.initPromise = (async () => {
+        try {
+            const authenticated = await session.keycloak.init({
+                onLoad: "login-required",
+                checkLoginIframe: false,
+                flow: "standard",
+                responseMode: "fragment",
+            })
+
+            if (!authenticated || !session.keycloak.token) {
+                return {
+                    loading: false,
+                    error: "Authentication failed",
+                }
+            }
+
+            await session.keycloak.updateToken(30).catch(() => undefined)
+
+            return {
+                loading: false,
+                token: session.keycloak.token,
+            }
+        } catch (error) {
+            session.initPromise = undefined
+            return {
+                loading: false,
+                error: error instanceof Error ? error.message : "Authentication failed",
+            }
+        }
+    })()
+
+    return session.initPromise
+}
+
+const sessionTokenState = (sessionKey?: string): AuthState => {
+    const token = sessionKey ? authSessions.get(sessionKey)?.keycloak.token : undefined
+
+    return {
+        loading: false,
+        token,
+    }
+}
+
 export const useAuthenticatedResults = (
     settings: GlobalSettings,
     tenantId?: string,
@@ -26,8 +102,12 @@ export const useAuthenticatedResults = (
     )
 
     useEffect(() => {
+        const sessionKey = realm
+            ? [settings.KEYCLOAK_URL, realm, settings.ONLINE_VOTING_CLIENT_ID].join("|")
+            : undefined
+
         if (!required || settings.DISABLE_AUTH) {
-            setState({loading: false})
+            setState(sessionTokenState(sessionKey))
             return
         }
 
@@ -37,32 +117,12 @@ export const useAuthenticatedResults = (
         }
 
         let mounted = true
-        const keycloak = new Keycloak({
-            url: settings.KEYCLOAK_URL,
-            realm,
-            clientId: settings.ONLINE_VOTING_CLIENT_ID,
-        })
+        const session = getAuthSession(sessionKey, settings, realm)
 
         const init = async () => {
-            try {
-                const authenticated = await keycloak.init({
-                    onLoad: "login-required",
-                    checkLoginIframe: false,
-                })
-
-                if (mounted) {
-                    setState({
-                        loading: false,
-                        token: authenticated ? keycloak.token : undefined,
-                    })
-                }
-            } catch (error) {
-                if (mounted) {
-                    setState({
-                        loading: false,
-                        error: error instanceof Error ? error.message : "Authentication failed",
-                    })
-                }
+            const nextState = await authenticateSession(session)
+            if (mounted) {
+                setState(nextState)
             }
         }
 
@@ -71,7 +131,13 @@ export const useAuthenticatedResults = (
         return () => {
             mounted = false
         }
-    }, [required, realm, settings.DISABLE_AUTH, settings.KEYCLOAK_URL, settings.ONLINE_VOTING_CLIENT_ID])
+    }, [
+        required,
+        realm,
+        settings.DISABLE_AUTH,
+        settings.KEYCLOAK_URL,
+        settings.ONLINE_VOTING_CLIENT_ID,
+    ])
 
     return state
 }

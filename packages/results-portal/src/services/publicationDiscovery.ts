@@ -103,13 +103,18 @@ export const findIndexPublication = (
     eeId: string,
     electionId?: string
 ): ResultsPublicationIndexEntry | null => {
-    return index?.publications?.find((publication) => isRouteMatch(publication, eeId, electionId)) ?? null
+    return (
+        index?.publications?.find((publication) => isRouteMatch(publication, eeId, electionId)) ??
+        null
+    )
 }
 
 export const resolveManifestUrl = (
     settings: GlobalSettings,
     publication: Pick<ResultsPublicationIndexEntry, "manifest_public_path" | "manifest_url">
-) => publication.manifest_url ?? publicBucketUrl(settings.PUBLIC_BUCKET_URL, publication.manifest_public_path)
+) =>
+    publication.manifest_url ??
+    publicBucketUrl(settings.PUBLIC_BUCKET_URL, publication.manifest_public_path)
 
 export const discoverPublication = async (
     settings: GlobalSettings,
@@ -118,23 +123,21 @@ export const discoverPublication = async (
     token?: string,
     options: PublicationDiscoveryOptions = {}
 ): Promise<PublicationDiscoveryResult | null> => {
-    const manifestUrl = resolveManifestOverride(settings, options.manifestPath)
-    if (manifestUrl) {
-        return {
-            source: "public-index",
-            manifestUrl,
-        }
-    }
-
     const index = await fetchPublicIndex(settings, eeId)
     const indexEntry = findIndexPublication(index, eeId, electionId)
 
     if (indexEntry?.access === "public") {
+        const activeManifestUrl = resolveManifestUrl(settings, indexEntry)
+        const requestedManifestUrl = resolveManifestOverride(settings, options.manifestPath)
+
         return {
             source: "public-index",
             index,
             indexEntry,
-            manifestUrl: resolveManifestUrl(settings, indexEntry),
+            manifestUrl:
+                requestedManifestUrl === activeManifestUrl
+                    ? requestedManifestUrl
+                    : activeManifestUrl,
         }
     }
 

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import {useMutation} from "@apollo/client"
 import {EditBase, Identifier, RaRecord, useUpdate, useRefresh} from "react-admin"
 import {
     EditElectionEventDataForm,
@@ -14,10 +15,19 @@ import {
     IElectionEventPresentation,
     IElectionPresentation,
 } from "@sequentech/ui-core"
+import {REFRESH_RESULTS_PUBLICATION_INDEX} from "@/queries/ResultsWebsitePublication"
+import {IPermissions} from "@/types/keycloak"
 
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
     const refresh = useRefresh()
+    const [refreshResultsPublicationIndex] = useMutation(REFRESH_RESULTS_PUBLICATION_INDEX, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
+            },
+        },
+    })
 
     function updateElectionsOrder(data: Sequent_Backend_Election_Event_Extended) {
         data.electionsOrder?.map((election: Sequent_Backend_Election, index: number) => {
@@ -92,12 +102,30 @@ export const EditElectionEventData: React.FC = () => {
         }
     }
 
+    const onSuccess = async (data: RaRecord<Identifier>) => {
+        const electionEventId = data?.id?.toString()
+
+        if (electionEventId) {
+            try {
+                await refreshResultsPublicationIndex({
+                    variables: {
+                        election_event_id: electionEventId,
+                    },
+                })
+            } catch (error) {
+                console.warn("Failed to refresh results publication index", error)
+            }
+        }
+
+        refresh()
+    }
+
     return (
         <EditBase
             redirect={"."}
             transform={transform}
             mutationMode="pessimistic"
-            mutationOptions={{onSuccess: refresh}}
+            mutationOptions={{onSuccess}}
         >
             <EditElectionEventDataForm />
         </EditBase>
