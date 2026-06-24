@@ -106,6 +106,8 @@ impl TestServer {
         std::env::set_var("AWS_ACCESS_KEY_ID", "test");
         std::env::set_var("AWS_SECRET_ACCESS_KEY", "test");
         std::env::set_var("AWS_REGION", "us-east-1");
+        std::env::set_var("AWS_S3_UPLOAD_EXPIRATION_SECS", "120");
+        std::env::set_var("AWS_S3_FETCH_EXPIRATION_SECS", "3600");
 
         let s3_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
         let s3_client = aws_sdk_s3::Client::from_conf(
