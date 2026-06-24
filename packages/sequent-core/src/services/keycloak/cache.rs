@@ -148,8 +148,7 @@ impl TokenCache {
             .map(|d| d.as_secs() as usize)
             .unwrap_or(0);
         let expires_at = now + token_resp.expires_in;
-        let refresh_expires_at =
-            token_resp.refresh_expires_in.map(|r| now + r);
+        let refresh_expires_at = token_resp.refresh_expires_in.map(|r| now + r);
 
         let mut write = self
             .token
@@ -397,9 +396,7 @@ mod tests {
         let token = create_test_token(3600);
         let url = "http://test-keycloak/token".to_string();
 
-        cache
-            .write_token(token, url)
-            .expect("Write should succeed");
+        cache.write_token(token, url).expect("Write should succeed");
 
         // The TokenResponse returned by the cache should still carry the
         // original relative duration, not an absolute timestamp.
