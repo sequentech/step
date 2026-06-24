@@ -3,18 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
-use axum::{
-    http::Method,
-    routing::{get, post},
-    Router,
-};
+use axum::http::Method;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::env;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use b4::{db, handlers, s3, state::AppState};
+use b4::{db, s3, state::AppState};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -69,39 +65,7 @@ async fn main() -> Result<()> {
             .allow_headers(Any)
     };
 
-    let app = Router::new()
-        // Board management
-        .route("/boards", post(handlers::create_board))
-        .route("/boards", get(handlers::list_boards))
-        .route("/boards/:board", get(handlers::get_board))
-        // Message operations (board-specific)
-        .route(
-            "/boards/:board/messages/initiate",
-            post(handlers::initiate_message),
-        )
-        .route(
-            "/boards/:board/messages/:id/confirm",
-            post(handlers::confirm_message),
-        )
-        .route("/boards/:board/messages/list", get(handlers::list_messages))
-        .route("/boards/:board/messages", get(handlers::get_messages))
-        .route("/boards/:board/messages/:id", get(handlers::get_message))
-        // Multi-board operations (GET)
-        .route(
-            "/boards/messages/multi/get",
-            post(handlers::get_messages_multi),
-        )
-        // Multi-board operations (PUT - S3 two-step flow)
-        .route(
-            "/boards/messages/multi/initiate",
-            post(handlers::initiate_messages_multi),
-        )
-        .route(
-            "/boards/messages/multi/confirm",
-            post(handlers::confirm_messages_multi),
-        )
-        .layer(cors)
-        .with_state(state);
+    let app = b4::router::build_router().layer(cors).with_state(state);
 
     let listener = tokio::net::TcpListener::bind(&b4_bind).await?;
     tracing::info!(

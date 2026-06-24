@@ -10,15 +10,10 @@
 //! The server is lazily initialized once and shared across all tests in the
 //! same test binary, significantly reducing test execution time.
 
-use axum::{
-    routing::{get, post},
-    Router,
-};
 use axum_test::TestServer as AxumTestServer;
 use b4::{
     auth::SERVER_DEFAULT_ROLE,
     db::{self, DbPool, PgConnectionParams},
-    handlers,
     state::AppState,
 };
 use sequent_core::services::{
@@ -137,45 +132,13 @@ impl TestServer {
         // Create app state (clone pool so we can keep a reference for cleanup)
         let state = AppState::new(db_pool.clone(), s3_client);
 
-        // Build the actual B4 router (same as main.rs)
+        // Build the B4 router using the shared route table from the b4 library.
         let cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
             .allow_headers(Any);
 
-        let app = Router::new()
-            // Board management
-            .route("/boards", post(handlers::create_board))
-            .route("/boards", get(handlers::list_boards))
-            .route("/boards/:board", get(handlers::get_board))
-            // Message operations (board-specific)
-            .route(
-                "/boards/:board/messages/initiate",
-                post(handlers::initiate_message),
-            )
-            .route(
-                "/boards/:board/messages/:id/confirm",
-                post(handlers::confirm_message),
-            )
-            .route("/boards/:board/messages/list", get(handlers::list_messages))
-            .route("/boards/:board/messages", get(handlers::get_messages))
-            .route("/boards/:board/messages/:id", get(handlers::get_message))
-            // Multi-board operations (GET)
-            .route(
-                "/boards/messages/multi/get",
-                post(handlers::get_messages_multi),
-            )
-            // Multi-board operations (PUT - S3 two-step flow)
-            .route(
-                "/boards/messages/multi/initiate",
-                post(handlers::initiate_messages_multi),
-            )
-            .route(
-                "/boards/messages/multi/confirm",
-                post(handlers::confirm_messages_multi),
-            )
-            .layer(cors)
-            .with_state(state);
+        let app = b4::router::build_router().layer(cors).with_state(state);
 
         // Create axum-test server
         let server = AxumTestServer::new(app).expect("Failed to create test server");

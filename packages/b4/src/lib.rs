@@ -15,6 +15,8 @@ pub mod db;
 #[cfg(feature = "native")]
 pub mod handlers;
 #[cfg(feature = "native")]
+pub mod router;
+#[cfg(feature = "native")]
 pub mod s3;
 #[cfg(feature = "native")]
 pub mod state;
