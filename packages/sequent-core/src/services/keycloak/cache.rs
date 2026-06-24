@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
-use tracing::{info, instrument, warn};
+use tracing::{instrument, warn};
 
 /// Token response with common fields for both admin and user tokens.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -28,11 +28,20 @@ pub struct TokenResponse {
     pub token_type: Option<String>,
 }
 
-/// Extended token response with URL for cache management.
+/// Extended token response with URL and pre-computed absolute expiry
+/// timestamps for cache management.
+///
+/// The `expires_at` / `refresh_expires_at` fields hold Unix timestamps
+/// computed at write time (`now + expires_in`).  The original
+/// `token_resp` is stored **unmodified** so that downstream consumers
+/// (e.g. `KeycloakAdminToken`) still see the relative durations that
+/// Keycloak returns.
 #[derive(Debug, Clone)]
 pub struct TokenResponseExt {
     pub token_resp: TokenResponse,
     pub url: String,
+    pub expires_at: usize,
+    pub refresh_expires_at: Option<usize>,
 }
 
 /// Generic token cache with thundering herd prevention.
@@ -61,8 +70,6 @@ impl TokenCache {
     /// it is not expired.
     ///
     /// Returns the token response and URL if valid, None otherwise.
-    /// Note: `expires_in` is stored as an absolute Unix timestamp
-    /// (converted from relative seconds by `write_token`).
     #[instrument(level = "trace", skip_all)]
     pub fn read_token(&self) -> Option<(TokenResponse, String)> {
         let token_resp_ext_opt = match self.token.read() {
@@ -79,7 +86,7 @@ impl TokenCache {
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             let pre_expiration_time: i64 =
-                data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS;
+                data.expires_at as i64 - PRE_EXPIRATION_SECS;
             if time_now < pre_expiration_time {
                 return Some((data.token_resp, data.url));
             }
@@ -110,15 +117,13 @@ impl TokenCache {
             }
 
             // Check that the refresh token itself hasn't expired
-            if let Some(refresh_expires_abs) =
-                data.token_resp.refresh_expires_in
-            {
+            if let Some(refresh_expires_at) = data.refresh_expires_at {
                 let time_now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(0);
                 let pre_expiration_time: i64 =
-                    refresh_expires_abs as i64 - PRE_EXPIRATION_SECS;
+                    refresh_expires_at as i64 - PRE_EXPIRATION_SECS;
                 if time_now < pre_expiration_time {
                     return Some(data.token_resp);
                 }
@@ -129,36 +134,34 @@ impl TokenCache {
 
     /// Writes the token to the cache.
     ///
-    /// Converts `expires_in` from a relative duration (seconds until
-    /// expiration, as returned by Keycloak) to an absolute Unix timestamp
-    /// so that `read_token` can compare it directly against the current
-    /// time.
+    /// Computes absolute Unix timestamps (`expires_at`,
+    /// `refresh_expires_at`) from the relative durations in `token_resp`
+    /// and stores them alongside the **unmodified** token response.
     #[instrument(level = "trace", skip_all)]
     pub fn write_token(
         &self,
-        mut token_resp: TokenResponse,
+        token_resp: TokenResponse,
         url: String,
     ) -> Result<(), String> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as usize)
             .unwrap_or(0);
-        // Print expiration params to check whether they are relative or absilute time stamps
-        info!(
-            "write_token: now: {now}, expires_in: {}, refresh_expires_in: {:?}",
-            token_resp.expires_in, token_resp.refresh_expires_in
-        );
-        token_resp.expires_in = now + token_resp.expires_in;
-        if let Some(refresh_exp) = token_resp.refresh_expires_in {
-            token_resp.refresh_expires_in = Some(now + refresh_exp);
-        }
+        let expires_at = now + token_resp.expires_in;
+        let refresh_expires_at =
+            token_resp.refresh_expires_in.map(|r| now + r);
 
         let mut write = self
             .token
             .write()
             .map_err(|err| format!("Error acquiring write lock: {err:?}"))?;
 
-        *write = Some(TokenResponseExt { token_resp, url });
+        *write = Some(TokenResponseExt {
+            token_resp,
+            url,
+            expires_at,
+            refresh_expires_at,
+        });
 
         Ok(())
     }
@@ -389,28 +392,28 @@ mod tests {
     }
 
     #[test]
-    fn test_token_cache_refresh_expires_in_converted() {
+    fn test_token_cache_refresh_expires_in_not_mutated() {
         let cache = TokenCache::new();
         let token = create_test_token(3600);
         let url = "http://test-keycloak/token".to_string();
 
-        cache.write_token(token, url).expect("Write should succeed");
+        cache
+            .write_token(token, url)
+            .expect("Write should succeed");
 
-        // The stored refresh_expires_in should be an absolute timestamp
-        // (now + 1800), not the relative 1800
+        // The TokenResponse returned by the cache should still carry the
+        // original relative duration, not an absolute timestamp.
         let result = cache.read_token_for_refresh();
         assert!(result.is_some());
         let stored = result.unwrap();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as usize)
-            .unwrap_or(0);
-        // refresh_expires_in should be roughly now + 1800 (within a 2s margin)
-        let refresh_abs = stored.refresh_expires_in.unwrap();
-        assert!(
-            refresh_abs > now + 1790 && refresh_abs < now + 1810,
-            "refresh_expires_in should be absolute: got {refresh_abs}, expected ~{expected}",
-            expected = now + 1800
+        assert_eq!(
+            stored.refresh_expires_in.unwrap(),
+            1800,
+            "refresh_expires_in should remain the original relative value"
+        );
+        assert_eq!(
+            stored.expires_in, 3600,
+            "expires_in should remain the original relative value"
         );
     }
 }

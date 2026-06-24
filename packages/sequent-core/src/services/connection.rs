@@ -237,6 +237,7 @@ struct TokenResponseExtended {
     client_id: String,
     client_secret: String,
     tenant_id: String,
+    expires_at: usize,
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
@@ -269,8 +270,6 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-/// Note: `expires_in` is stored as an absolute Unix timestamp
-/// (converted from relative seconds by `write_access_token`).
 #[instrument(level = "trace", skip(lst_acc_tkn))]
 fn read_access_token(
     client_id: &str,
@@ -292,7 +291,7 @@ fn read_access_token(
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
         let pre_expiration_time: i64 =
-            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS;
+            data.expires_at as i64 - PRE_EXPIRATION_SECS;
 
         if data.client_id.eq(client_id)
             && data.client_secret.eq(client_secret)
@@ -307,13 +306,12 @@ fn read_access_token(
 
 /// Writes a new access token to the cache.
 ///
-/// Converts `expires_in` from a relative duration (seconds until
-/// expiration, as returned by Keycloak) to an absolute Unix timestamp
-/// so that `read_access_token` can compare it directly against the
-/// current time.
+/// Computes an absolute Unix timestamp (`expires_at`) from
+/// `token_resp.expires_in` and stores it alongside the **unmodified**
+/// token response.
 #[instrument(level = "trace", err, skip(lst_acc_tkn))]
 fn write_access_token(
-    mut token_resp: PubKeycloakAdminToken,
+    token_resp: PubKeycloakAdminToken,
     client_id: String,
     client_secret: String,
     tenant_id: String,
@@ -323,7 +321,7 @@ fn write_access_token(
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as usize)
         .unwrap_or(0);
-    token_resp.expires_in = now + token_resp.expires_in;
+    let expires_at = now + token_resp.expires_in;
 
     let mut write = match lst_acc_tkn.token.write() {
         Ok(write) => write,
@@ -336,6 +334,7 @@ fn write_access_token(
         client_id,
         client_secret,
         tenant_id,
+        expires_at,
     });
     Ok(())
 }
