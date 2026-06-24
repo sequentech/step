@@ -150,7 +150,7 @@ areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
 s3 = ["dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
-keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time", "dep:axum"]
+keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time", "dep:axum", "s3"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
 # Lambda examples
@@ -163,7 +163,7 @@ default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia
 sqlite = ["dep:tokio", "dep:rusqlite"]
 
 # Test utilities for JWT/JWKS testing (used by downstream crates like B4)
-test-utils = ["keycloak", "s3", "dep:rsa", "dep:pkcs1"]
+test-utils = ["keycloak", "dep:rsa", "dep:pkcs1"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

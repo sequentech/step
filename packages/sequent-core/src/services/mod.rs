@@ -10,7 +10,7 @@ pub mod axum_auth;
 pub mod connection;
 #[cfg(feature = "keycloak")]
 pub mod date;
-#[cfg(all(feature = "keycloak", feature = "s3"))]
+#[cfg(all(feature = "keycloak"))]
 pub mod jwks;
 #[cfg(feature = "keycloak")]
 pub mod jwt;
@@ -39,5 +39,5 @@ pub mod authorization;
 #[cfg(feature = "keycloak")]
 pub mod uuid_validation;
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(feature = "test-utils")]
 pub mod test_utils;

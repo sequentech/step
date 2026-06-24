@@ -68,7 +68,6 @@ services:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b4_db_logs:/b4_logs
-      - b4_db_logs:/b4_logs
     user: root
     group_add:
       - '999'
