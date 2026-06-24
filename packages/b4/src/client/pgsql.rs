@@ -31,6 +31,7 @@ const PG_DEFAULT_LIMIT: usize = 2500;
 /// Validates that a string is safe to interpolate into a SQL statement as an
 /// identifier or string literal (alphanumeric and underscores only, since
 /// PostgreSQL doesn't support parameterized identifiers).
+#[instrument(err)]
 fn validate_identifier(name: &str) -> Result<()> {
     if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(anyhow!("Invalid identifier: {name}"));
@@ -51,6 +52,7 @@ pub struct PgsqlConnectionParams {
     password: String,
 }
 impl PgsqlConnectionParams {
+    #[instrument(skip(password))]
     pub fn new(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
         PgsqlConnectionParams {
             host: host.to_string(),
@@ -59,12 +61,14 @@ impl PgsqlConnectionParams {
             password: password.to_string(),
         }
     }
+    #[instrument(skip(self))]
     pub fn connection_string(&self) -> String {
         format!(
             "host={} port={} user={} password={}",
             self.host, self.port, self.username, self.password
         )
     }
+    #[instrument(skip(self))]
     pub fn with_database(&self, db_name: &str) -> PgsqlDbConnectionParams {
         PgsqlDbConnectionParams::new(self, db_name)
     }
@@ -76,12 +80,14 @@ pub struct PgsqlDbConnectionParams {
     db_name: String,
 }
 impl PgsqlDbConnectionParams {
+    #[instrument(skip(connection))]
     pub fn new(connection: &PgsqlConnectionParams, db_name: &str) -> PgsqlDbConnectionParams {
         PgsqlDbConnectionParams {
             connection: connection.clone(),
             db_name: db_name.to_string(),
         }
     }
+    #[instrument(skip(self))]
     pub fn connection_string(&self) -> String {
         format!(
             "{} dbname={}",
@@ -125,6 +131,7 @@ pub struct B3MessageRow {
 impl TryFrom<&Row> for B3MessageRow {
     type Error = anyhow::Error;
 
+    #[instrument(err, skip(row))]
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let id = row.get("id");
         let created: SystemTime = row.get("created");
@@ -155,6 +162,7 @@ impl TryFrom<&Row> for B3MessageRow {
 impl TryFrom<Message> for B3MessageRow {
     type Error = anyhow::Error;
 
+    #[instrument(err, skip(message))]
     fn try_from(message: Message) -> Result<B3MessageRow> {
         let batch: i32 = message.statement.get_batch_number().try_into()?;
         let mix_number: i32 = message.statement.get_mix_number().try_into()?;
@@ -190,6 +198,7 @@ pub struct B3IndexRow {
 impl TryFrom<&Row> for B3IndexRow {
     type Error = anyhow::Error;
 
+    #[instrument(err, skip(row))]
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let id = row.get("id");
         let board_name = row.get("board_name");
@@ -270,24 +279,29 @@ pub struct PooledPgsqlB3Client<'a> {
 }
 
 impl<'a> PooledPgsqlB3Client<'a> {
+    #[instrument(skip(client))]
     pub fn new(
         client: PooledConnection<'a, PostgresConnectionManager<NoTls>>,
     ) -> PooledPgsqlB3Client<'a> {
         PooledPgsqlB3Client { client }
     }
 
+    #[instrument(err, skip(self))]
     pub async fn create_index_ine(&mut self) -> Result<()> {
         create_index_ine(self.client.deref_mut()).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn create_board_ine(&mut self, board: &str) -> Result<()> {
         create_board_ine(self.client.deref_mut(), board).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_messages(&self, board_name: &str, last_id: i64) -> Result<Vec<B3MessageRow>> {
         get_messages(self.client.deref(), board_name, last_id).await
     }
 
+    #[instrument(err, skip(self, sender_pk))]
     pub async fn get_with_kind(
         &self,
         board: &str,
@@ -303,10 +317,12 @@ impl<'a> PooledPgsqlB3Client<'a> {
         .await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_boards(&self) -> Result<Vec<B3IndexRow>> {
         get_boards(self.client.deref()).await
     }
 
+    #[instrument(err, skip(self, messages))]
     pub async fn insert_messages(
         &mut self,
         board_name: &str,
@@ -315,10 +331,12 @@ impl<'a> PooledPgsqlB3Client<'a> {
         insert_messages(self.client.deref_mut(), board_name, messages).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
         delete_board(self.client.deref_mut(), board_name).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn clear_database(&mut self) -> Result<()> {
         clear_database(self.client.deref_mut()).await
     }
@@ -330,6 +348,7 @@ pub struct PgsqlB3Client {
 }
 
 impl PgsqlB3Client {
+    #[instrument(err, skip(params))]
     pub async fn new(params: &PgsqlDbConnectionParams) -> Result<PgsqlB3Client> {
         let (client, connection) =
             tokio_postgres::connect(&params.connection_string(), NoTls).await?;
@@ -347,18 +366,22 @@ impl PgsqlB3Client {
         Ok(ret)
     }
 
+    #[instrument(err, skip(self))]
     pub async fn create_index_ine(&mut self) -> Result<()> {
         create_index_ine(self.client.borrow_mut()).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn create_board_ine(&mut self, board: &str) -> Result<()> {
         create_board_ine(self.client.borrow_mut(), board).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_messages(&self, board_name: &str, last_id: i64) -> Result<Vec<B3MessageRow>> {
         get_messages(&self.client, board_name, last_id).await
     }
 
+    #[instrument(err, skip(self, sender_pk))]
     pub async fn get_with_kind(
         &self,
         board: &str,
@@ -374,6 +397,7 @@ impl PgsqlB3Client {
         .await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_with_kind_only(
         &self,
         board: &str,
@@ -382,10 +406,12 @@ impl PgsqlB3Client {
         get_with_kind_only(&self.client, board, &kind.to_string()).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_boards(&self) -> Result<Vec<B3IndexRow>> {
         get_boards(&self.client).await
     }
 
+    #[instrument(err, skip(self, messages))]
     pub async fn insert_messages(
         &mut self,
         board_name: &str,
@@ -394,26 +420,32 @@ impl PgsqlB3Client {
         insert_messages(self.client.borrow_mut(), board_name, messages).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn delete_board(&mut self, board_name: &str) -> Result<()> {
         delete_board(self.client.borrow_mut(), board_name).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn clear_database(&mut self) -> Result<()> {
         clear_database(self.client.borrow_mut()).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_board(&self, board_name: &str) -> Result<Option<B3IndexRow>> {
         get_board(&self.client, board_name).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_one_message(&self, board_name: &str, id: i64) -> Result<Option<B3MessageRow>> {
         get_one_message(&self.client, board_name, id).await
     }
 
+    #[instrument(err, skip(self))]
     pub async fn get_message_count(&self, board_name: &str) -> Result<i64> {
         get_message_count(&self.client, board_name).await
     }
 
+    #[instrument(err, skip(self, configuration))]
     pub async fn insert_configuration<C: Ctx>(
         &mut self,
         board_name: &str,
@@ -422,6 +454,7 @@ impl PgsqlB3Client {
         insert_configuration::<C>(self.client.borrow_mut(), board_name, configuration).await
     }
 
+    #[instrument(err, skip(self, ballots))]
     pub async fn insert_ballots<C: Ctx>(
         &mut self,
         board_name: &str,
@@ -622,6 +655,7 @@ async fn get_one_message(
     get_one(client, board_name, id).await
 }
 
+#[instrument(err, skip(client))]
 async fn get_with_kind(
     client: &Client,
     board: &str,
@@ -1111,6 +1145,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
 
     // Uses the COPY postgresql command
     // Note: For partitioned tables, COPY goes to the partition directly via messages_{board_name}
+    #[instrument(err, skip(client, messages))]
     async fn insert_copy(
         client: &mut Client,
         board_name: &str,
@@ -1173,6 +1208,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
         Ok(())
     }
 
+    #[instrument(err, skip(writer, messages))]
     async fn _write(writer: BinaryCopyInWriter, board_name: &str, messages: &[B3MessageRow]) -> Result<i32> {
         pin_mut!(writer);
 

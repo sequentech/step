@@ -6,11 +6,13 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tracing::instrument;
 
 use crate::{handlers, state::AppState};
 
 /// Builds the B4 HTTP route table. State and middleware (CORS) are applied by
 /// the caller so each environment can configure them independently.
+#[instrument(level = "trace")]
 pub fn build_router() -> Router<AppState> {
     Router::new()
         // Board management

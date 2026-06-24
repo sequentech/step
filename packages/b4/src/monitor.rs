@@ -17,6 +17,7 @@ use cursive::views::{Canvas, Layer};
 use cursive::{Cursive, Printer, Rect, Vec2};
 
 use sqlx::SqlitePool;
+use tracing::instrument;
 
 const DEFAULT_DB_PATH: &'static str = "sqlite://b4.db";
 
@@ -35,6 +36,7 @@ struct CData {
     timer_start: Option<SystemTime>,
 }
 impl CData {
+    #[instrument(skip_all)]
     fn new(db_path: String) -> Self {
         CData {
             db_path,
@@ -50,6 +52,7 @@ struct Cell {
     last_kind: String,
 }
 impl Cell {
+    #[instrument(skip_all)]
     fn new(name: String, progress_dkg: f64, progress_mix: f64, last_kind: String) -> Self {
         Cell {
             name,
@@ -67,6 +70,7 @@ struct Data {
     pub max_messages: i32,
 }
 impl Data {
+    #[instrument(skip_all)]
     fn new() -> Self {
         Self {
             duration: Duration::ZERO,
@@ -113,11 +117,13 @@ fn main() {
     siv.run();
 }
 
+#[instrument(skip_all)]
 fn timer(c: &mut Cursive) {
     let cdata: &mut CData = c.user_data().unwrap();
     cdata.timer_start = Some(SystemTime::now())
 }
 
+#[instrument(skip_all)]
 fn step(c: &mut Cursive) {
     let cdata: &CData = c.user_data().unwrap();
     let rows = if let Ok(rows) = q(&cdata.db_path) {
@@ -165,6 +171,7 @@ fn step(c: &mut Cursive) {
     }
 }
 
+#[instrument(skip_all)]
 fn draw(data: &Data, p: &Printer) {
     let bar_gray = ColorStyle::new(BaseColor::White, Color::from_256colors(243));
     let bar_white = ColorStyle::new(BaseColor::White, Color::from_256colors(255));
@@ -262,6 +269,7 @@ fn draw(data: &Data, p: &Printer) {
     // Can never reach here!
 }
 
+#[instrument(skip_all)]
 fn draw_cell(p: &Printer, origin: &Vec2, size: &Vec2, data: &Cell, draw_text: bool) {
     let f_black = ColorStyle::new(BaseColor::White, BaseColor::Black);
     let b_gray = ColorStyle::new(BaseColor::White, Color::from_256colors(236));
@@ -382,6 +390,7 @@ Tally phase:    b * (1 +     t +    (t * (t - 1)) +    t +                 n)
 = b * (n + (t * t + 1) + 1)
 
 */
+#[instrument(skip_all)]
 fn get_max_values(row: &BoardInfo) -> (i32, i32) {
     let dkg_max = 1 + (5 * row.trustees_no);
     let mix_max =
@@ -390,6 +399,7 @@ fn get_max_values(row: &BoardInfo) -> (i32, i32) {
     (dkg_max, mix_max)
 }
 
+#[instrument(skip_all)]
 fn get_progress(row: &BoardInfo) -> (f64, f64) {
     let (dkg_max, mix_max) = get_max_values(row);
 
@@ -409,6 +419,7 @@ fn get_progress(row: &BoardInfo) -> (f64, f64) {
     }
 }
 
+#[instrument(skip_all, err)]
 async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
     let pool = SqlitePool::connect(db_path).await?;
 
@@ -441,6 +452,7 @@ async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
     }).collect())
 }
 
+#[instrument(skip_all, err)]
 fn q(db_path: &str) -> Result<Vec<BoardInfo>> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -451,6 +463,7 @@ fn q(db_path: &str) -> Result<Vec<BoardInfo>> {
     Ok(inner)
 }
 
+#[instrument(skip_all)]
 fn get_cell_counts(len: usize) -> (usize, usize) {
     // let len = rows.len();
     let lenrt = (len as f64).sqrt() as usize;

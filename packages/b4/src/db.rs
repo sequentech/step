@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context, Result};
 use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use std::env;
 use tokio_postgres::NoTls;
+use tracing::instrument;
 
 /// PostgreSQL connection pool type alias
 pub type DbPool = Pool<PostgresConnectionManager<NoTls>>;
@@ -29,6 +30,7 @@ pub struct PgConnectionParams {
 }
 
 impl PgConnectionParams {
+    #[instrument(skip(password))]
     pub fn new(host: &str, port: u16, username: &str, password: &str, database: &str) -> Self {
         Self {
             host: host.to_string(),
@@ -39,6 +41,7 @@ impl PgConnectionParams {
         }
     }
 
+    #[instrument(err)]
     pub fn from_env() -> Result<Self> {
         let host = env::var("B4_PG_HOST").context("B4_PG_HOST must be set")?;
         let port: u16 = env::var("B4_PG_PORT")
@@ -58,6 +61,7 @@ impl PgConnectionParams {
         })
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub fn connection_string(&self) -> String {
         format!(
             "host={} port={} user={} password={} dbname={}",
@@ -66,11 +70,13 @@ impl PgConnectionParams {
     }
 }
 
+#[instrument(err)]
 pub async fn init_db() -> Result<DbPool> {
     let params = PgConnectionParams::from_env()?;
     init_db_with_params(&params).await
 }
 
+#[instrument(skip(params), err)]
 pub async fn init_db_with_params(params: &PgConnectionParams) -> Result<DbPool> {
     tracing::info!(
         "Connecting to PostgreSQL database at {}:{}",
@@ -155,6 +161,7 @@ pub async fn init_db_with_params(params: &PgConnectionParams) -> Result<DbPool> 
 }
 
 /// Validates board name to prevent path traversal and SQL injection
+#[instrument(err)]
 pub fn validate_board_name(name: &str) -> Result<()> {
     if name.is_empty() {
         anyhow::bail!("Board name cannot be empty");
@@ -172,6 +179,7 @@ pub fn validate_board_name(name: &str) -> Result<()> {
     Ok(())
 }
 
+#[instrument(skip(pool), err)]
 pub async fn create_board(pool: &DbPool, name: &str) -> Result<Board> {
     validate_board_name(name)?;
 
@@ -216,6 +224,7 @@ pub async fn create_board(pool: &DbPool, name: &str) -> Result<Board> {
     })
 }
 
+#[instrument(skip(pool), err)]
 pub async fn get_board(pool: &DbPool, name: &str) -> Result<Option<Board>> {
     let conn = pool.get().await?;
     let row = conn
@@ -232,6 +241,7 @@ pub async fn get_board(pool: &DbPool, name: &str) -> Result<Option<Board>> {
     }))
 }
 
+#[instrument(skip(pool), err)]
 pub async fn list_boards(pool: &DbPool) -> Result<Vec<Board>> {
     let conn = pool.get().await?;
     let rows = conn
@@ -251,6 +261,7 @@ pub async fn list_boards(pool: &DbPool) -> Result<Vec<Board>> {
         .collect())
 }
 
+#[instrument(skip(pool, message, inline_data), err)]
 pub async fn insert_message(
     pool: &DbPool,
     board_name: &str,
@@ -312,6 +323,7 @@ pub async fn insert_message(
 
 /// Update board statistics after message insertion (like b3's INDEX table updates)
 /// This is best-effort - failures are logged but don't fail the insertion
+#[instrument(skip(pool), err)]
 async fn update_board_statistics(
     pool: &DbPool,
     board_name: &str,
@@ -337,6 +349,7 @@ async fn update_board_statistics(
     Ok(())
 }
 
+#[instrument(skip(pool), err)]
 pub async fn get_message(pool: &DbPool, board_name: &str, id: i64) -> Result<Option<Message>> {
     validate_board_name(board_name)?;
 
@@ -399,6 +412,7 @@ pub async fn get_message(pool: &DbPool, board_name: &str, id: i64) -> Result<Opt
     }))
 }
 
+#[instrument(skip(pool), err)]
 pub async fn list_messages(pool: &DbPool, board_name: &str) -> Result<Vec<Message>> {
     validate_board_name(board_name)?;
 
@@ -465,6 +479,7 @@ pub async fn list_messages(pool: &DbPool, board_name: &str) -> Result<Vec<Messag
 }
 
 /// Get messages greater than last_id (for trustee synchronization)
+#[instrument(skip(pool), err)]
 pub async fn get_messages_after(
     pool: &DbPool,
     board_name: &str,
@@ -541,6 +556,7 @@ pub async fn get_messages_after(
 
 /// Update board metadata when Configuration is posted (similar to b3's update_index)
 /// This is called separately from insert_message because it needs to parse the Configuration artifact
+#[instrument(skip(pool), err)]
 pub async fn update_board_config_metadata(
     pool: &DbPool,
     board_name: &str,

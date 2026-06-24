@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 /// HTTP-based bulletin board message wrapper.
 ///
@@ -28,6 +29,7 @@ pub struct HttpB3Message {
 }
 
 impl HttpB3Message {
+    #[instrument(skip(message))]
     pub fn new(
         id: i64,
         message: Vec<u8>,
@@ -59,6 +61,7 @@ pub struct HttpBoardMessages {
 }
 
 impl HttpBoardMessages {
+    #[instrument(skip(messages))]
     pub fn new(board: String, messages: Vec<HttpB3Message>) -> Self {
         HttpBoardMessages { board, messages }
     }

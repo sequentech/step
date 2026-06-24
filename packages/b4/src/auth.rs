@@ -88,6 +88,7 @@ impl PermissionSet for TrusteeCeremony {
 pub struct BoardAccessValidator;
 
 impl ValidateConstraints for BoardAccessValidator {
+    #[instrument(skip(claims), ret)]
     fn validate(claims: &JwtClaims, path_params: &[(&str, &str)]) -> bool {
         // Find the "board" path parameter.
         let board_name = path_params

@@ -9,6 +9,7 @@ use crate::messages::artifact::Configuration;
 use strand::context::Ctx;
 use strand::hash::Hash;
 use strand::serialization::StrandSerialize;
+use tracing::instrument;
 
 pub const MAX_TRUSTEES: usize = 12;
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
@@ -22,6 +23,7 @@ pub const NULL_TRUSTEE: usize = 1001;
 #[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ConfigurationHash(pub Hash);
 impl ConfigurationHash {
+    #[instrument(skip(configuration), err)]
     pub fn from_configuration<C: Ctx>(
         configuration: &Configuration<C>,
     ) -> Result<ConfigurationHash> {
@@ -146,9 +148,11 @@ pub type THashes = [Hash; MAX_TRUSTEES];
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
+#[instrument(skip(h))]
 fn dbg_hash(h: &Hash) -> String {
     hex::encode(h)[0..10].to_string()
 }
+#[instrument(skip(hs))]
 fn dbg_hashes<const N: usize>(hs: &[Hash; N]) -> String {
     hs.map(|h| {
         if h == [0u8; 64] {

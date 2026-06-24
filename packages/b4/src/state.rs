@@ -5,6 +5,7 @@
 use crate::db::DbPool;
 
 use aws_sdk_s3::Client as S3Client;
+use tracing::instrument;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -14,6 +15,7 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[instrument(skip(db, s3_client))]
     pub fn new(db: DbPool, s3_client: S3Client) -> Self {
         let bucket_name =
             std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use strand::context::Ctx;
 use strand::signature::StrandSignatureSk;
+use tracing::instrument;
 
 ///////////////////////////////////////////////////////////////////////////
 // ProtocolManager
@@ -18,6 +19,7 @@ pub struct ProtocolManager<C: Ctx> {
 }
 
 impl<C: Ctx> ProtocolManager<C> {
+    #[instrument(skip(pmkey))]
     pub fn new(pmkey: StrandSignatureSk) -> Self {
         ProtocolManager {
             signing_key: pmkey,
@@ -27,9 +29,11 @@ impl<C: Ctx> ProtocolManager<C> {
 }
 
 impl<C: Ctx> message::Signer for ProtocolManager<C> {
+    #[instrument(level = "trace", skip(self))]
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
+    #[instrument(level = "trace", skip(self))]
     fn get_name(&self) -> String {
         "Protocol Manager".to_string()
     }
@@ -51,6 +55,7 @@ pub struct ProtocolManagerConfig {
     pub signing_key: String,
 }
 impl ProtocolManagerConfig {
+    #[instrument(skip(pm))]
     pub fn from<C: Ctx>(pm: &ProtocolManager<C>) -> ProtocolManagerConfig {
         let sk_string = pm.signing_key.to_der_b64_string().unwrap();
 
@@ -58,6 +63,7 @@ impl ProtocolManagerConfig {
             signing_key: sk_string,
         }
     }
+    #[instrument(skip(self), err)]
     pub fn get_signing_key(&self) -> anyhow::Result<StrandSignatureSk> {
         let sk = StrandSignatureSk::from_der_b64_string(&self.signing_key)?;
 

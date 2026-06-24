@@ -5,7 +5,9 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::{presigning::PresigningConfig, Client};
 use std::time::Duration;
+use tracing::instrument;
 
+#[instrument]
 pub async fn init_s3_client() -> Client {
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
 
@@ -17,10 +19,12 @@ pub async fn init_s3_client() -> Client {
     Client::from_conf(s3_config)
 }
 
+#[instrument(err)]
 fn expiration_secs(env_var_name: &str) -> Result<u64, Box<dyn std::error::Error>> {
     Ok(std::env::var(env_var_name)?.parse()?)
 }
 
+#[instrument(skip(client), err)]
 pub async fn generate_upload_url(
     client: &Client,
     bucket: &str,
@@ -39,6 +43,7 @@ pub async fn generate_upload_url(
     Ok(presigned.uri().to_string())
 }
 
+#[instrument(skip(client), err)]
 pub async fn generate_download_url(
     client: &Client,
     bucket: &str,

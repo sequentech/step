@@ -20,6 +20,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{db, s3, state::AppState};
@@ -47,6 +48,7 @@ pub struct GetMessagesQuery {
     pub limit: Option<i64>,
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn create_board(
     State(state): State<AppState>,
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
@@ -69,6 +71,7 @@ pub async fn create_board(
     }))
 }
 
+#[instrument(skip(state, claims), err)]
 pub async fn get_board(
     State(state): State<AppState>,
     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
@@ -91,6 +94,7 @@ pub async fn get_board(
     }))
 }
 
+#[instrument(skip(state, claims), err)]
 pub async fn list_boards(
     State(state): State<AppState>,
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
@@ -116,6 +120,7 @@ pub async fn list_boards(
     }))
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn initiate_message(
     State(state): State<AppState>,
     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
@@ -180,6 +185,7 @@ pub async fn initiate_message(
     }
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn confirm_message(
     State(state): State<AppState>,
     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
@@ -304,6 +310,7 @@ pub async fn confirm_message(
     Ok(Json(ConfirmMessageResponse { success: true }))
 }
 
+#[instrument(skip(state, claims), err)]
 pub async fn get_message(
     State(state): State<AppState>,
     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
@@ -354,6 +361,7 @@ pub async fn get_message(
     }))
 }
 
+#[instrument(skip(state, claims, query), err)]
 pub async fn list_messages(
     State(state): State<AppState>,
     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
@@ -400,6 +408,7 @@ pub async fn list_messages(
     }
 }
 
+#[instrument(skip(state, claims, query), err)]
 pub async fn get_messages(
     State(state): State<AppState>,
     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
@@ -478,6 +487,7 @@ pub async fn get_messages(
     }))
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn get_messages_multi(
     State(state): State<AppState>,
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
@@ -566,6 +576,7 @@ pub async fn get_messages_multi(
 
 // Multi-board S3 two-step flow handlers
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn initiate_messages_multi(
     State(state): State<AppState>,
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
@@ -661,6 +672,7 @@ pub async fn initiate_messages_multi(
     }))
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn confirm_messages_multi(
     State(state): State<AppState>,
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,

@@ -8,6 +8,7 @@ use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
 use strand::util::StrandError;
+use tracing::instrument;
 
 use crate::messages::artifact::*;
 use crate::messages::statement::Statement;
@@ -35,6 +36,7 @@ impl Message {
     // functions.
     ///////////////////////////////////////////////////////////////////////////
 
+    #[instrument(skip(cfg, manager), err)]
     pub fn bootstrap_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         manager: &S,
@@ -46,6 +48,7 @@ impl Message {
         manager.sign(statement, Some(cfg_bytes))
     }
 
+    #[instrument(skip(cfg, trustee), err)]
     pub fn configuration_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         trustee: &S,
@@ -58,6 +61,7 @@ impl Message {
         trustee.sign(statement, None)
     }
 
+    #[instrument(skip(cfg, channel, trustee), err)]
     pub fn channel_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         channel: &Channel<C>,
@@ -79,6 +83,7 @@ impl Message {
     }
 
     // Signs all the commitments for all trustees
+    #[instrument(skip(cfg, trustee), err)]
     pub fn channels_all_signed_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         commitments_hs: &ChannelsHashes,
@@ -96,6 +101,7 @@ impl Message {
     }
 
     // Shares sent from one trustee to all trustees
+    #[instrument(skip(cfg, shares, trustee), err)]
     pub fn shares_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         shares: &Shares<C>,
@@ -111,6 +117,7 @@ impl Message {
         trustee.sign(statement, Some(share_bytes))
     }
 
+    #[instrument(skip(cfg, dkgpk, trustee), err)]
     pub fn public_key_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         dkgpk: &DkgPublicKey<C>,
@@ -144,6 +151,7 @@ impl Message {
         }
     }
 
+    #[instrument(skip(cfg, ballots, pm), err)]
     pub fn ballots_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
@@ -167,6 +175,7 @@ impl Message {
         pm.sign(statement, Some(ballots_bytes))
     }
 
+    #[instrument(skip(cfg, mix, trustee), err)]
     pub fn mix_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
@@ -190,6 +199,7 @@ impl Message {
         trustee.sign(statement, Some(mix_bytes))
     }
 
+    #[instrument(skip(cfg, trustee), err)]
     pub fn mix_signed_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
@@ -212,6 +222,7 @@ impl Message {
         trustee.sign(statement, None)
     }
 
+    #[instrument(skip(cfg, dfactors, trustee), err)]
     pub fn decryption_factors_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
@@ -237,6 +248,7 @@ impl Message {
         trustee.sign(statement, Some(dfactors_bytes))
     }
 
+    #[instrument(skip(cfg, plaintexts, trustee), err)]
     pub fn plaintexts_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
@@ -264,6 +276,7 @@ impl Message {
         trustee.sign(statement, Some(plaintexts_bytes))
     }
 
+    #[instrument(skip(cfg, trustee), err)]
     pub fn plaintexts_signed_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
@@ -296,6 +309,7 @@ impl Message {
     ///////////////////////////////////////////////////////////////////////////
 
     // FIXME add check for timestamp not older than some threshold
+    #[instrument(skip(configuration), err)]
     pub fn verify<C: Ctx>(&self, configuration: &Configuration<C>) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, _) = self.statement.get_data();
 
@@ -384,6 +398,7 @@ impl Message {
     /// Clone this message.
     ///
     /// Clone is fallible when signature is implemented with OpenSSL
+    #[instrument(err)]
     pub fn try_clone(&self) -> Result<Message> {
         let ret = Message {
             sender: self.sender.clone(),
@@ -397,6 +412,7 @@ impl Message {
 }
 
 // Placeholder for possible further verifications
+#[instrument(skip(_cfg, _data), err)]
 fn verify_artifact<C: Ctx>(
     _cfg: &Configuration<C>,
     kind: &StatementType,
@@ -428,6 +444,7 @@ pub struct VerifiedMessage {
 }
 
 impl VerifiedMessage {
+    #[instrument(skip(statement, artifact))]
     pub(crate) fn new(
         signer_position: usize,
         statement: Statement,
@@ -447,6 +464,7 @@ impl VerifiedMessage {
 pub trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
     fn get_name(&self) -> String;
+    #[instrument(skip(self, statement, artifact), err)]
     fn sign(
         &self,
         statement: Statement,
@@ -473,6 +491,7 @@ pub struct Sender {
     pub pk: StrandSignaturePk,
 }
 impl Sender {
+    #[instrument(skip(pk))]
     pub fn new(name: String, pk: StrandSignaturePk) -> Sender {
         Sender { name, pk }
     }
