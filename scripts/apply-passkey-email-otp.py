@@ -733,7 +733,17 @@ def disable_required_action(base, token, realm):
 
 def remove_required_action_from_users(base, token, realm):
     print("[4/4] Removing passkey + email-OTP required actions and credentials from users")
-    users = http("GET", f"{base}/admin/realms/{realm}/users?max=1000", token)
+    users = []
+    first = 0
+    page_size = 1000
+    while True:
+        batch = http("GET", f"{base}/admin/realms/{realm}/users?first={first}&max={page_size}", token) or []
+        if not batch:
+            break
+        users.extend(batch)
+        if len(batch) < page_size:
+            break
+        first += len(batch)
     for u in users:
         ras = list(u.get("requiredActions") or [])
         new_ras = [x for x in ras if x not in USER_REQUIRED_ACTIONS]
