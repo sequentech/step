@@ -22,7 +22,7 @@ The solution is designed to provide a secure, production-grade "Cloud-in-a-Box" 
 |  |                                                                           |  |
 |  |  +-- https://portal.local ---------------------------------------------+  |  |
 |  |  |  * Port 443 (TLS)                                                   |  |  |
-|  |  |  * Routes / -> admin-portal                                         |  |  |
+|  |  |  * Routes / -> voting-portal                                        |  |  |
 |  |  |  * Routes /hasura -> hasura (GraphQL Engine)                        |  |  |
 |  |  |  * Routes /storage -> rustfs (S3 Assets)                            |  |  |
 |  |  |  * Routes /realms & /resources -> keycloak (Port 8090)              |  |  |
@@ -200,12 +200,26 @@ Once deployed, access each service using the mapping below:
 
 | Service | Protocol | Access URL | Description |
 | :--- | :--- | :--- | :--- |
-| **Admin Portal** | **HTTPS (Port 443)** | `https://portal.local` | The main administrative SPA interface. |
+| **Voting Portal** | **HTTPS (Port 443)** | `https://portal.local` | The voter-facing SPA interface. |
 | **Keycloak (Auth)** | **HTTPS (Port 443)** | `https://portal.local/realms/...` | Handled on the same single-domain to prevent browser cookie-blocks. |
 | **Hasura Engine** | **HTTPS (Port 443)** | `https://portal.local/hasura/v1/graphql` | Public-facing GraphQL API. |
 | **RustFS (S3)** | **HTTPS (Port 443)** | `https://portal.local/storage/public/` | Public asset storage bucket. |
 | **Gitea (Web UI)** | **HTTPS (Port 443)** | `https://gitea.local` | Source control web interface. |
 | **Gitea (SSH git)** | **SSH (Port 2222)** | `ssh://git@gitea.local:2222/<repo>.git` | Git push/clone via SSH (TCP passthrough via Traefik). |
+
+### Internal Services (cluster-only, not externally exposed)
+
+| Service | Namespace | Description |
+| :--- | :--- | :--- |
+| **Windmill** | `step-apps` | Celery-based async task worker. |
+| **Beat** | `step-apps` | Celery beat scheduler (uses the windmill image). |
+| **B4** | `step-apps` | Bulletin board backend (gRPC port 50051). |
+| **Harvest** | `step-apps` | Election management REST API. |
+| **RabbitMQ** | `step-infra` | Task queue for Celery workers (AMQP port 5672). |
+| **Trustee 1** | `step-infra` | Key ceremony trustee node (braid). |
+| **Trustee 2** | `step-infra` | Key ceremony trustee node (braid). |
+| **ImmuDB** | `step-infra` | Tamper-evident audit log (gRPC port 3322). |
+| **PostgreSQL** | `step-infra` | Primary relational database. |
 
 ### Important Note on Self-Signed Certificates:
 Since `https://portal.local` uses a self-signed TLS certificate generated natively:

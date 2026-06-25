@@ -55,7 +55,7 @@ docker run --rm --platform "linux/$ARCH" \
     "
 
 
-echo "--- [5/7] Pulling Infrastructure & CI Base Images ---"
+echo "--- [4/7] Pulling Infrastructure & CI Base Images ---"
 # Pulling only for current host architecture to keep it simple, 
 # but infrastructure images are usually multi-arch.
 CI_RUNNER_IMAGES=(
@@ -95,16 +95,29 @@ docker build -t sequentech.local/runner-ubuntu:22.04 -f "$PROJECT_ROOT/packages/
 echo "Building offline dependencies base image..."
 docker build -t sequentech.local/offline-dependencies:latest -f "$PROJECT_ROOT/packages/Dockerfile.offline-dependencies" "$PROJECT_ROOT/packages"
 
+echo "--- [5/7] Building Application Images ---"
+echo "Building Immudb..."
+docker build -t sequentech.local/immudb:latest -f "$PROJECT_ROOT/packages/Dockerfile.immudb" "$PROJECT_ROOT/packages"
+
+echo "Building B4..."
+docker build -t sequentech.local/b4:latest -f "$PROJECT_ROOT/packages/b4/Dockerfile.prod" "$PROJECT_ROOT/packages"
+
+echo "Building Braid (Trustees)..."
+docker build -t sequentech.local/braid:latest -f "$PROJECT_ROOT/packages/braid/Dockerfile.prod" "$PROJECT_ROOT/packages"
+
 echo "--- [6/7] Saving Images to Tarball ---"
 ALL_IMAGES=(
-    "${CI_RUNNER_IMAGES[@]}" 
-    "${CI_BUILD_ENV_IMAGES[@]}" 
-    "${INFRA_IMAGES[@]}" 
-    "sequentech.local/postgresql" 
+    "${CI_RUNNER_IMAGES[@]}"
+    "${CI_BUILD_ENV_IMAGES[@]}"
+    "${INFRA_IMAGES[@]}"
+    "sequentech.local/postgresql"
     "sequentech.local/keycloak"
     "sequentech.local/ci-builder:latest"
     "sequentech.local/runner-ubuntu:22.04"
     "sequentech.local/offline-dependencies:latest"
+    "sequentech.local/immudb:latest"
+    "sequentech.local/b4:latest"
+    "sequentech.local/braid:latest"
 )
 docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
 

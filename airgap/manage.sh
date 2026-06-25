@@ -57,7 +57,7 @@ EOF
         sudo systemctl restart k3s
 
         echo "K3s is installed! Waiting for node to be ready..."
-        until sudo k3s kubectl get node | grep -q "Ready"; do sleep 5; done
+        until sudo k3s kubectl get node | grep -v "NotReady" | grep -q "Ready"; do sleep 5; done
         echo "Node is Ready!"
         ;;
 
@@ -126,12 +126,14 @@ EOF
           --from-literal=GITEA_REGISTRY_PASSWORD="${GITEA_ADMIN_PASSWORD}" \
           --dry-run=client -o yaml | sudo k3s kubectl apply -f -
 
-        sudo k3s kubectl create secret docker-registry gitea-pull-secret \
-          -n step-apps \
-          --docker-server=gitea.gitea:3000 \
-          --docker-username=admin \
-          --docker-password="${GITEA_ADMIN_PASSWORD}" \
-          --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+        for ns in step-apps step-infra; do
+          sudo k3s kubectl create secret docker-registry gitea-pull-secret \
+            -n "$ns" \
+            --docker-server=gitea.gitea:3000 \
+            --docker-username=admin \
+            --docker-password="${GITEA_ADMIN_PASSWORD}" \
+            --dry-run=client -o yaml | sudo k3s kubectl apply -f -
+        done
 
         echo "--- Loading Infrastructure Images into K3s (Background) ---"
         sudo mkdir -p /var/lib/rancher/k3s/agent/images/

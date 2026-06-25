@@ -241,6 +241,187 @@ spec:
             name: keycloak-realm
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  name: immudb
+  namespace: step-infra
+spec:
+  selector:
+    app: immudb
+  ports:
+    - name: grpc
+      port: 3322
+    - name: metrics
+      port: 9497
+    - name: console
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immudb
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immudb
+  template:
+    metadata:
+      labels:
+        app: immudb
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: immudb
+          image: gitea.gitea:3000/admin/immudb:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3322
+            - containerPort: 9497
+            - containerPort: 8080
+          env:
+            - name: IMMUDB_PGSQL_SERVER
+              value: "true"
+          volumeMounts:
+            - name: immudb-data
+              mountPath: /var/lib/immudb
+      volumes:
+        - name: immudb-data
+          persistentVolumeClaim:
+            claimName: immudb-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trustee1
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trustee1
+  template:
+    metadata:
+      labels:
+        app: trustee1
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: trustee1
+          image: gitea.gitea:3000/admin/braid:latest
+          imagePullPolicy: Always
+          env:
+            - name: TRUSTEE_NAME
+              value: "trustee1"
+            - name: B4_URL
+              value: "http://b4.step-apps.svc.cluster.local:50051"
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+          volumeMounts:
+            - name: trustee1-data
+              mountPath: /opt/braid
+      volumes:
+        - name: trustee1-data
+          persistentVolumeClaim:
+            claimName: trustee1-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trustee2
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trustee2
+  template:
+    metadata:
+      labels:
+        app: trustee2
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: trustee2
+          image: gitea.gitea:3000/admin/braid:latest
+          imagePullPolicy: Always
+          env:
+            - name: TRUSTEE_NAME
+              value: "trustee2"
+            - name: B4_URL
+              value: "http://b4.step-apps.svc.cluster.local:50051"
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+          volumeMounts:
+            - name: trustee2-data
+              mountPath: /opt/braid
+      volumes:
+        - name: trustee2-data
+          persistentVolumeClaim:
+            claimName: trustee2-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immudb-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trustee1-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trustee2-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc

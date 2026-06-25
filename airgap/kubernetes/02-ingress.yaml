@@ -150,6 +150,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: admin-portal
+                name: voting-portal
                 port:
                   number: 80
