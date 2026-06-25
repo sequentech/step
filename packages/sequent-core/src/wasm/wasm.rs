@@ -21,6 +21,9 @@ use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
 use crate::types::ceremonies::CountingAlgType;
+use crate::util::locale::{
+    iso_639_2t_to_bcp47, locale_to_internal_language_code,
+};
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -1230,6 +1233,37 @@ pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&policy).map_err(|err| {
         JsValue::from_str(&format!(
             "Error serializing default consolidated report policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn get_default_language_detection_policy_js() -> Result<JsValue, JsValue> {
+    let policy: LanguageDetectionPolicy = LanguageDetectionPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default language detection policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn iso_639_2t_to_bcp47_js(lang: &str) -> String {
+    iso_639_2t_to_bcp47(lang).to_string()
+}
+
+#[wasm_bindgen]
+pub fn locale_to_internal_language_code_js(lang: &str) -> String {
+    locale_to_internal_language_code(lang)
+}
+
+#[wasm_bindgen]
+/// Returns the default decline to vote policy
+pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
+    let policy: DeclineToVotePolicy = DeclineToVotePolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default decline to vote policy: {err}"
         ))
     })
 }

@@ -87,6 +87,7 @@ const basqueTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -341,7 +342,7 @@ const basqueTranslation: TranslationType = {
                     "no-signature": "Sinadurarik ez",
                     "with-signature": "Sinadura batekin",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Gaituta",
                     disabled: "Desgaituta",
@@ -379,6 +380,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         enabled: "Gaituta",
                         disabled: "Desgaituta",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Hizkuntza detekzio politika",
+                    options: {
+                        "browser-detect": "Arakatzailetik detektatu",
+                        "force-default": "Lehenetsia behartu",
                     },
                 },
             },
@@ -549,6 +557,7 @@ const basqueTranslation: TranslationType = {
                 reports: "Txostenak",
                 applications: "Aplikazioak",
                 tally: "Zenbaketa",
+                certificates: "Ziurtagiriak",
             },
             taskNotification:
                 "{{action}} hasi da. Bere egoera Ataza Exekuzio taulan ikus dezakezu.",
@@ -652,6 +661,13 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "generate": "Sortu",
                     "do-not-generate": "Ez sortu",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Bozkatzeari uko egiteko politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
                 },
             },
         },
@@ -1065,6 +1081,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 AUDIT_LOGS: "Auditoria Egunkariak",
@@ -1369,6 +1386,12 @@ const basqueTranslation: TranslationType = {
                 "allow-selecting-candidates": "Hautagaiak Soilik",
                 "allow-selecting-lists": "Zerrendak Soilik",
                 "disabled": "Desgaituta",
+            },
+            collapsibleListsPolicy: {
+                "label": "Zerrenda tolesgarriak",
+                "disabled": "Desgaituta",
+                "enabled-expanded": "Gaituta (zabalik hasten da)",
+                "enabled-collapsed": "Gaituta (tolestuta hasten da)",
             },
             blankVotePolicy: {
                 "label": "Boto Zuri Politika",
@@ -1710,6 +1733,7 @@ const basqueTranslation: TranslationType = {
                     eliminated: "Baztertua",
                     round: "Txanda",
                 },
+                total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",
@@ -2008,6 +2032,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ACTIVITY_LOGS: "Jarduera Egunkariak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
             },
             method: {
                 email: "Emaila",
@@ -2085,6 +2110,9 @@ const basqueTranslation: TranslationType = {
                     url: "URLa",
                 },
             },
+            languages: {
+                default: "Lehenetsitako hizkuntza",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2160,6 +2188,9 @@ const basqueTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Ziurtagiriak",
+            subtitle:
+                "Hauteskunde-ekitaldi honetarako fidagarriak diren ziurtagiri-agintariak (CA). Inportatutako CA-k hautesleen ziurtagiriak egiaztatzeko erabiltzen dira.",
             importButton: "Ziurtagiriak inportatu",
             type: {
                 root: "Erroa",
@@ -2188,11 +2219,22 @@ const basqueTranslation: TranslationType = {
                 importButton: "Inportatu",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} ziurtagiri inportatuta. {{skipped}} saltatu (dagoeneko badaude).",
+                importSuccess: "{{inserted}} ziurtagiri inportatuta.",
+                importSkipped: "{{count}} saltatu (dagoeneko badaude).",
+                importErrors: "Inportazio arazoak: {{errors}}",
                 importError: "Inportazioa huts egin du: {{error}}",
                 deleteSuccess: "Ziurtagiria ezabatuta.",
                 deleteError: "Errorea ziurtagiria ezabatzean.",
+                exportSuccess: "Ziurtagiri(ak) arrakastaz esportatu da(dira).",
+                exportError: "Errorea ziurtagiriak esportatzean.",
+            },
+            exportDialog: {
+                title: "Ziurtagiri-agintaritzak esportatu",
+                description: "{{amount}} ziurtagiri esportatuko duzu.",
+                all: "guztiak",
+            },
+            deleteDialog: {
+                description: "Ziur zaude {{count}} ziurtagiri(ak) ezabatu nahi dituzula?",
             },
             emptyHeader:
                 "Ez da ziurtagiri-agintaritzarik inportatu hauteskunde-ekitaldi honetarako.",

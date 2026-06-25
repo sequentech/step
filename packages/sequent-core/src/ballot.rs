@@ -313,7 +313,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
     // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::gen()
+    let secret_key = StrandSignatureSk::generate()
         .map_err(|err| format!("Error generating secret key: {err}"))?;
     let public_key = StrandSignaturePk::from_sk(&secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
@@ -948,6 +948,7 @@ pub struct ElectionEventMaterials {
 pub struct ElectionEventLanguageConf {
     pub enabled_language_codes: Option<Vec<String>>,
     pub default_language_code: Option<String>,
+    pub language_detection_policy: Option<LanguageDetectionPolicy>,
 }
 
 #[derive(
@@ -983,7 +984,7 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
-    pub voter_digital_cert_policy: Option<VoterDigitalCertPolicy>,
+    pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
@@ -1290,6 +1291,8 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
+    /// The policy to determine if the voter can decline to vote for an election level.
+    pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
 }
 
 impl core::Election {
@@ -1328,6 +1331,7 @@ impl Default for ElectionPresentation {
             consolidated_report_policy: Some(
                 ConsolidatedReportPolicy::default(),
             ),
+            decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
         }
     }
 }
@@ -1420,6 +1424,7 @@ pub struct ContestPresentation {
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: Option<bool>,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
+    pub collapsible_lists: Option<String>, /* disabled|enabled-expanded|enabled-collapsed */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
@@ -1444,6 +1449,7 @@ impl ContestPresentation {
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -1747,7 +1753,7 @@ pub enum VoterSigningPolicy {
     EnumString,
     JsonSchema,
 )]
-pub enum VoterDigitalCertPolicy {
+pub enum VoterCertificatePolicy {
     #[default]
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
@@ -2592,4 +2598,61 @@ pub enum TieBreakingPolicy {
     #[strum(serialize = "external-procedure")]
     #[serde(rename = "external-procedure")]
     EXTERNAL_PROCEDURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+/// Language detection policy.
+/// Used to determine which language to use initially across all surfaces
+pub enum LanguageDetectionPolicy {
+    #[default]
+    #[strum(serialize = "browser-detect")]
+    #[serde(rename = "browser-detect")]
+    /// detect user's language through their browser.
+    BROWSER_DETECT,
+    /// skip browser detection, use default_language_code
+    #[strum(serialize = "force-default")]
+    #[serde(rename = "force-default")]
+    FORCE_DEFAULT,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if the user can decline to vote.
+pub enum DeclineToVotePolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// The user cannot decline to vote.
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    /// The user can decline to vote at the election level (for all contests).
+    ENABLED,
 }

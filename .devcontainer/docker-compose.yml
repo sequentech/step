@@ -47,7 +47,6 @@ services:
       ENV_SLUG: ${ENV_SLUG}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
-      KC_MTLS_LOGIN_URL: ${KC_MTLS_LOGIN_URL:-}
       # Trust X-Forwarded-* headers set by the local nginx mTLS proxy
       # (.devcontainer/keycloak-nginx/keycloak-mtls.conf).
       KC_PROXY_HEADERS: xforwarded
@@ -81,10 +80,8 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
-      minio:
-        condition: service_healthy
-      configure-minio:
-        condition: service_completed_successfully
+      harvest:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s

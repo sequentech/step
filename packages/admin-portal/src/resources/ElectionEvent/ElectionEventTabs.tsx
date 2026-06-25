@@ -22,7 +22,7 @@ import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
 import {
     EElectionEventLockedDown,
-    EVoterDigitalCertPolicy,
+    EVoterCertificatePolicy,
     i18n,
     translateFromPresentation,
 } from "@sequentech/ui-core"
@@ -304,7 +304,7 @@ export const ElectionEventTabs: React.FC = () => {
         )
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
-        record?.presentation?.voter_digital_cert_policy === EVoterDigitalCertPolicy.ENABLED
+        record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references

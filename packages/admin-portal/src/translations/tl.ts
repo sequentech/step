@@ -88,6 +88,7 @@ const tagalogTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "I-export ang mga awtoridad sa sertipikasyon",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -340,7 +341,7 @@ const tagalogTranslation: TranslationType = {
                     "no-signature": "Walang pirma",
                     "with-signature": "May pirma",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Naka-enable",
                     disabled: "Naka-disable",
@@ -378,6 +379,13 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         enabled: "Pinagana",
                         disabled: "Hindi pinagana",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Patakaran sa Pag-detect ng Wika",
+                    options: {
+                        "browser-detect": "Awtomatikong tuklasin mula sa browser",
+                        "force-default": "Ipatupad ang default",
                     },
                 },
             },
@@ -548,6 +556,7 @@ const tagalogTranslation: TranslationType = {
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
                 tally: "Bilang",
+                certificates: "Mga Sertipiko",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -651,6 +660,13 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "generate": "Bumuo",
                     "do-not-generate": "Huwag bumuo",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Patakaran sa pagtangging bumoto",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
                 },
             },
         },
@@ -1070,6 +1086,7 @@ const tagalogTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
                 OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 AUDIT_LOGS: "Mga Talaan ng Awdit",
@@ -1375,6 +1392,12 @@ const tagalogTranslation: TranslationType = {
                 "allow-selecting-lists": "Mga Listahan Lamang",
                 "disabled": "Hindi Aktibo",
             },
+            collapsibleListsPolicy: {
+                "label": "Natatiklop na mga listahan",
+                "disabled": "Hindi pinagana",
+                "enabled-expanded": "Pinagana (nagsisimulang nakalawak)",
+                "enabled-collapsed": "Pinagana (nagsisimulang nakatiklop)",
+            },
             blankVotePolicy: {
                 "label": "Patakaran sa walang boto",
                 "allowed": "Pinapayagan",
@@ -1453,7 +1476,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 filterTrustees: "I-filter ang mga trustee",
                 errorPermisionLabels:
-                    "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
+                    "Hindi maipagawa ang Key Ceremony: may nawawala sa isa o higit pang permission label.",
                 automaticCeremonyToggle: "Awtomatikong Seremonya",
             },
             ceremonyStep: {
@@ -1716,6 +1739,7 @@ const tagalogTranslation: TranslationType = {
                     eliminated: "Naalis",
                     round: "Ikot",
                 },
+                total_declined_to_vote: "Kabuuang Tumangging Bumoto",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",
@@ -1803,7 +1827,7 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Paglalathala",
             },
             forbidden: {
-                header: "Hindi mai-publish hanggang sa makumpleto ang Keys Ceremony.",
+                header: "Hindi mai-publish hanggang sa makumpleto ang Key Ceremony.",
             },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
@@ -2020,6 +2044,7 @@ const tagalogTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
             },
             method: {
                 email: "Email",
@@ -2098,6 +2123,9 @@ const tagalogTranslation: TranslationType = {
                     url: "URL",
                 },
             },
+            languages: {
+                default: "Default na Wika",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2173,6 +2201,9 @@ const tagalogTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Mga Sertipiko",
+            subtitle:
+                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng eleksyon. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
             importButton: "Mag-import ng mga sertipiko",
             type: {
                 root: "Ugat",
@@ -2201,11 +2232,22 @@ const tagalogTranslation: TranslationType = {
                 importButton: "I-import",
             },
             notify: {
-                importSuccess:
-                    "Na-import ang {{inserted}} sertipiko. {{skipped}} nilaktawan (mayroon na).",
+                importSuccess: "Na-import ang {{inserted}} sertipiko.",
+                importSkipped: "{{count}} nilaktawan (mayroon na).",
+                importErrors: "Mga isyu sa pag-import: {{errors}}",
                 importError: "Nabigo ang pag-import: {{error}}",
                 deleteSuccess: "Nabura ang sertipiko.",
                 deleteError: "Error sa pagbura ng sertipiko.",
+                exportSuccess: "Matagumpay na na-export ang sertipiko(s).",
+                exportError: "Error sa pag-export ng mga sertipiko.",
+            },
+            exportDialog: {
+                title: "I-export ang mga awtoridad sa sertipikasyon",
+                description: "Ie-export mo ang {{amount}} sertipiko.",
+                all: "lahat",
+            },
+            deleteDialog: {
+                description: "Sigurado ka bang gusto mong burahin ang {{count}} sertipiko?",
             },
             emptyHeader:
                 "Walang mga awtoridad sa sertipikasyon na na-import para sa electoral event na ito.",

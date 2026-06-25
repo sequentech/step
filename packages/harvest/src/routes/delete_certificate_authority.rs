@@ -6,25 +6,25 @@ use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::VoterDigitalCertPolicy;
+use sequent_core::ballot::VoterCertificatePolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::postgres::certificate_authority::delete_certificate_authority;
 use windmill::postgres::election_event::get_election_event_by_id;
+use windmill::services::certificate_authority::delete_certificate_authority as delete_certs;
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityInput {
-    id: uuid::Uuid,
+    ids: Vec<uuid::Uuid>,
     election_event_id: uuid::Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityOutput {
-    deleted: bool,
+    deleted_count: i32,
 }
 
 #[instrument(skip(claims, input))]
@@ -66,33 +66,32 @@ pub async fn delete_certificate_authority_route(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let voter_digital_cert_policy = election_event
+    let voter_certificate_policy = election_event
         .get_presentation()
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
         .unwrap_or_default()
-        .voter_digital_cert_policy
+        .voter_certificate_policy
         .unwrap_or_default();
 
-    if voter_digital_cert_policy != VoterDigitalCertPolicy::ENABLED {
+    if voter_certificate_policy != VoterCertificatePolicy::ENABLED {
         return Err((
             Status::Forbidden,
-            "Digital certificate authentication is not allowed for this election event".to_string(),
+            "Digital certificate authentication is not enabled for this election event".to_string(),
         ));
     }
 
-    let deleted = delete_certificate_authority(
-        &hasura_transaction,
-        body.id,
+    let deleted_count = delete_certs(
+        hasura_transaction,
+        &body.ids,
         body.election_event_id,
         tenant_uuid,
+        election_event.bulletin_board_reference,
+        &tenant_id_str,
+        &claims.hasura_claims.user_id,
+        claims.preferred_username,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-
-    Ok(Json(DeleteCertificateAuthorityOutput { deleted }))
+    Ok(Json(DeleteCertificateAuthorityOutput { deleted_count }))
 }

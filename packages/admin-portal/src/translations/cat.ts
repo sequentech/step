@@ -54,6 +54,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -341,7 +342,7 @@ const catalanTranslation: TranslationType = {
                     "no-signature": "Sense signatura",
                     "with-signature": "Amb signatura",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Habilitat",
                     disabled: "Deshabilitat",
@@ -379,6 +380,13 @@ const catalanTranslation: TranslationType = {
                     options: {
                         enabled: "Activada",
                         disabled: "Desactivada",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detecció de llengua",
+                    options: {
+                        "browser-detect": "Detectar del navegador",
+                        "force-default": "Forçar per defecte",
                     },
                 },
             },
@@ -549,6 +557,7 @@ const catalanTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicacions",
                 tally: "Recompte",
+                certificates: "Certificats",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -652,6 +661,13 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "generate": "Generar",
                     "do-not-generate": "No generar",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Política de declinació de vot",
+                options: {
+                    enabled: "Habilitat",
+                    disabled: "Desactivat",
                 },
             },
         },
@@ -1080,6 +1096,7 @@ const catalanTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
+                PARTICIPATION_REPORT: "Informe de Participació",
                 STATISTICAL_REPORT: "Informe Estadístic",
                 OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -1382,6 +1399,12 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            collapsibleListsPolicy: {
+                "label": "Llistes plegables",
+                "disabled": "Desactivat",
+                "enabled-expanded": "Activat (comença expandit)",
+                "enabled-collapsed": "Activat (comença contret)",
             },
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
@@ -1722,6 +1745,7 @@ const catalanTranslation: TranslationType = {
                     eliminated: "Eliminat",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de vots de renúncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
@@ -2024,6 +2048,7 @@ const catalanTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Rebut de Vot",
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 MANUAL_VERIFICATION: "Verificació Manual",
+                PARTICIPATION_REPORT: "Informe de Participació",
             },
             method: {
                 email: "Email",
@@ -2102,6 +2127,9 @@ const catalanTranslation: TranslationType = {
                     url: "URL",
                 },
             },
+            languages: {
+                default: "Llengua per defecte",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2177,6 +2205,9 @@ const catalanTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificats",
+            subtitle:
+                "Autoritats de certificació (CA) de confiança per a aquest esdeveniment electoral. Les CA importades s'utilitzen per validar els certificats dels votants.",
             importButton: "Importar certificats",
             type: {
                 root: "Arrel",
@@ -2205,11 +2236,22 @@ const catalanTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "S'han importat {{inserted}} certificat(s). {{skipped}} omès(os) (ja presents).",
+                importSuccess: "S'han importat {{inserted}} certificat(s).",
+                importSkipped: "{{count}} omès(os) (ja presents).",
+                importErrors: "Problemes en la importació: {{errors}}",
                 importError: "Error en la importació: {{error}}",
                 deleteSuccess: "Certificat eliminat.",
                 deleteError: "Error en eliminar el certificat.",
+                exportSuccess: "Certificat(s) exportat(s) correctament.",
+                exportError: "Error en exportar els certificats.",
+            },
+            exportDialog: {
+                title: "Exportar autoritats de certificació",
+                description: "Esteu a punt d'exportar {{amount}} certificat(s).",
+                all: "tots",
+            },
+            deleteDialog: {
+                description: "Esteu segur que voleu suprimir {{count}} certificat(s)?",
             },
             emptyHeader:
                 "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",

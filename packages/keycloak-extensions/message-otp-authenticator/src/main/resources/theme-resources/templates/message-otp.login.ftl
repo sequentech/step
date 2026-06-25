@@ -8,9 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <@layout.registrationLayout displayInfo=true; section>
     <#if section = "header">
             <#if isOtl>
-                ${msg("messageOtp.otl.title")}
+                ${msg("messageOtp.otl.address", address)}
             <#else>
-                ${msg("messageOtp.auth.title")}
+                ${msg("messageOtp.auth.address", address)}
             </#if>
 	<#elseif section = "form">
 		<form
@@ -67,11 +67,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
             <script>
                 <#if isOtl>
-                    let resendTimerI18n = "${msg("messageOtp.otl.resend.timer")}";
-                    let resendButtonI18n = "${msg("messageOtp.otl.resend.button")}";
+                    let resendTimerI18n = "${msg("messageOtp.otl.resend.timer")?no_esc}";
+                    let resendButtonI18n = "${msg("messageOtp.otl.resend.button")?no_esc}";
                 <#else>
-                    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")}";
-                    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")}";
+                    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")?no_esc}";
+                    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")?no_esc}";
                 </#if>
                 let resendTimerTimeout = ${(resendTimer)!60};
                 let codeJustSent = "${((codeJustSent!false)?string('true', 'false'))}";

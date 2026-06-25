@@ -409,6 +409,7 @@ pub fn get_contest_plurality(
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -442,6 +443,7 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: contest.id.clone(),
         is_explicit_invalid: true,
+        is_decline_to_vote: false,
         invalid_alerts: vec![InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Explicit,
             candidate_id: None,

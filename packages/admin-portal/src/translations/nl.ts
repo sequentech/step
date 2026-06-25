@@ -86,6 +86,7 @@ const dutchTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -339,7 +340,7 @@ const dutchTranslation: TranslationType = {
                     "no-signature": "Geen handtekening",
                     "with-signature": "Met handtekening",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Ingeschakeld",
                     disabled: "Uitgeschakeld",
@@ -377,6 +378,13 @@ const dutchTranslation: TranslationType = {
                     options: {
                         enabled: "Ingeschakeld",
                         disabled: "Uitgeschakeld",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Taaldetectiebeleid",
+                    options: {
+                        "browser-detect": "Detecteren via browser",
+                        "force-default": "Standaard afdwingen",
                     },
                 },
             },
@@ -545,6 +553,7 @@ const dutchTranslation: TranslationType = {
                 reports: "Rapporten",
                 applications: "Applicaties",
                 tally: "Telling",
+                certificates: "Certificaten",
             },
             taskNotification:
                 "{{action}} is gestart. U kunt de status ervan zien in de tabel Taakuitvoering.",
@@ -648,6 +657,13 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "generate": "Genereren",
                     "do-not-generate": "Niet genereren",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Beleid voor afzien van stemmen",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
                 },
             },
         },
@@ -1065,6 +1081,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -1370,6 +1387,12 @@ const dutchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Alleen Kandidaten",
                 "allow-selecting-lists": "Alleen Lijsten",
                 "disabled": "Uitgeschakeld",
+            },
+            collapsibleListsPolicy: {
+                "label": "Inklapbare lijsten",
+                "disabled": "Uitgeschakeld",
+                "enabled-expanded": "Ingeschakeld (start uitgevouwen)",
+                "enabled-collapsed": "Ingeschakeld (start ingeklapt)",
             },
             blankVotePolicy: {
                 "label": "Beleid Blanco Stem",
@@ -1708,6 +1731,7 @@ const dutchTranslation: TranslationType = {
                     eliminated: "Geëlimineerd",
                     round: "Ronde",
                 },
+                total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",
@@ -2011,6 +2035,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
             },
             method: {
                 email: "E-mail",
@@ -2088,6 +2113,9 @@ const dutchTranslation: TranslationType = {
                     url: "URL",
                 },
             },
+            languages: {
+                default: "Standaardtaal",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2163,6 +2191,9 @@ const dutchTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificaten",
+            subtitle:
+                "Vertrouwde certificeringsinstanties (CA's) voor dit verkiezingsevenement. Geïmporteerde CA's worden gebruikt om kiezercertificaten te valideren.",
             importButton: "Certificaten importeren",
             type: {
                 root: "Wortel",
@@ -2191,11 +2222,22 @@ const dutchTranslation: TranslationType = {
                 importButton: "Importeren",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} certificaat(-en) geïmporteerd. {{skipped}} overgeslagen (al aanwezig).",
+                importSuccess: "{{inserted}} certificaat(-en) geïmporteerd.",
+                importSkipped: "{{count}} overgeslagen (al aanwezig).",
+                importErrors: "Importproblemen: {{errors}}",
                 importError: "Importeren mislukt: {{error}}",
                 deleteSuccess: "Certificaat verwijderd.",
                 deleteError: "Fout bij verwijderen van certificaat.",
+                exportSuccess: "Certificaat(-en) succesvol geëxporteerd.",
+                exportError: "Fout bij exporteren van certificaten.",
+            },
+            exportDialog: {
+                title: "Certificaatautoriteiten exporteren",
+                description: "U staat op het punt {{amount}} certificaat(-en) te exporteren.",
+                all: "alle",
+            },
+            deleteDialog: {
+                description: "Weet u zeker dat u {{count}} certificaat(-en) wilt verwijderen?",
             },
             emptyHeader:
                 "Er zijn geen certificaatautoriteiten geïmporteerd voor dit verkiezingsevenement.",

@@ -6,14 +6,15 @@ pub mod date;
 pub mod date_time;
 pub mod external_config;
 pub mod integrity_check;
+pub mod locale;
 pub mod mime;
 pub mod normalize_vote;
 pub mod version;
 
-#[cfg(feature = "reports")]
+#[cfg(any(feature = "reports", feature = "s3"))]
 pub mod temp_path;
 
-#[cfg(feature = "reports")]
+#[cfg(any(feature = "reports", feature = "s3"))]
 pub mod aws;
 
 #[cfg(feature = "log")]

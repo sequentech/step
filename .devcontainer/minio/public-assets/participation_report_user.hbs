@@ -1,0 +1,52 @@
+{{!--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+ SPDX-License-Identifier: AGPL-3.0-only
+--}}
+<main class="report">
+  <header class="report-header">
+    <p class="eyebrow">Participation Report</p>
+    <h1>{{sanitize_html participation.election_event_name}}</h1>
+    {{#if participation.election_name}}
+      <h2>{{sanitize_html participation.election_name}}</h2>
+    {{/if}}
+  </header>
+
+  <section class="summary">
+    <table>
+      <tbody>
+        <tr>
+          <th>Total voters</th>
+          <td>{{format_u64 participation.total_voters}}</td>
+        </tr>
+        <tr>
+          <th>Voted voters</th>
+          <td>{{format_u64 participation.voted_voters}}</td>
+        </tr>
+        <tr>
+          <th>Participation</th>
+          <td>{{format_percentage participation.participation_percentage}}%</td>
+        </tr>
+        <tr>
+          <th>Votes</th>
+          <td>{{format_u64 participation.votes_count}}</td>
+        </tr>
+        <tr>
+          <th>Generated</th>
+          <td>{{datetime from_rfc3339=participation.generated_at output_format="%B %d, %Y %H:%M GMT %:z"}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="metadata">
+    <p>Tenant ID: <span>{{sanitize_html participation.tenant_id}}</span></p>
+    <p>Election event ID: <span>{{sanitize_html participation.election_event_id}}</span></p>
+    {{#if participation.election_id}}
+      <p>Election ID: <span>{{sanitize_html participation.election_id}}</span></p>
+    {{/if}}
+    <p>Report hash: <span>{{sanitize_html execution_annotations.report_hash}}</span></p>
+    <p>Software version: <span>{{sanitize_html execution_annotations.software_version}}</span></p>
+    <p>System hash: <span>{{sanitize_html execution_annotations.app_hash}}</span></p>
+  </section>
+</main>

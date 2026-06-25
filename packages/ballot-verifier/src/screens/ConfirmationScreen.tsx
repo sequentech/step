@@ -28,9 +28,11 @@ import {
     StyledButton,
     PlaintextVoteContest,
 } from "@sequentech/ui-essentials"
+import {sortContestList} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {EDeclineToVotePolicy, EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -249,7 +251,34 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
     const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
+    const contestsOrderType =
+        confirmationBallot?.election_config.election_presentation?.contests_order
+    const sortedPlaintextVoteQuestions = useMemo(() => {
+        if (!plaintextVoteQuestions.length) {
+            return []
+        }
+
+        const sortedContests = sortContestList(
+            confirmationBallot?.election_config.contests || [],
+            contestsOrderType
+        )
+        const contestIndexMap = new Map(
+            sortedContests.map((contest, index) => [contest.id, index] as const)
+        )
+
+        return [...plaintextVoteQuestions].sort((a, b) => {
+            const firstIndex = contestIndexMap.get(a.contest_id) ?? Number.MAX_SAFE_INTEGER
+            const secondIndex = contestIndexMap.get(b.contest_id) ?? Number.MAX_SAFE_INTEGER
+            return firstIndex - secondIndex
+        })
+    }, [confirmationBallot?.election_config.contests, contestsOrderType, plaintextVoteQuestions])
     const {globalSettings} = useContext(SettingsContext)
+
+    const isDeclineToVotePolicyEnabled =
+        confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
+            EDeclineToVotePolicy.ENABLED &&
+        confirmationBallot?.election_config?.election_event_presentation
+            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
     return (
         <>
@@ -304,7 +333,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                 </>
             ) : (
                 <>
-                    {plaintextVoteQuestions.map((voteQuestion) => (
+                    {sortedPlaintextVoteQuestions.map((voteQuestion) => (
                         <PlaintextVoteContest
                             questionPlaintext={voteQuestion}
                             question={questionsMap[voteQuestion.contest_id] ?? null}
@@ -315,6 +344,8 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                             })}
                             markedInvalidLabel={t("confirmationScreen.markedInvalid")}
                             pointsLabel={(points) => t("confirmationScreen.points", {points})}
+                            isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
+                            declineToVoteLabel={t("confirmationScreen.declineToVote")}
                         />
                     ))}
                 </>

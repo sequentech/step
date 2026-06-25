@@ -11,7 +11,7 @@ from collections import defaultdict
 HEADER_TO_PACKAGE = {
     'ECIESEncryption': 'ECIESEncryption',
     'Admin Portal': 'admin-portal',
-    'B3': 'b3',
+    'B4': 'b4',
     'Ballot Verifier': 'ballot-verifier',
     'Braid': 'braid',
     'E2e': 'e2e',

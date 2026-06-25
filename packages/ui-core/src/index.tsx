@@ -9,6 +9,10 @@ export {
     getLanguages,
     initializeLanguages,
     overwriteTranslations,
+    applyLanguagePolicy,
+    applyConfigurationLanguagePolicy,
+    USER_LANGUAGE_COOKIE_NAME,
+    toBCP47,
 } from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
@@ -33,3 +37,6 @@ export * from "./services/wasm"
 export * from "./services/sanitizeFilename"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"
+export * from "./services/categoryService"
+export * from "./utils/cookies"
+export * from "./constants/keycloak"

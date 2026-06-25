@@ -6,19 +6,15 @@ use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::VoterDigitalCertPolicy;
+use sequent_core::ballot::VoterCertificatePolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tokio::task;
-use tracing::{info, instrument, warn};
+use tracing::instrument;
 use uuid::Uuid;
-use windmill::postgres::certificate_authority::{
-    insert_certificate_authority, CertificateAuthorityRecord,
-};
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::certificate_authority::{
-    parse_certificate_pem, split_pem_bundle,
+    import_certificate_authority as import_certs, split_pem_bundle,
 };
 use windmill::services::database::get_hasura_pool;
 
@@ -82,83 +78,36 @@ pub async fn import_certificate_authority(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let voter_digital_cert_policy = election_event
+    let voter_certificate_policy = election_event
         .get_presentation()
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
         .unwrap_or_default()
-        .voter_digital_cert_policy
+        .voter_certificate_policy
         .unwrap_or_default();
 
-    if voter_digital_cert_policy != VoterDigitalCertPolicy::ENABLED {
+    if voter_certificate_policy != VoterCertificatePolicy::ENABLED {
         return Err((
             Status::Forbidden,
-            "Digital certificate authentication is not allowed for this election event".to_string(),
+            "Digital certificate authentication is not enabled for this election event".to_string(),
         ));
     }
 
-    let mut inserted_count: i32 = 0;
-    let mut skipped_count: i32 = 0;
-    let mut errors: Vec<String> = Vec::new();
-
-    for (i, pem_chunk) in pem_chunks.iter().enumerate() {
-        let pem_chunk_owned = pem_chunk.clone();
-        let parse_result = task::spawn_blocking(move || {
-            parse_certificate_pem(&pem_chunk_owned)
-        })
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-
-        match parse_result {
-            Ok(parsed) => {
-                let record = CertificateAuthorityRecord {
-                    id: Uuid::new_v4(),
-                    tenant_id: tenant_uuid,
-                    election_event_id: body.election_event_id,
-                    common_name: parsed.common_name,
-                    subject: parsed.subject,
-                    issuer_common_name: parsed.issuer_common_name,
-                    issuer: parsed.issuer,
-                    not_before: parsed.not_before,
-                    not_after: parsed.not_after,
-                    fingerprint_sha256: parsed.fingerprint_sha256,
-                    serial_number: parsed.serial_number,
-                    pem: parsed.pem,
-                };
-                match insert_certificate_authority(&hasura_transaction, record)
-                    .await
-                {
-                    Ok(true) => {
-                        info!(cert_index = i + 1, "Certificate inserted");
-                        inserted_count += 1;
-                    }
-                    Ok(false) => {
-                        info!(
-                            cert_index = i + 1,
-                            "Certificate skipped (duplicate)"
-                        );
-                        skipped_count += 1;
-                    }
-                    Err(e) => {
-                        warn!(cert_index = i + 1, error = %e, "Failed to insert certificate");
-                        errors.push(format!("Certificate {}: {}", i + 1, e));
-                    }
-                }
-            }
-            Err(e) => {
-                warn!(cert_index = i + 1, error = %e, "Failed to parse certificate");
-                errors.push(format!("Certificate {}: {}", i + 1, e));
-            }
-        }
-    }
-
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let result = import_certs(
+        hasura_transaction,
+        pem_chunks,
+        tenant_uuid,
+        body.election_event_id,
+        election_event.bulletin_board_reference,
+        &tenant_id_str,
+        &claims.hasura_claims.user_id,
+        claims.preferred_username,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(ImportCertificateAuthorityOutput {
-        inserted_count,
-        skipped_count,
-        errors,
+        inserted_count: result.inserted_count,
+        skipped_count: result.skipped_count,
+        errors: result.errors,
     }))
 }
