@@ -13,6 +13,7 @@ import "./index.css"
 import {SettingsWrapper} from "@/providers/SettingsContextProvider"
 import {CustomCssContextProvider} from "@/providers/CustomCssContextProvider"
 import {ResultsManifestContextProvider} from "@/providers/ResultsManifestContextProvider"
+import {ResultsAuthContextProvider} from "@/providers/ResultsAuthContextProvider"
 import {App} from "@/App"
 import {ResultsRoute} from "@/routes/ResultsRoute"
 import {StateMessage} from "@/components/StateMessage"
@@ -69,9 +70,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <SettingsWrapper>
             <CustomCssContextProvider>
                 <ResultsManifestContextProvider>
-                    <ThemeProvider theme={theme}>
-                        <RouterProvider router={router} />
-                    </ThemeProvider>
+                    <ResultsAuthContextProvider>
+                        <ThemeProvider theme={theme}>
+                            <RouterProvider router={router} />
+                        </ThemeProvider>
+                    </ResultsAuthContextProvider>
                 </ResultsManifestContextProvider>
             </CustomCssContextProvider>
         </SettingsWrapper>

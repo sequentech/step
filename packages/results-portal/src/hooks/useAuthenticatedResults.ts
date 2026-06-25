@@ -3,12 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useEffect, useMemo, useState} from "react"
-import Keycloak from "keycloak-js"
+import Keycloak, {KeycloakProfile} from "keycloak-js"
 import {GlobalSettings} from "@/providers/SettingsContextProvider"
+import {ResultsUserProfile} from "@/providers/ResultsAuthContextProvider"
 
 interface AuthState {
     loading: boolean
     token?: string
+    userProfile?: ResultsUserProfile
+    logout?: () => void
     error?: string
 }
 
@@ -40,6 +43,70 @@ const getAuthSession = (
     return session
 }
 
+const tokenClaim = (keycloak: Keycloak, name: string): string | undefined => {
+    const value = (keycloak.tokenParsed as Record<string, unknown> | undefined)?.[name]
+    return typeof value === "string" && value ? value : undefined
+}
+
+const openAccountManagement = (keycloak: Keycloak) => {
+    void keycloak.accountManagement()
+}
+
+const userProfileFromClaims = (keycloak: Keycloak): ResultsUserProfile => ({
+    firstName: tokenClaim(keycloak, "given_name") ?? tokenClaim(keycloak, "name"),
+    username:
+        tokenClaim(keycloak, "preferred_username") ??
+        tokenClaim(keycloak, "email") ??
+        tokenClaim(keycloak, "sub") ??
+        "user",
+    email: tokenClaim(keycloak, "email"),
+    openLink: () => openAccountManagement(keycloak),
+})
+
+const userProfileFromKeycloak = (
+    profile: KeycloakProfile,
+    keycloak: Keycloak
+): ResultsUserProfile => {
+    const fallbackProfile = userProfileFromClaims(keycloak)
+
+    return {
+        firstName: profile.firstName ?? fallbackProfile.firstName,
+        username: profile.username ?? profile.email ?? fallbackProfile.username,
+        email: profile.email ?? fallbackProfile.email,
+        openLink: fallbackProfile.openLink,
+    }
+}
+
+const loadUserProfile = async (keycloak: Keycloak): Promise<ResultsUserProfile> => {
+    try {
+        return userProfileFromKeycloak(await keycloak.loadUserProfile(), keycloak)
+    } catch {
+        return userProfileFromClaims(keycloak)
+    }
+}
+
+const logoutSession = (keycloak: Keycloak) => {
+    void keycloak.logout({
+        redirectUri: window.location.href.split("#")[0],
+    })
+}
+
+const authStateFromSession = async (session: AuthSession): Promise<AuthState> => {
+    const token = session.keycloak.token
+    if (!token) {
+        return {
+            loading: false,
+        }
+    }
+
+    return {
+        loading: false,
+        token,
+        userProfile: await loadUserProfile(session.keycloak),
+        logout: () => logoutSession(session.keycloak),
+    }
+}
+
 const authenticateSession = (session: AuthSession): Promise<AuthState> => {
     if (session.initPromise) {
         return session.initPromise
@@ -63,10 +130,7 @@ const authenticateSession = (session: AuthSession): Promise<AuthState> => {
 
             await session.keycloak.updateToken(30).catch(() => undefined)
 
-            return {
-                loading: false,
-                token: session.keycloak.token,
-            }
+            return authStateFromSession(session)
         } catch (error) {
             session.initPromise = undefined
             return {
@@ -80,11 +144,13 @@ const authenticateSession = (session: AuthSession): Promise<AuthState> => {
 }
 
 const sessionTokenState = (sessionKey?: string): AuthState => {
-    const token = sessionKey ? authSessions.get(sessionKey)?.keycloak.token : undefined
+    const session = sessionKey ? authSessions.get(sessionKey) : undefined
+    const token = session?.keycloak.token
 
     return {
         loading: false,
         token,
+        logout: session ? () => logoutSession(session.keycloak) : undefined,
     }
 }
 
