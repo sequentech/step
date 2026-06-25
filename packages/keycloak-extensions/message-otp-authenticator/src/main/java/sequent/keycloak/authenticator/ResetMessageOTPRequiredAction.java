@@ -131,8 +131,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     String resendTimer =
         Optional.ofNullable(cfgMap.get(Utils.RESEND_ACTIVATION_TIMER))
             .orElse(Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
-    String ttl =
-        Optional.ofNullable(cfgMap.get(Utils.CODE_TTL)).orElse(Utils.CODE_TTL_DEFAULT);
+    String ttl = Optional.ofNullable(cfgMap.get(Utils.CODE_TTL)).orElse(Utils.CODE_TTL_DEFAULT);
     boolean isOtl =
         Optional.ofNullable(cfgMap.get(Utils.ONE_TIME_LINK)).map("true"::equals).orElse(false);
 

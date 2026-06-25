@@ -159,9 +159,7 @@ public class MessageOTPAuthenticator
                 context.getRealm(), user, credentialProvider.getType())) {
               log.info("Creating MessageOTPCredential for user on successful authentication");
               credentialProvider.createCredential(
-                  context.getRealm(),
-                  user,
-                  MessageOTPCredentialModel.create(/* isSetup= */ true));
+                  context.getRealm(), user, MessageOTPCredentialModel.create(/* isSetup= */ true));
             }
           }
 
