@@ -357,11 +357,11 @@ def ensure_email_otp_config(base, token, realm, execution_id, config_alias):
     exe = http("GET",
         f"{base}/admin/realms/{realm}/authentication/executions/{execution_id}",
         token)
-    if exe.get("authenticatorConfig"):
+    cfg_id = exe.get("authenticatorConfig") or exe.get("authenticationConfig")
+    if cfg_id:
         http("PUT",
-            f"{base}/admin/realms/{realm}/authentication/config/{exe['authenticatorConfig']}",
-            token, {"id": exe["authenticatorConfig"],
-                    "alias": config_alias, "config": EMAIL_OTP_CONFIG})
+            f"{base}/admin/realms/{realm}/authentication/config/{cfg_id}",
+            token, {"id": cfg_id, "alias": config_alias, "config": EMAIL_OTP_CONFIG})
     else:
         print(f"    attaching '{config_alias}' config to message-otp execution")
         http("POST",
