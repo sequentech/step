@@ -11,6 +11,7 @@ import {useSettings} from "@/providers/SettingsContextProvider"
 import {useCustomCss} from "@/providers/CustomCssContextProvider"
 import {useResultsManifest} from "@/providers/ResultsManifestContextProvider"
 import {useAuthenticatedResults} from "@/hooks/useAuthenticatedResults"
+import {useResultsAuth} from "@/providers/ResultsAuthContextProvider"
 import {discoverPublication, PublicationDiscoveryResult} from "@/services/publicationDiscovery"
 import {resolveSqliteArtifactUrl} from "@/services/artifacts"
 import {loadSqliteDatabase, readResultsDataset} from "@/services/sqliteResults"
@@ -32,11 +33,13 @@ interface RouteState {
     dataset?: ResultsSqliteDataset
     error?: string
     requiresAuth: boolean
+    authenticatedAccess: boolean
 }
 
 const initialState: RouteState = {
     loading: true,
     requiresAuth: false,
+    authenticatedAccess: false,
 }
 
 const loadManifest = async (
@@ -78,6 +81,7 @@ export const ResultsRoute: React.FC = () => {
     const {globalSettings} = useSettings()
     const {setCustomCss} = useCustomCss()
     const {setManifestLanguageConfig, resetManifestLanguageConfig} = useResultsManifest()
+    const {setAuthenticatedSession, clearAuthenticatedSession} = useResultsAuth()
     const {t} = useTranslation()
     const [state, setState] = useState<RouteState>(initialState)
     const manifestPath = searchParams.get("manifestPath") ?? undefined
@@ -92,7 +96,7 @@ export const ResultsRoute: React.FC = () => {
         globalSettings,
         authTenantId,
         authEventId,
-        state.requiresAuth
+        state.requiresAuth || state.authenticatedAccess
     )
 
     const authReady = !state.requiresAuth || !!auth.token || globalSettings.DISABLE_AUTH
@@ -105,6 +109,34 @@ export const ResultsRoute: React.FC = () => {
             ),
         [state.manifest, electionId]
     )
+
+    useEffect(() => {
+        clearAuthenticatedSession()
+
+        return () => clearAuthenticatedSession()
+    }, [clearAuthenticatedSession, eeId, electionId, manifestPath])
+
+    useEffect(() => {
+        if (auth.token && auth.userProfile && auth.logout) {
+            setAuthenticatedSession({
+                userProfile: auth.userProfile,
+                logout: auth.logout,
+            })
+            return
+        }
+
+        if (!state.requiresAuth && !state.authenticatedAccess) {
+            clearAuthenticatedSession()
+        }
+    }, [
+        auth.logout,
+        auth.token,
+        auth.userProfile,
+        clearAuthenticatedSession,
+        setAuthenticatedSession,
+        state.authenticatedAccess,
+        state.requiresAuth,
+    ])
 
     useEffect(() => {
         setCustomCss(customCss)
@@ -129,6 +161,7 @@ export const ResultsRoute: React.FC = () => {
             if (!eeId) {
                 setState({
                     loading: false,
+                    authenticatedAccess: false,
                     requiresAuth: false,
                     error: "No election event id was provided.",
                 })
@@ -159,6 +192,7 @@ export const ResultsRoute: React.FC = () => {
                     if (mounted) {
                         setState({
                             loading: false,
+                            authenticatedAccess: false,
                             requiresAuth: false,
                             discovery: null,
                         })
@@ -173,6 +207,7 @@ export const ResultsRoute: React.FC = () => {
                     if (mounted) {
                         setState({
                             loading: false,
+                            authenticatedAccess: true,
                             requiresAuth: true,
                             discovery,
                         })
@@ -194,6 +229,7 @@ export const ResultsRoute: React.FC = () => {
                 if (mounted) {
                     setState({
                         loading: false,
+                        authenticatedAccess: access === "authenticated",
                         requiresAuth: false,
                         discovery,
                         manifest,
@@ -204,6 +240,7 @@ export const ResultsRoute: React.FC = () => {
                 if (mounted) {
                     setState({
                         loading: false,
+                        authenticatedAccess: false,
                         requiresAuth: false,
                         error: error instanceof Error ? error.message : "unexpected_error",
                     })
@@ -216,7 +253,16 @@ export const ResultsRoute: React.FC = () => {
         return () => {
             mounted = false
         }
-    }, [eeId, electionId, manifestPath, globalSettings, authReady, authToken, state.requiresAuth])
+    }, [
+        eeId,
+        electionId,
+        manifestPath,
+        globalSettings,
+        authReady,
+        authToken,
+        state.authenticatedAccess,
+        state.requiresAuth,
+    ])
 
     const content = useMemo(() => {
         if (state.loading || auth.loading) {
