@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Enable Passkey + Email OTP on a realm | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2585/docs/developers/keycloak/passkey-email-otp-script"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Enable Passkey + Email OTP on a realm | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2585/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2585/docs/developers/keycloak/passkey-email-otp-script"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2585/docs/developers/keycloak/passkey-email-otp-script" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2585/docs/developers/keycloak/passkey-email-otp-script" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Enable Passkey + Email OTP on a realm","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2585/docs/developers/keycloak/passkey-email-otp-script"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2585/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2585/assets/js/runtime~main.3c37a6e3.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2585/assets/js/runtime~main.9342bd2b.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2585/assets/js/main.6adec3db.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -55,7 +55,8 @@ prompt.</li>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="revert---revert">Revert (<code>--revert</code>)<a href="#revert---revert" class="hash-link" aria-label="Direct link to revert---revert" title="Direct link to revert---revert" translate="no">​</a></h3>
 <p>Undoes every step above:</p>
 <ol>
-<li class="">Resets the WebAuthn Passwordless Policy back to Keycloak defaults
+<li class="">Restores the snapshot recorded by the first apply (SMTP &quot;From&quot;, WebAuthn Passwordless Policy, and parent-flow execution priorities) and clears the backup attribute.
+If no snapshot is present/unreadable, it falls back to resetting the WebAuthn Passwordless Policy back to Keycloak defaults
 (<code>&quot;not specified&quot;</code>) and removes the <code>Enable Passkeys</code> attribute.</li>
 <li class="">Detaches and deletes the two WebAuthn Passwordless sub-flows.</li>
 <li class="">Deletes the <code>Email OTP silver</code> / <code>Email OTP gold</code> authenticator configs.</li>
