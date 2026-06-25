@@ -117,18 +117,23 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 
   private Response createForm(
       RequiredActionContext context, Consumer<LoginFormsProvider> formConsumer) {
+    // Defaults are applied for any config key missing from the realm's
+    // authenticator config; otherwise the FreeMarker template crashes with
+    // InvalidReferenceException when an upstream config is incomplete.
     Optional<AuthenticatorConfigModel> config = Utils.getConfig(context.getRealm());
-    String codeLength = config.get().getConfig().get(Utils.CODE_LENGTH);
+    java.util.Map<String, String> cfgMap =
+        config.map(AuthenticatorConfigModel::getConfig).orElseGet(java.util.Collections::emptyMap);
+    String codeLength =
+        Optional.ofNullable(cfgMap.get(Utils.CODE_LENGTH)).orElse(Utils.CODE_LENGTH_DEFAULT);
     KeycloakSession session = context.getSession();
     UserModel user = context.getUser();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String resendTimer = config.get().getConfig().get(Utils.RESEND_ACTIVATION_TIMER);
+    String resendTimer =
+        Optional.ofNullable(cfgMap.get(Utils.RESEND_ACTIVATION_TIMER))
+            .orElse(Utils.RESEND_ACTIVATION_TIMER_DEFAULT);
+    String ttl = Optional.ofNullable(cfgMap.get(Utils.CODE_TTL)).orElse(Utils.CODE_TTL_DEFAULT);
     boolean isOtl =
-        Optional.ofNullable(config.get())
-            .map(c -> c.getConfig())
-            .map(c -> c.get(Utils.ONE_TIME_LINK))
-            .map(c -> c.equals("true"))
-            .orElse(false);
+        Optional.ofNullable(cfgMap.get(Utils.ONE_TIME_LINK)).map("true"::equals).orElse(false);
 
     try {
       Utils.sendCode(
@@ -149,11 +154,14 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
     }
 
     LoginFormsProvider form = context.form();
+    AuthenticatorConfigModel cfg = config.orElse(null);
     form.setAttribute("realm", context.getRealm())
         .setAttribute(
             "address",
-            Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, config.get(), authSession, user))
-        .setAttribute("ttl", config.get().getConfig().get(Utils.CODE_TTL))
+            cfg == null
+                ? ""
+                : Utils.getOtpAddress(Utils.MessageCourier.BOTH, false, cfg, authSession, user))
+        .setAttribute("ttl", ttl)
         .setAttribute("codeJustSent", true)
         .setAttribute("isOtl", isOtl)
         .setAttribute("codeLength", codeLength)

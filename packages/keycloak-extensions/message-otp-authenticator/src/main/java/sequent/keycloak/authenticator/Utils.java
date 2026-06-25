@@ -92,6 +92,14 @@ public class Utils {
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
   public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
 
+  // Default values for message-otp authenticator configuration. Referenced
+  // from both MessageOTPAuthenticatorFactory (admin UI default) and
+  // ResetMessageOTPRequiredAction (runtime fallback when the realm's saved
+  // config is missing the key).
+  public final String CODE_LENGTH_DEFAULT = "6";
+  public final String CODE_TTL_DEFAULT = "300";
+  public final String RESEND_ACTIVATION_TIMER_DEFAULT = "60";
+
   public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
   public final String SEND_LINK_EMAIL_FTL = "send-link-email.ftl";
