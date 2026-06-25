@@ -58,9 +58,9 @@ SPDX-License-Identifier: AGPL-3.0-only
         </#list>
     </#if>
     <script type="module">
-        import { checkCookiesAndSetTimer } from "${url.resourcesPath}/js/authChecker.js";
+        import { startSessionPolling } from "${url.resourcesPath}/js/authChecker.js";
 
-        checkCookiesAndSetTimer(
+        startSessionPolling(
           "${url.ssoLoginInOtherTabsUrl?no_esc}"
         );
     </script>
