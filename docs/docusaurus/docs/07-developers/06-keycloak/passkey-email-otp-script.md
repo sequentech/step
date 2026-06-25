@@ -52,7 +52,8 @@ script will:
 
 Undoes every step above:
 
-1. Resets the WebAuthn Passwordless Policy back to Keycloak defaults
+1. Restores the snapshot recorded by the first apply (SMTP "From", WebAuthn Passwordless Policy, and parent-flow execution priorities) and clears the backup attribute.
+   If no snapshot is present/unreadable, it falls back to resetting the WebAuthn Passwordless Policy back to Keycloak defaults
    (`"not specified"`) and removes the `Enable Passkeys` attribute.
 2. Detaches and deletes the two WebAuthn Passwordless sub-flows.
 3. Deletes the `Email OTP silver` / `Email OTP gold` authenticator configs.
