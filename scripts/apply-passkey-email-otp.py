@@ -556,7 +556,17 @@ USER_REQUIRED_ACTIONS = [
 
 def apply_required_action_to_users(base, token, realm):
     print("[4/4] Configuring existing human users")
-    users = http("GET", f"{base}/admin/realms/{realm}/users?max=1000", token)
+    users = []
+    first = 0
+    page_size = 1000
+    while True:
+        batch = http("GET", f"{base}/admin/realms/{realm}/users?first={first}&max={page_size}", token) or []
+        if not batch:
+            break
+        users.extend(batch)
+        if len(batch) < page_size:
+            break
+        first += len(batch)
     for u in users:
         if u.get("username", "").startswith("service-account-"):
             continue
