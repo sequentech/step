@@ -68,6 +68,18 @@ pub async fn create_new_tally_sheet(
         ));
     };
 
+    tally_sheet::lock_ballot_box_version_assignment(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+        &contest.election_id,
+        &input.area_id,
+        &input.contest_id,
+        &input.channel,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let version = tally_sheet::get_latest_ballot_box_version(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
@@ -99,7 +111,7 @@ pub async fn create_new_tally_sheet(
     hasura_transaction
         .commit()
         .await
-        .with_context(|| "error comitting transaction")
+        .with_context(|| "error committing transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(new_tally_sheet.clone()))
@@ -169,7 +181,7 @@ pub async fn review_tally_sheet(
     hasura_transaction
         .commit()
         .await
-        .with_context(|| "error comitting transaction")
+        .with_context(|| "error committing transaction")
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(tally_sheet.clone()))

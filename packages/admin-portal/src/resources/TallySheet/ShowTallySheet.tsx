@@ -149,19 +149,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     }, [contest])
 
     useEffect(() => {
-        if (candidates) {
-            const candidatesTemp: ICandidateResultsExtended[] = []
-            for (const candidate of candidates) {
-                const candidateTemp: ICandidateResultsExtended = {
-                    candidate_id: candidate.id,
-                    name: aliasRenderer(candidate.presentation),
-                }
-                candidatesTemp.push(candidateTemp)
-            }
-        }
-    }, [candidates, i18n.language])
-
-    useEffect(() => {
         if (areas) {
             const areatListTemp: IArea[] = areas?.sequent_backend_area_contest?.map(
                 (item: {area: IArea}) => {

@@ -198,7 +198,7 @@ export const ElectionTabs: React.FC = () => {
         } else {
             setHasPermissionToViewElection(true)
         }
-    }, [electionRecord])
+    }, [electionRecord, usersPermissionLabels])
 
     // Build tabs with stable references
     const tabs = useMemo(() => {

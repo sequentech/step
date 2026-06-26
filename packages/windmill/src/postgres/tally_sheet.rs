@@ -92,6 +92,30 @@ pub async fn get_approved_tally_sheets_by_event(
     Ok(tally_sheets)
 }
 
+/// Serializes concurrent version assignment for the same ballot box (tenant, election_event,
+/// election, area, contest, channel) by taking a transaction-scoped Postgres advisory lock.
+/// The lock is automatically released when the transaction commits or rolls back, so a second
+/// concurrent request for the same ballot box will block here until the first one finishes,
+/// instead of racing to read the same "latest version" and then colliding on the unique index.
+#[instrument(err, skip_all)]
+pub async fn lock_ballot_box_version_assignment(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    contest_id: &str,
+    channel: &VotingChannel,
+) -> Result<()> {
+    let lock_key = format!(
+        "{tenant_id}:{election_event_id}:{election_id}:{area_id}:{contest_id}:{channel}"
+    );
+    hasura_transaction
+        .query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&lock_key])
+        .await?;
+    Ok(())
+}
+
 /// Get the latest version of a ballot box, this is for the same area_id, contest_id and channel.
 /// Returns 0 if no ballot box exists yet for the given paramenters
 #[instrument(err, skip_all)]

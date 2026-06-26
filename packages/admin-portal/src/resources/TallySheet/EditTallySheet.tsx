@@ -103,12 +103,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: tallySheet?.area_id || "",
         contest_id: choosenContest?.id ?? tallySheet?.contest_id,
-        total_votes: tallySheet?.annotations?.total_votes || 0,
-        total_valid_votes: tallySheet?.annotations?.total_valid_votes || 0,
-        invalid_votes: tallySheet?.annotations?.invalid_votes || {},
-        total_blank_votes: tallySheet?.annotations?.total_blank_votes || 0,
-        census: tallySheet?.annotations?.census,
-        candidate_results: tallySheet?.annotations?.candidate_results || {},
+        total_votes: tallySheet?.content?.total_votes || 0,
+        total_valid_votes: tallySheet?.content?.total_valid_votes || 0,
+        invalid_votes: tallySheet?.content?.invalid_votes || {},
+        total_blank_votes: tallySheet?.content?.total_blank_votes || 0,
+        census: tallySheet?.content?.census,
+        candidate_results: tallySheet?.content?.candidate_results || {},
     })
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
@@ -409,7 +409,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     const handleContestChange = (
         event: React.SyntheticEvent,
-        value: IContest,
+        value: IContest | null,
         reason: AutocompleteChangeReason,
         details?: AutocompleteChangeDetails
     ) => {
@@ -418,7 +418,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             contest_id: value?.id as any,
         }))
 
-        setChoosenContest(contests?.find((contest) => contest.id === value.id))
+        setChoosenContest(contests?.find((contest) => contest.id === value?.id))
     }
 
     const handleTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {

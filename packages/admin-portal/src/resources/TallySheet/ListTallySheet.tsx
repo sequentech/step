@@ -77,7 +77,13 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
     const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
     const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
-    const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
+    const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TALLY_SHEET_REVIEW,
+            },
+        },
+    })
 
     const authContext = useContext(AuthContext)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
