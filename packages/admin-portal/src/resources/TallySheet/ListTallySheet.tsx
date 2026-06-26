@@ -97,6 +97,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 tenant_id: tenantId,
                 election_event_id: election.election_event_id,
                 election_id: election.id,
+                deleted_at: {
+                    format: "hasura-raw-query",
+                    value: {_is_null: true},
+                },
             },
             pagination: {
                 page: 1,
