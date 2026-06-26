@@ -12,10 +12,6 @@ directive @cached(
   refresh: Boolean! = false
 ) on QUERY
 
-type AddTallySheetOutput {
-  tally_sheet_id: String!
-}
-
 type Aggregate {
   count: Int!
 }
@@ -1055,8 +1051,6 @@ type mutation_root {
   ApplicationChangeStatus(body: ApplicationChangeStatusBody!): ApplicationChangeStatusOutput
   """Verify User Registration Application"""
   VerifyApplication(body: ApplicationVerifyBody!): String!
-  """add_tally_sheet_version"""
-  add_tally_sheet_version(election_event_id: String!, old_version: Int!, tally_sheet_id: String!): AddTallySheetOutput
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
