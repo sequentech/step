@@ -671,14 +671,6 @@ type Mutation {
 }
 
 type Mutation {
-    add_tally_sheet_version(
-        election_event_id: String!
-        tally_sheet_id: String!
-        old_version: Int!
-    ): AddTallySheetOutput
-}
-
-type Mutation {
     review_tally_sheet(
         election_event_id: String!
         tally_sheet_id: String!
@@ -1330,10 +1322,6 @@ type ManageElectionDatesOutput {
 type ExportLogsOutput {
     document_id: String!
     task_execution: tasks_execution_type
-}
-
-type AddTallySheetOutput {
-    tally_sheet_id: String!
 }
 
 type TallySheetOutput {

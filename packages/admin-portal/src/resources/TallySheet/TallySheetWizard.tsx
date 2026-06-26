@@ -6,7 +6,7 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, Notification, useGetOne, useNotify} from "react-admin"
+import {Identifier, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
@@ -14,14 +14,12 @@ import {
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
     CreateNewTallySheetMutation,
-    AddTallySheetVersionMutation,
 } from "@/gql/graphql"
-import {CancelButton, NextButton} from "./styles"
+import {NextButton} from "./styles"
 import {EditTallySheet} from "./EditTallySheet"
 import {ShowTallySheet} from "./ShowTallySheet"
 import {useMutation} from "@apollo/client"
 import {CREATE_NEW_TALLY_SHEET} from "@/queries/createNewTallySheet"
-import {ADD_TALLY_SHEET_VERSION} from "@/queries/addTallySheetVersion"
 import {IPermissions} from "@/types/keycloak"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 

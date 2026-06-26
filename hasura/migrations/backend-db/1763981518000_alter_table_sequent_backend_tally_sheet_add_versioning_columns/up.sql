@@ -14,6 +14,8 @@ UPDATE "sequent_backend"."tally_sheet" SET "status" = CASE WHEN "published_at" I
 
 alter table "sequent_backend"."tally_sheet" alter column "status" set not null;
 
+alter table "sequent_backend"."tally_sheet" alter column "status" set default 'PENDING';
+
 alter table "sequent_backend"."tally_sheet" add column "version" integer
  null;
 

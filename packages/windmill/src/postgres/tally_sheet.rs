@@ -172,10 +172,11 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
         WHERE
             tally_sheet.tenant_id = $1 AND
             tally_sheet.election_event_id = $2 AND
-            tally_sheet.area_id = $3 AND
-            tally_sheet.contest_id = $4 AND
-            tally_sheet.channel = $5 AND
-            tally_sheet.id != $6 AND
+            tally_sheet.election_id = $3 AND
+            tally_sheet.area_id = $4 AND
+            tally_sheet.contest_id = $5 AND
+            tally_sheet.channel = $6 AND
+            tally_sheet.id != $7 AND
             tally_sheet.deleted_at IS NULL
     "#,
         )
@@ -186,10 +187,12 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
     let election_event_uuid: uuid::Uuid =
         Uuid::parse_str(tally_sheet.election_event_id.as_str())
             .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.election_id.as_str())
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.area_id.as_str())
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
     let contest_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.contest_id.as_str())
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let channel_str = tally_sheet
         .channel
         .as_deref()
@@ -199,6 +202,7 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
     let params: Vec<&(dyn ToSql + Sync)> = vec![
         &tenant_uuid,
         &election_event_uuid,
+        &election_uuid,
         &area_uuid,
         &contest_uuid,
         &channel_str,

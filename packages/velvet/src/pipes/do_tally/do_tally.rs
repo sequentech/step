@@ -40,7 +40,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{event, info, instrument, Level, Value as TracingValue};
+use tracing::{debug, event, info, instrument, Level, Value as TracingValue};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -99,7 +99,7 @@ impl DoTally {
             let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
             fs::create_dir_all(&breakdown_folder_path)?;
             let breakdown_file_path = breakdown_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
-            info!("breakdown_file_path: {}", breakdown_file_path.display());
+            debug!("breakdown_file_path: {}", breakdown_file_path.display());
             let contest_result_file = fs::File::create(&breakdown_file_path)?;
             serde_json::to_writer(contest_result_file, &contest_result)?;
         }

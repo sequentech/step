@@ -25,11 +25,6 @@ export type Scalars = {
     uuid: {input: any; output: any}
 }
 
-export type AddTallySheetOutput = {
-    __typename?: "AddTallySheetOutput"
-    tally_sheet_id: Scalars["String"]["output"]
-}
-
 export type Aggregate = {
     __typename?: "Aggregate"
     count: Scalars["Int"]["output"]
@@ -1123,8 +1118,6 @@ export type Mutation_Root = {
     ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
-    /** add_tally_sheet_version */
-    add_tally_sheet_version?: Maybe<AddTallySheetOutput>
     call_plugin_route: PluginsRouteOutput
     /** check private key */
     check_private_key?: Maybe<CheckPrivateKeyOutput>
@@ -1866,13 +1859,6 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
     body: ApplicationVerifyBody
-}
-
-/** mutation root */
-export type Mutation_RootAdd_Tally_Sheet_VersionArgs = {
-    election_event_id: Scalars["String"]["input"]
-    old_version: Scalars["Int"]["input"]
-    tally_sheet_id: Scalars["String"]["input"]
 }
 
 /** mutation root */

@@ -1402,21 +1402,6 @@ actions:
           - role: admin-user
           - role: tally-sheet-create
       comment: create_new_tally_sheet
-    - name: add_tally_sheet_version
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/add-tally-sheet-version
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: admin-user
-          - role: tally-sheet-create
-      comment: add_tally_sheet_version
     - name: review_tally_sheet
       definition:
           kind: synchronous
@@ -1564,7 +1549,6 @@ custom_types:
         - name: SetRolePermissionOutput
         - name: OptionalId
         - name: TallySheetOutput
-        - name: AddTallySheetOutput
         - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
         - name: SetUserRoleOutput

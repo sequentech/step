@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {LegacyRef, useEffect, useMemo, useState} from "react"
+import React, {LegacyRef, useEffect, useMemo, useRef, useState} from "react"
 import {Identifier, SimpleForm, useGetList, useInfiniteGetList} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
@@ -493,20 +493,21 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
-    let timeoutId: ReturnType<typeof setTimeout>
+    const areaSearchTimeoutId = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
     const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>) => {
         const {value} = event.target
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
+        clearTimeout(areaSearchTimeoutId.current)
+        areaSearchTimeoutId.current = setTimeout(() => {
             setAreaNameFilter(value ? value.trim() : null)
             refetchAreas()
         }, 350)
     }
 
+    const contestSearchTimeoutId = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
     const debouncedSearchContest = (event: React.ChangeEvent<HTMLInputElement>) => {
         const {value} = event.target
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
+        clearTimeout(contestSearchTimeoutId.current)
+        contestSearchTimeoutId.current = setTimeout(() => {
             setContestNameFilter(value ? value.trim() : null)
         }, 350)
     }
