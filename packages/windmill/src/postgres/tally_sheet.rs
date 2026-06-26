@@ -234,8 +234,8 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
         &channel_str,
         &tally_sheet_uuid,
     ];
-    let _rows: Vec<Row> = hasura_transaction
-        .query(&statement, &params.as_slice())
+    hasura_transaction
+        .execute(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 

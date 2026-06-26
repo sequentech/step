@@ -82,7 +82,6 @@ const TallySheetsTab: React.FC = () => {
     const [refresh, setRefresh] = useState<string | null>(null)
     const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
     const electionRecord = useRecordContext<Sequent_Backend_Election>()
-    const {t} = useTranslation()
 
     const handleAction = (action: number, id?: Identifier) => {
         setAction(action)
@@ -98,7 +97,7 @@ const TallySheetsTab: React.FC = () => {
 
     return (
         <Suspense fallback={<div>Loading Tally Sheets...</div>}>
-            <ElectionHeader title={t("tallysheet.title")} subtitle="tallysheet.subtitle" />
+            <ElectionHeader title="tallysheet.title" subtitle="tallysheet.subtitle" />
             {action === WizardSteps.List ? (
                 <ListTallySheet
                     election={electionRecord}

@@ -116,7 +116,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
             // needs to wait for the click handler to submit the data
@@ -129,7 +129,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 }
             }, 400)
         } else if (page === WizardSteps.Confirm) {
-            insertTallySheetAction()
+            await insertTallySheetAction()
             doAction(WizardSteps.List)
         }
     }

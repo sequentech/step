@@ -199,9 +199,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     )
 
     const checkableLists = useMemo(() => {
-        let presentation = election.presentation as IContestPresentation | undefined
+        let presentation = choosenContest?.presentation as IContestPresentation | undefined
         return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
-    }, [election.presentation])
+    }, [choosenContest])
 
     const candidates = useMemo(() => {
         //force fetch all records

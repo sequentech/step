@@ -42,8 +42,8 @@ const Filters: Array<ReactElement> = [
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Channel" source="channel" key={3} />,
     <TextInput label="Version" source="version" key={4} />,
-    <TextInput label="Created by" source="created_by" key={5} />,
-    <TextInput label="Reviewed by" source="reviewed_by" key={6} />,
+    <TextInput label="Created by" source="created_by_user_id" key={5} />,
+    <TextInput label="Reviewed by" source="reviewed_by_user_id" key={6} />,
     <TextInput label="Status" source="status" key={7} />,
 ]
 
