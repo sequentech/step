@@ -107,11 +107,13 @@ pub async fn lock_ballot_box_version_assignment(
     contest_id: &str,
     channel: &VotingChannel,
 ) -> Result<()> {
-    let lock_key = format!(
-        "{tenant_id}:{election_event_id}:{election_id}:{area_id}:{contest_id}:{channel}"
-    );
+    let lock_key =
+        format!("{tenant_id}:{election_event_id}:{election_id}:{area_id}:{contest_id}:{channel}");
     hasura_transaction
-        .query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", &[&lock_key])
+        .query(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_key],
+        )
         .await?;
     Ok(())
 }
