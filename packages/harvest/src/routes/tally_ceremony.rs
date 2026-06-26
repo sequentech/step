@@ -13,6 +13,7 @@ use sequent_core::ballot::{
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::TallyResolution;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
@@ -21,11 +22,13 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
-use windmill::postgres::tally_session::get_tally_session_by_id;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-use windmill::services::{
-    ceremonies::tally_ceremony, database::get_hasura_pool,
+use windmill::postgres::tally_session::{
+    get_tally_session_by_id, update_tally_session_status,
 };
+use windmill::services::ceremonies::tally_ceremony::{self};
+use windmill::services::ceremonies::tally_resolution;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -326,4 +329,89 @@ pub async fn restore_private_key(
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     Ok(Json(SetPrivateKeyOutput { is_valid }))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubmitTallyResolutionInput {
+    election_event_id: String,
+    tally_session_id: String,
+    resolutions: Vec<TallyResolution>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubmitTallyResolutionOutput {
+    success: bool,
+    tally_session_id: String,
+    resolved_count: usize,
+}
+
+/// Submit multiple tally resolutions for a paused tally (batch operation)
+#[instrument(skip(claims))]
+#[post("/submit-tally-resolution", format = "json", data = "<body>")]
+pub async fn submit_tally_resolution(
+    body: Json<SubmitTallyResolutionInput>,
+    claims: JwtClaims,
+) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TALLY_RESOLUTION_SUBMIT],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id.clone();
+
+    if input.resolutions.is_empty() {
+        return Err((
+            Status::BadRequest,
+            "At least one resolution required".to_string(),
+        ));
+    }
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
+
+    let resolved_count = tally_resolution::submit_tally_resolution(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        &input.resolutions,
+        &user_id,
+        claims.preferred_username.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
+
+    event!(
+        Level::INFO,
+        "Batch tally resolution submission completed for tally session {}, resolved {} contest(s)",
+        input.tally_session_id,
+        resolved_count
+    );
+
+    Ok(Json(SubmitTallyResolutionOutput {
+        success: true,
+        tally_session_id: input.tally_session_id,
+        resolved_count,
+    }))
 }

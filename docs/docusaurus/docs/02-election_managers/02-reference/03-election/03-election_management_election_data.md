@@ -131,7 +131,15 @@ Import advanced settings for this Election and define vote limits, confirmations
 - **Start Screen Title Policy**
 
   - Set the title of the Start Screen (Voting Portal) to either the election title or the Election Event Title. The default value is the Election title.
-
+  
+- **Consolidated Report Policy**
+  - If `Generate` option is selected, consolidated election results for all areas will be generated in the Tally.
+  
+- **Decline to Vote Policy**
+  - Set to **Enabled** to offer voters a **Decline to Vote** option on the Start Screen for the entire Election across all contests.
+  - Set to **Disabled** (default) to hide the option.
+  - This setting appears only when the Election Event uses the **Multiple Contests** encryption policy.
+  - See [Decline to Vote Policy](../07-decline-to-vote.md) for full configuration, voter flow, and results behavior.
 ---
 
 ### Notes & Best Practices

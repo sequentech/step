@@ -201,6 +201,12 @@ pub enum Permissions {
     ELECTION_EVENT_SCHEDULED_TAB,
     #[strum(serialize = "election-event-reports-tab")]
     ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-event-cas-tab")]
+    ELECTION_EVENT_CAS_TAB,
+    #[strum(serialize = "ca-read")]
+    CA_READ,
+    #[strum(serialize = "ca-write")]
+    CA_WRITE,
     #[strum(serialize = "election-data-tab")]
     ELECTION_DATA_TAB,
     #[strum(serialize = "election-voters-tab")]
@@ -367,6 +373,14 @@ pub enum Permissions {
     GENERATE_PREVIEW,
     #[strum(serialize = "preview-read")]
     PREVIEW_READ,
+    #[strum(serialize = "tally-resolution-submit")]
+    TALLY_RESOLUTION_SUBMIT,
+    #[strum(serialize = "phone-blacklist-read")]
+    PHONE_BLACKLIST_READ,
+    #[strum(serialize = "phone-blacklist-create")]
+    PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-delete")]
+    PHONE_BLACKLIST_DELETE,
 }
 
 #[allow(non_camel_case_types)]

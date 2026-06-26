@@ -27,7 +27,7 @@ use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
-use b3::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
@@ -500,6 +500,10 @@ pub async fn update_tally_ceremony(
             TallyExecutionStatus::CANCELLED,
         ],
         TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::AWAITING_INPUT => vec![
+            TallyExecutionStatus::IN_PROGRESS,
+            TallyExecutionStatus::CANCELLED,
+        ],
         TallyExecutionStatus::SUCCESS => vec![],
         TallyExecutionStatus::CANCELLED => vec![],
     };

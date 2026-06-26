@@ -162,9 +162,31 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
+    // is_explicit_invalid is true if any of the contests is a decline to vote contest
     let is_explicit_invalid = decoded_contests
         .iter()
-        .any(|choice| choice.is_explicit_invalid);
+        .any(|choice| choice.is_decline_to_vote);
+
+    if is_explicit_invalid && !config.decline_to_vote_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Decline to vote is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_explicit_invalid {
+        let number_of_contests_decline_to_vote = decoded_contests
+            .iter()
+            .filter(|choice| choice.is_decline_to_vote)
+            .count();
+
+        if number_of_contests_decline_to_vote != decoded_contests.len() {
+            return Err(BallotError::ConsistencyCheck(format!(
+                "Invalid number of contests with decline to vote {} != {}",
+                number_of_contests_decline_to_vote,
+                decoded_contests.len()
+            )));
+        }
+    }
 
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot_choices = BallotChoices::new(
@@ -202,9 +224,31 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
+    // is_explicit_invalid is true if any of the contests is a decline to vote contest
     let is_explicit_invalid = decoded_contests
         .iter()
-        .any(|choice| choice.is_explicit_invalid);
+        .any(|choice| choice.is_decline_to_vote);
+
+    if is_explicit_invalid && !config.decline_to_vote_enabled() {
+        return Err(BallotError::ConsistencyCheck(
+            "Decline to vote is not enabled for this election".to_string(),
+        ));
+    }
+
+    if is_explicit_invalid {
+        let number_of_contests_decline_to_vote = decoded_contests
+            .iter()
+            .filter(|choice| choice.is_decline_to_vote)
+            .count();
+
+        if number_of_contests_decline_to_vote != decoded_contests.len() {
+            return Err(BallotError::ConsistencyCheck(format!(
+                "Invalid number of contests with decline to vote {} != {}",
+                number_of_contests_decline_to_vote,
+                decoded_contests.len()
+            )));
+        }
+    }
 
     let counting_algorithm = config.get_counting_algorithm()?;
     let ballot = BallotChoices::new(

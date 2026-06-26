@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::VotingChannels;
 use sequent_core::types::tally_sheets::AreaContestResults;
 use sequent_core::types::{
@@ -75,8 +76,8 @@ pub async fn get_approved_tally_sheets_by_event(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -246,11 +247,11 @@ pub async fn review_tally_sheet_status(
         )
         .await?;
 
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet_id)
+    let tally_sheet_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet_id)
         .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
     let status_str = status.to_string();
     let params: Vec<&(dyn ToSql + Sync)> = vec![

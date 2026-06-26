@@ -1,15 +1,25 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// Used to retrieve and post protocol messages to the board.
-pub mod grpc_m;
-/// A LocalBoard is a trustee's view of a bulletin board.
-pub mod local2;
+// Shared SQL schema constants
+pub mod storage_schema;
+
+// Storage trait (persistence abstraction)
+pub mod local_storage;
+
+// Universal LocalBoard implementation and data structures
+pub mod local_board;
+
+// Re-export LocalBoard and its data structures
+pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, StatementEntryIdentifier};
+
+// Re-export storage trait and types
+pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
-use b3::grpc::BoardMessages;
-use b3::{grpc::GrpcB3Message, messages::message::Message};
+use b4::messages::message::Message;
+use b4::HttpB3Message;
 
 /// Defines the interface with a bulletin board.
 ///
@@ -30,18 +40,34 @@ pub trait Board: Sized {
     /// ids do not determine the message history; this history is defined
     /// locally by each trustee according to the order in which those messages
     /// were received.
+    #[cfg(not(target_arch = "wasm32"))]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
-    ) -> impl std::future::Future<Output = Result<Vec<GrpcB3Message>>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>> + Send;
+
+    #[cfg(target_arch = "wasm32")]
+    fn get_messages(
+        &mut self,
+        board: &str,
+        last_id: i64,
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>>;
 
     /// Posts a messages to the given board of the bulletin board.
+    #[cfg(not(target_arch = "wasm32"))]
     fn insert_messages(
         &mut self,
         board: &str,
         messages: Vec<Message>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
+
+    #[cfg(target_arch = "wasm32")]
+    fn insert_messages(
+        &mut self,
+        board: &str,
+        messages: Vec<Message>,
+    ) -> impl std::future::Future<Output = Result<()>>;
 }
 
 /// Allows abstracting over a board client implementation
@@ -64,13 +90,13 @@ pub trait BoardFactory<B: Board>: Sized {
 pub trait BoardMulti: Sized {
     type Factory: BoardFactoryMulti<Self>;
 
-    /// Returns a list of BoardMessages for the given requests.
+    /// Returns a list of HttpBoardMessages for the given requests.
     ///
-    /// BoardMessages are a list of messages for one board,
+    /// HttpBoardMessages are a list of messages for one board.
     fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<(Vec<BoardMessages>, bool)>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<b4::HttpBoardMessages>, bool)>> + Send;
 
     fn insert_messages_multi(
         &self,

@@ -150,23 +150,6 @@ pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()
 }
 
-// Rustcrypto ecdsa signatures are only used on the wasm target
-cfg_if::cfg_if! {
-    if #[cfg(feature = "wasm")] {
-        // The rustcrypto signature backend requires 384 bit hashes. Calling
-        // verify_digest on a RustCrypto ecdsa VerifyingKey<P384> fails to compile,
-        // unless the digest passed is Sha384:
-        /*
-            the trait `DigestVerifier<CoreWrapper<CtVariableCoreWrapper<Sha256VarCore, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, OidSha256>>, _>` is not implemented for `ecdsa::VerifyingKey<NistP384>`
-        */
-        use sha2::Sha384;
-        pub(crate) fn rust_crypto_ecdsa_hasher() -> RustCryptoHasher {
-            Sha384::new()
-        }
-        pub(crate) type RustCryptoHasher = Sha384;
-    }
-}
-
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }

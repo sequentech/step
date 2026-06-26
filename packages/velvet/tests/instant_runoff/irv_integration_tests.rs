@@ -116,6 +116,8 @@ fn test_tie_breaking_using_previous_round() {
             create_round(round2_wins, 3), // Round 2 has 3 active candidates (D was eliminated)
         ],
         name_references,
+        tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // The candidates tied in the current round (Round 2)
@@ -212,6 +214,8 @@ fn test_tie_persists_through_lookback() {
             create_round(round3_wins, 8),  // Round 3: 8 active (D, E, F also eliminated)
         ],
         name_references,
+        tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // When round3 is processed, I is eliminated.
@@ -297,6 +301,8 @@ fn test_do_round_eliminations_with_tie_resolution() {
             create_round(round3_wins, 4), // Round 3: 4 active (A, C eliminated)
         ],
         name_references,
+        tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // Initialize remaining candidates as active
@@ -372,6 +378,8 @@ fn test_do_round_eliminations_unbreakable_tie_simultaneus_elimination() {
             create_round(round1_wins, 4), // Round 1: 4 active candidates
         ],
         name_references,
+        tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // Initialize all candidates as active
@@ -514,6 +522,7 @@ fn test_run_with_random_ballots() {
         presentation: None,
         created_at: None,
         annotations: None,
+        tie_breaking_policy: None,
     };
 
     // Create random ballots
@@ -529,6 +538,7 @@ fn test_run_with_random_ballots() {
         let decoded_vote = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,
@@ -622,6 +632,7 @@ fn test_all_ballot_candidates_unselected() {
         presentation: None,
         created_at: None,
         annotations: None,
+        tie_breaking_policy: None,
     };
 
     // Create 10 ballots where all choices have selected = -1 (all invalid)
@@ -640,6 +651,7 @@ fn test_all_ballot_candidates_unselected() {
         let decoded_vote = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,
@@ -713,6 +725,7 @@ fn test_tie_in_final_round() {
         presentation: None,
         created_at: None,
         annotations: None,
+        tie_breaking_policy: None,
     };
 
     let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
@@ -741,6 +754,7 @@ fn test_tie_in_final_round() {
             DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: Vec::new(),
                 invalid_alerts: Vec::new(),
                 choices,
@@ -773,6 +787,7 @@ fn test_tie_in_final_round() {
             DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: Vec::new(),
                 invalid_alerts: Vec::new(),
                 choices,
@@ -804,6 +819,7 @@ fn test_tie_in_final_round() {
         DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,
@@ -834,6 +850,7 @@ fn test_tie_in_final_round() {
         DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: Vec::new(),
             invalid_alerts: Vec::new(),
             choices,

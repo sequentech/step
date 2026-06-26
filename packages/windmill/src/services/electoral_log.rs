@@ -10,17 +10,17 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
 use crate::tasks::electoral_log::{
-    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+    enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
-use b3::messages::message::Signer;
+use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
-use electoral_log::messages::newtypes::*;
+use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
@@ -236,12 +236,14 @@ impl ElectoralLog {
         })?;
         let input = LogEventInput {
             election_event_id: event_id.to_string(),
-            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            message_type: LogMessageType::Internal,
             user_id: Some(user_id.to_string()),
             username: None,
             tenant_id: tenant_id.to_string(),
-            body: serde_json::to_string(&board_message)
-                .with_context(|| "Error serializing ElectoralLogMessage")?,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing ElectoralLogMessage")?,
+            ),
         };
 
         let celery_app = get_celery_app().await;
@@ -346,12 +348,14 @@ impl ElectoralLog {
         })?;
         let input = LogEventInput {
             election_event_id: event_id,
-            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            message_type: LogMessageType::Internal,
             user_id: Some(voter_id),
             username: voter_username,
             tenant_id,
-            body: serde_json::to_string(&board_message)
-                .with_context(|| "Error serializing ElectoralLogMessage")?,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing ElectoralLogMessage")?,
+            ),
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -396,12 +400,14 @@ impl ElectoralLog {
         })?;
         let input = LogEventInput {
             election_event_id: event_id,
-            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            message_type: LogMessageType::Internal,
             user_id: Some(voter_id),
             username: voter_username.clone(),
             tenant_id,
-            body: serde_json::to_string(&board_message)
-                .with_context(|| "Error serializing post cast vote")?,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing post cast vote")?,
+            ),
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -644,6 +650,121 @@ impl ElectoralLog {
         )
         .map_err(|e| anyhow!("Error sending template: {e:?}"))?;
 
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_resumed_with_resolution(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        resolution_ids: Vec<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+
+        let message =
+            Message::tally_resumed_with_resolution(event, election, resolution_ids, &self.sd)
+                .map_err(|e| anyhow!("Error posting tally resumed with resolution: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_paused_pending_resolution(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        resolution_ids: Vec<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+
+        let message =
+            Message::tally_paused_pending_resolutions(event, election, resolution_ids, &self.sd)
+                .map_err(|e| anyhow!("Error posting tally paused pending resolution: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_tie_resolved(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        contest_id: String,
+        resolution_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+        let contest = ContestIdString(contest_id);
+
+        let message = Message::tally_tie_resolved(
+            event,
+            election,
+            contest,
+            resolution_id,
+            &self.sd,
+            user_id,
+            username,
+        )
+        .map_err(|e| anyhow!("Error posting tally tie resolved: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_tie_resolution_updated(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        contest_id: String,
+        resolution_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+        let contest = ContestIdString(contest_id);
+
+        let message = Message::tally_tie_resolution_updated(
+            event,
+            election,
+            contest,
+            resolution_id,
+            &self.sd,
+            user_id,
+            username,
+        )
+        .map_err(|e| anyhow!("Error posting tally tie resolution updated: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_certificate_auth_event(
+        &self,
+        event_id: String,
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let message = Message::certificate_auth_event_message(
+            event,
+            action,
+            subject_dns,
+            &self.sd,
+            user_id,
+            username,
+        )?;
         self.post(&message).await
     }
 
@@ -1037,6 +1158,28 @@ impl ElectoralLogRow {
     }
 }
 
+impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
+        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        Ok(ElectoralLogRow {
+            id: elog_msg.id,
+            created: elog_msg.created,
+            statement_timestamp: elog_msg.statement_timestamp,
+            statement_kind: elog_msg.statement_kind.clone(),
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
+            user_id: elog_msg.user_id.clone(),
+            username: elog_msg.username.clone(),
+        })
+    }
+}
+
 impl TryFrom<&Row> for ElectoralLogRow {
     type Error = anyhow::Error;
 
@@ -1147,7 +1290,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     );
 
     event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
     client.open_session(&board_name).await?;
     let (clauses, params) = input.as_sql(false)?;
     let (clauses_to_count, count_params) = input.as_sql(true)?;
@@ -1171,7 +1313,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
     let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-
+    info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
     while let Some(streaming_batch) = resp_stream.next().await {

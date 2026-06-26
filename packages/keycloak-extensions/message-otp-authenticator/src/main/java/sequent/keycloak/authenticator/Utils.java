@@ -65,6 +65,16 @@ import sequent.keycloak.authenticator.otl.OTLActionToken;
 @UtilityClass
 @JBossLog
 public class Utils {
+  // Login details:
+  public final String VOTER_CERT_SUBJECT_DN = "voter_cert_subject_dn";
+  public final String CA_CERT_ISSUER_CN = "ca_cert_issuer_cn";
+  // Authentication notes:
+  public final String AUTH_NOTE_DENY_TYPE = "deny-type";
+  // Deny codes:
+  public final String CERT_NOT_PROVIDED = "cert-not-provided";
+  public final String USER_NOT_FOUND = "user-not-found";
+  public final String ACCESS_DENIED = "access-denied";
+
   public final String CODE = "code";
   public final String CODE_LENGTH = "length";
   public final String CODE_TTL = "ttl";
@@ -81,6 +91,14 @@ public class Utils {
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
   public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
+
+  // Default values for message-otp authenticator configuration. Referenced
+  // from both MessageOTPAuthenticatorFactory (admin UI default) and
+  // ResetMessageOTPRequiredAction (runtime fallback when the realm's saved
+  // config is missing the key).
+  public final String CODE_LENGTH_DEFAULT = "6";
+  public final String CODE_TTL_DEFAULT = "300";
+  public final String RESEND_ACTIVATION_TIMER_DEFAULT = "60";
 
   public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";

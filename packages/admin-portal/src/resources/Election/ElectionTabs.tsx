@@ -18,9 +18,10 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Box, Typography} from "@mui/material"
-import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
@@ -146,6 +147,7 @@ export const ElectionTabs: React.FC = () => {
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
+    const aliasRenderer = useAliasRenderer()
 
     const isElectionEventLocked =
         electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
@@ -273,13 +275,7 @@ export const ElectionTabs: React.FC = () => {
             className="election-box"
         >
             <ElectionHeader
-                title={
-                    translateElection(electionRecord, "alias", i18n.language) ||
-                    translateElection(electionRecord, "name", i18n.language) ||
-                    electionRecord?.alias ||
-                    electionRecord?.name ||
-                    "-"
-                }
+                title={aliasRenderer(record)}
                 subtitle="electionScreen.common.subtitle"
             />
             <Box sx={{bgcolor: "background.paper"}}>

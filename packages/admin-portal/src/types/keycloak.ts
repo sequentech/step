@@ -98,6 +98,9 @@ export enum IPermissions {
     ELECTION_EVENT_SCHEDULED_TAB = "election-event-scheduled-tab",
     ELECTION_EVENT_REPORTS_TAB = "election-event-reports-tab",
     ELECTION_EVENT_APPROVALS_TAB = "election-event-approvals-tab",
+    ELECTION_EVENT_CAS_TAB = "election-event-cas-tab",
+    CA_READ = "ca-read",
+    CA_WRITE = "ca-write",
     ELECTION_DATA_TAB = "election-data-tab",
     ELECTION_APPROVALS_TAB = "election-approvals-tab",
     ELECTION_VOTERS_TAB = "election-voters-tab",
@@ -195,4 +198,8 @@ export enum IPermissions {
     GOOGLE_MEET_LINK = "google-meet-link",
     PREVIEW_READ = "preview-read",
     GENERATE_PREVIEW = "generate-preview",
+    TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
+    PHONE_BLACKLIST_READ = "phone-blacklist-read",
+    PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
+    PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
 }

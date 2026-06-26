@@ -42,6 +42,7 @@ CRUD endpoints for:
 - trustee-create|read|write
 - tally-read|start|write
 - tally-results-read
+- tally-resolution-submit
 - publish-read|write
 - logs-read
 - keys-read

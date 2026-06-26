@@ -92,9 +92,11 @@ pub fn update_extended_metrics(
     let valid_votes = calculate_valid_votes(vote, contest);
     metrics.votes_actually += valid_votes;
 
-    // Calculate undervotes
-    let undervotes = calculate_undervotes(vote, contest);
-    metrics.under_votes += undervotes;
+    // Calculate undervotes if not a decline to vote
+    if !vote.is_decline_to_vote() {
+        let undervotes = calculate_undervotes(vote, contest);
+        metrics.under_votes += undervotes;
+    }
 
     // Calculate overvotes
     let overvotes = calculate_overvotes(vote, contest);
@@ -125,19 +127,17 @@ pub fn get_area_tally_operation(
     counting_alg: CountingAlgType,
     area_id: &Uuid,
 ) -> TallyOperation {
-    let default_tally_op = counting_alg.get_default_tally_operation_for_area();
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());
 
-    area_ballot_style
-        .map(|bs| {
-            bs.area_annotations
-                .as_ref()
-                .map(|area_annotations| area_annotations.get_tally_operation())
-        })
-        .flatten()
-        .unwrap_or(default_tally_op)
+    match area_ballot_style
+        .and_then(|bs| bs.area_annotations.as_ref())
+        .and_then(|area_annotations| area_annotations.tally_operation)
+    {
+        Some(tally_op) => tally_op,
+        None => counting_alg.get_default_tally_operation_for_area(),
+    }
 }
 
 #[instrument(skip_all)]

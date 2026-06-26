@@ -44,7 +44,7 @@ type Mutation {
 type Mutation {
     create_election(
         election_event_id: String!
-        name: String!
+        external_id: String!
         presentation: jsonb
         description: String
     ): CreateElectionOutput
@@ -129,6 +129,13 @@ type Mutation {
         user_id: String!
         role_id: String!
     ): SetUserRoleOutput
+}
+
+type Mutation {
+    update_realm_attributes(
+        election_event_id: String!
+        attributes: jsonb!
+    ): UpdateRealmAttributesOutput
 }
 
 type Mutation {
@@ -605,6 +612,22 @@ type Mutation {
         tally_session_id: uuid!
         status: String!
     ): StartTallyOutput
+    submit_tally_resolution(
+        election_event_id: uuid!
+        tally_session_id: uuid!
+        resolutions: [TallyResolutionInput!]!
+    ): SubmitTallyResolutionOutput
+}
+
+input TallyResolutionInput {
+    contest_id: uuid!
+    selected_candidate_id: uuid!
+}
+
+type SubmitTallyResolutionOutput {
+    success: Boolean!
+    tally_session_id: String!
+    resolved_count: Int!
 }
 
 type Mutation {
@@ -952,6 +975,7 @@ input ExportOptions {
     reports: Boolean
     applications: Boolean
     tally: Boolean
+    include_certificates: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -1532,7 +1556,7 @@ type CastVotesByIp {
     ip: String
     country: String
     vote_count: Int
-    election_name: String
+    election_presentation: jsonb
     election_id: String
     voters_id: [String]
 }
@@ -1659,4 +1683,44 @@ type GenerateGoogleMeetOutput {
 
 type GeneratePreviewUrlOutput {
     preview_url: String!
+}
+
+type Mutation {
+    import_certificate_authority(
+        election_event_id: uuid!
+        pem_content: String!
+    ): ImportCertificateAuthorityOutput
+}
+
+type ImportCertificateAuthorityOutput {
+    inserted_count: Int!
+    skipped_count: Int!
+    errors: [String!]!
+}
+
+type Mutation {
+    delete_certificate_authority(
+        ids: [uuid!]!
+        election_event_id: uuid!
+    ): DeleteCertificateAuthorityOutput
+}
+
+type DeleteCertificateAuthorityOutput {
+    deleted_count: Int!
+}
+
+type Mutation {
+    export_certificate_authority(
+        ids: [uuid!]!
+        election_event_id: uuid!
+    ): ExportCertificateAuthorityOutput
+}
+
+type ExportCertificateAuthorityOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
+type UpdateRealmAttributesOutput {
+    updated: Boolean!
 }

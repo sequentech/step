@@ -1,16 +1,33 @@
 { pkgs, ... }:
-# ── 1. pin rust-overlay ──────────────────────────────────────────────
+
+# Check docs/docusaurus/docs/07-developers/11-updates/updating-rust-version.md on how to update rust version.
 let
   rustOverlay = import (builtins.fetchTarball {
-  url = "https://github.com/oxalica/rust-overlay/archive/cb24c5cc207ba8e9a4ce245eedd2d37c3a988bc1.tar.gz";
-  sha256 = "096lirg41f5vgq9rrfg5b6vzyrya8v472v6cqfh1hjfi9ys20hc4";
+    url = "https://github.com/oxalica/rust-overlay/archive/107c334f141854f563f8adf1db781dc453d92639.tar.gz";
+    sha256 = "138jwq564qji7dc5yav2j2c1c1mr65smqqk00mni9lvqhx0n45w4";
   });
 
   pkgs' = pkgs.extend rustOverlay;
 
-  rustStable = pkgs'.rust-bin.stable.latest.default.override {
+  rustStable = pkgs'.rust-bin.stable."1.96.0".default.override {
     targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2"];
     extensions = [ "rust-src" "rust-analyzer-preview" ];
+  };
+
+  # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
+  # The CLI and crate versions must match exactly
+  wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+    pname = "wasm-bindgen-cli";
+    version = "0.2.104";
+    src = builtins.fetchTarball {
+      url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
+      sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+    };
+    cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
+    nativeBuildInputs = [ pkgs.pkg-config ];
+    buildInputs = [ pkgs.openssl ]
+      ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+    doCheck = false;
   };
 
 in
@@ -90,7 +107,7 @@ in
     cargo-audit
 
     wasm-pack
-    wasm-bindgen-cli
+    wasm-bindgen-cli-pinned
 
     python3
     python3Packages.virtualenvwrapper

@@ -17,10 +17,14 @@ permissions:
 
 jobs:
   CLA:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: "CLA Assistant"
-        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+        if: >
+          github.event_name == 'pull_request_target' ||
+          (github.event_name == 'issue_comment' &&
+            (contains(github.event.comment.body, 'recheck') ||
+             contains(github.event.comment.body, 'I have read the CLA Document and I hereby sign the CLA')))
         uses: contributor-assistant/github-action@v2.5.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,13 +38,14 @@ jobs:
           # Branch where CLA signatures will be stored
           branch: 'cla-signatures'
           # Allowlist for bots and automated accounts
-          allowlist: 'dependabot*,sequentech-bot,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech'
+          allowlist: 'dependabot*,sequentech-bot,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech,GuyZequent,Copilot,copilot*,copilot-swe-agent[bot],github-copilot,github-copilot[bot],ruescasd,eselimsen,vic3lord'
           
           # Customize the CLA message
           remote-organization-name: 'sequentech'
           remote-repository-name: 'step'
           
           # Customize the message shown to contributors
-          custom-pr-sign-comment: 'Thank you for your contribution! Before we can merge this PR, we need you to sign our Contributor License Agreement (CLA).<br/><br/>**To sign the CLA**, please comment on this PR with:<br/>`I have read the CLA Document and I hereby sign the CLA`<br/><br/>This is a one-time requirement. Once you have signed, all future contributions will be covered.<br/><br/>You can read the full CLA document here: https://github.com/sequentech/step/blob/main/.github/cla/CLA.md'
+          custom-notsigned-prcomment: 'Thank you for your contribution! Before we can merge this PR, we need you to sign our Contributor License Agreement (CLA). **To sign the CLA**, please comment on this PR with: `I have read the CLA Document and I hereby sign the CLA` This is a one-time requirement. Once you have signed, all future contributions will be covered. You can read the full CLA document here: https://github.com/sequentech/step/blob/main/.github/cla/CLA.md'
+          custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
           custom-allsigned-prcomment: 'All contributors have signed the CLA. ✅'
           lock-pullrequest-aftermerge: false

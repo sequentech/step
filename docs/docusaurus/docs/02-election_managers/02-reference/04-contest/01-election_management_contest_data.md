@@ -134,6 +134,20 @@ When voter selects blank vote option:
 - **Warn in Review**: Warning only in review phase.
 - **Not Allowed**: Cannot submit blank ballot.
 
+#### Invalid Vote - Duplicate Rank Policy
+_Applies to preferential voting (e.g. Instant Runoff) only._
+
+When a voter assigns the same ranking position to two or more candidates, the vote is considered invalid. This policy controls the UX response:
+- **Show Warning and Dialog (voter can proceed)**: A warning dialog is shown, but the voter is allowed to submit the ballot as-is.
+- **Show Warning and Dialog (voter not allowed to proceed)**: A warning dialog is shown and the voter is blocked from submitting until the duplicated rank is resolved.
+
+#### Invalid Vote - Skipped Ranks Policy
+_Applies to preferential voting (e.g. Instant Runoff) only._
+
+When a voter's ranking has gaps (e.g. positions 1, 2, 4, 5 — skipping 3), this policy controls the UX response:
+- **Show Warning and Dialog (voter can proceed)**: A warning dialog is shown, but the voter is allowed to submit the ballot with the gap.
+- **Show Warning and Dialog (voter not allowed to proceed)**: A warning dialog is shown and the voter is blocked from submitting until the gap is filled.
+
 ### Page Name
 - **Define Page Name**  
   - Contests sharing the same page name will be grouped and displayed on the same voting page.
