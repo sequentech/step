@@ -452,6 +452,7 @@ const galegoTranslation: TranslationType = {
                 reports: "Informes",
                 approvals: "Aprobacións",
                 cas: "Certificados",
+                emulator: "Emulador",
             },
             tally: {
                 emptyHeader: "Aínda non hai Escrutinio.",

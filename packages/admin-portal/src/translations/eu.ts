@@ -452,6 +452,7 @@ const basqueTranslation: TranslationType = {
                 reports: "Txostenak",
                 approvals: "Onespenak",
                 cas: "Ziurtagiriak",
+                emulator: "Emuladorea",
             },
             tally: {
                 emptyHeader: "Ez dago Zenbaketarik oraindik.",

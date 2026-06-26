@@ -451,6 +451,7 @@ const tagalogTranslation: TranslationType = {
                 reports: "Ulat",
                 approvals: "Approvals",
                 cas: "Mga Sertipiko",
+                emulator: "Emulator",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",

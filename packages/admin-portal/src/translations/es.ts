@@ -453,6 +453,7 @@ const spanishTranslation: TranslationType = {
                 reports: "Informe",
                 approvals: "Aprobaciones",
                 cas: "Certificados",
+                emulator: "Emulador",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",

@@ -450,6 +450,7 @@ const dutchTranslation: TranslationType = {
                 reports: "Rapporten",
                 approvals: "Goedkeuringen",
                 cas: "Certificaten",
+                emulator: "Emulator",
             },
             tally: {
                 emptyHeader: "Nog geen telling.",

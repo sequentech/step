@@ -452,6 +452,7 @@ const catalanTranslation: TranslationType = {
                 reports: "Informe",
                 approvals: "Aprovacions",
                 cas: "Certificats",
+                emulator: "Emulador",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",

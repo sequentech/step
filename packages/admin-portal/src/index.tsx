@@ -17,6 +17,7 @@ import {ElectionContextProvider} from "./providers/ElectionContextProvider"
 import {ContestContextProvider} from "./providers/ContestContextProvider"
 import {CandidateContextProvider} from "./providers/CandidateContextProvider"
 import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyProvider"
+import {EmulatorContextProvider} from "./providers/EmulatorContextProvider"
 import NewResourceContextProvider from "./providers/NewResourceProvider"
 import {PublishContextProvider} from "./providers/PublishContextProvider"
 import {SettingsWrapper} from "./providers/SettingsContextProvider"
@@ -46,7 +47,8 @@ root.render(
                                         <ContestContextProvider>
                                             <CandidateContextProvider>
                                                 <ElectionEventTallyContextProvider>
-                                                    <PublishContextProvider>
+                                                    <EmulatorContextProvider>
+                                                     <PublishContextProvider>
                                                         <ApolloContextProvider
                                                             role={defaultApolloContextValues.role}
                                                         >
@@ -59,6 +61,7 @@ root.render(
                                                             </ApolloWrapper>
                                                         </ApolloContextProvider>
                                                     </PublishContextProvider>
+                                                    </EmulatorContextProvider>
                                                 </ElectionEventTallyContextProvider>
                                             </CandidateContextProvider>
                                         </ContestContextProvider>

@@ -76,6 +76,9 @@ const EditElectionEventApprovals = lazy(() =>
 const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((m) => ({default: m.EditReportsTab}))
 )
+const EditElectionEventEmulator = lazy(() =>
+    import("./EditElectionEventEmulator").then((m) => ({default: m.EditElectionEventEmulator}))
+)
 
 // ---------------------------------------------------------------------
 // Stable Tab Components (all use useRecordContext)
@@ -189,6 +192,12 @@ const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
         </Suspense>
     )
 }
+
+const EmulatorTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Emulator...</div>}>
+        <EditElectionEventEmulator />
+    </Suspense>
+)
 
 // ---------------------------------------------------------------------
 // Main Component
@@ -305,6 +314,11 @@ export const ElectionEventTabs: React.FC = () => {
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
         record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
+    const showEmulator = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_EMULATOR_TAB
+    )
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
@@ -427,6 +441,14 @@ export const ElectionEventTabs: React.FC = () => {
             })
         }
 
+        // Emulator
+        if (showEmulator) {
+            result.push({
+                label: t("electionEventScreen.tabs.emulator"),
+                component: EmulatorTab,
+            })
+        }
+
         return result
     }, [
         showDashboard,
@@ -443,6 +465,7 @@ export const ElectionEventTabs: React.FC = () => {
         showReports,
         showApprovalsExecution,
         showCAs,
+        showEmulator,
         t,
         showKeysList,
         showPublishList,

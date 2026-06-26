@@ -451,6 +451,21 @@ const englishTranslation = {
                 reports: "Reports",
                 approvals: "Approvals",
                 cas: "Certificates",
+                emulator: "Emulator",
+            },
+            emulator: {
+                title: "IVR Emulator",
+                description:
+                    "Select a ballot style and start an emulator session to simulate the IVR voting flow.",
+                ballotStyleLabel: "Ballot Style",
+                publishedGroup: "Published",
+                unpublishedGroup: "Not Published",
+                start: "Start Session",
+                restart: "Restart Session",
+                reset: "Reset",
+                send: "Send",
+                inputPlaceholder: "Type your input and press Enter…",
+                sessionEnded: "The emulator session has ended.",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
