@@ -316,7 +316,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             const contestsListTemp: IContest[] = contests?.map((item) => {
                 return {
                     id: item.id,
-                    label: item.name,
+                    label: item.presentation.name,
                 }
             })
             setContestList(contestsListTemp)

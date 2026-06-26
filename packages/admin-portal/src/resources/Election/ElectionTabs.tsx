@@ -275,7 +275,7 @@ export const ElectionTabs: React.FC = () => {
             className="election-box"
         >
             <ElectionHeader
-                title={aliasRenderer(record)}
+                title={aliasRenderer(electionRecord)}
                 subtitle="electionScreen.common.subtitle"
             />
             <Box sx={{bgcolor: "background.paper"}}>
