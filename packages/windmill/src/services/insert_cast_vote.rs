@@ -18,7 +18,7 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{get_username_by_id, list_users, ListUsersFilter};
 use anyhow::{anyhow, Context, Result};
-use b3::messages::message::Signer;
+use b4::messages::message::Signer;
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;

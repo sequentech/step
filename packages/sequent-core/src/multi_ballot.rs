@@ -271,7 +271,7 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
     // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::gen()
+    let secret_key = StrandSignatureSk::generate()
         .map_err(|err| format!("Error generating secret key: {err}"))?;
     let public_key = StrandSignaturePk::from_sk(&secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;

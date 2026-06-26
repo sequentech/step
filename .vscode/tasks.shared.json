@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 {
@@ -518,7 +518,7 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.b3",
+            "label": "logs.b4",
             "command": "docker",
             "args": [
                 "compose",
@@ -526,7 +526,7 @@
                 "-f",
                 "--tail",
                 "200",
-                "b3"
+                "b4",
             ],
             "options": {
                 "env": {
@@ -549,11 +549,11 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.restart.b3",
+            "label": "logs.restart.b4",
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop b3; docker compose up -d --no-deps b3 && docker compose logs -f --tail 100 b3"
+                "docker compose stop b4; docker compose up -d --no-deps b4 && docker compose logs -f --tail 100 b4",
             ],
             "options": {
                 "env": {
@@ -1105,6 +1105,32 @@
               "-l",
               "-c",
               "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": true
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "rebuild.braid-wasm.full",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",
+              "-c",
+              "/workspaces/step/packages/braid/scripts/build-wasm.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn\""
             ],
             "options": {
               "cwd": "${workspaceFolder}"

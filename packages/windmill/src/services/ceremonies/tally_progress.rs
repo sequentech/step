@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use sequent_core::types::{
     ceremonies::{TallyElection, TallyElectionStatus},
     hasura::core::{TallySession, TallySessionContest},

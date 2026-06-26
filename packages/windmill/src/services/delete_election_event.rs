@@ -68,7 +68,7 @@ pub async fn delete_election_event_b3(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
     let mut board_client = get_b3_pgsql_client().await?;
-    let existing: Option<b3::client::pgsql::B3IndexRow> =
+    let existing: Option<b4::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
 
     if existing.is_some() {
@@ -77,7 +77,7 @@ pub async fn delete_election_event_b3(
 
     for election_id in election_ids {
         let board_name = get_election_board(tenant_id, &election_id, &slug);
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
+        let existing: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 
         if existing.is_some() {
