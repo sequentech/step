@@ -27,12 +27,9 @@ import {
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
-import {
-    EEnableCheckableLists,
-    IContestPresentation,
-    translateFromPresentation,
-} from "@sequentech/ui-core"
+import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -67,6 +64,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
 
     const notify = useNotify()
     const {t, i18n} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
@@ -123,7 +121,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
-                            name: translateFromPresentation(candidate, "name", i18n.language),
+                            name: aliasRenderer(candidate.presentation),
                             total_votes:
                                 contentTemp.candidate_results?.[candidate.id]?.total_votes ?? 0,
                         }
@@ -139,7 +137,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 setChannel(tallySheetTemp.channel)
             }
         }
-    }, [tallySheet, candidates])
+    }, [tallySheet, candidates, i18n.language])
 
     useEffect(() => {
         if (contest) {
@@ -156,12 +154,12 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             for (const candidate of candidates) {
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
-                    name: translateFromPresentation(candidate, "name", i18n.language),
+                    name: aliasRenderer(candidate.presentation),
                 }
                 candidatesTemp.push(candidateTemp)
             }
         }
-    }, [candidates])
+    }, [candidates, i18n.language])
 
     useEffect(() => {
         if (areas) {
@@ -413,7 +411,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     type="number"
                 />
                 <CustomTextField
-                    label={String(t("tallysheet.label.total_votes"))}
+                    label={String(t("tallysheet.label.census"))}
                     name="census"
                     value={results.census}
                     onChange={handleTextChange}

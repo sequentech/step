@@ -267,7 +267,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         tenant_id: election.tenant_id || undefined,
                         election_event_id: election.election_event_id || undefined,
                         election_id: election.id || undefined,
-                        version: 1,
+                        deleted_at: {
+                            format: "hasura-raw-query",
+                            value: {_is_null: true},
+                        },
                     }}
                     filters={Filters}
                     empty={<Empty />}
@@ -352,7 +355,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 open={openApproveDialog}
                 ok={String(t("tallysheet.common.approve"))}
                 cancel={String(t("common.label.cancel"))}
-                title={String(t("tallysheet.common.disapprove"))}
+                title={String(t("tallysheet.common.approve"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmReviewAction(EStatus.APPROVED)

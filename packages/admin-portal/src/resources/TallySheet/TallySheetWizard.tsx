@@ -6,7 +6,7 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, Notification, useGetList, useGetOne, useNotify} from "react-admin"
+import {Identifier, Notification, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
@@ -67,12 +67,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         "sequent_backend_contest",
         {id: tallySheet?.contest_id},
         {enabled: !!tallySheet}
-    )
-
-    const {data: listTallySheets} = useGetList<Sequent_Backend_Tally_Sheet>(
-        "sequent_backend_tally_sheet",
-        {filter: {contest_id: election.id}},
-        {enabled: !!election.id}
     )
 
     const [CreateNewTallySheet] = useMutation<CreateNewTallySheetMutation>(CREATE_NEW_TALLY_SHEET, {

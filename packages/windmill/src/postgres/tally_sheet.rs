@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::hasura::core::VotingChannels;
 use sequent_core::types::tally_sheets::AreaContestResults;
 use sequent_core::types::{
     hasura::core::TallySheet,
@@ -14,7 +13,7 @@ use sequent_core::types::{
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TallySheetWrapper(pub TallySheet);
@@ -165,8 +164,7 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            format!(
-                r#"
+            r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
             deleted_at = NOW(),
@@ -179,9 +177,7 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
             tally_sheet.channel = $5 AND
             tally_sheet.id != $6 AND
             tally_sheet.deleted_at IS NULL
-    "#
-            )
-            .as_str(),
+    "#,
         )
         .await?;
 
@@ -227,8 +223,7 @@ pub async fn review_tally_sheet_status(
 ) -> Result<Option<TallySheet>> {
     let statement = hasura_transaction
         .prepare(
-            format!(
-                r#"
+            r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
             status = $4,
@@ -241,9 +236,7 @@ pub async fn review_tally_sheet_status(
             tally_sheet.id = $3 AND
             tally_sheet.deleted_at IS NULL
         RETURNING *
-    "#
-            )
-            .as_str(),
+    "#,
         )
         .await?;
 
@@ -275,7 +268,7 @@ pub async fn review_tally_sheet_status(
         .collect::<Result<Vec<TallySheet>>>()?;
 
     match elements.len() {
-        0 => Err(anyhow!("No rows affected")),
+        0 => Ok(None),
         1 => Ok(Some(elements[0].clone())),
         _ => Err(anyhow!("Unexpected rows affected {}", elements.len())),
     }

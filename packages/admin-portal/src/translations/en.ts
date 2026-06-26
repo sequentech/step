@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Show} from "react-admin"
-
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",

@@ -36,13 +36,13 @@ import {
     EEnableCheckableLists,
     ICandidatePresentation,
     IContestPresentation,
-    translateFromPresentation,
 } from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
 import {styled} from "@mui/material/styles"
 import {IPermissions} from "@/types/keycloak"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const StyledError = styled(Typography)`
     color: ${({theme}) => theme.palette.red.main};
@@ -95,9 +95,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     } = props
 
     const {t, i18n} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
-    const [contestList, setContestList] = useState<IArea[]>([])
+    const [contestList, setContestList] = useState<IContest[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: tallySheet?.area_id || "",
@@ -131,20 +132,17 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     )
 
-    const {data: contests, refetch: refetchContests} = useGetList<Sequent_Backend_Contest>(
-        "sequent_backend_contest",
-        {
-            filter: {
-                tenant_id: election.tenant_id,
-                election_event_id: election.election_event_id,
-                election_id: election.id,
-            },
-            pagination: {
-                perPage: 10000, // Setting initial larger records size of areas
-                page: 1,
-            },
-        }
-    )
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        filter: {
+            tenant_id: election.tenant_id,
+            election_event_id: election.election_event_id,
+            election_id: election.id,
+        },
+        pagination: {
+            perPage: 10000, // Setting initial larger records size of areas
+            page: 1,
+        },
+    })
 
     const {data: allAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
@@ -241,12 +239,18 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
         const tree = createTree(treeNodeAreas, treeAreaContests)
 
-        const matchedAreaContests = getContestMatches(tree, election.id)
+        const selectedContestId = choosenContest?.id ?? tallySheet?.contest_id
+        if (!selectedContestId) {
+            setAreaIds([])
+            return
+        }
+
+        const matchedAreaContests = getContestMatches(tree, selectedContestId)
         const matchedAreas = matchedAreaContests.map((area) => area.area_id)
         const uniqueAreas: Array<string> = uniqueElements(matchedAreas)
 
         setAreaIds(uniqueAreas)
-    }, [areaContests, allAreas])
+    }, [areaContests, allAreas, choosenContest, tallySheet])
 
     useEffect(() => {
         const tallySaved: string | null = localStorage.getItem("tallySheetData")
@@ -268,11 +272,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
-                            name: translateFromPresentation(
-                                candidate,
-                                "name",
-                                i18n.language
-                            ) as string,
+                            name: aliasRenderer(candidate.presentation),
                         }
                         if (contentTemp.candidate_results[candidate.id]) {
                             candidateTemp.total_votes =
@@ -288,7 +288,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             }
             setChannel(tallySheetTemp.channel)
         }
-    }, [tallySheet, candidates])
+    }, [tallySheet, candidates, i18n.language])
 
     useEffect(() => {
         if (election) {
@@ -316,12 +316,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             const contestsListTemp: IContest[] = contests?.map((item) => {
                 return {
                     id: item.id,
-                    label: item.presentation.name,
+                    label: aliasRenderer(item.presentation),
                 }
             })
             setContestList(contestsListTemp)
         }
-    }, [contests])
+    }, [contests, i18n.language])
 
     useEffect(() => {
         window.scrollTo(0, 0)
@@ -339,14 +339,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
-                    name: translateFromPresentation(candidate, "name", i18n.language) as string,
+                    name: aliasRenderer(candidate.presentation),
                 }
                 candidatesTemp.push(candidateTemp)
             }
             candidatesTemp.sort(sortFunction)
             setCandidatesResults(candidatesTemp)
         }
-    }, [candidates, tallySheet])
+    }, [candidates, tallySheet, i18n.language])
 
     const recalculateTotals = () => {
         let newResults = {...results}
@@ -371,9 +371,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         for (const candidateResult of candidatesResults) {
             canditatesVotesSum += candidateResult.total_votes ?? 0
         }
-        console.log(canditatesVotesSum + totalBlankVotes)
-        console.log(totalValidVotes)
-
         if (canditatesVotesSum + totalBlankVotes !== totalValidVotes) {
             disableNextButton = true
             setTotalValidError(true)
@@ -416,7 +413,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         reason: AutocompleteChangeReason,
         details?: AutocompleteChangeDetails
     ) => {
-        console.log(value)
         setResults((prev: IAreaContestResults) => ({
             ...prev,
             contest_id: value?.id as any,
@@ -433,9 +429,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 
     const handleNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log(results)
-        console.log(event.target.name)
-        console.log(event.target.value)
         if (event.target.value === "") {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
@@ -451,8 +444,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }))
             }
         }
-
-        console.log(results)
     }
     const handleCensusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         let census = 0
@@ -517,7 +508,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         clearTimeout(timeoutId)
         timeoutId = setTimeout(() => {
             setContestNameFilter(value ? value.trim() : null)
-            refetchContests()
         }, 350)
     }
 
@@ -568,6 +558,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         [results?.contest_id, contestList]
     )
 
+    const filteredContestList = useMemo(() => {
+        if (!contestNameFilter) {
+            return contestList
+        }
+        const needle = contestNameFilter.toLowerCase()
+        return contestList.filter((contest) => contest.label?.toLowerCase().includes(needle))
+    }, [contestList, contestNameFilter])
+
     useEffect(() => {
         if (choosenContest) {
             refetchCandidates()
@@ -587,6 +585,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         sx={{width: 300}}
                         onChange={handleChange as any}
                         options={areasList ?? []}
+                        getOptionLabel={(option) =>
+                            typeof option.label === "string" ? option.label : option.id
+                        }
                         renderInput={(params) => (
                             <TextField
                                 {...params}
@@ -605,7 +606,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <Autocomplete
                         sx={{width: 300}}
                         onChange={handleContestChange as any}
-                        options={contestList ?? []}
+                        options={filteredContestList ?? []}
+                        getOptionLabel={(option) =>
+                            typeof option.label === "string" ? option.label : option.id
+                        }
                         renderInput={(params) => (
                             <TextField
                                 {...params}

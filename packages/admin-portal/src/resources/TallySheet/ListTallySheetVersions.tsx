@@ -1,44 +1,31 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useContext} from "react"
 import {
     DatagridConfigurable,
     List,
     TextField,
-    DateField,
     TextInput,
     Identifier,
-    useDelete,
     WrapperField,
     FunctionField,
     useRefresh,
     useNotify,
-    useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ListActionsMenu} from "../../components/ListActionsMenu"
-import {Button, Tooltip, Typography} from "@mui/material"
-import {
-    ReviewTallySheetMutation,
-    Sequent_Backend_Contest,
-    Sequent_Backend_Election,
-    Sequent_Backend_Tally_Sheet,
-} from "../../gql/graphql"
-import {Dialog, IconButton} from "@sequentech/ui-essentials"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {Tooltip, Typography} from "@mui/material"
+import {Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
+import {Action} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import VisibilityIcon from "@mui/icons-material/Visibility"
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
 import {WizardSteps} from "./TallySheetWizard"
-import {useMutation} from "@apollo/client"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
-import {Add, WorkHistory} from "@mui/icons-material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
