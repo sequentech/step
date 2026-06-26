@@ -723,8 +723,12 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
-      - devcontainer
-      - rabbitmq
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      postgres-b4-init:
+        condition: service_completed_successfully
       #- postgres
       #- postgres-keycloak
     environment:
@@ -862,6 +866,7 @@ services:
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${B4_PG_PASSWORD}
+      POSTGRES_DB: ${B4_PG_DATABASE}
     user: "999:999"  # This ensures that the postgres user inside the container is used
     healthcheck:
       test: ["CMD-SHELL", "pg_isready  -U postgres"]
@@ -871,6 +876,26 @@ services:
       start_period: 5s
     depends_on:
       - postgres-volume-init
+
+  postgres-b4-init:
+    profiles: ["full", "base"]
+    image: sequentech.local/postgresql-b4
+    container_name: postgres-b4-init
+    depends_on:
+      devcontainer:
+        condition: service_started
+      postgres-b4:
+        condition: service_healthy
+    volumes_from:
+      - devcontainer
+    environment:
+      PGHOST: ${B4_PG_HOST}
+      PGPORT: ${B4_PG_PORT}
+      PGUSER: ${B4_PG_USER}
+      PGPASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      B4_PG_SCHEMA_PATH: /workspaces/step/.devcontainer/postgresql-b4/schema.sql
+    entrypoint: ["/bin/bash", "/workspaces/step/.devcontainer/postgresql-b4/ensure-db.sh"]
 
   b4:
     profiles: ["full", "base"]
@@ -886,8 +911,8 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
-      #- devcontainer
-      - postgres-b4
+      postgres-b4-init:
+        condition: service_completed_successfully
     working_dir: /workspaces/step/packages/b4
     entrypoint: [
       "cargo",
