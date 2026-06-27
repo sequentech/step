@@ -983,6 +983,7 @@ export enum VotingStatusChannel {
     EarlyVoting = "EARLY_VOTING",
     Kiosk = "KIOSK",
     Online = "ONLINE",
+    Telephone = "TELEPHONE",
 }
 
 export type ApplicationOutput = {
@@ -1194,6 +1195,10 @@ export type Mutation_Root = {
     delete_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
     /** delete single row from the table: "sequent_backend.notification" */
     delete_sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
+    /** delete data from the table: "sequent_backend.phone_blacklist" */
+    delete_sequent_backend_phone_blacklist?: Maybe<Sequent_Backend_Phone_Blacklist_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.phone_blacklist" */
+    delete_sequent_backend_phone_blacklist_by_pk?: Maybe<Sequent_Backend_Phone_Blacklist>
     /** delete data from the table: "sequent_backend.preview" */
     delete_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>
     /** delete single row from the table: "sequent_backend.preview" */
@@ -1399,6 +1404,10 @@ export type Mutation_Root = {
     insert_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.notification" */
     insert_sequent_backend_notification_one?: Maybe<Sequent_Backend_Notification>
+    /** insert data into the table: "sequent_backend.phone_blacklist" */
+    insert_sequent_backend_phone_blacklist?: Maybe<Sequent_Backend_Phone_Blacklist_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.phone_blacklist" */
+    insert_sequent_backend_phone_blacklist_one?: Maybe<Sequent_Backend_Phone_Blacklist>
     /** insert data into the table: "sequent_backend.preview" */
     insert_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.preview" */
@@ -1640,6 +1649,14 @@ export type Mutation_Root = {
     /** update multiples rows of table: "sequent_backend.notification" */
     update_sequent_backend_notification_many?: Maybe<
         Array<Maybe<Sequent_Backend_Notification_Mutation_Response>>
+    >
+    /** update data of the table: "sequent_backend.phone_blacklist" */
+    update_sequent_backend_phone_blacklist?: Maybe<Sequent_Backend_Phone_Blacklist_Mutation_Response>
+    /** update single row of the table: "sequent_backend.phone_blacklist" */
+    update_sequent_backend_phone_blacklist_by_pk?: Maybe<Sequent_Backend_Phone_Blacklist>
+    /** update multiples rows of table: "sequent_backend.phone_blacklist" */
+    update_sequent_backend_phone_blacklist_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Phone_Blacklist_Mutation_Response>>
     >
     /** update data of the table: "sequent_backend.preview" */
     update_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>
@@ -2131,6 +2148,16 @@ export type Mutation_RootDelete_Sequent_Backend_NotificationArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Notification_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Phone_BlacklistArgs = {
+    where: Sequent_Backend_Phone_Blacklist_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Phone_Blacklist_By_PkArgs = {
     id: Scalars["uuid"]["input"]
 }
 
@@ -2867,6 +2894,18 @@ export type Mutation_RootInsert_Sequent_Backend_NotificationArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Notification_OneArgs = {
     object: Sequent_Backend_Notification_Insert_Input
     on_conflict?: InputMaybe<Sequent_Backend_Notification_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Phone_BlacklistArgs = {
+    objects: Array<Sequent_Backend_Phone_Blacklist_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Phone_Blacklist_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Phone_Blacklist_OneArgs = {
+    object: Sequent_Backend_Phone_Blacklist_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Phone_Blacklist_On_Conflict>
 }
 
 /** mutation root */
@@ -3706,6 +3745,23 @@ export type Mutation_RootUpdate_Sequent_Backend_Notification_ManyArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Phone_BlacklistArgs = {
+    _set?: InputMaybe<Sequent_Backend_Phone_Blacklist_Set_Input>
+    where: Sequent_Backend_Phone_Blacklist_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Phone_Blacklist_By_PkArgs = {
+    _set?: InputMaybe<Sequent_Backend_Phone_Blacklist_Set_Input>
+    pk_columns: Sequent_Backend_Phone_Blacklist_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Phone_Blacklist_ManyArgs = {
+    updates: Array<Sequent_Backend_Phone_Blacklist_Updates>
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_PreviewArgs = {
     _append?: InputMaybe<Sequent_Backend_Preview_Append_Input>
     _delete_at_path?: InputMaybe<Sequent_Backend_Preview_Delete_At_Path_Input>
@@ -4489,6 +4545,12 @@ export type Query_Root = {
     sequent_backend_notification_aggregate: Sequent_Backend_Notification_Aggregate
     /** fetch data from the table: "sequent_backend.notification" using primary key columns */
     sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
+    /** fetch data from the table: "sequent_backend.phone_blacklist" */
+    sequent_backend_phone_blacklist: Array<Sequent_Backend_Phone_Blacklist>
+    /** fetch aggregated fields from the table: "sequent_backend.phone_blacklist" */
+    sequent_backend_phone_blacklist_aggregate: Sequent_Backend_Phone_Blacklist_Aggregate
+    /** fetch data from the table: "sequent_backend.phone_blacklist" using primary key columns */
+    sequent_backend_phone_blacklist_by_pk?: Maybe<Sequent_Backend_Phone_Blacklist>
     /** fetch data from the table: "sequent_backend.preview" */
     sequent_backend_preview: Array<Sequent_Backend_Preview>
     /** fetch aggregated fields from the table: "sequent_backend.preview" */
@@ -5074,6 +5136,26 @@ export type Query_RootSequent_Backend_Notification_AggregateArgs = {
 }
 
 export type Query_RootSequent_Backend_Notification_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Phone_BlacklistArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Phone_Blacklist_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Phone_Blacklist_By_PkArgs = {
     id: Scalars["uuid"]["input"]
 }
 
@@ -9514,6 +9596,8 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.election_event" */
 export enum Sequent_Backend_Election_Event_Constraint {
+    /** unique or primary key constraint on columns "id", "tenant_id" */
+    ElectionEventIdTenantIdKey = "election_event_id_tenant_id_key",
     /** unique or primary key constraint on columns "id" */
     EventPkey = "event_pkey",
 }
@@ -12013,6 +12097,213 @@ export type Sequent_Backend_Notification_Updates = {
     _set?: InputMaybe<Sequent_Backend_Notification_Set_Input>
     /** filter the rows which have to be updated */
     where: Sequent_Backend_Notification_Bool_Exp
+}
+
+/** columns and relationships of "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist = {
+    __typename?: "sequent_backend_phone_blacklist"
+    created_at: Scalars["timestamptz"]["output"]
+    created_by: Scalars["uuid"]["output"]
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id: Scalars["uuid"]["output"]
+    phone_e164: Scalars["String"]["output"]
+    reason?: Maybe<Scalars["String"]["output"]>
+    tenant_id: Scalars["uuid"]["output"]
+    updated_at: Scalars["timestamptz"]["output"]
+}
+
+/** aggregated selection of "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Aggregate = {
+    __typename?: "sequent_backend_phone_blacklist_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Phone_Blacklist_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Phone_Blacklist>
+}
+
+/** aggregate fields of "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Aggregate_Fields = {
+    __typename?: "sequent_backend_phone_blacklist_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Phone_Blacklist_Max_Fields>
+    min?: Maybe<Sequent_Backend_Phone_Blacklist_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.phone_blacklist". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Phone_Blacklist_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Bool_Exp>>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    created_by?: InputMaybe<Uuid_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    phone_e164?: InputMaybe<String_Comparison_Exp>
+    reason?: InputMaybe<String_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.phone_blacklist" */
+export enum Sequent_Backend_Phone_Blacklist_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    PhoneBlacklistPkey = "phone_blacklist_pkey",
+    /** unique or primary key constraint on columns "phone_e164", "tenant_id", "election_event_id" */
+    PhoneBlacklistTenantIdElectionEventIdPhoneE164Key = "phone_blacklist_tenant_id_election_event_id_phone_e164_key",
+}
+
+/** input type for inserting data into table "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Insert_Input = {
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    created_by?: InputMaybe<Scalars["uuid"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    phone_e164?: InputMaybe<Scalars["String"]["input"]>
+    reason?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Phone_Blacklist_Max_Fields = {
+    __typename?: "sequent_backend_phone_blacklist_max_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    created_by?: Maybe<Scalars["uuid"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    phone_e164?: Maybe<Scalars["String"]["output"]>
+    reason?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Phone_Blacklist_Min_Fields = {
+    __typename?: "sequent_backend_phone_blacklist_min_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    created_by?: Maybe<Scalars["uuid"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    phone_e164?: Maybe<Scalars["String"]["output"]>
+    reason?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Mutation_Response = {
+    __typename?: "sequent_backend_phone_blacklist_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Phone_Blacklist>
+}
+
+/** on_conflict condition type for table "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_On_Conflict = {
+    constraint: Sequent_Backend_Phone_Blacklist_Constraint
+    update_columns?: Array<Sequent_Backend_Phone_Blacklist_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.phone_blacklist". */
+export type Sequent_Backend_Phone_Blacklist_Order_By = {
+    created_at?: InputMaybe<Order_By>
+    created_by?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    phone_e164?: InputMaybe<Order_By>
+    reason?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    updated_at?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.phone_blacklist */
+export type Sequent_Backend_Phone_Blacklist_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** select columns of table "sequent_backend.phone_blacklist" */
+export enum Sequent_Backend_Phone_Blacklist_Select_Column {
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    CreatedBy = "created_by",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    PhoneE164 = "phone_e164",
+    /** column name */
+    Reason = "reason",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
+}
+
+/** input type for updating data in table "sequent_backend.phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Set_Input = {
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    created_by?: InputMaybe<Scalars["uuid"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    phone_e164?: InputMaybe<Scalars["String"]["input"]>
+    reason?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_phone_blacklist" */
+export type Sequent_Backend_Phone_Blacklist_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Phone_Blacklist_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Phone_Blacklist_Stream_Cursor_Value_Input = {
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    created_by?: InputMaybe<Scalars["uuid"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    phone_e164?: InputMaybe<Scalars["String"]["input"]>
+    reason?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+}
+
+/** update columns of table "sequent_backend.phone_blacklist" */
+export enum Sequent_Backend_Phone_Blacklist_Update_Column {
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    CreatedBy = "created_by",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    PhoneE164 = "phone_e164",
+    /** column name */
+    Reason = "reason",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
+}
+
+export type Sequent_Backend_Phone_Blacklist_Updates = {
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Phone_Blacklist_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Phone_Blacklist_Bool_Exp
 }
 
 /** columns and relationships of "sequent_backend.preview" */
@@ -20029,6 +20320,14 @@ export type Subscription_Root = {
     sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
     /** fetch data from the table in a streaming manner: "sequent_backend.notification" */
     sequent_backend_notification_stream: Array<Sequent_Backend_Notification>
+    /** fetch data from the table: "sequent_backend.phone_blacklist" */
+    sequent_backend_phone_blacklist: Array<Sequent_Backend_Phone_Blacklist>
+    /** fetch aggregated fields from the table: "sequent_backend.phone_blacklist" */
+    sequent_backend_phone_blacklist_aggregate: Sequent_Backend_Phone_Blacklist_Aggregate
+    /** fetch data from the table: "sequent_backend.phone_blacklist" using primary key columns */
+    sequent_backend_phone_blacklist_by_pk?: Maybe<Sequent_Backend_Phone_Blacklist>
+    /** fetch data from the table in a streaming manner: "sequent_backend.phone_blacklist" */
+    sequent_backend_phone_blacklist_stream: Array<Sequent_Backend_Phone_Blacklist>
     /** fetch data from the table: "sequent_backend.preview" */
     sequent_backend_preview: Array<Sequent_Backend_Preview>
     /** fetch aggregated fields from the table: "sequent_backend.preview" */
@@ -20684,6 +20983,32 @@ export type Subscription_RootSequent_Backend_Notification_StreamArgs = {
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Notification_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Phone_BlacklistArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Phone_Blacklist_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Phone_Blacklist_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Phone_Blacklist_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Phone_Blacklist_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Phone_Blacklist_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Phone_Blacklist_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_PreviewArgs = {

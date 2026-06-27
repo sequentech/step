@@ -1,1 +1,63 @@
-[]
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetBallotStyle
+  methods:
+      - GET
+  name: IvrGetBallotStyle
+  url: ivr/election-events/:event_id/ballot-styles/:style_id
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetBallotStyles
+  methods:
+      - GET
+  name: IvrGetBallotStyles
+  url: ivr/election-events/:event_id/ballot-styles
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetCastVotes
+  methods:
+      - GET
+  name: IvrGetCastVotes
+  url: ivr/election-events/:event_id/cast-votes
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetElectionEvent
+  methods:
+      - GET
+  name: IvrGetElectionEvent
+  url: ivr/election-events/:event_id
+- comment: "Query the blacklist. The 'phone' parameter must be passed in the POST body."
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrIsPhoneBlacklisted
+  methods:
+      - POST
+  name: IvrIsPhoneBlacklisted
+  url: ivr/election-events/:event_id/check-blacklist
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrGetElectionStatus
+  methods:
+      - GET
+  name: IvrGetElectionStatus
+  url: ivr/elections/:election_id/status
+- comment: ""
+  definition:
+      query:
+          collection_name: allowed-queries
+          query_name: IvrInsertCastVote
+  methods:
+      - POST
+  name: IvrInsertCastVote
+  url: ivr/elections/:election_id/cast-vote

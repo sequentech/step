@@ -104,7 +104,7 @@ const englishTranslation = {
             auditBallotHelpDialog: {
                 title: "Do you want to audit the ballot?",
                 content:
-                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
+                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</p>",
                 ok: "Yes, I want to DISCARD my ballot to audit it",
                 cancel: "Cancel",
             },
