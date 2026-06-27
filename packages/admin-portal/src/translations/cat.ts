@@ -664,6 +664,13 @@ const catalanTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de declinació de vot",
+                options: {
+                    enabled: "Habilitat",
+                    disabled: "Desactivat",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1740,6 +1747,7 @@ const catalanTranslation: TranslationType = {
                     eliminated: "Eliminat",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de vots de renúncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",

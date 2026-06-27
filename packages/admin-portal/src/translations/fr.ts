@@ -665,6 +665,13 @@ const frenchTranslation: TranslationType = {
                     "do-not-generate": "Ne pas générer",
                 },
             },
+            declineToVotePolicy: {
+                label: "Politique d’abstention de vote",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1744,6 +1751,7 @@ const frenchTranslation: TranslationType = {
                     eliminated: "Éliminé",
                     round: "Tour",
                 },
+                total_declined_to_vote: "Total des refus de vote",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",

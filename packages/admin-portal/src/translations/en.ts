@@ -662,6 +662,13 @@ const englishTranslation = {
                     "do-not-generate": "Do Not Generate",
                 },
             },
+            declineToVotePolicy: {
+                label: "Decline to Vote Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1717,6 +1724,7 @@ const englishTranslation = {
                     eliminated: "Eliminated",
                     round: "Round",
                 },
+                total_declined_to_vote: "Total Declined to Vote",
             },
             pendingResolutions: {
                 round: "Round {{round}}",

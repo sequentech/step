@@ -663,6 +663,13 @@ const tagalogTranslation: TranslationType = {
                     "do-not-generate": "Huwag bumuo",
                 },
             },
+            declineToVotePolicy: {
+                label: "Patakaran sa pagtangging bumoto",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1734,6 +1741,7 @@ const tagalogTranslation: TranslationType = {
                     eliminated: "Naalis",
                     round: "Ikot",
                 },
+                total_declined_to_vote: "Kabuuang Tumangging Bumoto",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",

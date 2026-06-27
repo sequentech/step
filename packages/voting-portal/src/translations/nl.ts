@@ -58,6 +58,14 @@ const dutchTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Begin met stemmen",
+            declineToVoteButton: "Afzien van stemmen",
+            declineToVoteDialog: {
+                title: "Bevestig afzien van stemmen",
+                content:
+                    "Weet je zeker dat je wilt afzien van stemmen?<br />Je gaat direct naar de controlepagina en je deelnamestatus wordt opgeslagen als <b>Heeft afgezien van stemmen</b>.",
+                continue: "Afzien van stemmen",
+                cancel: "Annuleren",
+            },
             instructionsTitle: "Instructies",
             instructionsDescription: "Volg deze stappen om uw stem uit te brengen:",
             step1Title: "1. Selecteer uw opties",
@@ -195,6 +203,7 @@ const dutchTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Er is een interne fout opgetreden tijdens het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
             },
+            declineToVote: "Afzien van stemmen",
         },
         confirmationScreen: {
             title: "Uw stem is uitgebracht",

@@ -59,6 +59,14 @@ const galegoTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Comezar a votar",
+            declineToVoteButton: "Absterse de votar",
+            declineToVoteDialog: {
+                title: "Confirmar abstención de voto",
+                content:
+                    "Seguro que queres absterte de votar?<br />Irás directamente á revisión e o teu estado de participación gardarase como <b>Abstívose de votar</b>.",
+                continue: "Absterse de votar",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Instrucións",
             instructionsDescription: "Siga estes pasos para emitir a súa papeleta:",
             step1Title: "1. Selecciona as túas opcións",
@@ -195,6 +203,7 @@ const galegoTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
+            declineToVote: "Absterse de votar",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",

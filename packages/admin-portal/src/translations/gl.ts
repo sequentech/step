@@ -663,6 +663,13 @@ const galegoTranslation: TranslationType = {
                     "do-not-generate": "Non xerar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Activado",
+                    disabled: "Desactivado",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1731,6 +1738,7 @@ const galegoTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Rolda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",

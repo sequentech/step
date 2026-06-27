@@ -71,6 +71,7 @@ export const ballotSelectionsSlice = createSlice({
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
                                     is_explicit_blank: currentContestValue.is_explicit_blank,
+                                    is_decline_to_vote: currentContestValue.is_decline_to_vote,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
                                     choices: currentContestValue.choices,
@@ -81,6 +82,7 @@ export const ballotSelectionsSlice = createSlice({
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
                                 is_explicit_blank: false,
+                                is_decline_to_vote: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
                                 choices: question.candidates.map((answer) => ({
@@ -194,6 +196,27 @@ export const ballotSelectionsSlice = createSlice({
 
             return state
         },
+        setAllBallotSelectionsDeclineToVote: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+            }>
+        ): BallotSelectionsState => {
+            let currentElection = state[action.payload.ballotStyle.election_id]
+
+            if (!isUndefined(currentElection)) {
+                currentElection.forEach((currentQuestion) => {
+                    currentQuestion.is_decline_to_vote = true
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => {
+                        if (choice.selected > -1) {
+                            choice.selected = -1
+                        }
+                        return choice
+                    })
+                })
+            }
+            return state
+        },
     },
     /*extraReducers: (builder) => {
         builder.addCase(fetchElectionByIdAsync.fulfilled, (state, action) => {
@@ -218,6 +241,7 @@ export const {
     setBallotSelectionInvalidVote,
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
+    setAllBallotSelectionsDeclineToVote,
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =

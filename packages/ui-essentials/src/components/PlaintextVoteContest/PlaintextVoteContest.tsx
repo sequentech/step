@@ -233,6 +233,8 @@ export interface PlaintextVoteContestProps {
     contestNotFoundLabel: string
     markedInvalidLabel: string
     pointsLabel: (points: number) => string
+    isDeclineToVotePolicyEnabled: boolean
+    declineToVoteLabel?: string
 }
 
 export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
@@ -242,6 +244,8 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     contestNotFoundLabel,
     markedInvalidLabel,
     pointsLabel,
+    isDeclineToVotePolicyEnabled,
+    declineToVoteLabel,
 }) => {
     const {t, i18n} = useTranslation()
 
@@ -260,6 +264,8 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
     const properties = getLayoutProperties(question)
     const isBlank = checkIsBlank(questionPlaintext)
 
+    const isBallotDeclineToVote =
+        isDeclineToVotePolicyEnabled && questionPlaintext.is_decline_to_vote
     const {noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
     const sortedCategoryEntries = sortCategoryEntries(
         categoriesMap,
@@ -285,51 +291,57 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             <Typography variant="body2" fontWeight={"bold"}>
                 {translate(question, "name", i18n.language) || ""}
             </Typography>
-            {isBlank ? <BlankAnswer /> : null}
-            {questionPlaintext.invalid_errors.map((error, index) => (
-                <WarnBox variant="warning" key={index}>
-                    {t(error.message || "", normalizeMessageMap(error.message_map))}
-                </WarnBox>
-            ))}
-            {questionPlaintext.is_explicit_invalid ? (
-                <VoteChoice
-                    text={explicitInvalidAnswer?.name || markedInvalidLabel}
-                    points={null}
-                    ordered={properties?.ordered || false}
-                    pointsLabel={pointsLabel}
-                />
+            {isBlank || isBallotDeclineToVote ? (
+                <BlankAnswer title={isBallotDeclineToVote ? declineToVoteLabel : undefined} />
             ) : null}
-            {sortedCategoryEntries.length > 0 ? (
-                <CategoryListsWrapper>
-                    {sortedCategoryEntries.map(([categoryName, category]) => (
-                        <CategoryVoteList
-                            key={categoryName}
-                            categoryName={categoryName}
-                            category={category}
-                            question={question}
-                            questionPlaintext={questionPlaintext}
-                            choicesById={choicesById}
-                            isPreferentialVote={isPreferentialVote}
-                            publicBucketUrl={publicBucketUrl}
-                            language={i18n.language}
-                        />
+            {!isBallotDeclineToVote && (
+                <>
+                    {questionPlaintext.invalid_errors.map((error, index) => (
+                        <WarnBox variant="warning" key={index}>
+                            {t(error.message || "", normalizeMessageMap(error.message_map))}
+                        </WarnBox>
                     ))}
-                </CategoryListsWrapper>
-            ) : null}
-            {selectedNoCategoryCandidates.length > 0 ? (
-                <CandidatesWrapper>
-                    {selectedNoCategoryCandidates.map((candidate) => (
-                        <CandidateChoice
-                            key={candidate.id}
-                            answer={candidate}
-                            choice={choicesById[candidate.id]}
-                            isWriteIn={checkIsWriteIn(candidate)}
-                            isPreferentialVote={isPreferentialVote}
-                            publicBucketUrl={publicBucketUrl}
+                    {questionPlaintext.is_explicit_invalid ? (
+                        <VoteChoice
+                            text={explicitInvalidAnswer?.name || markedInvalidLabel}
+                            points={null}
+                            ordered={properties?.ordered || false}
+                            pointsLabel={pointsLabel}
                         />
-                    ))}
-                </CandidatesWrapper>
-            ) : null}
+                    ) : null}
+                    {sortedCategoryEntries.length > 0 ? (
+                        <CategoryListsWrapper>
+                            {sortedCategoryEntries.map(([categoryName, category]) => (
+                                <CategoryVoteList
+                                    key={categoryName}
+                                    categoryName={categoryName}
+                                    category={category}
+                                    question={question}
+                                    questionPlaintext={questionPlaintext}
+                                    choicesById={choicesById}
+                                    isPreferentialVote={isPreferentialVote}
+                                    publicBucketUrl={publicBucketUrl}
+                                    language={i18n.language}
+                                />
+                            ))}
+                        </CategoryListsWrapper>
+                    ) : null}
+                    {selectedNoCategoryCandidates.length > 0 ? (
+                        <CandidatesWrapper>
+                            {selectedNoCategoryCandidates.map((candidate) => (
+                                <CandidateChoice
+                                    key={candidate.id}
+                                    answer={candidate}
+                                    choice={choicesById[candidate.id]}
+                                    isWriteIn={checkIsWriteIn(candidate)}
+                                    isPreferentialVote={isPreferentialVote}
+                                    publicBucketUrl={publicBucketUrl}
+                                />
+                            ))}
+                        </CandidatesWrapper>
+                    ) : null}
+                </>
+            )}
         </>
     )
 }

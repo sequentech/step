@@ -664,6 +664,13 @@ const spanishTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1733,6 +1740,7 @@ const spanishTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
