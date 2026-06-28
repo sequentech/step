@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {ReactElement, useCallback, useContext, useEffect, useMemo, useState} from "react"
-import {useLazyQuery, useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import UploadFileIcon from "@mui/icons-material/UploadFile"
 import VisibilityIcon from "@mui/icons-material/Visibility"
@@ -42,6 +42,7 @@ import {
     WrapperField,
     useGetList,
     useGetOne,
+    useListContext,
     useNotify,
     useRecordContext,
     useRefresh,
@@ -56,6 +57,7 @@ import {
     PREVIEW_TALLY_SHEET_IMPORT,
     REVIEW_TALLY_SHEET_IMPORT,
 } from "@/queries/TallySheetImport"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {FetchDocumentQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -63,6 +65,7 @@ import {IPermissions} from "@/types/keycloak"
 import {downloadUrl} from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "./events"
+import {LIST_USERS} from "@/queries/GetUsers"
 
 type TallySheetImportSourceFormat = "ESS_ENHANCED_XML" | "CANONICAL_CSV"
 type TallySheetImportDecision = "APPROVE" | "DISAPPROVE"
@@ -158,6 +161,25 @@ interface ReviewTallySheetImportVariables {
     decision: TallySheetImportDecision
 }
 
+interface UserSummary {
+    id?: string | null
+    username?: string | null
+}
+
+interface ListUsersByIdData {
+    get_users?: {
+        items: UserSummary[]
+    } | null
+}
+
+interface ListUsersByIdVariables {
+    tenant_id: string
+    userIds: string[]
+    limit: number
+    offset: number
+    showVotesInfo: boolean
+}
+
 interface TallySheetImportRecord {
     id: string
     source_document_id: string
@@ -245,6 +267,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     const [pendingDetailImportId, setPendingDetailImportId] = useState<string | null>(null)
     const [duplicateSourceImport, setDuplicateSourceImport] =
         useState<TallySheetImportRecord | null>(null)
+    const detailImportRecords = useMemo(() => (detailImport ? [detailImport] : []), [detailImport])
 
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_IMPORT_VIEW)
     const canCreate = authContext.isAuthorized(
@@ -257,6 +280,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         tenantId,
         IPermissions.TALLY_SHEET_IMPORT_REVIEW
     )
+    const detailCreatorUsernames = useCreatorUsernames(detailImportRecords, tenantId)
 
     const {data: imports = [], refetch: refetchImports} = useGetList<TallySheetImportRecord>(
         "sequent_backend_tally_sheet_import",
@@ -581,13 +605,34 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
 
     const hasPreviewErrors = (preview?.validation_errors?.length ?? 0) > 0
 
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox sx={{minHeight: 360, mx: 0}}>
+            <Typography variant="h4" paragraph>
+                {t("tallySheetImport.empty")}
+            </Typography>
+            {canCreate ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t("tallySheetImport.emptyBody")}
+                    </Typography>
+                    <Button onClick={() => setUploadOpen(true)} startIcon={<UploadFileIcon />}>
+                        {t("tallySheetImport.actions.create")}
+                    </Button>
+                </>
+            ) : null}
+        </ResourceListStyles.EmptyBox>
+    )
+
     if (!canView) {
         return null
     }
 
     return (
         <Box sx={{mb: 3}}>
-            <ElectionHeader title={String(t("tallySheetImport.title"))} subtitle="" />
+            <ElectionHeader
+                title={String(t("tallySheetImport.title"))}
+                subtitle={String(t("tallySheetImport.subtitle"))}
+            />
 
             <List
                 resource="sequent_backend_tally_sheet_import"
@@ -615,103 +660,27 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                     election_event_id: electionEvent?.id || undefined,
                 }}
                 filters={Filters}
-                empty={false}
-                sx={{flexGrow: 2}}
+                empty={<Empty />}
+                sx={{
+                    "flexGrow": 2,
+                    "minWidth": 0,
+                    "& .RaList-content": {
+                        maxWidth: "100%",
+                        overflowX: "auto",
+                    },
+                    "& .MuiTableContainer-root": {
+                        maxWidth: "100%",
+                        overflowX: "auto",
+                    },
+                }}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
-                    <TextField source="id" />
-                    <FunctionField
-                        source="created_at"
-                        label={String(t("tallySheetImport.table.created"))}
-                        render={(record: TallySheetImportRecord) => formatDate(record.created_at)}
+                <Box sx={{maxWidth: "100%", minWidth: 0, overflowX: "auto"}}>
+                    <TallySheetImportsDatagrid
+                        tenantId={tenantId}
+                        onReview={setDetailImport}
+                        onDownloadSource={handleDownloadSource}
                     />
-                    <TextField
-                        source="created_by_user_id"
-                        label={String(t("tallySheetImport.table.createdBy"))}
-                    />
-                    <FunctionField
-                        source="source_file_name"
-                        label={String(t("tallySheetImport.table.file"))}
-                        render={(record: TallySheetImportRecord) =>
-                            record.source_file_name || record.source_document_id
-                        }
-                    />
-                    <FunctionField
-                        source="source_format"
-                        label={String(t("tallySheetImport.table.format"))}
-                        render={(record: TallySheetImportRecord) =>
-                            t(`tallySheetImport.sourceFormat.${record.source_format}`)
-                        }
-                    />
-                    <FunctionField
-                        source="selected_channel"
-                        label={String(t("tallySheetImport.table.channel"))}
-                        render={(record: TallySheetImportRecord) =>
-                            t(`tallySheetImport.channel.${record.selected_channel}`)
-                        }
-                    />
-                    <FunctionField
-                        source="status"
-                        label={String(t("tallySheetImport.table.status"))}
-                        render={(record: TallySheetImportRecord) => (
-                            <Status status={record.status} />
-                        )}
-                    />
-                    <FunctionField
-                        source="labels"
-                        label={String(t("tallySheetImport.table.labels"))}
-                        render={(record: TallySheetImportRecord) => formatJsonValue(record.labels)}
-                    />
-                    <FunctionField
-                        source="annotations"
-                        label={String(t("tallySheetImport.table.annotations"))}
-                        render={(record: TallySheetImportRecord) =>
-                            formatJsonValue(record.annotations)
-                        }
-                    />
-                    <FunctionField
-                        source="summary.imported_ballot_box_count"
-                        label={String(t("tallySheetImport.summary.imported"))}
-                        render={(record: TallySheetImportRecord) =>
-                            (record.summary ?? emptySummary).imported_ballot_box_count
-                        }
-                    />
-                    <FunctionField
-                        source="summary.changed_ballot_box_count"
-                        label={String(t("tallySheetImport.summary.changed"))}
-                        render={(record: TallySheetImportRecord) =>
-                            (record.summary ?? emptySummary).changed_ballot_box_count
-                        }
-                    />
-                    <FunctionField
-                        source="summary.new_ballot_box_count"
-                        label={String(t("tallySheetImport.summary.new"))}
-                        render={(record: TallySheetImportRecord) =>
-                            (record.summary ?? emptySummary).new_ballot_box_count
-                        }
-                    />
-                    <FunctionField
-                        source="summary.unchanged_ballot_box_count"
-                        label={String(t("tallySheetImport.summary.unchanged"))}
-                        render={(record: TallySheetImportRecord) =>
-                            (record.summary ?? emptySummary).unchanged_ballot_box_count
-                        }
-                    />
-                    <WrapperField
-                        source="actions"
-                        label={String(t("tallySheetImport.table.actions"))}
-                    >
-                        <FunctionField
-                            render={(record: TallySheetImportRecord) => (
-                                <ImportActions
-                                    record={record}
-                                    onReview={setDetailImport}
-                                    onDownloadSource={handleDownloadSource}
-                                />
-                            )}
-                        />
-                    </WrapperField>
-                </DatagridConfigurable>
+                </Box>
             </List>
 
             <Drawer
@@ -863,7 +832,10 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                 </Button>
                             </Stack>
                         </Stack>
-                        <ImportMetadata item={detailImport} />
+                        <ImportMetadata
+                            item={detailImport}
+                            creatorUsernames={detailCreatorUsernames}
+                        />
                         <ImportSummary summary={detailImport.summary ?? emptySummary} />
                         <Status status={detailImport.status} />
                         {detailImport.validation_report?.length ? (
@@ -943,14 +915,186 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     )
 }
 
-const ImportMetadata: React.FC<{item: TallySheetImportRecord}> = ({item}) => {
+const useCreatorUsernames = (
+    records: Array<Pick<TallySheetImportRecord, "created_by_user_id">>,
+    tenantId?: string | null
+) => {
+    const userIds = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    records
+                        .map((record) => record.created_by_user_id)
+                        .filter((userId): userId is string => !!userId)
+                )
+            ),
+        [records]
+    )
+
+    const {data} = useQuery<ListUsersByIdData, ListUsersByIdVariables>(LIST_USERS, {
+        variables: {
+            tenant_id: tenantId || "",
+            userIds,
+            limit: userIds.length,
+            offset: 0,
+            showVotesInfo: false,
+        },
+        skip: !tenantId || userIds.length === 0,
+        fetchPolicy: "cache-first",
+    })
+
+    return useMemo(() => {
+        const usernames = new Map<string, string>()
+        data?.get_users?.items.forEach((user) => {
+            if (user.id && user.username) {
+                usernames.set(user.id, user.username)
+            }
+        })
+        return usernames
+    }, [data])
+}
+
+const formatCreatedBy = (record: TallySheetImportRecord, creatorUsernames: Map<string, string>) =>
+    creatorUsernames.get(record.created_by_user_id) || record.created_by_user_id || "-"
+
+const TallySheetImportsDatagrid: React.FC<{
+    tenantId?: string | null
+    onReview: (record: TallySheetImportRecord) => void
+    onDownloadSource: (record: TallySheetImportRecord) => void
+}> = ({tenantId, onReview, onDownloadSource}) => {
+    const {t} = useTranslation()
+    const {data = []} = useListContext<TallySheetImportRecord>()
+    const creatorUsernames = useCreatorUsernames(data, tenantId)
+
+    return (
+        <DatagridConfigurable
+            omit={OMIT_FIELDS}
+            bulkActionButtons={false}
+            sx={{
+                "minWidth": 1180,
+                "width": "max-content",
+                "& .MuiTableCell-root": {
+                    maxWidth: 220,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    verticalAlign: "top",
+                    whiteSpace: "nowrap",
+                },
+                "& .column-source_file_name": {
+                    maxWidth: 280,
+                },
+                "& .column-labels, & .column-annotations": {
+                    maxWidth: 240,
+                },
+                "& .column-actions": {
+                    maxWidth: 96,
+                    width: 96,
+                },
+            }}
+        >
+            <TextField source="id" />
+            <FunctionField
+                source="created_at"
+                label={String(t("tallySheetImport.table.created"))}
+                render={(record: TallySheetImportRecord) => formatDate(record.created_at)}
+            />
+            <FunctionField
+                source="created_by_user_id"
+                label={String(t("tallySheetImport.table.createdBy"))}
+                render={(record: TallySheetImportRecord) =>
+                    formatCreatedBy(record, creatorUsernames)
+                }
+            />
+            <FunctionField
+                source="source_file_name"
+                label={String(t("tallySheetImport.table.file"))}
+                render={(record: TallySheetImportRecord) =>
+                    record.source_file_name || record.source_document_id
+                }
+            />
+            <FunctionField
+                source="source_format"
+                label={String(t("tallySheetImport.table.format"))}
+                render={(record: TallySheetImportRecord) =>
+                    t(`tallySheetImport.sourceFormat.${record.source_format}`)
+                }
+            />
+            <FunctionField
+                source="selected_channel"
+                label={String(t("tallySheetImport.table.channel"))}
+                render={(record: TallySheetImportRecord) =>
+                    t(`tallySheetImport.channel.${record.selected_channel}`)
+                }
+            />
+            <FunctionField
+                source="status"
+                label={String(t("tallySheetImport.table.status"))}
+                render={(record: TallySheetImportRecord) => <Status status={record.status} />}
+            />
+            <FunctionField
+                source="labels"
+                label={String(t("tallySheetImport.table.labels"))}
+                render={(record: TallySheetImportRecord) => formatJsonValue(record.labels)}
+            />
+            <FunctionField
+                source="annotations"
+                label={String(t("tallySheetImport.table.annotations"))}
+                render={(record: TallySheetImportRecord) => formatJsonValue(record.annotations)}
+            />
+            <FunctionField
+                source="summary.imported_ballot_box_count"
+                label={String(t("tallySheetImport.summary.imported"))}
+                render={(record: TallySheetImportRecord) =>
+                    (record.summary ?? emptySummary).imported_ballot_box_count
+                }
+            />
+            <FunctionField
+                source="summary.changed_ballot_box_count"
+                label={String(t("tallySheetImport.summary.changed"))}
+                render={(record: TallySheetImportRecord) =>
+                    (record.summary ?? emptySummary).changed_ballot_box_count
+                }
+            />
+            <FunctionField
+                source="summary.new_ballot_box_count"
+                label={String(t("tallySheetImport.summary.new"))}
+                render={(record: TallySheetImportRecord) =>
+                    (record.summary ?? emptySummary).new_ballot_box_count
+                }
+            />
+            <FunctionField
+                source="summary.unchanged_ballot_box_count"
+                label={String(t("tallySheetImport.summary.unchanged"))}
+                render={(record: TallySheetImportRecord) =>
+                    (record.summary ?? emptySummary).unchanged_ballot_box_count
+                }
+            />
+            <WrapperField source="actions" label={String(t("tallySheetImport.table.actions"))}>
+                <FunctionField
+                    render={(record: TallySheetImportRecord) => (
+                        <ImportActions
+                            record={record}
+                            onReview={onReview}
+                            onDownloadSource={onDownloadSource}
+                        />
+                    )}
+                />
+            </WrapperField>
+        </DatagridConfigurable>
+    )
+}
+
+const ImportMetadata: React.FC<{
+    item: TallySheetImportRecord
+    creatorUsernames: Map<string, string>
+}> = ({item, creatorUsernames}) => {
     const {t} = useTranslation()
 
     return (
         <Stack gap={0.5}>
             <MetadataLine
                 label={String(t("tallySheetImport.table.createdBy"))}
-                value={item.created_by_user_id}
+                value={formatCreatedBy(item, creatorUsernames)}
             />
             <MetadataLine
                 label={String(t("tallySheetImport.table.created"))}

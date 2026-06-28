@@ -14,9 +14,13 @@ const spanishTranslation: TranslationType = {
         loadingDataProvider: "Cargando proveedor de datos...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Importa archivos de actas de recuento ES&S o CSV, previsualiza las urnas generadas y apruébalas antes de crear actas de recuento.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Empieza importando un archivo ES&S Enhanced XML o CSV canónico para este evento electoral.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",

@@ -14,9 +14,13 @@ const frenchTranslation: TranslationType = {
         loadingDataProvider: "Chargement du fournisseur de données...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Importez des fichiers de feuilles de dépouillement ES&S ou CSV, prévisualisez les urnes générées et approuvez-les avant de créer des feuilles de dépouillement.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Commencez par importer un fichier ES&S Enhanced XML ou CSV canonique pour cet événement électoral.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",

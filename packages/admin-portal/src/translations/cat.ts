@@ -14,9 +14,13 @@ const catalanTranslation: TranslationType = {
         loadingDataProvider: "Carregant proveïdor de dades...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Importa fitxers d'actes de recompte ES&S o CSV, previsualitza les urnes generades i aprova-les abans de crear actes de recompte.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Comença important un fitxer ES&S Enhanced XML o CSV canònic per a aquest esdeveniment electoral.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",

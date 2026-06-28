@@ -14,9 +14,13 @@ const dutchTranslation: TranslationType = {
         loadingDataProvider: "Gegevensprovider laden...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Importeer ES&S- of CSV-telstaatbestanden, bekijk de gegenereerde stembussen vooraf en keur ze goed voordat ze telstaten aanmaken.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Begin met het importeren van een ES&S Enhanced XML- of canoniek CSV-bestand voor deze verkiezingsgebeurtenis.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",

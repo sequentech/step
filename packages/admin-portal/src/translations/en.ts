@@ -13,9 +13,13 @@ const englishTranslation = {
         loadingDataProvider: "Loading data provider...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Import ES&S or CSV tally sheet files, preview the generated ballot boxes, and approve them before they create tally sheets.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Start by importing an ES&S Enhanced XML or canonical CSV file for this election event.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",

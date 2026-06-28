@@ -1264,8 +1264,8 @@ pub async fn execute_tally_session_wrapped(
         &areas,
         &default_language,
         tally_type_enum.clone(),
-        plaintexts_data.is_empty() || force_new_results_id,
-        has_resolved_tie_break,
+        plaintexts_data.is_empty(),
+        force_new_results_id || has_resolved_tie_break,
     )
     .await?;
 

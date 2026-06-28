@@ -66,10 +66,10 @@ pub async fn import_candidate_sqlite(
                 }
             }
 
-            let is_public = match rec.get(13).unwrap_or("") {
+            let is_public = match rec.get(11).unwrap_or("") {
                 "t" | "true" => Some(true),
                 "f" | "false" => Some(false),
-                _ if rec.get(13).unwrap_or("").is_empty() => None,
+                _ if rec.get(11).unwrap_or("").is_empty() => None,
                 other => {
                     return Err(anyhow!(
                         "Invalid boolean in is_public column: {}",

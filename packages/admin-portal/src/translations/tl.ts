@@ -14,9 +14,13 @@ const tagalogTranslation: TranslationType = {
         loadingDataProvider: "Naglo-load ng tagapagbigay ng datos...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Mag-import ng ES&S o CSV tally sheet files, i-preview ang nabuong ballot boxes, at aprubahan ang mga ito bago gumawa ng tally sheets.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Magsimula sa pag-import ng ES&S Enhanced XML o canonical CSV file para sa election event na ito.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",

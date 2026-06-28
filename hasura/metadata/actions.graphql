@@ -828,6 +828,7 @@ input GetUsersInput {
     username: jsonb
     limit: Int
     offset: Int
+    user_ids: [String!]
     show_votes_info: Boolean
     attributes: jsonb
     enabled: Boolean

@@ -14,9 +14,13 @@ const basqueTranslation: TranslationType = {
         loadingDataProvider: "Datu hornitzailea kargatzen...",
         tallySheetImport: {
             title: "Tally sheet imports",
+            subtitle:
+                "Inportatu ES&S edo CSV zenbaketa-orrien fitxategiak, aurreikusi sortutako hautetsontziak eta onartu zenbaketa-orriak sortu aurretik.",
             createTitle: "Import tally sheets",
             detailTitle: "Tally sheet import",
             empty: "No tally sheet imports yet.",
+            emptyBody:
+                "Hasi hauteskunde ekitaldi honetarako ES&S Enhanced XML edo CSV kanoniko fitxategi bat inportatuz.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",
