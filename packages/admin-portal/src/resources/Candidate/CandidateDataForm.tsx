@@ -418,6 +418,7 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput source="external_id" label="External ID" />
                                 <TextInput
                                     source="type"
                                     label={String(t("candidateScreen.edit.type"))}

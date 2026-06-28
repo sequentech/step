@@ -4,20 +4,22 @@
 import React, {ReactElement, useContext} from "react"
 import {
     DatagridConfigurable,
+    FunctionField,
+    Identifier,
     List,
     TextField,
     TextInput,
-    Identifier,
     WrapperField,
-    FunctionField,
-    useRefresh,
+    useGetOne,
     useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {ListActionsMenu} from "../../components/ListActionsMenu"
-import {Tooltip, Typography} from "@mui/material"
-import {Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
-import {Action} from "../../components/ActionButons"
+import {IconButton, Stack, Tooltip, Typography} from "@mui/material"
+import {useLazyQuery} from "@apollo/client"
+import DownloadIcon from "@mui/icons-material/Download"
+import OpenInNewIcon from "@mui/icons-material/OpenInNew"
+import {FetchDocumentQuery, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
+import {Action, ActionsColumn} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import VisibilityIcon from "@mui/icons-material/Visibility"
@@ -33,6 +35,10 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {downloadUrl} from "@sequentech/ui-core"
+import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "../TallySheetImport/events"
+import {useLocation, useNavigate} from "react-router-dom"
 
 const OMIT_FIELDS = ["id"]
 
@@ -45,7 +51,21 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Created by" source="created_by_user_id" key={5} />,
     <TextInput label="Reviewed by" source="reviewed_by_user_id" key={6} />,
     <TextInput label="Status" source="status" key={7} />,
+    <TextInput label="Import" source="import_id" key={8} />,
+    <TextInput label="Labels" source="labels" key={9} />,
+    <TextInput label="Annotations" source="annotations" key={10} />,
 ]
+
+type TallySheetVersionRecord = Sequent_Backend_Tally_Sheet & {
+    import_id?: string | null
+}
+
+interface TallySheetImportReference {
+    id: string
+    status: string
+    source_document_id: string
+    source_file_name?: string | null
+}
 
 interface TTallySheetListVersions {
     tallySheet: Sequent_Backend_Tally_Sheet
@@ -60,7 +80,6 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
     const {
         tallySheet: tallySheet,
         doAction,
-        reload,
         approveAction,
         disapproveAction,
         setShowVersionsTable,
@@ -68,13 +87,16 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
-    const notify = useNotify()
 
     const authContext = useContext(AuthContext)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
+    const canViewImport = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TALLY_SHEET_IMPORT_VIEW
+    )
 
     const viewAction = (id: Identifier) => {
         doAction(WizardSteps.View, id)
@@ -82,7 +104,11 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
         {
-            icon: <VisibilityIcon />,
+            icon: (
+                <Tooltip title={t("tallysheet.common.show")}>
+                    <VisibilityIcon />
+                </Tooltip>
+            ),
             action: viewAction,
             showAction: () => canView,
             label: t("tallysheet.common.show"),
@@ -195,11 +221,39 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     />
                     <TextField source="status" />
 
+                    <FunctionField
+                        source="labels"
+                        label={t("tallysheet.table.labels")}
+                        render={(record: Sequent_Backend_Tally_Sheet) =>
+                            formatJsonValue(record.labels)
+                        }
+                    />
+
+                    <FunctionField
+                        source="annotations"
+                        label={t("tallysheet.table.annotations")}
+                        render={(record: Sequent_Backend_Tally_Sheet) =>
+                            formatJsonValue(record.annotations)
+                        }
+                    />
+
+                    <FunctionField
+                        key="source-import"
+                        label={t("tallysheet.versionsTable.sourceImport")}
+                        render={(record: TallySheetVersionRecord) => (
+                            <ImportedVersionSource
+                                record={record}
+                                electionEventId={String(tallySheet.election_event_id)}
+                                canViewImport={canViewImport}
+                            />
+                        )}
+                    />
+
                     <WrapperField source="actions" label="Actions">
                         <FunctionField
                             label={t("tallysheet.table.area")}
                             render={(record: Sequent_Backend_Tally_Sheet) => (
-                                <ListActionsMenu actions={actions(record)} />
+                                <ActionsColumn actions={actions(record)} />
                             )}
                         />
                     </WrapperField>
@@ -217,4 +271,113 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
             </WizardStyles.Toolbar>
         </>
     )
+}
+
+interface ImportedVersionSourceProps {
+    record: TallySheetVersionRecord
+    electionEventId: string
+    canViewImport: boolean
+}
+
+const ImportedVersionSource: React.FC<ImportedVersionSourceProps> = ({
+    record,
+    electionEventId,
+    canViewImport,
+}) => {
+    const {t} = useTranslation()
+    const notify = useNotify()
+    const location = useLocation()
+    const navigate = useNavigate()
+    const importId = record.import_id
+    const {data: sourceImport} = useGetOne<TallySheetImportReference>(
+        "sequent_backend_tally_sheet_import",
+        {id: importId || ""},
+        {enabled: canViewImport && !!importId}
+    )
+    const [fetchDocument] = useLazyQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
+        fetchPolicy: "no-cache",
+    })
+
+    if (!importId || !canViewImport) {
+        return <Typography variant="body2">-</Typography>
+    }
+
+    const openImport = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation()
+        const nextSearch = new URLSearchParams(location.search)
+        nextSearch.set("tabId", "tally-sheet-imports")
+        nextSearch.set("tallySheetImportId", importId)
+        navigate({pathname: location.pathname, search: `?${nextSearch.toString()}`})
+        window.dispatchEvent(new CustomEvent(TALLY_SHEET_IMPORT_OPEN_EVENT, {detail: {importId}}))
+    }
+
+    const downloadSource = async () => {
+        if (!sourceImport?.source_document_id) {
+            return
+        }
+
+        try {
+            const {data} = await fetchDocument({
+                variables: {
+                    electionEventId,
+                    documentId: sourceImport.source_document_id,
+                },
+            })
+            const url = data?.fetchDocument?.url
+            if (!url) {
+                throw new Error(String(t("tallySheetImport.notifications.sourceUrlError")))
+            }
+            await downloadUrl(
+                url,
+                sourceImport.source_file_name || `tally-sheet-import-${importId}`
+            )
+        } catch (error) {
+            notify(
+                error instanceof Error
+                    ? error.message
+                    : t("tallySheetImport.notifications.sourceDownloadError"),
+                {type: "error"}
+            )
+        }
+    }
+
+    return (
+        <Stack gap={0.5}>
+            <Typography variant="caption" color="text.secondary">
+                {t("tallysheet.versionsTable.importStatus")}: {sourceImport?.status || "-"}
+            </Typography>
+            <Stack direction="row" gap={1} flexWrap="wrap">
+                <Tooltip title={String(t("tallysheet.versionsTable.openImport"))}>
+                    <IconButton size="small" onClick={openImport}>
+                        <OpenInNewIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+                <Tooltip title={String(t("tallysheet.versionsTable.sourceFile"))}>
+                    <span>
+                        <IconButton
+                            size="small"
+                            onClick={downloadSource}
+                            disabled={!sourceImport?.source_document_id}
+                        >
+                            <DownloadIcon fontSize="small" />
+                        </IconButton>
+                    </span>
+                </Tooltip>
+            </Stack>
+        </Stack>
+    )
+}
+
+const formatJsonValue = (value: unknown) => {
+    if (value === null || value === undefined || value === "") {
+        return "-"
+    }
+    if (typeof value === "string") {
+        return value
+    }
+    try {
+        return JSON.stringify(value)
+    } catch (_error) {
+        return String(value)
+    }
 }

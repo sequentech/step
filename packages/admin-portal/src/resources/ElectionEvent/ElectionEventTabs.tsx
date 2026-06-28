@@ -20,16 +20,12 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {
-    EElectionEventLockedDown,
-    EVoterCertificatePolicy,
-    i18n,
-    translateFromPresentation,
-} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, EVoterCertificatePolicy} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "../TallySheetImport/events"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -55,6 +51,11 @@ const EditElectionEventCAs = lazy(() =>
 )
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
+)
+const TallySheetImports = lazy(() =>
+    import("../TallySheetImport/TallySheetImports").then((m) => ({
+        default: m.TallySheetImports,
+    }))
 )
 const Publish = lazy(() =>
     import("@/resources/Publish/Publish").then((m) => ({default: m.Publish}))
@@ -142,6 +143,15 @@ const TallyTab: React.FC = () => (
     </Suspense>
 )
 
+const TallySheetImportsTab: React.FC<{
+    openImportId?: string | null
+    onOpenImportHandled?: () => void
+}> = ({openImportId, onOpenImportHandled}) => (
+    <Suspense fallback={<div>Loading Tally Sheet Imports...</div>}>
+        <TallySheetImports openImportId={openImportId} onOpenImportHandled={onOpenImportHandled} />
+    </Suspense>
+)
+
 const PublishTab: React.FC<{showList: string | undefined}> = ({showList}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     return (
@@ -209,6 +219,19 @@ export const ElectionEventTabs: React.FC = () => {
     const [showTaskList, setShowTaskList] = useState<string | undefined>()
     const [showPublishList, setShowPublishList] = useState<string | undefined>()
     const [showApprovalList, setShowApprovalList] = useState<string | undefined>()
+    const [pendingTallySheetImportId, setPendingTallySheetImportId] = useState<string | null>(
+        () => {
+            const baseUrl = new URL(window.location.href)
+            return baseUrl.searchParams.get("tallySheetImportId")
+        }
+    )
+    const [selectedTab, setSelectedTab] = useState(() => {
+        const baseUrl = new URL(window.location.href)
+        return Number.parseInt(baseUrl.searchParams.get("tabIndex") ?? "0")
+    })
+    const clearPendingTallySheetImportId = useCallback(() => {
+        setPendingTallySheetImportId(null)
+    }, [])
 
     // Dashboard refresh logic// Dashboard refresh logic
     const [loadedChildren, setLoadedChildren] = useState(0)
@@ -268,6 +291,9 @@ export const ElectionEventTabs: React.FC = () => {
             IPermissions.TALLY_START,
         ]) &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_TALLY_TAB)
+    const showTallySheetImports =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.TALLY_SHEET_IMPORT_VIEW)
     const showPublish =
         !isElectionEventLocked &&
         authContext.isAuthorized(
@@ -311,6 +337,7 @@ export const ElectionEventTabs: React.FC = () => {
     // -----------------------------------------------------------------
     const tabs = useMemo(() => {
         const result: Array<{
+            id?: string
             label: string
             component: React.FC<any>
             props?: any
@@ -367,9 +394,22 @@ export const ElectionEventTabs: React.FC = () => {
         // Tally
         if (showTally) {
             result.push({
+                id: "tally",
                 label: t("electionEventScreen.tabs.tally"),
                 component: TallyTab,
                 action: () => setTallyId(null),
+            })
+        }
+
+        if (showTallySheetImports) {
+            result.push({
+                id: "tally-sheet-imports",
+                label: t("electionEventScreen.tabs.tallySheetImports"),
+                component: TallySheetImportsTab,
+                props: {
+                    openImportId: pendingTallySheetImportId,
+                    onOpenImportHandled: clearPendingTallySheetImportId,
+                },
             })
         }
 
@@ -436,6 +476,7 @@ export const ElectionEventTabs: React.FC = () => {
         showAreas,
         showKeys,
         showTally,
+        showTallySheetImports,
         showPublish,
         showLogs,
         showTasksExecution,
@@ -451,7 +492,41 @@ export const ElectionEventTabs: React.FC = () => {
         refreshRef,
         handleChildMount,
         setTallyId,
+        pendingTallySheetImportId,
+        clearPendingTallySheetImportId,
     ])
+
+    const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search)
+        const tabId = searchParams.get("tabId")
+        const importId = searchParams.get("tallySheetImportId")
+        if (tallySheetImportsTabIndex < 0) {
+            return
+        }
+        if (tabId === "tally-sheet-imports" || importId) {
+            setSelectedTab(tallySheetImportsTabIndex)
+        }
+        if (importId) {
+            setPendingTallySheetImportId(importId)
+        }
+    }, [location.search, tallySheetImportsTabIndex])
+
+    useEffect(() => {
+        const handleOpenImport = (event: Event) => {
+            const importId = (event as CustomEvent<{importId?: string}>).detail?.importId
+            if (!importId || tallySheetImportsTabIndex < 0) {
+                return
+            }
+
+            setPendingTallySheetImportId(importId)
+            setSelectedTab(tallySheetImportsTabIndex)
+        }
+
+        window.addEventListener(TALLY_SHEET_IMPORT_OPEN_EVENT, handleOpenImport)
+        return () => window.removeEventListener(TALLY_SHEET_IMPORT_OPEN_EVENT, handleOpenImport)
+    }, [tallySheetImportsTabIndex])
 
     if (!record) {
         return (
@@ -475,7 +550,11 @@ export const ElectionEventTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
-                    <Tabs elements={tabs} />
+                    <Tabs
+                        elements={tabs}
+                        selectedTab={selectedTab}
+                        onSelectedTabChange={setSelectedTab}
+                    />
                 </RecordContextProvider>
             </Box>
         </Box>

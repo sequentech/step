@@ -80,6 +80,7 @@ export const CreateCandidate: React.FC = () => {
                 <Typography variant="body2">{t("createResource.candidate")}</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
+                <TextInput source="external_id" label="External ID" />
                 <Hidden>
                     <TextInput source="type" />
                     <BooleanInput source="is_public" />

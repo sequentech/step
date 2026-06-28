@@ -696,6 +696,7 @@ async fn map_plaintext_data(
     tally_session_execution: TallySessionExecution,
     tally_session_contest: Vec<TallySessionContest>,
     ballot_styles: Vec<BallotStyleHasura>,
+    force_recount: bool,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -870,15 +871,12 @@ async fn map_plaintext_data(
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
-    // In a tie-break re-run the tally replays from the last processed message;
-    // normally we require a new (unprocessed) message to proceed.
+    // Recounts and tie-break re-runs replay the last processed message; normally
+    // we require a new (unprocessed) message to proceed.
     let board_message_to_process = match board_messages.iter().find(|m| m.id > last_message_id) {
         Some(msg) => msg,
-        None if tie_break_rerun => {
-            event!(
-                Level::INFO,
-                "Replaying last board message for tie-break re-run"
-            );
+        None if tie_break_rerun || force_recount => {
+            event!(Level::INFO, "Replaying last board message for tally re-run");
             board_messages
                 .last()
                 .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
@@ -1124,6 +1122,7 @@ pub async fn execute_tally_session_wrapped(
     keycloak_transaction: &Transaction<'_>,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
+    force_new_results_id: bool,
 ) -> Result<()> {
     let Some((tally_session_execution, tally_session, tally_session_contests, ballot_styles)) =
         find_last_tally_session_execution_and_all_related_data(
@@ -1195,6 +1194,7 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
         tally_session_contests.clone(),
         ballot_styles.clone(),
+        force_new_results_id,
     )
     .await?;
 
@@ -1264,7 +1264,7 @@ pub async fn execute_tally_session_wrapped(
         &areas,
         &default_language,
         tally_type_enum.clone(),
-        plaintexts_data.is_empty(), // &tally_session,
+        plaintexts_data.is_empty() || force_new_results_id,
         has_resolved_tie_break,
     )
     .await?;
@@ -1394,6 +1394,7 @@ pub async fn transactions_wrapper(
     tally_session_id: String,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
+    force_new_results_id: bool,
 ) -> Result<()> {
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -1422,6 +1423,7 @@ pub async fn transactions_wrapper(
         &keycloak_transaction,
         tally_type.clone(),
         election_ids.clone(),
+        force_new_results_id,
     )
     .await;
 
@@ -1460,6 +1462,7 @@ pub async fn execute_tally_session(
     tally_session_id: String,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
+    force_new_results_id: bool,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     let Ok(lock) = PgLock::acquire(
@@ -1485,6 +1488,7 @@ pub async fn execute_tally_session(
         tally_session_id.clone(),
         tally_type.clone(),
         election_ids.clone(),
+        force_new_results_id,
     ));
     let res = loop {
         tokio::select! {

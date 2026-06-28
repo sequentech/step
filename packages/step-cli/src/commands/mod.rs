@@ -29,6 +29,7 @@ pub mod render_template;
 pub mod start_key_ceremony;
 pub mod start_tally;
 pub mod submit_tally_resolution;
+pub mod tally_sheet;
 pub mod update_election_voting_status;
 pub mod update_event_voting_status;
 pub mod update_tally_status;

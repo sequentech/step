@@ -43,6 +43,9 @@ impl TryFrom<Row> for TallySheetWrapper {
             channel: item.try_get("channel")?,
             deleted_at: item.get("deleted_at"),
             created_by_user_id: item.try_get("created_by_user_id")?,
+            import_id: item
+                .try_get::<_, Option<Uuid>>("import_id")?
+                .map(|value| value.to_string()),
         }))
     }
 }
@@ -90,6 +93,61 @@ pub async fn get_approved_tally_sheets_by_event(
         .collect::<Result<Vec<TallySheet>>>()?;
 
     Ok(tally_sheets)
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_latest_approved_tally_sheet(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    contest_id: &str,
+    channel: &VotingChannel,
+) -> Result<Option<TallySheet>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.tally_sheet
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    area_id = $4 AND
+                    contest_id = $5 AND
+                    channel = $6 AND
+                    status = 'APPROVED' AND
+                    deleted_at IS NULL
+                ORDER BY
+                    version DESC
+                LIMIT 1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(contest_id)?,
+                &channel.to_string(),
+            ],
+        )
+        .await?;
+
+    let elements = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: TallySheetWrapper| res.0))
+        .collect::<Result<Vec<TallySheet>>>()?;
+
+    Ok(elements.first().cloned())
 }
 
 /// Serializes concurrent version assignment for the same ballot box (tenant, election_event,
@@ -180,6 +238,60 @@ pub async fn get_latest_ballot_box_version(
     }
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_latest_ballot_box_tally_sheet(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    contest_id: &str,
+    channel: &VotingChannel,
+) -> Result<Option<TallySheet>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.tally_sheet
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    area_id = $4 AND
+                    contest_id = $5 AND
+                    channel = $6 AND
+                    deleted_at IS NULL
+                ORDER BY
+                    version DESC
+                LIMIT 1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(contest_id)?,
+                &channel.to_string(),
+            ],
+        )
+        .await?;
+
+    let elements = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: TallySheetWrapper| res.0))
+        .collect::<Result<Vec<TallySheet>>>()?;
+
+    Ok(elements.first().cloned())
+}
+
 /// When a tally sheet is approved, the other versions must be soft deleted.
 /// It will soft-delete all the sheets with the same area_id, contest_id and channel but different tally_sheet_id
 /// than the tally_sheet passed as a parameter.
@@ -264,6 +376,7 @@ pub async fn review_tally_sheet_status(
             tally_sheet.tenant_id = $1 AND
             tally_sheet.election_event_id = $2 AND
             tally_sheet.id = $3 AND
+            tally_sheet.status = 'PENDING' AND
             tally_sheet.deleted_at IS NULL
         RETURNING *
     "#,
@@ -317,6 +430,7 @@ pub async fn insert_tally_sheet(
     created_by_user_id: &str,
     status: TallySheetStatus,
     version: i32,
+    import_id: Option<&str>,
 ) -> Result<TallySheet> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
@@ -331,13 +445,14 @@ pub async fn insert_tally_sheet(
     let content_value = serde_json::to_value(content)?;
     let channel_str = channel.to_string();
     let status_str = status.to_string();
+    let import_uuid = import_id.map(parse_uuid_v4).transpose()?;
 
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.tally_sheet
-                (tenant_id, election_event_id, election_id, contest_id, area_id, created_at, last_updated_at, content, channel, created_by_user_id, status, version)
+                (tenant_id, election_event_id, election_id, contest_id, area_id, created_at, last_updated_at, content, channel, created_by_user_id, status, version, import_id)
                 VALUES(
                     $1,
                     $2,
@@ -350,7 +465,8 @@ pub async fn insert_tally_sheet(
                     $7,
                     $8,
                     $9,
-                    $10
+                    $10,
+                    $11
                 )
                 RETURNING
                     *;
@@ -371,6 +487,7 @@ pub async fn insert_tally_sheet(
                 &created_by_user_id.to_string(),
                 &status_str,
                 &version,
+                &import_uuid,
             ],
         )
         .await

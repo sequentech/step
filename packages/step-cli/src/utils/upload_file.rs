@@ -23,6 +23,14 @@ pub struct GetUploadUrl;
 
 impl GetUploadUrl {
     pub fn upload(file_path: String, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
+        Self::upload_for_election_event(file_path, is_local, None)
+    }
+
+    pub fn upload_for_election_event(
+        file_path: String,
+        is_local: bool,
+        election_event_id: Option<String>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
@@ -46,7 +54,7 @@ impl GetUploadUrl {
             size: file_size,
             is_public: false, // If local then the url changes
             is_local: Some(is_local),
-            election_event_id: None,
+            election_event_id,
         };
 
         let request_body = GetUploadUrl::build_query(variables);

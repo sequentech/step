@@ -691,6 +691,7 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput source="external_id" label="External ID" />
                                 <SelectInput
                                     source="counting_algorithm"
                                     choices={countingAlgorithmChoices()}
