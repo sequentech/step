@@ -638,17 +638,17 @@ fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> 
 #[instrument(skip_all, err)]
 pub fn clean_tally_sheets(
     tally_sheet_rows: &Vec<TallySheet>,
-    plaintexts_data: &Vec<AreaContestDataType>,
+    ballot_styles: &Vec<BallotStyle>,
 ) -> Result<Vec<TallySheet>> {
-    let contests_map: HashMap<String, Contest> = plaintexts_data
-        .clone()
-        .into_iter()
-        .map(|area_contest| {
-            (
-                area_contest.contest.id.clone(),
-                area_contest.contest.clone(),
-            )
-        })
+    // Built from all contests in the election (not just the ones whose
+    // plaintexts have already been decrypted for this batch), since
+    // validate_tally_sheet only needs the contest's candidate list and
+    // would otherwise spuriously fail for contests still awaiting
+    // decryption in a multi-batch tally session.
+    let contests_map: HashMap<String, Contest> = ballot_styles
+        .iter()
+        .flat_map(|ballot_style| ballot_style.contests.iter())
+        .map(|contest| (contest.id.clone(), contest.clone()))
         .collect();
     tally_sheet_rows
         .iter()
@@ -993,7 +993,7 @@ async fn map_plaintext_data(
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         hasura_transaction,
         relevant_plaintexts,
-        ballot_styles,
+        ballot_styles.clone(),
         tally_session_contest.clone(),
         &areas,
         &tenant_id,
@@ -1002,7 +1002,7 @@ async fn map_plaintext_data(
     )
     .await?;
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
-    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
+    let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &ballot_styles)?;
 
     let cast_votes_count = count_cast_votes_election_with_census(&tally_session_contest).await?;
     Ok(Some((
