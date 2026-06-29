@@ -582,7 +582,7 @@ export const ContestDataForm: React.FC = () => {
                         />
                         <TextInput
                             source={`annotations[${IVR_ENTITY_I18N_ANNOTATION}][prompt][${lang}]`}
-                            label={String(t("electionEventScreen.field.ivrPrompt"))}
+                            label={String(t("electionScreen.field.ivrPrompt"))}
                         />
                     </div>
                 </CustomTabPanel>
