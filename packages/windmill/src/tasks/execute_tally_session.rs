@@ -640,11 +640,6 @@ pub fn clean_tally_sheets(
     tally_sheet_rows: &Vec<TallySheet>,
     ballot_styles: &Vec<BallotStyle>,
 ) -> Result<Vec<TallySheet>> {
-    // Built from all contests in the election (not just the ones whose
-    // plaintexts have already been decrypted for this batch), since
-    // validate_tally_sheet only needs the contest's candidate list and
-    // would otherwise spuriously fail for contests still awaiting
-    // decryption in a multi-batch tally session.
     let contests_map: HashMap<String, Contest> = ballot_styles
         .iter()
         .flat_map(|ballot_style| ballot_style.contests.iter())
