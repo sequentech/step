@@ -59,8 +59,10 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
    */
   static final Map<String, AuthStep> STOCK_AUTHENTICATORS =
       Map.of(
-          "direct-grant-validate-username", new AuthStep("voter_id", 8, "#", "username", null),
-          "direct-grant-validate-password", new AuthStep("pin", 8, "#", "password", null));
+          "direct-grant-validate-username",
+              new AuthStep("voter_id", 8, Constants.AUTH_STEP_KIND_IDENTIFIER, "username", null),
+          "direct-grant-validate-password",
+              new AuthStep("pin", 8, Constants.AUTH_STEP_KIND_SECRET, "password", null));
 
   /** Authenticators that must not surface as an IVR-collected step. */
   static final Set<String> SKIPPED_AUTHENTICATORS = Set.of();
@@ -176,11 +178,15 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
     }
     String fieldName = c.get(Constants.AUTH_STEP_PROP_FIELD);
     String mapsTo = c.get(Constants.AUTH_STEP_PROP_MAPS_TO);
-    if (fieldName == null || mapsTo == null) {
-      String msg = "AuthenticatorConfig for '%s' is missing required IVR keys (%s, %s)";
+    String kind = c.get(Constants.AUTH_STEP_PROP_KIND);
+    if (fieldName == null || mapsTo == null || kind == null) {
+      String msg = "AuthenticatorConfig for '%s' is missing required IVR keys (%s, %s, %s)";
       throw new WebApplicationException(
           msg.formatted(
-              authenticatorId, Constants.AUTH_STEP_PROP_FIELD, Constants.AUTH_STEP_PROP_MAPS_TO),
+              authenticatorId,
+              Constants.AUTH_STEP_PROP_FIELD,
+              Constants.AUTH_STEP_PROP_MAPS_TO,
+              Constants.AUTH_STEP_PROP_KIND),
           Response.Status.INTERNAL_SERVER_ERROR);
     }
 
@@ -192,10 +198,9 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
       throw new WebApplicationException(
           msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
-    String terminator = c.getOrDefault(Constants.AUTH_STEP_PROP_TERMINATOR, "#");
     String promptKey = c.get(Constants.AUTH_STEP_PROP_PROMPT_KEY); // optional, may be null
 
-    return new AuthStep(fieldName, maxDigits, terminator, mapsTo, promptKey);
+    return new AuthStep(fieldName, maxDigits, kind, mapsTo, promptKey);
   }
 
   @Override

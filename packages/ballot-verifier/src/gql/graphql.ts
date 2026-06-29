@@ -983,6 +983,7 @@ export enum VotingStatusChannel {
     EarlyVoting = "EARLY_VOTING",
     Kiosk = "KIOSK",
     Online = "ONLINE",
+    Telephone = "TELEPHONE",
 }
 
 export type ApplicationOutput = {
