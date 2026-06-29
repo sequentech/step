@@ -85,6 +85,7 @@ import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
+import {IVR_ENTITY_I18N_ANNOTATION} from "@/utils/ivr"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -294,6 +295,14 @@ export const ElectionDataForm: React.FC = () => {
 
             temp.presentation.i18n.en.description = temp.description
 
+            const newAnnotations = (temp.annotations ?? {}) as Record<string, any>
+            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]) {
+                newAnnotations[IVR_ENTITY_I18N_ANNOTATION] = {}
+            }
+            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"]) {
+                newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"] = {}
+            }
+
             // receipts
             const template: {[key: string]: string | null} = {}
             const allowed: {[key: string]: boolean} = {}
@@ -389,6 +398,10 @@ export const ElectionDataForm: React.FC = () => {
                             <TextInput
                                 source={`presentation.i18n[${lang}].description`}
                                 label={String(t("electionEventScreen.field.description"))}
+                            />
+                            <TextInput
+                                source={`annotations[${IVR_ENTITY_I18N_ANNOTATION}][prompt][${lang}]`}
+                                label={String(t("electionEventScreen.field.ivrPrompt"))}
                             />
                             {hasTos ? (
                                 <TextInput
