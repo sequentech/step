@@ -1219,7 +1219,7 @@ const tagalogTranslation: TranslationType = {
                 online: "Online",
                 kiosk: "Kiosk",
                 early_voting: "Maagang pagboto",
-                telephone: "Telepono pagboto",
+                telephone: "Pagboto sa Telepono",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
@@ -1741,6 +1741,7 @@ const tagalogTranslation: TranslationType = {
                     eliminated: "Naalis",
                     round: "Ikot",
                 },
+                total_declined_to_vote: "Kabuuang Tumangging Bumoto",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",

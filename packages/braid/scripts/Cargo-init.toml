@@ -7,7 +7,7 @@
 members = [
     "strand",
     "braid",
-    "b3",
+    "b4",
     "immu-board",
     "immudb-rs"
 ]

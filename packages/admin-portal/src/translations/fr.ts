@@ -1751,6 +1751,7 @@ const frenchTranslation: TranslationType = {
                     eliminated: "Éliminé",
                     round: "Tour",
                 },
+                total_declined_to_vote: "Total des refus de vote",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",

@@ -39,6 +39,7 @@ const IDECODED_VOTE_CONTEST: &'static str = r#"
 interface IDecodedVoteContest {
     contest_id: string;
     is_explicit_invalid: boolean;
+    is_decline_to_vote: boolean;
     invalid_errors: Array<IInvalidPlaintextError>;
     invalid_alerts: Array<IInvalidPlaintextError>;
     choices: Array<IDecodedVoteChoice>;

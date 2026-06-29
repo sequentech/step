@@ -1735,6 +1735,7 @@ const basqueTranslation: TranslationType = {
                     eliminated: "Baztertua",
                     round: "Txanda",
                 },
+                total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",

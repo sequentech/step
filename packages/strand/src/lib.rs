@@ -160,13 +160,10 @@ pub mod context;
 /// ElGamal encryption.
 pub mod elgamal;
 /// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf).
-#[cfg(any(test, not(feature = "wasm")))]
 pub mod shuffler;
-#[cfg(any(test, not(feature = "wasm")))]
 pub mod shuffler_product;
 /// Distributed ElGamal threshold cryptosystem following [Pedersen91](https://link.springer.com/chapter/10.1007/3-540-46766-1_9).
 /// See also [CGGI13](https://members.loria.fr/VCortier/files/Papers/WPES2013.pdf).
-#[cfg(any(test, not(feature = "wasm")))]
 pub mod threshold;
 /// Schnorr and Chaum-Pedersen zero knowledge proofs.
 pub mod zkp;
@@ -178,30 +175,23 @@ mod random;
 /// Signature frontend.
 mod signatures;
 /// Symmetric encryption frontend.
-#[cfg(not(feature = "wasm"))]
 mod symmetric;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
+/// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
+pub use hashing::rustcrypto as hash;
+/// Random number generation backed by [rand](https://crates.io/crates/rand).
+pub use random::rand as rng;
+/// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
+pub use signatures::dalek as signature;
+/// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
+pub use symmetric::rustcrypto as symm;
+
+/*
 cfg_if::cfg_if! {
-    if #[cfg(feature = "openssl_core")] {
-        /// Random number generation backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use random::openssl as rng;
-        /// SHA-2 hashing backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use hashing::openssl as hash;
-        /// AES-GCM backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use symmetric::openssl as symm;
-        /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
-        pub use signatures::dalek as signature;
-    }
-    else if #[cfg(feature = "openssl_full")] {
-        pub use random::openssl as rng;
-        /// SHA-2 hashing backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use hashing::openssl as hash;
-        /// AES-GCM backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use symmetric::openssl as symm;
-        /// EcDSA digital signatures backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use signatures::openssl as signature;
-    }
-    else if #[cfg(feature = "wasm")] {
+    if #[cfg(feature = "wasm")] {
         /// Webassembly API.
         pub mod wasm;
         /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
@@ -210,6 +200,8 @@ cfg_if::cfg_if! {
         pub use random::rand as rng;
         /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
         pub use hashing::rustcrypto as hash;
+        /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
+        pub use symmetric::rustcrypto as symm;
     }
     else {
         /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
@@ -221,7 +213,7 @@ cfg_if::cfg_if! {
         /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
         pub use symmetric::rustcrypto as symm;
     }
-}
+}*/
 
 /// Miscellaneous functions.
 #[doc(hidden)]
@@ -230,6 +222,32 @@ pub mod util;
 /// Serialization frontend. StrandVectors for parallel serialization.
 #[doc(hidden)]
 pub mod serialization;
+
+/// Debug macro that works in both native and WASM contexts.
+///
+/// In WASM builds (when `wasm` feature + `wasm32` target), uses browser `console.log`.
+/// In all other cases, uses `println!`.
+///
+/// # Examples
+/// ```ignore
+/// use strand::debug_log;
+/// debug_log!("Processing {} items", count);
+/// debug_log!("ZKP verification failed: {:?}", error);
+/// ```
+#[macro_export]
+macro_rules! debug_log {
+    ($($arg:tt)*) => {
+        #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+        {
+            use wasm_bindgen::JsValue;
+            web_sys::console::log_1(&JsValue::from_str(&format!($($arg)*)));
+        }
+        #[cfg(not(all(target_arch = "wasm32", feature = "wasm")))]
+        {
+            println!($($arg)*);
+        }
+    };
+}
 
 /// Support for distributed Elgamal.
 #[allow(dead_code)]
@@ -244,14 +262,12 @@ pub fn info() -> HashMap<&'static str, String> {
     let hash = crate::hash::info();
     let random = crate::rng::info();
     let signature = crate::signature::info();
-    #[cfg(not(feature = "wasm"))]
     let symmetric = crate::symm::info();
 
     info.insert("VERSION", version.to_string());
     info.insert("HASH", hash);
     info.insert("RNG", random);
     info.insert("SIGNATURE", signature);
-    #[cfg(not(feature = "wasm"))]
     info.insert("SYMMETRIC", symmetric);
 
     info

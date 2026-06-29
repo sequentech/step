@@ -61,7 +61,7 @@ use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;

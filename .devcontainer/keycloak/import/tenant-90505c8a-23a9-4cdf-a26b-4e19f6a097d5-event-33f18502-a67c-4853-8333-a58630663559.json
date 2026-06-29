@@ -97,7 +97,7 @@
         "attributes": {}
       },
       {
-        "id": "bb8c9da3-1f1d-4360-97ec-a8675d84cd53",
+        "id": "6db0a560-063f-4417-91b8-dcb83f00338f",
         "name": "phone-blacklist-read",
         "description": "Allow reading phone blacklist entries.",
         "composite": false,
@@ -1171,7 +1171,8 @@
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "/*",
-        "http://127.0.0.1:3001/*"
+        "http://127.0.0.1:3001/*",
+        "http://127.0.0.1:3000/*"
       ],
       "webOrigins": [
         "*"
@@ -1457,7 +1458,8 @@
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "/*",
-        "http://127.0.0.1:3001/*"
+        "http://127.0.0.1:3001/*",
+        "http://127.0.0.1:3000/*"
       ],
       "webOrigins": [
         "*"

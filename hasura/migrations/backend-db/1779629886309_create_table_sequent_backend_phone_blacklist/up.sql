@@ -7,6 +7,7 @@ CREATE TABLE "sequent_backend"."phone_blacklist"
     "reason"            text,
     "created_at"        timestamptz NOT NULL DEFAULT now(),
     "created_by"        uuid        NOT NULL,
+    "updated_at"        timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY ("id"),
     FOREIGN KEY ("tenant_id")
         REFERENCES "sequent_backend"."tenant" ("id")
@@ -18,4 +19,3 @@ CREATE TABLE "sequent_backend"."phone_blacklist"
         ON DELETE RESTRICT,
     UNIQUE NULLS NOT DISTINCT ("tenant_id", "election_event_id", "phone_e164") -- Null election_event_id means tenant-wide, prevent duplicates
 );
-CREATE EXTENSION IF NOT EXISTS pgcrypto;

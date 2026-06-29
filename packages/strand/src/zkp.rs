@@ -29,7 +29,7 @@
 //! ```
 #![allow(clippy::too_many_arguments)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
@@ -321,7 +321,9 @@ impl<C: Ctx> Zkp<C> {
         values.add("context", &context)?;
 
         let bytes = values.get_bytes()?;
-        Ok(self.ctx.hash_to_exp(&bytes)?)
+        let challenge = self.ctx.hash_to_exp(&bytes)?;
+
+        Ok(challenge)
     }
 
     fn cp_proof_challenge(
@@ -480,12 +482,12 @@ pub struct ChaumPedersen<C: Ctx> {
 }
 
 #[derive(BorshSerialize)]
-pub(crate) struct ChallengeInput(HashMap<String, Vec<u8>>);
+pub(crate) struct ChallengeInput(BTreeMap<String, Vec<u8>>);
 impl ChallengeInput {
     pub(crate) fn from<T: BorshSerialize>(
         values: &[(&'static str, &T)],
     ) -> Result<ChallengeInput, StrandError> {
-        let mut h = HashMap::new();
+        let mut h = BTreeMap::new();
         for (tag, value) in values {
             let s = tag.to_string();
             let r: Result<Vec<u8>, StrandError> =
@@ -503,7 +505,7 @@ impl ChallengeInput {
             .into_iter()
             .map(|(string, value)| (string.to_string(), value));
 
-        let map: HashMap<String, Vec<u8>> = HashMap::from_iter(serialized);
+        let map: BTreeMap<String, Vec<u8>> = BTreeMap::from_iter(serialized);
 
         ChallengeInput(map)
     }

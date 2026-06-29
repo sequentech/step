@@ -81,7 +81,7 @@ services:
       postgres-keycloak:
         condition: service_healthy
       harvest:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s
