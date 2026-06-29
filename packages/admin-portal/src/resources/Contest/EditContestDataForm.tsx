@@ -78,7 +78,7 @@ import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
-import {IVR_ENTITY_I18N_ANNOTATION} from "@/utils/ivr"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 type FieldValues = Record<string, any>
 
@@ -464,15 +464,7 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.i18n.en.description = newContest.description
             }
             newContest.description = newContest.presentation.i18n.en.description
-
-            const newAnnotations = (newContest.annotations ?? {}) as Record<string, any>
-            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]) {
-                newAnnotations[IVR_ENTITY_I18N_ANNOTATION] = {}
-            }
-            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"]) {
-                newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"] = {}
-            }
-            newContest.annotations = newAnnotations
+            newContest.annotations = parseIvrEntityAnnotations(newContest.annotations);
 
             // defaults
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
