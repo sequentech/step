@@ -85,7 +85,7 @@ import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
-import {IVR_ENTITY_I18N_ANNOTATION} from "@/utils/ivr"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -294,14 +294,7 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             temp.presentation.i18n.en.description = temp.description
-
-            const newAnnotations = (temp.annotations ?? {}) as Record<string, any>
-            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]) {
-                newAnnotations[IVR_ENTITY_I18N_ANNOTATION] = {}
-            }
-            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"]) {
-                newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"] = {}
-            }
+            temp.annotations = parseIvrEntityAnnotations(temp.annotations);
 
             // receipts
             const template: {[key: string]: string | null} = {}

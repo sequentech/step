@@ -61,7 +61,7 @@ import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
-import {IVR_ENTITY_I18N_ANNOTATION} from "@/utils/ivr"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -163,15 +163,7 @@ export const CandidateDataForm: React.FC<{
             }
 
             newCandidate.description = newCandidate.presentation.i18n.en.description
-
-            const newAnnotations = (newCandidate.annotations ?? {}) as Record<string, any>
-            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]) {
-                newAnnotations[IVR_ENTITY_I18N_ANNOTATION] = {}
-            }
-            if (!newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"]) {
-                newAnnotations[IVR_ENTITY_I18N_ANNOTATION]["prompt"] = {}
-            }
-            newCandidate.annotations = newAnnotations
+            newCandidate.annotations = parseIvrEntityAnnotations(newCandidate.annotations);
 
             return newCandidate
         },
