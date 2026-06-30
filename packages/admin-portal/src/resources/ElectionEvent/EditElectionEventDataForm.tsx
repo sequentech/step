@@ -1237,9 +1237,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 )
                             )}
                             helperText={String(
-                                t(
-                                    "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
-                                )
+                                t("electionEventScreen.field.votingPortalDateTimeFormat.helperText")
                             )}
                             defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
                             emptyText={undefined}

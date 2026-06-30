@@ -332,7 +332,7 @@ const basqueTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Bozketa-atariko data eta orduaren formatua",
                     helperText:
-                        "Gertaera osoari aplikatzen zaio. Hizkuntza bakoitzeko gainjartzeko, gehitu \"votingPortalDateTimeFormat\" gakoa Lokalizazioa fitxan, yyyy, MM, dd, HH, mm, ss tokenak erabiliz (adib. dd/MM/yyyy HH:mm). Ikus dokumentazioa xehetasunetarako.",
+                        'Gertaera osoari aplikatzen zaio. Hizkuntza bakoitzeko gainjartzeko, gehitu "votingPortalDateTimeFormat" gakoa Lokalizazioa fitxan, yyyy, MM, dd, HH, mm, ss tokenak erabiliz (adib. dd/MM/yyyy HH:mm). Ikus dokumentazioa xehetasunetarako.',
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/UUUU HH:mm, 24h)",
                         "iso-local": "ISO Local (UUUU-MM-DD HH:mm)",

@@ -333,7 +333,7 @@ const englishTranslation = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Voting Portal date & time format",
                     helperText:
-                        "Applies event-wide. To override per language, add the key \"votingPortalDateTimeFormat\" in the Localization tab using tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). See the docs for details.",
+                        'Applies event-wide. To override per language, add the key "votingPortalDateTimeFormat" in the Localization tab using tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). See the docs for details.',
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/YYYY HH:mm, 24h)",
                         "iso-local": "ISO Local (YYYY-MM-DD HH:mm)",

@@ -315,7 +315,8 @@ const BallotLocator: React.FC = () => {
                         formatDateTime={(timestamp) =>
                             formatVotingPortalDateTime(
                                 timestamp,
-                                dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+                                dataElectionEvent
+                                    ?.sequent_backend_election_event[0] as IElectionEvent,
                                 i18n.resolvedLanguage || i18n.language
                             )
                         }

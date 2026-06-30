@@ -333,7 +333,7 @@ const tagalogTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format ng petsa at oras ng Voting Portal",
                     helperText:
-                        "Nalalapat sa buong kaganapan. Upang i-override bawat wika, idagdag ang key na \"votingPortalDateTimeFormat\" sa tab na Localization gamit ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Tingnan ang dokumentasyon para sa mga detalye.",
+                        'Nalalapat sa buong kaganapan. Upang i-override bawat wika, idagdag ang key na "votingPortalDateTimeFormat" sa tab na Localization gamit ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Tingnan ang dokumentasyon para sa mga detalye.',
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/YYYY HH:mm, 24h)",
                         "iso-local": "ISO Local (YYYY-MM-DD HH:mm)",
