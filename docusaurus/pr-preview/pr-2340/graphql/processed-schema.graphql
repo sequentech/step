@@ -904,6 +904,7 @@ enum VotingStatusChannel {
   EARLY_VOTING
   KIOSK
   ONLINE
+  TELEPHONE
 }
 
 type applicationOutput {
