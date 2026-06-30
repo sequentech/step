@@ -731,10 +731,6 @@ type PublishBallotOutput {
   ballot_publication_id: uuid!
 }
 
-type PublishTallyOutput {
-  tally_sheet_id: uuid
-}
-
 type RenderDocumentPDFOutput {
   document_id: String
   task_execution: tasks_execution_type
@@ -852,6 +848,27 @@ type SubmitTallyResolutionOutput {
 input TallyResolutionInput {
   contest_id: uuid!
   selected_candidate_id: uuid!
+}
+
+type TallySheetOutput {
+  annotations: jsonb
+  area_id: String!
+  channel: String
+  content: jsonb
+  contest_id: String!
+  created_at: String
+  created_by_user_id: String
+  deleted_at: String
+  election_event_id: String!
+  election_id: String!
+  id: String!
+  labels: jsonb
+  last_updated_at: String
+  reviewed_at: String
+  reviewed_by_user_id: String
+  status: String!
+  tenant_id: String!
+  version: Int!
 }
 
 type TotalAggregate {
@@ -1045,6 +1062,8 @@ type mutation_root {
   create_election(description: String, election_event_id: String!, external_id: String!, presentation: jsonb): CreateElectionOutput
   """create keys ceremony"""
   create_keys_ceremony(object: CreateKeysCeremonyInput!): CreateKeysCeremonyOutput
+  """create_new_tally_sheet"""
+  create_new_tally_sheet(area_id: String!, channel: String!, content: jsonb!, contest_id: String!, election_event_id: String!): TallySheetOutput
   create_permission(body: CreatePermissionInput!): KeycloakPermission
   create_role(role: KeycloakRole2!, tenant_id: String!): KeycloakRole!
   create_tally_ceremony(configuration: jsonb, election_event_id: uuid!, election_ids: [uuid!]!, tally_type: String): CreateTallyOutput
@@ -2269,10 +2288,10 @@ type mutation_root {
   manage_election_dates(election_event_id: String!, election_id: String, event_processor: String!, scheduled_date: String): ManageElectionDatesOutput
   prepare_ballot_publication_preview(ballot_publication_id: String!, election_event_id: String!): PrepareBallotPublicationPreviewOutput
   publish_ballot(ballot_publication_id: uuid!, election_event_id: uuid!): PublishBallotOutput
-  """publish_tally_sheet"""
-  publish_tally_sheet(election_event_id: uuid!, publish: Boolean, tally_sheet_id: uuid!): PublishTallyOutput
   render_document_pdf(document_id: uuid!, election_event_id: uuid, tally_session_id: uuid): RenderDocumentPDFOutput
   restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
+  """review_tally_sheet"""
+  review_tally_sheet(election_event_id: String!, new_status: String!, tally_sheet_id: String!): TallySheetOutput
   send_transmission_package(area_id: uuid!, election_id: uuid!, tally_session_id: uuid!): OptionalId
   set_custom_urls(dns_prefix: String!, election_id: String!, key: String!, origin: String!, redirect_to: String!): SetCustomUrlsOutput
   set_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
@@ -4213,6 +4232,8 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: tally_sheet_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: tally_sheet_inc_input
     """prepend existing jsonb value of filtered columns with new jsonb value"""
     _prepend: tally_sheet_prepend_input
     """sets the columns of the filtered rows to the given values"""
@@ -4238,6 +4259,8 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: tally_sheet_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: tally_sheet_inc_input
     """prepend existing jsonb value of filtered columns with new jsonb value"""
     _prepend: tally_sheet_prepend_input
     """sets the columns of the filtered rows to the given values"""
@@ -19654,9 +19677,11 @@ type tally_sheet {
     path: String
   ): jsonb
   last_updated_at: timestamptz!
-  published_at: timestamptz
-  published_by_user_id: String
+  reviewed_at: timestamptz
+  reviewed_by_user_id: String
+  status: String!
   tenant_id: uuid!
+  version: Int!
 }
 
 """
@@ -19671,9 +19696,17 @@ type tally_sheet_aggregate {
 aggregate fields of "sequent_backend.tally_sheet"
 """
 type tally_sheet_aggregate_fields {
+  avg: tally_sheet_avg_fields
   count(columns: [tally_sheet_select_column!], distinct: Boolean): Int!
   max: tally_sheet_max_fields
   min: tally_sheet_min_fields
+  stddev: tally_sheet_stddev_fields
+  stddev_pop: tally_sheet_stddev_pop_fields
+  stddev_samp: tally_sheet_stddev_samp_fields
+  sum: tally_sheet_sum_fields
+  var_pop: tally_sheet_var_pop_fields
+  var_samp: tally_sheet_var_samp_fields
+  variance: tally_sheet_variance_fields
 }
 
 """append existing jsonb value of filtered columns with new jsonb value"""
@@ -19681,6 +19714,11 @@ input tally_sheet_append_input {
   annotations: jsonb
   content: jsonb
   labels: jsonb
+}
+
+"""aggregate avg on columns"""
+type tally_sheet_avg_fields {
+  version: Float
 }
 
 """
@@ -19703,9 +19741,11 @@ input tally_sheet_bool_exp {
   id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
-  published_at: timestamptz_comparison_exp
-  published_by_user_id: String_comparison_exp
+  reviewed_at: timestamptz_comparison_exp
+  reviewed_by_user_id: String_comparison_exp
+  status: String_comparison_exp
   tenant_id: uuid_comparison_exp
+  version: Int_comparison_exp
 }
 
 """
@@ -19716,6 +19756,10 @@ enum tally_sheet_constraint {
   unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
   """
   tally_sheet_pkey
+  """
+  unique or primary key constraint on columns "election_id", "contest_id", "area_id", "channel", "tenant_id", "version", "election_event_id"
+  """
+  tally_sheet_uniq_version
 }
 
 """
@@ -19746,6 +19790,13 @@ input tally_sheet_delete_key_input {
 }
 
 """
+input type for incrementing numeric columns in table "sequent_backend.tally_sheet"
+"""
+input tally_sheet_inc_input {
+  version: Int
+}
+
+"""
 input type for inserting data into table "sequent_backend.tally_sheet"
 """
 input tally_sheet_insert_input {
@@ -19762,9 +19813,11 @@ input tally_sheet_insert_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  published_at: timestamptz
-  published_by_user_id: String
+  reviewed_at: timestamptz
+  reviewed_by_user_id: String
+  status: String
   tenant_id: uuid
+  version: Int
 }
 
 """aggregate max on columns"""
@@ -19779,9 +19832,11 @@ type tally_sheet_max_fields {
   election_id: uuid
   id: uuid
   last_updated_at: timestamptz
-  published_at: timestamptz
-  published_by_user_id: String
+  reviewed_at: timestamptz
+  reviewed_by_user_id: String
+  status: String
   tenant_id: uuid
+  version: Int
 }
 
 """aggregate min on columns"""
@@ -19796,9 +19851,11 @@ type tally_sheet_min_fields {
   election_id: uuid
   id: uuid
   last_updated_at: timestamptz
-  published_at: timestamptz
-  published_by_user_id: String
+  reviewed_at: timestamptz
+  reviewed_by_user_id: String
+  status: String
   tenant_id: uuid
+  version: Int
 }
 
 """
@@ -19837,9 +19894,11 @@ input tally_sheet_order_by {
   id: order_by
   labels: order_by
   last_updated_at: order_by
-  published_at: order_by
-  published_by_user_id: order_by
+  reviewed_at: order_by
+  reviewed_by_user_id: order_by
+  status: order_by
   tenant_id: order_by
+  version: order_by
 }
 
 """primary key columns input for table: sequent_backend.tally_sheet"""
@@ -19887,11 +19946,15 @@ enum tally_sheet_select_column {
   """column name"""
   last_updated_at
   """column name"""
-  published_at
+  reviewed_at
   """column name"""
-  published_by_user_id
+  reviewed_by_user_id
+  """column name"""
+  status
   """column name"""
   tenant_id
+  """column name"""
+  version
 }
 
 """
@@ -19911,9 +19974,26 @@ input tally_sheet_set_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  published_at: timestamptz
-  published_by_user_id: String
+  reviewed_at: timestamptz
+  reviewed_by_user_id: String
+  status: String
   tenant_id: uuid
+  version: Int
+}
+
+"""aggregate stddev on columns"""
+type tally_sheet_stddev_fields {
+  version: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type tally_sheet_stddev_pop_fields {
+  version: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type tally_sheet_stddev_samp_fields {
+  version: Float
 }
 
 """
@@ -19941,9 +20021,16 @@ input tally_sheet_stream_cursor_value_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  published_at: timestamptz
-  published_by_user_id: String
+  reviewed_at: timestamptz
+  reviewed_by_user_id: String
+  status: String
   tenant_id: uuid
+  version: Int
+}
+
+"""aggregate sum on columns"""
+type tally_sheet_sum_fields {
+  version: Int
 }
 
 """
@@ -19977,11 +20064,15 @@ enum tally_sheet_update_column {
   """column name"""
   last_updated_at
   """column name"""
-  published_at
+  reviewed_at
   """column name"""
-  published_by_user_id
+  reviewed_by_user_id
+  """column name"""
+  status
   """column name"""
   tenant_id
+  """column name"""
+  version
 }
 
 input tally_sheet_updates {
@@ -19999,12 +20090,29 @@ input tally_sheet_updates {
   delete key/value pair or string element. key/value pairs are matched based on their key value
   """
   _delete_key: tally_sheet_delete_key_input
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: tally_sheet_inc_input
   """prepend existing jsonb value of filtered columns with new jsonb value"""
   _prepend: tally_sheet_prepend_input
   """sets the columns of the filtered rows to the given values"""
   _set: tally_sheet_set_input
   """filter the rows which have to be updated"""
   where: tally_sheet_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type tally_sheet_var_pop_fields {
+  version: Float
+}
+
+"""aggregate var_samp on columns"""
+type tally_sheet_var_samp_fields {
+  version: Float
+}
+
+"""aggregate variance on columns"""
+type tally_sheet_variance_fields {
+  version: Float
 }
 
 """
