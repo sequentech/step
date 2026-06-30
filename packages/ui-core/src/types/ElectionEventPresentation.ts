@@ -90,6 +90,14 @@ export enum EVoterCertificatePolicy {
     DISABLED = "disabled",
 }
 
+export enum EVotingPortalDateTimeFormat {
+    LEGACY_GB_24H = "legacy-gb-24h",
+    ISO_LOCAL = "iso-local",
+    US_12H = "us-12h",
+    LOCALE_MEDIUM = "locale-medium",
+    DATE_ONLY = "date-only",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -113,4 +121,5 @@ export interface IElectionEventPresentation {
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
+    voting_portal_datetime_format?: EVotingPortalDateTimeFormat
 }
