@@ -294,7 +294,7 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             temp.presentation.i18n.en.description = temp.description
-            temp.annotations = parseIvrEntityAnnotations(temp.annotations);
+            temp.annotations = parseIvrEntityAnnotations(temp.annotations)
 
             // receipts
             const template: {[key: string]: string | null} = {}

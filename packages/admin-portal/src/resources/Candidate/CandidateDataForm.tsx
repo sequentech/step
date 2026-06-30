@@ -163,7 +163,7 @@ export const CandidateDataForm: React.FC<{
             }
 
             newCandidate.description = newCandidate.presentation.i18n.en.description
-            newCandidate.annotations = parseIvrEntityAnnotations(newCandidate.annotations);
+            newCandidate.annotations = parseIvrEntityAnnotations(newCandidate.annotations)
 
             return newCandidate
         },

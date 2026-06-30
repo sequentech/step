@@ -52,7 +52,7 @@ export const EditContestData: React.FC = () => {
             i18n?.en?.description || i18n[Object.keys(i18n)[0]]?.description || ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
-        data.annotations = serializeIvrEntityAnnotations(data.annotations);
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return data
     }

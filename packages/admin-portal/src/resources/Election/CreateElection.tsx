@@ -86,7 +86,7 @@ export const CreateElection: React.FC = () => {
             i18n,
             language_conf: tenantLangConf,
         }
-        data.annotations = serializeIvrEntityAnnotations(data.annotations);
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
         return {
             ...data,
             presentation,
