@@ -17,7 +17,7 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ListActionsMenu} from "../../components/ListActionsMenu"
-import {Button, Tooltip, Typography} from "@mui/material"
+import {Button, Chip, Tooltip, Typography} from "@mui/material"
 import {
     ReviewTallySheetMutation,
     Sequent_Backend_Contest,
@@ -298,7 +298,14 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         }}
                     >
                         <TextField source="id" sortable={false} />
-                        <TextField source="channel" sortable={false} />
+                        <FunctionField
+                            source="channel"
+                            sortable={false}
+                            label={String(t("tallysheet.label.channel"))}
+                            render={(record: Sequent_Backend_Tally_Sheet) => (
+                                <Chip label={record.channel} />
+                            )}
+                        />
 
                         <FunctionField
                             label={String(t("tallysheet.table.contest"))}
