@@ -1476,6 +1476,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: EARLY_VOTING
+              - description: null
+                is_deprecated: null
+                value: TELEPHONE
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter

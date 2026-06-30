@@ -10,3 +10,13 @@
                     }
                   }
                 }
+          - name: IvrGetElectionStatus
+            query: |
+                query IvrGetElectionStatus($election_id: uuid!) {
+                  election: sequent_backend_election(
+                    where: {id: {_eq: $election_id}},
+                    limit: 1
+                  ) {
+                    status
+                  }
+                }

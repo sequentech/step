@@ -51,6 +51,7 @@ type TPublishList = {
     kioskModeEnabled: IChannelButtonInfo
     onlineModeEnabled: IChannelButtonInfo
     earlyVotingEnabled: IChannelButtonInfo
+    telephoneVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
@@ -69,6 +70,7 @@ export const PublishList: React.FC<TPublishList> = ({
     kioskModeEnabled,
     onlineModeEnabled,
     earlyVotingEnabled,
+    telephoneVotingEnabled,
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
@@ -158,6 +160,7 @@ export const PublishList: React.FC<TPublishList> = ({
                         kioskModeEnabled={kioskModeEnabled}
                         onlineModeEnabled={onlineModeEnabled}
                         earlyVotingEnabled={earlyVotingEnabled}
+                        telephoneVotingEnabled={telephoneVotingEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}

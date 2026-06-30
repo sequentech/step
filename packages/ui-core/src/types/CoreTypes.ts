@@ -49,6 +49,7 @@ export interface IVotingChannelsConfig {
     kiosk: boolean
     online: boolean
     early_voting: boolean
+    telephone: boolean
 }
 
 export interface IChannelButtonInfo {
@@ -70,6 +71,7 @@ export interface IElectionEventStatus {
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
     early_voting_status: EVotingStatus
+    telephone_voting_status: EVotingStatus
 }
 
 export interface IElectionStatus {
@@ -77,9 +79,11 @@ export interface IElectionStatus {
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
     early_voting_status: EVotingStatus
+    telephone_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
     kiosk_voting_period_dates: IPeriodDates
     early_voting_period_dates: IPeriodDates
+    telephone_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {

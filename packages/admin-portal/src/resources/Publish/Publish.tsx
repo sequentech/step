@@ -192,6 +192,18 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             } as IChannelButtonInfo
         }
 
+        const telephoneVotingEnabled = () => {
+            let status =
+                (record?.status as IElectionStatus)?.telephone_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.telephone ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
+        }
+
         const onGenerate = async () => {
             try {
                 setViewMode(ViewMode.Edit)
@@ -459,6 +471,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         kioskModeEnabled={kioskModeEnabled()}
                         onlineModeEnabled={onlineModeEnabled()}
                         earlyVotingEnabled={earlyVotingEnabled()}
+                        telephoneVotingEnabled={telephoneVotingEnabled()}
                         changingStatus={changingStatus}
                         electionId={electionId}
                         onGenerate={onGenerate}
@@ -495,6 +508,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         kioskModeEnabled={kioskModeEnabled()}
                         onlineModeEnabled={onlineModeEnabled()}
                         earlyVotingEnabled={earlyVotingEnabled()}
+                        telephoneVotingEnabled={telephoneVotingEnabled()}
                     />
                 )}
                 <FormDialog
