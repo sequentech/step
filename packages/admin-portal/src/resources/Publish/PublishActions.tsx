@@ -71,6 +71,7 @@ export type PublishActionsProps = {
     kioskModeEnabled: IChannelButtonInfo
     onlineModeEnabled: IChannelButtonInfo
     earlyVotingEnabled: IChannelButtonInfo
+    telephoneVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
@@ -86,6 +87,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     kioskModeEnabled,
     onlineModeEnabled,
     earlyVotingEnabled,
+    telephoneVotingEnabled,
     electionStatus,
     electionPresentation,
     changingStatus,
@@ -398,7 +400,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         const allChannelsDisabled =
             isStartChannelDisabled(kioskModeEnabled) &&
             isStartChannelDisabled(onlineModeEnabled) &&
-            isStartChannelDisabled(earlyVotingEnabled)
+            isStartChannelDisabled(earlyVotingEnabled) &&
+            isStartChannelDisabled(telephoneVotingEnabled)
 
         return (
             changingStatus ||
@@ -411,7 +414,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         const allChannelsDisabled =
             isPauseChannelDisabled(kioskModeEnabled) &&
             isPauseChannelDisabled(onlineModeEnabled) &&
-            isPauseChannelDisabled(earlyVotingEnabled)
+            isPauseChannelDisabled(earlyVotingEnabled) &&
+            isPauseChannelDisabled(telephoneVotingEnabled)
 
         return (
             changingStatus ||
@@ -428,7 +432,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         const allChannelsDisabled =
             isStopChannelDisabled(kioskModeEnabled) &&
             isStopChannelDisabled(onlineModeEnabled) &&
-            isStopChannelDisabled(earlyVotingEnabled)
+            isStopChannelDisabled(earlyVotingEnabled) &&
+            isStopChannelDisabled(telephoneVotingEnabled)
 
         return (
             changingStatus ||
@@ -521,6 +526,21 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         >
                                             {t("publish.action.startEarlyVoting")}
                                         </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isStartChannelDisabled(
+                                                telephoneVotingEnabled
+                                            )}
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.Telephone]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startTelephoneVoting")}
+                                        </StyledMenuItem>
                                     </Menu>
                                 </>
                             )}
@@ -585,6 +605,21 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.pauseEarlyVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isPauseChannelDisabled(
+                                                telephoneVotingEnabled
+                                            )}
+                                            onClick={() => {
+                                                setPauseAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_PAUSE_VOTING,
+                                                    ElectionEventStatus.Paused,
+                                                    [VotingStatusChannel.Telephone]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.pauseTelephoneVoting")}
                                         </StyledMenuItem>
                                     </Menu>
                                 </>
@@ -653,6 +688,19 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.stopEarlyVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isStopChannelDisabled(telephoneVotingEnabled)}
+                                            onClick={() => {
+                                                setStopAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_STOP_VOTING,
+                                                    ElectionEventStatus.Closed,
+                                                    [VotingStatusChannel.Telephone]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.stopTelephoneVoting")}
                                         </StyledMenuItem>
                                     </Menu>
                                 </>
