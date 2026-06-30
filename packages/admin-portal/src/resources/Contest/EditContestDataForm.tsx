@@ -464,7 +464,7 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.i18n.en.description = newContest.description
             }
             newContest.description = newContest.presentation.i18n.en.description
-            newContest.annotations = parseIvrEntityAnnotations(newContest.annotations);
+            newContest.annotations = parseIvrEntityAnnotations(newContest.annotations)
 
             // defaults
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL

@@ -25,7 +25,7 @@ export const CreateCandidateData: React.FC<{record: Sequent_Backend_Candidate}> 
         // i18n
         // is alll object, no change needed
         delete data.enabled_languages
-        data.annotations = serializeIvrEntityAnnotations(data.annotations);
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return {
             ...data,

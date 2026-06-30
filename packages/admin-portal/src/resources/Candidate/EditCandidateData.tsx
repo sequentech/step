@@ -46,7 +46,7 @@ export const EditCandidateData: React.FC<{record?: Sequent_Backend_Candidate}> =
             ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
-        data.annotations = serializeIvrEntityAnnotations(data.annotations);
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return {
             ...data,

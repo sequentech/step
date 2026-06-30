@@ -8,7 +8,9 @@ interface IvrEntityI18nAnnotation {
     prompt?: Record<string, string>
 }
 
-export const parseIvrEntityAnnotations = (annotations: EntityAnnotations): Record<string, unknown> => {
+export const parseIvrEntityAnnotations = (
+    annotations: EntityAnnotations
+): Record<string, unknown> => {
     const obj: Record<string, unknown> = {...(annotations ?? {})}
     const ivrRaw = obj[IVR_ENTITY_I18N_ANNOTATION]
     let parsed: IvrEntityI18nAnnotation = {}
@@ -29,14 +31,16 @@ export const parseIvrEntityAnnotations = (annotations: EntityAnnotations): Recor
     return obj
 }
 
-export const serializeIvrEntityAnnotations = (annotations: EntityAnnotations): Record<string, string> => {
-    const result: Record<string, unknown> = {...(annotations ?? {})};
-    const ivr = result[IVR_ENTITY_I18N_ANNOTATION];
+export const serializeIvrEntityAnnotations = (
+    annotations: EntityAnnotations
+): Record<string, string> => {
+    const result: Record<string, unknown> = {...(annotations ?? {})}
+    const ivr = result[IVR_ENTITY_I18N_ANNOTATION]
     if (ivr && typeof ivr === "object") {
-        result[IVR_ENTITY_I18N_ANNOTATION] = JSON.stringify(ivr);
+        result[IVR_ENTITY_I18N_ANNOTATION] = JSON.stringify(ivr)
     }
 
     // TODO: Api contract requires annotations to be string:string,
     //  but we only update the ivr object here to avoid affecting elsewhere.
-    return result as Record<string, string>;
+    return result as Record<string, string>
 }
