@@ -9,7 +9,7 @@ source .devcontainer/.env
 docker compose restart graphql-engine
 
 # graphql-engine needs some waiting time before it's up and working
-sleep 60
+sleep 10
 
 # Generate graphql schema
 cd packages/admin-portal
