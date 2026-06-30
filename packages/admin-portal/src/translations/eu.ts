@@ -327,6 +327,16 @@ const basqueTranslation: TranslationType = {
                     },
                     policyLabel: "Lehiaketa zifratze politika",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Bozketa-atariko data eta orduaren formatua",
+                    options: {
+                        "legacy-gb-24h": "Klasikoa (DD/MM/UUUU HH:mm, 24h)",
+                        "iso-local": "ISO (UUUU-MM-DD HH:mm)",
+                        "us-12h": "AEB (MM/DD/UUUU h:mm AM/PM)",
+                        "locale-medium": "Lokalizatua (data ertaina, ordu laburra)",
+                        "date-only": "Data soilik (ordurik gabe)",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Ez dago Kontaketa Atzera",
                     COUNTDOWN: "Kontaketa Atzera",

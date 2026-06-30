@@ -1,0 +1,199 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {
+    EVotingPortalDateTimeFormat,
+    IElectionEventPresentation,
+} from "../types/ElectionEventPresentation"
+import {translateFromPresentation} from "./translate"
+
+/**
+ * Localization key used to override the Voting Portal date/time format per
+ * language, via `presentation.i18n[<lang>].votingPortalDateTimeFormat`.
+ */
+export const VOTING_PORTAL_DATETIME_FORMAT_KEY = "votingPortalDateTimeFormat"
+
+/**
+ * Minimal election event shape required to resolve the date/time format. Kept
+ * loose so both voting-portal's `IElectionEvent` and ad-hoc objects can be passed
+ * without coupling ui-core to a portal-specific type.
+ */
+export interface VotingPortalDateTimeEvent {
+    id?: string | null
+    presentation?: IElectionEventPresentation | null
+}
+
+export type DateTimeInput = Date | string | number
+
+type Formatter = (date: Date) => string
+
+/**
+ * Thrown when an override pattern cannot be interpreted. Callers fall back to the
+ * configured preset (never surfaced to voters).
+ */
+export class DateTimePatternError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = "DateTimePatternError"
+    }
+}
+
+// Internal language codes that diverge from their BCP-47 tag. Only locale-sensitive
+// presets need this; the override lookup always uses the raw internal code.
+const INTERNAL_TO_BCP47: Record<string, string> = {cat: "ca"}
+const toLocale = (lang: string): string => INTERNAL_TO_BCP47[lang] ?? lang
+
+const pad = (value: number, length = 2): string => String(value).padStart(length, "0")
+
+// Supported override tokens. Rendered in the voter's local time; any other
+// characters in the pattern are passed through literally.
+const TOKEN_SOURCE = "yyyy|MM|dd|HH|mm|ss"
+const hasToken = (pattern: string): boolean => new RegExp(TOKEN_SOURCE).test(pattern)
+
+const tokenValue = (token: string, date: Date): string => {
+    switch (token) {
+        case "yyyy":
+            return pad(date.getFullYear(), 4)
+        case "MM":
+            return pad(date.getMonth() + 1)
+        case "dd":
+            return pad(date.getDate())
+        case "HH":
+            return pad(date.getHours())
+        case "mm":
+            return pad(date.getMinutes())
+        case "ss":
+            return pad(date.getSeconds())
+        default:
+            return token
+    }
+}
+
+/**
+ * Validates and compiles an override pattern into a formatter. Throws a
+ * {@link DateTimePatternError} on an empty pattern or one that contains no
+ * recognized token. This is the single function that validates the override,
+ * reused at admin save time and at render time.
+ */
+export const parseVotingPortalDateTimePattern = (pattern: string): Formatter => {
+    if (!pattern || !pattern.trim()) {
+        throw new DateTimePatternError("Empty date/time pattern")
+    }
+    if (!hasToken(pattern)) {
+        throw new DateTimePatternError(`No recognized token in pattern: "${pattern}"`)
+    }
+    return (date: Date): string =>
+        pattern.replace(new RegExp(TOKEN_SOURCE, "g"), (token) => tokenValue(token, date))
+}
+
+const legacyGb24h = (date: Date): string =>
+    new Intl.DateTimeFormat("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).format(date)
+
+const presetFormatters: Record<EVotingPortalDateTimeFormat, (date: Date, lang: string) => string> =
+    {
+        [EVotingPortalDateTimeFormat.LEGACY_GB_24H]: legacyGb24h,
+        [EVotingPortalDateTimeFormat.ISO_LOCAL]: (date) =>
+            `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(
+                date.getDate()
+            )} ${pad(date.getHours())}:${pad(date.getMinutes())}`,
+        [EVotingPortalDateTimeFormat.US_12H]: (date) =>
+            new Intl.DateTimeFormat("en-US", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+            }).format(date),
+        [EVotingPortalDateTimeFormat.LOCALE_MEDIUM]: (date, lang) =>
+            new Intl.DateTimeFormat(toLocale(lang), {
+                dateStyle: "medium",
+                timeStyle: "short",
+            }).format(date),
+        [EVotingPortalDateTimeFormat.DATE_ONLY]: (date, lang) =>
+            new Intl.DateTimeFormat(toLocale(lang), {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            }).format(date),
+    }
+
+const resolvePreset = (event: VotingPortalDateTimeEvent | null | undefined): Formatter => {
+    const preset = event?.presentation?.voting_portal_datetime_format
+    const formatter =
+        (preset && presetFormatters[preset]) ??
+        presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H]
+    return (date: Date) => formatter(date, "en")
+}
+
+// Memoizes the resolved formatter per (eventId, lang) so resolution is O(1) per
+// render and issues no extra work. Resolution is stable for a loaded event.
+const formatterCache = new Map<string, Formatter>()
+
+const buildFormatter = (
+    event: VotingPortalDateTimeEvent | null | undefined,
+    lang: string
+): Formatter => {
+    const override = translateFromPresentation(event, VOTING_PORTAL_DATETIME_FORMAT_KEY, lang)
+    if (override) {
+        try {
+            return parseVotingPortalDateTimePattern(override)
+        } catch (error) {
+            console.warn(
+                `Invalid "${VOTING_PORTAL_DATETIME_FORMAT_KEY}" override "${override}" for language "${lang}"; falling back to the configured preset.`,
+                error
+            )
+        }
+    }
+    const preset = event?.presentation?.voting_portal_datetime_format
+    const presetFormatter =
+        (preset && presetFormatters[preset]) ??
+        presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H]
+    return (date: Date) => presetFormatter(date, lang)
+}
+
+const toDate = (input: DateTimeInput): Date => (input instanceof Date ? input : new Date(input))
+
+/**
+ * Resolves and formats a date/time for voter-facing surfaces of the Voting Portal.
+ *
+ * Resolution order: per-language translation override → event preset →
+ * `LEGACY_GB_24H`. A malformed override logs a warning and falls back to the
+ * preset; formatting never throws to the voter.
+ *
+ * @param date the instant to format (Date, ISO string, or epoch milliseconds)
+ * @param event the election event (carrying `presentation`)
+ * @param lang the active voter language (internal code, e.g. `en`, `cat`)
+ */
+export const formatVotingPortalDateTime = (
+    date: DateTimeInput,
+    event: VotingPortalDateTimeEvent | null | undefined,
+    lang: string
+): string => {
+    const parsedDate = toDate(date)
+    const cacheKey = `${event?.id ?? "unknown"}:${lang}`
+    let formatter = formatterCache.get(cacheKey)
+    if (!formatter) {
+        formatter = buildFormatter(event, lang)
+        formatterCache.set(cacheKey, formatter)
+    }
+    try {
+        return formatter(parsedDate)
+    } catch (error) {
+        console.warn("Voting Portal date/time formatting failed; using legacy format.", error)
+        return resolvePreset(null)(parsedDate)
+    }
+}
+
+/** Test-only: clears the per-(eventId, lang) formatter memo. */
+export const clearVotingPortalDateTimeCache = (): void => {
+    formatterCache.clear()
+}

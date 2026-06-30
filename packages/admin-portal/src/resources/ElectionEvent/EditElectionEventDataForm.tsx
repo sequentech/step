@@ -57,6 +57,7 @@ import {
     EElectionEventCeremoniesPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EVotingPortalDateTimeFormat,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
@@ -521,6 +522,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EVotingPortalCountdownPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
+        }))
+    }
+
+    const votingPortalDateTimeFormatChoices = () => {
+        return Object.values(EVotingPortalDateTimeFormat).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.votingPortalDateTimeFormat.options.${value}`),
         }))
     }
 
@@ -1206,6 +1214,18 @@ export const EditElectionEventDataForm: React.FC = () => {
                             choices={delegatedVotingPolicyOptions()}
                             label={"Delegated Voting Policy"}
                             defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.voting_portal_datetime_format"}
+                            choices={votingPortalDateTimeFormatChoices()}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
+                                )
+                            )}
+                            defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
                             emptyText={undefined}
                             validate={required()}
                         />

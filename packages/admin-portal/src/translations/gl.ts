@@ -327,6 +327,16 @@ const galegoTranslation: TranslationType = {
                     },
                     policyLabel: "Política de cifrado de concurso",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Formato de data e hora do portal de votación",
+                    options: {
+                        "legacy-gb-24h": "Clásico (DD/MM/AAAA HH:mm, 24h)",
+                        "iso-local": "ISO (AAAA-MM-DD HH:mm)",
+                        "us-12h": "EUA (MM/DD/AAAA h:mm AM/PM)",
+                        "locale-medium": "Localizado (data media, hora curta)",
+                        "date-only": "Só data (sen hora)",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sen Conta Atrás",
                     COUNTDOWN: "Conta Atrás",

@@ -327,6 +327,16 @@ const catalanTranslation: TranslationType = {
                     },
                     policyLabel: "Política de xifrat de concurs",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format de data i hora del portal de votació",
+                    options: {
+                        "legacy-gb-24h": "Clàssic (DD/MM/AAAA HH:mm, 24h)",
+                        "iso-local": "ISO (AAAA-MM-DD HH:mm)",
+                        "us-12h": "EUA (MM/DD/AAAA h:mm AM/PM)",
+                        "locale-medium": "Localitzat (data mitjana, hora curta)",
+                        "date-only": "Només data (sense hora)",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
                     COUNTDOWN: "Compte enrere",

@@ -328,6 +328,16 @@ const tagalogTranslation: TranslationType = {
                     },
                     policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format ng petsa at oras ng Voting Portal",
+                    options: {
+                        "legacy-gb-24h": "Klasiko (DD/MM/YYYY HH:mm, 24h)",
+                        "iso-local": "ISO (YYYY-MM-DD HH:mm)",
+                        "us-12h": "US (MM/DD/YYYY h:mm AM/PM)",
+                        "locale-medium": "Naka-lokal (katamtamang petsa, maikling oras)",
+                        "date-only": "Petsa lamang (walang oras)",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
                     COUNTDOWN: "Countdown",

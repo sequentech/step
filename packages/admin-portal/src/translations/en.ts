@@ -328,6 +328,16 @@ const englishTranslation = {
                     },
                     policyLabel: "Contest encryption policy",
                 },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Voting Portal date & time format",
+                    options: {
+                        "legacy-gb-24h": "Legacy (DD/MM/YYYY HH:mm, 24h)",
+                        "iso-local": "ISO (YYYY-MM-DD HH:mm)",
+                        "us-12h": "US (MM/DD/YYYY h:mm AM/PM)",
+                        "locale-medium": "Localized (medium date, short time)",
+                        "date-only": "Date only (no time)",
+                    },
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
