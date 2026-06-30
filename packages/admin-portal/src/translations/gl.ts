@@ -274,6 +274,8 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada correctamente",
                     error: "Fallou a actualización da localización",
+                    invalidDateTimeFormat:
+                        "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -329,6 +331,8 @@ const galegoTranslation: TranslationType = {
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de data e hora do portal de votación",
+                    helperText:
+                        "Aplícase a todo o evento. Para substituílo por idioma, engade a clave \"votingPortalDateTimeFormat\" na pestana Localización usando os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta a documentación para máis detalles.",
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
                         "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",

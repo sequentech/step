@@ -274,6 +274,8 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    invalidDateTimeFormat:
+                        "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -330,6 +332,8 @@ const spanishTranslation: TranslationType = {
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de fecha y hora del portal de votación",
+                    helperText:
+                        "Se aplica a todo el evento. Para anularlo por idioma, añade la clave \"votingPortalDateTimeFormat\" en la pestaña Localización usando los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm). Consulta la documentación para más detalles.",
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
                         "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",

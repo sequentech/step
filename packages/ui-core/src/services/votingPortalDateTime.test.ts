@@ -143,6 +143,53 @@ describe("formatVotingPortalDateTime — per-language override", () => {
     })
 })
 
+describe("formatVotingPortalDateTime — override edge cases (FR5, FR7)", () => {
+    it("falls through to the preset for an empty override without warning", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined)
+        const event = makeEvent("e-ov-empty", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+            i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: ""}},
+        })
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("2026-03-09 07:05")
+        expect(warn).not.toHaveBeenCalled()
+        warn.mockRestore()
+    })
+
+    it("warns and falls back to the preset for a whitespace-only override", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined)
+        const event = makeEvent("e-ov-ws", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+            i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: "   "}},
+        })
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("2026-03-09 07:05")
+        expect(warn).toHaveBeenCalledTimes(1)
+        warn.mockRestore()
+    })
+
+    it("never throws to the caller on an unrecognized override; resolves to the preset", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined)
+        const event = makeEvent("e-ov-bad-2", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.US_12H,
+            i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: "no tokens here"}},
+        })
+        let out = ""
+        expect(() => {
+            out = formatVotingPortalDateTime(FIXED_DATE, event, "en")
+        }).not.toThrow()
+        expect(out).toContain("03/09/2026") // US_12H preset
+        warn.mockRestore()
+    })
+
+    it("isolates the override to its language; another language uses the preset", () => {
+        const event = makeEvent("e-ov-iso-lang", {
+            voting_portal_datetime_format: EVotingPortalDateTimeFormat.ISO_LOCAL,
+            i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: "dd/MM/yyyy"}},
+        })
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("09/03/2026")
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "es")).toBe("2026-03-09")
+    })
+})
+
 describe("formatVotingPortalDateTime — memoization", () => {
     it("returns a stable result across repeated calls", () => {
         const event = makeEvent("e-memo", {

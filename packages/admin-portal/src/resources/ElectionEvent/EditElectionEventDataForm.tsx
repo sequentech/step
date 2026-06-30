@@ -1236,6 +1236,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
                                 )
                             )}
+                            helperText={String(
+                                t(
+                                    "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
+                                )
+                            )}
                             defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
                             emptyText={undefined}
                             validate={required()}

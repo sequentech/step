@@ -273,6 +273,8 @@ const catalanTranslation: TranslationType = {
                 notify: {
                     success: "La localització s'ha actualitzat correctament",
                     error: "La actualització de la localització ha fallat",
+                    invalidDateTimeFormat:
+                        "Format de data/hora no vàlid. Utilitza els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localització",
@@ -329,6 +331,8 @@ const catalanTranslation: TranslationType = {
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de data i hora del portal de votació",
+                    helperText:
+                        "S'aplica a tot l'esdeveniment. Per substituir-ho per idioma, afegeix la clau \"votingPortalDateTimeFormat\" a la pestanya Localització amb els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta la documentació per a més detalls.",
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
                         "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",

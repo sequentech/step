@@ -273,6 +273,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     success: "Localisatie succesvol bijgewerkt",
                     error: "Bijwerken lokalisatie mislukt",
+                    invalidDateTimeFormat:
+                        "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisatie",
@@ -328,6 +330,8 @@ const dutchTranslation: TranslationType = {
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Datum- en tijdnotatie van stemportaal",
+                    helperText:
+                        "Geldt voor het hele evenement. Om per taal te overschrijven, voeg de sleutel \"votingPortalDateTimeFormat\" toe op het tabblad Localisatie met de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Zie de documentatie voor details.",
                     options: {
                         "legacy-gb-24h": "Legacy GB 24h (DD/MM/JJJJ HH:mm, 24u)",
                         "iso-local": "ISO Local (JJJJ-MM-DD HH:mm)",
