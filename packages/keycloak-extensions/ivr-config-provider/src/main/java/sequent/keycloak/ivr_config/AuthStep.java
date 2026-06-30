@@ -17,6 +17,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record AuthStep(
     @JsonProperty(Constants.AUTH_STEP_PROP_FIELD) String field,
     @JsonProperty(Constants.AUTH_STEP_PROP_MAX_DIGITS) int maxDigits,
-    @JsonProperty(Constants.AUTH_STEP_PROP_TERMINATOR) String terminator,
+    @JsonProperty(Constants.AUTH_STEP_PROP_KIND) String kind,
     @JsonProperty(Constants.AUTH_STEP_PROP_MAPS_TO) String mapsTo,
     @JsonProperty(Constants.AUTH_STEP_PROP_PROMPT_KEY) String promptKey) {}

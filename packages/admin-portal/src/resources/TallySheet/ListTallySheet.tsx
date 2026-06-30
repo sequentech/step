@@ -16,7 +16,8 @@ import {
     useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Button, Tooltip, Typography} from "@mui/material"
+import {ListActionsMenu} from "../../components/ListActionsMenu"
+import {Button, Chip, Tooltip, Typography} from "@mui/material"
 import {
     ReviewTallySheetMutation,
     Sequent_Backend_Contest,
@@ -265,8 +266,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             )}
             {!showVersionsTable && (
                 <List
+                    disableSyncWithLocation
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                        meta: {distinctBallotBoxes: true},
                     }}
                     resource="sequent_backend_tally_sheet"
                     actions={
@@ -295,6 +298,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     empty={<Empty />}
                 >
                     <DatagridConfigurable
+                        bulkActionButtons={false}
                         omit={OMIT_FIELDS}
                         sx={{
                             flexGrow: 1,
@@ -303,8 +307,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                             maxWidth: "100%",
                         }}
                     >
-                        <TextField source="id" />
-                        <TextField source="channel" />
+                        <TextField source="id" sortable={false} />
+                        <FunctionField
+                            source="channel"
+                            sortable={false}
+                            label={String(t("tallysheet.label.channel"))}
+                            render={(record: Sequent_Backend_Tally_Sheet) => (
+                                <Chip label={record.channel} />
+                            )}
+                        />
 
                         <FunctionField
                             label={String(t("tallysheet.table.contest"))}

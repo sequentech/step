@@ -201,6 +201,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
         early_voting: tenant?.voting_channels?.early_voting || false,
+        telephone: tenant?.voting_channels?.telephone || false,
     })
 
     useEffect(() => {
@@ -275,6 +276,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 online: true,
                 kiosk: false,
                 early_voting: false,
+                telephone: false,
             }
             for (const channel of Object.keys(defaultChannels)) {
                 temp.voting_channels[channel] =

@@ -366,6 +366,26 @@ export const customBuildQuery =
                     }
                 },
             }
+        } else if (
+            resourceName === "sequent_backend_tally_sheet" &&
+            raFetchType === "GET_LIST" &&
+            params?.meta?.distinctBallotBoxes
+        ) {
+            // Show only one row per ballot box (area/contest/channel)
+            params.filter = {
+                ...params.filter,
+                distinct_on: ["area_id", "contest_id", "channel"],
+            }
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [
+                    {area_id: "asc"},
+                    {contest_id: "asc"},
+                    {channel: "asc"},
+                    {version: "desc"},
+                ]
+            }
+            return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

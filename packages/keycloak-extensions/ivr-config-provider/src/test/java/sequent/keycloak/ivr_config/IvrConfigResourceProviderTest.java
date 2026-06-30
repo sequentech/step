@@ -71,8 +71,8 @@ class IvrConfigResourceProviderTest {
 
     assertThat(steps)
         .containsExactly(
-            new AuthStep("voter_id", 8, "#", "username", null),
-            new AuthStep("pin", 8, "#", "password", null));
+            new AuthStep("voter_id", 8, Constants.AUTH_STEP_KIND_IDENTIFIER, "username", null),
+            new AuthStep("pin", 8, Constants.AUTH_STEP_KIND_SECRET, "password", null));
   }
 
   @Test
@@ -121,7 +121,7 @@ class IvrConfigResourceProviderTest {
             Map.of(
                 Constants.AUTH_STEP_PROP_FIELD, "dob",
                 Constants.AUTH_STEP_PROP_MAX_DIGITS, "8",
-                Constants.AUTH_STEP_PROP_TERMINATOR, "#",
+                Constants.AUTH_STEP_PROP_KIND, Constants.AUTH_STEP_KIND_SECRET,
                 Constants.AUTH_STEP_PROP_MAPS_TO, "dob",
                 Constants.AUTH_STEP_PROP_PROMPT_KEY, "auth_enter_dob"));
     when(realm.getAuthenticatorConfigById("cfg-1")).thenReturn(cfg);
@@ -132,7 +132,9 @@ class IvrConfigResourceProviderTest {
         (List<AuthStep>)
             ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
 
-    assertThat(steps).containsExactly(new AuthStep("dob", 8, "#", "dob", "auth_enter_dob"));
+    assertThat(steps)
+        .containsExactly(
+            new AuthStep("dob", 8, Constants.AUTH_STEP_KIND_SECRET, "dob", "auth_enter_dob"));
   }
 
   @Test

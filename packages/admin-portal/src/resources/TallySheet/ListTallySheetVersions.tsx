@@ -14,7 +14,8 @@ import {
     useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {IconButton, Stack, Tooltip, Typography} from "@mui/material"
+import {ListActionsMenu} from "../../components/ListActionsMenu"
+import {IconButton, Stack, Box, Chip, Tooltip, Typography} from "@mui/material"
 import {useLazyQuery} from "@apollo/client"
 import DownloadIcon from "@mui/icons-material/Download"
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"
@@ -34,13 +35,14 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {downloadUrl} from "@sequentech/ui-core"
 import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "../TallySheetImport/events"
 import {useLocation, useNavigate} from "react-router-dom"
 
-const OMIT_FIELDS = ["id"]
+const OMIT_FIELDS = ["id", "channel", "area_id", "contest_id"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Area" source="area_id" key={0} />,
@@ -147,7 +149,19 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
 
     return (
         <>
+            <ElectionHeaderStyles.Wrapper>
+                <Box display="flex" alignItems="center" gap={1}>
+                    <ElectionHeaderStyles.SubTitle>
+                        {t("tallysheet.versionsTable.title")}
+                    </ElectionHeaderStyles.SubTitle>
+                    <Chip label={tallySheet.channel} />
+                    <AreaItem record={tallySheet.area_id} />
+                    <ContestItem record={tallySheet.contest_id} />
+                </Box>
+            </ElectionHeaderStyles.Wrapper>
             <List
+                disableSyncWithLocation
+                sort={{field: "version", order: "DESC"}}
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
                 }}
@@ -166,6 +180,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 empty={<Empty />}
             >
                 <DatagridConfigurable
+                    bulkActionButtons={false}
                     omit={OMIT_FIELDS}
                     sx={{
                         flexGrow: 1,
@@ -178,6 +193,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     <TextField source="channel" />
 
                     <FunctionField
+                        source="contest_id"
                         label={t("tallysheet.table.contest")}
                         render={(record: Sequent_Backend_Tally_Sheet) => (
                             <ContestItem record={record.contest_id} />
@@ -185,6 +201,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     />
 
                     <FunctionField
+                        source="area_id"
                         label={t("tallysheet.table.area")}
                         render={(record: Sequent_Backend_Tally_Sheet) => (
                             <AreaItem record={record.area_id} />

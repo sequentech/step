@@ -584,28 +584,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <FormControl fullWidth size="small">
                     <Autocomplete
                         sx={{width: 300}}
-                        onChange={handleChange as any}
-                        options={areasList ?? []}
-                        getOptionLabel={(option) =>
-                            typeof option.label === "string" ? option.label : option.id
-                        }
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Search Area"
-                                onChange={debouncedSearchArea}
-                                value={areaNameFilter}
-                                required
-                            />
-                        )}
-                        value={currentArea}
-                        isOptionEqualToValue={(a, b) => a.id === b.id}
-                    />
-                </FormControl>
-
-                <FormControl fullWidth size="small">
-                    <Autocomplete
-                        sx={{width: 300}}
                         onChange={handleContestChange as any}
                         options={filteredContestList ?? []}
                         getOptionLabel={(option) =>
@@ -621,6 +599,28 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                             />
                         )}
                         value={currentContest}
+                        isOptionEqualToValue={(a, b) => a.id === b.id}
+                    />
+                </FormControl>
+
+                <FormControl fullWidth size="small">
+                    <Autocomplete
+                        sx={{width: 300}}
+                        onChange={handleChange as any}
+                        options={areasList ?? []}
+                        getOptionLabel={(option) =>
+                            typeof option.label === "string" ? option.label : option.id
+                        }
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Search Area"
+                                onChange={debouncedSearchArea}
+                                value={areaNameFilter}
+                                required
+                            />
+                        )}
+                        value={currentArea}
                         isOptionEqualToValue={(a, b) => a.id === b.id}
                     />
                 </FormControl>

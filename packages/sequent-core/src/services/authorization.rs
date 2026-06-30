@@ -110,6 +110,7 @@ pub fn authorize_voter_election(
     match claims.azp.as_str() {
         "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
         "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
+        "ivr-voting" => Ok((area_id, VotingStatusChannel::TELEPHONE)),
         _ => Err((Status::Unauthorized, "Unknown Client".into())),
     }
 }
