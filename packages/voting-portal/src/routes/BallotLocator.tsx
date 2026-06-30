@@ -14,7 +14,11 @@ import {
     Dialog,
     ExpandableText,
 } from "@sequentech/ui-essentials"
-import {stringToHtml, EShowCastVoteLogsPolicy} from "@sequentech/ui-core"
+import {
+    stringToHtml,
+    EShowCastVoteLogsPolicy,
+    formatVotingPortalDateTime,
+} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import Tabs from "@mui/material/Tabs"
@@ -130,7 +134,7 @@ const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
 }
 
 const BallotLocator: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const location = useLocation()
     const {tenantId, eventId, electionId} = useParams()
     const allowSendRequest = useRef<boolean>(true)
@@ -308,6 +312,13 @@ const BallotLocator: React.FC = () => {
                         page={page}
                         handleChangePage={handleChangePage}
                         somethingWentWrongErr={somethingWentWrongErr}
+                        formatDateTime={(timestamp) =>
+                            formatVotingPortalDateTime(
+                                timestamp,
+                                dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+                                i18n.resolvedLanguage || i18n.language
+                            )
+                        }
                     />
                 </CustomTabPanel>
                 <Box
@@ -340,6 +351,7 @@ interface LogsTableProps {
     page: number
     handleChangePage: (event: unknown, newValue: number) => void
     somethingWentWrongErr: boolean
+    formatDateTime: (timestamp: number) => string
 }
 
 interface MessageCellProps {
@@ -412,6 +424,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     page,
     handleChangePage,
     somethingWentWrongErr = false,
+    formatDateTime,
 }) => {
     const {t} = useTranslation()
     const [orderBy, setOrderBy] = useState<string>("")
@@ -581,7 +594,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                         padding: "2px 4px",
                                     }}
                                 >
-                                    {new Date(row.statement_timestamp * 1000).toUTCString()}
+                                    {formatDateTime(row.statement_timestamp * 1000)}
                                 </TableCell>
                                 <TableCell
                                     align="justify"
