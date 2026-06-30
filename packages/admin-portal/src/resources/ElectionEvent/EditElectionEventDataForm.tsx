@@ -1217,6 +1217,17 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                         />
+                        <Typography
+                            variant="body1"
+                            component="span"
+                            sx={{
+                                fontWeight: "bold",
+                                margin: 0,
+                                display: {xs: "none", sm: "block"},
+                            }}
+                        >
+                            {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
+                        </Typography>
                         <SelectInput
                             source={"presentation.voting_portal_datetime_format"}
                             choices={votingPortalDateTimeFormatChoices()}
@@ -1229,17 +1240,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                         />
-                        <Typography
-                            variant="body1"
-                            component="span"
-                            sx={{
-                                fontWeight: "bold",
-                                margin: 0,
-                                display: {xs: "none", sm: "block"},
-                            }}
-                        >
-                            {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
-                        </Typography>
                         <SelectInput
                             source={`presentation.voting_portal_countdown_policy.policy`}
                             choices={votingPortalCountDownPolicies()}
