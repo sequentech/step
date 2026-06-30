@@ -20,7 +20,11 @@ services:
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs
+    volumes:
+      - db_logs:/logs
+      - keycloak_db_logs:/keycloak_logs
+      - b4_db_logs:/b4_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -28,6 +32,9 @@ services:
     platform: linux/amd64
     container_name: postgres
     restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql
+      - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
@@ -48,6 +55,8 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    volumes:
+      - minio_storage:/data
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -147,6 +156,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_started
+      configure-minio:
+        condition: service_started
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -174,6 +187,9 @@ services:
     platform: linux/amd64
     container_name: postgres-keycloak
     restart: unless-stopped
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql
+      - keycloak_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
@@ -183,6 +199,8 @@ services:
       timeout: 10s
       retries: 15
       start_period: 5s
+    depends_on:
+      - postgres
 
   keycloak:
     profiles: ["full", "base"]
@@ -193,10 +211,12 @@ services:
     ports:
       - 8090:8090
     environment:
+      AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
       KC_DB: ${KC_DB}
+      KC_LOG_LEVEL: ${LOG_LEVEL}
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_DB_SCHEMA: ${KC_DB_SCHEMA}
@@ -213,6 +233,11 @@ services:
       APP_HASH: ${APP_HASH}
       KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
+      ENV_SLUG: ${ENV_SLUG}
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -364,20 +389,20 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
-  b3:
+  b4:
     profiles: ["full", "base"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4:STEP_VERSION
     platform: linux/amd64
-    container_name: b3
+    container_name: b4
     restart: always
     ports:
       - "50051:50051"
@@ -386,12 +411,40 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      B4_ALLOWED_ORIGINS: ${B4_ALLOWED_ORIGINS}
+      B4_BIND: ${B4_BIND}
+      ENV_SLUG: ${ENV_SLUG}
+
+    depends_on:
+      postgres-b4:
+        condition: service_healthy
+
+  postgres-b4:
+    profiles: ["full", "base"]
+    image: ghcr.io/sequentech/step/postgres-b4:latest
+    platform: linux/amd64
+    container_name: postgres-b4
+    restart: unless-stopped
+    volumes:
+      - b4_db_data:/var/lib/postgresql
+      - b4_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_PASSWORD: ${B4_PG_PASSWORD}
+    user: "999:999"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    depends_on:
+      - postgres-volume-init
 
   trustee1:
     profiles: ["full"]
@@ -563,6 +616,14 @@ services:
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+      ENV_SLUG: ${ENV_SLUG}
 
   beat:
     profiles: ["full"]
@@ -583,3 +644,12 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+
+volumes:
+  db_data:
+  db_logs:
+  keycloak_db_logs:
+  keycloak_db_data:
+  minio_storage:
+  b4_db_logs:
+  b4_db_data:

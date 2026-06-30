@@ -8,19 +8,41 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
+use std::sync::{Arc, RwLock};
+
 use crate::protocol::board::{Board, BoardFactory};
 use b4::api_types::{
     ConfirmMessageRequest, ContentType, GetMessagesResponse, InitiateMessageRequest,
-    InitiateMessageResponse, ListMessagesResponse, MessageWithUrl,
+    InitiateMessageResponse,
 };
 use b4::messages::message::Message;
 use b4::HttpB3Message;
 use strand::serialization::StrandSerialize;
 
+/// Adds the Authorization header for B4 authentication
+pub(crate) fn add_auth_header(
+    request: &Request,
+    access_token: &RwLock<String>,
+) -> Result<(), JsValue> {
+    request.headers().set(
+        "Authorization",
+        &format!(
+            "Bearer {}",
+            access_token.read().expect("access_token lock poisoned")
+        ),
+    )
+}
+
 /// Parameters for creating a WASM HTTP board connection
+///
+/// The access token is wrapped in `Arc<RwLock<>>` so that all clones
+/// (including those held by the `Session`) share the same token
+/// and see updates from `WasmSession::update_access_token`.
 #[derive(Clone)]
 pub struct WasmHttpBoardParams {
     pub b4_url: String,
+    /// JWT access token for B4 authentication
+    pub access_token: Arc<RwLock<String>>,
 }
 
 /// HTTP board client using web_sys fetch API
@@ -53,6 +75,7 @@ impl WasmHttpBoard {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
+        add_auth_header(&request, &self.params.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -173,6 +196,7 @@ impl WasmHttpBoard {
 
         let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
         request.headers().set("Content-Type", "application/json")?;
+        add_auth_header(&request, &self.params.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -239,6 +263,7 @@ impl WasmHttpBoard {
 
             let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
             request3.headers().set("Content-Type", "application/json")?;
+            add_auth_header(&request3, &self.params.access_token)?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
             let resp3: Response = resp_value3.dyn_into()?;
@@ -274,6 +299,7 @@ impl WasmHttpBoard {
 
             let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
             request3.headers().set("Content-Type", "application/json")?;
+            add_auth_header(&request3, &self.params.access_token)?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
             let resp3: Response = resp_value3.dyn_into()?;

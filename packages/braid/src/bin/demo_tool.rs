@@ -25,6 +25,7 @@ use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 
 use braid::protocol::trustee::TrusteeConfig;
 use rand::seq::IndexedRandom;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
@@ -200,7 +201,7 @@ enum Command {
 #[instrument]
 async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
-    braid::native::logging::init_log(true);
+    init_log(true);
     let args = Cli::parse();
 
     match &args.command {

@@ -14,7 +14,7 @@ pub mod storage_sqlite; // Native-only (requires filesystem)
 
 // Re-export HTTP types (native-only)
 #[cfg(feature = "native")]
-pub use http::{HttpB3, HttpB3BoardParams, HttpB3Index};
+pub use http::{HttpB3BoardParams, HttpB3Index, HttpB4};
 
 // Re-export storage types
 pub use storage_noop::NoOpStorage;

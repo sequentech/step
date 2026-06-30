@@ -115,6 +115,8 @@ pub fn ensure_directory(folder: PathBuf) -> Result<()> {
 }
 
 #[cfg(feature = "native")]
+use sequent_core::services::keycloak::{KeycloakUserClient, KeycloakUserLoginConfig};
+#[cfg(feature = "native")]
 use tracing_subscriber::filter::LevelFilter;
 #[cfg(feature = "native")]
 use tracing_subscriber::reload::Handle;
@@ -153,4 +155,50 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     }
     tracing_log::LogTracer::init().unwrap();
     reload_handle
+}
+
+/// Gets the Keycloak user login configuration from environment variables.
+///
+/// Uses:
+/// - `KEYCLOAK_URL` - Keycloak server URL
+/// - `KC_TRUSTEE_CLIENT_SECRET` - OAuth client secret
+/// - `SUPER_ADMIN_TENANT_ID` - Tenant ID for realm
+///
+/// # Errors
+/// Returns an error if any required environment variable is not set.
+#[cfg(feature = "native")]
+fn get_keycloak_trustee_user_login_config(
+    username: &str,
+    password: &str,
+) -> Result<KeycloakUserLoginConfig> {
+    use std::env;
+    // TODO: Create new client in Keycloak and adapt tenant json file.
+    let client_id = "native-trustee".to_string();
+    let client_secret = env::var("KC_TRUSTEE_CLIENT_SECRET")
+        .map_err(|_| anyhow!("KC_TRUSTEE_CLIENT_SECRET must be set"))?;
+    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+        .map_err(|_| anyhow!("SUPER_ADMIN_TENANT_ID must be set"))?;
+    Ok(KeycloakUserLoginConfig::new(
+        username.to_string(),
+        password.to_string(),
+        client_id,
+        client_secret,
+        tenant_id,
+    ))
+}
+
+/// Fetches the access token from Keycloak for B4 authentication using trustee
+/// credentials.
+///
+/// Uses KeycloakUserClient::get_cached_token() which authenticates as a specific
+/// trustee user using the Resource Owner Password Credentials flow. Tokens are
+/// cached to avoid repeated authentication requests.
+///
+/// # Arguments
+/// * `username` - The Keycloak username (e.g., "trustee1")
+/// * `password` - The trustee's password from the config file
+#[cfg(feature = "native")]
+pub async fn get_access_token(username: &str, password: &str) -> Result<String> {
+    let login_config = get_keycloak_trustee_user_login_config(username, password)?;
+    KeycloakUserClient::get_cached_token(&login_config).await
 }

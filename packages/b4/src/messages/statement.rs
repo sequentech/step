@@ -6,6 +6,7 @@ use crate::messages::newtypes::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::hash::Hash;
 use strum::Display;
+use tracing::instrument;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
@@ -93,18 +94,22 @@ impl Statement {
     // Statement creation functions
     ///////////////////////////////////////////////////////////////////////////
 
+    #[instrument]
     pub(crate) fn configuration_stmt(cfg_hash: ConfigurationHash) -> Statement {
         Statement::Configuration(Self::timestamp(), cfg_hash)
     }
 
+    #[instrument]
     pub(crate) fn configuration_signed_stmt(cfg_hash: ConfigurationHash) -> Statement {
         Statement::ConfigurationSigned(Self::timestamp(), cfg_hash)
     }
 
+    #[instrument]
     pub(crate) fn channel_stmt(cfg_hash: ConfigurationHash, channel_h: ChannelHash) -> Statement {
         Statement::Channel(Self::timestamp(), cfg_hash, channel_h)
     }
 
+    #[instrument]
     pub(crate) fn channels_all_stmt(
         cfg_hash: ConfigurationHash,
         channels_hs: ChannelsHashes,
@@ -112,10 +117,12 @@ impl Statement {
         Statement::ChannelsAllSigned(Self::timestamp(), cfg_hash, channels_hs)
     }
 
+    #[instrument]
     pub(crate) fn shares_stmt(cfg_hash: ConfigurationHash, shares_h: SharesHash) -> Statement {
         Statement::Shares(Self::timestamp(), cfg_hash, shares_h)
     }
 
+    #[instrument]
     pub(crate) fn pk_stmt(
         cfg_hash: ConfigurationHash,
         pk_h: PublicKeyHash,
@@ -125,6 +132,7 @@ impl Statement {
         Statement::PublicKey(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
     }
 
+    #[instrument]
     pub(crate) fn pk_signed_stmt(
         cfg_hash: ConfigurationHash,
         pk_h: PublicKeyHash,
@@ -138,6 +146,7 @@ impl Statement {
     // There must be threshold # of them. Each trustee is a number starting at 1 up to the the number of eligible
     // trustees as per the configuration. 0 is not a valid trustee. Remaining
     // slots of this fixed size array must be padded with newtypes::NULL_TRUSTEE
+    #[instrument]
     pub(crate) fn ballots_stmt(
         cfg_hash: ConfigurationHash,
         ballots_h: CiphertextsHash,
@@ -155,6 +164,7 @@ impl Statement {
         )
     }
 
+    #[instrument]
     pub(crate) fn mix_stmt(
         cfg_hash: ConfigurationHash,
         // Points to either Ballots or Mix
@@ -173,6 +183,7 @@ impl Statement {
         )
     }
 
+    #[instrument]
     pub(crate) fn mix_signed_stmt(
         cfg_hash: ConfigurationHash,
         // Points to either Ballots or Mix
@@ -191,6 +202,7 @@ impl Statement {
         )
     }
 
+    #[instrument]
     pub(crate) fn decryption_factors_stmt(
         cfg_hash: ConfigurationHash,
         batch: BatchNumber,
@@ -208,6 +220,7 @@ impl Statement {
         )
     }
 
+    #[instrument]
     pub(crate) fn plaintexts_stmt(
         cfg_hash: ConfigurationHash,
         batch: BatchNumber,
@@ -227,6 +240,7 @@ impl Statement {
         )
     }
 
+    #[instrument]
     pub(crate) fn plaintexts_signed_stmt(
         cfg_hash: ConfigurationHash,
         batch: BatchNumber,
@@ -246,6 +260,7 @@ impl Statement {
         )
     }
 
+    #[instrument(level = "trace")]
     fn timestamp() -> Timestamp {
         crate::timestamp()
     }
@@ -254,26 +269,32 @@ impl Statement {
     // Data accessors
     ///////////////////////////////////////////////////////////////////////////
 
+    #[instrument(level = "trace")]
     pub fn get_kind(&self) -> StatementType {
         self.get_data().0
     }
 
+    #[instrument(level = "trace")]
     pub fn get_cfg_h(&self) -> Hash {
         self.get_data().1
     }
 
+    #[instrument(level = "trace")]
     pub fn get_batch_number(&self) -> BatchNumber {
         self.get_data().2
     }
 
+    #[instrument(level = "trace")]
     pub fn get_mix_number(&self) -> MixNumber {
         self.get_data().3
     }
 
+    #[instrument(level = "trace")]
     pub fn get_timestamp(&self) -> Timestamp {
         self.get_data().4
     }
 
+    #[instrument(level = "trace")]
     pub fn get_data(&self) -> (StatementType, Hash, BatchNumber, MixNumber, Timestamp) {
         let kind: StatementType;
         let ts: u64;

@@ -5,20 +5,18 @@
 use anyhow::{anyhow, Result};
 
 use braid::native::board::HttpB3Index;
+use braid::native::session::session_m::SessionFactory;
+use braid::native::session::session_master::SessionMaster;
+use braid::protocol::trustee::TrusteeConfig;
+use braid::util::{ensure_directory, get_access_token};
 use clap::Parser;
+use sequent_core::util::init_log::init_log;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-
 use tokio::time::{sleep, Duration};
-use tracing::instrument;
-use tracing::{error, info};
-
-use braid::native::session::session_m::SessionFactory;
-use braid::native::session::session_master::SessionMaster;
-use braid::protocol::trustee::TrusteeConfig;
-use braid::util::ensure_directory;
+use tracing::{error, info, instrument};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
@@ -106,7 +104,7 @@ fn main() -> Result<()> {
 ///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -144,16 +142,33 @@ async fn run(args: &Cli) -> Result<()> {
             .unwrap(),
     );
 
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
-    let mut master = SessionMaster::new(&args.b4_url, factory, args.session_workers).await?;
+
+    // Fetch initial access token for B4 authentication
+    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let mut master =
+        SessionMaster::new(&args.b4_url, factory, args.session_workers, access_token).await?;
 
     loop {
-        let b3index = HttpB3Index::new(&args.b4_url);
+        // Refresh access token using trustee credentials (cached)
+        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
+            Ok(token) => token,
+            Err(e) => {
+                error!("Failed to get access token: {e:?}");
+                sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
+        master.set_access_token(access_token.clone());
+
+        let b3index = HttpB3Index::new(&args.b4_url, access_token);
         let boards_result = b3index.get_boards().await;
 
         let Ok(mut boards) = boards_result else {
             error!(
-                "Error listing board names: '{}' ({})",
+                "Concurrent error listing board names: '{}' ({})",
                 boards_result.err().unwrap(),
                 args.b4_url
             );

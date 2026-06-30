@@ -18,6 +18,7 @@ use strand::shuffler::ShuffleProof;
 use strand::signature::StrandSignaturePk;
 use strand::symm;
 use strand::{context::Ctx, elgamal::Ciphertext};
+use tracing::instrument;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Configuration<C: Ctx> {
@@ -29,6 +30,7 @@ pub struct Configuration<C: Ctx> {
 }
 
 impl<C: Ctx> Configuration<C> {
+    #[instrument(skip(protocol_manager, trustees, _phantom))]
     pub fn new(
         id: u128,
         protocol_manager: StrandSignaturePk,
@@ -48,6 +50,7 @@ impl<C: Ctx> Configuration<C> {
         c
     }
 
+    #[instrument(level = "trace")]
     pub fn is_valid(&self) -> bool {
         let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(self.trustees.clone());
 
@@ -57,6 +60,7 @@ impl<C: Ctx> Configuration<C> {
             && (self.threshold > 1 && self.threshold <= self.trustees.len())
     }
 
+    #[instrument(skip(trustee_pk))]
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
         if trustee_pk == &self.protocol_manager {
             Some(PROTOCOL_MANAGER_INDEX as usize)
@@ -65,6 +69,7 @@ impl<C: Ctx> Configuration<C> {
         }
     }
 
+    #[instrument]
     pub fn label(&self, batch: BatchNumber, suffix: String) -> Vec<u8> {
         let mut ret = vec![];
         ret.extend(self.id.to_le_bytes());
@@ -86,6 +91,7 @@ pub struct Channel<C: Ctx> {
     pub encrypted_channel_sk: symm::EncryptionData,
 }
 impl<C: Ctx> Channel<C> {
+    #[instrument(skip(channel_pk, pk_proof, encrypted_channel_sk))]
     pub fn new(
         channel_pk: C::E,
         pk_proof: Schnorr<C>,
@@ -128,6 +134,7 @@ pub struct DkgPublicKey<C: Ctx> {
     pub verification_keys: Vec<C::E>,
 }
 impl<C: Ctx> DkgPublicKey<C> {
+    #[instrument(skip(pk, verification_keys))]
     pub fn new(pk: C::E, verification_keys: Vec<C::E>) -> DkgPublicKey<C> {
         DkgPublicKey {
             pk,
@@ -143,6 +150,7 @@ pub struct Ballots<C: Ctx> {
     pub ciphertexts: StrandVector<Ciphertext<C>>,
 }
 impl<C: Ctx> Ballots<C> {
+    #[instrument(skip(ciphertexts))]
     pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
         Ballots {
             ciphertexts: StrandVector(ciphertexts),
@@ -157,6 +165,7 @@ pub struct Mix<C: Ctx> {
     pub mix_number: MixNumber,
 }
 impl<C: Ctx> Mix<C> {
+    #[instrument(skip(ciphertexts, proof))]
     pub fn new(
         ciphertexts: Vec<Ciphertext<C>>,
         proof: ShuffleProof<C>,
@@ -168,6 +177,7 @@ impl<C: Ctx> Mix<C> {
             mix_number,
         }
     }
+    #[instrument]
     pub fn null(mix_number: MixNumber) -> Mix<C> {
         Mix {
             ciphertexts: StrandVector(vec![]),
@@ -183,6 +193,7 @@ pub struct DecryptionFactors<C: Ctx> {
     pub proofs: StrandVector<ChaumPedersen<C>>,
 }
 impl<C: Ctx> DecryptionFactors<C> {
+    #[instrument(skip(factors, proofs))]
     pub fn new(factors: Vec<C::E>, proofs: StrandVector<ChaumPedersen<C>>) -> DecryptionFactors<C> {
         DecryptionFactors {
             factors: StrandVector(factors),
@@ -203,6 +214,7 @@ pub struct BallotsWide<C: Ctx> {
     pub ciphertexts: StrandRectangle<Ciphertext<C>>,
 }
 impl<C: Ctx> BallotsWide<C> {
+    #[instrument(skip(ciphertexts))]
     pub fn new(ciphertexts: StrandRectangle<Ciphertext<C>>) -> BallotsWide<C> {
         BallotsWide { ciphertexts }
     }
@@ -215,6 +227,7 @@ pub struct MixWide<C: Ctx> {
     pub mix_number: MixNumber,
 }
 impl<C: Ctx> MixWide<C> {
+    #[instrument(skip(ciphertexts, proof))]
     pub fn new(
         ciphertexts: StrandRectangle<Ciphertext<C>>,
         proof: ShuffleProof<C>,
@@ -226,6 +239,7 @@ impl<C: Ctx> MixWide<C> {
             mix_number,
         }
     }
+    #[instrument]
     pub fn null(mix_number: MixNumber) -> MixWide<C> {
         let c = StrandRectangle::new(vec![vec![]]).expect("impossible");
 
@@ -243,6 +257,7 @@ pub struct DecryptionFactorsWide<C: Ctx> {
     pub proofs: StrandRectangle<ChaumPedersen<C>>,
 }
 impl<C: Ctx> DecryptionFactorsWide<C> {
+    #[instrument(skip(factors, proofs))]
     pub fn new(
         factors: StrandRectangle<C::E>,
         proofs: StrandRectangle<ChaumPedersen<C>>,

@@ -30,7 +30,7 @@ bb8-postgres = { version = "0.9", optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sequent-core = { path="../sequent-core", features = ["log", "s3", "probe", "default_features"], optional = true }
+sequent-core = { path="../sequent-core", features = ["log", "s3", "probe", "default_features", "keycloak"], optional = true }
 dotenv = { version = "0.15", optional = true } 
 
 # Message types dependencies
@@ -62,3 +62,18 @@ clap = { version = "4.5", features = ["derive", "env"], optional = true }
 
 # WASM dependencies
 js-sys = { version = "0.3", optional = true }
+
+[dev-dependencies]
+serial_test = "3.0"                                # Sequential test execution
+sequent-core = { path="../sequent-core", features = ["test-utils"] }
+testcontainers = "0.23"                              # Container management for tests
+testcontainers-modules = { version = "0.11", features = ["postgres", "localstack"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }  # Async runtime for tests
+axum = "0.7"                                         # Re-export for test router building
+tower-http = { version = "0.6", features = ["cors"] } # CORS layer for test server
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.52"
+bb8-postgres = "0.9"
+tokio-postgres = "0.7"
+dotenv = "0.15"
+axum-test = "16"

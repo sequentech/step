@@ -23,7 +23,9 @@ jobs:
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
-            extra: --features keycloak
+            extra: --all-features --lib
+          - service: b4
+            extra: --features native
           - service: velvet
           - service: windmill
             build_jobs: 2

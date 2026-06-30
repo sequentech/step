@@ -2,18 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin verify -- --server-url http://[::1]:50051 --board testboard
-use anyhow::Result;
-use clap::Parser;
-use tracing::info;
-use tracing::instrument;
-
-use braid::native::board::{HttpB3, HttpB3BoardParams};
+// cargo run --bin verify -- --b4-url http://[::1]:50051 --board testboard
+use anyhow::{anyhow, Result};
+use braid::native::board::{HttpB3BoardParams, HttpB4};
 use braid::native::verify::verifier::Verifier;
 use braid::protocol::trustee::Trustee;
-
+use braid::util::get_access_token;
+use clap::Parser;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
+use tracing::{info, instrument};
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
@@ -40,7 +39,7 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     // generate dummy values, these are not important
     let dummy_sk = StrandSignatureSk::generate().unwrap();
@@ -52,6 +51,15 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
 
+    // Get trustee name and password for Keycloak authentication
+    let trustee_name =
+        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+
+    // Fetch access token for B4 authentication
+    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
+
     let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
@@ -60,9 +68,9 @@ async fn main() -> Result<()> {
         braid::native::board::NoOpStorage::new(),
         None,
     );
-    let board_params = HttpB3BoardParams::new(&args.server_url).await;
-    let board: HttpB3 = board_params.create_board(&args.board, None);
-    let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> =
+    let board_params = HttpB3BoardParams::new(&args.server_url, access_token).await;
+    let board: HttpB4 = board_params.create_board(&args.board, None);
+    let mut session: Verifier<RistrettoCtx, HttpB4, braid::native::board::NoOpStorage> =
         Verifier::new(trustee, board, &args.board);
     let _result = session.run().await?;
 

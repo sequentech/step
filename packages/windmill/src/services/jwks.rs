@@ -2,65 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
+use sequent_core::services::jwks::{get_jwks, get_jwks_secret_path, JWKKey, JwksOutput};
 use sequent_core::services::s3;
 use sequent_core::util::temp_path::generate_temp_file;
-use serde::{Deserialize, Serialize};
 use std::env;
 use std::io::{BufWriter, Write};
-use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct JWKKey {
-    pub alg: String,
-    pub kty: String,
-    pub r#use: String,
-    pub n: String,
-    pub e: String,
-    pub kid: String,
-    pub x5t: String,
-    pub x5c: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct JwksOutput {
-    pub keys: Vec<JWKKey>,
-}
-
-pub fn get_jwks_secret_path() -> String {
-    env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
-}
 
 pub fn get_cache_policy() -> Result<String> {
     let cache_policy = env::var("AWS_S3_JWKS_CACHE_POLICY")
-        .map_err(|err| anyhow!("AWS_S3_JWKS_CACHE_POLICY Must be set: {}", { err }))?;
+        .map_err(|err| anyhow!("AWS_S3_JWKS_CACHE_POLICY Must be set: {err}"))?;
     Ok(cache_policy)
-}
-
-#[instrument(err)]
-pub async fn get_jwks() -> Result<Vec<JWKKey>> {
-    let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
-    let bucket = s3::get_public_bucket()?;
-
-    let hasura_endpoint = format!(
-        "{}/{}/{}",
-        minio_private_uri,
-        bucket,
-        get_jwks_secret_path()
-    );
-
-    let client = reqwest::Client::new();
-    let response = client.get(hasura_endpoint).send().await?;
-
-    let unwrapped = if response.status() == reqwest::StatusCode::NOT_FOUND {
-        event!(Level::INFO, "Jwks are empty");
-        return Ok(vec![]);
-    } else {
-        response
-    };
-    let response_body: JwksOutput = unwrapped.json().await?;
-    Ok(response_body.keys)
 }
 
 #[instrument(err)]
@@ -90,7 +42,8 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     let realm_jwks = download_realm_jwks_from_keycloak(realm)
         .await
         .unwrap_or(vec![]);
-    let mut existing_jwks = get_jwks().await?;
+
+    let (mut existing_jwks, _) = get_jwks().await?;
     let existing_kids: Vec<String> = existing_jwks
         .iter()
         .map(|realm| realm.kid.clone())
@@ -144,7 +97,7 @@ pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
     let realm_jwks = download_realm_jwks_from_keycloak(realm)
         .await
         .unwrap_or(vec![]);
-    let existing_jwks = get_jwks().await?;
+    let (existing_jwks, _) = get_jwks().await?;
 
     let realm_kids: Vec<String> = realm_jwks.iter().map(|realm| realm.kid.clone()).collect();
 

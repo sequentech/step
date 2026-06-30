@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 
 #[test]
 fn test_protocol_memory() {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     let ctx = RistrettoCtx;
     braid::native::test::protocol_test_memory::run(1000, 1, ctx);
@@ -15,7 +16,7 @@ fn test_protocol_memory() {
 #[tokio::test]
 #[ignore]
 async fn test_protocol_http() {
-    braid::native::logging::init_log(true);
+    init_log(true);
     let ctx = RistrettoCtx;
 
     braid::native::test::protocol_test_http::run(1000, 1, ctx).await;

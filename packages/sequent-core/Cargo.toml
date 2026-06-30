@@ -87,7 +87,7 @@ reqwest-retry = { version = "0.7", optional = true }
 reqwest-middleware = { version = "0.4", optional = true }
 # logging
 tracing = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 tracing-tree = { version = "0.4", optional = true }
 tracing-log = { version = "0.2", optional = true }
 
@@ -116,8 +116,15 @@ rand = { package="rand", version = "=0.8" }
 # for lambda/openwhisk
 async-trait = { version = "0.1", optional = true }
 
+# for axum authentication extractors
+axum = { version = "0.7", optional = true }
+
 printpdf = { version = "0.8", optional = true }
 kuchiki = { version = "0.8", optional = true }
+
+# For test utilities (RSA key generation)
+rsa = { version = "0.9", optional = true }
+pkcs1 = { version = "0.7", features = ["pem"], optional = true }
 
 # sqlite
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
@@ -132,6 +139,8 @@ wasmtime-wasi = {version = "41.0.2", optional = true}
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
 
+# Note: rsa is in regular dependencies for test-utils feature
+
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
 wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
@@ -141,7 +150,7 @@ areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
 s3 = ["dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
-keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
+keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:axum", "s3"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
 # Lambda examples
@@ -155,6 +164,9 @@ sqlite = ["dep:tokio", "dep:rusqlite"]
 time = ["dep:time"]
 tracing = ["dep:tracing"]
 jwt = ["time", "tracing"]
+
+# Test utilities for JWT/JWKS testing (used by downstream crates like B4)
+test-utils = ["keycloak", "dep:rsa", "dep:pkcs1"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

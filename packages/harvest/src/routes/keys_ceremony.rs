@@ -22,6 +22,7 @@ use windmill::services::ceremonies::keys_ceremony::{
     self, validate_permission_labels,
 };
 use windmill::services::database::get_hasura_pool;
+use windmill::services::keycloak::add_board_to_trustee_authorized_boards;
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Endpoint: /check-private-key
@@ -244,14 +245,14 @@ pub async fn create_keys_ceremony(
         }));
     }
 
-    let keys_ceremony_id = keys_ceremony::create_keys_ceremony(
+    let (keys_ceremony_id, board_name) = keys_ceremony::create_keys_ceremony(
         &hasura_transaction,
-        tenant_id,
+        tenant_id.clone(),
         &user_id,
         &username,
         input.election_event_id.clone(),
         input.threshold,
-        input.trustee_names,
+        input.trustee_names.clone(),
         input.election_id.clone(),
         input.name,
         input.is_automatic_ceremony,
@@ -272,6 +273,23 @@ pub async fn create_keys_ceremony(
         keys_ceremony_id,
         input.election_id,
     );
+
+    // Update each trustee's authorized-boards in Keycloak so their JWT
+    // contains the board_name required by BoardAccessValidator.
+    for trustee_name in &input.trustee_names {
+        if let Err(e) = add_board_to_trustee_authorized_boards(
+            &tenant_id,
+            &board_name,
+            trustee_name,
+        )
+        .await
+        {
+            tracing::warn!(
+                "Failed to update authorized-boards for trustee '{trustee_name}': {e}"
+            );
+        }
+    }
+
     Ok(Json(CreateKeysCeremonyOutput {
         keys_ceremony_id,
         error_message: None,

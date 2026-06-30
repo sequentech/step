@@ -5,9 +5,13 @@
 use crate::api_types::{
     BoardMessagesResponse, ConfirmMessageRequest, ConfirmMessageResponse,
     ConfirmMessagesMultiRequest, ConfirmMessagesMultiResponse, ContentType, GetMessageResponse,
-    GetMessagesMultiRequest, GetMessagesMultiResponse, InitiateMessageRequest,
+    GetMessagesMultiRequest, GetMessagesMultiResponse, GetMessagesResponse, InitiateMessageRequest,
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
-    ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
+    ListMessagesResponse, Message, MessageWithUrl, MAX_INLINE_MESSAGE_SIZE,
+};
+use crate::auth::{
+    authorize_board_for_claims, claims_can_access_board, BoardAccessValidator, RequireConstraints,
+    RequirePermissions, TrusteeCeremony,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -16,6 +20,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{db, s3, state::AppState};
@@ -43,10 +48,17 @@ pub struct GetMessagesQuery {
     pub limit: Option<i64>,
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn create_board(
     State(state): State<AppState>,
+    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Json(req): Json<CreateBoardRequest>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
+    // Restrict board creation to the caller's tenant (server role bypasses).
+    authorize_board_for_claims(&claims, &req.name)?;
+
+    tracing::info!("User {} creating board '{}'", claims.sub, req.name);
+
     let board = db::create_board(&state.db, &req.name).await.map_err(|e| {
         tracing::error!("Failed to create board: {}", e);
         StatusCode::BAD_REQUEST
@@ -59,10 +71,14 @@ pub async fn create_board(
     }))
 }
 
+#[instrument(skip(state, claims), err)]
 pub async fn get_board(
     State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
+    tracing::debug!("User {} getting board '{}'", claims.sub, board_name);
+
     let board = db::get_board(&state.db, &board_name)
         .await
         .map_err(|e| {
@@ -78,17 +94,23 @@ pub async fn get_board(
     }))
 }
 
+#[instrument(skip(state, claims), err)]
 pub async fn list_boards(
     State(state): State<AppState>,
+    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
 ) -> Result<Json<BoardsListResponse>, StatusCode> {
+    tracing::debug!("User {} listing boards", claims.sub);
+
     let boards = db::list_boards(&state.db).await.map_err(|e| {
         tracing::error!("Failed to list boards: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     Ok(Json(BoardsListResponse {
+        // Only expose boards the caller's tenant may access (server role sees all).
         boards: boards
             .into_iter()
+            .filter(|b| claims_can_access_board(&claims, &b.name))
             .map(|b| BoardResponse {
                 name: b.name,
                 created_at: b.created_at,
@@ -98,11 +120,20 @@ pub async fn list_boards(
     }))
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn initiate_message(
     State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
     Json(req): Json<InitiateMessageRequest>,
 ) -> Result<Json<InitiateMessageResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} initiating message on board '{}' (size: {} bytes)",
+        claims.sub,
+        board_name,
+        req.size
+    );
+
     // Validate board exists
     db::get_board(&state.db, &board_name)
         .await
@@ -154,11 +185,20 @@ pub async fn initiate_message(
     }
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn confirm_message(
     State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path((board_name, id)): Path<(String, String)>,
     Json(req): Json<ConfirmMessageRequest>,
 ) -> Result<Json<ConfirmMessageResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} confirming message '{}' on board '{}'",
+        claims.sub,
+        id,
+        board_name
+    );
+
     // Validate board exists
     db::get_board(&state.db, &board_name)
         .await
@@ -270,10 +310,19 @@ pub async fn confirm_message(
     Ok(Json(ConfirmMessageResponse { success: true }))
 }
 
+#[instrument(skip(state, claims), err)]
 pub async fn get_message(
     State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path((board_name, id)): Path<(String, String)>,
 ) -> Result<Json<GetMessageResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} getting message '{}' from board '{}'",
+        claims.sub,
+        id,
+        board_name
+    );
+
     let id_num: i64 = id.parse().map_err(|_| {
         tracing::error!("Invalid message ID: {}", id);
         StatusCode::BAD_REQUEST
@@ -312,11 +361,19 @@ pub async fn get_message(
     }))
 }
 
+#[instrument(skip(state, claims, query), err)]
 pub async fn list_messages(
     State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<ListMessagesResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} listing messages from board '{}'",
+        claims.sub,
+        board_name
+    );
+
     // If last_id is provided, use range query
     if let Some(last_id) = query.last_id {
         let limit = query.limit.unwrap_or(100).min(1000); // Max 1000 messages per request
@@ -351,12 +408,18 @@ pub async fn list_messages(
     }
 }
 
+#[instrument(skip(state, claims, query), err)]
 pub async fn get_messages(
     State(state): State<AppState>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {
-    use crate::api_types::{GetMessagesResponse, MessageWithUrl};
+    tracing::debug!(
+        "User {} getting messages from board '{}'",
+        claims.sub,
+        board_name
+    );
 
     // Get messages using same logic as list_messages
     let messages = if let Some(last_id) = query.last_id {
@@ -424,16 +487,23 @@ pub async fn get_messages(
     }))
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn get_messages_multi(
     State(state): State<AppState>,
+    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Json(req): Json<GetMessagesMultiRequest>,
 ) -> Result<Json<GetMessagesMultiResponse>, StatusCode> {
-    use crate::api_types::MessageWithUrl;
-
     tracing::info!(
-        "[MULTI-GET] {} boards in single request",
+        "[MULTI-GET] User {} requesting {} boards in single request",
+        claims.sub,
         req.requests.len()
     );
+
+    // Board names arrive in the body, so the path-param validator cannot reach
+    // them: authorize each board against the caller's tenant explicitly.
+    for board_req in &req.requests {
+        authorize_board_for_claims(&claims, &board_req.board)?;
+    }
 
     let mut boards = Vec::new();
 
@@ -506,11 +576,25 @@ pub async fn get_messages_multi(
 
 // Multi-board S3 two-step flow handlers
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn initiate_messages_multi(
     State(state): State<AppState>,
+    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Json(req): Json<InitiateMessagesMultiRequest>,
 ) -> Result<Json<InitiateMessagesMultiResponse>, StatusCode> {
     use crate::api_types::{BoardInitiateResponse, MessageUploadInfo};
+
+    tracing::info!(
+        "[MULTI-INITIATE] User {} initiating messages for {} boards",
+        claims.sub,
+        req.requests.len()
+    );
+
+    // Board names arrive in the body, so the path-param validator cannot reach
+    // them: authorize each board against the caller's tenant explicitly.
+    for board_req in &req.requests {
+        authorize_board_for_claims(&claims, &board_req.board)?;
+    }
 
     let mut board_responses = Vec::new();
 
@@ -588,17 +672,26 @@ pub async fn initiate_messages_multi(
     }))
 }
 
+#[instrument(skip(state, claims, req), err)]
 pub async fn confirm_messages_multi(
     State(state): State<AppState>,
+    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Json(req): Json<ConfirmMessagesMultiRequest>,
 ) -> Result<Json<ConfirmMessagesMultiResponse>, StatusCode> {
     use crate::api_types::ConfirmMessagesMultiResponse;
 
     let board_count = req.requests.len();
     tracing::info!(
-        "[MULTI-CONFIRM] Confirming messages for {} boards",
+        "[MULTI-CONFIRM] User {} confirming messages for {} boards",
+        claims.sub,
         board_count
     );
+
+    // Board names arrive in the body, so the path-param validator cannot reach
+    // them: authorize each board against the caller's tenant explicitly.
+    for board_req in &req.requests {
+        authorize_board_for_claims(&claims, &board_req.board)?;
+    }
 
     for board_req in req.requests {
         let board_name = &board_req.board;

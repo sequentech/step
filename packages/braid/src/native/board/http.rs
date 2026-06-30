@@ -5,6 +5,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 use tracing::info;
 
 use b4::messages::message::Message;
@@ -76,21 +77,38 @@ enum ContentTypeDto {
 }
 
 /// HTTP client for bulletin board using Service API
-pub struct HttpB3 {
+pub struct HttpB4 {
     client: reqwest::Client,
     base_url: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
+    access_token: Arc<RwLock<String>>,
 }
 
-impl HttpB3 {
-    pub async fn new(base_url: &str, s3_client: aws_sdk_s3::Client, bucket_name: &str) -> HttpB3 {
-        HttpB3 {
+impl HttpB4 {
+    pub async fn new(
+        base_url: &str,
+        s3_client: aws_sdk_s3::Client,
+        bucket_name: &str,
+        access_token: String,
+    ) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
             s3_client,
             bucket_name: bucket_name.to_string(),
+            access_token: Arc::new(RwLock::new(access_token)),
         }
+    }
+
+    /// Adds the Authorization header for B4 authentication
+    fn add_auth_header(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        let access_token = self
+            .access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone();
+        request.header("Authorization", format!("Bearer {}", access_token))
     }
 
     /// Helper to post a single message to a specific board
@@ -116,8 +134,7 @@ impl HttpB3 {
         };
 
         let initiate_response = self
-            .client
-            .post(&initiate_url)
+            .add_auth_header(self.client.post(&initiate_url))
             .json(&initiate_req)
             .send()
             .await?;
@@ -160,8 +177,7 @@ impl HttpB3 {
                 };
 
                 let confirm_response = self
-                    .client
-                    .post(&confirm_url)
+                    .add_auth_header(self.client.post(&confirm_url))
                     .json(&confirm_req)
                     .send()
                     .await?;
@@ -190,8 +206,7 @@ impl HttpB3 {
             };
 
             let confirm_response = self
-                .client
-                .post(&confirm_url)
+                .add_auth_header(self.client.post(&confirm_url))
                 .json(&confirm_req)
                 .send()
                 .await?;
@@ -213,7 +228,7 @@ impl HttpB3 {
     }
 }
 
-impl Board for HttpB3 {
+impl Board for HttpB4 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
@@ -222,7 +237,7 @@ impl Board for HttpB3 {
             self.base_url, board, last_id
         );
 
-        let response = self.client.get(&url).send().await?;
+        let response = self.add_auth_header(self.client.get(&url)).send().await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to get messages: HTTP {}", response.status());
@@ -284,16 +299,21 @@ impl Board for HttpB3 {
     }
 }
 
-/// Factory for creating HttpB3 board clients
+/// Factory for creating HttpB3 board clients.
+///
+/// The access token is wrapped in `Arc<RwLock<>>` so that all clones
+/// (including those held by `SessionSet` tasks) share the same token
+/// and see updates from the master loop.
 #[derive(Clone)]
 pub struct HttpB3BoardParams {
     base_url: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
+    access_token: Arc<RwLock<String>>,
 }
 
 impl HttpB3BoardParams {
-    pub async fn new(base_url: &str) -> HttpB3BoardParams {
+    pub async fn new(base_url: &str, access_token: String) -> HttpB3BoardParams {
         // Read S3 configuration from environment variables
         let s3_endpoint = std::env::var("AWS_ENDPOINT_URL")
             .unwrap_or_else(|_| "http://localhost:4566".to_string());
@@ -320,44 +340,64 @@ impl HttpB3BoardParams {
             base_url: base_url.to_string(),
             s3_client,
             bucket_name,
+            access_token: Arc::new(RwLock::new(access_token)),
         }
+    }
+
+    /// Updates the access token for authentication.
+    ///
+    /// Because the token is behind `Arc<RwLock<>>`, all clones (including
+    /// those held by running `SessionSet` tasks) will see the new value.
+    pub fn set_access_token(&self, access_token: String) {
+        *self
+            .access_token
+            .write()
+            .expect("access_token lock poisoned") = access_token;
+    }
+
+    /// Reads the current access token.
+    fn clone_access_token(&self) -> Arc<RwLock<String>> {
+        self.access_token.clone()
     }
 
     /// Create a board client for a specific board (helper for testing)
-    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
-        HttpB3 {
+    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
+            access_token: self.clone_access_token(),
         }
     }
 }
 
-impl BoardFactory<HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
+impl BoardFactory<HttpB4> for HttpB3BoardParams {
+    fn get_board(&self) -> HttpB4 {
         // Board name will be set when used with Session
-        HttpB3 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
+            access_token: self.clone_access_token(),
         }
     }
 }
 
-impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
-        HttpB3 {
+impl BoardFactoryMulti<HttpB4> for HttpB3BoardParams {
+    fn get_board(&self) -> HttpB4 {
+        HttpB4 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
+            access_token: self.clone_access_token(),
         }
     }
 }
 
-impl BoardMulti for HttpB3 {
+impl BoardMulti for HttpB4 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages_multi(
@@ -382,7 +422,11 @@ impl BoardMulti for HttpB3 {
 
         // Make single HTTP POST request for all boards
         let url = format!("{}/boards/messages/multi/get", self.base_url);
-        let response = self.client.post(&url).json(&multi_req).send().await?;
+        let response = self
+            .add_auth_header(self.client.post(&url))
+            .json(&multi_req)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to get messages multi: HTTP {}", response.status());
@@ -497,7 +541,11 @@ impl BoardMulti for HttpB3 {
         };
 
         let url = format!("{}/boards/messages/multi/initiate", self.base_url);
-        let response = self.client.post(&url).json(&initiate_req).send().await?;
+        let response = self
+            .add_auth_header(self.client.post(&url))
+            .json(&initiate_req)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!(
@@ -579,7 +627,11 @@ impl BoardMulti for HttpB3 {
         };
 
         let url = format!("{}/boards/messages/multi/confirm", self.base_url);
-        let response = self.client.post(&url).json(&confirm_req).send().await?;
+        let response = self
+            .add_auth_header(self.client.post(&url))
+            .json(&confirm_req)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!(
@@ -596,14 +648,21 @@ impl BoardMulti for HttpB3 {
 pub struct HttpB3Index {
     client: reqwest::Client,
     base_url: String,
+    access_token: String,
 }
 
 impl HttpB3Index {
-    pub fn new(base_url: &str) -> HttpB3Index {
+    pub fn new(base_url: &str, access_token: String) -> HttpB3Index {
         HttpB3Index {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
+            access_token,
         }
+    }
+
+    /// Adds the Authorization header for B4 authentication
+    fn add_auth_header(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        request.header("Authorization", format!("Bearer {}", self.access_token))
     }
 
     pub async fn get_boards(&self) -> Result<Vec<String>> {
@@ -618,9 +677,19 @@ impl HttpB3Index {
         }
 
         let url = format!("{}/boards", self.base_url);
-        let response = self.client.get(&url).send().await?;
-        let boards_response: BoardsResponse = response.json().await?;
+        let response = self
+            .add_auth_header(self.client.get(&url))
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("While sending the request: {e:?}"))?;
 
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Failed to get boards: HTTP {}",
+                response.status()
+            ));
+        }
+        let boards_response: BoardsResponse = response.json().await?;
         Ok(boards_response.boards.into_iter().map(|b| b.name).collect())
     }
 }

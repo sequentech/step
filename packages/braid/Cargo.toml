@@ -23,6 +23,7 @@ strum = { version = "0.27", features = ["derive"] }
 
 # Native-only dependencies
 rayon = { version = "1.5", optional = true }
+tonic = { version = "0.13", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 tokio-postgres = { version = "0.7", optional = true }
 bb8-postgres = { version = "0.9", optional = true }
@@ -30,6 +31,7 @@ tokio = { version = "1.40", optional = true }
 aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
 aws-sdk-s3 = { version = "1.52", optional = true }
 chrono = { version = "0.4", optional = true }
+sequent-core = { path = "../sequent-core", features = ["keycloak"], optional = true }
 
 # WASM-only dependencies  
 wasm-bindgen = { version = "=0.2.104", optional = true }
@@ -119,6 +121,7 @@ native = [
     "dep:strand",
     "strand/rayon",
     "dep:rayon",
+    "dep:tonic",
     "dep:rusqlite",
     "dep:tokio-postgres",
     "dep:bb8-postgres",
@@ -135,7 +138,8 @@ native = [
     "dep:aws-config",
     "dep:aws-sdk-s3",
     "dep:reqwest",
-    "dep:chrono"
+    "dep:chrono",
+    "dep:sequent-core"
 ]
 
 # WASM build with HTTP bulletin board and IndexedDB

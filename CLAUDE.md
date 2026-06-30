@@ -150,6 +150,8 @@ These are enforced during code review. Follow them to avoid revision requests.
 - **Reuse types from `sequent-core::types`** — never duplicate types that already exist in sequent-core (e.g., use `sequent_core::types::ceremonies::CountingAlgType` instead of creating local `const &str` equivalents)
 - **Use constants, not magic strings** — extract repeated string literals into named constants (e.g., `const APP_VERSION_DEV: &str = "dev"`)
 - **Use Rust enums** — prefer enums with `Display`/`FromStr` over string constants when representing fixed sets of values
+- **Use inline variable syntax in format strings** — `format!("Bearer {token}")` instead of `format!("Bearer {}", token)`. This applies to all format macros: `format!`, `println!`, `tracing::info!`, etc.
+- **Tracing Instrumentation** —  All functions should have tracing instrumentation using `#[instrument]`. Skip large arguments (claims, file contents, byte arrays, etc.) using `skip` parameter. For functions returning `Result`, add `err` to automatically log errors.
 
 ### TypeScript
 - **No `any` types** — always use proper types. If the type is known, use it; if not, define one

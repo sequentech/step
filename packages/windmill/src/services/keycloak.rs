@@ -8,7 +8,10 @@ use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentati
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::Status;
 use sequent_core::services::keycloak::RoleAction;
-use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
+use sequent_core::{
+    services::keycloak::{get_tenant_realm, KeycloakAdminClient},
+    types::keycloak::{Role, AUTHORIZED_BOARDS_NAME},
+};
 use std::collections::{HashMap, HashSet};
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
@@ -261,5 +264,84 @@ pub async fn read_roles_config_file(
         }
     }
 
+    Ok(())
+}
+
+/// Append `board_name` to a trustee's `authorized-boards` Keycloak attribute.
+///
+/// Call this after the DB transaction commits. If Keycloak is unreachable or the user is not
+/// found, log a warning and continue — the ceremony is already persisted.
+#[instrument(err)]
+pub async fn add_board_to_trustee_authorized_boards(
+    tenant_id: &str,
+    board_name: &str,
+    trustee_name: &str,
+) -> anyhow::Result<()> {
+    let realm = get_tenant_realm(tenant_id);
+    let client = KeycloakAdminClient::new().await?;
+
+    let users = client
+        .client
+        .realm_users_get(
+            &realm,
+            Some(false),
+            None,
+            None,
+            None,
+            Some(true), // exact username match
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(trustee_name.to_string()),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Keycloak user lookup failed for '{trustee_name}': {e:?}"))?;
+
+    let user = users.into_iter().next().ok_or_else(|| {
+        anyhow::anyhow!("Keycloak user '{trustee_name}' not found in realm '{realm}'")
+    })?;
+
+    let user_id = user
+        .id
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("Keycloak user '{trustee_name}' has no id"))?
+        .to_string();
+
+    let mut boards: Vec<String> = user
+        .attributes
+        .as_ref()
+        .and_then(|attrs| attrs.get(AUTHORIZED_BOARDS_NAME))
+        .cloned()
+        .unwrap_or_default();
+
+    if !boards.contains(&board_name.to_string()) {
+        boards.push(board_name.to_string());
+    }
+
+    let mut attributes = HashMap::new();
+    attributes.insert(AUTHORIZED_BOARDS_NAME.to_string(), boards);
+
+    KeycloakAdminClient::new()
+        .await?
+        .edit_user(
+            &realm,
+            &user_id,
+            None,
+            Some(attributes),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await?;
+
+    info!("Added board '{board_name}' to authorized-boards for trustee '{trustee_name}'");
     Ok(())
 }

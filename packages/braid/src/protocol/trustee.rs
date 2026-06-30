@@ -771,6 +771,7 @@ pub struct TrusteeConfig {
     // base64 encoding of a sign::SymmetricKey
     pub encryption_key: String,
 }
+
 impl TrusteeConfig {
     /// Construct a TrusteeConfig from keys in serialized base64 form.
     pub fn new(signing_key_sk: &str, signing_key_pk: &str, symm_key: &str) -> Self {

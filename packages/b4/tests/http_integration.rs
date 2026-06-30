@@ -1,0 +1,574 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! HTTP Integration tests for B4.
+//!
+//! These tests wrap the Axum router with axum-test and make requests to verify
+//! the complete request/response cycle, including authentication middleware.
+//!
+//! Tests use testcontainers for PostgreSQL and LocalStack (S3) to provide
+//! real infrastructure without external dependencies.
+
+mod common;
+
+use axum::http::{header::AUTHORIZATION, StatusCode};
+use b4::api_types::{InitiateMessageRequest, InitiateMessageResponse};
+use common::TestServer;
+use sequent_core::services::test_utils::{
+    create_test_board_name, TestTokenBuilder, TEST_ELECTION_EVENT_ID, TEST_SLUG, TEST_TENANT_ID,
+};
+use sequent_core::types::permissions::Permissions;
+use serial_test::serial;
+
+// ============================================================================
+// Authentication Header Tests
+// ============================================================================
+
+#[tokio::test]
+#[serial]
+async fn test_missing_auth_header_returns_401() {
+    let server = TestServer::new().await;
+
+    let resp = server.server.get("/boards").await;
+
+    resp.assert_status(StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_invalid_bearer_format_returns_401() {
+    let server = TestServer::new().await;
+
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Basic dXNlcjpwYXNz")
+        .await;
+
+    resp.assert_status(StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_empty_bearer_token_returns_401() {
+    let server = TestServer::new().await;
+
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Bearer ")
+        .await;
+
+    resp.assert_status(StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_malformed_token_returns_401() {
+    let server = TestServer::new().await;
+
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Bearer not-a-valid-jwt")
+        .await;
+
+    resp.assert_status(StatusCode::UNAUTHORIZED);
+}
+
+// ============================================================================
+// Token Signature Verification Tests
+// ============================================================================
+
+#[tokio::test]
+#[serial]
+async fn test_invalid_signature_returns_401() {
+    let server = TestServer::new().await;
+
+    let invalid_token = server.create_invalid_signature_token(&["trustee-ceremony"]);
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {invalid_token}"))
+        .await;
+
+    resp.assert_status(StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_expired_token_returns_401() {
+    let server = TestServer::new().await;
+
+    let expired_token = server.create_expired_token(&["trustee-ceremony"]);
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {expired_token}"))
+        .await;
+
+    resp.assert_status(StatusCode::UNAUTHORIZED);
+}
+
+// ============================================================================
+// Permission Checking Tests
+// ============================================================================
+
+#[tokio::test]
+#[serial]
+async fn test_valid_token_missing_permission_returns_403() {
+    let server = TestServer::new().await;
+
+    // Token with different permission (not trustee-ceremony)
+    let token = server.create_token(&["user", "admin"]);
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status(StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_valid_token_with_permission_returns_200() {
+    let server = TestServer::new().await;
+
+    let token = server.create_trustee_token();
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+}
+
+// ============================================================================
+// Board Operations Tests
+// ============================================================================
+
+#[tokio::test]
+#[serial]
+async fn test_create_board() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    let resp = server
+        .server
+        .post("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&serde_json::json!({ "name": &server.board_name }))
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["name"], server.board_name);
+    assert_eq!(body["status"], "active");
+}
+
+#[tokio::test]
+#[serial]
+async fn test_list_boards() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let resp = server
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert!(body["boards"].is_array());
+    assert!(!body["boards"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_board() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert_eq!(body["name"], server.board_name);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_nonexistent_board_returns_404() {
+    let server = TestServer::new().await;
+    let token = server.create_trustee_token();
+
+    let resp = server
+        .server
+        .get("/boards/nonexistent-board")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status(StatusCode::NOT_FOUND);
+}
+
+// ============================================================================
+// Single Message Operations Tests
+// ============================================================================
+
+#[tokio::test]
+#[serial]
+async fn test_initiate_small_message() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let req = InitiateMessageRequest {
+        size: 100, // Small message (inline)
+        sender_pk: "test-sender-pk".to_string(),
+        statement_kind: "TestStatement".to_string(),
+        batch: 0,
+        mix_number: 0,
+    };
+
+    let resp = server
+        .server
+        .post(&format!("/boards/{}/messages/initiate", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&req)
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: InitiateMessageResponse = resp.json();
+    assert!(!body.message_id.is_empty());
+    assert!(
+        !body.should_upload,
+        "Small message should not require S3 upload"
+    );
+    assert!(body.upload_url.is_none());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_initiate_large_message() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let req = InitiateMessageRequest {
+        size: 2 * 1024 * 1024, // 2MB - should require S3
+        sender_pk: "test-sender-pk".to_string(),
+        statement_kind: "TestStatement".to_string(),
+        batch: 0,
+        mix_number: 0,
+    };
+
+    let resp = server
+        .server
+        .post(&format!("/boards/{}/messages/initiate", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&req)
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: InitiateMessageResponse = resp.json();
+    assert!(!body.message_id.is_empty());
+    assert!(body.should_upload, "Large message should require S3 upload");
+    assert!(body.upload_url.is_some());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_list_messages_empty() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}/messages/list", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert!(body["messages"].is_array());
+    assert!(body["messages"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_get_messages_empty() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}/messages", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert!(body["messages"].is_array());
+}
+
+// ============================================================================
+// Multi-Board Operations Tests
+// ============================================================================
+
+#[tokio::test]
+#[serial]
+async fn test_get_messages_multi() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let req = serde_json::json!({
+        "requests": [
+            {
+                "board": server.board_name,
+                "last_id": 0,
+                "limit": 100
+            }
+        ]
+    });
+
+    let resp = server
+        .server
+        .post("/boards/messages/multi/get")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&req)
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert!(body["boards"].is_array());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_initiate_messages_multi() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+    let token = server.create_trustee_token();
+
+    // Create a board first
+    server.create_board(&server.board_name).await;
+
+    let req = serde_json::json!({
+        "requests": [
+            {
+                "board": server.board_name,
+                "messages": [
+                    {
+                        "size": 100,
+                        "sender_pk": "test-pk",
+                        "statement_kind": "TestStatement",
+                        "batch": 0,
+                        "mix_number": 0
+                    }
+                ]
+            }
+        ]
+    });
+
+    let resp = server
+        .server
+        .post("/boards/messages/multi/initiate")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .json(&req)
+        .await;
+
+    resp.assert_status_ok();
+
+    let body: serde_json::Value = resp.json();
+    assert!(body["boards"].is_array());
+}
+
+// ============================================================================
+// Authentication Tests for All Endpoints
+// ============================================================================
+
+/// Tests that all endpoints require authentication.
+#[tokio::test]
+#[serial]
+async fn test_all_endpoints_require_auth() {
+    let server = TestServer::new().await;
+    let board = "test-board";
+
+    let endpoints = [
+        ("POST", "/boards".to_string()),
+        ("GET", "/boards".to_string()),
+        ("GET", format!("/boards/{board}")),
+        ("POST", format!("/boards/{board}/messages/initiate")),
+        ("POST", format!("/boards/{board}/messages/123/confirm")),
+        ("GET", format!("/boards/{board}/messages/list")),
+        ("GET", format!("/boards/{board}/messages")),
+        ("GET", format!("/boards/{board}/messages/1")),
+        ("POST", "/boards/messages/multi/get".to_string()),
+        ("POST", "/boards/messages/multi/initiate".to_string()),
+        ("POST", "/boards/messages/multi/confirm".to_string()),
+    ];
+
+    for (method, path) in endpoints {
+        let resp = match method {
+            "GET" => server.server.get(&path).await,
+            "POST" => server.server.post(&path).json(&serde_json::json!({})).await,
+            _ => panic!("Unknown method"),
+        };
+
+        resp.assert_status(StatusCode::UNAUTHORIZED);
+    }
+}
+
+// ============================================================================
+// Browser Trustee Board Verification Tests
+// ============================================================================
+// These tests verify that browser trustees can only access boards listed in
+// their authorized_boards JWT claim. Browser trustees do NOT have the
+// "server" default_role, so they are subject to board access validation
+// via BoardAccessValidator.
+
+#[tokio::test]
+#[serial]
+async fn test_browser_trustee_wrong_board_should_fail() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+
+    server.create_board(&server.board_name).await;
+
+    // Token has a different board in authorized_boards - should be rejected
+    let wrong_board = create_test_board_name(
+        "12345678-1234-1234-1234-123456789012",
+        TEST_ELECTION_EVENT_ID,
+        TEST_SLUG,
+    );
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[wrong_board.as_str()]);
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status(StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+#[serial]
+async fn test_browser_trustee_correct_board_should_succeed() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+
+    server.create_board(&server.board_name).await;
+
+    // Token has the exact board name in authorized_boards - should succeed
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[server.board_name.as_str()]);
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+}
+
+// ============================================================================
+// Native Trustee "server" Role Tests
+// ============================================================================
+// Native trustees have x-hasura-default-role: "server" and bypass
+// board name verification (can access any board).
+// Uses SERVER_DEFAULT_ROLE constant from b4::auth.
+
+#[tokio::test]
+#[serial]
+async fn test_native_trustee_with_server_claim_can_access_any_board() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+
+    // Create board with default test tenant
+    server.create_board(&server.board_name).await;
+
+    // Native trustee token with default_role: "server"
+    // Should be able to access any board regardless of tenant/event
+    let token = server.create_native_trustee_token();
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    resp.assert_status_ok();
+}
+
+#[tokio::test]
+#[serial]
+async fn test_non_server_trustee_requires_board_verification() {
+    let server = TestServer::new().await;
+    server.cleanup().await;
+
+    // Create board with default test tenant and event
+    server.create_board(&server.board_name).await;
+
+    // Token with trustee claim that is NOT "server" - treated as browser trustee
+    // Uses Permissions::TRUSTEE_CEREMONY constant instead of hardcoded string
+    let permission = Permissions::TRUSTEE_CEREMONY.to_string();
+    let token = TestTokenBuilder::new()
+        .with_permissions(&[&permission])
+        .with_tenant("wrong-tenant-id") // Wrong tenant
+        .with_trustee(Some("trustee1")) // Not "server"
+        .build(&server.keypair);
+
+    let resp = server
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
+
+    // Non-server trustees have board verification applied
+    // Should fail because tenant doesn't match
+    resp.assert_status(StatusCode::FORBIDDEN);
+}

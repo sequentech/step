@@ -4,6 +4,8 @@
 
 //! WASM bindings for Braid mixnet node and session
 
+use std::sync::{Arc, RwLock};
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -13,6 +15,7 @@ use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::board::BoardEntry;
 use crate::protocol::session::Session;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
+use crate::wasm::board::http::add_auth_header;
 use crate::wasm::board::{IndexedDbStorage, WasmHttpBoardFactory, WasmHttpBoardParams};
 use b4::api_types::{
     ConfirmMessageRequest, ContentType, InitiateMessageRequest, InitiateMessageResponse,
@@ -31,6 +34,9 @@ pub struct WasmSessionConfig {
     // FIXME is this used anywhere?
     pub name: String,
     pub b4_url: String,
+    /// JWT access token for B4 authentication (required)
+    /// Will be sent as `Authorization: Bearer <token>` header on all B4 requests
+    pub access_token: String,
     #[serde(flatten)]
     pub trustee_config: TrusteeConfig,
 }
@@ -63,6 +69,11 @@ pub struct WasmSession {
     // FIXME is this used anywhere?
     name: String,
     b4_url: String,
+    /// JWT access token for B4 authentication (required).
+    /// Wrapped in `Arc<RwLock<>>` so the token is shared with the
+    /// `Session`'s board factory; calling `update_access_token` propagates
+    /// to all clones automatically.
+    access_token: Arc<RwLock<String>>,
     board_name: Option<String>,
     config: TrusteeConfig,
 }
@@ -92,6 +103,7 @@ impl WasmSession {
             session: None,
             name: wasm_config.name,
             b4_url: wasm_config.b4_url,
+            access_token: Arc::new(RwLock::new(wasm_config.access_token)),
             board_name: None,
             config: wasm_config.trustee_config,
         })
@@ -134,9 +146,10 @@ impl WasmSession {
             None, // Default max_concurrent_actions
         );
 
-        // Create board factory
+        // Create board factory with access token for authenticated B4 requests
         let board_factory = WasmHttpBoardFactory::new(WasmHttpBoardParams {
             b4_url: self.b4_url.clone(),
+            access_token: self.access_token.clone(),
         });
 
         // Create session
@@ -221,6 +234,7 @@ impl WasmSession {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
+        add_auth_header(&request, &self.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -272,6 +286,7 @@ impl WasmSession {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
+        add_auth_header(&request, &self.access_token)?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -315,6 +330,8 @@ impl WasmSession {
                     opts.set_mode(RequestMode::Cors);
 
                     let request = Request::new_with_str_and_init(&message_url, &opts)?;
+                    add_auth_header(&request, &self.access_token)?;
+
                     let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
                     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
                     let resp: Response = resp_value.dyn_into()?;
@@ -463,6 +480,7 @@ impl WasmSession {
 
             let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
             request.headers().set("Content-Type", "application/json")?;
+            add_auth_header(&request, &self.access_token)?;
 
             let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
             let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -543,6 +561,7 @@ impl WasmSession {
 
                 let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
                 request3.headers().set("Content-Type", "application/json")?;
+                add_auth_header(&request3, &self.access_token)?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -581,6 +600,7 @@ impl WasmSession {
 
                 let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
                 request3.headers().set("Content-Type", "application/json")?;
+                add_auth_header(&request3, &self.access_token)?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -738,6 +758,19 @@ impl WasmSession {
     #[wasm_bindgen(getter)]
     pub fn b4_url(&self) -> String {
         self.b4_url.clone()
+    }
+
+    /// Update the access token for B4 authentication
+    ///
+    /// This should be called when the token is refreshed (tokens typically expire).
+    /// Because the token is behind `Arc<RwLock<>>`, this update is immediately
+    /// visible to the `Session`'s board factory (they share the same Arc).
+    pub fn update_access_token(&mut self, token: String) {
+        web_sys::console::log_1(&JsValue::from_str("Access token updated"));
+        *self
+            .access_token
+            .write()
+            .expect("access_token lock poisoned") = token;
     }
 
     /// Get board summary - list of statements in local board

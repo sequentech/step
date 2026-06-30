@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
-use braid::util::ProtocolError;
+use braid::native::board::{HttpB3BoardParams, HttpB3Index, HttpB4};
+use braid::util::{ensure_directory, get_access_token, ProtocolError};
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
@@ -16,6 +16,7 @@ use tracing::{error, info};
 use braid::native::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -65,7 +66,7 @@ command line option is set to true.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
@@ -86,21 +87,44 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
 
+    // Get trustee name and password for Keycloak authentication
+    let trustee_name =
+        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
+    // Fetch initial access token for B4 authentication
+    let initial_access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let board_params = HttpB3BoardParams::new(&args.b4_url, initial_access_token).await;
+
     let mut session_map: HashMap<
         String,
-        Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
+        Session<RistrettoCtx, HttpB4, braid::native::board::SqliteStorage>,
     > = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
-        let b3index = HttpB3Index::new(&args.b4_url);
+        // Fetch access token for B4 authentication using trustee credentials
+        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
+            Ok(token) => token,
+            Err(e) => {
+                error!("Failed to get access token: {e:?}");
+                sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
+        // Update the shared token so all existing sessions see the refresh
+        board_params.set_access_token(access_token.clone());
+
+        let b3index = HttpB3Index::new(&args.b4_url, access_token.clone());
 
         let boards_result = b3index.get_boards().await;
         let boards: Vec<String> = match boards_result {
@@ -135,16 +159,14 @@ async fn main() -> Result<()> {
             let storage =
                 braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
             let trustee = Trustee::new(
-                std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
+                trustee_name.clone(),
                 board_name.to_string(),
                 sk.clone(),
                 ek.clone(),
                 storage,
                 None,
             );
-            let board = HttpB3BoardParams::new(&args.b4_url).await;
-
-            let session = Session::new(&board_name, trustee, board);
+            let session = Session::new(&board_name, trustee, board_params.clone());
             session_map.insert(board_name.clone(), session);
         }
 
@@ -203,18 +225,4 @@ async fn main() -> Result<()> {
 fn get_ignored_boards() -> Vec<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
-}
-
-/// Checks for and creates a directory if needed.
-fn ensure_directory(folder: PathBuf) -> Result<()> {
-    let path = folder.as_path();
-    if path.exists() {
-        if path.is_dir() {
-            Ok(())
-        } else {
-            Err(anyhow!("Path is not a folder: {}", path.display()))
-        }
-    } else {
-        fs::create_dir(path).map_err(|err| anyhow!(err))
-    }
 }
