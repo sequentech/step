@@ -330,11 +330,11 @@ const catalanTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de data i hora del portal de votació",
                     options: {
-                        "legacy-gb-24h": "Clàssic (DD/MM/AAAA HH:mm, 24h)",
-                        "iso-local": "ISO (AAAA-MM-DD HH:mm)",
-                        "us-12h": "EUA (MM/DD/AAAA h:mm AM/PM)",
-                        "locale-medium": "Localitzat (data mitjana, hora curta)",
-                        "date-only": "Només data (sense hora)",
+                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
+                        "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",
+                        "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data mitjana, hora curta)",
+                        "date-only": "Date Only (sense hora)",
                     },
                 },
                 countDownPolicyOptions: {

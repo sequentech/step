@@ -329,11 +329,11 @@ const dutchTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Datum- en tijdnotatie van stemportaal",
                     options: {
-                        "legacy-gb-24h": "Klassiek (DD/MM/JJJJ HH:mm, 24u)",
-                        "iso-local": "ISO (JJJJ-MM-DD HH:mm)",
-                        "us-12h": "VS (MM/DD/JJJJ h:mm AM/PM)",
-                        "locale-medium": "Gelokaliseerd (middellange datum, korte tijd)",
-                        "date-only": "Alleen datum (geen tijd)",
+                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/JJJJ HH:mm, 24u)",
+                        "iso-local": "ISO Local (JJJJ-MM-DD HH:mm)",
+                        "us-12h": "US 12h (MM/DD/JJJJ h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (middellange datum, korte tijd)",
+                        "date-only": "Date Only (geen tijd)",
                     },
                 },
                 countDownPolicyOptions: {

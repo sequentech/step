@@ -331,11 +331,11 @@ const tagalogTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format ng petsa at oras ng Voting Portal",
                     options: {
-                        "legacy-gb-24h": "Klasiko (DD/MM/YYYY HH:mm, 24h)",
-                        "iso-local": "ISO (YYYY-MM-DD HH:mm)",
-                        "us-12h": "US (MM/DD/YYYY h:mm AM/PM)",
-                        "locale-medium": "Naka-lokal (katamtamang petsa, maikling oras)",
-                        "date-only": "Petsa lamang (walang oras)",
+                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/YYYY HH:mm, 24h)",
+                        "iso-local": "ISO Local (YYYY-MM-DD HH:mm)",
+                        "us-12h": "US 12h (MM/DD/YYYY h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (katamtamang petsa, maikling oras)",
+                        "date-only": "Date Only (walang oras)",
                     },
                 },
                 countDownPolicyOptions: {

@@ -330,11 +330,11 @@ const basqueTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Bozketa-atariko data eta orduaren formatua",
                     options: {
-                        "legacy-gb-24h": "Klasikoa (DD/MM/UUUU HH:mm, 24h)",
-                        "iso-local": "ISO (UUUU-MM-DD HH:mm)",
-                        "us-12h": "AEB (MM/DD/UUUU h:mm AM/PM)",
-                        "locale-medium": "Lokalizatua (data ertaina, ordu laburra)",
-                        "date-only": "Data soilik (ordurik gabe)",
+                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/UUUU HH:mm, 24h)",
+                        "iso-local": "ISO Local (UUUU-MM-DD HH:mm)",
+                        "us-12h": "US 12h (MM/DD/UUUU h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data ertaina, ordu laburra)",
+                        "date-only": "Date Only (ordurik gabe)",
                     },
                 },
                 countDownPolicyOptions: {

@@ -331,11 +331,11 @@ const spanishTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de fecha y hora del portal de votación",
                     options: {
-                        "legacy-gb-24h": "Clásico (DD/MM/AAAA HH:mm, 24h)",
-                        "iso-local": "ISO (AAAA-MM-DD HH:mm)",
-                        "us-12h": "EE. UU. (MM/DD/AAAA h:mm AM/PM)",
-                        "locale-medium": "Localizado (fecha media, hora corta)",
-                        "date-only": "Solo fecha (sin hora)",
+                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
+                        "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",
+                        "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (fecha media, hora corta)",
+                        "date-only": "Date Only (sin hora)",
                     },
                 },
                 countDownPolicyOptions: {

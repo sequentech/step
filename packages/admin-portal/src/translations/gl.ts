@@ -330,11 +330,11 @@ const galegoTranslation: TranslationType = {
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de data e hora do portal de votación",
                     options: {
-                        "legacy-gb-24h": "Clásico (DD/MM/AAAA HH:mm, 24h)",
-                        "iso-local": "ISO (AAAA-MM-DD HH:mm)",
-                        "us-12h": "EUA (MM/DD/AAAA h:mm AM/PM)",
-                        "locale-medium": "Localizado (data media, hora curta)",
-                        "date-only": "Só data (sen hora)",
+                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
+                        "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",
+                        "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data media, hora curta)",
+                        "date-only": "Date Only (sen hora)",
                     },
                 },
                 countDownPolicyOptions: {
