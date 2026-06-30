@@ -5,6 +5,14 @@ import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
 import SelectElection from "./SelectElection"
 
+// ui-core resolves to its built `dist` via the workspace symlink, which isn't
+// available when this package's tests run in isolation. SelectElection only needs
+// `isUndefined` from it at runtime (`IElectionDates` is a type, erased at compile time).
+// jest.mock is hoisted above the imports by babel-jest, so this still applies.
+jest.mock("@sequentech/ui-core", () => ({
+    isUndefined: (value: unknown): boolean => value === undefined,
+}))
+
 const ELECTION_DATES = {
     first_started_at: "2025-10-29T14:00:00.000Z",
 }

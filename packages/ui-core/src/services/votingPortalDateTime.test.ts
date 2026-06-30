@@ -186,7 +186,7 @@ describe("formatVotingPortalDateTime — override edge cases (FR5, FR7)", () => 
             i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: "dd/MM/yyyy"}},
         })
         expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("09/03/2026")
-        expect(formatVotingPortalDateTime(FIXED_DATE, event, "es")).toBe("2026-03-09")
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "es")).toBe("2026-03-09 07:05")
     })
 })
 
