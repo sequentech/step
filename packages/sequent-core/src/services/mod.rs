@@ -8,11 +8,11 @@ pub mod area_tree;
 pub mod axum_auth;
 #[cfg(feature = "keycloak")]
 pub mod connection;
-#[cfg(feature = "keycloak")]
+#[cfg(feature = "time")]
 pub mod date;
 #[cfg(all(feature = "keycloak"))]
 pub mod jwks;
-#[cfg(feature = "keycloak")]
+#[cfg(feature = "jwt")]
 pub mod jwt;
 #[cfg(feature = "keycloak")]
 pub mod keycloak;
