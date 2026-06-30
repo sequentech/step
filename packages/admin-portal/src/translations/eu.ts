@@ -640,6 +640,7 @@ const basqueTranslation: TranslationType = {
                 publish: "Argitaratu",
                 logs: "Egunkariak",
                 approvals: "Onespenak",
+                tallySheets: "Kontaketa orriak",
             },
             gracePeriodPolicy: {
                 "label": "Grazia Aldi Politika",
@@ -877,7 +878,7 @@ const basqueTranslation: TranslationType = {
                 "document-download": "Deskargatu Dokumentuak",
                 "tally-sheet-create": "Sortu Zenbaketa Orria",
                 "trustee-ceremony": "Fideikomisario Zeremonia",
-                "tally-sheet-publish": "Argitaratu Zenbaketa Orria",
+                "tally-sheet-review": "Zenbaketa-orria berrikusi",
                 "tally-sheet-view": "Ikusi Zenbaketa Orria",
                 "admin-ceremony": "Admin Zeremonia",
                 "tally-sheet-delete": "Ezabatu Zenbaketa Orria",
@@ -1915,8 +1916,12 @@ const basqueTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Bozka-ontziak",
+            subtitle: "Bozka-ontzi digitalizatuak kanalean",
             createTallySuccess: "Zenbaketa Orria gordea",
             createTallyError: "Errorea Zenbaketa Orria gordetzerakoan",
+            createTallyErrorSameKindExists:
+                "Kontaketa-orria dagoeneko existitzen da lehiaketa honetarako kanal eta eremu berarekin",
             allFieldsRequired: "Eremu guztiak beharrezkoak dira",
             header: {
                 change: "Argitaratzeko Aldaketak",
@@ -1930,6 +1935,12 @@ const basqueTranslation: TranslationType = {
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
+                censusTooSmall:
+                    "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
             },
             label: {
                 area: "Eremua",
@@ -1959,10 +1970,13 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Zenbaketa Orri konfigurazioa.",
                 candidates: "Hautagaiak",
                 save: "Gorde",
-                publish: "Argitaratu",
-                unpublish: "Desargitaratu",
-                warningUnPublish: "Ziur zaude Zenbaketa Orri hau desargitaratu nahi duzula?",
-                warningPublish: "Ziur zaude Zenbaketa Orri hau argitaratu nahi duzula?",
+                approve: "Onartu",
+                disapprove: "Ez onartu",
+                show: "Erakutsi",
+                add: "Gehitu",
+                versions: "Bertsioak",
+                warningDisapprove: "Ziur zaude Kontaketa Orri hau ez onartzeko?",
+                warningApprove: "Ziur zaude Kontaketa Orri hau onartzeko?",
             },
             empty: {
                 header: "Ez dago Zenbaketa Orririk Oraindik.",
@@ -1978,11 +1992,20 @@ const basqueTranslation: TranslationType = {
             table: {
                 area: "Eremua",
                 contest: "Lehiaketa",
-                published: "Argitaratua",
+                approvedVersion: "Onartutako bertsioa",
+                latestVersion: "Azken bertsioa",
+            },
+            versionsTable: {
+                title: "Hauntzaren bertsioak",
+                version: "Bertsioa",
+                createdBy: "Sortzailea",
+                reviewedBy: "Berrikustatzailea",
+                createdAt: "Sortze data",
+                reviewedAt: "Berrikuste data",
             },
             message: {
-                publishError: "Errorea zenbaketa orria argitaratzerakoan",
-                publishSuccess: "Zenbaketa orria argitaratua",
+                reviewError: "Errorea zenbaketa orria berrikusterakoan",
+                reviewSuccess: "Zenbaketa orria berrikusia",
             },
         },
         application: {

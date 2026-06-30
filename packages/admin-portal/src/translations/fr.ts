@@ -641,6 +641,7 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 approvals: "Approvals",
+                tallySheets: "Feuilles de Comptage",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",
@@ -881,7 +882,7 @@ const frenchTranslation: TranslationType = {
                 "document-download": "Télécharger Documents",
                 "tally-sheet-create": "Créer Acte de Comptage",
                 "trustee-ceremony": "Cérémonie de Fideicomisario",
-                "tally-sheet-publish": "Publier Acte de Comptage",
+                "tally-sheet-review": "Examiner la feuille de décompte",
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
@@ -1935,8 +1936,12 @@ const frenchTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnes",
+            subtitle: "Urnes numérisées par canal",
             createTallySuccess: "Feuille de Comptage créée",
             createTallyError: "Erreur lors de la création de la Feuille de Comptage",
+            createTallyErrorSameKindExists:
+                "La feuille de décompte existe déjà pour ce scrutin avec le même canal et la même zone",
             allFieldsRequired: "Tous les champs sont obligatoires",
             header: {
                 change: "Changements à Publier",
@@ -1950,6 +1955,11 @@ const frenchTranslation: TranslationType = {
                 generate: "Régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
+                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
             },
             label: {
                 area: "Zone",
@@ -1979,10 +1989,14 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration de la Feuille de Comptage.",
                 candidates: "Candidats",
                 save: "Sauvegarder",
-                publish: "Publier",
-                unpublish: "Dépublier",
-                warningUnPublish: "Êtes-vous sûr de dépublier cette Feuille de Comptage ?",
-                warningPublish: "Êtes-vous sûr de publier cette Feuille de Comptage ?",
+                approve: "Approuver",
+                disapprove: "Désapprouver",
+                show: "Afficher",
+                add: "Ajouter",
+                versions: "Versions",
+                warningDisapprove:
+                    "Êtes-vous sûr de vouloir désapprouver cette Feuille de Décompte?",
+                warningApprove: "Êtes-vous sûr de vouloir approuver cette Feuille de Décompte?",
             },
             empty: {
                 header: "Aucune Feuille de Comptage.",
@@ -1998,11 +2012,20 @@ const frenchTranslation: TranslationType = {
             table: {
                 area: "Zone",
                 contest: "Cotienda",
-                published: "Publié",
+                approvedVersion: "Version approuvée",
+                latestVersion: "Dernière version",
+            },
+            versionsTable: {
+                title: "Versions de l'urne",
+                version: "Version",
+                createdBy: "Créé par",
+                reviewedBy: "Révisé par",
+                createdAt: "Créé le",
+                reviewedAt: "Révisé le",
             },
             message: {
-                publishError: "Erreur lors de la publication de la Feuille de Comptage",
-                publishSuccess: "Feuille de Comptage publiée",
+                reviewError: "Erreur lors de la révision de la Feuille de Comptage",
+                reviewSuccess: "Feuille de Comptage révisée",
             },
         },
         application: {
