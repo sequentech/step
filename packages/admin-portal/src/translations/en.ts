@@ -1967,6 +1967,7 @@ const englishTranslation = {
                 latestVersion: "Latest version",
             },
             versionsTable: {
+                title: "Versions for ballot box",
                 version: "Version",
                 createdBy: "Created by",
                 reviewedBy: "Reviewed by",

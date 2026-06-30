@@ -1997,6 +1997,7 @@ const frenchTranslation: TranslationType = {
                 latestVersion: "Dernière version",
             },
             versionsTable: {
+                title: "Versions de l'urne",
                 version: "Version",
                 createdBy: "Créé par",
                 reviewedBy: "Révisé par",

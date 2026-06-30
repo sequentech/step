@@ -1992,6 +1992,7 @@ const catalanTranslation: TranslationType = {
                 latestVersion: "Última versió",
             },
             versionsTable: {
+                title: "Versions de l'urna",
                 version: "Versió",
                 createdBy: "Creat per",
                 reviewedBy: "Revisat per",

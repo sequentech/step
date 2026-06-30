@@ -1977,6 +1977,7 @@ const basqueTranslation: TranslationType = {
                 latestVersion: "Azken bertsioa",
             },
             versionsTable: {
+                title: "Hauntzaren bertsioak",
                 version: "Bertsioa",
                 createdBy: "Sortzailea",
                 reviewedBy: "Berrikustatzailea",

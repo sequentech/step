@@ -1979,6 +1979,7 @@ const dutchTranslation: TranslationType = {
                 latestVersion: "Nieuwste versie",
             },
             versionsTable: {
+                title: "Versies van de stembus",
                 version: "Versie",
                 createdBy: "Gemaakt door",
                 reviewedBy: "Beoordeeld door",

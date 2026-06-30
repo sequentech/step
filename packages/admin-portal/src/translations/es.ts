@@ -1985,6 +1985,7 @@ const spanishTranslation: TranslationType = {
                 latestVersion: "Última versión",
             },
             versionsTable: {
+                title: "Versiones de la urna",
                 version: "Versión",
                 createdBy: "Creado por",
                 reviewedBy: "Revisado por",

@@ -1989,6 +1989,7 @@ const tagalogTranslation: TranslationType = {
                 latestVersion: "Pinakabagong bersyon",
             },
             versionsTable: {
+                title: "Mga bersyon ng ballot box",
                 version: "Bersyon",
                 createdBy: "Ginawa ni",
                 reviewedBy: "Na-review ni",

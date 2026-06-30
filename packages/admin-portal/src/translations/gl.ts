@@ -1983,6 +1983,7 @@ const galegoTranslation: TranslationType = {
                 latestVersion: "Última versión",
             },
             versionsTable: {
+                title: "Versións da urna",
                 version: "Versión",
                 createdBy: "Creado por",
                 reviewedBy: "Revisado por",

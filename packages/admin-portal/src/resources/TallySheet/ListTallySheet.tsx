@@ -256,8 +256,10 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             )}
             {!showVersionsTable && (
                 <List
+                    disableSyncWithLocation
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                        meta: {distinctBallotBoxes: true},
                     }}
                     resource="sequent_backend_tally_sheet"
                     actions={
@@ -286,6 +288,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     empty={<Empty />}
                 >
                     <DatagridConfigurable
+                        bulkActionButtons={false}
                         omit={OMIT_FIELDS}
                         sx={{
                             flexGrow: 1,
@@ -294,8 +297,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                             maxWidth: "100%",
                         }}
                     >
-                        <TextField source="id" />
-                        <TextField source="channel" />
+                        <TextField source="id" sortable={false} />
+                        <TextField source="channel" sortable={false} />
 
                         <FunctionField
                             label={String(t("tallysheet.table.contest"))}
