@@ -32,7 +32,8 @@ import {
 import {styled} from "@mui/material/styles"
 import DownloadIcon from "@mui/icons-material/Download"
 import VideoCallIcon from "@mui/icons-material/VideoCall"
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
+import {useFormContext} from "react-hook-form"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
@@ -117,6 +118,39 @@ const ElectionRows = styled("div")`
     padding: 1rem;
 `
 
+// Mirrors the Localization tab's notify.invalidDateTimeFormat feedback for the
+// main custom date/time format field. Reads live form values via getValues()
+// at click time (like the Localization tab's own save handlers do) instead of
+// watching react-hook-form state: submitCount/errors get reset whenever
+// react-admin's SimpleForm receives a new `record` reference (e.g. an Apollo
+// refetch), which happens far more often than actual submit attempts here.
+const CustomDateTimeFormatInvalidNotifier: React.FC<{
+    checkRef: React.MutableRefObject<() => void>
+}> = ({checkRef}) => {
+    const {t} = useTranslation()
+    const notify = useNotify()
+    const {getValues} = useFormContext()
+
+    checkRef.current = () => {
+        const configured = getValues(
+            "presentation.voting_portal_datetime_format"
+        ) as VotingPortalDateTimeFormat
+        console.log("[CustomDateTimeFormatInvalidNotifier] live check", configured)
+
+        if (
+            isCustomVotingPortalDateTimeFormat(configured) &&
+            !isValidVotingPortalDateTimePattern(configured.custom)
+        ) {
+            console.log("[CustomDateTimeFormatInvalidNotifier] invalid -> notify")
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+        }
+    }
+
+    return null
+}
+
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -125,6 +159,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
+    const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
 
     const canEdit = authContext.isAuthorized(
         true,
@@ -555,8 +590,14 @@ export const EditElectionEventDataForm: React.FC = () => {
         allValues: {presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}}
     ): string | undefined => {
         const configured = allValues?.presentation?.voting_portal_datetime_format
-        if (!isCustomVotingPortalDateTimeFormat(configured)) return undefined
-        return isValidVotingPortalDateTimePattern(configured.custom)
+        console.log("[validateCustomDateTimeFormat] called", {_value, configured})
+        if (!isCustomVotingPortalDateTimeFormat(configured)) {
+            console.log("[validateCustomDateTimeFormat] not custom format, skipping validation")
+            return undefined
+        }
+        const valid = isValidVotingPortalDateTimePattern(configured.custom)
+        console.log("[validateCustomDateTimeFormat] result", {custom: configured.custom, valid})
+        return valid
             ? undefined
             : String(t("electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"))
     }
@@ -765,6 +806,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const onSave = async () => {
+        checkCustomDateTimeFormatRef.current()
         await handleUpdateCustomUrls(
             parsedValue.presentation as IElectionEventPresentation,
             record?.id
@@ -1273,6 +1315,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             parse={selectValueToDateTimePolicy}
                             emptyText={undefined}
                             validate={required()}
+                            sx={{marginBottom: "1.5em"}}
                         />
                         <FormDataConsumer>
                             {({formData}) =>
@@ -1292,10 +1335,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )
                                         )}
                                         validate={validateCustomDateTimeFormat}
+                                        sx={{marginBottom: "1.5em"}}
                                     />
                                 ) : null
                             }
                         </FormDataConsumer>
+                        <CustomDateTimeFormatInvalidNotifier
+                            checkRef={checkCustomDateTimeFormatRef}
+                        />
                         <SelectInput
                             source={`presentation.voting_portal_countdown_policy.policy`}
                             choices={votingPortalCountDownPolicies()}
