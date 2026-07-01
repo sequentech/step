@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
+import {ThemeProvider} from "@mui/material/styles"
 import SelectElection from "./SelectElection"
+import theme from "../../services/theme"
 
 // ui-core resolves to its built `dist` via the workspace symlink, which isn't
 // available when this package's tests run in isolation. SelectElection only needs
@@ -35,15 +37,17 @@ const legacyFormat = (input: string): string =>
 describe("SelectElection", () => {
     it("uses the injected formatDateTime when provided", () => {
         const markup = renderToStaticMarkup(
-            <SelectElection
-                isActive
-                isOpen
-                title="Executive Board"
-                hasVoted={false}
-                electionDates={ELECTION_DATES}
-                isStarted
-                formatDateTime={() => "CUSTOM_DATE"}
-            />
+            <ThemeProvider theme={theme}>
+                <SelectElection
+                    isActive
+                    isOpen
+                    title="Executive Board"
+                    hasVoted={false}
+                    electionDates={ELECTION_DATES}
+                    isStarted
+                    formatDateTime={() => "CUSTOM_DATE"}
+                />
+            </ThemeProvider>
         )
 
         expect(markup).toContain("CUSTOM_DATE")
@@ -52,14 +56,16 @@ describe("SelectElection", () => {
 
     it("falls back to the legacy GB format when formatDateTime is absent", () => {
         const markup = renderToStaticMarkup(
-            <SelectElection
-                isActive
-                isOpen
-                title="Executive Board"
-                hasVoted={false}
-                electionDates={ELECTION_DATES}
-                isStarted
-            />
+            <ThemeProvider theme={theme}>
+                <SelectElection
+                    isActive
+                    isOpen
+                    title="Executive Board"
+                    hasVoted={false}
+                    electionDates={ELECTION_DATES}
+                    isStarted
+                />
+            </ThemeProvider>
         )
 
         expect(markup).toContain(legacyFormat(ELECTION_DATES.first_started_at))

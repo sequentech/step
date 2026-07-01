@@ -171,8 +171,8 @@ impl Name for Contest {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::ballot::VotingPortalDateTimeFormat;
+    use crate::types::hasura::core::ElectionEvent;
 
     fn election_event_with_presentation(
         presentation: Option<serde_json::Value>,
