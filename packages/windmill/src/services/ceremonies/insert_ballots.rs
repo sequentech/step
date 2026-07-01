@@ -14,9 +14,9 @@ use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
 use anyhow::{anyhow, Context, Result};
-use b3::messages::message::Message;
-use b3::messages::newtypes::BatchNumber;
-use b3::messages::newtypes::TrusteeSet;
+use b4::messages::message::Message;
+use b4::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::TrusteeSet;
 use base64::{
     alphabet,
     engine::{self, general_purpose},

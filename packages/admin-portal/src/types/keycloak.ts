@@ -48,8 +48,7 @@ export enum IPermissions {
     TALLY_WRITE = "tally-write",
     TALLY_SHEET_VIEW = "tally-sheet-view",
     TALLY_SHEET_CREATE = "tally-sheet-create",
-    TALLY_SHEET_PUBLISH = "tally-sheet-publish",
-    TALLY_SHEET_DELETE = "tally-sheet-delete",
+    TALLY_SHEET_REVIEW = "tally-sheet-review",
     TALLY_RESULTS_READ = "tally-results-read",
     PUBLISH_READ = "publish-read",
     PUBLISH_WRITE = "publish-write",
@@ -200,4 +199,7 @@ export enum IPermissions {
     PREVIEW_READ = "preview-read",
     GENERATE_PREVIEW = "generate-preview",
     TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
+    PHONE_BLACKLIST_READ = "phone-blacklist-read",
+    PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
+    PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
 }

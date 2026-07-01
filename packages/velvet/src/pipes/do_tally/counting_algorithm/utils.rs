@@ -88,9 +88,11 @@ pub fn update_extended_metrics(
     let valid_votes = calculate_valid_votes(vote, contest);
     metrics.votes_actually += valid_votes;
 
-    // Calculate undervotes
-    let undervotes = calculate_undervotes(vote, contest);
-    metrics.under_votes += undervotes;
+    // Calculate undervotes if not a decline to vote
+    if !vote.is_decline_to_vote() {
+        let undervotes = calculate_undervotes(vote, contest);
+        metrics.under_votes += undervotes;
+    }
 
     // Calculate overvotes
     let overvotes = calculate_overvotes(vote, contest);

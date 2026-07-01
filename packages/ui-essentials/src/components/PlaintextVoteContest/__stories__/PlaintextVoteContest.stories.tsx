@@ -97,6 +97,7 @@ const makeContest = (overrides: Partial<IContest> = {}): IContest => ({
 const makePlaintext = (overrides: Partial<IDecodedVoteContest> = {}): IDecodedVoteContest => ({
     contest_id: CONTEST_ID,
     is_explicit_invalid: false,
+    is_decline_to_vote: false,
     invalid_errors: [],
     invalid_alerts: [],
     choices: [
@@ -165,6 +166,7 @@ export const NormalVote: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -185,6 +187,7 @@ export const SingleSelection: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -205,6 +208,7 @@ export const BlankVote: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -230,6 +234,7 @@ export const ExplicitInvalidVote: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -285,6 +290,7 @@ export const WithValidationWarnings: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -308,6 +314,7 @@ export const PreferentialVote: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -332,6 +339,7 @@ export const WriteInVote: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -357,6 +365,7 @@ export const WithPoints: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,
@@ -371,6 +380,30 @@ export const ContestNotFound: Story = {
             contestNotFoundLabel="Contest not found (ID: contest-mayor)"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
+        />
+    ),
+    parameters: commonParameters,
+}
+
+export const DeclineToVote: Story = {
+    render: () => (
+        <PlaintextVoteContest
+            question={makeContest()}
+            questionPlaintext={makePlaintext({
+                is_explicit_invalid: true,
+                choices: [
+                    {id: "1", selected: -1},
+                    {id: "2", selected: -1},
+                    {id: "3", selected: -1},
+                ],
+            })}
+            publicBucketUrl=""
+            contestNotFoundLabel="Contest not found"
+            markedInvalidLabel="Ballot explicitly marked invalid"
+            pointsLabel={() => ""}
+            isDeclineToVotePolicyEnabled={true}
+            declineToVoteLabel="Declined to vote"
         />
     ),
     parameters: commonParameters,

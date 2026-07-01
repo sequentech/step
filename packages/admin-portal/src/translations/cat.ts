@@ -143,6 +143,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració del Tipus d'Elecció",
                 onlineVoting: "Votació en Línia",
                 kioskVoting: "Votació en Quiosc",
+                telephoneVoting: "Votació Telefònica",
                 settingTitle: "Configuració",
                 settingSubtitle: "Ajustos generals",
                 sms: "SMS",
@@ -625,6 +626,7 @@ const catalanTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Registres",
                 approvals: "Aprovacions",
+                tallySheets: "Fulls de recompte",
             },
             gracePeriodPolicy: {
                 "label": "Política de període de gràcia",
@@ -661,6 +663,13 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "generate": "Generar",
                     "do-not-generate": "No generar",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Política de declinació de vot",
+                options: {
+                    enabled: "Habilitat",
+                    disabled: "Desactivat",
                 },
             },
         },
@@ -857,7 +866,7 @@ const catalanTranslation: TranslationType = {
                 "document-download": "Descarregar Documents",
                 "tally-sheet-create": "Crear Acta de Recompte",
                 "trustee-ceremony": "Cerimònia de Fideïcomissari",
-                "tally-sheet-publish": "Publicar Acta de Recompte",
+                "tally-sheet-review": "Revisar full de recompte",
                 "tally-sheet-view": "Veure Acta de Recompte",
                 "admin-ceremony": "Administrar Cerimònia de Claus",
                 "tally-sheet-delete": "Esborrar Acta de Recompte",
@@ -1089,6 +1098,7 @@ const catalanTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
+                PARTICIPATION_REPORT: "Informe de Participació",
                 STATISTICAL_REPORT: "Informe Estadístic",
                 OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -1219,6 +1229,7 @@ const catalanTranslation: TranslationType = {
                 online: "En línia",
                 kiosk: "Quiosc",
                 early_voting: "Votació anticipada",
+                telephone: "Votació telefònica",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
@@ -1391,6 +1402,12 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            collapsibleListsPolicy: {
+                "label": "Llistes plegables",
+                "disabled": "Desactivat",
+                "enabled-expanded": "Activat (comença expandit)",
+                "enabled-collapsed": "Activat (comença contret)",
             },
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
@@ -1733,6 +1750,7 @@ const catalanTranslation: TranslationType = {
                     eliminated: "Eliminat",
                     round: "Ronda",
                 },
+                total_declined_to_vote: "Total de vots de renúncia",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
@@ -1795,14 +1813,17 @@ const catalanTranslation: TranslationType = {
                 startKioskVoting: "Començar Votació al Quiosc",
                 startOnlineVoting: "Començar Votació en Línia",
                 startEarlyVoting: "Començar Votació Anticipada",
+                startTelephoneVoting: "Començar Votació Telefònica",
                 stopVotingPeriod: "Detenir el període de votació",
                 stopOnlineVoting: "Detenir la Votació en Línia",
                 stopEarlyVoting: "Detenir la Votació Anticipada",
+                stopTelephoneVoting: "Detenir la Votació Telefònica",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",
                 pauseKioskVoting: "Pausar la Votació al Quiosc",
                 pauseOnlineVoting: "Pausar la Votació en Línia",
                 pauseEarlyVoting: "Pausar la Votació Anticipada",
+                pauseTelephoneVoting: "Pausar la Votació Telefònica",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",
@@ -1899,8 +1920,12 @@ const catalanTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnes",
+            subtitle: "Urnes digitalitzades per canal",
             createTallySuccess: "Acta de Recompte creada",
             createTallyError: "Error creant Acta de Recompte",
+            createTallyErrorSameKindExists:
+                "El full de recompte ja existeix per a aquest concurs amb el mateix canal i àrea",
             allFieldsRequired: "Tots els camps són obligatoris",
             header: {
                 change: "Canvis a Publicar",
@@ -1914,6 +1939,11 @@ const catalanTranslation: TranslationType = {
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
+                censusTooSmall: "El cens ha de ser major o igual al total de vots",
             },
             label: {
                 area: "Àrea",
@@ -1943,10 +1973,13 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració de l'Acta de Recompte.",
                 candidates: "Candidats",
                 save: "Guardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish: "Estàs segur de despublicar aquesta Acta de Recompte?",
-                warningPublish: "Estàs segur de publicar aquesta Acta de Recompte?",
+                approve: "Aprovar",
+                disapprove: "Desaprovar",
+                show: "Mostrar",
+                add: "Afegir",
+                versions: "Versions",
+                warningDisapprove: "Estàs segur de desaprovar aquest Full de Recompte?",
+                warningApprove: "Estàs segur d'aprovar aquest Full de Recompte?",
             },
             empty: {
                 header: "No hi ha Actes de Recompte.",
@@ -1962,11 +1995,20 @@ const catalanTranslation: TranslationType = {
             table: {
                 area: "Àrea",
                 contest: "Contesa",
-                published: "Publicat",
+                approvedVersion: "Versió aprovada",
+                latestVersion: "Última versió",
+            },
+            versionsTable: {
+                title: "Versions de l'urna",
+                version: "Versió",
+                createdBy: "Creat per",
+                reviewedBy: "Revisat per",
+                createdAt: "Creat el",
+                reviewedAt: "Revisat el",
             },
             message: {
-                publishError: "Error publicant l'Acta de Recompte",
-                publishSuccess: "Acta de Recompte publicada",
+                reviewError: "Error revisant l'Acta de Recompte",
+                reviewSuccess: "Acta de Recompte revisada",
             },
         },
         application: {
@@ -2035,6 +2077,7 @@ const catalanTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Rebut de Vot",
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 MANUAL_VERIFICATION: "Verificació Manual",
+                PARTICIPATION_REPORT: "Informe de Participació",
             },
             method: {
                 email: "Email",
@@ -2222,8 +2265,9 @@ const catalanTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "S'han importat {{inserted}} certificat(s). {{skipped}} omès(os) (ja presents).",
+                importSuccess: "S'han importat {{inserted}} certificat(s).",
+                importSkipped: "{{count}} omès(os) (ja presents).",
+                importErrors: "Problemes en la importació: {{errors}}",
                 importError: "Error en la importació: {{error}}",
                 deleteSuccess: "Certificat eliminat.",
                 deleteError: "Error en eliminar el certificat.",

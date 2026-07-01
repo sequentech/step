@@ -28,6 +28,7 @@ impl From<VotingStatusChannel> for CliVotingStatusChannel {
             VotingStatusChannel::ONLINE => CliVotingStatusChannel::ONLINE,
             VotingStatusChannel::KIOSK => CliVotingStatusChannel::KIOSK,
             VotingStatusChannel::EARLY_VOTING => CliVotingStatusChannel::EARLY_VOTING,
+            VotingStatusChannel::TELEPHONE => CliVotingStatusChannel::TELEPHONE,
         }
     }
 }

@@ -50,7 +50,8 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::locale::iso_639_2t_to_bcp47;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
 use sequent_core::util::version::{
-    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
+    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION, HISTORICAL_DEFAULT_VERSION,
+    VERSION_KEY,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
@@ -121,9 +122,9 @@ pub struct ImportElectionEventSchema {
     pub version: String,
 }
 
-// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
+/// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
 fn default_version() -> String {
-    "9.0.0".to_string()
+    HISTORICAL_DEFAULT_VERSION.to_string()
 }
 
 #[instrument(err)]
@@ -143,7 +144,7 @@ pub async fn upsert_b3_and_elog(
     let mut board_client = get_b3_pgsql_client().await?;
 
     // Create board and protocol manager keys for election event (assert)
-    let existing: Option<b3::client::pgsql::B3IndexRow> =
+    let existing: Option<b4::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
     // insert into the index of boards
     board_client.create_index_ine().await?;
@@ -178,7 +179,7 @@ pub async fn upsert_b3_and_elog(
         // Create board and protocol manager keys for election (insert, not asssert)
         let board_name = get_election_board(tenant_id, &election_id, &slug);
 
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
+        let existing: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 
         // assert board table
@@ -546,10 +547,19 @@ pub async fn get_election_event_schema(
     event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+    // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
+    // with a more obscure error when trying to deserialize data that is incompatible with the current version.
+    let raw: serde_json::Value = serde_json::from_str(data_str)
+        .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
+    let default_ver = default_version();
+    let imported_version = raw
+        .get(VERSION_KEY)
+        .and_then(|v| v.as_str())
+        .unwrap_or(&default_ver);
+    let current_version = std::env::var(ENV_VAR_APP_VERSION)
+        .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
+    check_version_compatibility(imported_version, &current_version)?;
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
-    let current_version =
-        std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
-    check_version_compatibility(&original_data.version, &current_version)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
 
@@ -610,8 +620,10 @@ pub async fn process_election_event_file(
 
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
                 serde_json::to_value(status)

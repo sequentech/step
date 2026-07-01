@@ -16,13 +16,13 @@ use sequent_core::types::scheduled_event::{
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-}
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
 
 #[instrument(err, skip(replacement_map))]
 pub async fn import_scheduled_events(

@@ -313,7 +313,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
     // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::gen()
+    let secret_key = StrandSignatureSk::generate()
         .map_err(|err| format!("Error generating secret key: {err}"))?;
     let public_key = StrandSignaturePk::from_sk(&secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
@@ -1291,6 +1291,8 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
+    /// The policy to determine if the voter can decline to vote for an election level.
+    pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
 }
 
 impl core::Election {
@@ -1329,6 +1331,7 @@ impl Default for ElectionPresentation {
             consolidated_report_policy: Some(
                 ConsolidatedReportPolicy::default(),
             ),
+            decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
         }
     }
 }
@@ -1421,6 +1424,7 @@ pub struct ContestPresentation {
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: Option<bool>,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
+    pub collapsible_lists: Option<String>, /* disabled|enabled-expanded|enabled-collapsed */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
@@ -1445,6 +1449,7 @@ impl ContestPresentation {
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -1815,9 +1820,11 @@ pub struct ElectionEventStatus {
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
     pub early_voting_status: VotingStatus,
+    pub telephone_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
     pub early_voting_period_dates: PeriodDates,
+    pub telephone_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
@@ -1827,9 +1834,11 @@ impl Default for ElectionEventStatus {
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             early_voting_status: VotingStatus::NOT_STARTED,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
             early_voting_period_dates: Default::default(),
+            telephone_voting_period_dates: Default::default(),
         }
     }
 }
@@ -1844,6 +1853,9 @@ impl ElectionEventStatus {
             VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status.clone()
             }
         }
     }
@@ -1887,6 +1899,10 @@ impl ElectionEventStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status = new_status.clone();
+                &mut self.telephone_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -2018,6 +2034,7 @@ pub enum VotingStatusChannel {
     ONLINE,
     KIOSK,
     EARLY_VOTING,
+    TELEPHONE,
 }
 
 impl VotingStatusChannel {
@@ -2029,6 +2046,7 @@ impl VotingStatusChannel {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
             &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
             &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
+            &VotingStatusChannel::TELEPHONE => channels.telephone.clone(),
         }
     }
 }
@@ -2294,9 +2312,11 @@ pub struct ElectionStatus {
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
     pub early_voting_status: VotingStatus,
+    pub telephone_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
     pub early_voting_period_dates: PeriodDates,
+    pub telephone_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
 }
 
@@ -2308,9 +2328,11 @@ impl Default for ElectionStatus {
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
             early_voting_status: VotingStatus::NOT_STARTED,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
             early_voting_period_dates: Default::default(),
+            telephone_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
         }
     }
@@ -2327,6 +2349,9 @@ impl ElectionStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
             }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status.clone()
+            }
         }
     }
 
@@ -2341,6 +2366,9 @@ impl ElectionStatus {
             }
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_period_dates.clone()
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_period_dates.clone()
             }
         }
     }
@@ -2384,6 +2412,10 @@ impl ElectionStatus {
             VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
+            }
+            VotingStatusChannel::TELEPHONE => {
+                self.telephone_voting_status = new_status.clone();
+                &mut self.telephone_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -2622,4 +2654,32 @@ pub enum LanguageDetectionPolicy {
     #[strum(serialize = "force-default")]
     #[serde(rename = "force-default")]
     FORCE_DEFAULT,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if the user can decline to vote.
+pub enum DeclineToVotePolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// The user cannot decline to vote.
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    /// The user can decline to vote at the election level (for all contests).
+    ENABLED,
 }

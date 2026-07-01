@@ -142,6 +142,7 @@ const englishTranslation = {
                 subtitle: "Election type configuration",
                 onlineVoting: "Online Voting",
                 kioskVoting: "Kiosk Voting",
+                telephoneVoting: "Telephone Voting",
                 settingTitle: "Settings",
                 settingSubtitle: "General Configuration",
                 sms: "SMS",
@@ -623,6 +624,7 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 approvals: "Approvals",
+                tallySheets: "Tally Sheets",
             },
             gracePeriodPolicy: {
                 "label": "Grace Period Policy",
@@ -659,6 +661,13 @@ const englishTranslation = {
                 options: {
                     "generate": "Generate",
                     "do-not-generate": "Do Not Generate",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Decline to Vote Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
                 },
             },
         },
@@ -854,7 +863,7 @@ const englishTranslation = {
                 "document-download": "Download Documents",
                 "tally-sheet-create": "Create Tally Sheet",
                 "trustee-ceremony": "Trustee Ceremony",
-                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-review": "Review Tally Sheet",
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
@@ -1068,6 +1077,7 @@ const englishTranslation = {
                 BALLOT_RECEIPT: "Ballot Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
+                PARTICIPATION_REPORT: "Participation Report",
                 STATISTICAL_REPORT: "Statistical Report",
                 OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
                 AUDIT_LOGS: "Audit Logs",
@@ -1198,6 +1208,7 @@ const englishTranslation = {
                 online: "Online",
                 kiosk: "Kiosk",
                 early_voting: "Early voting",
+                telephone: "Telephone voting",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
@@ -1370,6 +1381,12 @@ const englishTranslation = {
                 "allow-selecting-candidates": "Candidates Only",
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
+            },
+            collapsibleListsPolicy: {
+                "label": "Collapsible Lists",
+                "disabled": "Disabled",
+                "enabled-expanded": "Enabled (starts expanded)",
+                "enabled-collapsed": "Enabled (starts collapsed)",
             },
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
@@ -1710,6 +1727,7 @@ const englishTranslation = {
                     eliminated: "Eliminated",
                     round: "Round",
                 },
+                total_declined_to_vote: "Total Declined to Vote",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
@@ -1771,14 +1789,17 @@ const englishTranslation = {
                 startKioskVoting: "Start Kiosk Voting",
                 startOnlineVoting: "Start Online Voting",
                 startEarlyVoting: "Start Early Voting",
+                startTelephoneVoting: "Start Telephone Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopOnlineVoting: "Stop Online Voting",
                 stopEarlyVoting: "Stop Early Voting",
+                stopTelephoneVoting: "Stop Telephone Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
                 pauseKioskVoting: "Pause Kiosk Voting",
                 pauseOnlineVoting: "Pause Online Voting",
                 pauseEarlyVoting: "Pause Early Voting",
+                pauseTelephoneVoting: "Pause Telephone Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -1874,8 +1895,12 @@ const englishTranslation = {
             },
         },
         tallysheet: {
+            title: "Ballot boxes",
+            subtitle: "Digitalized ballot boxes by channel",
             createTallySuccess: "Tally Sheet saved",
             createTallyError: "Error saving Tally Sheet",
+            createTallyErrorSameKindExists:
+                "Tally Sheet already exists for this contest with the same channel and area",
             allFieldsRequired: "All fields are required",
             header: {
                 change: "Changes to be Published",
@@ -1889,6 +1914,11 @@ const englishTranslation = {
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
+                censusTooSmall: "Census must be greater or equal than the total votes",
             },
             label: {
                 area: "Area",
@@ -1918,10 +1948,13 @@ const englishTranslation = {
                 subtitle: "Tally Sheet configuration.",
                 candidates: "Candidates",
                 save: "Save",
-                publish: "Publish",
-                unpublish: "Unpublish",
-                warningUnPublish: "Are you sure tu unpublish this Tally Sheet?",
-                warningPublish: "Are you sure tu publish this Tally Sheet?",
+                approve: "Approve",
+                disapprove: "Disapprove",
+                show: "Show",
+                add: "Add",
+                versions: "Versions",
+                warningDisapprove: "Are you sure to disapprove this Tally Sheet?",
+                warningApprove: "Are you sure to approve this Tally Sheet?",
             },
             empty: {
                 header: "No Tally Sheet Yet.",
@@ -1937,11 +1970,20 @@ const englishTranslation = {
             table: {
                 area: "Area",
                 contest: "Contest",
-                published: "Published",
+                approvedVersion: "Approved version",
+                latestVersion: "Latest version",
+            },
+            versionsTable: {
+                title: "Versions for ballot box",
+                version: "Version",
+                createdBy: "Created by",
+                reviewedBy: "Reviewed by",
+                createdAt: "Created at",
+                reviewedAt: "Reviewed at",
             },
             message: {
-                publishError: "Error publishing tally sheet",
-                publishSuccess: "Tally sheet published",
+                reviewError: "Error reviewing tally sheet",
+                reviewSuccess: "Tally sheet reviewed",
             },
         },
         application: {
@@ -2010,6 +2052,7 @@ const englishTranslation = {
                 BALLOT_RECEIPT: "Ballot Receipt",
                 ACTIVITY_LOGS: "Activity Logs",
                 MANUAL_VERIFICATION: "Manual Verification",
+                PARTICIPATION_REPORT: "Participation Report",
             },
             method: {
                 email: "Email",
@@ -2196,8 +2239,9 @@ const englishTranslation = {
                 importButton: "Import",
             },
             notify: {
-                importSuccess:
-                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importSuccess: "Imported {{inserted}} certificate(s).",
+                importSkipped: "{{count}} certificate(s) skipped (already present).",
+                importErrors: "Import issues: {{errors}}",
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",

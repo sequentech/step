@@ -13,6 +13,10 @@ set -euo pipefail
 SEQUENT_CORE_DIR="$(pwd)"
 PACKAGES_DIR="$(dirname "$SEQUENT_CORE_DIR")"
 
+echo "==> Checking versions..."
+rustc --version
+wasm-pack --version
+
 echo "==> Building sequent-core WASM..."
 wasm-pack build --mode no-install --out-name index --release --target web \
     --features=wasmtest,default_features

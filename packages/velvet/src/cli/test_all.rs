@@ -121,6 +121,7 @@ pub fn generate_ballots(
                     let mut plaintext_prepare = DecodedVoteContest {
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
+                        is_decline_to_vote: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -284,6 +285,7 @@ pub fn generate_mcballots(
                     let mut plaintext_prepare = DecodedVoteContest {
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
+                        is_decline_to_vote: false,
                         invalid_errors: vec![],
                         invalid_alerts: vec![],
                         choices: vec![],
@@ -853,6 +855,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -955,6 +958,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1062,6 +1066,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1402,6 +1407,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1567,6 +1573,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1717,6 +1724,7 @@ mod tests {
             let mut plaintext_prepare = DecodedVoteContest {
                 contest_id: contest.id.clone(),
                 is_explicit_invalid: false,
+                is_decline_to_vote: false,
                 invalid_errors: vec![],
                 invalid_alerts: vec![],
                 choices: vec![],
@@ -1914,6 +1922,7 @@ mod tests {
                 let plaintext_prepare = DecodedVoteContest {
                     contest_id: contest.id.clone(),
                     is_explicit_invalid: false,
+                    is_decline_to_vote: false,
                     invalid_errors: vec![],
                     invalid_alerts: vec![],
                     choices: choices,

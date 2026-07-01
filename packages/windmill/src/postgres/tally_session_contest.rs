@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use b3::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::BatchNumber;
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::uuid_validation::parse_uuid_v4;

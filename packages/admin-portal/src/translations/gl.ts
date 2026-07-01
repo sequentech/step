@@ -143,6 +143,7 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración do tipo de elección",
                 onlineVoting: "Votación en Liña",
                 kioskVoting: "Votación en Quiosco",
+                telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuracións",
                 settingSubtitle: "Configuración Xeral",
                 sms: "SMS",
@@ -624,6 +625,7 @@ const galegoTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Rexistros",
                 approvals: "Aprobacións",
+                tallySheets: "Follas de recuento",
             },
             gracePeriodPolicy: {
                 "label": "Política de Período de Gracia",
@@ -660,6 +662,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "generate": "Xerar",
                     "do-not-generate": "Non xerar",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Política de abstención de voto",
+                options: {
+                    enabled: "Activado",
+                    disabled: "Desactivado",
                 },
             },
         },
@@ -856,7 +865,7 @@ const galegoTranslation: TranslationType = {
                 "document-download": "Descargar Documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "trustee-ceremony": "Ceremonia de Fideicomisario",
-                "tally-sheet-publish": "Publicar Acta de Recuento",
+                "tally-sheet-review": "Revisar folla de reconto",
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
@@ -1079,6 +1088,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estatístico",
                 OVCS_EVENTS: "Monitorización de Votación no Estranxeiro - Eventos OVCS",
                 AUDIT_LOGS: "Rexistros de Auditoría",
@@ -1210,6 +1220,7 @@ const galegoTranslation: TranslationType = {
                 online: "En Liña",
                 kiosk: "Quiosco",
                 early_voting: "Votación anticipada",
+                telephone: "Votación telefónica",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
@@ -1382,6 +1393,12 @@ const galegoTranslation: TranslationType = {
                 "allow-selecting-candidates": "Só Candidatos",
                 "allow-selecting-lists": "Só Listas",
                 "disabled": "Desactivado",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (comeza expandido)",
+                "enabled-collapsed": "Habilitado (comeza contraído)",
             },
             blankVotePolicy: {
                 "label": "Política de Voto en Branco",
@@ -1724,6 +1741,7 @@ const galegoTranslation: TranslationType = {
                     eliminated: "Eliminado",
                     round: "Rolda",
                 },
+                total_declined_to_vote: "Total de votos de renuncia",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",
@@ -1786,14 +1804,17 @@ const galegoTranslation: TranslationType = {
                 startKioskVoting: "Iniciar Votación en Quiosco",
                 startOnlineVoting: "Iniciar Votación en Liña",
                 startEarlyVoting: "Iniciar Votación Anticipada",
+                startTelephoneVoting: "Iniciar Votación Telefónica",
                 stopVotingPeriod: "Detener Votación",
                 stopOnlineVoting: "Detener Votación en Liña",
                 stopEarlyVoting: "Detener Votación Anticipada",
+                stopTelephoneVoting: "Detener Votación Telefónica",
                 stopKioskVotingPeriod: "Detener Votación en Quiosco",
                 pauseVotingPeriod: "Pausar Votación",
                 pauseKioskVoting: "Pausar Votación en Quiosco",
                 pauseOnlineVoting: "Pausar Votación en Liña",
                 pauseEarlyVoting: "Pausar Votación Anticipada",
+                pauseTelephoneVoting: "Pausar Votación Telefónica",
                 generate: "Rexenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
@@ -1890,8 +1911,12 @@ const galegoTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnas",
+            subtitle: "Urnas dixitalizadas por canal",
             createTallySuccess: "Acta de Escrutinio gardada",
             createTallyError: "Erro ao gardar a Acta de Escrutinio",
+            createTallyErrorSameKindExists:
+                "A folla de reconto xa existe para este concurso co mesmo canal e área",
             allFieldsRequired: "Todos os campos son obrigatorios",
             header: {
                 change: "Cambios a Publicar",
@@ -1905,6 +1930,11 @@ const galegoTranslation: TranslationType = {
                 generate: "Rexenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
+                censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
             },
             label: {
                 area: "Área",
@@ -1934,11 +1964,13 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración da Acta de Escrutinio.",
                 candidates: "Candidatos",
                 save: "Gardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish:
-                    "¿Estás seguro de que queres despublicar esta Acta de Escrutinio?",
-                warningPublish: "¿Estás seguro de que queres publicar esta Acta de Escrutinio?",
+                approve: "Aprobar",
+                disapprove: "Desaprobar",
+                show: "Amosar",
+                add: "Engadir",
+                versions: "Versións",
+                warningDisapprove: "Está seguro de desaprobar esta Folla de Reconto?",
+                warningApprove: "Está seguro de aprobar esta Folla de Reconto?",
             },
             empty: {
                 header: "Aínda non hai Acta de Escrutinio.",
@@ -1954,11 +1986,20 @@ const galegoTranslation: TranslationType = {
             table: {
                 area: "Área",
                 contest: "Concurso",
-                published: "Publicado",
+                approvedVersion: "Versión aprobada",
+                latestVersion: "Última versión",
+            },
+            versionsTable: {
+                title: "Versións da urna",
+                version: "Versión",
+                createdBy: "Creado por",
+                reviewedBy: "Revisado por",
+                createdAt: "Creado o",
+                reviewedAt: "Revisado o",
             },
             message: {
-                publishError: "Erro ao publicar a acta de escrutinio",
-                publishSuccess: "Acta de escrutinio publicada",
+                reviewError: "Erro ao revisar a acta de escrutinio",
+                reviewSuccess: "Acta de escrutinio revisada",
             },
         },
         application: {
@@ -2027,6 +2068,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Correo",
@@ -2212,8 +2254,9 @@ const galegoTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "Importáronse {{inserted}} certificado(s). {{skipped}} omitido(s) (xa presentes).",
+                importSuccess: "Importáronse {{inserted}} certificado(s).",
+                importSkipped: "{{count}} omitido(s) (xa presentes).",
+                importErrors: "Problemas na importación: {{errors}}",
                 importError: "Erro ao importar: {{error}}",
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Erro ao eliminar o certificado.",

@@ -113,6 +113,13 @@ module.exports = function (env, argv) {
             port: 3001, // Run on port 3001
             open: true, // Automatically open the browser
             historyApiFallback: true,
+            headers: {
+                // Required together for SharedArrayBuffer/Atomics support,
+                // needed by multi-threaded wasm builds.
+                "Cross-Origin-Opener-Policy": "same-origin",
+                "Cross-Origin-Embedder-Policy": "require-corp",
+                "Cross-Origin-Resource-Policy": "cross-origin",
+            },
         },
     }
 }

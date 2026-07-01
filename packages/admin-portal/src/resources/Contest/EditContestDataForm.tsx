@@ -62,6 +62,7 @@ import {
     EPreferenceGapsPolicy,
     getDefaultDuplicatedRankPolicy,
     getDefaultPreferenceGapsPolicy,
+    ECollapsibleLists,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {IVotingType} from "./constants"
@@ -404,6 +405,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const collapsibleListsChoices = (): Array<EnumChoice<ECollapsibleLists>> => {
+        return Object.values(ECollapsibleLists).map((value) => ({
+            id: value,
+            name: t(`contestScreen.collapsibleListsPolicy.${value}`),
+        }))
+    }
+
     const blankVotePolicyChoices = () => {
         return Object.values(EBlankVotePolicy).map((value) => ({
             id: value,
@@ -476,6 +484,9 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.enable_checkable_lists =
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
+
+            newContest.presentation.collapsible_lists =
+                newContest.presentation.collapsible_lists ?? ECollapsibleLists.DISABLED
 
             newContest.presentation.candidates_icon_checkbox_policy =
                 newContest.presentation.candidates_icon_checkbox_policy ||
@@ -789,6 +800,14 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.enable_checkable_lists"
                                     choices={checkableListChoices()}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source="presentation.collapsible_lists"
+                                    choices={collapsibleListsChoices()}
+                                    label={String(t(`contestScreen.collapsibleListsPolicy.label`))}
+                                    defaultValue={ECollapsibleLists.DISABLED}
                                     validate={required()}
                                 />
 

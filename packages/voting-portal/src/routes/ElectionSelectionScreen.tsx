@@ -291,7 +291,15 @@ const ElectionSelectionScreen: React.FC = () => {
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
     const bypassChooser = useAppSelector(selectBypassChooser())
-    const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
+    const [errorMsg, setErrorMsg] = useState<ElectionScreenErrorType>()
+    const [errorMsgElectionIds, setErrorMsgElectionIds] = useState<string | undefined>(undefined)
+    const [ballotStyleConfigurationError, setBallotStyleConfigurationError] = useState<
+        | {
+              translationKey: string
+              translationParams: Record<string, string>
+          }
+        | undefined
+    >(undefined)
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
 
     const {
@@ -369,37 +377,27 @@ const ElectionSelectionScreen: React.FC = () => {
         }
         if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
             if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
+                setErrorMsg(ElectionScreenErrorType.NO_AREA)
             } else if (
                 errorElections?.networkError ||
                 errorElectionEvent?.networkError ||
                 errorBallotStyles?.networkError ||
                 errorCastVote?.networkError
             ) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
+                setErrorMsg(ElectionScreenErrorType.NETWORK)
             } else {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`)
-                )
+                setErrorMsg(ElectionScreenErrorType.FETCH_DATA)
             }
         } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
-            setErrorMsg(
-                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
-            )
+            setErrorMsg(ElectionScreenErrorType.NO_ELECTION_EVENT)
         } else if (!isPublished) {
-            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+            setAlertMsg(ElectionScreenMsgType.NOT_PUBLISHED)
         } else if (hasNoElections) {
             if (electionIds.length > 0) {
-                setErrorMsg(
-                    t(
-                        `electionSelectionScreen.errors.${ElectionScreenErrorType.OBTAINING_ELECTION}`,
-                        {electionIds: JSON.stringify(electionIds)}
-                    )
-                )
+                setErrorMsg(ElectionScreenErrorType.OBTAINING_ELECTION)
+                setErrorMsgElectionIds(JSON.stringify(electionIds))
             } else {
-                setAlertMsg(
-                    t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`)
-                )
+                setAlertMsg(ElectionScreenMsgType.NO_ELECTIONS)
             }
         } else {
             setAlertMsg(undefined)
@@ -420,13 +418,17 @@ const ElectionSelectionScreen: React.FC = () => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
             try {
                 updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+                setBallotStyleConfigurationError(undefined)
             } catch (error: unknown) {
                 if (error instanceof BallotStyleConfigurationError) {
-                    setErrorMsg(t(error.translationKey, error.translationParams))
+                    setBallotStyleConfigurationError({
+                        translationKey: error.translationKey,
+                        translationParams: error.translationParams,
+                    })
+                    setErrorMsg(undefined)
                 } else {
-                    setErrorMsg(
-                        t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
-                    )
+                    setBallotStyleConfigurationError(undefined)
+                    setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
                 }
             }
         } else if (globalSettings.DISABLE_AUTH) {
@@ -519,6 +521,19 @@ const ElectionSelectionScreen: React.FC = () => {
         oneBallotStyle,
     ])
 
+    const warningMsg = errorMsg
+        ? t(`electionSelectionScreen.errors.${errorMsg}`, {
+              electionIds: errorMsgElectionIds,
+          })
+        : ballotStyleConfigurationError
+          ? t(
+                ballotStyleConfigurationError.translationKey,
+                ballotStyleConfigurationError.translationParams
+            )
+          : alertMsg
+            ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+            : undefined
+
     if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
 
     return (
@@ -556,8 +571,8 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    {errorMsg || alertMsg ? (
-                        <Alert severity="warning">{errorMsg || alertMsg}</Alert>
+                    {warningMsg ? (
+                        <Alert severity="warning">{warningMsg}</Alert>
                     ) : (
                         <Typography
                             variant="body1"

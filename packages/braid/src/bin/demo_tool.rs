@@ -1,30 +1,29 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
-use b3::client::pgsql;
-use b3::client::pgsql::B3IndexRow;
-use b3::client::pgsql::B3MessageRow;
-use b3::client::pgsql::PgsqlB3Client;
-use b3::client::pgsql::PgsqlConnectionParams;
+use anyhow::{anyhow, Context, Result};
+use aws_sdk_s3::Client as S3Client;
+use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use clap::Parser;
+use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::path::Path;
+use std::path::PathBuf;
+use tokio_postgres::NoTls;
 use tracing::{info, instrument};
 
-use b3::messages::artifact::Configuration;
-use b3::messages::artifact::DkgPublicKey;
-use b3::messages::message::Message;
-use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::newtypes::MAX_TRUSTEES;
-use b3::messages::newtypes::NULL_TRUSTEE;
-use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use b3::messages::statement::StatementType;
+use b4::messages::artifact::Configuration;
+use b4::messages::artifact::DkgPublicKey;
+use b4::messages::message::Message;
+use b4::messages::newtypes::PublicKeyHash;
+use b4::messages::newtypes::MAX_TRUSTEES;
+use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 
-use braid::protocol::trustee2::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 use rand::seq::IndexedRandom;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -33,14 +32,9 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-const PG_HOST: &'static str = "localhost";
-const PG_PORT: u32 = 5432;
-const PG_USER: &'static str = "postgres";
-const PG_PASSW: &'static str = "postgrespw";
-/// The postgresql database which will host the bulletin board.
-/// Note that an entire bulletin board exists on a single database; each
-/// individual board is implemented with a table.
-const PG_DATABASE: &'static str = "protocoldb";
+/// PostgreSQL connection pool type alias
+type DbPool = Pool<PostgresConnectionManager<NoTls>>;
+
 /// The default board if none specified.
 const TEST_BOARD: &'static str = "test";
 /// The root directory from which the demo directories will be created.
@@ -48,25 +42,31 @@ const DEMO_DIR: &str = "./demo";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 /// File with the serialized bytes of a Configuration object.
 const CONFIG: &str = "config.bin";
+/// S3 bucket name (can be overridden with S3_BUCKET_NAME env var)
+const DEFAULT_BUCKET: &str = "wbraid-messages";
 
 /// Runs a demo protocol.
 #[derive(Parser)]
 struct Cli {
-    /// The postgresql database host.
-    #[arg(long, default_value_t = PG_HOST.to_string())]
-    host: String,
+    /// PostgreSQL host (or use B4_PG_HOST env var)
+    #[arg(long)]
+    pg_host: Option<String>,
 
-    /// The postgresql database port.
-    #[arg(long, default_value_t = PG_PORT)]
-    port: u32,
+    /// PostgreSQL port (or use B4_PG_PORT env var)
+    #[arg(long)]
+    pg_port: Option<u16>,
 
-    /// The username with which to authenticate to postgres.
-    #[arg(short, long, default_value_t = PG_USER.to_string())]
-    username: String,
+    /// PostgreSQL username (or use B4_PG_USER env var)
+    #[arg(long)]
+    pg_user: Option<String>,
 
-    /// The password with which to authenticate to postgres.
-    #[arg(long, default_value_t = PG_PASSW.to_string())]
-    password: String,
+    /// PostgreSQL password (or use B4_PG_PASSWORD env var)
+    #[arg(long)]
+    pg_password: Option<String>,
+
+    /// PostgreSQL database name (or use B4_PG_DATABASE env var)
+    #[arg(long)]
+    pg_database: Option<String>,
 
     /// The board on which the requested operations will take place.
     ///
@@ -120,22 +120,23 @@ struct Cli {
 ///
 /// InitProtocol: Initializes the protocol by posting the protocol Configuration
 /// to the requested board or set of boards. These boards are also added to the
-/// index and set as active. This is done directly through the database and not the
-/// grpc server. If the required database tables do not exist
-/// they are created. Any existing data is dropped.
+/// database and set as active. This is done directly through the database and S3.
+/// If the required database tables do not exist they are created. Any existing
+/// data is dropped.
 ///
 /// PostBallots: Posts randomly generated ciphertexts to the requested board or boards.
-/// This is done directly through the database and not the grpc server.
+/// This is done directly through the database and S3.
 ///
 /// ListMessages: Lists the messages from the requested board. This is done directly through
-/// the database and not the grpc server.
+/// the database.
 ///
 /// ListBoards: Lists the active boards in the index. This is done directly through
-/// the database and not the grpc server.
+/// the database.
 ///
-/// DropDb: Drops the entire database.
+/// ClearDb: Clears all data from the PostgreSQL database tables.
 ///
-/// All database operations execute on the database specified by the PG_DATABASE constant.
+/// All database operations execute on the database specified by B4_PG_* env vars
+/// or the corresponding --pg-* arguments.
 #[derive(clap::ValueEnum, Clone)]
 enum Command {
     GenConfigs,
@@ -143,7 +144,7 @@ enum Command {
     PostBallots,
     ListMessages,
     ListBoards,
-    DropDb,
+    ClearDb,
 }
 
 ///
@@ -159,18 +160,18 @@ enum Command {
 ///
 ///       cargo run --bin demo_tool -- init-protocol
 ///
-///    2.5) Launch the braid bulletin board server
+///    2.5) Launch the b4 bulletin board server (using bb.ps1 or manually)
 ///
 ///    3) Launch each of the trustees (each in their own directory)
 ///
 ///       cd demo/1
-///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee1.toml
+///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b4-url http://localhost:3000 --trustee-config trustee.toml
 ///
 ///       cd demo/2
-///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee2.toml
+///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b4-url http://localhost:3000 --trustee-config trustee.toml
 ///
 ///       cd demo/3
-///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b3-url http://[::1]:50051 --trustee-config trustee3.toml
+///       cargo run --manifest-path ../../Cargo.toml --target-dir ../../rust-local-target --release --bin main  -- --b4-url http://localhost:3000 --trustee-config trustee.toml
 ///
 ///    4) Wait until the distributed key generation process has finished. You can check that this process is complete
 ///       by listing the messages in the protocol board and looking for "PublicKey".
@@ -199,7 +200,7 @@ enum Command {
 #[instrument]
 async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
     let args = Cli::parse();
 
     match &args.command {
@@ -215,18 +216,10 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            let c =
-                PgsqlConnectionParams::new(&args.host, args.port, &args.username, &args.password);
-            info!("Using connection string '{}'", c.connection_string());
-            // pgsql::drop_database(&c, PG_DATABASE).await?;
+            let (pool, s3_client, bucket) = init_clients(&args).await?;
 
-            // swallow database already exists errors
-            let _ = pgsql::create_database(&c, PG_DATABASE).await;
-
-            let c = c.with_database(PG_DATABASE);
-            let mut client = PgsqlB3Client::new(&c).await?;
-            client.clear_database().await?;
-            client.create_index_ine().await?;
+            // Clear existing data
+            clear_database(&pool).await?;
 
             for i in 0..args.board_count {
                 let name = if i == 0 {
@@ -234,8 +227,8 @@ async fn main() -> Result<()> {
                 } else {
                     &format!("{}_{}", args.board_name, i + 1)
                 };
-                client.create_board_ine(name).await?;
-                init(&mut client, &name, configuration.clone()).await?;
+                create_board(&pool, name).await?;
+                init(&pool, &s3_client, &bucket, name, configuration.clone()).await?;
             }
 
             info!(
@@ -244,8 +237,7 @@ async fn main() -> Result<()> {
             )
         }
         Command::PostBallots => {
-            let mut board =
-                get_client(&args.host, args.port, &args.username, &args.password).await?;
+            let (pool, s3_client, bucket) = init_clients(&args).await?;
             for i in 0..args.board_count {
                 let name = if i == 0 {
                     args.board_name.to_string()
@@ -253,7 +245,9 @@ async fn main() -> Result<()> {
                     format!("{}_{}", &args.board_name, i + 1)
                 };
                 post_ballots(
-                    &mut board,
+                    &pool,
+                    &s3_client,
+                    &bucket,
                     &name,
                     args.ciphertexts,
                     args.batches,
@@ -265,17 +259,16 @@ async fn main() -> Result<()> {
             }
         }
         Command::ListMessages => {
-            let mut client =
-                get_client(&args.host, args.port, &args.username, &args.password).await?;
-            list_messages(&mut client, &args.board_name).await?;
+            let (pool, _s3_client, _bucket) = init_clients(&args).await?;
+            list_messages(&pool, &args.board_name).await?;
         }
         Command::ListBoards => {
-            let mut client =
-                get_client(&args.host, args.port, &args.username, &args.password).await?;
-            list_boards(&mut client).await?;
+            let (pool, _s3_client, _bucket) = init_clients(&args).await?;
+            list_boards(&pool).await?;
         }
-        Command::DropDb => {
-            delete_boards(&args.host, args.port, &args.username, &args.password).await?;
+        Command::ClearDb => {
+            let (pool, _s3_client, _bucket) = init_clients(&args).await?;
+            clear_database(&pool).await?;
         }
     }
 
@@ -314,14 +307,14 @@ async fn main() -> Result<()> {
 ///    |
 ///   └ trustee.toml
 fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
             let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
@@ -358,7 +351,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
         let path = path.join("run.sh");
         if !Path::exists(&path) {
             let mut file = File::create(path)?;
-            let run = "cargo run --manifest-path ../../Cargo.toml --release --bin main -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml";
+            let run = "cargo run --manifest-path ../../Cargo.toml --release --bin main -- --b4-url http://localhost:3000 --trustee-config trustee.toml";
             file.write_all(run.as_bytes())?;
         }
     }
@@ -369,18 +362,65 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
 /// Initializes the bulletin board with the necessary information to start a protocol run.
 ///
 /// This information will be taken from the demo directory created in the gen-config step.
-#[instrument(skip(client))]
+#[instrument(skip(pool, s3_client))]
 async fn init<C: Ctx>(
-    client: &mut PgsqlB3Client,
+    pool: &DbPool,
+    s3_client: &S3Client,
+    bucket: &str,
     board_name: &str,
     configuration: Configuration<C>,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
-    // let message: B3MessageRow = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    // client.insert_messages(board_name, &vec![message]).await
-    client.insert_configuration::<C>(board_name, message).await
+
+    // Serialize the message and store inline
+    let message_bytes = message.strand_serialize()?;
+    let timestamp = chrono::Utc::now().timestamp();
+    let version = "1";
+
+    // Extract metadata for database
+    let sender_pk = message.sender.pk.to_der_b64_string()?;
+    let statement_kind = format!("{:?}", message.statement.get_kind());
+
+    let conn = pool.get().await?;
+
+    // Store inline in PostgreSQL
+    conn.execute(
+        r#"INSERT INTO messages (board_name, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)
+           VALUES ($1, $2, $3, 'inline', $4, NULL, $5, $6, $7, 0, 0)"#,
+        &[
+            &board_name,
+            &timestamp,
+            &(message_bytes.len() as i64),
+            &message_bytes,
+            &version,
+            &sender_pk,
+            &statement_kind,
+        ],
+    )
+    .await?;
+
+    // Update board metadata with configuration info
+    conn.execute(
+        r#"UPDATE boards 
+           SET cfg_id = $1, 
+               threshold_no = $2, 
+               trustees_no = $3,
+               message_count = message_count + 1,
+               last_message_kind = $4
+           WHERE name = $5"#,
+        &[
+            &configuration.id.to_string(),
+            &(configuration.threshold as i32),
+            &(configuration.trustees.len() as i32),
+            &statement_kind,
+            &board_name,
+        ],
+    )
+    .await?;
+
+    Ok(())
 }
 
 /// Posts randomly generated ballots on the bulletin board for the purposes of tallying.
@@ -390,9 +430,11 @@ async fn init<C: Ctx>(
 /// downloaded to allow the encryption of random ballots. If there are already ballots
 /// present on the board, an error will be returned. A protocol run can always be reset
 /// with the init-protocol command.
-#[instrument(skip(client))]
+#[instrument(skip(pool, s3_client))]
 async fn post_ballots<C: Ctx>(
-    client: &mut PgsqlB3Client,
+    pool: &DbPool,
+    s3_client: &S3Client,
+    bucket: &str,
     board_name: &str,
     ciphertexts: usize,
     batches: u32,
@@ -401,11 +443,21 @@ async fn post_ballots<C: Ctx>(
     ctx: &C,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
-    let sender_pk = StrandSignaturePk::from_sk(&pm.signing_key)?;
-    let ballots = client
-        .get_with_kind(&board_name, StatementType::Ballots, &sender_pk)
+    let sender_pk_obj = StrandSignaturePk::from_sk(&pm.signing_key)?;
+    let sender_pk_b64 = sender_pk_obj.to_der_b64_string()?;
+
+    let conn = pool.get().await?;
+
+    // Check if ballots already exist
+    let existing = conn
+        .query_one(
+            "SELECT COUNT(*) FROM messages WHERE board_name = $1 AND statement_kind = 'Ballots' AND sender_pk = $2",
+            &[&board_name, &sender_pk_b64],
+        )
         .await?;
-    if ballots.len() > 0 {
+    let count: i64 = existing.get(0);
+
+    if count > 0 {
         return Err(anyhow!("Ballots already present"));
     }
 
@@ -416,13 +468,49 @@ async fn post_ballots<C: Ctx>(
     let configuration = Configuration::<C>::strand_deserialize(&contents)
         .map_err(|e| anyhow!("Could not read configuration {e:?}"))?;
 
-    let sender_pk = configuration.trustees.get(0).unwrap();
-    let pk = client
-        .get_with_kind(&board_name, StatementType::PublicKey, &sender_pk)
-        .await?;
+    let trustee_pk = configuration.trustees.get(0).unwrap();
+    let trustee_pk_b64 = trustee_pk.to_der_b64_string()?;
 
-    if let Some(pk) = pk.get(0) {
-        let message = Message::strand_deserialize(&pk.message)?;
+    info!("Looking for PublicKey from trustee: {}", trustee_pk_b64);
+
+    // Get the public key message
+    let pk_row = conn.query_opt(
+        "SELECT content_type, inline_data, s3_key FROM messages WHERE board_name = $1 AND statement_kind = 'PublicKey' AND sender_pk = $2 LIMIT 1",
+        &[&board_name, &trustee_pk_b64],
+    )
+    .await?;
+
+    info!("PublicKey query result: {:?}", pk_row.is_some());
+
+    if let Some(row) = pk_row {
+        let content_type: String = row.get(0);
+        let inline_data: Option<Vec<u8>> = row.get(1);
+        let s3_key: Option<String> = row.get(2);
+
+        let pk_data = match content_type.as_str() {
+            "inline" => {
+                inline_data.ok_or_else(|| anyhow!("Inline PublicKey message has no data"))?
+            }
+            "s3" => {
+                let key = s3_key.ok_or_else(|| anyhow!("S3 PublicKey message has no key"))?;
+                let obj = s3_client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(&key)
+                    .send()
+                    .await?;
+                let bytes = obj.body.collect().await?;
+                bytes.to_vec()
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Unknown content type for PublicKey: {}",
+                    content_type
+                ));
+            }
+        };
+
+        let message = Message::strand_deserialize(&pk_data)?;
         let bytes = message.artifact.unwrap();
         let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
         let pk_bytes = dkgpk.strand_serialize()?;
@@ -441,13 +529,13 @@ async fn post_ballots<C: Ctx>(
         let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-        let ballot_batch = b3::messages::artifact::Ballots::new(ballots);
+        let ballot_batch = b4::messages::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
 
         for i in 0..batches {
-            let message = b3::messages::message::Message::ballots_msg(
+            let message = b4::messages::message::Message::ballots_msg(
                 &configuration,
-                i as usize,
+                i as u64,
                 &ballot_batch,
                 selected_trustees,
                 PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
@@ -455,9 +543,46 @@ async fn post_ballots<C: Ctx>(
             )?;
 
             info!("Adding ballots to the board..");
-            let bm: B3MessageRow = message.try_into()?;
-            client.insert_messages(board_name, &vec![bm]).await?;
+
+            // Serialize and store inline
+            let message_bytes = message.strand_serialize()?;
+            let timestamp = chrono::Utc::now().timestamp();
+            let version = "1";
+            let sender_pk = message.sender.pk.to_der_b64_string()?;
+            let statement_kind = format!("{:?}", message.statement.get_kind());
+
+            conn.execute(
+                r#"INSERT INTO messages (board_name, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)
+                   VALUES ($1, $2, $3, 'inline', $4, NULL, $5, $6, $7, $8, 0)"#,
+                &[
+                    &board_name,
+                    &timestamp,
+                    &(message_bytes.len() as i64),
+                    &message_bytes,
+                    &version,
+                    &sender_pk,
+                    &statement_kind,
+                    &(i as i32),
+                ],
+            )
+            .await?;
         }
+
+        // Update board batch_count
+        conn.execute(
+            r#"UPDATE boards 
+               SET batch_count = $1,
+                   message_count = message_count + $2,
+                   last_message_kind = $3
+               WHERE name = $4"#,
+            &[
+                &(batches as i32),
+                &(batches as i32),
+                &"Ballots".to_string(),
+                &board_name,
+            ],
+        )
+        .await?;
     } else {
         return Err(anyhow!(
             "Could not find public key or configuration artifact(s)"
@@ -467,31 +592,87 @@ async fn post_ballots<C: Ctx>(
     Ok(())
 }
 
-#[instrument(skip(board))]
-async fn list_messages(board: &mut PgsqlB3Client, board_name: &str) -> Result<()> {
-    let messages: Result<Vec<Message>> = board
-        .get_messages(board_name, 0)
-        .await?
-        .iter()
-        .map(|board_message: &B3MessageRow| {
-            Ok(Message::strand_deserialize(&board_message.message)?)
-        })
-        .collect();
+#[instrument(skip(pool))]
+async fn list_messages(pool: &DbPool, board_name: &str) -> Result<()> {
+    let conn = pool.get().await?;
+    let rows = conn.query(
+        "SELECT content_type, inline_data, s3_key FROM messages WHERE board_name = $1 ORDER BY id ASC",
+        &[&board_name],
+    )
+    .await?;
 
-    for message in messages? {
+    // Get S3 client for downloading S3-stored messages
+    let s3_config = aws_sdk_s3::Config::builder()
+        .behavior_version_latest()
+        .region(aws_sdk_s3::config::Region::new(
+            std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
+        ))
+        .endpoint_url(
+            std::env::var("AWS_ENDPOINT_URL")
+                .unwrap_or_else(|_| "http://localhost:4566".to_string()),
+        )
+        .force_path_style(true)
+        .build();
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+    let bucket_name =
+        std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+
+    for row in rows {
+        let content_type: String = row.get(0);
+        let inline_data: Option<Vec<u8>> = row.get(1);
+        let s3_key: Option<String> = row.get(2);
+
+        let message_data = match content_type.as_str() {
+            "inline" => inline_data.ok_or_else(|| anyhow!("Inline message has no data"))?,
+            "s3" => {
+                let key = s3_key.ok_or_else(|| anyhow!("S3 message has no key"))?;
+                let obj = s3_client
+                    .get_object()
+                    .bucket(&bucket_name)
+                    .key(&key)
+                    .send()
+                    .await?;
+                let bytes = obj.body.collect().await?;
+                bytes.to_vec()
+            }
+            _ => {
+                return Err(anyhow!("Unknown content type: {}", content_type));
+            }
+        };
+
+        let message = Message::strand_deserialize(&message_data)?;
         info!("message: {:?}", message);
     }
     Ok(())
 }
 
-#[instrument(skip(board))]
-async fn list_boards(board: &mut PgsqlB3Client) -> Result<()> {
-    let boards: Result<Vec<B3IndexRow>> = board.get_boards().await;
+#[instrument(skip(pool))]
+async fn list_boards(pool: &DbPool) -> Result<()> {
+    let conn = pool.get().await?;
+    let boards = conn
+        .query(
+            "SELECT name, created_at, status FROM boards ORDER BY created_at DESC",
+            &[],
+        )
+        .await?;
 
-    for board in boards? {
+    for row in boards {
+        let name: String = row.get(0);
+        let created_at: i64 = row.get(1);
+        let status: String = row.get(2);
+
+        // Count messages for this board
+        let count_row = conn
+            .query_one(
+                "SELECT COUNT(*) FROM messages WHERE board_name = $1",
+                &[&name],
+            )
+            .await?;
+        let count: i64 = count_row.get(0);
+
         info!(
-            "board: '{}', cfg_id: {}, message_count: {}",
-            board.board_name, board.cfg_id, board.message_count
+            "board: '{}', created_at: {}, status: {}, message_count: {}",
+            name, created_at, status, count
         );
     }
     Ok(())
@@ -513,26 +694,155 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
     Ok(pm)
 }
 
-/// Drops the entire database.
-#[instrument()]
-async fn delete_boards(host: &str, port: u32, username: &str, password: &str) -> Result<()> {
-    let c = get_connection(host, port, username, password);
-    pgsql::drop_database(&c, PG_DATABASE).await?;
+/// Initialize database connection pool and S3 client
+async fn init_clients(args: &Cli) -> Result<(DbPool, S3Client, String)> {
+    let host = args
+        .pg_host
+        .clone()
+        .or_else(|| env::var("B4_PG_HOST").ok())
+        .context("B4_PG_HOST must be set (via env var or --pg-host)")?;
+    let port: u16 = args
+        .pg_port
+        .or_else(|| env::var("B4_PG_PORT").ok().and_then(|p| p.parse().ok()))
+        .context("B4_PG_PORT must be set (via env var or --pg-port)")?;
+    let user = args
+        .pg_user
+        .clone()
+        .or_else(|| env::var("B4_PG_USER").ok())
+        .context("B4_PG_USER must be set (via env var or --pg-user)")?;
+    let password = args
+        .pg_password
+        .clone()
+        .or_else(|| env::var("B4_PG_PASSWORD").ok())
+        .context("B4_PG_PASSWORD must be set (via env var or --pg-password)")?;
+    let database = args
+        .pg_database
+        .clone()
+        .or_else(|| env::var("B4_PG_DATABASE").ok())
+        .context("B4_PG_DATABASE must be set (via env var or --pg-database)")?;
 
+    let conn_string = format!(
+        "host={} port={} user={} password={} dbname={}",
+        host, port, user, password, database
+    );
+
+    info!("Connecting to PostgreSQL at {}:{}", host, port);
+
+    let manager = PostgresConnectionManager::new_from_stringlike(&conn_string, NoTls)?;
+
+    let pool = Pool::builder().max_size(5).build(manager).await?;
+
+    // Initialize tables in a scoped block so connection is dropped before returning pool
+    {
+        let conn = pool.get().await?;
+        conn.execute(
+            r#"CREATE TABLE IF NOT EXISTS boards (
+                name VARCHAR PRIMARY KEY,
+                created_at BIGINT NOT NULL,
+                status VARCHAR NOT NULL DEFAULT 'active',
+                cfg_id VARCHAR,
+                threshold_no INTEGER,
+                trustees_no INTEGER,
+                last_message_kind VARCHAR,
+                message_count INTEGER DEFAULT 0,
+                batch_count INTEGER DEFAULT 0
+            )"#,
+            &[],
+        )
+        .await?;
+
+        conn.execute(
+            r#"CREATE TABLE IF NOT EXISTS messages (
+                id BIGSERIAL PRIMARY KEY,
+                board_name VARCHAR NOT NULL,
+                timestamp BIGINT NOT NULL,
+                sender_pk VARCHAR NOT NULL,
+                statement_kind VARCHAR NOT NULL,
+                batch INTEGER NOT NULL DEFAULT 0,
+                mix_number INTEGER NOT NULL DEFAULT 0,
+                size BIGINT NOT NULL,
+                content_type VARCHAR NOT NULL,
+                inline_data BYTEA,
+                s3_key VARCHAR,
+                version VARCHAR NOT NULL,
+                UNIQUE (board_name, sender_pk, statement_kind, batch, mix_number)
+            )"#,
+            &[],
+        )
+        .await?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_messages_board_id ON messages(board_name, id)",
+            &[],
+        )
+        .await?;
+    }
+
+    // Initialize S3 client
+    let s3_config = aws_sdk_s3::Config::builder()
+        .behavior_version_latest()
+        .region(aws_sdk_s3::config::Region::new(
+            env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
+        ))
+        .endpoint_url(
+            env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string()),
+        )
+        .force_path_style(true)
+        .build();
+    let s3_client = S3Client::from_conf(s3_config);
+
+    let bucket = env::var("S3_BUCKET_NAME").unwrap_or_else(|_| DEFAULT_BUCKET.to_string());
+
+    Ok((pool, s3_client, bucket))
+}
+
+/// Clear all data from the database
+async fn clear_database(pool: &DbPool) -> Result<()> {
+    let conn = pool.get().await?;
+    conn.execute("DELETE FROM messages", &[]).await?;
+    conn.execute("DELETE FROM boards", &[]).await?;
+    info!("Cleared database");
     Ok(())
 }
 
-fn get_connection(host: &str, port: u32, username: &str, password: &str) -> PgsqlConnectionParams {
-    PgsqlConnectionParams::new(host, port, username, password)
+/// Create a board
+async fn create_board(pool: &DbPool, name: &str) -> Result<()> {
+    let created_at = chrono::Utc::now().timestamp();
+    let conn = pool.get().await?;
+    conn.execute(
+        "INSERT INTO boards (name, created_at, status) VALUES ($1, $2, 'active')",
+        &[&name, &created_at],
+    )
+    .await?;
+    info!("Created board: {}", name);
+    Ok(())
 }
-async fn get_client(
-    host: &str,
-    port: u32,
-    username: &str,
-    password: &str,
-) -> Result<PgsqlB3Client> {
-    let c = get_connection(host, port, username, password);
-    let c = c.with_database(PG_DATABASE);
-    info!("Using connection string '{}'", c.connection_string());
-    PgsqlB3Client::new(&c).await
+
+/// Drops the entire database file.
+#[instrument()]
+async fn drop_database(database_url: &Option<String>) -> Result<()> {
+    let db_path = database_url
+        .clone()
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .unwrap_or_else(|| {
+            let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            path.push("b4.db");
+            path.display().to_string()
+        });
+
+    // Remove sqlite: prefix if present
+    let file_path = db_path
+        .trim_start_matches("sqlite:")
+        .split('?')
+        .next()
+        .unwrap();
+
+    if Path::new(file_path).exists() {
+        fs::remove_file(file_path)?;
+        info!("Dropped database: {}", file_path);
+    } else {
+        info!("Database file not found: {}", file_path);
+    }
+
+    Ok(())
 }

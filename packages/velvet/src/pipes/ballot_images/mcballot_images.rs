@@ -768,7 +768,8 @@ fn convert_ballots(
 
                 let marked_contest = DecodedVoteContest {
                     contest_id: contest.contest_id.clone(),
-                    is_explicit_invalid: dbc.is_explicit_invalid,
+                    is_explicit_invalid: contest.is_explicit_invalid,
+                    is_decline_to_vote: dbc.is_explicit_invalid,
                     // FIXME
                     invalid_alerts: vec![],
                     // FIXME

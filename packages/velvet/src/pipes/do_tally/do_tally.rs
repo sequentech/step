@@ -40,7 +40,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{event, info, instrument, Level, Value as TracingValue};
+use tracing::{debug, event, info, instrument, Level, Value as TracingValue};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -99,6 +99,7 @@ impl DoTally {
             let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
             fs::create_dir_all(&breakdown_folder_path)?;
             let breakdown_file_path = breakdown_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
+            debug!("breakdown_file_path: {}", breakdown_file_path.display());
             let contest_result_file = fs::File::create(&breakdown_file_path)?;
             serde_json::to_writer(contest_result_file, &contest_result)?;
         }
@@ -506,6 +507,7 @@ pub struct ExtendedMetricsContest {
     pub total_ballots: u64,
     pub weight: Weight, // Used to store the actual weight used to tally an specific area.
     pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
+    pub total_declined_to_vote: u64, // Total number of ballots that declined to vote
 }
 
 impl ExtendedMetricsContest {
@@ -518,6 +520,7 @@ impl ExtendedMetricsContest {
         result.expected_votes += other.expected_votes;
         result.total_ballots += other.total_ballots;
         result.total_weight += other.total_weight;
+        result.total_declined_to_vote += other.total_declined_to_vote;
         result
     }
 }

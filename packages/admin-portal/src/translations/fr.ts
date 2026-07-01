@@ -143,6 +143,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration du Type d'Élection",
                 onlineVoting: "Vote en Ligne",
                 kioskVoting: "Vote au Kiosque",
+                telephoneVoting: "Vote par Téléphone",
                 settingTitle: "Configuration",
                 settingSubtitle: "Paramètres généraux",
                 sms: "SMS",
@@ -626,6 +627,7 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 approvals: "Approvals",
+                tallySheets: "Feuilles de Comptage",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",
@@ -662,6 +664,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "generate": "Générer",
                     "do-not-generate": "Ne pas générer",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Politique d’abstention de vote",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
                 },
             },
         },
@@ -859,7 +868,7 @@ const frenchTranslation: TranslationType = {
                 "document-download": "Télécharger Documents",
                 "tally-sheet-create": "Créer Acte de Comptage",
                 "trustee-ceremony": "Cérémonie de Fideicomisario",
-                "tally-sheet-publish": "Publier Acte de Comptage",
+                "tally-sheet-review": "Examiner la feuille de décompte",
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
@@ -1084,6 +1093,7 @@ const frenchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
+                PARTICIPATION_REPORT: "Rapport de Participation",
                 STATISTICAL_REPORT: "Rapport Statistique",
                 OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
                 AUDIT_LOGS: "Journaux d'Audit",
@@ -1216,6 +1226,7 @@ const frenchTranslation: TranslationType = {
                 online: "En ligne",
                 kiosk: "Kiosque",
                 early_voting: "Vote anticipé",
+                telephone: "Vote par téléphone",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
@@ -1389,6 +1400,12 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Seulement Candidats",
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listes repliables",
+                "disabled": "Désactivé",
+                "enabled-expanded": "Activé (commence déplié)",
+                "enabled-collapsed": "Activé (commence replié)",
             },
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
@@ -1737,6 +1754,7 @@ const frenchTranslation: TranslationType = {
                     eliminated: "Éliminé",
                     round: "Tour",
                 },
+                total_declined_to_vote: "Total des refus de vote",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -1799,14 +1817,17 @@ const frenchTranslation: TranslationType = {
                 startKioskVoting: "Commencer Vote au Kiosque",
                 startOnlineVoting: "Commencer Vote en Ligne",
                 startEarlyVoting: "Commencer Vote Anticipé",
+                startTelephoneVoting: "Commencer Vote Téléphone",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopOnlineVoting: "Arrêter le Vote en Ligne",
                 stopEarlyVoting: "Arrêter le Vote Anticipé",
+                stopTelephoneVoting: "Arrêter le Vote Téléphone",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
                 pauseKioskVoting: "Mettre en pause le Vote au Kiosque",
                 pauseOnlineVoting: "Mettre en pause le Vote en Ligne",
                 pauseEarlyVoting: "Mettre en pause le Vote Anticipé",
+                pauseTelephoneVoting: "Mettre en pause le Vote Téléphone",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
@@ -1903,8 +1924,12 @@ const frenchTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnes",
+            subtitle: "Urnes numérisées par canal",
             createTallySuccess: "Feuille de Comptage créée",
             createTallyError: "Erreur lors de la création de la Feuille de Comptage",
+            createTallyErrorSameKindExists:
+                "La feuille de décompte existe déjà pour ce scrutin avec le même canal et la même zone",
             allFieldsRequired: "Tous les champs sont obligatoires",
             header: {
                 change: "Changements à Publier",
@@ -1918,6 +1943,11 @@ const frenchTranslation: TranslationType = {
                 generate: "Régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
+                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
             },
             label: {
                 area: "Zone",
@@ -1947,10 +1977,14 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration de la Feuille de Comptage.",
                 candidates: "Candidats",
                 save: "Sauvegarder",
-                publish: "Publier",
-                unpublish: "Dépublier",
-                warningUnPublish: "Êtes-vous sûr de dépublier cette Feuille de Comptage ?",
-                warningPublish: "Êtes-vous sûr de publier cette Feuille de Comptage ?",
+                approve: "Approuver",
+                disapprove: "Désapprouver",
+                show: "Afficher",
+                add: "Ajouter",
+                versions: "Versions",
+                warningDisapprove:
+                    "Êtes-vous sûr de vouloir désapprouver cette Feuille de Décompte?",
+                warningApprove: "Êtes-vous sûr de vouloir approuver cette Feuille de Décompte?",
             },
             empty: {
                 header: "Aucune Feuille de Comptage.",
@@ -1966,11 +2000,20 @@ const frenchTranslation: TranslationType = {
             table: {
                 area: "Zone",
                 contest: "Cotienda",
-                published: "Publié",
+                approvedVersion: "Version approuvée",
+                latestVersion: "Dernière version",
+            },
+            versionsTable: {
+                title: "Versions de l'urne",
+                version: "Version",
+                createdBy: "Créé par",
+                reviewedBy: "Révisé par",
+                createdAt: "Créé le",
+                reviewedAt: "Révisé le",
             },
             message: {
-                publishError: "Erreur lors de la publication de la Feuille de Comptage",
-                publishSuccess: "Feuille de Comptage publiée",
+                reviewError: "Erreur lors de la révision de la Feuille de Comptage",
+                reviewSuccess: "Feuille de Comptage révisée",
             },
         },
         application: {
@@ -2039,6 +2082,7 @@ const frenchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Reçu de Vote",
                 ACTIVITY_LOGS: "Journaux d'Activité",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
+                PARTICIPATION_REPORT: "Rapport de Participation",
             },
             method: {
                 email: "Email",
@@ -2226,8 +2270,9 @@ const frenchTranslation: TranslationType = {
                 importButton: "Importer",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} certificat(s) importé(s). {{skipped}} ignoré(s) (déjà présent(s)).",
+                importSuccess: "{{inserted}} certificat(s) importé(s).",
+                importSkipped: "{{count}} ignoré(s) (déjà présent(s)).",
+                importErrors: "Problèmes d'importation : {{errors}}",
                 importError: "Échec de l'importation : {{error}}",
                 deleteSuccess: "Certificat supprimé.",
                 deleteError: "Erreur lors de la suppression du certificat.",

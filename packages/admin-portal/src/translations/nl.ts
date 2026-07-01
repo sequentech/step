@@ -142,6 +142,7 @@ const dutchTranslation: TranslationType = {
                 subtitle: "Configuratie verkiezingstype",
                 onlineVoting: "Online Stemmen",
                 kioskVoting: "Kiosk Stemmen",
+                telephoneVoting: "Telefonisch Stemmen",
                 settingTitle: "Instellingen",
                 settingSubtitle: "Algemene Configuratie",
                 sms: "SMS",
@@ -621,6 +622,7 @@ const dutchTranslation: TranslationType = {
                 publish: "Publiceren",
                 logs: "Logs",
                 approvals: "Goedkeuringen",
+                tallySheets: "Tellerschema's",
             },
             gracePeriodPolicy: {
                 "label": "Respijttermijnbeleid",
@@ -657,6 +659,13 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "generate": "Genereren",
                     "do-not-generate": "Niet genereren",
+                },
+            },
+            declineToVotePolicy: {
+                label: "Beleid voor afzien van stemmen",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
                 },
             },
         },
@@ -855,7 +864,7 @@ const dutchTranslation: TranslationType = {
                 "document-download": "Documenten Downloaden",
                 "tally-sheet-create": "Telblad Aanmaken",
                 "trustee-ceremony": "Trustee Ceremonie",
-                "tally-sheet-publish": "Telblad Publiceren",
+                "tally-sheet-review": "Telformulier beoordelen",
                 "tally-sheet-view": "Telblad Bekijken",
                 "admin-ceremony": "Beheerdersceremonie",
                 "tally-sheet-delete": "Telblad Verwijderen",
@@ -1074,6 +1083,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -1205,6 +1215,7 @@ const dutchTranslation: TranslationType = {
                 online: "Online",
                 kiosk: "Kiosk",
                 early_voting: "Vroeg stemmen",
+                telephone: "Telefonisch stemmen",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
@@ -1379,6 +1390,12 @@ const dutchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Alleen Kandidaten",
                 "allow-selecting-lists": "Alleen Lijsten",
                 "disabled": "Uitgeschakeld",
+            },
+            collapsibleListsPolicy: {
+                "label": "Inklapbare lijsten",
+                "disabled": "Uitgeschakeld",
+                "enabled-expanded": "Ingeschakeld (start uitgevouwen)",
+                "enabled-collapsed": "Ingeschakeld (start ingeklapt)",
             },
             blankVotePolicy: {
                 "label": "Beleid Blanco Stem",
@@ -1719,6 +1736,7 @@ const dutchTranslation: TranslationType = {
                     eliminated: "Geëlimineerd",
                     round: "Ronde",
                 },
+                total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",
@@ -1781,14 +1799,17 @@ const dutchTranslation: TranslationType = {
                 startKioskVoting: "Kioskstemmen Starten",
                 startOnlineVoting: "Online Stemmen Starten",
                 startEarlyVoting: "Vroeg Stemmen Starten",
+                startTelephoneVoting: "Telefonisch Stemmen Starten",
                 stopVotingPeriod: "Stemperiode Stoppen",
                 stopOnlineVoting: "Online Stemmen Stoppen",
                 stopEarlyVoting: "Vroeg Stemmen Stoppen",
+                stopTelephoneVoting: "Telefonisch Stemmen Stoppen",
                 stopKioskVotingPeriod: "Kiosk Stemmen Stoppen",
                 pauseVotingPeriod: "Stemperiode Pauzeren",
                 pauseKioskVoting: "Kioskstemmen Pauzeren",
                 pauseOnlineVoting: "Online Stemmen Pauzeren",
                 pauseEarlyVoting: "Vroeg Stemmen Pauzeren",
+                pauseTelephoneVoting: "Telefonisch Stemmen Pauzeren",
                 generate: "Regenereren",
                 publish: "Wijzigingen Publiceren",
                 back: "Terug",
@@ -1885,8 +1906,12 @@ const dutchTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Stembussen",
+            subtitle: "Digitaal gestemde stembussen per kanaal",
             createTallySuccess: "Telblad opgeslagen",
             createTallyError: "Fout bij opslaan telblad",
+            createTallyErrorSameKindExists:
+                "Telformulier bestaat al voor deze wedstrijd met hetzelfde kanaal en gebied",
             allFieldsRequired: "Alle velden zijn verplicht",
             header: {
                 change: "Te Publiceren Wijzigingen",
@@ -1900,6 +1925,12 @@ const dutchTranslation: TranslationType = {
                 generate: "Regenereren",
                 publish: "Wijzigingen Publiceren",
                 back: "Terug",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
+                censusTooSmall:
+                    "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
             },
             label: {
                 area: "Gebied",
@@ -1929,11 +1960,13 @@ const dutchTranslation: TranslationType = {
                 subtitle: "Configuratie telblad.",
                 candidates: "Kandidaten",
                 save: "Opslaan",
-                publish: "Publiceren",
-                unpublish: "Publicatie Intrekken",
-                warningUnPublish:
-                    "Weet u zeker dat u de publicatie van dit telblad wilt intrekken?",
-                warningPublish: "Weet u zeker dat u dit telblad wilt publiceren?",
+                approve: "Goedkeuren",
+                disapprove: "Afkeuren",
+                show: "Tonen",
+                add: "Toevoegen",
+                versions: "Versies",
+                warningDisapprove: "Weet u zeker dat u dit Telformulier wilt afkeuren?",
+                warningApprove: "Weet u zeker dat u dit Telformulier wilt goedkeuren?",
             },
             empty: {
                 header: "Nog geen telblad.",
@@ -1949,11 +1982,20 @@ const dutchTranslation: TranslationType = {
             table: {
                 area: "Gebied",
                 contest: "Verkiezing",
-                published: "Gepubliceerd",
+                approvedVersion: "Goedgekeurde versie",
+                latestVersion: "Nieuwste versie",
+            },
+            versionsTable: {
+                title: "Versies van de stembus",
+                version: "Versie",
+                createdBy: "Gemaakt door",
+                reviewedBy: "Beoordeeld door",
+                createdAt: "Gemaakt op",
+                reviewedAt: "Beoordeeld op",
             },
             message: {
-                publishError: "Fout bij publiceren telblad",
-                publishSuccess: "Telblad gepubliceerd",
+                reviewError: "Fout bij beoordelen telblad",
+                reviewSuccess: "Telblad beoordeeld",
             },
         },
         application: {
@@ -2022,6 +2064,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
             },
             method: {
                 email: "E-mail",
@@ -2208,8 +2251,9 @@ const dutchTranslation: TranslationType = {
                 importButton: "Importeren",
             },
             notify: {
-                importSuccess:
-                    "{{inserted}} certificaat(-en) geïmporteerd. {{skipped}} overgeslagen (al aanwezig).",
+                importSuccess: "{{inserted}} certificaat(-en) geïmporteerd.",
+                importSkipped: "{{count}} overgeslagen (al aanwezig).",
+                importErrors: "Importproblemen: {{errors}}",
                 importError: "Importeren mislukt: {{error}}",
                 deleteSuccess: "Certificaat verwijderd.",
                 deleteError: "Fout bij verwijderen van certificaat.",

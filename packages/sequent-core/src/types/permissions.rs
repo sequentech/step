@@ -119,10 +119,8 @@ pub enum Permissions {
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
     TALLY_SHEET_CREATE,
-    #[strum(serialize = "tally-sheet-publish")]
-    TALLY_SHEET_PUBLISH,
-    #[strum(serialize = "tally-sheet-delete")]
-    TALLY_SHEET_DELETE,
+    #[strum(serialize = "tally-sheet-review")]
+    TALLY_SHEET_REVIEW,
     #[strum(serialize = "cast-vote-read")]
     CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
@@ -377,6 +375,12 @@ pub enum Permissions {
     PREVIEW_READ,
     #[strum(serialize = "tally-resolution-submit")]
     TALLY_RESOLUTION_SUBMIT,
+    #[strum(serialize = "phone-blacklist-read")]
+    PHONE_BLACKLIST_READ,
+    #[strum(serialize = "phone-blacklist-create")]
+    PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-delete")]
+    PHONE_BLACKLIST_DELETE,
 }
 
 #[allow(non_camel_case_types)]
