@@ -339,6 +339,14 @@ const frenchTranslation: TranslationType = {
                         "us-12h": "US 12h (MM/JJ/AAAA h:mm AM/PM)",
                         "locale-medium": "Locale Medium (date moyenne, heure courte)",
                         "date-only": "Date Only (sans heure)",
+                        "custom": "Format personnalisé",
+                    },
+                    customFormat: {
+                        label: "Format de date et d'heure personnalisé",
+                        helperText:
+                            "Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Tout autre caractère est affiché tel quel.",
+                        invalid:
+                            "Format invalide. Utilisez au moins un des jetons yyyy, MM, dd, HH, mm, ss.",
                     },
                 },
                 countDownPolicyOptions: {

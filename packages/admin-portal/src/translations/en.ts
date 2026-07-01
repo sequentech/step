@@ -340,6 +340,14 @@ const englishTranslation = {
                         "us-12h": "US 12h (MM/DD/YYYY h:mm AM/PM)",
                         "locale-medium": "Locale Medium (medium date, short time)",
                         "date-only": "Date Only (no time)",
+                        "custom": "Custom format",
+                    },
+                    customFormat: {
+                        label: "Custom date & time format",
+                        helperText:
+                            "Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). Any other characters are shown literally.",
+                        invalid:
+                            "Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.",
                     },
                 },
                 countDownPolicyOptions: {

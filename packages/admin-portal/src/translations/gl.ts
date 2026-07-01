@@ -339,6 +339,14 @@ const galegoTranslation: TranslationType = {
                         "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data media, hora curta)",
                         "date-only": "Date Only (sen hora)",
+                        "custom": "Formato personalizado",
+                    },
+                    customFormat: {
+                        label: "Formato de data e hora personalizado",
+                        helperText:
+                            "Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Calquera outro carácter móstrase literalmente.",
+                        invalid:
+                            "Formato non válido. Usa polo menos un dos tokens yyyy, MM, dd, HH, mm, ss.",
                     },
                 },
                 countDownPolicyOptions: {

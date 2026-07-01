@@ -5,7 +5,7 @@
 import {Dialog} from "@sequentech/ui-essentials"
 import {
     isString,
-    parseVotingPortalDateTimePattern,
+    isValidVotingPortalDateTimePattern,
     VOTING_PORTAL_DATETIME_FORMAT_KEY,
 } from "@sequentech/ui-core"
 import React, {useMemo, useState} from "react"
@@ -103,15 +103,8 @@ const EditElectionEventTextDataTable = () => {
     // The Voting Portal date/time override is a free string typed by an operator. It is
     // validated by the same parser the voter-facing helper uses, so an invalid pattern is
     // rejected at save time instead of silently falling back to the preset at render time.
-    const isInvalidDateTimeOverride = (key: string, value: string): boolean => {
-        if (key !== VOTING_PORTAL_DATETIME_FORMAT_KEY) return false
-        try {
-            parseVotingPortalDateTimePattern(value)
-            return false
-        } catch {
-            return true
-        }
-    }
+    const isInvalidDateTimeOverride = (key: string, value: string): boolean =>
+        key === VOTING_PORTAL_DATETIME_FORMAT_KEY && !isValidVotingPortalDateTimePattern(value)
 
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code ?? "en"

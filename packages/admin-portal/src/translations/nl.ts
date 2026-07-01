@@ -338,6 +338,14 @@ const dutchTranslation: TranslationType = {
                         "us-12h": "US 12h (MM/DD/JJJJ h:mm AM/PM)",
                         "locale-medium": "Locale Medium (middellange datum, korte tijd)",
                         "date-only": "Date Only (geen tijd)",
+                        "custom": "Aangepast formaat",
+                    },
+                    customFormat: {
+                        label: "Aangepast datum- en tijdformaat",
+                        helperText:
+                            "Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Andere tekens worden letterlijk weergegeven.",
+                        invalid:
+                            "Ongeldig formaat. Gebruik ten minste een van de tokens yyyy, MM, dd, HH, mm, ss.",
                     },
                 },
                 countDownPolicyOptions: {

@@ -792,6 +792,12 @@ pub enum VotingPortalDateTimeFormat {
     #[strum(serialize = "date-only")]
     #[serde(rename = "date-only")]
     DateOnly,
+    /// Operator-supplied pattern using the shared date/time tokens
+    /// (`yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`). Serializes as `{"custom": "<pattern>"}`
+    /// so it coexists with the preset variants in the same presentation field.
+    #[strum(default)]
+    #[serde(rename = "custom")]
+    Custom(String),
 }
 
 #[derive(

@@ -58,6 +58,9 @@ import {
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
     EVotingPortalDateTimeFormat,
+    VotingPortalDateTimeFormat,
+    isCustomVotingPortalDateTimeFormat,
+    isValidVotingPortalDateTimePattern,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
@@ -530,6 +533,32 @@ export const EditElectionEventDataForm: React.FC = () => {
             id: value,
             name: t(`electionEventScreen.field.votingPortalDateTimeFormat.options.${value}`),
         }))
+    }
+
+    // The policy dropdown edits a scalar discriminant, but the CUSTOM policy stores its
+    // pattern inline as `{custom: "..."}`. These map between the two representations so the
+    // preset and custom variants share the single `voting_portal_datetime_format` field.
+    const dateTimePolicyToSelectValue = (
+        value: VotingPortalDateTimeFormat | undefined
+    ): EVotingPortalDateTimeFormat | "" =>
+        isCustomVotingPortalDateTimeFormat(value)
+            ? EVotingPortalDateTimeFormat.CUSTOM
+            : (value ?? "")
+
+    const selectValueToDateTimePolicy = (
+        id: EVotingPortalDateTimeFormat
+    ): VotingPortalDateTimeFormat => (id === EVotingPortalDateTimeFormat.CUSTOM ? {custom: ""} : id)
+
+    // Custom patterns follow the same validation as the per-language override.
+    const validateCustomDateTimeFormat = (
+        _value: string,
+        allValues: {presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}}
+    ): string | undefined => {
+        const configured = allValues?.presentation?.voting_portal_datetime_format
+        if (!isCustomVotingPortalDateTimeFormat(configured)) return undefined
+        return isValidVotingPortalDateTimePattern(configured.custom)
+            ? undefined
+            : String(t("electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"))
     }
 
     const voterSigningPolicyChoices = () => {
@@ -1240,9 +1269,33 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 t("electionEventScreen.field.votingPortalDateTimeFormat.helperText")
                             )}
                             defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
+                            format={dateTimePolicyToSelectValue}
+                            parse={selectValueToDateTimePolicy}
                             emptyText={undefined}
                             validate={required()}
                         />
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                isCustomVotingPortalDateTimeFormat(
+                                    formData?.presentation?.voting_portal_datetime_format
+                                ) ? (
+                                    <TextInput
+                                        source={"presentation.voting_portal_datetime_format.custom"}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
+                                            )
+                                        )}
+                                        helperText={String(
+                                            t(
+                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
+                                            )
+                                        )}
+                                        validate={validateCustomDateTimeFormat}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
                         <SelectInput
                             source={`presentation.voting_portal_countdown_policy.policy`}
                             choices={votingPortalCountDownPolicies()}

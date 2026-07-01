@@ -340,6 +340,14 @@ const tagalogTranslation: TranslationType = {
                         "us-12h": "US 12h (MM/DD/YYYY h:mm AM/PM)",
                         "locale-medium": "Locale Medium (katamtamang petsa, maikling oras)",
                         "date-only": "Date Only (walang oras)",
+                        "custom": "Pasadyang format",
+                    },
+                    customFormat: {
+                        label: "Pasadyang format ng petsa at oras",
+                        helperText:
+                            "Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Ang iba pang karakter ay ipapakita nang literal.",
+                        invalid:
+                            "Di-wastong format. Gumamit ng hindi bababa sa isa sa mga token na yyyy, MM, dd, HH, mm, ss.",
                     },
                 },
                 countDownPolicyOptions: {

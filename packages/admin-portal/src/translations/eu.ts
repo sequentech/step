@@ -339,6 +339,14 @@ const basqueTranslation: TranslationType = {
                         "us-12h": "US 12h (MM/DD/UUUU h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data ertaina, ordu laburra)",
                         "date-only": "Date Only (ordurik gabe)",
+                        "custom": "Formatu pertsonalizatua",
+                    },
+                    customFormat: {
+                        label: "Data eta ordu formatu pertsonalizatua",
+                        helperText:
+                            "Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm). Beste edozein karaktere literalki erakusten da.",
+                        invalid:
+                            "Formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenetako bat gutxienez.",
                     },
                 },
                 countDownPolicyOptions: {

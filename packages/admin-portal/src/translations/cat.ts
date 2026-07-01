@@ -339,6 +339,14 @@ const catalanTranslation: TranslationType = {
                         "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data mitjana, hora curta)",
                         "date-only": "Date Only (sense hora)",
+                        "custom": "Format personalitzat",
+                    },
+                    customFormat: {
+                        label: "Format de data i hora personalitzat",
+                        helperText:
+                            "Utilitza els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Qualsevol altre caràcter es mostra literalment.",
+                        invalid:
+                            "Format no vàlid. Utilitza almenys un dels tokens yyyy, MM, dd, HH, mm, ss.",
                     },
                 },
                 countDownPolicyOptions: {

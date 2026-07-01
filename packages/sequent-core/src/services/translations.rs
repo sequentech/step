@@ -223,4 +223,15 @@ mod tests {
             assert_eq!(event.get_voting_portal_datetime_format(), expected);
         }
     }
+
+    #[test]
+    fn datetime_format_reads_custom_variant() {
+        let event = election_event_with_presentation(Some(serde_json::json!({
+            "voting_portal_datetime_format": {"custom": "dd/MM/yyyy HH:mm"},
+        })));
+        assert_eq!(
+            event.get_voting_portal_datetime_format(),
+            VotingPortalDateTimeFormat::Custom("dd/MM/yyyy HH:mm".to_string())
+        );
+    }
 }

@@ -20,6 +20,13 @@ jest.mock(
     {virtual: true}
 )
 
+// SelectElection calls `useTranslation()` for labels only; the test asserts on the
+// injected date, not translated copy. Without a configured i18next instance the
+// hook logs a NO_I18NEXT_INSTANCE warning, so stub it to echo the key.
+jest.mock("react-i18next", () => ({
+    useTranslation: () => ({t: (key: string): string => key}),
+}))
+
 const ELECTION_DATES = {
     first_started_at: "2025-10-29T14:00:00.000Z",
 }

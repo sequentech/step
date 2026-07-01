@@ -96,7 +96,22 @@ export enum EVotingPortalDateTimeFormat {
     US_12H = "us-12h",
     LOCALE_MEDIUM = "locale-medium",
     DATE_ONLY = "date-only",
+    CUSTOM = "custom",
 }
+
+/**
+ * The `CUSTOM` policy carries the operator-supplied pattern inline, mirroring the
+ * Rust `VotingPortalDateTimeFormat::Custom(String)` variant. Stored in the same
+ * `voting_portal_datetime_format` field as `{custom: "<pattern>"}`; presets remain
+ * plain strings.
+ */
+export interface IVotingPortalCustomDateTimeFormat {
+    custom: string
+}
+
+export type VotingPortalDateTimeFormat =
+    | EVotingPortalDateTimeFormat
+    | IVotingPortalCustomDateTimeFormat
 
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
@@ -121,5 +136,5 @@ export interface IElectionEventPresentation {
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
-    voting_portal_datetime_format?: EVotingPortalDateTimeFormat
+    voting_portal_datetime_format?: VotingPortalDateTimeFormat
 }

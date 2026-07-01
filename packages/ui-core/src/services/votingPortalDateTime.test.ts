@@ -6,6 +6,7 @@ import {
     clearVotingPortalDateTimeCache,
     DateTimePatternError,
     formatVotingPortalDateTime,
+    isValidVotingPortalDateTimePattern,
     parseVotingPortalDateTimePattern,
     VOTING_PORTAL_DATETIME_FORMAT_KEY,
     VotingPortalDateTimeEvent,
@@ -48,6 +49,18 @@ describe("parseVotingPortalDateTimePattern", () => {
 
     it("throws on a pattern with no recognized token", () => {
         expect(() => parseVotingPortalDateTimePattern("hello world")).toThrow(DateTimePatternError)
+    })
+})
+
+describe("isValidVotingPortalDateTimePattern", () => {
+    it("returns true for a pattern with at least one token", () => {
+        expect(isValidVotingPortalDateTimePattern("dd/MM/yyyy")).toBe(true)
+    })
+
+    it("returns false for empty, whitespace, or tokenless patterns", () => {
+        expect(isValidVotingPortalDateTimePattern("")).toBe(false)
+        expect(isValidVotingPortalDateTimePattern("   ")).toBe(false)
+        expect(isValidVotingPortalDateTimePattern("hello world")).toBe(false)
     })
 })
 
@@ -105,6 +118,35 @@ describe("formatVotingPortalDateTime — presets", () => {
         })
         const fromMs = formatVotingPortalDateTime(FIXED_DATE.getTime(), event, "en")
         expect(fromMs).toBe("2026-03-09 07:05")
+    })
+})
+
+describe("formatVotingPortalDateTime — custom event-level format", () => {
+    it("renders the inline custom pattern", () => {
+        const event = makeEvent("e-custom", {
+            voting_portal_datetime_format: {custom: "dd/MM/yyyy HH:mm"},
+        })
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("09/03/2026 07:05")
+    })
+
+    it("lets a per-language override take precedence over the custom format", () => {
+        const event = makeEvent("e-custom-ov", {
+            voting_portal_datetime_format: {custom: "dd/MM/yyyy HH:mm"},
+            i18n: {en: {[VOTING_PORTAL_DATETIME_FORMAT_KEY]: "yyyy-MM-dd"}},
+        })
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("2026-03-09")
+    })
+
+    it("falls back to the legacy format on an invalid custom pattern", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined)
+        const event = makeEvent("e-custom-bad", {
+            voting_portal_datetime_format: {custom: "no tokens here"},
+        })
+        const out = formatVotingPortalDateTime(FIXED_DATE, event, "en")
+        expect(out).toContain("09/03/2026")
+        expect(out).toContain("07:05")
+        expect(warn).toHaveBeenCalledTimes(1)
+        warn.mockRestore()
     })
 })
 

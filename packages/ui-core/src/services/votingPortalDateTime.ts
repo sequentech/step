@@ -5,6 +5,8 @@
 import {
     EVotingPortalDateTimeFormat,
     IElectionEventPresentation,
+    IVotingPortalCustomDateTimeFormat,
+    VotingPortalDateTimeFormat,
 } from "../types/ElectionEventPresentation"
 import {translateFromPresentation} from "./translate"
 
@@ -71,6 +73,15 @@ const tokenValue = (token: string, date: Date): string => {
 }
 
 /**
+ * Narrows the stored policy to the inline custom-format variant
+ * (`{custom: "<pattern>"}`). Presets are plain string enum values.
+ */
+export const isCustomVotingPortalDateTimeFormat = (
+    value: VotingPortalDateTimeFormat | null | undefined
+): value is IVotingPortalCustomDateTimeFormat =>
+    typeof value === "object" && value !== null && typeof value.custom === "string"
+
+/**
  * Validates and compiles an override pattern into a formatter. Throws a
  * {@link DateTimePatternError} on an empty pattern or one that contains no
  * recognized token. This is the single function that validates the override,
@@ -87,6 +98,19 @@ export const parseVotingPortalDateTimePattern = (pattern: string): Formatter => 
         pattern.replace(new RegExp(TOKEN_SOURCE, "g"), (token) => tokenValue(token, date))
 }
 
+/**
+ * Convenience predicate over {@link parseVotingPortalDateTimePattern} for callers
+ * (admin inputs) that only need a valid/invalid answer rather than the formatter.
+ */
+export const isValidVotingPortalDateTimePattern = (pattern: string): boolean => {
+    try {
+        parseVotingPortalDateTimePattern(pattern)
+        return true
+    } catch {
+        return false
+    }
+}
+
 const legacyGb24h = (date: Date): string =>
     new Intl.DateTimeFormat("en-GB", {
         year: "numeric",
@@ -97,42 +121,64 @@ const legacyGb24h = (date: Date): string =>
         hour12: false,
     }).format(date)
 
-const presetFormatters: Record<EVotingPortalDateTimeFormat, (date: Date, lang: string) => string> =
-    {
-        [EVotingPortalDateTimeFormat.LEGACY_GB_24H]: legacyGb24h,
-        [EVotingPortalDateTimeFormat.ISO_LOCAL]: (date) =>
-            `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(
-                date.getDate()
-            )} ${pad(date.getHours())}:${pad(date.getMinutes())}`,
-        [EVotingPortalDateTimeFormat.US_12H]: (date) =>
-            new Intl.DateTimeFormat("en-US", {
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-            }).format(date),
-        [EVotingPortalDateTimeFormat.LOCALE_MEDIUM]: (date, lang) =>
-            new Intl.DateTimeFormat(toLocale(lang), {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }).format(date),
-        [EVotingPortalDateTimeFormat.DATE_ONLY]: (date, lang) =>
-            new Intl.DateTimeFormat(toLocale(lang), {
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-            }).format(date),
-    }
+// The CUSTOM policy is resolved from its inline pattern, not from this table.
+type PresetDateTimeFormat = Exclude<EVotingPortalDateTimeFormat, EVotingPortalDateTimeFormat.CUSTOM>
 
-const resolvePreset = (event: VotingPortalDateTimeEvent | null | undefined): Formatter => {
-    const preset = event?.presentation?.voting_portal_datetime_format
-    const formatter =
-        (preset && presetFormatters[preset]) ??
-        presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H]
-    return (date: Date) => formatter(date, "en")
+const presetFormatters: Record<PresetDateTimeFormat, (date: Date, lang: string) => string> = {
+    [EVotingPortalDateTimeFormat.LEGACY_GB_24H]: legacyGb24h,
+    [EVotingPortalDateTimeFormat.ISO_LOCAL]: (date) =>
+        `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(
+            date.getDate()
+        )} ${pad(date.getHours())}:${pad(date.getMinutes())}`,
+    [EVotingPortalDateTimeFormat.US_12H]: (date) =>
+        new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        }).format(date),
+    [EVotingPortalDateTimeFormat.LOCALE_MEDIUM]: (date, lang) =>
+        new Intl.DateTimeFormat(toLocale(lang), {
+            dateStyle: "medium",
+            timeStyle: "short",
+        }).format(date),
+    [EVotingPortalDateTimeFormat.DATE_ONLY]: (date, lang) =>
+        new Intl.DateTimeFormat(toLocale(lang), {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).format(date),
 }
+
+// Resolves the event-level policy (a preset or an inline custom pattern) to a
+// formatter. An absent policy or an invalid custom pattern falls back to
+// LEGACY_GB_24H; the custom pattern is validated by the same parser as the override.
+const resolveConfiguredFormatter = (
+    configured: VotingPortalDateTimeFormat | undefined,
+    lang: string
+): Formatter => {
+    if (isCustomVotingPortalDateTimeFormat(configured)) {
+        try {
+            return parseVotingPortalDateTimePattern(configured.custom)
+        } catch (error) {
+            console.warn(
+                `Invalid custom "${VOTING_PORTAL_DATETIME_FORMAT_KEY}" pattern "${configured.custom}"; falling back to the legacy format.`,
+                error
+            )
+            return (date: Date) =>
+                presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H](date, lang)
+        }
+    }
+    const preset =
+        (configured && presetFormatters[configured as PresetDateTimeFormat]) ??
+        presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H]
+    return (date: Date) => preset(date, lang)
+}
+
+const resolvePreset = (event: VotingPortalDateTimeEvent | null | undefined): Formatter =>
+    resolveConfiguredFormatter(event?.presentation?.voting_portal_datetime_format, "en")
 
 // Memoizes the resolved formatter per (eventId, lang) so resolution is O(1) per
 // render and issues no extra work. Resolution is stable for a loaded event.
@@ -153,11 +199,7 @@ const buildFormatter = (
             )
         }
     }
-    const preset = event?.presentation?.voting_portal_datetime_format
-    const presetFormatter =
-        (preset && presetFormatters[preset]) ??
-        presetFormatters[EVotingPortalDateTimeFormat.LEGACY_GB_24H]
-    return (date: Date) => presetFormatter(date, lang)
+    return resolveConfiguredFormatter(event?.presentation?.voting_portal_datetime_format, lang)
 }
 
 const toDate = (input: DateTimeInput): Date => (input instanceof Date ? input : new Date(input))
