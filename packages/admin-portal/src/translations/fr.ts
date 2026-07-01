@@ -603,6 +603,7 @@ const frenchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Confirmation de sécurité HTML",
+                ivrPrompt: "Message IVR",
                 externalId: "ID externe",
             },
             securityConfirmationPolicy: {

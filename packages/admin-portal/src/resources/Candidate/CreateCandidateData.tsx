@@ -6,6 +6,7 @@ import React from "react"
 import {CreateBase, EditBase, Identifier, RaRecord} from "react-admin"
 import {CandidateDataForm, Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 export const CreateCandidateData: React.FC<{record: Sequent_Backend_Candidate}> = ({record}) => {
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
@@ -24,6 +25,7 @@ export const CreateCandidateData: React.FC<{record: Sequent_Backend_Candidate}> 
         // i18n
         // is alll object, no change needed
         delete data.enabled_languages
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return {
             ...data,
