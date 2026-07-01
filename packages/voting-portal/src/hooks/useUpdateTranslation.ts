@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect} from "react"
-import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
-import {overwriteTranslations} from "@sequentech/ui-core"
+import {IElectionEventPresentation, overwriteTranslations} from "@sequentech/ui-core"
 
 type props = {
-    electionEvent: IElectionEvent | undefined
+    presentation: IElectionEventPresentation | undefined
 }
 const useUpdateTranslation = (
-    {electionEvent}: props,
+    {presentation}: props,
     defaultLanguageTouched: boolean,
     setDefaultLanguageTouched: (value: boolean) => void
 ) => {
@@ -19,17 +18,14 @@ const useUpdateTranslation = (
     // So search param "lang" > user selected locale (saved in cookie) >
     // language detection policy (force default) > browser settings
     useEffect(() => {
-        if (!electionEvent?.presentation) {
+        if (!presentation) {
             return
         }
-        let hasSetDefaultLanguage = overwriteTranslations(
-            electionEvent?.presentation,
-            !defaultLanguageTouched
-        )
+        let hasSetDefaultLanguage = overwriteTranslations(presentation, !defaultLanguageTouched)
         if (hasSetDefaultLanguage) {
             setDefaultLanguageTouched(true)
         }
-    }, [electionEvent?.presentation])
+    }, [presentation])
 
     return {}
 }

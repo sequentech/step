@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IElectionEventPresentation} from "@sequentech/ui-core"
 
 export interface IElectionEvent {
     alias?: string | null
@@ -21,7 +20,6 @@ export interface IElectionEvent {
     is_audit?: boolean | null
     labels?: string | null
     name?: string | null
-    presentation?: IElectionEventPresentation | null
     public_key?: string | null
     statistics?: string | null
     status?: string | null

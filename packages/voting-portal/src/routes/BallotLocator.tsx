@@ -22,12 +22,7 @@ import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client/react"
-import {
-    GetBallotStylesQuery,
-    GetCastVoteQuery,
-    GetElectionEventQuery,
-    ListCastVoteMessagesQuery,
-} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVoteQuery, ListCastVoteMessagesQuery} from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
@@ -36,8 +31,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
-import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import Table from "@mui/material/Table"
 import TableSortLabel from "@mui/material/TableSortLabel"
 import TableBody from "@mui/material/TableBody"
@@ -147,13 +140,8 @@ const BallotLocator: React.FC = () => {
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
     const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
-    const {data: dataElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    const electionEventPresentation = ballotStyle?.ballot_eml.election_event_presentation
 
     const {refetch} = useQuery<ListCastVoteMessagesQuery>(LIST_CAST_VOTE_MESSAGES, {
         variables: {
@@ -166,9 +154,7 @@ const BallotLocator: React.FC = () => {
     })
 
     useUpdateTranslation(
-        {
-            electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
-        },
+        {presentation: electionEventPresentation},
         defaultLanguageTouched,
         setDefaultLanguageTouched
     ) // Overwrite translations
@@ -226,15 +212,14 @@ const BallotLocator: React.FC = () => {
         if (validatedBallotId) {
             setBallotIdNotFoundErr(false)
         }
-        const showLogs = dataElectionEvent?.sequent_backend_election_event[0]?.presentation
-            ?.show_cast_vote_logs as EShowCastVoteLogsPolicy
+        const showLogs = electionEventPresentation?.show_cast_vote_logs as EShowCastVoteLogsPolicy
         setShowCVLogsPolicy(showLogs === EShowCastVoteLogsPolicy.SHOW_LOGS_TAB)
         // the length must be an even number of characters
         if (showLogs && allowSendRequest.current) {
             allowSendRequest.current = false
             requestCVMsgs()
         }
-    }, [inputBallotId, dataElectionEvent, page, rowsPerPage])
+    }, [inputBallotId, electionEventPresentation, page, rowsPerPage])
 
     const handleChangePage = (event: unknown, newPage: number) => {
         allowSendRequest.current = true
