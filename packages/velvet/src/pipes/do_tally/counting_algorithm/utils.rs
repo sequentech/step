@@ -13,28 +13,33 @@ use std::str::FromStr;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+fn is_explicit_blank_choice(choice_id: &str, contest: &Contest) -> bool {
+    contest
+        .candidates
+        .iter()
+        .find(|candidate| candidate.id == choice_id)
+        .map(|candidate| candidate.is_explicit_blank())
+        .unwrap_or(false)
+}
+
 pub fn is_explicit_blank_vote(vote: &DecodedVoteContest, contest: &Contest) -> bool {
-    vote.choices.iter().any(|choice| {
-        choice.selected > -1
-            && contest
-                .candidates
-                .iter()
-                .find(|candidate| candidate.id == choice.id)
-                .map(|candidate| candidate.is_explicit_blank())
-                .unwrap_or(false)
-    })
+    vote.choices
+        .iter()
+        .any(|choice| choice.selected > -1 && is_explicit_blank_choice(&choice.id, contest))
+}
+
+pub fn has_selected_non_explicit_blank_choice(
+    vote: &DecodedVoteContest,
+    contest: &Contest,
+) -> bool {
+    vote.choices
+        .iter()
+        .any(|choice| choice.selected > -1 && !is_explicit_blank_choice(&choice.id, contest))
 }
 
 fn count_actual_votes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     vote.choices.iter().fold(0u64, |acc, choice| {
-        let is_explicit_blank = contest
-            .candidates
-            .iter()
-            .find(|candidate| candidate.id == choice.id)
-            .map(|candidate| candidate.is_explicit_blank())
-            .unwrap_or(false);
-
-        if choice.selected > -1 && !is_explicit_blank {
+        if choice.selected > -1 && !is_explicit_blank_choice(&choice.id, contest) {
             acc + 1
         } else {
             acc
@@ -150,4 +155,74 @@ pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: &Uuid) -> Weig
         })
         .flatten()
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::CandidatePresentation;
+    use sequent_core::plaintext::DecodedVoteChoice;
+
+    fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(is_explicit_blank),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        }
+    }
+
+    fn contest() -> Contest {
+        Contest {
+            candidates: vec![candidate("normal", false), candidate("blank", true)],
+            ..Contest::default()
+        }
+    }
+
+    fn vote(normal_selected: bool, blank_selected: bool) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: if normal_selected { 0 } else { -1 },
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: if blank_selected { 0 } else { -1 },
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn detects_explicit_blank_mixed_with_normal_selection() {
+        let contest = contest();
+
+        let explicit_blank_only = vote(false, true);
+        assert!(is_explicit_blank_vote(&explicit_blank_only, &contest));
+        assert!(!has_selected_non_explicit_blank_choice(
+            &explicit_blank_only,
+            &contest
+        ));
+
+        let normal_only = vote(true, false);
+        assert!(!is_explicit_blank_vote(&normal_only, &contest));
+        assert!(has_selected_non_explicit_blank_choice(
+            &normal_only,
+            &contest
+        ));
+
+        let mixed = vote(true, true);
+        assert!(is_explicit_blank_vote(&mixed, &contest));
+        assert!(has_selected_non_explicit_blank_choice(&mixed, &contest));
+    }
 }

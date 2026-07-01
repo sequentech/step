@@ -78,41 +78,38 @@ impl BallotsStatus<'_> {
         let mut count_declined_to_vote: u64 = 0;
 
         for (vote, weight) in votes {
-            let status = match (
-                vote.is_invalid(),
-                is_explicit_blank_vote(vote, contest),
-                vote.is_decline_to_vote(),
-                vote.is_blank(),
-            ) {
-                (true, _, _, _) => {
-                    if vote.is_explicit_invalid {
-                        count_invalid_votes.explicit += 1;
-                    } else {
-                        count_invalid_votes.implicit += 1;
-                    }
+            let has_explicit_blank = is_explicit_blank_vote(vote, contest);
+            let has_non_explicit_blank_selection =
+                has_selected_non_explicit_blank_choice(vote, contest);
 
-                    BallotStatus::Invalid
+            let status = if vote.is_invalid() {
+                if vote.is_explicit_invalid {
+                    count_invalid_votes.explicit += 1;
+                } else {
+                    count_invalid_votes.implicit += 1;
                 }
 
-                (false, _, true, false) => {
+                BallotStatus::Invalid
+            } else if vote.is_decline_to_vote() {
+                if vote.is_blank() {
+                    count_declined_to_vote = count_declined_to_vote.saturating_add(1);
+                } else {
                     // decline to vote is should be a blank vote, so it is an implicit invalid vote
                     count_invalid_votes.implicit = count_invalid_votes.implicit.saturating_add(1);
-                    BallotStatus::Invalid
-                }
-                (false, _, true, true) => {
-                    count_declined_to_vote = count_declined_to_vote.saturating_add(1);
-                    BallotStatus::Invalid
-                }
-                (false, true, false, _) => {
-                    blank_votes.explicit += 1;
-                    BallotStatus::Blank
-                }
-                (false, false, false, true) => {
-                    blank_votes.implicit += 1;
-                    BallotStatus::Blank
                 }
 
-                (false, false, false, false) => BallotStatus::Valid,
+                BallotStatus::Invalid
+            } else if has_explicit_blank && has_non_explicit_blank_selection {
+                count_invalid_votes.implicit += 1;
+                BallotStatus::Invalid
+            } else if has_explicit_blank {
+                blank_votes.explicit += 1;
+                BallotStatus::Blank
+            } else if vote.is_blank() {
+                blank_votes.implicit += 1;
+                BallotStatus::Blank
+            } else {
+                BallotStatus::Valid
             };
             extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
             ballots.push((status, vote, weight.clone()));
@@ -754,5 +751,68 @@ impl CountingAlgorithm for InstantRunoff {
             }
         };
         Ok(contest_result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::CandidatePresentation;
+
+    fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(is_explicit_blank),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        }
+    }
+
+    fn contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            candidates: vec![candidate("normal", false), candidate("blank", true)],
+            ..Contest::default()
+        }
+    }
+
+    fn mixed_explicit_blank_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn mixed_explicit_blank_vote_initializes_as_implicit_invalid() {
+        let contest = contest();
+        let votes = vec![(mixed_explicit_blank_vote(), Weight::default())];
+
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+
+        assert_eq!(status.count_valid, 0);
+        assert_eq!(status.count_invalid_votes.explicit, 0);
+        assert_eq!(status.count_invalid_votes.implicit, 1);
+        assert_eq!(status.blank_votes.explicit, 0);
+        assert_eq!(status.blank_votes.implicit, 0);
+        assert_eq!(status.ballots[0].0, BallotStatus::Invalid);
     }
 }

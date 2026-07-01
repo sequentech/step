@@ -48,6 +48,10 @@ impl PluralityAtLarge {
             total_ballots += 1;
 
             extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
+            let has_explicit_blank = is_explicit_blank_vote(vote, contest);
+            let has_non_explicit_blank_selection =
+                has_selected_non_explicit_blank_choice(vote, contest);
+
             if vote.is_invalid() {
                 if vote.is_explicit_invalid {
                     count_invalid_votes.explicit += 1;
@@ -63,21 +67,17 @@ impl PluralityAtLarge {
                     count_invalid_votes.implicit = count_invalid_votes.implicit.saturating_add(1);
                     count_invalid = count_invalid.saturating_add(1);
                 }
-            } else if is_explicit_blank_vote(vote, contest) {
+            } else if has_explicit_blank && has_non_explicit_blank_selection {
+                count_invalid_votes.implicit += 1;
+                count_invalid += 1;
+            } else if has_explicit_blank {
                 blank_votes.explicit += 1;
                 count_valid += 1;
             } else {
                 let mut is_blank = true;
 
                 for choice in &vote.choices {
-                    let is_explicit_blank = contest
-                        .candidates
-                        .iter()
-                        .find(|candidate| candidate.id == choice.id)
-                        .map(|candidate| candidate.is_explicit_blank())
-                        .unwrap_or(false);
-
-                    if choice.selected >= 0 && !is_explicit_blank {
+                    if choice.selected >= 0 {
                         *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
                         total_weight += weight;
                         if is_blank {
@@ -150,5 +150,93 @@ impl CountingAlgorithm for PluralityAtLarge {
             .fold(contest_result, |acc, x| acc.aggregate(x, false));
 
         Ok(aggregate)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::{Candidate, CandidatePresentation, Contest, Weight};
+    use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use sequent_core::types::ceremonies::CountingAlgType;
+
+    fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
+        Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(is_explicit_blank),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        }
+    }
+
+    fn mixed_explicit_blank_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    fn plurality_at_large(ballots: Vec<DecodedVoteContest>) -> PluralityAtLarge {
+        let contest = Contest {
+            id: "contest".to_string(),
+            max_votes: 1,
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+            candidates: vec![candidate("normal", false), candidate("blank", true)],
+            ..Contest::default()
+        };
+        let ballots = ballots
+            .into_iter()
+            .map(|ballot| (ballot, Weight::default()))
+            .collect();
+
+        PluralityAtLarge {
+            tally: Tally {
+                id: CountingAlgType::PluralityAtLarge,
+                scope_operation: ScopeOperation::Contest(TallyOperation::ProcessBallotsAll),
+                contest,
+                ballots,
+                census: 1,
+                auditable_votes: 1,
+                tally_sheet_results: vec![],
+                tally_results: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn mixed_explicit_blank_vote_is_implicit_invalid() {
+        let tally = plurality_at_large(vec![mixed_explicit_blank_vote()]);
+
+        let result = tally
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("mixed explicit blank vote should be processed");
+
+        assert_eq!(result.total_valid_votes, 0);
+        assert_eq!(result.total_invalid_votes, 1);
+        assert_eq!(result.invalid_votes.explicit, 0);
+        assert_eq!(result.invalid_votes.implicit, 1);
+        assert_eq!(result.blank_votes.explicit, 0);
+        assert_eq!(result.blank_votes.implicit, 0);
+        assert!(result
+            .candidate_result
+            .iter()
+            .all(|candidate| candidate.total_count == 0));
     }
 }

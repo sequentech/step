@@ -1995,7 +1995,6 @@ mod tests {
             tie_breaking_policy: None,
             created_at: None,
             annotations: None,
-            tie_breaking_policy: None,
         }
     }
 

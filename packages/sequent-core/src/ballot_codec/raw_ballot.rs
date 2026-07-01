@@ -728,6 +728,7 @@ mod tests {
         let implicit_blank = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: contest
