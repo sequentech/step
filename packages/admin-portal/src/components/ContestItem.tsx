@@ -5,10 +5,11 @@
 import {Chip} from "@mui/material"
 import React from "react"
 import {Identifier, RaRecord, useGetOne} from "react-admin"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
-/*  
+/*
         In the component where you want to use the actions column:
-        
+
         - define the functions and the actions custom column to be showned
         - define teh actions array with the actions to be showned
         - add the ActionsColumn as a column to the list as the final column as a normal one
@@ -22,8 +23,9 @@ interface ContestItemProps {
 
 export const ContestItem: React.FC<ContestItemProps> = (props) => {
     const {record} = props
+    const aliasRenderer = useAliasRenderer()
 
     const {data} = useGetOne("sequent_backend_contest", {id: record})
 
-    return <>{data ? <Chip label={data?.name} /> : null}</>
+    return <>{data ? <Chip label={aliasRenderer(data?.presentation)} /> : null}</>
 }
