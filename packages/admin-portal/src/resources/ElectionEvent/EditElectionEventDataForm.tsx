@@ -135,13 +135,11 @@ const CustomDateTimeFormatInvalidNotifier: React.FC<{
         const configured = getValues(
             "presentation.voting_portal_datetime_format"
         ) as VotingPortalDateTimeFormat
-        console.log("[CustomDateTimeFormatInvalidNotifier] live check", configured)
 
         if (
             isCustomVotingPortalDateTimeFormat(configured) &&
             !isValidVotingPortalDateTimePattern(configured.custom)
         ) {
-            console.log("[CustomDateTimeFormatInvalidNotifier] invalid -> notify")
             notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
                 type: "error",
             })
@@ -353,8 +351,30 @@ export const EditElectionEventDataForm: React.FC = () => {
         setValueMaterials(newValue)
     }
 
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
+    // This form uses form-level validation: react-admin turns this `validate`
+    // prop into a react-hook-form resolver, and react-hook-form ignores all
+    // input-level `validate` props when a resolver is present. Any field
+    // validation for this form must therefore live here, keyed by the field's
+    // source path so the error reaches the input's helper text.
+    const formValidator = (values: {
+        presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}
+    }): Record<string, unknown> => {
+        const errors: Record<string, unknown> = {}
+        const dateTimeFormat = values?.presentation?.voting_portal_datetime_format
+        if (
+            isCustomVotingPortalDateTimeFormat(dateTimeFormat) &&
+            !isValidVotingPortalDateTimePattern(dateTimeFormat.custom)
+        ) {
+            errors.presentation = {
+                voting_portal_datetime_format: {
+                    custom: String(
+                        t(
+                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"
+                        )
+                    ),
+                },
+            }
+        }
         return errors
     }
 
@@ -583,24 +603,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const selectValueToDateTimePolicy = (
         id: EVotingPortalDateTimeFormat
     ): VotingPortalDateTimeFormat => (id === EVotingPortalDateTimeFormat.CUSTOM ? {custom: ""} : id)
-
-    // Custom patterns follow the same validation as the per-language override.
-    const validateCustomDateTimeFormat = (
-        _value: string,
-        allValues: {presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}}
-    ): string | undefined => {
-        const configured = allValues?.presentation?.voting_portal_datetime_format
-        console.log("[validateCustomDateTimeFormat] called", {_value, configured})
-        if (!isCustomVotingPortalDateTimeFormat(configured)) {
-            console.log("[validateCustomDateTimeFormat] not custom format, skipping validation")
-            return undefined
-        }
-        const valid = isValidVotingPortalDateTimePattern(configured.custom)
-        console.log("[validateCustomDateTimeFormat] result", {custom: configured.custom, valid})
-        return valid
-            ? undefined
-            : String(t("electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"))
-    }
 
     const voterSigningPolicyChoices = () => {
         return Object.values(EVoterSigningPolicy).map((value) => ({
@@ -845,6 +847,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 defaultValues={defaultValues}
                 validate={formValidator}
                 record={parsedValue}
+                resetOptions={{keepDirtyValues: true, keepErrors: true}}
                 toolbar={
                     <Toolbar>
                         {canEdit && (
@@ -1315,6 +1318,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                             parse={selectValueToDateTimePolicy}
                             emptyText={undefined}
                             validate={required()}
+                            slotProps={{
+                                input: {error: false},
+                                inputLabel: {error: false},
+                                formHelperText: {error: false},
+                            }}
                             sx={{marginBottom: "1.5em"}}
                         />
                         <FormDataConsumer>
@@ -1334,7 +1342,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
                                             )
                                         )}
-                                        validate={validateCustomDateTimeFormat}
                                         sx={{marginBottom: "1.5em"}}
                                     />
                                 ) : null
