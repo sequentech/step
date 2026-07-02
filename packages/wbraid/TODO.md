@@ -145,7 +145,8 @@
   - We have lost the ability to save artifacts outside of the localboard.
   In the previous version of braid, there was a way to save artifacts in the
   sqlite data base, and store only the row ids in the local board. This was lost
-  in the wasm compatible version of braid, all artifacts will be in memory.
+  in the wasm compatible version of braid, all artifacts will be in memory. UPDATE: we do not care,
+  from now on only message digests will be persisted, both in wasm and native settings.
 
 ### 9. Documentation Updates
 - **Action**: Update high-level documentation
