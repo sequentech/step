@@ -301,7 +301,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                         .find(|(known_id, _)| client_id == known_id)
                         .and_then(|(known_id, known_secret)| {
                             // Don't accept empty values
-                            let secret = known_secret.clone().filter(|s| !s.trim().is_empty());
+                            let secret = known_secret.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
                             if secret.is_none() {
                                 tracing::warn!("Known client '{known_id}' had no secret configured, regenerating");
                             }
