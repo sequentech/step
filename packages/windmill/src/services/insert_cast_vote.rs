@@ -15,6 +15,7 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::get_username_by_id;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
+use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -28,7 +29,9 @@ use sequent_core::ballot::{
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
+use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_ballot_sha512;
+use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::error::BallotError;
@@ -39,9 +42,11 @@ use sequent_core::multi_ballot::SignedHashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Serializer;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -53,11 +58,6 @@ use strand::zkp::Zkp;
 use strum_macros::Display;
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
-use base64::{engine::general_purpose, Engine as _};
-use sequent_core::encrypt::hash_ballot;
-use sequent_core::encrypt::hash_multi_ballot;
-use sequent_core::services::uuid_validation::parse_uuid_v4;
-use serde_json::Serializer;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
