@@ -188,7 +188,7 @@ pub async fn process_soap_request_to_datafix(
                     .map_err(|e| {
                         error!("Error editing user Internet channel: {e:?}");
                     });
-                (Ok(CastVoteStatus::Valid), format!("{req_type} Succeded"))
+                (Ok(CastVoteStatus::Valid), format!("{req_type} Succeeded"))
             }
             Ok(SoapRequestResponse::HasVotedErrorMsg) => {
                 (Ok(CastVoteStatus::Discarded), format!("{req_type} Failed"))
