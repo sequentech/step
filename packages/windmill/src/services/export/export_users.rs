@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -18,12 +18,12 @@ use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
-lazy_static! {
-    static ref SAFE_CHARS_RE: Regex = Regex::new(r"[^a-zA-Z0-9._-]").unwrap();
-}
+static SAFE_CHARS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("Failed to build safe chars regex"));
 
 pub const USER_FIELDS: [&str; 8] = [
     "id",
@@ -60,13 +60,13 @@ pub enum ExportBody {
     },
 }
 
-#[instrument]
+#[instrument(level = "trace")]
 fn sanitize_name(name: &str) -> String {
     // Replace all characters not matching the regex with an underscore '_'
     SAFE_CHARS_RE.replace_all(name, "_").to_string()
 }
 
-#[instrument]
+#[instrument(skip(elections))]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
@@ -109,7 +109,7 @@ fn get_headers(
     .concat()
 }
 
-#[instrument]
+#[instrument(skip(elections, areas_by_id, user_attributes), level = "trace")]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
     areas_by_id: &Option<HashMap<String, String>>,

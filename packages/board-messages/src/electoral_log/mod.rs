@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -69,8 +69,8 @@ pub(crate) mod tests {
         let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
         assert_eq!(board.database_name, BOARD_DB);
         let sender_name = "test";
-        let sender_sk = StrandSignatureSk::gen().unwrap();
-        let system_sk = StrandSignatureSk::gen().unwrap();
+        let sender_sk = StrandSignatureSk::generate().unwrap();
+        let system_sk = StrandSignatureSk::generate().unwrap();
         let system_pk = StrandSignaturePk::from_sk(&system_sk).unwrap();
         let sd = SigningData::new(sender_sk, sender_name, system_sk);
         let event = EventIdString(DUMMY_STR.to_string());

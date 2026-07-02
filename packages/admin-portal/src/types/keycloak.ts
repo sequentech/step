@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -48,8 +48,7 @@ export enum IPermissions {
     TALLY_WRITE = "tally-write",
     TALLY_SHEET_VIEW = "tally-sheet-view",
     TALLY_SHEET_CREATE = "tally-sheet-create",
-    TALLY_SHEET_PUBLISH = "tally-sheet-publish",
-    TALLY_SHEET_DELETE = "tally-sheet-delete",
+    TALLY_SHEET_REVIEW = "tally-sheet-review",
     TALLY_RESULTS_READ = "tally-results-read",
     PUBLISH_READ = "publish-read",
     PUBLISH_WRITE = "publish-write",
@@ -60,8 +59,6 @@ export enum IPermissions {
     DOCUMENT_DOWNLOAD = "document-download",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
-    MONITORING_DASHBOARD_VIEW_ELECTION_EVENT = "monitoring-dashboard-view-election-event",
-    MONITORING_DASHBOARD_VIEW_ELECTION = "monitoring-dashboard-view-election",
     CAST_VOTE_READ = "cast-vote-read",
     DOCUMENT_READ = "document-read",
     DOCUMENT_WRITE = "document-write",
@@ -101,6 +98,9 @@ export enum IPermissions {
     ELECTION_EVENT_SCHEDULED_TAB = "election-event-scheduled-tab",
     ELECTION_EVENT_REPORTS_TAB = "election-event-reports-tab",
     ELECTION_EVENT_APPROVALS_TAB = "election-event-approvals-tab",
+    ELECTION_EVENT_CAS_TAB = "election-event-cas-tab",
+    CA_READ = "ca-read",
+    CA_WRITE = "ca-write",
     ELECTION_DATA_TAB = "election-data-tab",
     ELECTION_APPROVALS_TAB = "election-approvals-tab",
     ELECTION_VOTERS_TAB = "election-voters-tab",
@@ -195,4 +195,11 @@ export enum IPermissions {
     USER_IMPORT = "user-import",
     VOTER_VOTED_EDIT = "voter-voted-edit", // permission to edit a voter that has already cast a vote
     VOTER_EMAIL_TLF_EDIT = "voter-email-tlf-edit", // permission to edit voter fields: email and mobile number
+    GOOGLE_MEET_LINK = "google-meet-link",
+    PREVIEW_READ = "preview-read",
+    GENERATE_PREVIEW = "generate-preview",
+    TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
+    PHONE_BLACKLIST_READ = "phone-blacklist-read",
+    PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
+    PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
 }

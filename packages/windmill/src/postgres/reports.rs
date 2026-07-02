@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -8,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum_macros::{Display, EnumString};
@@ -60,31 +61,13 @@ pub struct Report {
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum ReportType {
-    MANUAL_VERIFICATION,
-    BALLOT_RECEIPT,
-    VOTE_RECEIPT,
-    ELECTORAL_RESULTS,
-    STATISTICAL_REPORT,
-    ACTIVITY_LOGS,
-    TRANSMISSION_REPORT,
-    STATUS,
-    OV_PRE_ENROLLED_APPROVED,
-    OV_WHO_VOTED,
-    PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
-    PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    LIST_OF_OVERSEAS_VOTERS,
-    OVCS_STATISTICS,
-    OVCS_INFORMATION,
-    OVCS_EVENTS,
-    OV_WITH_VOTING_STATUS,
     INITIALIZATION_REPORT,
-    AUDIT_LOGS,
-    OV_NOT_YET_PRE_ENROLLED_LIST,
-    OV_NOT_YET_PRE_ENROLLED_NUMBER,
-    OV_TURNOUT_PERCENTAGE,
-    OV_TURNOUT_PER_ABOARD_STATUS_SEX,
-    OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
+    ELECTORAL_RESULTS,
     BALLOT_IMAGES,
+    BALLOT_RECEIPT,
+    ACTIVITY_LOGS,
+    MANUAL_VERIFICATION,
+    PARTICIPATION_REPORT,
 }
 
 pub struct ReportWrapper(pub Report);
@@ -163,8 +146,8 @@ pub async fn update_report_last_document_time(
     id: &str,
 ) -> Result<()> {
     let tenant_uuid: Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let id_uuid: Uuid = Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = parse_uuid_v4(id).with_context(|| "Error parsing id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -173,11 +156,13 @@ pub async fn update_report_last_document_time(
                 "sequent_backend".report
             SET 
                 cron_config = jsonb_set(
-                cron_config,
-                '{last_document_produced}',
-                to_jsonb(to_char(NOW() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US')),
-                true
-            )
+                    COALESCE(cron_config, '{}'::jsonb),
+                    '{last_document_produced}',
+                    to_jsonb(
+                        to_char(NOW() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+                    ),
+                    true
+                )
             WHERE
                 tenant_id = $1
                 AND id = $2
@@ -205,8 +190,8 @@ pub async fn get_report_by_id(
     id: &str,
 ) -> Result<Option<Report>> {
     let tenant_uuid: Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let id_uuid: Uuid = Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = parse_uuid_v4(id).with_context(|| "Error parsing id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -250,11 +235,11 @@ pub async fn get_template_alias_for_report(
     election_id: Option<&str>,
 ) -> Result<Option<String>> {
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let election_uuid = if let Some(election_id) = election_id {
-        Some(Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?)
+        Some(parse_uuid_v4(election_id).with_context(|| "Error parsing election_id as UUID")?)
     } else {
         None
     };
@@ -342,8 +327,8 @@ async fn get_reports_by_condition(
     condition_column: &str,
 ) -> Result<Vec<Report>> {
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let condition_uuid = Uuid::parse_str(condition_value)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let condition_uuid = parse_uuid_v4(condition_value)
         .with_context(|| format!("Error parsing {condition_column} as UUID"))?;
 
     let statement = hasura_transaction
@@ -409,8 +394,8 @@ pub async fn insert_reports(
     reports: &[Report],
 ) -> Result<()> {
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let statement = hasura_transaction
@@ -440,13 +425,13 @@ pub async fn insert_reports(
             .execute(
                 &statement,
                 &[
-                    &Uuid::parse_str(&report.id)?,
+                    &parse_uuid_v4(&report.id)?,
                     &election_event_uuid,
                     &tenant_uuid,
                     &report
                         .election_id
                         .as_ref()
-                        .map(|id| Uuid::parse_str(id))
+                        .map(|id| parse_uuid_v4(id))
                         .transpose()?,
                     &report.report_type,
                     &report.template_alias,
@@ -473,12 +458,10 @@ pub async fn get_report_by_type(
     election_id: &Option<String>,
 ) -> Result<Option<Report>> {
     let tenant_uuid: Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
-    let election_uuid = election_id
-        .as_ref()
-        .and_then(|id| Uuid::parse_str(&id).ok());
+    let election_uuid = election_id.as_ref().and_then(|id| parse_uuid_v4(&id).ok());
 
     let statement = hasura_transaction
         .prepare(

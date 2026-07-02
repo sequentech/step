@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use sequent_core::ballot::{
     Contest, ContestPresentation, EOverVotePolicy, EUnderVotePolicy, InvalidVotePolicy,
 };
+use sequent_core::types::ceremonies::CountingAlgType;
 use uuid::Uuid;
 
 use super::candidates;
@@ -31,7 +32,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         min_votes: (0),
         winning_candidates_num: (1),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
@@ -47,12 +48,15 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -63,6 +67,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             columns: None,
         }),
         annotations: None,
+        tie_breaking_policy: None,
     }
 }
 
@@ -93,7 +98,7 @@ pub fn get_contest_min_max_votes(
         min_votes: (min_votes as i64),
         winning_candidates_num: (1),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
@@ -109,12 +114,15 @@ pub fn get_contest_min_max_votes(
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -125,5 +133,6 @@ pub fn get_contest_min_max_votes(
             columns: None,
         }),
         annotations: None,
+        tie_breaking_policy: None,
     }
 }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::types::error::Result;
@@ -9,7 +9,6 @@ use std::fs::File;
 use std::io::{self, BufWriter, Read, Seek, Write};
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, instrument, Level};
 
 pub fn get_public_assets_path_env_var() -> Result<String> {
     match env::var("PUBLIC_ASSETS_PATH") {

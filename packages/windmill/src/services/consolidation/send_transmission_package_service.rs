@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
@@ -22,7 +22,7 @@ use crate::{
     },
     services::{
         database::get_hasura_pool,
-        documents::{get_document_as_temp_file, upload_and_return_document_postgres},
+        documents::{get_document_as_temp_file, upload_and_return_document},
     },
     types::miru_plugin::{
         MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
@@ -33,6 +33,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
+use sequent_core::services::translations::Name;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::{
     ballot::Annotations,
@@ -411,13 +412,14 @@ pub async fn send_transmission_package_service(
         let second_zip_folder_path = zip_output_temp_dir.path().join(&ccs_server.tag);
         let second_zip_path =
             second_zip_folder_path.join(format!("er_{}.zip", area_annotations.station_id));
+        let election_name = election.get_name(&election.get_default_language());
         match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
                 let time_now = Local::now();
                 let new_log = send_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
-                    &election.name,
+                    &election_name,
                     area_id,
                     &area_name,
                     &ccs_server.name,
@@ -451,7 +453,7 @@ pub async fn send_transmission_package_service(
                 let new_log = error_sending_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
-                    &election.name,
+                    &election_name,
                     area_id,
                     &area_name,
                     &ccs_server.name,
@@ -490,7 +492,7 @@ pub async fn send_transmission_package_service(
                     let new_log = send_logs_to_ccs_log(
                         &Local::now(),
                         election_id,
-                        &election.name,
+                        &election_name,
                         area_id,
                         &area_name,
                         &ccs_server.name,
@@ -512,7 +514,7 @@ pub async fn send_transmission_package_service(
                     let new_log = error_sending_logs_to_ccs_log(
                         &Local::now(),
                         election_id,
-                        &election.name,
+                        &election_name,
                         area_id,
                         &area_name,
                         &ccs_server.name,

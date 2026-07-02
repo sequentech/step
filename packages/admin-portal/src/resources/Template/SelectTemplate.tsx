@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect} from "react"
-import {SxProps} from "@mui/material"
+import React, {useEffect, useMemo} from "react"
+import {SxProps, Theme} from "@mui/material"
 import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
 import {ETemplateType} from "@/types/templates"
 
@@ -12,7 +12,7 @@ interface SelectTemplateProps {
     source: string
     label?: string
     onSelectTemplate?: (template: {alias: string}) => void
-    customStyle?: SxProps
+    customStyle?: SxProps<Theme>
     disabled?: boolean
     value?: string | null
     isRequired?: boolean
@@ -40,18 +40,29 @@ const SelectTemplate = ({
         pagination: {page: 1, perPage: 100},
     })
 
-    const choices = templates
-        ? templates.map((template) => ({
-              id: template.alias,
-              name: template.template.name,
-          }))
-        : []
-
     const handleTemplateChange = (alias: string) => {
         if (onSelectTemplate) {
             onSelectTemplate({alias})
         }
     }
+
+    const choices = useMemo(() => {
+        // Ensure templates and its nested properties exist
+        const items = templates
+        if (!items) return []
+
+        // Create a shallow copy and sort it
+        return [...items]
+            .sort((a, b) => {
+                if (!a?.name || !b?.name) return 0
+                return a.name.localeCompare(b.name)
+            })
+            .map((template) => ({
+                id: template.alias,
+                name: template.template.name,
+            }))
+        // Dependency array: re-run only when the original items array changes
+    }, [templates])
 
     return (
         <AutocompleteInput
@@ -61,7 +72,7 @@ const SelectTemplate = ({
             choices={choices}
             onChange={handleTemplateChange}
             debounce={100}
-            sx={customStyle}
+            sx={customStyle as any}
             disabled={disabled}
             validate={isRequired ? [required()] : undefined}
             isLoading={isLoading}

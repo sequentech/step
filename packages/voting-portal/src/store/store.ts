@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {configureStore, ThunkAction, Action} from "@reduxjs/toolkit"
 import ballotStylesReducer from "./ballotStyles/ballotStylesSlice"
 import castVotesReducer from "./castVotes/castVotesSlice"
+import confirmationScreenDataReducer from "./castVotes/confirmationScreenDataSlice"
 import ballotSelectionsReducer from "./ballotSelections/ballotSelectionsSlice"
 import auditableBallotsReducer from "./auditableBallots/auditableBallotsSlice"
 import electionsReducer from "./elections/electionsSlice"
@@ -25,6 +26,7 @@ export const store = configureStore({
         electionEvent: electionEventReducer,
         extra: extraReducer,
         documents: documentsReducer,
+        confirmationScreenData: confirmationScreenDataReducer,
     },
 })
 

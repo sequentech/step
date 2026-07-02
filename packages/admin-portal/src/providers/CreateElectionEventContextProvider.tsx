@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ import React, {
     useState,
 } from "react"
 
-import {useMutation} from "@apollo/client"
+import {useApolloClient, useMutation} from "@apollo/client"
 import {
     CreateElectionEventMutation,
     ImportElectionEventMutation,
@@ -21,11 +21,11 @@ import {v4} from "uuid"
 import {useGetOne, useNotify, useRefresh, RaRecord, useGetList} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
-import {useNavigate} from "react-router"
-import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
+import {useNavigate} from "react-router-dom"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {FETCH_ELECTION_EVENTS_TREE} from "@/queries/GetElectionEventsTree"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -113,6 +113,7 @@ const CreateElectionEventContext = createContext<{
 })
 
 export const CreateElectionEventProvider = ({children}: any) => {
+    const apolloClient = useApolloClient()
     const [createDrawer, toggleCreateDrawer] = useState(false)
     const [importDrawer, toggleImportDrawer] = useState(false)
 
@@ -128,7 +129,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
     const refresh = useRefresh()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {setLastCreatedResource} = useContext(NewResourceContext)
-    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
@@ -150,6 +150,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const openImportDrawer = () => {
+        setErrors(null)
         toggleImportDrawer(true)
     }
 
@@ -187,13 +188,16 @@ export const CreateElectionEventProvider = ({children}: any) => {
         if (isLoading && !error && !isOneLoading && newElectionEvent!.length) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
+            void apolloClient.refetchQueries({
+                include: [FETCH_ELECTION_EVENTS_TREE],
+            })
             refresh()
             navigate(`/sequent_backend_election_event/${newId}`)
         }
     }
 
     const handleSubmit = async (values: any): Promise<void> => {
-        const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT)
+        const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT, undefined)
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -276,7 +280,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
         setIsLoading(false)
         setErrors(null)
 
-        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
+        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT, undefined)
 
         try {
             let {data, errors} = await importElectionEvent({

@@ -1,2 +1,0 @@
-CREATE TABLE "sequent_backend"."results_event" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "tenant_id" uuid NOT NULL, "election_event_id" uuid NOT NULL, "name" text, PRIMARY KEY ("id","tenant_id","election_event_id") , FOREIGN KEY ("tenant_id") REFERENCES "sequent_backend"."tenant"("id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("election_event_id") REFERENCES "sequent_backend"."election_event"("id") ON UPDATE restrict ON DELETE restrict);
-CREATE EXTENSION IF NOT EXISTS pgcrypto;

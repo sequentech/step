@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,12 +7,12 @@ name: Lint & Prettify
 on:
   pull_request:
   push:
-      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+      branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
 
 jobs:
   lint-prettify:
     name: Check frontend linting
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
 
   lint-prettify-hasura:
     name: Check Hasura prettify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -78,25 +78,24 @@ jobs:
 
   rust-fmt:
     name: Check Rust format 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: nightly
+          toolchain: 1.96.0
           components: rustfmt
-          override: true
+          targets: x86_64-unknown-linux-musl
 
       - name: Check Rust code formatting
         run: cd packages/ && cargo fmt -- --check
   
   java-spotless:
     name: Check Java format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -106,6 +105,11 @@ jobs:
         with:
           java-version: '17'
           distribution: 'adopt'
+
+      - name: Install Maven
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y maven
 
       - name: Run Spotless Check
         run: cd packages/keycloak-extensions && mvn clean install &&mvn invoker:run@run-spotless-check

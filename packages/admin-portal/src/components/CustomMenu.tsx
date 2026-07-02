@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -19,7 +19,7 @@ import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {useLocation, useNavigate} from "react-router"
+import {useNavigate, useLocation} from "react-router-dom"
 
 const StyledHelpItem = styled(Button)`
     margin-top: -4px;
@@ -79,7 +79,9 @@ const StyledMenu = styled(Menu)<{open: boolean}>`
     color: ${adminTheme.palette.brandColor};
     margin-top: 0px;
     margin-right: 4px;
-    box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
+    box-shadow:
+        0px 2px 1px -1px rgba(0, 0, 0, 0.2),
+        0px 1px 1px 0px rgba(0, 0, 0, 0.14),
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
     border-radius: 4px;
     height: 100%;
@@ -121,6 +123,11 @@ export const CustomMenu = () => {
     const {t, i18n} = useTranslation()
 
     const showUsers = authContext.isAuthorized(true, authContext.tenantId, IPermissions.USERS_MENU)
+    const isTrustee = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TRUSTEE_CEREMONY
+    )
     const showSettings = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -167,6 +174,13 @@ export const CustomMenu = () => {
                 <MenuWrapper>
                     <ElectionEvents />
 
+                    {tenant && isTrustee && (
+                        <StyledItem
+                            to="/trustee"
+                            primaryText={open ? "Trustee Dashboard" : null}
+                            leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
                     {tenant && showUsers && (
                         <StyledItem
                             to="/user-roles"

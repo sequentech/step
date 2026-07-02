@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -20,7 +20,7 @@ pub async fn get_trustee_encrypted_private_key(
     trustee_pub_key: &str,
 ) -> Result<String> {
     let trustee_deserialized_pub_key: StrandSignaturePk =
-        deserialize_public_key(trustee_pub_key.to_string());
+        deserialize_public_key(trustee_pub_key.to_string())?;
     let private_key = protocol_manager::get_trustee_encrypted_private_key::<RistrettoCtx>(
         board_name,
         &trustee_deserialized_pub_key,

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -17,7 +17,7 @@ impl<T> ToResult<Response<T>, anyhow::Error> for Response<T> {
             let messages = self
                 .errors
                 .clone()
-                .unwrap()
+                .ok_or(anyhow!("Unexpected: empty errors list"))?
                 .into_iter()
                 .map(|error| error.message.clone())
                 .collect::<Vec<String>>()

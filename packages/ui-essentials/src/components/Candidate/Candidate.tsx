@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, TextField, Typography} from "@mui/material"
+import {Box, FormControl, InputLabel, MenuItem, Select, TextField, Typography} from "@mui/material"
 import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
@@ -10,31 +10,40 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
 import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
-import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {getOrdinalSuffix} from "./ordinalUtils"
 
-const UnselectableTypography = styled(Typography)`
+// Type wrapper for MUI icons to work with React 19
+const RadioButtonUncheckedIconFixed: React.FC<any> = (props) => {
+    const Icon = RadioButtonUncheckedIcon as any
+    return <Icon {...props} />
+}
+
+const RadioButtonCheckedIconFixed: React.FC<any> = (props) => {
+    const Icon = RadioButtonCheckedIcon as any
+    return <Icon {...props} />
+}
+
+export const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
 
-const BorderBox = emotionStyled.li<{
-    isactive: string
-    hascategory: string
-    isinvalidvote: string
-    isdisabled: string
+export const BorderBox = styled("li")<{
+    isSelectable: boolean
+    hasCategory: boolean
+    isInvalidVote: boolean
+    isDisabled: boolean
 }>`
     border: 2px solid
-        ${({hascategory, isactive, theme}) =>
-            isactive === "true" && hascategory === "true"
-                ? theme.palette.white
-                : theme.palette.customGrey.light};
-    ${({hascategory, isinvalidvote, theme}) =>
-        hascategory === "true"
-            ? `background-color: ${theme.palette.white};`
-            : isinvalidvote === "true"
-            ? `background-color: ${theme.palette.lightBackground};`
-            : ""}
+        ${({hasCategory, isSelectable, theme}) =>
+            isSelectable && hasCategory ? theme.palette.white : theme.palette.customGrey.light};
+    ${({hasCategory, isInvalidVote, theme}) =>
+        hasCategory
+            ? `backgroundColor: ${theme.palette.white};`
+            : isInvalidVote
+              ? `backgroundColor: ${theme.palette.lightBackground};`
+              : ""}
     border-radius: 10px;
     break-inside: avoid;
     padding: 8px;
@@ -44,15 +53,15 @@ const BorderBox = emotionStyled.li<{
     gap: 10px;
     align-items: center;
     flex-grow: 2;
-    ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
-    ${({isactive, hascategory, theme}) =>
-        isactive === "true"
-            ? hascategory === "true"
+    transition: all 0.2s ease;
+    ${({isDisabled}) => (isDisabled ? `opacity: 50%;` : "")}
+    ${({isSelectable, hasCategory, theme}) =>
+        isSelectable
+            ? hasCategory
                 ? `
                     box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     &:hover {
                         cursor: pointer;
-                        box-shadow: unset;
                         border-color: ${theme.palette.customGrey.light};
                     }
                     &:active {
@@ -79,7 +88,7 @@ const ImageBox = styled(Box)`
     flex-shrink: 0;
 `
 
-const StyledLink = emotionStyled.a`
+const StyledLink = styled("a")`
     text-decoration: underline;
     font-weight: normal;
     &:hover {
@@ -94,7 +103,7 @@ const StyledLink = emotionStyled.a`
 export interface CandidateProps extends PropsWithChildren {
     title: string | ReactNode
     description?: string | ReactNode
-    isActive?: boolean
+    isSelectable?: boolean // Shall the candidate be selectable (Checkbox or Position combo box)?
     isInvalidVote?: boolean
     checked?: boolean
     iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
@@ -107,12 +116,18 @@ export interface CandidateProps extends PropsWithChildren {
     isInvalidWriteIn?: boolean
     index?: number
     shouldDisable?: boolean
+    className?: string
+    isPreferentialVote?: boolean
+    totalCandidates?: number
+    maxVotes?: number
+    selectedPosition?: number | null
+    handlePreferentialChange?: (value: number | null) => void
 }
 
 const Candidate: React.FC<CandidateProps> = ({
     title,
     description,
-    isActive,
+    isSelectable: isSelectable,
     isInvalidVote,
     checked,
     iconCheckboxPolicy,
@@ -126,6 +141,12 @@ const Candidate: React.FC<CandidateProps> = ({
     children,
     shouldDisable,
     index,
+    className,
+    isPreferentialVote = false,
+    totalCandidates = 0,
+    maxVotes,
+    selectedPosition,
+    handlePreferentialChange,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
@@ -149,14 +170,29 @@ const Candidate: React.FC<CandidateProps> = ({
         event.stopPropagation()
     }
 
+    const handlePositionChange = (event: any) => {
+        event.stopPropagation()
+        if (handlePreferentialChange) {
+            const value = event.target.value
+            handlePreferentialChange(value === "" ? null : value)
+        }
+    }
+
+    const maxSelectablePositions =
+        typeof maxVotes === "number" && maxVotes > 0
+            ? Math.min(maxVotes, totalCandidates)
+            : totalCandidates
+
+    const scrollablePreferentialVote = maxSelectablePositions > 4
+
     return (
         <BorderBox
-            isactive={String(!!isActive)}
-            hascategory={String(!!hasCategory)}
-            isinvalidvote={String(!!isInvalidVote)}
-            isdisabled={String(!!shouldDisable)}
+            isSelectable={!!isSelectable}
+            hasCategory={!!hasCategory}
+            isInvalidVote={!!isInvalidVote}
+            isDisabled={!!shouldDisable}
             onClick={onClick}
-            className="candidate-item"
+            className={`candidate-item ${className}`}
         >
             <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
@@ -206,15 +242,76 @@ const Candidate: React.FC<CandidateProps> = ({
                     </Typography>
                 </StyledLink>
             ) : null}
-            {isActive ? (
+
+            {isPreferentialVote ? (
+                isSelectable ? (
+                    <Select
+                        displayEmpty
+                        value={selectedPosition ?? 0}
+                        onChange={handlePositionChange}
+                        renderValue={(value) => {
+                            if (typeof value === "number" && value > 0) {
+                                return getOrdinalSuffix(value, t)
+                            }
+                            return t("candidate.preferential.position")
+                        }}
+                        MenuProps={{
+                            PaperProps: {
+                                style: {
+                                    maxHeight: 200,
+                                    overflowY: scrollablePreferentialVote ? "auto" : "visible",
+                                },
+                            },
+                            autoFocus: false,
+                        }}
+                        sx={{
+                            "minWidth": 120,
+                            "marginRight": 1,
+                            "& .MuiSelect-select": {
+                                paddingTop: "6px",
+                                paddingBottom: "6px",
+                            },
+                        }}
+                        className="candidate-position-select"
+                    >
+                        <MenuItem value={0}>
+                            <em>{t("candidate.preferential.none")}</em>
+                        </MenuItem>
+                        {Array.from({length: maxSelectablePositions}, (_, i) => i + 1).map(
+                            (num) => (
+                                <MenuItem key={num} value={num}>
+                                    {getOrdinalSuffix(num, t)}
+                                </MenuItem>
+                            )
+                        )}
+                    </Select>
+                ) : selectedPosition && selectedPosition > 0 ? (
+                    <Typography
+                        className="candidate-position-label"
+                        variant="body2"
+                        sx={{
+                            minWidth: 52,
+                            textAlign: "center",
+                            fontWeight: "bold",
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            border: `1px solid ${theme.palette.customGrey.light}`,
+                            whiteSpace: "nowrap",
+                            marginRight: 1,
+                        }}
+                    >
+                        {getOrdinalSuffix(selectedPosition, t)}
+                    </Typography>
+                ) : null
+            ) : isSelectable ? (
                 iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
                         inputProps={{
                             "className": "candidate-input",
                             "aria-label": isString(title) ? title : "",
                         }}
-                        icon={<RadioButtonUncheckedIcon />}
-                        checkedIcon={<RadioButtonCheckedIcon />}
+                        icon={<RadioButtonUncheckedIconFixed />}
+                        checkedIcon={<RadioButtonCheckedIconFixed />}
                         disabled={shouldDisable}
                         checked={checked}
                         onChange={handleChange}

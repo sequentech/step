@@ -1,8 +1,16 @@
-# SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# this is only for claude-code:
+allowUnfree: true
+
 inputs:
+  rust-overlay:
+    url: github:oxalica/rust-overlay
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
   nixpkgs:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
   fenix:

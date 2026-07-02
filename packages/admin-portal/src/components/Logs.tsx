@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useRef, useEffect} from "react"
@@ -14,7 +14,7 @@ import {useTranslation} from "react-i18next"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IKeysCeremonyLog} from "@/services/KeyCeremony"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 
 export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
     max-height: 400px;
@@ -93,9 +93,9 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {logs.map((log) => (
+                                    {logs.map((log, index) => (
                                         <TableRow
-                                            key={log?.created_date as any}
+                                            key={index}
                                             sx={{
                                                 "&:last-child td, &:last-child th": {
                                                     border: 0,

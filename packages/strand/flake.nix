@@ -1,11 +1,11 @@
-# SPDX-FileCopyrightText: 2021 Eduardo Robles <edulix@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 {
   description = "Flake to test rust code";
 
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-  inputs.nixpkgs.url = "nixpkgs/nixos-22.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-compat = {
     url = "github:edolstra/flake-compat";
@@ -22,8 +22,8 @@
         stdenv = pkgs.clangStdenv;
         configureRustTargets = targets : pkgs
           .rust-bin
-          .nightly
-          ."2022-07-05"
+          .stable
+          ."1.96.0"
           .default
           .override {
               extensions = [ "rust-src" ];
@@ -32,6 +32,21 @@
           };
         rust-wasm = configureRustTargets [ "wasm32-unknown-unknown" ];
         rust-system  = configureRustTargets [];
+        # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
+        # The CLI and crate versions must match exactly
+        wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+          pname = "wasm-bindgen-cli";
+          version = "0.2.104";
+          src = builtins.fetchTarball {
+            url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
+            sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+          };
+          cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
+          nativeBuildInputs = [ pkgs.pkg-config ];
+          buildInputs = [ pkgs.openssl ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+          doCheck = false;
+        };
         # see https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/rust.section.md#importing-a-cargolock-file-importing-a-cargolock-file
         cargoPatches = {
             cargoLock = let
@@ -54,7 +69,12 @@
             pkgs.nodePackages.npm
             pkgs.binaryen
             pkgs.wasm-pack
-            pkgs.wasm-bindgen-cli
+            wasm-bindgen-cli-pinned
+
+            # Add all the necessary LLVM/Clang packages
+            pkgs.llvmPackages_19.clang-unwrapped
+            pkgs.llvmPackages_19.llvm
+            pkgs.llvmPackages_19.libclang
           ];
           buildPhase = ''
             echo 'Build: wasm-pack build'
@@ -86,7 +106,7 @@
         ) {
           nativeBuildInputs = 
             defaultPackage.nativeBuildInputs; 
-          buildInputs = 
+          buildInputs =
             [
               pkgs.bash
               pkgs.reuse
@@ -94,7 +114,24 @@
               pkgs.clippy
               pkgs.pkg-config
               pkgs.openssl
-            ]; 
+            ];
+          shellHook = ''
+            export CC=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+            export CXX=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
+            export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
+            export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+            # Nix hardening flags are not supported when compiling C code for WebAssembly
+            export NIX_HARDENING_ENABLE=""
+            # Set up the clang resource directory properly
+            CLANG_MAJOR_VERSION="19"
+            CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION"
+            export CLANG_RESOURCE_DIR
+            # Use libclang's include directory which has the standard headers
+            LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
+            export LIBCLANG_INCLUDE
+            export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR -O3 -ffunction-sections -fdata-sections -fno-exceptions"
+            export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
+          '';
         };
 
       }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -25,6 +25,16 @@ const tagalogTranslation: TranslationType = {
             moreInformationLink: "Karagdagang impormasyon",
             writeInsPlaceholder: "I-type ang write-in candidate dito",
             blankVote: "Blangkong Boto",
+            preferential: {
+                position: "Posisyon",
+                none: "Wala",
+                ordinals: {
+                    first: "st",
+                    second: "nd",
+                    third: "rd",
+                    other: "th",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",
@@ -64,25 +74,41 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Pinapatakbo ng",
+        footer: {
+            poweredBy: "Pinapatakbo ng <sequent />",
+        },
         errors: {
             encoding: {
-                notEnoughChoices: "Hindi sapat ang mga pagpipilian upang i-decode",
-                writeInChoiceOutOfRange: "Ang write-in choice ay nasa labas ng saklaw: {{index}}",
-                writeInNotEndInZero: "Ang write-in ay hindi nagtatapos sa 0",
+                notEnoughChoices: "Hindi sapat ang mga pagpipilian para ma-decode",
+                writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
+                writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
+                writeInCharsExceeded:
+                    "Ang Write-in ay lumampas ng {{numCharsExceeded}} sa maximum na bilang ng mga karakter. Kailangang ayusin.",
                 bytesToUtf8Conversion:
-                    "Error sa pag-convert ng write-in mula sa bytes patungo sa UTF-8 string: {{errorMessage}}",
+                    "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Ang bilang ng mga pinili {{numSelected}} ay higit sa maximum {{max}}",
+                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
                 selectedMin:
-                    "Ang bilang ng mga pinili {{numSelected}} ay mas mababa kaysa sa minimum {{min}}",
+                    "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
+                maxSelectionsPerType:
+                    "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
+                underVote:
+                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
+                overVoteDisabled:
+                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
+                blankVote: "Blank Vote: Walang pinili",
+                preferenceOrderWithGaps:
+                    "Di-wastong boto! Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
+                duplicatedPosition:
+                    "Di-wastong boto! Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
             },
             explicit: {
                 notAllowed:
-                    "Ang balota ay tahasang minarkahan na invalid ngunit hindi ito pinapayagan ng tanong",
+                    "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
+                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",

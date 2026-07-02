@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -25,6 +25,16 @@ const frenchTranslation: TranslationType = {
             moreInformationLink: "Plus d'informations",
             writeInsPlaceholder: "Tapez ici le candidat par écrit",
             blankVote: "Vote blanc",
+            preferential: {
+                position: "Position",
+                none: "Aucune",
+                ordinals: {
+                    first: "er",
+                    second: "e",
+                    third: "e",
+                    other: "e",
+                },
+            },
         },
         homeScreen: {
             title: "Vérificateur de vote Sequent",
@@ -64,25 +74,41 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Propulsé par",
+        footer: {
+            poweredBy: "Propulsé par <sequent />",
+        },
         errors: {
             encoding: {
-                notEnoughChoices: "Pas assez d'options pour déchiffrer",
+                notEnoughChoices: "Il n'y a pas assez d'options pour décoder",
                 writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
-                writeInNotEndInZero: "L'option de vote écrite ne se termine pas par 0",
+                writeInNotEndInZero: "Option de vote écrite ne finit pas en 0",
+                writeInCharsExceeded:
+                    "Option de vote écrite dépasse le nombre de caractères de {{numCharsExceeded}} caractères. Nécessite une correction.",
                 bytesToUtf8Conversion:
                     "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
-                ballotTooLarge: "Vote plus grand que prévu",
+                ballotTooLarge: "Bulletin plus grand que prévu",
             },
             implicit: {
                 selectedMax:
-                    "Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
+                    "Survote: Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
                 selectedMin:
-                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au minimum {{min}}",
+                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
+                maxSelectionsPerType:
+                    "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
+                underVote:
+                    "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
+                overVoteDisabled:
+                    "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
+                blankVote: "Vote Blanc: 0 options sélectionnées",
+                preferenceOrderWithGaps:
+                    "Vote invalide! L'ordre de préférence comporte un ou plusieurs trous.",
+                duplicatedPosition:
+                    "Vote invalide! La même position a été sélectionnée pour deux ou plusieurs candidats.",
             },
             explicit: {
                 notAllowed:
-                    "Vote explicitement marqué comme invalide mais la question ne le permet pas",
+                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                alert: "La sélection marquée sera considérée comme un vote invalide.",
             },
         },
         ballotHash: "Votre Localisateur de Vote : {{ballotId}}",

@@ -5,7 +5,7 @@
     "software_version": "1.0.0",
     "app_version": "2.3.4",
     "app_hash": "z9y8x7w6v5",
-    "executer_username":"User1"
+    "executer_username": "User1"
   },
   "areas": [
     {
@@ -64,7 +64,7 @@
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
           "verified_by": "SYSTEM",
-          "disapproval_reason":"Mismatch at First Name and Last Name"
+          "disapproval_reason": "Mismatch at First Name and Last Name"
         },
         {
           "last_name": "Doe",
@@ -73,7 +73,7 @@
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
           "verified_by": "OFOV",
-          "disapproval_reason":"Mismatch at First Name and Last Name"
+          "disapproval_reason": "Mismatch at First Name and Last Name"
         },
         {
           "last_name": "Brown",
@@ -82,7 +82,7 @@
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
           "verified_by": "OFOV",
-          "disapproval_reason":"Mismatch at First Name and Birthday"
+          "disapproval_reason": "Mismatch at First Name and Birthday"
         },
         {
           "last_name": "Taylor",
@@ -91,7 +91,7 @@
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
           "verified_by": "SBEI",
-          "disapproval_reason":"Mismatch at First Name and Last Name"
+          "disapproval_reason": "Mismatch at First Name and Last Name"
         },
         {
           "last_name": "Davis",
@@ -100,7 +100,7 @@
           "suffix": "",
           "verification_date": "2024-05-02T10:45:00-04:00",
           "verified_by": "SBEI",
-          "disapproval_reason":"Mismatch at Last Name and Birthday"
+          "disapproval_reason": "Mismatch at Last Name and Birthday"
         }
       ]
     }

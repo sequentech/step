@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
@@ -7,8 +7,8 @@ import LanguageMenu from "../LanguageMenu/LanguageMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
-import styled from "@emotion/styled"
-import {Box, Button, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
+import {styled} from "@mui/material/styles"
+import {Box, Button, Stack, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
@@ -26,9 +26,9 @@ const HeaderWrapper = styled(PageBanner)`
     @media (max-width: ${theme.breakpoints.values.lg}px) {
         padding: 9px;
     }
-`
+` as typeof Stack
 
-const StyledLink = styled.a`
+const StyledLink = styled("a")`
     max-height: 100%;
     max-width: 50%;
 `
@@ -70,7 +70,7 @@ export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) 
     },
 }))
 
-export const StyledButtonContainerWrapper = styled.div`
+export const StyledButtonContainerWrapper = styled("div")`
     position: relative;
     display: inline-block;
     padding: 0;
@@ -131,6 +131,7 @@ export interface HeaderProps {
     languagesList?: Array<string>
     errorVariant?: HeaderErrorVariant
     expiry?: IExpiryCountdown
+    onChangeLanguage?: (lang: string) => void
 }
 
 export default function Header({
@@ -143,6 +144,7 @@ export default function Header({
     languagesList,
     errorVariant,
     expiry = undefined,
+    onChangeLanguage,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
@@ -161,6 +163,8 @@ export default function Header({
             <HeaderWrapper
                 className="header-class"
                 sx={{backgroundColor: theme.palette.lightBackground}}
+                role="banner"
+                component="header"
             >
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
@@ -174,17 +178,20 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <Version header="hash.header" version={appHash ?? {main: "-"}} />
-                            <LanguageMenu languagesList={languagesList} />
+                            <LanguageMenu
+                                languagesList={languagesList}
+                                onChange={onChangeLanguage}
+                            />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
                                 <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                                     <StyledButton
                                         className="logout-button"
-                                        aria-label="log out button"
+                                        aria-label={t("logout.buttonText")}
                                         onClick={() => {
                                             setOpenModal(true)
                                         }}
                                     >
-                                        <LogoutIcon />
+                                        <LogoutIcon aria-hidden />
                                         <Box sx={{display: {xs: "none", sm: "block"}}}>
                                             {t("logout.buttonText")}
                                         </Box>

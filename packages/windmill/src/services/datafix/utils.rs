@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::types::*;
@@ -67,8 +67,7 @@ pub async fn get_event_id_and_datafix_annotations(
     let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
 
     // Search for the datafix event id in all the annotations
-    while next_event.is_some() {
-        let event = next_event.unwrap();
+    while let Some(event) = next_event {
         let datafix_id_value = event
             .0
             .annotations
@@ -206,7 +205,14 @@ pub async fn post_operation_result_to_electoral_log(
     direction: ExtApiRequestDirection,
     operation: String,
 ) {
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = match std::env::var("ENV_SLUG") {
+        Ok(slug) => slug,
+        Err(err) => {
+            error!("Missing env var ENV_SLUG. Error: {err:?}");
+            return;
+        }
+    };
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
     let electoral_log_res = ElectoralLog::new(
         hasura_transaction,
         tenant_id,

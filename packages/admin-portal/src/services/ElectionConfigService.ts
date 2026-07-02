@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ICandidate, IContest} from "@sequentech/ui-core"
@@ -11,8 +11,7 @@ export const getImageUrl = (answer: ICandidate): string | undefined =>
 
 export const getLinkUrl = (answer: ICandidate): string | undefined => findUrlByTitle(answer, "URL")
 
-export const checkIsCategoryList = (candidate: ICandidate): boolean =>
-    candidate.presentation?.is_category_list || false
+export {checkIsCategoryList} from "@sequentech/ui-core"
 
 export const checkIsWriteIn = (answer: ICandidate): boolean =>
     answer.presentation?.is_write_in || false

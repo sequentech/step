@@ -1,13 +1,15 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {sleep} from "@sequentech/ui-core"
+import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
+import {useTranslation} from "react-i18next"
+import {IPermissions} from "../types/keycloak"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -60,13 +62,22 @@ export interface AuthContextValues {
      */
     keycloakAccessToken: string | undefined
 
-    setTenantEvent: (tenantId: string, eventId: string, authType?: "register" | "login") => void
+    setTenantEvent: (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string
+    ) => void
 
     /**
      * Open accountManagement from Keycloak
      * @returns
      */
     openProfileLink: () => Promise<void>
+
+    isGoldUser: () => boolean
+
+    reauthWithGold: (redirectUri: string) => Promise<void>
 }
 
 interface UserProfile {
@@ -89,10 +100,12 @@ const defaultAuthContextValues: AuthContextValues = {
     keycloakAccessToken: undefined,
     logout: () => {},
     getExpiry: () => undefined,
-    setTenantEvent: (_tenantId: string, _eventId: string) => {},
+    setTenantEvent: (_tenantId: string, _eventId: string, _authType, _defaultLocale) => {},
     hasRole: () => false,
     isKiosk: () => false,
     openProfileLink: () => new Promise(() => undefined),
+    isGoldUser: () => false,
+    reauthWithGold: async () => {},
 }
 
 /**
@@ -130,12 +143,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
+    const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
+
+    const {i18n} = useTranslation()
 
     useEffect(() => {
         function createKeycloak() {
             if (keycloak || !tenantId || !eventId) {
                 return
             }
+
             /**
              * Get the Keycloak URL. If there's a param `kiosk` in the URL, it
              * appends `-kiosk` to the subdomain (if it exists).
@@ -144,7 +161,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const searchParams = new URLSearchParams(window.location.search)
                 const isKiosk = searchParams.has("kiosk")
 
-                if (!isKiosk) {
+                return defaultUrl
+                /*if (!isKiosk) {
                     return defaultUrl
                 }
 
@@ -162,7 +180,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } catch (error) {
                     console.error("Invalid URL provided:", defaultUrl)
                     return defaultUrl // Fallback to the original URL if an error occurs
-                }
+                }*/
             }
 
             /**
@@ -257,12 +275,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 /**
                  * KeycloakInitOptions configures the Keycloak client.
                  */
+                const rawLocale =
+                    getLanguageFromURL() ||
+                    getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) ||
+                    defaultLocale
                 const keycloakInitOptions: KeycloakInitOptions = {
                     // Configure that Keycloak will check if a user is already authenticated (when
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
                     checkLoginIframe: false,
-                    locale: getLanguageFromURL(),
+                    // Keycloak expects BCP 47 locale codes (e.g. "ca" for Catalan, not "cat")
+                    locale: rawLocale ? toBCP47(rawLocale) : undefined,
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
@@ -303,7 +326,35 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak && !isAuthenticated && !isKeycloakInitialized) {
             initializeKeycloak()
         }
-    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType])
+    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType, defaultLocale])
+
+    /**
+     * Returns true only if the JWT has gold permissions and the JWT
+     * authentication is fresh, i.e. performed less than 60 seconds ago.
+     */
+    // TODO: This is duplicated from jwt.rs in sequent-core, we should just use
+    // the same WASM function if possible
+    const isGoldUser = () => {
+        const acr = keycloak?.tokenParsed?.acr ?? null
+        const isGold = acr === IPermissions.GOLD_PERMISSION
+        const authTimeTimestamp = keycloak?.tokenParsed?.auth_time ?? 0
+        const authTime = new Date(authTimeTimestamp * 1000)
+        const freshnessLimit = new Date(Date.now().valueOf() - 60 * 1000)
+        const isFresh = authTime > freshnessLimit
+        return isGold && isFresh
+    }
+
+    const reauthWithGold = async (redirectUri: string): Promise<void> => {
+        try {
+            await keycloak?.login({
+                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+                redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
+                locale: toBCP47(i18n.language),
+            })
+        } catch (error) {
+            console.error("Re-authentication failed:", error)
+        }
+    }
 
     useEffect(() => {
         async function loadProfile() {
@@ -313,6 +364,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
+
                 setUserProfile((val) => ({
                     ...val,
                     userId: profile?.id || val?.userId,
@@ -339,9 +391,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (tenantId: string, eventId: string, authType?: "register" | "login") => {
+    const setTenantEvent = (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string
+    ) => {
         setTenantId(tenantId)
         setEventId(eventId)
+        setDefaultLocale(defaultLocale)
         authType && setAuthType(authType)
     }
 
@@ -349,12 +407,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (redirectUrl) {
             return redirectUrl
         } else {
+            const origin = window.location.origin
+            const searchParams = new URLSearchParams(window.location.search)
+            const isKiosk = searchParams.has("kiosk")
+            if (isKiosk) {
+                return `${origin}/tenant/${tenantId}/event/${eventId}/?kiosk`
+            }
             const currentPath = window.location.pathname
             const pathSegments = currentPath.split("/")
             while (pathSegments.length > 5) {
                 pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
             }
-            return pathSegments.join("/")
+            return origin + pathSegments.join("/")
         }
     }
 
@@ -432,6 +496,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isKiosk,
                 openProfileLink,
                 keycloakAccessToken,
+                isGoldUser,
+                reauthWithGold,
             }}
         >
             {props.children}

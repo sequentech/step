@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,8 +6,10 @@ use crate::postgres::reports::{get_all_active_reports, update_report_last_docume
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::reports::template_renderer::GenerateReportMode;
+use crate::services::tasks_execution;
 use crate::tasks::generate_report::generate_report;
 use crate::types::error::Result;
+use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
@@ -82,13 +84,13 @@ fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn scheduled_reports() -> Result<()> {
+pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
     // Get the Celery app for scheduling tasks
     let celery_app = get_celery_app().await;
 
     // Get the current time
     let now = Local::now();
-    let one_minute_later = now + Duration::minutes(1);
+    let nsecs_later = now + Duration::seconds(rate_seconds as i64);
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -111,7 +113,7 @@ pub async fn scheduled_reports() -> Result<()> {
             let Some(formatted_date) = get_next_scheduled_time(&report) else {
                 return false;
             };
-            formatted_date < one_minute_later
+            formatted_date < nsecs_later
         })
         .collect::<Vec<_>>();
     info!(
@@ -131,6 +133,17 @@ pub async fn scheduled_reports() -> Result<()> {
             .ok_or_else(|| anyhow!("Cron config not found"))?;
 
         let document_id = Uuid::new_v4().to_string();
+
+        // Create a task execution record for this report generation
+        let task_execution = tasks_execution::post(
+            &report.tenant_id,
+            Some(report.election_event_id.as_str()),
+            ETasksExecution::GENERATE_REPORT,
+            &cron_config.executer_username,
+        )
+        .await
+        .map_err(|err| anyhow!("Error creating task execution record: {err:?}"))?;
+
         let _task = celery_app
             .send_task(
                 generate_report::new(
@@ -138,7 +151,7 @@ pub async fn scheduled_reports() -> Result<()> {
                     document_id.clone(),
                     GenerateReportMode::REAL,
                     cron_config.is_active,
-                    None,
+                    Some(task_execution),
                     Some(cron_config.executer_username),
                     None,
                 )

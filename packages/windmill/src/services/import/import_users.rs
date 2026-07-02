@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
@@ -18,33 +19,38 @@ use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::num::NonZeroU32;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-    static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
-    static ref SALT_COL_NAME: String = String::from("password_salt");
-    static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
-    static ref PASSWORD_COL_NAME: String = String::from("password");
-    static ref USERNAME_COL_NAME: String = String::from("username");
-    static ref EMAIL_COL_NAME: String = String::from("email");
-    static ref GROUP_COL_NAME: String = String::from("group_name");
-    static ref AREA_NAME_COL_NAME: String = String::from("area_name");
-    static ref ELECTION_COL_PREFIX: String = String::from("election__");
-    static ref RESERVED_COL_NAMES: Vec<String> = vec![
-        HASHED_PASSWORD_COL_NAME.clone(),
-        SALT_COL_NAME.clone(),
-        PASSWORD_COL_NAME.clone(),
-        GROUP_COL_NAME.clone(),
-    ];
-}
-
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
+static PBKDF2_ITERATIONS: LazyLock<NonZeroU32> =
+    LazyLock::new(|| NonZeroU32::new(27_500).expect("PBKDF2_ITERATIONS must be non-zero"));
+const NUMBER_OF_ITERATIONS_COL_NAME: &str = "num_of_iterations";
+const SALT_COL_NAME: &str = "password_salt";
+const HASHED_PASSWORD_COL_NAME: &str = "hashed_password";
+const PASSWORD_COL_NAME: &str = "password";
+const USERNAME_COL_NAME: &str = "username";
+const EMAIL_COL_NAME: &str = "email";
+const EMAIL_VERIFIED_COL_NAME: &str = "email_verified";
+const GROUP_COL_NAME: &str = "group_name";
+const AREA_NAME_COL_NAME: &str = "area_name";
+const ELECTION_COL_PREFIX: &str = "election__";
+const RESERVED_COL_NAMES: [&str; 6] = [
+    HASHED_PASSWORD_COL_NAME,
+    SALT_COL_NAME,
+    PASSWORD_COL_NAME,
+    GROUP_COL_NAME,
+    NUMBER_OF_ITERATIONS_COL_NAME,
+    EMAIL_VERIFIED_COL_NAME,
+];
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
@@ -109,37 +115,55 @@ fn get_copy_from_query(
     let input_column_names = headers_vec
         .iter()
         .map(|column_name| match column_name.as_str() {
-            column_name if column_name == *AREA_NAME_COL_NAME => AREA_ID_ATTR_NAME.to_string(),
+            column_name if column_name == AREA_NAME_COL_NAME => AREA_ID_ATTR_NAME.to_string(),
             _ => column_name.clone(),
         })
         .collect::<Vec<String>>();
 
+    // This is the list of columns, in order, of the temporal voters table.
+    // It is important to match columns and order of elements with the data
+    // being processed and sent through the COPY FROM STDIN below in the
+    // variable `owned_data` in `import_users_file()`
     let processed_column_names = headers_vec
         .iter()
         .filter_map(|column_name| match column_name.as_str() {
-            column_name if column_name == *AREA_NAME_COL_NAME => {
-                Some(AREA_ID_ATTR_NAME.to_string())
-            }
-            column_name if column_name == *PASSWORD_COL_NAME => None,
+            column_name if column_name == AREA_NAME_COL_NAME => Some(AREA_ID_ATTR_NAME.to_string()),
+            column_name if column_name == PASSWORD_COL_NAME => None,
+            column_name if column_name == SALT_COL_NAME => None,
+            column_name if column_name == HASHED_PASSWORD_COL_NAME => None,
+            column_name if column_name == NUMBER_OF_ITERATIONS_COL_NAME => None,
             _ => Some(column_name.clone()),
         })
-        .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
-            vec![SALT_COL_NAME.clone(), HASHED_PASSWORD_COL_NAME.clone()].into_iter()
+        .chain(if headers_vec.iter().any(|s| s == PASSWORD_COL_NAME) {
+            vec![
+                SALT_COL_NAME.to_string(),
+                HASHED_PASSWORD_COL_NAME.to_string(),
+                NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
+            ]
+            .into_iter()
+        } else if headers_vec.iter().any(|s| s == HASHED_PASSWORD_COL_NAME) {
+            vec![
+                SALT_COL_NAME.to_string(),
+                HASHED_PASSWORD_COL_NAME.to_string(),
+                NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
+            ]
+            .into_iter()
         } else {
             Vec::new().into_iter()
         })
         // note that in this case, username is at the end
-        .chain(if !headers_vec.contains(&USERNAME_COL_NAME) {
-            vec![USERNAME_COL_NAME.clone()].into_iter()
+        .chain(if !headers_vec.iter().any(|s| s == USERNAME_COL_NAME) {
+            vec![USERNAME_COL_NAME.to_string()].into_iter()
         } else {
             Vec::new().into_iter()
         })
         .collect::<Vec<String>>();
 
     // Create the table creation query
+    let quoted_table_name = escape_sql_identifier(&temp_table_name);
     let create_table_query = format!(
         "CREATE TEMP TABLE {} ({});",
-        temp_table_name,
+        quoted_table_name,
         processed_column_names
             .iter()
             .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
@@ -148,7 +172,7 @@ fn get_copy_from_query(
     );
 
     // Create the COPY FROM STDIN query
-    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", temp_table_name);
+    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", quoted_table_name);
 
     let processed_column_types = processed_column_names
         .iter()
@@ -172,7 +196,6 @@ fn get_copy_from_query(
  * "user_entity" table and multiple user attributesin "user_attribute"
  * table.
  */
-
 #[instrument(err)]
 fn get_insert_user_query(
     tenant_id: String,
@@ -180,14 +203,24 @@ fn get_insert_user_query(
     voters_table: String,
     voters_table_columns: &Vec<String>,
 ) -> anyhow::Result<String> {
+    parse_uuid_v4(&tenant_id)
+        .with_context(|| format!("invalid v4 UUID for tenant_id: {}", tenant_id))?;
+    parse_uuid_v4(&realm_id)
+        .with_context(|| format!("invalid v4 UUID for realm_id: {}", realm_id))?;
+    let realm_id = escape_sql_literal(&realm_id);
+    let tenant_id = escape_sql_literal(&tenant_id);
+    let voters_table = escape_sql_identifier(&voters_table);
+
     // Build the INSERT query for user_entity
     let user_entity_columns = vec![
         "id",
         "email",
+        "email_constraint",
         "enabled",
         "first_name",
         "last_name",
         "username",
+        "not_before",
     ];
     let select_columns: Vec<String> = user_entity_columns
         .iter()
@@ -198,7 +231,7 @@ fn get_insert_user_query(
                 // Cast enabled to boolean, with TRUE as default
                 "enabled" => {
                     if voters_table_columns.contains(&col_name) {
-                        "enabled::boolean".to_string()
+                        "COALESCE(NULLIF(enabled, ''), 'TRUE')::boolean".to_string()
                     } else {
                         "'TRUE'::boolean".to_string()
                     }
@@ -206,11 +239,19 @@ fn get_insert_user_query(
                 // empty as default, lowercase required in keycloak
                 "email" => {
                     if voters_table_columns.contains(&col_name) {
-                        "LOWER(email)".to_string()
+                        "NULLIF(LOWER(email), '')".to_string()
                     } else {
-                        "''".to_string()
+                        "NULL".to_string()
                     }
                 }
+                "email_constraint" => {
+                    if voters_table_columns.contains(&"email".to_string()) {
+                        "NULLIF(LOWER(email), '')".to_string()
+                    } else {
+                        "NULL".to_string()
+                    }
+                }
+                "not_before" => "0".to_string(),
                 // empty as default
                 _ => {
                     if voters_table_columns.contains(&col_name) {
@@ -222,21 +263,30 @@ fn get_insert_user_query(
             }
         })
         .collect();
+
+    // Conditionally create the SELECT statement for email_verified.
+    // If the column doesn't exist in the source table, default to true.
+    let email_verified_select = if voters_table_columns.contains(&"email_verified".to_string()) {
+        "COALESCE(NULLIF(email_verified, '')::boolean, true)".to_string()
+    } else {
+        "true".to_string()
+    };
+
     let user_entity_query = format!(
         r#"INSERT INTO user_entity (
-                realm_id,
-                email_verified,
-                created_timestamp,
-                {}
-            )
-            SELECT
-                '{realm_id}',
-                true,
-                (extract(epoch from now()) * 1000)::bigint,
-                {}
-            FROM
-                {}
-            RETURNING *"#,
+                    realm_id,
+                    email_verified,
+                    created_timestamp,
+                    {}
+                )
+                SELECT
+                    '{realm_id}',
+                    {email_verified_select},
+                    (extract(epoch from now()) * 1000)::bigint,
+                    {}
+                FROM
+                    {}
+                RETURNING *"#,
         user_entity_columns.join(", "),
         select_columns.join(", "),
         voters_table,
@@ -248,110 +298,123 @@ fn get_insert_user_query(
         .into_iter()
         .filter(|col| {
             !user_entity_columns.contains(&col.as_str())
-                && !RESERVED_COL_NAMES.contains(&col)
-                && !col.starts_with(&*ELECTION_COL_PREFIX)
+                && !RESERVED_COL_NAMES.iter().any(|&s| s == col)
+                && !col.starts_with(ELECTION_COL_PREFIX)
         })
         .collect::<Vec<String>>();
 
     // Build a single INSERT query for all user_attribute elements
     let user_attribute_query = if !user_attributes.is_empty() {
         let values_subquery = user_attributes
-            .iter()
-            .map(|attr| {
-                let sanitized_attr = sanitize_db_key(attr);
-                format!(
-                    r#"
-                    SELECT
-                        gen_random_uuid(),
-                        nu.id,
-                        '{attr}',
-                        unnest(string_to_array(v.{sanitized_attr}, '{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}'))
-                    FROM
-                        {voters_table} v
-                    JOIN
-                        new_user nu ON
-                            nu.username = v.username
-                    "#
-                )
-            })
-            .collect::<Vec<String>>()
-            .join(" UNION ALL ");
+                .iter()
+                .map(|attr| {
+                    let sanitized_attr = sanitize_db_key(attr);
+                    format!(
+                        r#"
+                        SELECT
+                            gen_random_uuid(),
+                            nu.id,
+                            '{attr}',
+                            unnest(string_to_array(v.{sanitized_attr}, '{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}'))
+                        FROM
+                            {voters_table} v
+                        JOIN
+                            new_user nu ON
+                                nu.username = v.username
+                        "#
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join(" UNION ALL ");
 
         format!(
             r#"
-            INSERT
-            INTO user_attribute (id, user_id, name, value)
-            {values_subquery}
-            UNION ALL
-            SELECT
-                gen_random_uuid(),
-                nu.id,
-                '{TENANT_ID_ATTR_NAME}',
-                '{}'
-            FROM
-                new_user nu
-            "#,
-            tenant_id,
+                INSERT
+                INTO user_attribute (id, user_id, name, value)
+                {values_subquery}
+                UNION ALL
+                SELECT
+                    gen_random_uuid(),
+                    nu.id,
+                    '{TENANT_ID_ATTR_NAME}',
+                    '{tenant_id}'
+                FROM
+                    new_user nu
+                "#,
         )
     } else {
         String::new()
     };
 
-    let group_name = if voters_table_columns.contains(&*GROUP_COL_NAME) {
-        format!("v.{}", &*GROUP_COL_NAME)
+    let group_name = if voters_table_columns.iter().any(|s| s == GROUP_COL_NAME) {
+        format!("v.{GROUP_COL_NAME}")
     } else {
         "'voter'".to_string()
     };
 
     let group_query = format!(
         r#",
-        pre_user_group AS (
-            SELECT
-                kg.id AS group_id,
-                nu.id AS user_id
-            FROM
-                {voters_table} v
-            JOIN
-                new_user nu ON
-                    nu.username = v.username
-            JOIN
-                keycloak_group kg ON
-                    kg.name = {group_name}
-                    AND kg.realm_id = '{realm_id}'
-        ),
-        user_group AS (
-            INSERT 
-            INTO user_group_membership (
-                group_id,
-                user_id
-            )
-            SELECT
-                pug.group_id,
-                pug.user_id
-            FROM pre_user_group pug
-        )
-        "#
-    );
-
-    // Inserts password credentials if need be
-    let salt_col_name = &*SALT_COL_NAME;
-    let hashed_password_col_name = &*HASHED_PASSWORD_COL_NAME;
-    let num_iterations = &*PBKDF2_ITERATIONS;
-    let credentials_query = if voters_table_columns.contains(hashed_password_col_name) {
-        format!(
-            r#",
-            pre_credentials AS (
+            pre_user_group AS (
                 SELECT
-                    v.{salt_col_name} AS salt,
-                    v.{hashed_password_col_name} AS hashed_password,
-                    nu.id AS id
+                    kg.id AS group_id,
+                    nu.id AS user_id
                 FROM
                     {voters_table} v
                 JOIN
                     new_user nu ON
                         nu.username = v.username
+                JOIN
+                    keycloak_group kg ON
+                        kg.name = {group_name}
+                        AND kg.realm_id = '{realm_id}'
             ),
-            credentials AS (
+            user_group AS (
+                INSERT 
+                INTO user_group_membership (
+                    group_id,
+                    user_id,
+                    membership_type
+                )
+                SELECT
+                    pug.group_id,
+                    pug.user_id,
+                    'UNMANAGED'
+                FROM pre_user_group pug
+            )
+            "#
+    );
+
+    // Inserts password credentials if need be
+    let salt_col_name = SALT_COL_NAME;
+    let hashed_password_col_name = HASHED_PASSWORD_COL_NAME;
+    let credentials_query = if voters_table_columns
+        .iter()
+        .any(|s| s == hashed_password_col_name)
+    {
+        let num_iterations = if voters_table_columns
+            .iter()
+            .any(|s| s == NUMBER_OF_ITERATIONS_COL_NAME)
+        {
+            format!("v.{NUMBER_OF_ITERATIONS_COL_NAME}")
+        } else {
+            PBKDF2_ITERATIONS.to_string()
+        };
+        info!("num_iterations = {voters_table}");
+        format!(
+            r#",
+                pre_credentials AS (
+                SELECT
+                    v.{salt_col_name} AS salt,
+                    v.{hashed_password_col_name} AS hashed_password,
+                    nu.id AS id,
+                    {num_iterations} AS num_of_iterations
+                FROM
+                    {voters_table} v
+                JOIN
+                    new_user nu ON
+                    nu.username = v.username
+                ),
+                credentials AS (
                 INSERT 
                 INTO credential (
                     id,
@@ -370,18 +433,18 @@ fn get_insert_user_query(
                     (extract(epoch from now()) * 1000)::bigint,
                     'My password',
                     json_build_object(
-                        'value', pc.hashed_password,
-                        'salt', pc.salt
+                    'value', pc.hashed_password,
+                    'salt', pc.salt
                     )::text,
                     json_build_object(
-                        'hashIterations', {num_iterations},
-                        'algorithm', 'pbkdf2-sha256',
-                        'additionalParameters', json_build_object()
+                    'hashIterations', pc.num_of_iterations,
+                    'algorithm', 'pbkdf2-sha256',
+                    'additionalParameters', json_build_object()
                     )::text,
                     10
                 FROM pre_credentials pc
-            )
-            "#
+                )
+                "#
         )
     } else {
         String::new()
@@ -389,14 +452,14 @@ fn get_insert_user_query(
 
     let ret = format!(
         r#"
-        WITH 
-            new_user AS (
-                {user_entity_query}
-            )
-            {credentials_query}
-            {group_query}
-        {user_attribute_query};
-        "#
+            WITH 
+                new_user AS (
+                    {user_entity_query}
+                )
+                {credentials_query}
+                {group_query}
+            {user_attribute_query};
+            "#
     );
     info!("ret = {ret}");
     Ok(ret)
@@ -428,8 +491,8 @@ pub async fn import_users_file(
     keycloak_transaction
         .simple_query(
             r#"
-            SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-            "#,
+                SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+                "#,
         )
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;
@@ -541,6 +604,14 @@ pub async fn import_users_file(
     let writer = BinaryCopyInWriter::new(sink, &voters_table_processed_columns_types);
     pin_mut!(writer);
 
+    // 1. Owned data is defined outside the loop because otherwise the
+    //    lifetime wouldn't match the one required in the write() function
+    //    below, that writes into the COPY FROM STDIN sql sentence.
+    // 2. `owned_data` is inserted into the temporal table in the order
+    //    defined in `processed_column_names` of the function
+    //    `get_copy_from_query()`. It's important to match these two
+    //    together or else the temporal voters data table will be polluted
+    //    with incorrectly assigned data.
     let mut owned_data: Vec<String> = Vec::new();
     for result in rdr.records() {
         let record = match result {
@@ -553,52 +624,72 @@ pub async fn import_users_file(
 
         let mut password_salt: Option<String> = None;
         let mut hashed_password: Option<String> = None;
+        let mut num_of_iterations = *PBKDF2_ITERATIONS;
+        let mut password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
             let processed_data = match column_name.as_str() {
-                column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
-                    match areas_map
-                        .as_ref()
-                        .ok_or_else(|| {
-                            anyhow!("Using area-id without providing election-event-id (is_admin: {is_admin})")
-                        })?
-                        .get(data)
-                    {
-                        Some(area_id) => area_id.to_string(),
-                        None => {
-                            info!("Area not found by name `{data}`, setting area to NULL");
-                            "".to_string()
+                    column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
+                        match areas_map
+                            .as_ref()
+                            .ok_or_else(|| {
+                                anyhow!("Using area-id without providing election-event-id (is_admin: {is_admin})")
+                            })?
+                            .get(data)
+                        {
+                            Some(area_id) => area_id.to_string(),
+                            None => {
+                                info!("Area not found by name `{data}`, setting area to NULL");
+                                "".to_string()
+                            }
                         }
                     }
-                }
-                column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
-                column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
-                _ => data.to_string(),
-            };
+                    column_name if column_name == USERNAME_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == EMAIL_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
+                    _ => data.to_string(),
+                };
 
-            if column_name == &*PASSWORD_COL_NAME {
-                let mut salt_bytes: Credential = Default::default();
-                thread_rng().fill(&mut salt_bytes);
-
-                password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
-                hashed_password = Some(
-                    hash_password(&processed_data, &salt_bytes)
-                        .with_context(|| "Error generating hashed password")?,
-                );
-            } else if column_name == &*SALT_COL_NAME {
+            if column_name == PASSWORD_COL_NAME {
+                info!("password = {processed_data}");
+                password = Some(data.to_string());
+            } else if column_name == NUMBER_OF_ITERATIONS_COL_NAME {
+                num_of_iterations = match data.parse::<u32>() {
+                    Ok(value) => NonZeroU32::new(value).unwrap_or(*PBKDF2_ITERATIONS),
+                    Err(_) => *PBKDF2_ITERATIONS,
+                };
+            } else if column_name == SALT_COL_NAME {
                 password_salt = Some(data.to_string());
-            } else if column_name == &*HASHED_PASSWORD_COL_NAME {
+            } else if column_name == HASHED_PASSWORD_COL_NAME {
                 hashed_password = Some(data.to_string());
             } else {
                 owned_data.push(processed_data);
             }
         }
 
-        if voters_table_processed_columns_names.contains(&*HASHED_PASSWORD_COL_NAME) {
-            owned_data.push(password_salt.ok_or_else(|| anyhow!("Password salt empty"))?);
-            owned_data.push(hashed_password.ok_or_else(|| anyhow!("Hashed password empty"))?);
+        if let Some(some_password) = password {
+            let mut salt_bytes: Credential = Default::default();
+            thread_rng().fill(&mut salt_bytes);
+
+            password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
+            hashed_password = Some(
+                hash_password(&some_password, &salt_bytes)
+                    .with_context(|| "Error generating hashed password")?,
+            );
         }
 
-        if !voters_table_input_columns_names.contains(&*USERNAME_COL_NAME) {
+        if voters_table_processed_columns_names
+            .iter()
+            .any(|s| s == HASHED_PASSWORD_COL_NAME)
+        {
+            owned_data.push(password_salt.ok_or_else(|| anyhow!("Password salt empty"))?);
+            owned_data.push(hashed_password.ok_or_else(|| anyhow!("Hashed password empty"))?);
+            owned_data.push(num_of_iterations.get().to_string());
+        }
+
+        if !voters_table_input_columns_names
+            .iter()
+            .any(|s| s == USERNAME_COL_NAME)
+        {
             let username = Uuid::new_v4().to_string();
             owned_data.push(username);
         }

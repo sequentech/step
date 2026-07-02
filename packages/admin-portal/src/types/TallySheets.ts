@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,6 +6,12 @@ export enum EVotingChannel {
     PAPER = "PAPER",
     POSTAL = "POSTAL",
     IN_PERSON = "IN_PERSON",
+}
+
+export enum EStatus {
+    PENDING = "PENDING",
+    APPROVED = "APPROVED",
+    DISAPPROVED = "DISAPPROVED",
 }
 
 export interface IInvalidVotes {

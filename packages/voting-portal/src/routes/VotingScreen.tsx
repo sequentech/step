@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,11 +12,10 @@ import {
     check_voting_not_allowed_next_bool,
     stringToHtml,
     isUndefined,
-    translateElection,
+    translateFromPresentation,
     IContest,
-    IAuditableMultiBallot,
-    IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    BallotSelection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -26,12 +25,10 @@ import Button from "@mui/material/Button"
 import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
-    setBallotSelection,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
-import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
-import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
@@ -42,10 +39,18 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
+import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
+    /* ensure the link contains only a single tabbable element: the button below */
+    &:focus {
+        outline: none;
+    }
+    & *[tabindex] {
+        outline: none;
+    }
 `
 
 const StyledTitle = styled(Typography)`
@@ -181,6 +186,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     disableNextButton,
 }) => {
     const dispatch = useAppDispatch()
+    const submit = useSubmit()
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
@@ -192,15 +198,30 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
 
     const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const errorSelectionState = useMemo(() => {
         if (!ballotSelectionState) {
             return []
         }
-        return isMultiContest
-            ? interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
-            : interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+        let selectionState: BallotSelection = []
+        try {
+            if (isMultiContest) {
+                selectionState = interpretMultiContestSelection(
+                    ballotSelectionState,
+                    ballotStyle.ballot_eml
+                )
+            } else {
+                selectionState = interpretContestSelection(
+                    ballotSelectionState,
+                    ballotStyle.ballot_eml
+                )
+            }
+        } catch (err) {
+            console.log("Error was thrown by wasm interface: ", err)
+            submit({error: VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT}, {method: "post"})
+        }
+        return selectionState
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {
@@ -271,14 +292,10 @@ const VotingScreen: React.FC = () => {
     let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
+    const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {
-        encryptBallotSelection,
-        encryptMultiBallotSelection,
-        decodeAuditableBallot,
-        decodeAuditableMultiBallot,
-    } = provideBallotService()
+    const {encryptAndStoreBallot} = useEncryptBallotForReview()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -317,15 +334,16 @@ const VotingScreen: React.FC = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         } else if (showNextDialog() || disableNextButton()) {
             setOpenNonVoted(true)
+
+            const newHasInvalidErrors = Object.values(decodedContests).some(
+                (a) => a?.invalid_errors.length > 0
+            )
+            setHasInvalidErrors(newHasInvalidErrors)
         } else {
             finallyEncryptAndReview()
         }
@@ -336,37 +354,16 @@ const VotingScreen: React.FC = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
-        try {
-            const isMultiContest =
-                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
-                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            const auditableBallot = isMultiContest
-                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
-                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+        dispatch(clearDeclinedToVoteForElection(ballotStyle.election_id))
 
-            dispatch(
-                setAuditableBallot({
-                    electionId: ballotStyle?.election_id ?? "",
-                    auditableBallot,
-                })
-            )
+        const isMultiContest =
+            ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            let decodedSelectionState = isMultiContest
-                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
-
-            if (null !== decodedSelectionState) {
-                dispatch(
-                    setBallotSelection({
-                        ballotStyle,
-                        ballotSelection: decodedSelectionState,
-                    })
-                )
-            }
-
+        if (encryptAndStoreBallot(ballotStyle, selectionState, isMultiContest)) {
             submit(null, {method: "post"})
-        } catch (error) {
+        } else {
             submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
         }
     }
@@ -376,8 +373,20 @@ const VotingScreen: React.FC = () => {
             navigate(backLink)
         } else if (!selectionState || !canVote) {
             logout()
+        } else if (electionId) {
+            dispatch(clearDeclinedToVoteForElection(electionId))
         }
-    }, [navigate, backLink, election, ballotStyle, selectionState, canVote, logout])
+    }, [
+        navigate,
+        backLink,
+        election,
+        ballotStyle,
+        selectionState,
+        canVote,
+        logout,
+        electionId,
+        dispatch,
+    ])
 
     useEffect(() => {
         let minMaxGlobal = false
@@ -431,7 +440,7 @@ const VotingScreen: React.FC = () => {
             </Box>
             <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
-                    {translateElection(election, "name", i18n.language) ?? "-"}
+                    {translateFromPresentation(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
                     className="title-question"
@@ -456,7 +465,9 @@ const VotingScreen: React.FC = () => {
                     variant="body2"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
+                    {stringToHtml(
+                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                    )}
                 </Typography>
             ) : null}
 
@@ -483,12 +494,30 @@ const VotingScreen: React.FC = () => {
                 <Dialog
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
-                    title={t("votingScreen.nonVotedDialog.title")}
-                    ok={t("votingScreen.nonVotedDialog.continue")}
-                    cancel={t("votingScreen.nonVotedDialog.cancel")}
+                    title={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.title"
+                            : "votingScreen.warningDialog.title"
+                    )}
+                    ok={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.continue"
+                            : "votingScreen.warningDialog.continue"
+                    )}
+                    cancel={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.cancel"
+                            : "votingScreen.warningDialog.cancel"
+                    )}
                     variant="action"
                 >
-                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                    {stringToHtml(
+                        t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.content"
+                                : "votingScreen.warningDialog.content"
+                        )
+                    )}
                 </Dialog>
             )}
         </PageLimit>
@@ -506,6 +535,8 @@ export async function action({request}: {request: Request}) {
             VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
         )
     }
+    const url = new URL(request.url)
+    const search = url.search || ""
 
-    return redirect(`../review`)
+    return redirect(`../review${search}`)
 }

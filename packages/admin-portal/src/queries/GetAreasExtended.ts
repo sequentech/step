@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ export const GET_AREAS_EXTENDED = gql`
         ) {
             contest {
                 id
-                name
+                presentation
             }
         }
     }

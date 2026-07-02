@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -61,7 +61,7 @@ pub async fn delete_realm_groups_and_roles(
                         &pub_keycloak_client,
                         tenant_id,
                         "roles-by-id",
-                        role.id.as_ref().unwrap(),
+                        role.id.as_ref().ok_or(anyhow!("Empty role id"))?,
                     )
                     .await
                     .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
@@ -78,7 +78,7 @@ pub async fn delete_realm_groups_and_roles(
                         &pub_keycloak_client,
                         tenant_id,
                         "groups",
-                        group.id.as_ref().unwrap(),
+                        group.id.as_ref().ok_or(anyhow!("Empty role id"))?,
                     )
                     .await?;
                 println!("Deleted group: {}", name);
@@ -87,7 +87,7 @@ pub async fn delete_realm_groups_and_roles(
                 new_realm_groups
                     .iter_mut()
                     .find(|g| g.name == group.name)
-                    .unwrap()
+                    .ok_or(anyhow!("Can't find realm group"))?
                     .id = group.id.clone();
             }
         }

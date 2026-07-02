@@ -1,13 +1,44 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::import::import_election_event::ImportElectionEventSchema;
+use crate::services::sql_utils::escape_sql_literal;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
+use futures::pin_mut;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Candidate;
+use std::path::Path;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tokio_postgres::types::{ToSql, Type};
+use tokio_stream::StreamExt;
+use tracing::instrument;
 use uuid::Uuid;
+
+/// Candidate column for insert operation
+const CANDIDATE_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, contest_id, 
+created_at, last_updated_at, labels, annotations, description, type, 
+presentation, is_public, image_document_id, external_id";
+
+/// Candidate columns types for insert operation (same order as the columns)
+const CANDIDATE_COPY_TYPES: &[Type] = &[
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::TIMESTAMPTZ,
+    Type::TIMESTAMPTZ,
+    Type::JSONB,
+    Type::JSONB,
+    Type::TEXT,
+    Type::VARCHAR,
+    Type::JSONB,
+    Type::BOOL,
+    Type::TEXT,
+    Type::TEXT,
+];
 
 pub struct CandidateWrapper(pub Candidate);
 
@@ -26,13 +57,12 @@ impl TryFrom<Row> for CandidateWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            name: item.try_get("name")?,
-            alias: item.try_get("alias")?,
             description: item.try_get("description")?,
             r#type: item.try_get("type")?,
             presentation: item.try_get("presentation")?,
             is_public: item.try_get("is_public")?,
             image_document_id: item.try_get("image_document_id")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -44,45 +74,61 @@ pub async fn insert_candidates(
     election_event_id: &str,
     candidates: &Vec<Candidate>,
 ) -> Result<()> {
+    if candidates.is_empty() {
+        return Ok(());
+    }
+
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let now = chrono::Utc::now();
+
+    let copy_sql =
+        format!("COPY sequent_backend.candidate ({CANDIDATE_COPY_COLUMNS}) FROM STDIN BINARY");
+
+    let sink = hasura_transaction
+        .copy_in(&copy_sql)
+        .await
+        .with_context(|| format!("Error preparing candidate COPY IN: {copy_sql}"))?;
+    let writer = BinaryCopyInWriter::new(sink, CANDIDATE_COPY_TYPES);
+    pin_mut!(writer);
+
     for candidate in candidates {
         candidate.validate()?;
 
-        let statement = hasura_transaction
-        .prepare(
-            r#"
-                INSERT INTO sequent_backend.candidate
-                (id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, name, description, type, presentation, is_public, alias, image_document_id)
-                VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13);
-            "#,
-        )
-        .await?;
+        let id = parse_uuid_v4(&candidate.id)?;
+        let contest_id = candidate
+            .contest_id
+            .as_ref()
+            .and_then(|contest_id| parse_uuid_v4(contest_id).ok());
 
-        let rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &Uuid::parse_str(&candidate.id)?,
-                    &Uuid::parse_str(tenant_id)?,
-                    &Uuid::parse_str(election_event_id)?,
-                    &candidate
-                        .contest_id
-                        .as_ref()
-                        .and_then(|id| Uuid::parse_str(&id).ok()),
-                    &candidate.labels,
-                    &candidate.annotations,
-                    &candidate.name,
-                    &candidate.description,
-                    &candidate.r#type,
-                    &candidate.presentation,
-                    &candidate.is_public,
-                    &candidate.alias,
-                    &candidate.image_document_id,
-                ],
-            )
+        let row: [&(dyn ToSql + Sync); 14] = [
+            &id,
+            &tenant_uuid,
+            &election_event_uuid,
+            &contest_id,
+            &now,
+            &now,
+            &candidate.labels,
+            &candidate.annotations,
+            &candidate.description,
+            &candidate.r#type,
+            &candidate.presentation,
+            &candidate.is_public,
+            &candidate.image_document_id,
+            &candidate.external_id,
+        ];
+
+        writer
+            .as_mut()
+            .write(&row)
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error writing candidate COPY row: {err}"))?;
     }
+
+    writer
+        .finish()
+        .await
+        .context("Error finishing candidate COPY IN transaction")?;
 
     Ok(())
 }
@@ -97,7 +143,7 @@ pub async fn export_candidates(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, name, description, type, presentation, is_public, alias, image_document_id
+                    id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, description, type, presentation, is_public, image_document_id, external_id
                 FROM
                     sequent_backend.candidate
                 WHERE
@@ -111,8 +157,8 @@ pub async fn export_candidates(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -154,9 +200,9 @@ pub async fn get_candidates_by_contest_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;
@@ -170,4 +216,74 @@ pub async fn get_candidates_by_contest_id(
         .collect::<Result<Vec<Candidate>>>()?;
 
     Ok(candidate)
+}
+
+#[instrument(err, skip_all)]
+pub async fn export_candidate_csv(
+    hasura_transaction: &Transaction<'_>,
+    contests_csv_path: &Path,
+    contest_ids: &Vec<String>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let mut file = File::create(contests_csv_path)
+        .await
+        .context("Error opening CSV data to temp file")?;
+
+    // Validate all IDs as v4 UUIDs before interpolating into SQL
+    parse_uuid_v4(tenant_id)?;
+    parse_uuid_v4(election_event_id)?;
+    for id in contest_ids {
+        parse_uuid_v4(id)?;
+    }
+    let contests_csv = contest_ids
+        .iter()
+        .map(|id| format!("\"{}\"", escape_sql_literal(id)))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let tenant_id = escape_sql_literal(tenant_id);
+    let election_event_id = escape_sql_literal(election_event_id);
+
+    let copy_sql = format!(
+        r#"COPY (
+            SELECT
+                id::text,
+                tenant_id,
+                election_event_id::text,
+                contest_id::text,
+                created_at::text,
+                last_updated_at::text,
+                labels::text,
+                annotations::text,
+                description,
+                type,
+                presentation::text,
+                is_public::text,
+                image_document_id::text,
+                external_id::text
+            FROM sequent_backend.candidate
+            WHERE
+                tenant_id = '{}'
+                AND election_event_id = '{}'
+                AND contest_id = ANY('{{{}}}')
+        ) TO STDOUT WITH CSV HEADER"#,
+        tenant_id, election_event_id, contests_csv
+    );
+
+    let stream = hasura_transaction
+        .copy_out(&copy_sql)
+        .await
+        .map_err(|e| anyhow!("COPY OUT failed: {}", e))?;
+    pin_mut!(stream);
+
+    while let Some(chunk) = stream.next().await {
+        let data = chunk.context("Error reading COPY OUT stream")?;
+        file.write_all(&data)
+            .await
+            .context("Error writing CSV data to temp file")?;
+    }
+    file.flush().await?;
+
+    Ok(())
 }

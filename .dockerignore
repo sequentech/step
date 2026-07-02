@@ -1,1 +1,33 @@
-airgapped-artifacts
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Rust build artifacts - ALL target directories at any level
+target/
+**/target/
+rust-local-target/
+**/rust-local-target/
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Build artifacts
+**/dist/
+**/build/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+airgapped-artifacts/
+tmp/
+temp/

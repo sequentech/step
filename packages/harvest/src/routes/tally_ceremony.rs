@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,6 +13,7 @@ use sequent_core::ballot::{
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::TallyResolution;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
@@ -21,10 +22,13 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
-use windmill::postgres::tally_session::get_tally_session_by_id;
-use windmill::services::{
-    ceremonies::tally_ceremony, database::get_hasura_pool,
+use windmill::postgres::tally_session::{
+    get_tally_session_by_id, update_tally_session_status,
 };
+use windmill::services::ceremonies::tally_ceremony::{self};
+use windmill::services::ceremonies::tally_resolution;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -127,6 +131,12 @@ pub async fn update_tally_ceremony(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
+    let user_id = claims.clone().hasura_claims.user_id;
+    let username = claims
+        .clone()
+        .preferred_username
+        .unwrap_or(claims.name.clone().unwrap_or_else(|| user_id.clone()));
+
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
             (
@@ -160,6 +170,7 @@ pub async fn update_tally_ceremony(
         )
     })?;
     let tally_type = tally_session
+        .clone()
         .tally_type
         .map(|val: String| {
             TallyType::try_from(val.as_str()).unwrap_or_default()
@@ -170,7 +181,7 @@ pub async fn update_tally_ceremony(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
-        &tally_session.election_ids.unwrap_or(vec![]),
+        &tally_session.election_ids.clone().unwrap_or(vec![]),
     )
     .await
     .map_err(|_| {
@@ -193,8 +204,13 @@ pub async fn update_tally_ceremony(
                     election_status.allow_tally == AllowTallyStatus::ALLOWED
                         || (election_status.allow_tally
                             == AllowTallyStatus::REQUIRES_VOTING_PERIOD_END
-                            && election_status.voting_status
-                                == VotingStatus::CLOSED)
+                            && (election_status.voting_status.is_closed()
+                                && election_status
+                                    .kiosk_voting_status
+                                    .is_closed_or_never_started()
+                                && election_status
+                                    .early_voting_status
+                                    .is_closed_or_never_started()))
                 }
                 TallyType::INITIALIZATION_REPORT => {
                     election_status.init_report == InitReport::ALLOWED
@@ -206,7 +222,7 @@ pub async fn update_tally_ceremony(
         }
     });
 
-    if (!is_tally_allowed) {
+    if !is_tally_allowed {
         return Err((
             Status::InternalServerError,
             format!(
@@ -220,8 +236,10 @@ pub async fn update_tally_ceremony(
         &hasura_transaction,
         tenant_id,
         input.election_event_id.clone(),
-        input.tally_session_id.clone(),
+        tally_session.clone(),
         input.status.clone(),
+        user_id.clone(),
+        username.clone(),
     )
     .await
     .map_err(|e| {
@@ -229,6 +247,10 @@ pub async fn update_tally_ceremony(
             Status::InternalServerError,
             format!("Error with update_tally_ceremony: {:?}", e),
         )
+    })?;
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
     Ok(Json(CreateTallyCeremonyOutput {
@@ -303,8 +325,93 @@ pub async fn restore_private_key(
         is_valid,
     );
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     Ok(Json(SetPrivateKeyOutput { is_valid }))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubmitTallyResolutionInput {
+    election_event_id: String,
+    tally_session_id: String,
+    resolutions: Vec<TallyResolution>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubmitTallyResolutionOutput {
+    success: bool,
+    tally_session_id: String,
+    resolved_count: usize,
+}
+
+/// Submit multiple tally resolutions for a paused tally (batch operation)
+#[instrument(skip(claims))]
+#[post("/submit-tally-resolution", format = "json", data = "<body>")]
+pub async fn submit_tally_resolution(
+    body: Json<SubmitTallyResolutionInput>,
+    claims: JwtClaims,
+) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TALLY_RESOLUTION_SUBMIT],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id.clone();
+
+    if input.resolutions.is_empty() {
+        return Err((
+            Status::BadRequest,
+            "At least one resolution required".to_string(),
+        ));
+    }
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
+
+    let resolved_count = tally_resolution::submit_tally_resolution(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        &input.resolutions,
+        &user_id,
+        claims.preferred_username.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
+
+    event!(
+        Level::INFO,
+        "Batch tally resolution submission completed for tally session {}, resolved {} contest(s)",
+        input.tally_session_id,
+        resolved_count
+    );
+
+    Ok(Json(SubmitTallyResolutionOutput {
+        success: true,
+        tally_session_id: input.tally_session_id,
+        resolved_count,
+    }))
 }

@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, PropsWithChildren, useState, useEffect} from "react"
 import {ApolloClient, InMemoryCache, NormalizedCacheObject, createHttpLink} from "@apollo/client"
 import {setContext} from "@apollo/client/link/context"
 import {AuthContext} from "./AuthContextProvider"
-import {ApolloProvider} from "@apollo/client"
+import {ApolloProvider} from "@apollo/client/react"
 import {SettingsContext} from "./SettingsContextProvider"
 import {Box, CircularProgress} from "@mui/material"
 import {useMatch} from "react-router-dom"

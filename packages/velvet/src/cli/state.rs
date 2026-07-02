@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,6 +6,7 @@ use super::error::{Error, Result};
 use super::CliRun;
 use crate::config::PipeConfig;
 use crate::pipes::error::Error as PipesError;
+use crate::pipes::generate_db::GenerateDatabase;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;

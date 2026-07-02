@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
@@ -23,6 +23,16 @@ const englishTranslation = {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
             blankVote: "Blank Vote",
+            preferential: {
+                position: "Position",
+                none: "None",
+                ordinals: {
+                    first: "st",
+                    second: "nd",
+                    third: "rd",
+                    other: "th",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",
@@ -62,24 +72,40 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
-        poweredBy: "Powered by",
+        footer: {
+            poweredBy: "Powered by <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write in doesn't end on 0",
+                writeInNotEndInZero: "Write-in doesn't end on 0",
+                writeInCharsExceeded:
+                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
             implicit: {
                 selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
                 selectedMin:
                     "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                maxSelectionsPerType:
+                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                underVote:
+                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
+                blankVote: "Blank Vote: 0 choices selected",
+                preferenceOrderWithGaps:
+                    "Invalid vote! The order of preference has one or more gaps.",
+                duplicatedPosition:
+                    "Invalid vote! The same position was selected for two or more candidates.",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "Selection marked will be considered invalid vote.",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

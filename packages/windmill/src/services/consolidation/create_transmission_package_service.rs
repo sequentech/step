@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::acm_json::get_acm_key_pair;
@@ -21,11 +21,11 @@ use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
-use crate::services::compress::decompress_file;
+use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::folders::list_files;
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
@@ -40,6 +40,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::generate_ecies_key_pair;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
@@ -214,7 +215,7 @@ pub async fn generate_all_servers_document(
     let file_size =
         get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
 
-    let document = upload_and_return_document_postgres(
+    let document = upload_and_return_document(
         &hasura_transaction,
         &dst_file_string,
         file_size,
@@ -312,7 +313,7 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    let tally_path = decompress_file(tar_gz_file.path())?;
+    let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
     let tally_path_path = tally_path.into_path();
 
@@ -363,7 +364,7 @@ pub async fn create_transmission_package_service(
     let xz_name = format!("er_{}.xz", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
-    let xz_document = upload_and_return_document_postgres(
+    let xz_document = upload_and_return_document(
         &hasura_transaction,
         &temp_path_string,
         file_size,
@@ -380,7 +381,7 @@ pub async fn create_transmission_package_service(
     let eml_name = format!("er_{}.xml", transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
-    let eml_document = upload_and_return_document_postgres(
+    let eml_document = upload_and_return_document(
         &hasura_transaction,
         &temp_path_string,
         file_size,
@@ -399,10 +400,12 @@ pub async fn create_transmission_package_service(
     } else {
         vec![]
     };
+
+    let election_name = election.get_name(&election.get_default_language());
     logs.push(create_transmission_package_log(
         &now_local,
         election_id,
-        &election.name,
+        &election_name,
         area_id,
         &area_name,
     ));

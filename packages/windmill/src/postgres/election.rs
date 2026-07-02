@@ -1,15 +1,53 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use futures::pin_mut;
 use sequent_core::ballot::ElectionPresentation;
-use sequent_core::types::hasura::core::Election;
+use sequent_core::ballot::ElectionStatus;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::hasura::core::{Election, VotingChannels};
 use serde_json::Value;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::{ToSql, Type};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+/// Election column for insert operation
+const ELECTION_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, created_at, last_updated_at,
+labels, annotations, description, presentation, status, eml, num_allowed_revotes, is_consolidated_ballot_encoding,
+spoil_ballot_option, voting_channels, is_kiosk, image_document_id, statistics, receipts, permission_label,
+keys_ceremony_id, initialization_report_generated, external_id";
+
+/// Election columns types for insert operation (same order as the columns)
+const ELECTION_COPY_TYPES: &[Type] = &[
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::TIMESTAMPTZ,
+    Type::TIMESTAMPTZ,
+    Type::JSONB,
+    Type::JSONB,
+    Type::TEXT,
+    Type::JSONB,
+    Type::JSONB,
+    Type::TEXT,
+    Type::INT4,
+    Type::BOOL,
+    Type::BOOL,
+    Type::JSONB,
+    Type::BOOL,
+    Type::TEXT,
+    Type::JSONB,
+    Type::JSONB,
+    Type::TEXT,
+    Type::UUID,
+    Type::BOOL,
+    Type::TEXT,
+];
 
 pub struct ElectionWrapper(pub Election);
 
@@ -27,16 +65,15 @@ impl TryFrom<Row> for ElectionWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            name: item.try_get("name")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
             status: item.try_get("status")?,
             eml: item.try_get("eml")?,
+            external_id: item.try_get("external_id")?,
             num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
             spoil_ballot_option: item.try_get("spoil_ballot_option")?,
             is_kiosk: item.try_get("is_kiosk")?,
-            alias: item.try_get("alias")?,
             voting_channels: item.try_get("voting_channels")?,
             image_document_id: item.try_get("image_document_id")?,
             statistics: item.try_get("statistics")?,
@@ -80,9 +117,9 @@ pub async fn get_election_max_revotes(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -131,9 +168,9 @@ pub async fn get_election_by_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -154,14 +191,7 @@ pub async fn get_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    get_test_elections: Option<bool>,
 ) -> Result<Vec<Election>> {
-    let get_test_elections_clause = match get_test_elections {
-        Some(true) => "AND name ILIKE '%Test%'".to_string(),
-        Some(false) => "AND name NOT ILIKE '%Test%'".to_string(),
-        None => "".to_string(),
-    };
-
     let statement_str = format!(
         r#"
             SELECT
@@ -171,7 +201,6 @@ pub async fn get_elections(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-                {get_test_elections_clause}
             "#
     );
 
@@ -181,8 +210,8 @@ pub async fn get_elections(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -208,7 +237,7 @@ pub async fn get_elections_by_ids(
     let election_uuids = election_ids
         .clone()
         .into_iter()
-        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
 
     let statement = hasura_transaction
@@ -230,8 +259,8 @@ pub async fn get_elections_by_ids(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &election_uuids,
             ],
         )
@@ -255,6 +284,7 @@ pub async fn get_elections_by_keys_ceremony_id(
     election_event_id: &str,
     keys_ceremony_id: &str,
 ) -> Result<Vec<Election>> {
+    println!("get_elections_by_keys_ceremony_id: {:?}", &keys_ceremony_id);
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -274,9 +304,9 @@ pub async fn get_elections_by_keys_ceremony_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(keys_ceremony_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
             ],
         )
         .await?;
@@ -301,11 +331,11 @@ pub async fn update_election_presentation(
     presentation: Value,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let election_uuid: uuid::Uuid =
-        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
+        parse_uuid_v4(election_id).with_context(|| "Error parsing election_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -347,11 +377,11 @@ pub async fn update_election_voting_status(
     status: Value,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let election_uuid: uuid::Uuid =
-        Uuid::parse_str(election_id).with_context(|| "Error parsing election_id as UUID")?;
+        parse_uuid_v4(election_id).with_context(|| "Error parsing election_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -384,13 +414,16 @@ pub async fn create_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    name: &str,
     presentation: &ElectionPresentation,
     description: Option<String>,
+    external_id: &str,
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
-
+    let voting_channels_value = serde_json::to_value(&VotingChannels::default())
+        .map_err(|err| anyhow!("Error serializing voting_channels: {err}"))?;
+    let status = serde_json::to_value(ElectionStatus::default())
+        .map_err(|err| anyhow!("Error serializing election status: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -400,9 +433,11 @@ pub async fn create_election(
                     election_event_id,
                     created_at,
                     last_updated_at,
-                    name,
                     description,
-					presentation
+                    presentation,
+                    voting_channels,
+                    status,
+                    external_id
                 )
                 VALUES
                 (
@@ -412,7 +447,9 @@ pub async fn create_election(
                     NOW(),
                     $3,
                     $4,
-					$5
+                    $5,
+                    $6,
+                    $7
                 )
                 RETURNING *;
             "#,
@@ -423,11 +460,13 @@ pub async fn create_election(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&tenant_id)?,
-                &Uuid::parse_str(&election_event_id)?,
-                &name.to_string(),
+                &parse_uuid_v4(&tenant_id)?,
+                &parse_uuid_v4(&election_event_id)?,
                 &description,
                 &presentation_value,
+                &voting_channels_value,
+                &status,
+                &external_id,
             ],
         )
         .await
@@ -452,108 +491,71 @@ pub async fn insert_elections(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
+    if data.elections.is_empty() {
+        return Ok(());
+    }
+
+    let now = chrono::Utc::now();
+    let copy_sql =
+        format!("COPY sequent_backend.election ({ELECTION_COPY_COLUMNS}) FROM STDIN BINARY");
+
+    let sink = hasura_transaction
+        .copy_in(&copy_sql)
+        .await
+        .with_context(|| format!("Error preparing election COPY IN: {copy_sql}"))?;
+    let writer = BinaryCopyInWriter::new(sink, ELECTION_COPY_TYPES);
+    pin_mut!(writer);
+
     for election in &data.elections {
         election.validate()?;
-        let keys_ceremony_id_uuid_opt = election
+
+        let id = parse_uuid_v4(&election.id)?;
+        let tenant_id = parse_uuid_v4(&election.tenant_id)?;
+        let election_event_id = parse_uuid_v4(&election.election_event_id)?;
+        let keys_ceremony_id = election
             .keys_ceremony_id
-            .clone()
-            .map(|val| Uuid::parse_str(&val))
+            .as_ref()
+            .map(|val| parse_uuid_v4(val))
             .transpose()?;
+        let num_allowed_revotes = election.num_allowed_revotes.map(|val| val as i32);
 
-        let statement = hasura_transaction
-            .prepare(
-                r#"
-                INSERT INTO sequent_backend.election
-                (
-                    id,
-                    tenant_id,
-                    election_event_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    name,
-                    description,
-                    presentation,
-                    status,
-                    eml,
-                    num_allowed_revotes,
-                    is_consolidated_ballot_encoding,
-                    spoil_ballot_option,
-                    alias,
-                    voting_channels,
-                    is_kiosk,
-                    image_document_id,
-                    statistics,
-                    receipts,
-                    permission_label,
-                    keys_ceremony_id,
-                    initialization_report_generated
-                )
-                VALUES
-                (
-                    $1,
-                    $2,
-                    $3,
-                    NOW(),
-                    NOW(),
-                    $4,
-                    $5,
-                    $6,
-                    $7,
-                    $8,
-                    $9,
-                    $10,
-                    $11,
-                    $12,
-                    $13,
-                    $14,
-                    $15,
-                    $16,
-                    $17,
-                    $18,
-                    $19,
-                    $20,
-                    $21,
-                    $22
-                );
-            "#,
-            )
-            .await?;
+        let row: [&(dyn ToSql + Sync); 23] = [
+            &id,
+            &tenant_id,
+            &election_event_id,
+            &now,
+            &now,
+            &election.labels,
+            &election.annotations,
+            &election.description,
+            &election.presentation,
+            &election.status,
+            &election.eml,
+            &num_allowed_revotes,
+            &election.is_consolidated_ballot_encoding,
+            &election.spoil_ballot_option,
+            &election.voting_channels,
+            &election.is_kiosk,
+            &election.image_document_id,
+            &election.statistics,
+            &election.receipts,
+            &election.permission_label,
+            &keys_ceremony_id,
+            &election.initialization_report_generated,
+            &election.external_id,
+        ];
 
-        let _rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &Uuid::parse_str(&election.id)?,
-                    &Uuid::parse_str(&election.tenant_id)?,
-                    &Uuid::parse_str(&election.election_event_id)?,
-                    &election.labels,
-                    &election.annotations,
-                    &election.name,
-                    &election.description,
-                    &election.presentation,
-                    &election.status,
-                    &election.eml,
-                    &election
-                        .num_allowed_revotes
-                        .and_then(|val| Some(val as i32)),
-                    &election.is_consolidated_ballot_encoding,
-                    &election.spoil_ballot_option,
-                    &election.alias,
-                    &election.voting_channels,
-                    &election.is_kiosk,
-                    &election.image_document_id,
-                    &election.statistics,
-                    &election.receipts,
-                    &election.permission_label,
-                    &keys_ceremony_id_uuid_opt,
-                    &election.initialization_report_generated,
-                ],
-            )
+        writer
+            .as_mut()
+            .write(&row)
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error writing election COPY row: {err}"))?;
     }
+
+    writer
+        .finish()
+        .await
+        .context("Error finishing election COPY IN transaction")?;
 
     Ok(())
 }
@@ -582,13 +584,13 @@ pub async fn export_elections(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
 
-    let election_events: Vec<Election> = rows
+    let elections: Vec<Election> = rows
         .into_iter()
         .map(|row| -> Result<Election> {
             row.try_into()
@@ -596,7 +598,7 @@ pub async fn export_elections(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(election_events)
+    Ok(elections)
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -609,7 +611,7 @@ pub async fn set_election_keys_ceremony(
 ) -> Result<Vec<Election>> {
     let election_uuid_opt = election_id
         .clone()
-        .map(|val| Uuid::parse_str(&val))
+        .map(|val| parse_uuid_v4(&val))
         .transpose()?;
     let statement = hasura_transaction
         .prepare(
@@ -632,10 +634,10 @@ pub async fn set_election_keys_ceremony(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(keys_ceremony_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
                 &election_uuid_opt,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -684,9 +686,9 @@ pub async fn set_election_initialization_report_generated(
             &statement,
             &[
                 initialization_status,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await
@@ -695,7 +697,7 @@ pub async fn set_election_initialization_report_generated(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn update_election_status(
     hasura_transaction: &Transaction<'_>,
     id: &str,
@@ -708,7 +710,12 @@ pub async fn update_election_status(
             sequent_backend.election
         SET
             last_updated_at = NOW(),
-            status = jsonb_set(status, '{is_published}', to_jsonb($4::bool), true)
+            status = jsonb_set(
+                COALESCE(status, '{}'::jsonb),   -- start with empty object if NULL
+                '{is_published}',                -- path
+                to_jsonb($4::bool),              -- new value
+                true                             -- create the key if missing
+            )
         WHERE
             id = $1 AND
             tenant_id = $2 AND
@@ -723,9 +730,9 @@ pub async fn update_election_status(
         .map_err(|err| anyhow!("Error preparing the update query: {err}"))?;
 
     // Parse UUIDs
-    let parsed_id = Uuid::parse_str(id)?;
-    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
-    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+    let parsed_id = parse_uuid_v4(id)?;
+    let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
+    let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
     // Execute the query
     let rows: Vec<Row> = hasura_transaction
@@ -752,142 +759,96 @@ pub async fn update_election_status(
     Ok(results)
 }
 
-// #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-// pub struct ElectionMonitorStatus {
-//     pub area_id: String,
-//     pub area_name: Option<String>,
-//     pub area_description: Option<String>,
-//     pub area_annotations: Option<String>,
-//     pub election: Election,
-//     pub is_generate_re: bool,
-// }
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_elections_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<String>> {
+    let statement_str = format!(
+        r#"
+            SELECT
+                id
+            FROM
+                sequent_backend.election
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2
+            "#
+    );
 
-// pub struct ElectionMonitorStatusWrapper(pub ElectionMonitorStatus);
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
 
-// impl TryFrom<Row> for ElectionMonitorStatusWrapper {
-//     type Error = anyhow::Error;
-//     fn try_from(item: Row) -> Result<Self> {
-//         let status = item.try_get("status")?;
-//         let election_status = get_election_status(status);
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await?;
 
-//         let election_annotations = item.try_get("election_annotations")
-//         .ok_or_else(|| anyhow!("Missing election  annotations"))?;
-//         let annotations: Annotations = deserialize_value(annotations_js)?;
+    let elections: Vec<String> = rows
+        .into_iter()
+        .map(|row| -> Result<String> {
+            let id: Uuid = row.try_get("id")?;
+            Ok(id.to_string())
+        })
+        .collect::<Result<Vec<String>>>()?;
 
-//         Ok(ElectionMonitorStatusWrapper(ElectionMonitorStatus {
-//             area_id: item.try_get::<_, Uuid>("id")?.to_string(),
-//             area_name: item.try_get("area_name")?,
-//             area_description: item.try_get("area_description")?,
-//             area_annotations: item.try_get("area_annotations")?,
-//             election: serde_json::from_value(item.try_get::<_, serde_json::Value>("election")?)?,
-//             is_generate_re: item.try_get::<_, Option<Uuid>>("results_election_id")?.is_some(),
-//         }))
-//     }
-// }
+    Ok(elections)
+}
 
-// pub struct ElectionsMonitorFilter {
-//     pub area_name: Option<String>,
-//     pub precinct_code: Option<String>,
-//     pub voting_status: Option<String>,
-//     pub is_generate_re: Option<bool>,
-//     pub limit: Option<i32>,
-//     pub offset: Option<i32>,
-//     pub transmitted: Option<bool>,
-// }
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_election_permission_label(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<String>,
+) -> Result<Vec<String>> {
+    let election_uuid_opt = election_id
+        .clone()
+        .map(|val| parse_uuid_v4(&val))
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                permission_label
+                FROM
+                    sequent_backend.election
+                WHERE
+                    ($1::uuid IS NULL OR id = $1::uuid) AND
+                    tenant_id = $2 AND
+                    election_event_id = $3
+            "#,
+        )
+        .await?;
 
-// /**
-//  * Returns a vec of the areas related to all elections with additional election info.
-//  */
-//  #[instrument(skip(hasura_transaction), err)]
-//  pub async fn get_elections_monitior(
-//      hasura_transaction: &Transaction<'_>,
-//      tenant_id: &str,
-//      election_event_id: &str,
-//      filter: ElectionsMonitorFilter,
-//  ) -> Result<Vec<AreaElection>> {
-//     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
-//     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
-//     let query_limit: i64 =
-//         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-//     let query_offset: i64 = if let Some(offset_val) = filter.offset {
-//         offset_val.into()
-//     } else {
-//         0
-//     };
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &election_uuid_opt,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
 
-//     let area_name_filter_clause = if let Some(area_name_filter) = filter.area_name {
-//         format!("AND a.name ILIKE '{area_name_filter}'")
-//     } else {
-//         "".to_string()
-//     };
+    if 0 == rows.len() {
+        return Err(anyhow!("No election found"));
+    }
 
-//     let precinct_code_filter_clause = if let Some(precinct_code_filter) = filter.precinct_code {
-//        format!("AND e.annotations::jsonb ->> 'precinct_code' ILIKE '{precinct_code_filter}'")
-//     } else {
-//         "".to_string()
-//     };
+    let perms: Vec<Option<String>> = rows
+        .into_iter()
+        .map(|row: Row| -> Result<Option<String>> {
+            let permission_label: Option<String> = row.try_get(0)?;
+            Ok(permission_label)
+        })
+        .collect::<Result<Vec<Option<String>>>>()?;
 
-//     let voting_status_filter_clause = if let Some(voting_status_filter) = filter.voting_status {
-//          format!("AND e.status::jsonb ->> 'voting_status' ILIKE '{voting_status_filter}'")
-//      } else {
-//          "".to_string()
-//      };
-
-//      let is_generate_re_filter_clause = if let Some(is_generate_re_filter) = filter.is_generate_re {
-//         format!("AND ('{is_generate_re}'::boolean IS NULL OR ('{is_generate_re}'::boolean = TRUE AND re.id IS NOT NULL) OR ('{is_generate_re}'::boolean = FALSE AND re.id IS NULL))")
-//      } else {
-//          "".to_string()
-//      };
-
-//      let statement: tokio_postgres::Statement = hasura_transaction
-//          .prepare(
-//              r#"
-//              SELECT DISTINCT ON (a.id)
-//                  a.id as area_id,
-//                  a.name as area_name,
-//                  a.description as area_description,
-//                  a.description as area_description,
-//                 row_to_json(e.*) AS election,
-//                  re.id AS results_election_id
-//              FROM sequent_backend.area a
-//              JOIN sequent_backend.area_contest ac
-//                  ON a.id = ac.area_id
-//                  AND a.election_event_id = ac.election_event_id
-//                  AND a.tenant_id = ac.tenant_id
-//              JOIN sequent_backend.contest c
-//                  ON ac.contest_id = c.id
-//                  AND ac.election_event_id = c.election_event_id
-//                  AND ac.tenant_id = c.tenant_id
-//              JOIN sequent_backend.election e
-//                  ON c.election_id = e.id
-//              LEFT JOIN sequent_backend.results_election re
-//                  ON e.id = re.election_id
-//              WHERE c.tenant_id = $1
-//                AND c.election_event_id = $2;
-//                {area_name_filter_clause}
-//                {precinct_code_filter_clause}
-//                {voting_status_filter_clause}
-//                {is_generate_re_filter_clause}
-//                LIMIT $3 OFFSET $4;
-//              "#,
-//          )
-//          .await?;
-
-//          let mut params: Vec<&(dyn ToSql + Sync)> =
-//          vec![&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(election_event_id)?,&query_limit, &query_offset];
-
-//      let rows: Vec<Row> = hasura_transaction
-//          .query(
-//              &statement,
-//              &params,
-//          )
-//          .await
-//          .map_err(|err| anyhow!("Error running get_areas_by_elections query: {err}"))?;
-
-//      let areas: Vec<ElectionMonitorStatus> = rows
-//          .into_iter()
-//          .map(|row| -> Result<ElectionMonitorStatus> { row.try_into().map(|res: ElectionMonitorStatusWrapper| res.0) })
-//          .collect::<Result<Vec<ElectionMonitorStatus>>>()?;
-
-//      Ok(areas)
-//  }
+    Ok(perms.into_iter().flatten().collect())
+}

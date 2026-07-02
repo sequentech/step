@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,6 +35,7 @@ import {
     useRefresh,
     WrapperField,
     FilterPayload,
+    SelectInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -70,6 +71,7 @@ import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
+import {EventProcessors} from "../ScheduledEvents/CreateScheduledEvent"
 
 export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
@@ -205,7 +207,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
         setIsDecryptModalOpen(false)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let generateReportResponse = await generateReport({
                 variables: {
@@ -240,7 +242,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
-            pagination: {page: 1, perPage: 100},
+            pagination: {page: 1, perPage: 1000},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
@@ -257,7 +259,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 200},
+            pagination: {page: 1, perPage: 1000},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
@@ -299,6 +301,24 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const OMIT_FIELDS: Array<string> = ["id"]
 
     const Filters: Array<ReactElement> = [
+        <SelectInput
+            source="report_type"
+            key="event_processor_filter"
+            label={String(t("reportsScreen.fields.reportType"))}
+            choices={Object.values(EReportType).map((eventType) => ({
+                id: eventType,
+                name: t(`template.type.${eventType}`),
+            }))}
+        />,
+        <SelectInput
+            source="election_id"
+            key="election_id_filter"
+            label={String(t("reportsScreen.fields.electionId"))}
+            choices={elections?.map((election) => ({
+                id: election.id,
+                name: aliasRenderer(election),
+            }))}
+        />,
         <FilterTextInput label="Template" source="template_alias" key={0} />,
     ]
 
@@ -309,7 +329,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
-            <IconButtonSequent icon={faPlus} fontSize="24px" />
+            <IconButtonSequent icon={faPlus as any} fontSize="24px" />
             {t("reportsScreen.empty.button")}
         </Button>
     )
@@ -344,9 +364,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
@@ -439,8 +459,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     return (
         <>
             <ElectionHeader
-                title={t("reportsScreen.title")}
-                subtitle={t("reportsScreen.subtitle")}
+                title={String(t("reportsScreen.title"))}
+                subtitle={String(t("reportsScreen.subtitle"))}
             />
             <List
                 resource="sequent_backend_report"
@@ -472,23 +492,27 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 }
                 disableSyncWithLocation
             >
-                <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
+                <DataGridContainerStyle
+                    isOpenSideBar={isOpenSidebar}
+                    omit={OMIT_FIELDS}
+                    rowClick={false}
+                >
                     <TextField source="id" />
                     <FunctionField
-                        label={t("reportsScreen.fields.reportType")}
+                        label={String(t("reportsScreen.fields.reportType"))}
                         source="report_type"
                         render={(record: {report_type: keyof typeof EReportType}) =>
                             t("template.type." + record.report_type)
                         }
                     />
                     <FunctionField
-                        label={t("reportsScreen.fields.template")}
+                        label={String(t("reportsScreen.fields.template"))}
                         source="template_alias"
                         render={getTemplateName}
                     />
 
                     <FunctionField
-                        label={t("reportsScreen.fields.electionId")}
+                        label={String(t("reportsScreen.fields.electionId"))}
                         source="election_id"
                         render={getElectionName}
                     />
@@ -547,7 +571,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     setIsDecryptModalOpen(false)
                 }}
                 aria-labelledby="password-dialog-title"
-                title={t("reportsScreen.messages.decryptFileTitle")}
+                title={String(t("reportsScreen.messages.decryptFileTitle"))}
                 ok={"Ok"}
             >
                 <DecryptHelp decryptionCommand={decryptionCommand} />

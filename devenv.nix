@@ -1,5 +1,36 @@
 { pkgs, ... }:
 
+# Check docs/docusaurus/docs/07-developers/11-updates/updating-rust-version.md on how to update rust version.
+let
+  rustOverlay = import (builtins.fetchTarball {
+    url = "https://github.com/oxalica/rust-overlay/archive/107c334f141854f563f8adf1db781dc453d92639.tar.gz";
+    sha256 = "138jwq564qji7dc5yav2j2c1c1mr65smqqk00mni9lvqhx0n45w4";
+  });
+
+  pkgs' = pkgs.extend rustOverlay;
+
+  rustStable = pkgs'.rust-bin.stable."1.96.0".default.override {
+    targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2"];
+    extensions = [ "rust-src" "rust-analyzer-preview" ];
+  };
+
+  # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
+  # The CLI and crate versions must match exactly
+  wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+    pname = "wasm-bindgen-cli";
+    version = "0.2.104";
+    src = builtins.fetchTarball {
+      url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
+      sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+    };
+    cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
+    nativeBuildInputs = [ pkgs.pkg-config ];
+    buildInputs = [ pkgs.openssl ]
+      ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+    doCheck = false;
+  };
+
+in
 {
   # https://devenv.sh/basics/
   env = {
@@ -16,6 +47,10 @@
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
+
+    # Binary Rust
+    rustStable
+
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
 
@@ -23,8 +58,11 @@
     hasura-cli
     reuse
     openssl
-    postgresql_15
+    glibc
+    openssh
+    postgresql_18
     python3
+    openssh
 
     # immudb
     go
@@ -63,33 +101,42 @@
     # for development of immudb local store
     sqlite
 
+    # rust dependencies
     cargo-watch
+    cargo-license
+    cargo-audit
+
+    wasm-pack
+    wasm-bindgen-cli-pinned
 
     python3
     python3Packages.virtualenvwrapper
 
     # for parsing docker-compose.yml
     yq
+
+    minio-client
+    
+    # AI. Note, requires allowUnfree: true in devenv.yaml
+    claude-code
+
+    # for plugins
+    cargo-component
   ];
 
   # https://devenv.sh/scripts/
   scripts.hello.exec = "echo hello from $GREET";
 
-  enterShell = ''
+    enterShell = ''
     set -a
     source .devcontainer/.env
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
+
+    export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library
   '';
 
-  # https://devenv.sh/languages/
-  languages.rust = {
-    enable = true;
-    # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "nightly";
-    toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
-  };
 
   languages.java = {
     enable = true;
@@ -98,8 +145,8 @@
     };
   };
 
-  # https://devenv.sh/pre-commit-hooks/
-  pre-commit.hooks = {
+  # https://devenv.sh/git-hooks/
+  git-hooks.hooks = {
     clippy.enable = false;
     rustfmt.enable = false;
     reuse = {

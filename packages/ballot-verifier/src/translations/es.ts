@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -75,8 +75,11 @@ const spanishTranslation: TranslationType = {
             markedInvalid: "Voto explícitamente marcado inválido",
             points: "({{points}} Puntos)",
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
+            declineToVote: "Se abstuvo de votar",
         },
-        poweredBy: "Funciona con",
+        footer: {
+            poweredBy: "Funciona con <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",

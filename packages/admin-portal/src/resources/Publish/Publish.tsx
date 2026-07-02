@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -45,6 +45,7 @@ import {
     IElectionPresentation,
     IElectionStatus,
     IVotingChannelsConfig,
+    IChannelButtonInfo,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
@@ -157,7 +158,50 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const kioskModeEnabled = () => {
-            return (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            let status =
+                (record?.status as IElectionStatus)?.kiosk_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
+        }
+
+        const onlineModeEnabled = () => {
+            let status =
+                (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
+        }
+
+        const earlyVotingEnabled = () => {
+            let status =
+                (record?.status as IElectionStatus)?.early_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
+        }
+
+        const telephoneVotingEnabled = () => {
+            let status =
+                (record?.status as IElectionStatus)?.telephone_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.telephone ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
         }
 
         const onGenerate = async () => {
@@ -216,10 +260,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingChannel,
                     },
                 })
-                // TODO: Right now if we are opening or pausing for online, we
-                // also do it for kiosk if kiosk mode is enabled. In the future,
-                // we should be able to do this individually in the UI for each
-                // channel separatedly.
+                // No matter the channel, we need to update the general publish status.
+                // That´s used to control the loading icon in the buttons for the transitions.
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
                 setChangingStatus(false)
                 refresh()
@@ -331,6 +373,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         useEffect(() => {
             const executePendingActions = async () => {
                 let isGold = isGoldUser()
+
                 if (isGold) {
                     const pendingPublish = sessionStorage.getItem(
                         EPublishActions.PENDING_PUBLISH_ACTION
@@ -344,7 +387,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
             }
 
-            if (electionEventId && electionId) {
+            if (electionEventId || electionId) {
                 executePendingActions()
                 cleanup()
             }
@@ -426,6 +469,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         publishType={type}
                         canWrite={canWrite}
                         kioskModeEnabled={kioskModeEnabled()}
+                        onlineModeEnabled={onlineModeEnabled()}
+                        earlyVotingEnabled={earlyVotingEnabled()}
+                        telephoneVotingEnabled={telephoneVotingEnabled()}
                         changingStatus={changingStatus}
                         electionId={electionId}
                         onGenerate={onGenerate}
@@ -459,15 +505,19 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}
                         onPreview={onPreview}
+                        kioskModeEnabled={kioskModeEnabled()}
+                        onlineModeEnabled={onlineModeEnabled()}
+                        earlyVotingEnabled={earlyVotingEnabled()}
+                        telephoneVotingEnabled={telephoneVotingEnabled()}
                     />
                 )}
                 <FormDialog
                     open={open}
                     onClose={handleCloseEditDrawer}
-                    title={t("publish.dialog.title")}
+                    title={String(t("publish.dialog.title"))}
                 >
                     <EditPreview
-                        id={ballotPublicationId}
+                        publicationId={ballotPublicationId}
                         electionEventId={electionEventId}
                         close={handleCloseEditDrawer}
                         ballotData={generateData}

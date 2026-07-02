@@ -1,4 +1,4 @@
-# // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 # //
 # // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,19 +6,42 @@
 name = "step-cli"
 version = "0.1.0"
 edition = "2021"
+default-run = "step-cli"
 
 [dependencies]
 anyhow = "1.0"
-clap = { version = "4.5.8", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-strum = "0.25"
-strum_macros = "0.25"
-reqwest = { version = "0.12.5", features = ["blocking", "json"] }
-graphql_client = "0.13.0"
-sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports"] }
+strum = "0.27"
+strum_macros = "0.27"
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+graphql_client = "0.14"
+rayon = "1.5"
+sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports","default_features"] }
 windmill = { path="../windmill" }
+strand = { path="../strand" }
+immudb-rs = { path="../immudb-rs" }
+electoral-log = { path="../electoral-log" }
+
+uuid = { version = "1.5", features = ["v4", "fast-rng"] }
+fake = { version = "4", features = ["derive"] }
+csv = "1.1"
+rand = "0.9"
+chrono = "0.4"
+tokio = { version = "1.38", features = ["full"] }
+tokio-postgres = "0.7"
+deadpool-postgres = { version = "0.14", features = ["rt_tokio_1", "serde"] }
+
+hex = "0.4"
+ring = "0.17"
+sha2 = "0.10"
+base64 = "0.22"
+
+colored = "3.0"
+
+url = "2"
 
 [[bin]]
-name = "seq"
-path = "src/main.rs"    
+name = "step-cli"
+path = "src/main.rs"

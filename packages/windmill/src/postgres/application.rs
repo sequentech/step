@@ -1,13 +1,19 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::HashMap;
 
 use crate::{
-    services::{application::ApplicationAnnotations, reports::voters::EnrollmentFilters},
+    services::application::ApplicationAnnotations,
     types::application::{ApplicationStatus, ApplicationType},
 };
+
+#[derive(Clone, Debug)]
+pub struct EnrollmentFilters {
+    pub status: ApplicationStatus,
+    pub verification_type: Option<ApplicationType>,
+}
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
@@ -16,6 +22,7 @@ use tokio_postgres::row::Row;
 // use tokio_postgres::types::ToSql;
 use chrono::DateTime;
 use chrono::Local;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde::Serialize;
 use serde_json::json;
 use tokio_postgres::types::{Json, ToSql};
@@ -86,8 +93,8 @@ pub async fn get_permission_label_from_post(
             &[
                 &post_name,
                 &post_description,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -150,8 +157,8 @@ pub async fn insert_application(
         .execute(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &area_id,
                 &applicant_id,
                 &serde_json::to_value(applicant_data)?,
@@ -199,7 +206,7 @@ pub async fn update_application_status(
         RETURNING *;
     "#;
     // Serialize group names to JSON string
-    let group_names_json = serde_json::to_string(&group_names).unwrap();
+    let group_names_json = serde_json::to_string(&group_names)?;
 
     // Build annotations update dynamically
     let annotations_update = {
@@ -239,9 +246,9 @@ pub async fn update_application_status(
     // Parse UUIDs
     let status_str = status.to_string();
     let verification_type_str = verification_type.to_string();
-    let parsed_id = Uuid::parse_str(id)?;
-    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
-    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+    let parsed_id = parse_uuid_v4(id)?;
+    let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
+    let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
     // Build parameter list
     let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = vec![
@@ -305,9 +312,9 @@ pub async fn get_applications(
     "#
     .to_string();
 
-    let parsed_area_id = Uuid::parse_str(area_id)?;
-    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
-    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+    let parsed_area_id = parse_uuid_v4(area_id)?;
+    let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
+    let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![
         &parsed_area_id,
@@ -326,10 +333,11 @@ pub async fn get_applications(
 
         if filters.verification_type.is_some() {
             query.push_str(format!(" AND verification_type = ${}", param_index).as_str());
-            verification_type =
-                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
-                    .unwrap()
-                    .to_string();
+            verification_type = filters
+                .verification_type
+                .clone()
+                .ok_or(anyhow!("Empty application type"))?
+                .to_string();
             params.push(&verification_type);
             param_index += 1;
         }
@@ -407,15 +415,15 @@ pub async fn count_applications(
     "#
     );
     // AND WHERE annotations ->'verified_by_role' @> '["admin"]'::jsonb
-    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
-    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+    let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
+    let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
 
     let mut optional_area_id: Option<Uuid> = None; // Declare the variable outside the match
 
     if let Some(area_id) = area_id {
-        let parsed_area_id = Uuid::parse_str(area_id)?;
+        let parsed_area_id = parse_uuid_v4(area_id)?;
         optional_area_id = Some(parsed_area_id); // Store the value in the variable
     }
 
@@ -454,10 +462,11 @@ pub async fn count_applications(
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();
             query.push_str(&format!(" AND verification_type = ${place}"));
-            verification_type =
-                <std::option::Option<ApplicationType> as Clone>::clone(&filters.verification_type)
-                    .unwrap()
-                    .to_string();
+            verification_type = filters
+                .verification_type
+                .clone()
+                .ok_or(anyhow!("Empty application type"))?
+                .to_string();
             params.push(&verification_type);
         }
     }
@@ -497,8 +506,8 @@ pub async fn get_applications_by_election(
     "#
     .to_string();
 
-    let parsed_tenant_id = Uuid::parse_str(tenant_id)?;
-    let parsed_election_event_id = Uuid::parse_str(election_event_id)?;
+    let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
+    let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
 
@@ -558,17 +567,17 @@ pub async fn insert_applications(
         let area_id = application
             .area_id
             .as_ref()
-            .map(|id| Uuid::parse_str(id))
+            .map(|id| parse_uuid_v4(id))
             .transpose()?;
         hasura_transaction
             .execute(
                 &statement,
                 &[
-                    &Uuid::parse_str(&application.id)?,
+                    &parse_uuid_v4(&application.id)?,
                     &application.created_at,
                     &application.updated_at,
-                    &Uuid::parse_str(&application.tenant_id)?,
-                    &Uuid::parse_str(&application.election_event_id)?,
+                    &parse_uuid_v4(&application.tenant_id)?,
+                    &parse_uuid_v4(&application.election_event_id)?,
                     &area_id,
                     &application.applicant_id,
                     &application.applicant_data,

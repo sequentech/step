@@ -24,7 +24,6 @@ insert_permissions:
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -34,7 +33,6 @@ insert_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -54,7 +52,6 @@ insert_permissions:
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -64,7 +61,6 @@ insert_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -84,7 +80,6 @@ insert_permissions:
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -94,7 +89,6 @@ insert_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -114,7 +108,6 @@ insert_permissions:
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -124,7 +117,6 @@ insert_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -142,7 +134,6 @@ insert_permissions:
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -152,7 +143,6 @@ insert_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -165,13 +155,11 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -181,7 +169,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -193,16 +180,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -212,7 +198,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -224,16 +209,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: contest-create
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -243,7 +227,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -255,16 +238,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: contest-delete
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -274,7 +256,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -286,16 +267,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: contest-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -305,7 +285,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -317,16 +296,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: contest-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -336,7 +314,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -348,16 +325,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: election-event-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -367,7 +343,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -379,16 +354,15 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: election-event-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -398,7 +372,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -408,6 +381,7 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
@@ -416,7 +390,6 @@ select_permissions:
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -426,7 +399,6 @@ select_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -442,15 +414,11 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -460,7 +428,6 @@ update_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -470,20 +437,19 @@ update_permissions:
               - id
               - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -493,7 +459,6 @@ update_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -503,18 +468,17 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
-      role: contest-write
-    - comment: ""
-      permission:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+      role: contest-write
+    - comment: ""
+      permission:
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -524,7 +488,6 @@ update_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -536,16 +499,17 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: election-event-write
     - comment: ""
       permission:
-          check: {}
           columns:
               - is_acclaimed
               - is_active
               - is_encrypted
               - counting_algorithm
-              - name
               - voting_type
               - max_votes
               - min_votes
@@ -555,7 +519,6 @@ update_permissions:
               - labels
               - presentation
               - tally_configuration
-              - alias
               - description
               - image_document_id
               - created_at
@@ -565,6 +528,7 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

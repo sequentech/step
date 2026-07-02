@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -11,5 +11,6 @@ pub mod results;
 pub mod serialize_logs;
 pub mod tally_ceremony;
 pub mod tally_progress;
+pub mod tally_resolution;
 pub mod tally_session_error;
 pub mod velvet_tally;

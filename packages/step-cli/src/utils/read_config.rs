@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,6 +10,11 @@ use std::path::PathBuf;
 
 use crate::types::config::ConfigData;
 
+pub use sequent_core::util::external_config::load_external_config;
+pub use sequent_core::util::external_config::EXTERNAL_CONFIG_FILE_NAME;
+
+pub const CREATE_CONFIG_FILE_NAME: &str = "configuration.json";
+
 pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
     let exe_path = env::current_exe().map_err(|_| "Failed to get current executable path")?;
     let parent_dir = exe_path
@@ -20,7 +25,7 @@ pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
 
 pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
     let config_dir = get_config_dir()?;
-    let config_file = config_dir.join("configuration.json");
+    let config_file = config_dir.join(CREATE_CONFIG_FILE_NAME);
 
     let json_data = fs::read_to_string(&config_file).map_err(|_| {
         "Failed to read config file, Please make sure to run `sequent config` first"

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
@@ -19,6 +19,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {GET_PRIVATE_KEY} from "@/queries/GetPrivateKey"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useNotify} from "react-admin"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -40,6 +41,8 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [errors, setErrors] = useState<String | null>(null)
     const notify = useNotify()
+    const aliasRenderer = useAliasRenderer()
+
     const [checkboxState, setCheckboxState] = React.useState({
         firstCheckbox: false,
         secondCheckbox: false,
@@ -81,7 +84,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 const blob = new Blob([privateKey], {type: "text/plain"})
                 const blobUrl = window.URL.createObjectURL(blob)
                 const username = authContext.username
-                const electionName = electionEvent.alias || electionEvent.name
+                const electionName = aliasRenderer(electionEvent.presentation)
                 const fileName = `encrypted_private_key_trustee_${username}_${electionName}.txt`
                 var tempLink = document.createElement("a")
                 tempLink.href = blobUrl
@@ -162,9 +165,9 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             <Dialog
                 variant="info"
                 open={openConfirmationModal}
-                ok={t("keysGeneration.downloadStep.confirmdDialog.ok")}
-                cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
-                title={t("keysGeneration.downloadStep.confirmdDialog.title")}
+                ok={String(t("keysGeneration.downloadStep.confirmdDialog.ok"))}
+                cancel={String(t("keysGeneration.downloadStep.confirmdDialog.cancel"))}
+                title={String(t("keysGeneration.downloadStep.confirmdDialog.title"))}
                 okEnabled={() => firstCheckbox && secondCheckbox}
                 handleClose={(result: boolean) => {
                     if (result) {
@@ -199,7 +202,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 className="keys-download-first-checkbox"
                             />
                         }
-                        label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
+                        label={String(t("keysGeneration.downloadStep.confirmdDialog.firstCopy"))}
                     />
                     <FormControlLabel
                         control={
@@ -211,7 +214,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 className="keys-download-second-checkbox"
                             />
                         }
-                        label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}
+                        label={String(t("keysGeneration.downloadStep.confirmdDialog.secondCopy"))}
                     />
                 </FormGroup>
             </Dialog>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -17,8 +17,7 @@ const StyledButton = styled(MuiIconButton)`
 `
 
 export interface IIconButtonProps
-    extends Omit<FontAwesomeIconProps, "onClick">,
-        Pick<IconButtonProps, "onClick"> {
+    extends Omit<FontAwesomeIconProps, "onClick">, Pick<IconButtonProps, "onClick"> {
     variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success"
     sx?: SxProps<Theme>
 }
@@ -34,7 +33,7 @@ const ColorMap = {
 
 const IconButton: React.FC<IIconButtonProps> = ({variant, sx, onClick, ...props}) => (
     <StyledButton
-        aria-label="close"
+        aria-label={props.title || (props as any)["aria-label"] || "icon button"}
         sx={{color: ColorMap[variant || "inherit"], ...sx}}
         onClick={onClick}
     >

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,6 +13,26 @@ export enum ContestsOrder {
 export enum EVotingPeriodEnd {
     ALLOWED = "allowed",
     DISALLOWED = "disallowed",
+}
+
+export enum ESecurityConfirmationPolicy {
+    NONE = "none",
+    MANDATORY = "mandatory",
+}
+
+export enum ECastVoteGoldLevelPolicy {
+    GOLD_LEVEL = "gold-level",
+    NO_GOLD_LEVEL = "no-gold-level",
+}
+
+export enum EStartScreenTitlePolicy {
+    ELECTION = "election",
+    ELECTION_EVENT = "election-event",
+}
+
+export enum EConsolidatedReportPolicy {
+    GENERATE = "generate",
+    DO_NOT_GENERATE = "do-not-generate",
 }
 
 export interface IScheduledEventDates {
@@ -36,12 +56,17 @@ export interface IElectionPresentation {
     contests_order?: ContestsOrder
     sort_order?: number
     cast_vote_confirm?: boolean
+    cast_vote_gold_level?: ECastVoteGoldLevelPolicy
+    start_screen_title_policy?: EStartScreenTitlePolicy
     audit_button_cfg?: EVotingPortalAuditButtonCfg
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
     initialization_report_generated?: EInitializeReportPolicy
     voting_period_end?: EVotingPeriodEnd
+    security_confirmation_policy?: ESecurityConfirmationPolicy
+    consolidated_report_policy: EConsolidatedReportPolicy
+    decline_to_vote_policy?: EDeclineToVotePolicy
     // more missing
 }
 
@@ -59,4 +84,9 @@ export enum EGracePeriodPolicy {
 export enum EInitializeReportPolicy {
     REQUIRED = "required",
     NOT_REQUIRED = "not-required",
+}
+
+export enum EDeclineToVotePolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
 }

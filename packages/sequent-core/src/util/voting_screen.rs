@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::*;
 use crate::plaintext::*;
+use crate::types::ceremonies::CountingAlgType;
 use crate::util::console_log;
 
 use std::collections::HashMap;
@@ -34,6 +35,20 @@ pub fn check_voting_not_allowed_next_util(
             .as_ref()
             .and_then(|p| p.over_vote_policy)
             .unwrap_or_default();
+
+        let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
+        let duplicated_rank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.duplicated_rank_policy.as_ref())
+            .unwrap_or(&default_duplicated_rank_policy);
+
+        let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
+        let preference_gaps_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.preference_gaps_policy.as_ref())
+            .unwrap_or(&default_preference_gaps_policy);
 
         let max = contest.max_votes;
 
@@ -68,6 +83,26 @@ pub fn check_voting_not_allowed_next_util(
                 || (choices_selected as i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
+            // - duplicated rank policy is NOT_ALLOWED and there's a
+            //   duplicated position error
+                || (*duplicated_rank_policy == EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.duplicatedPosition"
+                                    .to_string(),
+                            )
+                    }))
+            // - preference gaps policy is NOT_ALLOWED and there's a
+            //   preference order with gaps error
+                || (*preference_gaps_policy == EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.preferenceOrderWithGaps"
+                                    .to_string(),
+                            )
+                    }))
         } else {
             false
         }
@@ -108,6 +143,20 @@ pub fn check_voting_error_dialog_util(
             .and_then(|p| p.under_vote_policy)
             .unwrap_or_default();
 
+        let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
+        let duplicated_rank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.duplicated_rank_policy.as_ref())
+            .unwrap_or(&default_duplicated_rank_policy);
+
+        let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
+        let preference_gaps_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.preference_gaps_policy.as_ref())
+            .unwrap_or(&default_preference_gaps_policy);
+
         let max = contest.max_votes;
         let min = contest.min_votes;
 
@@ -122,7 +171,6 @@ pub fn check_voting_error_dialog_util(
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
             let explicit_invalid = decoded_contest.is_explicit_invalid;
-
 
             console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
 
@@ -150,6 +198,28 @@ pub fn check_voting_error_dialog_util(
                     && (choices_selected as i64) >= min
                     && (choices_selected as i64) < max)
                     && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
+            // - duplicated rank policy is WARN_AND_ALERT and there's a
+            //   duplicated position error
+                || (*duplicated_rank_policy
+                    == EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.duplicatedPosition"
+                                    .to_string(),
+                            )
+                    }))
+            // - preference gaps policy is WARN_AND_ALERT and there's a
+            //   preference order with gaps error
+                || (*preference_gaps_policy
+                    == EPreferenceGapsPolicy::ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.preferenceOrderWithGaps"
+                                    .to_string(),
+                            )
+                    }))
         } else {
             false
         }
@@ -185,7 +255,7 @@ pub fn get_contest_plurality(
         max_votes: 3,
         min_votes,
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()),
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: true,
         annotations: None,
         candidates: vec![
@@ -339,6 +409,7 @@ pub fn get_contest_plurality(
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -349,9 +420,12 @@ pub fn get_contest_plurality(
             invalid_vote_policy: Some(invalid_vote_policy),
             blank_vote_policy: Some(blank_vote_policy),
             over_vote_policy: Some(over_vote_policy),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 
@@ -369,6 +443,7 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: contest.id.clone(),
         is_explicit_invalid: true,
+        is_decline_to_vote: false,
         invalid_alerts: vec![InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Explicit,
             candidate_id: None,

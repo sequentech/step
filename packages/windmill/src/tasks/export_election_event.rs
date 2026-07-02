@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
@@ -24,6 +24,8 @@ pub struct ExportOptions {
     pub scheduled_events: bool,
     pub reports: bool,
     pub applications: bool,
+    pub tally: bool,
+    pub include_certificates: bool,
 }
 
 #[instrument(err)]

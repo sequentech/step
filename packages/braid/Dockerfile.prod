@@ -1,26 +1,29 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rustlang/rust:nightly-slim as builder
+FROM rust:1.96.0-slim-bookworm as builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    protobuf-compiler \
-    libprotobuf-dev \
-    m4 \
-    make \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends debian-archive-keyring \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        protobuf-compiler \
+        libprotobuf-dev \
+        m4 \
+        make \
+        unzip \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
@@ -34,6 +37,7 @@ COPY ./step-cli ./step-cli
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./braid/scripts ./braid/scripts
+COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo

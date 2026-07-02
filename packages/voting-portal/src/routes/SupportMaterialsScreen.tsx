@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,7 +6,7 @@ import {Box, Button, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
-import {stringToHtml, translate, translateElection} from "@sequentech/ui-core"
+import {stringToHtml, translate, translateFromPresentation} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -21,7 +21,7 @@ import {
 import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {useQuery} from "@apollo/client"
+import {useQuery} from "@apollo/client/react"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {setDocument} from "../store/documents/documentsSlice"
 
@@ -131,7 +131,7 @@ const SupportMaterialsScreen: React.FC = () => {
                     <StyledTitle variant="h1">
                         <Box>
                             {materialsTitles &&
-                                (translateElection(
+                                (translateFromPresentation(
                                     materialsTitles,
                                     "materialsTitle",
                                     i18n.language
@@ -142,11 +142,11 @@ const SupportMaterialsScreen: React.FC = () => {
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                         {stringToHtml(
                             materialsTitles
-                                ? translateElection(
+                                ? (translateFromPresentation(
                                       materialsTitles,
                                       "materialsSubtitle",
                                       i18n.language
-                                  ) ?? "-"
+                                  ) ?? "-")
                                 : ""
                         )}
                     </Typography>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
@@ -26,7 +26,7 @@ interface TenantContextProviderProps {
     /**
      * The elements wrapped by the tenant context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const TenantContextProvider = (props: TenantContextProviderProps) => {
@@ -35,15 +35,22 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
     )
 
     const setTenantIdWrapper = (tenantId: string | null): void => {
-        localStorage.setItem("selected-tenant-id", tenantId || "")
+        if (null === tenantId) {
+            // localStorage.removeItem("selected-tenant-id")
+        } else {
+            localStorage.setItem("selected-tenant-id", tenantId)
+        }
         setTenantId(tenantId)
     }
     const [tenant, setTenant] = useState<Sequent_Backend_Tenant | undefined>(undefined)
 
     // Overwrites translations based on the settings config
     useEffect(() => {
-        console.log(`triggering overriding of translations..`)
-        triggerOverrideTranslations((tenant?.settings as ITenantSettings | undefined)?.i18n ?? {})
+        const i18nSettings = (tenant?.settings as ITenantSettings | undefined)?.i18n
+
+        if (i18nSettings) {
+            triggerOverrideTranslations(i18nSettings)
+        }
     }, [tenant?.settings?.i18n])
 
     const setTenantWrapper = (newTenant: Sequent_Backend_Tenant | undefined) => {

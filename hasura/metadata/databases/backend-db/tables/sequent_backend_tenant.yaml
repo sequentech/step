@@ -68,6 +68,7 @@ select_permissions:
     - comment: ""
       permission:
           columns:
+              - annotations
               - id
               - is_active
               - slug

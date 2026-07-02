@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
@@ -25,9 +25,11 @@ interface EditPasswordProps {
     electionEventId?: string
 }
 
-export const InputLabelStyle = styled(InputLabel)<{paddingTop?: boolean}>`
+export const InputLabelStyle = styled(InputLabel, {
+    shouldForwardProp: (prop) => prop !== "paddingTop",
+})<{paddingTop?: boolean}>`
     width: 135px;
-    ${({paddingTop = true}) => paddingTop && "padding-top: 15px;"}
+    ${({paddingTop = true}) => (paddingTop ? "padding-top: 15px;" : "padding-top: 0;")}
 `
 
 export const InputContainerStyle = styled(Box)`
@@ -58,7 +60,7 @@ export const PasswordInputStyle = styled(FormStyles.PasswordInput)(({theme, erro
         },
         "& .MuiInputBase-root.MuiOutlinedInput-root.MuiInputBase-colorPrimary.MuiInputBase-formControl.MuiInputBase-sizeSmall.MuiInputBase-adornedEnd":
             {
-                "margin-block-end": "0px",
+                marginBlockEnd: "0px",
             },
     }
 })
@@ -163,7 +165,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
         <FormDialog
             open={open}
             onClose={handleClose}
-            title={t("usersAndRolesScreen.editPassword.label")}
+            title={String(t("usersAndRolesScreen.editPassword.label"))}
         >
             <>
                 <SimpleForm
@@ -202,8 +204,10 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                                 <Box sx={{display: "flex", gap: "8px"}}>
                                     {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
                                     <IconTooltip
-                                        icon={faInfoCircle}
-                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                        icon={faInfoCircle as any}
+                                        info={String(
+                                            t(`usersAndRolesScreen.editPassword.temporatyInfo`)
+                                        )}
                                     />
                                 </Box>
                             </InputLabelStyle>

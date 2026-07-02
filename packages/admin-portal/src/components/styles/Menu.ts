@@ -1,9 +1,9 @@
-//SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {css} from "@emotion/react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import AddIcon from "@mui/icons-material/Add"
 import {NavLink} from "react-router-dom"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
@@ -117,8 +117,8 @@ export const MenuStyles = {
     `,
     StyledNavLinkButton: styled(Typography)`
         flex-grow: 1;
-        padding-top: 0.375rem;
-        padding-bottom: 0.375rem;
+        padding-top: 0.275rem;
+        padding-bottom: 0.275rem;
         border-bottom-width: 2px;
         border-bottom-color: white;
         cursor: pointer;
@@ -145,16 +145,31 @@ export const MenuStyles = {
         & > *:not(:last-child) {
             margin-right: 0.5rem;
         }
+        &:hover {
+            background-color: oklch(0.967 0.003 264.542);
+            border-radius: 4px;
+        }
+    `,
+    SpanContainer: styled("span")`
+        padding: 4px;
+        white-space: normal; /* Allow text to wrap */
+        display: inline-block; /* Allows it to take up multiple lines if needed */
+        word-wrap: break-word; /* Break long words if necessary */
     `,
     HowToVoteStyledIcon: styled(HowToVoteIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    TreeMenuIconContaier: styled.div`
+    TreeMenuIconContaier: styled("div")<{isActive: boolean}>`
         ${divContainer}
-        cursor: pointer;
+        cursor: ${({isActive}) => (isActive ? "pointer" : "auto")};
         color: black;
+        border-radius: 4px;
+        &:hover {
+            background-color: ${({isActive}) =>
+                isActive ? "oklch(0.967 0.003 264.542)" : "white"};
+        }
     `,
-    StyledSideBarNavLink: styled(NavLink)<{multiline?: boolean}>`
+    StyledSideBarNavLink: styled(NavLink)<{multiline?: string | undefined}>`
         flex-grow: 1;
         padding-top: 0.375rem;
         padding-bottom: 0.375rem;
@@ -162,7 +177,7 @@ export const MenuStyles = {
         border-bottom: 2px solid white;
         cursor: pointer;
         ${(data) =>
-            data.multiline
+            data.multiline && data.multiline === "true"
                 ? `
             /* Allow up to two lines of text */
             display: -webkit-box;
@@ -191,7 +206,9 @@ export const MenuStyles = {
     StyledAddCircleIcon: styled(AddCircleIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    StyledDiv: styled(Box)<{isWidth: boolean}>`
+    StyledDiv: styled(Box, {
+        shouldForwardProp: (prop) => prop !== "isWidth",
+    })<{isWidth: boolean}>`
         flex: 0 0 auto;
         height: 1.5rem;
         width: ${({isWidth}) => (isWidth ? "1.5rem" : "auto")};
@@ -207,7 +224,7 @@ const highlightedItem = css`
     }
 `
 
-export const TreeMenuItemContainer = styled.div<{isClicked: boolean}>`
+export const TreeMenuItemContainer = styled("div")<{isClicked: boolean}>`
     display: flex;
     text-align: left;
     align-items: center;

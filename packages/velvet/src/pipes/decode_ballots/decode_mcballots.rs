@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -42,6 +42,7 @@ impl DecodeMCBallots {
     fn decode_ballots(
         path: &Path,
         contests: &Vec<Contest>,
+        include_decline_to_vote: bool,
         serial_number_counter: &mut u32,
     ) -> Result<Vec<DecodedBallotChoices>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
@@ -65,6 +66,7 @@ impl DecodeMCBallots {
             let decoded = BallotChoices::decode_from_bigint(
                 &plaintext,
                 contests,
+                include_decline_to_vote,
                 Some(serial_number_counter),
             )
             .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
@@ -124,9 +126,16 @@ impl Pipe for DecodeMCBallots {
                 )
                 .join(BALLOTS_FILE);
 
+                let include_decline_to_vote = election_input
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.decline_to_vote_policy.clone())
+                    == Some(sequent_core::ballot::DeclineToVotePolicy::ENABLED);
+
                 let res = Self::decode_ballots(
                     path_ballots.as_path(),
                     &contests,
+                    include_decline_to_vote,
                     &mut serial_number_counter,
                 );
 

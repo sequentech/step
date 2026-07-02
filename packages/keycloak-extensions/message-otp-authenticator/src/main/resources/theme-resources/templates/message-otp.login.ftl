@@ -1,31 +1,17 @@
 <#--
-SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
-    <#if section = "header" || section = "show-username">
-        <h1>
+    <#if section = "header">
             <#if isOtl>
-                ${msg("messageOtp.otl.title")}
+                ${msg("messageOtp.otl.address", address)}
             <#else>
-                ${msg("messageOtp.auth.title")}
+                ${msg("messageOtp.auth.address", address)}
             </#if>
-        </h1>
-        <#-- the following already declared at template.ftl for "show-username" case. --->
-        <#if section = "header" && section != "show-username">
-            <div id="kc-username" class="${properties.kcFormGroupClass!}">
-                <label id="kc-attempted-username">${address}</label>
-                <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartRegistrationTooltip")}">
-                    <div class="kc-login-tooltip">
-                        <i class="${properties.kcResetFlowIcon!}"></i>
-                        <span class="kc-tooltip-text">${msg("restartRegistrationTooltip")}</span>
-                    </div>
-                </a>
-            </div>
-        </#if>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"
@@ -36,7 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <#if !isOtl>
                 <div class="${properties.kcFormGroupClass!}">
                       <div class="otp-container" id="otp-inputs">
-                    <#assign otpLength = codeLength?number> 
+                    <#assign otpLength = (codeLength!"6")?number> 
                     <#list 1..otpLength as i>
                         <input
                             autocomplete="off"
@@ -74,21 +60,21 @@ SPDX-License-Identifier: AGPL-3.0-only
                     name="resend"
                     value="true"
                     class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}"
-                    onclick="resendOtp(${(resendTimer)})"
+                    onclick="resendOtp(${(resendTimer)!60})"
                     >
                 </button>
             </div>
 
             <script>
                 <#if isOtl>
-                    let resendTimerI18n = "${msg("messageOtp.otl.resend.timer")}";
-                    let resendButtonI18n = "${msg("messageOtp.otl.resend.button")}";
+                    let resendTimerI18n = "${msg("messageOtp.otl.resend.timer")?no_esc}";
+                    let resendButtonI18n = "${msg("messageOtp.otl.resend.button")?no_esc}";
                 <#else>
-                    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")}";
-                    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")}";
+                    let resendTimerI18n = "${msg("messageOtp.auth.resend.timer")?no_esc}";
+                    let resendButtonI18n = "${msg("messageOtp.auth.resend.button")?no_esc}";
                 </#if>
-                let resendTimerTimeout = ${(resendTimer)};;
-                let codeJustSent = "${(codeJustSent?string('true', 'false'))}";
+                let resendTimerTimeout = ${(resendTimer)!60};
+                let codeJustSent = "${((codeJustSent!false)?string('true', 'false'))}";
                 <#noparse>
                     function resendOtp(resendTimerTimeout) {
                         let resendBtn = document.getElementById('resend-otp-btn');

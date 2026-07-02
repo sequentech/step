@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot_codec::multi_ballot::{
@@ -7,10 +7,12 @@ use crate::ballot_codec::multi_ballot::{
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
+use crate::types::ceremonies::CountingAlgType;
 use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -18,6 +20,12 @@ pub enum InvalidPlaintextErrorType {
     Explicit,
     Implicit,
     EncodingError,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub enum PreferencialOrderErrorType {
+    PreferenceOrderWithGaps,
+    DuplicatedPosition,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -32,6 +40,9 @@ pub struct InvalidPlaintextError {
 pub struct DecodedVoteContest {
     pub contest_id: String,
     pub is_explicit_invalid: bool,
+    /// Whether the Voter has declined to vote (can be true only for multi-contest ballots with decline to vote policy enabled).
+    /// and will be the same for all contests in the ballot.
+    pub is_decline_to_vote: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,
@@ -48,6 +59,58 @@ impl DecodedVoteContest {
                 .clone()
                 .iter()
                 .all(|choice| choice.selected < 0)
+    }
+    /// Get the value of is_decline_to_vote.
+    #[must_use]
+    pub fn is_decline_to_vote(&self) -> bool {
+        self.is_decline_to_vote
+    }
+
+    /// Check the validity of the preference order.
+    /// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+    /// but this is generally not considered invalid, so the caller can
+    /// handle it depending on the policy or jurisdiction rules.
+    /// Returns Ok if the order is valid after sorting it and if it is
+    /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
+    /// Returns Err with a Vec of all errors found (may contain multiple variants).
+    pub fn validate_preferencial_order(
+        &self,
+    ) -> Result<(), Vec<PreferencialOrderErrorType>> {
+        let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
+
+        // Discard the unselected choices and sort the selected ones by their preference order
+        let choices: Vec<i64> = self
+            .choices
+            .iter()
+            .filter(|choice| choice.selected >= 0)
+            .map(|choice| choice.selected)
+            .collect();
+
+        // After removing the unselected choices we check that there are no duplicates in
+        // the preference order
+        let choices_unique_set = choices.iter().collect::<HashSet<_>>();
+        if choices.len() != choices_unique_set.len() {
+            errors.push(PreferencialOrderErrorType::DuplicatedPosition);
+        }
+
+        // Check that there are no gaps in the ordered choices
+        let mut ordered_choices = choices_unique_set
+            .into_iter()
+            .cloned()
+            .collect::<Vec<i64>>();
+        ordered_choices.sort();
+        let expected_order: Vec<i64> =
+            (0..ordered_choices.len() as i64).collect();
+
+        if ordered_choices != expected_order {
+            errors.push(PreferencialOrderErrorType::PreferenceOrderWithGaps);
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }
 
@@ -143,7 +206,8 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
 
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
-            is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
+            is_explicit_invalid: found_ballot_choices.is_explicit_invalid,
+            is_decline_to_vote: decoded_ballot_choices.is_explicit_invalid,
             invalid_errors: found_ballot_choices.invalid_errors.clone(),
             invalid_alerts: found_ballot_choices.invalid_alerts.clone(),
             choices,

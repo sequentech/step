@@ -1,14 +1,18 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
 pub struct ResultsEventWrapper(pub ResultsEvent);
 
 impl TryFrom<Row> for ResultsEventWrapper {
@@ -43,11 +47,11 @@ pub async fn update_results_event_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -116,9 +120,9 @@ pub async fn get_results_event_by_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(results_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(results_event_id)?,
             ],
         )
         .await?;
@@ -142,16 +146,18 @@ pub async fn insert_results_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    results_id: &str,
 ) -> Result<ResultsEvent> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.results_event
-                (tenant_id, election_event_id)
+                (id, tenant_id, election_event_id)
                 VALUES(
                     $1,
-                    $2
+                    $2,
+                    $3
                 )
                 RETURNING
                     *;
@@ -162,8 +168,9 @@ pub async fn insert_results_event(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(results_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -181,4 +188,130 @@ pub async fn insert_results_event(
         return Err(anyhow!("Error inserting row"));
     };
     Ok(value.clone())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_results_event_by_event_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<ResultsEvent>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.results_event
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let results_events: Vec<ResultsEvent> = rows
+        .into_iter()
+        .map(|row| -> Result<ResultsEvent> {
+            row.try_into()
+                .map(|res: ResultsEventWrapper| -> ResultsEvent { res.0 })
+        })
+        .collect::<Result<Vec<ResultsEvent>>>()?;
+
+    Ok(results_events)
+}
+
+#[derive(Debug, Serialize)]
+struct InsertableResultsEvent {
+    id: Uuid,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    name: Option<String>,
+    created_at: Option<DateTime<Local>>,
+    last_updated_at: Option<DateTime<Local>>,
+    annotations: Option<Value>,
+    labels: Option<Value>,
+    documents: Option<Value>,
+}
+
+#[instrument(err, skip(hasura_transaction, results_events))]
+pub async fn insert_many_results_events(
+    hasura_transaction: &Transaction<'_>,
+    results_events: Vec<ResultsEvent>,
+) -> Result<Vec<ResultsEvent>> {
+    if results_events.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let insertable: Vec<InsertableResultsEvent> = results_events
+        .into_iter()
+        .map(|results_event| {
+            let documents_json = results_event
+                .documents
+                .map(|v| serde_json::to_value(&v))
+                .transpose()?;
+
+            Ok(InsertableResultsEvent {
+                id: parse_uuid_v4(&results_event.id)?,
+                tenant_id: parse_uuid_v4(&results_event.tenant_id)?,
+                election_event_id: parse_uuid_v4(&results_event.election_event_id)?,
+                name: results_event.name.clone(),
+                created_at: results_event.created_at,
+                last_updated_at: results_event.last_updated_at,
+                annotations: results_event.annotations.clone(),
+                labels: results_event.labels.clone(),
+                documents: documents_json,
+            })
+        })
+        .collect::<Result<_>>()?;
+
+    let json_data = serde_json::to_value(&insertable)?;
+
+    let sql = r#"
+        WITH data AS (
+            SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
+                id UUID,
+                tenant_id UUID,
+                election_event_id UUID,
+                name TEXT,
+                created_at TIMESTAMPTZ,
+                last_updated_at TIMESTAMPTZ,
+                annotations JSONB,
+                labels JSONB,
+                documents JSONB
+            )
+        )
+        INSERT INTO sequent_backend.results_event (
+            id, tenant_id, election_event_id, name,
+            created_at, last_updated_at, annotations, labels, documents
+        )
+        SELECT
+            id, tenant_id, election_event_id, name,
+            created_at, last_updated_at, annotations, labels, documents
+        FROM data
+        RETURNING *;
+    "#;
+
+    let statement = hasura_transaction.prepare(sql).await?;
+    let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
+
+    let values: Vec<ResultsEvent> = rows
+        .into_iter()
+        .map(|row| {
+            let wrapper: ResultsEventWrapper = row.try_into()?;
+            Ok(wrapper.0)
+        })
+        .collect::<Result<_>>()?;
+
+    Ok(values)
 }

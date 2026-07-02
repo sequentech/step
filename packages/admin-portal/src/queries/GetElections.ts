@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
@@ -15,7 +15,6 @@ export const GET_ELECTIONS = gql`
             is_consolidated_ballot_encoding
             labels
             last_updated_at
-            name
             num_allowed_revotes
             presentation
             spoil_ballot_option
@@ -23,6 +22,7 @@ export const GET_ELECTIONS = gql`
             tenant_id
             permission_label
             initialization_report_generated
+            external_id
         }
     }
 `

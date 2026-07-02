@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,9 +7,13 @@ export enum EExportFormat {
     JSON = "json",
     HTML = "html",
     TAR_GZ = "tar_gz",
-    RECEIPTS_PDF = "vote_receipts_pdf",
+    TAR_GZ_PDFS = "tar_gz_pdfs",
+    ALL_AREAS_HTML = "all_areas_html",
+    ALL_AREAS_JSON = "all_areas_json",
 }
 
 export type IResultDocuments = {
     [F in EExportFormat]?: string
 }
+
+export const ALL_AREAS_PREFIX = "all_areas"

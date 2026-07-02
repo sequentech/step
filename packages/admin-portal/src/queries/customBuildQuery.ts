@@ -1,4 +1,5 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+import {Order_By} from "./../../../voting-portal/src/gql/graphql"
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -11,6 +12,7 @@ import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
+import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
 
 export interface ParamsSort {
     field: string
@@ -110,6 +112,9 @@ export const customBuildQuery =
                         validOrderBy.includes(key)
                     )
                 )
+                if (ret?.variables?.order_by) {
+                    ret.variables.order_by = [{...ret.variables.order_by}, {id: "asc"}]
+                }
             }
             return ret
         } else if (
@@ -146,6 +151,11 @@ export const customBuildQuery =
             raFetchType === "GET_LIST"
         ) {
             let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [{...ret.variables.order_by}, {id: "asc"}]
+            }
+
             let electionIds: Array<string> | undefined =
                 params?.filter?.event_payload?.value?._contains?.election_id
             if (electionIds) {
@@ -313,21 +323,16 @@ export const customBuildQuery =
             const transformedRawParams = {...ret?.variables.where}
             const transformedParams = ret?.variables.where["_and"]
 
+            // Transform applicant_data
             Object.keys(filter).forEach((key) => {
-                // Check if this is a nested object with applicant_data
                 if (key === "applicant_data" && typeof filter[key] === "object") {
-                    Object.keys(filter[key]).forEach((fieldKey) => {
-                        const newField = fieldKey
-                        const newValue = filter[key][newField]
-
-                        // // Add the transformed filter in the format your API expects
-                        const output = {
-                            _contains: {
-                                [newField]: newValue["_ilike"],
+                    const flattened = flattenObject(filter[key])
+                    Object.keys(flattened).forEach((newField) => {
+                        transformedParams.push({
+                            applicant_data: {
+                                _contains: {[newField]: flattened[newField]},
                             },
-                        }
-
-                        transformedParams.push({applicant_data: output})
+                        })
                     })
                 }
             })
@@ -335,6 +340,69 @@ export const customBuildQuery =
             ret.variables.where = transformedRawParams
 
             return ret
+        } else if (
+            resourceName === "sequent_backend_election_by_external_id" &&
+            raFetchType === "GET_MANY"
+        ) {
+            const externalIds: string[] = (params?.ids ?? []).map(String)
+            const electionEventId =
+                params?.meta?.filter?.election_event_id ??
+                params?.meta?.filter?.electionEventId ??
+                null
+
+            return {
+                query: GET_ELECTIONS_BY_EXTERNAL_ID,
+                variables: {
+                    external_ids: externalIds,
+                    election_event_id: electionEventId,
+                },
+                parseResponse: (res: any) => {
+                    const rows = res?.data?.sequent_backend_election ?? []
+                    return {
+                        data: rows.map((r: any) => ({
+                            ...r,
+                            id: r.external_id,
+                        })),
+                    }
+                },
+            }
+        } else if (
+            resourceName === "sequent_backend_tally_sheet" &&
+            raFetchType === "GET_LIST" &&
+            params?.meta?.distinctBallotBoxes
+        ) {
+            // Show only one row per ballot box (area/contest/channel)
+            params.filter = {
+                ...params.filter,
+                distinct_on: ["area_id", "contest_id", "channel"],
+            }
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [
+                    {area_id: "asc"},
+                    {contest_id: "asc"},
+                    {channel: "asc"},
+                    {version: "desc"},
+                ]
+            }
+            return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }
+
+function flattenObject(obj: any, prefix = "") {
+    let result: any = {}
+
+    Object.keys(obj).forEach((key) => {
+        const newKey = prefix ? `${prefix}.${key}` : key
+        if (typeof obj[key] === "object" && obj[key] !== null && !("_ilike" in obj[key])) {
+            // Recursively flatten only if it's an object and doesn't have `_ilike`
+            Object.assign(result, flattenObject(obj[key], newKey))
+        } else if ("_ilike" in obj[key]) {
+            // Extract `_ilike` value
+            result[newKey] = obj[key]["_ilike"]
+        }
+    })
+
+    return result
+}

@@ -9,6 +9,10 @@ type Mutation {
 }
 
 type Mutation {
+    call_plugin_route(path: String!, data: jsonb!): PluginsRouteOutput!
+}
+
+type Mutation {
     check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
 }
 
@@ -40,7 +44,7 @@ type Mutation {
 type Mutation {
     create_election(
         election_event_id: String!
-        name: String!
+        external_id: String!
         presentation: jsonb
         description: String
     ): CreateElectionOutput
@@ -128,6 +132,13 @@ type Mutation {
 }
 
 type Mutation {
+    update_realm_attributes(
+        election_event_id: String!
+        attributes: jsonb!
+    ): UpdateRealmAttributesOutput
+}
+
+type Mutation {
     delete_users(
         tenant_id: String!
         election_event_id: String
@@ -187,6 +198,13 @@ type Mutation {
 }
 
 type Mutation {
+    export_tally_results(
+        election_event_id: String!
+        tally_session_id: String!
+    ): ExportTallyResultsOutput
+}
+
+type Mutation {
     export_tasks_execution(
         tenant_id: String!
         election_event_id: String!
@@ -232,6 +250,24 @@ type Mutation {
 }
 
 type Mutation {
+    generate_google_meet(
+        summary: String!
+        description: String!
+        start_date_time: String!
+        end_date_time: String!
+        time_zone: String!
+        attendee_emails: [String!]!
+    ): GenerateGoogleMeetOutput
+}
+
+type Mutation {
+    generate_preview_url(
+        tenant_id: String!
+        document_id: String!
+    ): GeneratePreviewUrlOutput
+}
+
+type Mutation {
     generate_report(
         report_id: String!
         report_mode: String!
@@ -274,19 +310,6 @@ type Mutation {
         ballot_publication_id: uuid!
         limit: Int
     ): GetBallotPublicationChangesOutput
-}
-
-type Query {
-    get_election_event_monitoring(
-        election_event_id: uuid!
-    ): ElectionEventStatsMonitoringOutput
-}
-
-type Query {
-    get_election_monitoring(
-        election_event_id: uuid!
-        election_id: uuid!
-    ): ElectionStatsMonitoringOutput
 }
 
 type Mutation {
@@ -455,6 +478,18 @@ type Query {
 }
 
 type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
+}
+
+type Query {
     list_keys_ceremony(election_event_id: String!): ListKeysCeremonyOutput
 }
 
@@ -485,6 +520,13 @@ type Mutation {
 }
 
 type Mutation {
+    prepare_ballot_publication_preview(
+        election_event_id: String!
+        ballot_publication_id: String!
+    ): PrepareBallotPublicationPreviewOutput
+}
+
+type Mutation {
     publish_ballot(
         election_event_id: uuid!
         ballot_publication_id: uuid!
@@ -492,11 +534,11 @@ type Mutation {
 }
 
 type Mutation {
-    publish_tally_sheet(
-        election_event_id: uuid!
-        tally_sheet_id: uuid!
-        publish: Boolean
-    ): PublishTallyOutput
+    render_document_pdf(
+        document_id: uuid!
+        election_event_id: uuid
+        tally_session_id: uuid
+    ): RenderDocumentPDFOutput
 }
 
 type Mutation {
@@ -570,6 +612,22 @@ type Mutation {
         tally_session_id: uuid!
         status: String!
     ): StartTallyOutput
+    submit_tally_resolution(
+        election_event_id: uuid!
+        tally_session_id: uuid!
+        resolutions: [TallyResolutionInput!]!
+    ): SubmitTallyResolutionOutput
+}
+
+input TallyResolutionInput {
+    contest_id: uuid!
+    selected_candidate_id: uuid!
+}
+
+type SubmitTallyResolutionOutput {
+    success: Boolean!
+    tally_session_id: String!
+    resolved_count: Int!
 }
 
 type Mutation {
@@ -583,7 +641,46 @@ type Mutation {
 }
 
 type Mutation {
+    upsert_area(
+        id: String
+        name: String!
+        description: String
+        election_event_id: String!
+        tenant_id: String!
+        parent_id: String
+        area_contest_ids: [String]
+        annotations: jsonb
+        labels: jsonb
+        type: String
+        allow_early_voting: EarlyVotingPolicy
+    ): UpsertAreaOutput
+}
+
+type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
+}
+
+type Mutation {
+    create_new_tally_sheet(
+        election_event_id: String!
+        channel: String!
+        content: jsonb!
+        contest_id: String!
+        area_id: String!
+    ): TallySheetOutput
+}
+
+type Mutation {
+    review_tally_sheet(
+        election_event_id: String!
+        tally_sheet_id: String!
+        new_status: String!
+    ): TallySheetOutput
+}
+
+enum EarlyVotingPolicy {
+    allow_early_voting
+    no_early_voting
 }
 
 enum ReportEncryptionPolicy {
@@ -611,6 +708,8 @@ enum VotingStatus {
 enum VotingStatusChannel {
     ONLINE
     KIOSK
+    EARLY_VOTING
+    TELEPHONE
 }
 
 input TemplateInput {
@@ -644,10 +743,10 @@ input PgAuditOrderBy {
 input ElectoralLogFilter {
     id: String
     user_id: String
-    username: String
     created: String
     statement_timestamp: String
     statement_kind: String
+    username: String
 }
 
 input ElectoralLogOrderBy {
@@ -655,8 +754,9 @@ input ElectoralLogOrderBy {
     created: OrderDirection
     statement_timestamp: OrderDirection
     statement_kind: OrderDirection
-    username: OrderDirection
     user_id: OrderDirection
+    username: OrderDirection
+    ballot_id: OrderDirection
 }
 
 input SampleInput {
@@ -712,6 +812,7 @@ input CreateKeysCeremonyInput {
     trustee_names: [String!]
     election_id: String
     name: String
+    is_automatic_ceremony: Boolean
 }
 
 input ElectionEventStatsInput {
@@ -866,6 +967,8 @@ input ExportOptions {
     scheduled_events: Boolean
     reports: Boolean
     applications: Boolean
+    tally: Boolean
+    include_certificates: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -886,10 +989,6 @@ input ApplicationChangeStatusBody {
     area_id: String
     rejection_reason: String
     rejection_message: String
-}
-
-input ElectionStatsMonitoringInput {
-    election_event_id: uuid!
 }
 
 input ImportOptions {
@@ -925,6 +1024,7 @@ type GetManualVerificationOutput {
 
 type CreateKeysCeremonyOutput {
     keys_ceremony_id: String!
+    error_message: String
 }
 
 type GetPrivateKeyOutput {
@@ -1015,6 +1115,19 @@ type ElectoralLogRow {
     user_id: String!
 }
 
+type CastVoteEntry {
+    statement_timestamp: Int!
+    statement_kind: String!
+    ballot_id: String!
+    username: String
+    message: String
+}
+
+type ListCastVoteMessagesOutput {
+    list: [CastVoteEntry]!
+    total: Int!
+}
+
 type DataListElectoralLog {
     items: [ElectoralLogRow]!
     total: TotalAggregate!
@@ -1042,6 +1155,8 @@ type CreateElectionEventOutput {
 type InsertTenantOutput {
     id: uuid!
     slug: String!
+    task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type KeycloakUserArea {
@@ -1122,6 +1237,12 @@ type OptionalId {
     id: String
 }
 
+type PrepareBallotPublicationPreviewOutput {
+    error_msg: String
+    task_execution: tasks_execution_type
+    document_id: String!
+}
+
 type ExportUsersOutput {
     error_msg: String
     task_execution: tasks_execution_type
@@ -1166,10 +1287,6 @@ type RestorePrivateKeyOutput {
     is_valid: Boolean!
 }
 
-type PublishTallyOutput {
-    tally_sheet_id: uuid
-}
-
 type InsertCastVoteOutput {
     id: uuid!
     tenant_id: uuid!
@@ -1206,6 +1323,27 @@ type ManageElectionDatesOutput {
 type ExportLogsOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type TallySheetOutput {
+    id: String!
+    tenant_id: String!
+    election_event_id: String!
+    election_id: String!
+    contest_id: String!
+    area_id: String!
+    created_at: String
+    last_updated_at: String
+    labels: jsonb
+    annotations: jsonb
+    reviewed_at: String
+    reviewed_by_user_id: String
+    content: jsonb
+    channel: String
+    deleted_at: String
+    created_by_user_id: String
+    status: String!
+    version: Int!
 }
 
 type ExportAllUsersOutput {
@@ -1318,6 +1456,8 @@ type SetCustomUrlsOutput {
 
 type DeleteElectionEvent {
     id: String
+    task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type ExportTasksExecutionOutput {
@@ -1386,11 +1526,13 @@ type LimitAccessByCountriesOutput {
 type ExportTemplateOutput {
     error_msg: String
     document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type templateOutput {
     error_msg: String
     document_id: String!
+    task_execution: tasks_execution_type
 }
 
 type GetTopCastVotesByIpOutput {
@@ -1403,7 +1545,7 @@ type CastVotesByIp {
     ip: String
     country: String
     vote_count: Int
-    election_name: String
+    election_presentation: jsonb
     election_id: String
     voters_id: [String]
 }
@@ -1456,63 +1598,6 @@ type GetUserTemplateOutput {
     extra_config: String!
 }
 
-type ElectionStatsMonitoringOutput {
-    total_eligible_voters: Int
-    total_enrolled_voters: Int
-    total_voted: Int
-    authentication_stats: MonitoringAuthentication
-    approval_stats: MonitoringApproval
-}
-
-type MonitoringAuthentication {
-    total_authenticated: Int
-    total_not_authenticated: Int
-    total_invalid_users_errors: Int
-    total_invalid_password_errors: Int
-}
-
-type MonitoringApproval {
-    total_approved: Int
-    total_disapproved: Int
-    total_manual_approved: Int
-    total_manual_disapproved: Int
-    total_automated_approved: Int
-    total_automated_disapproved: Int
-}
-
-type MonitoringVotingSatus {
-    total_voted: Int
-    total_voted_tests_elections: Int
-}
-
-type MonitoringTransmissionStatus {
-    total_transmitted_results: Int
-    total_half_transmitted_results: Int
-    total_not_transmitted_results: Int
-}
-
-type ElectionEventStatsMonitoringOutput {
-    total_eligible_voters: Int
-    total_enrolled_voters: Int
-    total_elections: Int
-    total_started_votes: Int
-    total_not_started_votes: Int
-    total_open_votes: Int
-    total_not_open_votes: Int
-    total_closed_votes: Int
-    total_not_closed_votes: Int
-    total_start_counting_votes: Int
-    total_not_start_counting_votes: Int
-    total_initialize: Int
-    total_not_initialize: Int
-    total_genereated_tally: Int
-    total_not_genereated_tally: Int
-    authentication_stats: MonitoringAuthentication
-    voting_stats: MonitoringVotingSatus
-    approval_stats: MonitoringApproval
-    transmission_stats: MonitoringTransmissionStatus
-}
-
 type ExportApplicationOutput {
     error_msg: String
     document_id: String!
@@ -1560,4 +1645,71 @@ type ApplicationChangeStatusOutput {
 
 type CountUsersOutput {
     count: Int!
+}
+
+type RenderDocumentPDFOutput {
+    document_id: String
+    task_execution: tasks_execution_type
+}
+
+type PluginsRouteOutput {
+    data: jsonb
+}
+
+type UpsertAreaOutput {
+    id: String!
+}
+
+type ExportTallyResultsOutput {
+    document_id: String!
+    task_execution: tasks_execution_type!
+    error_msg: String
+}
+
+type GenerateGoogleMeetOutput {
+    meet_link: String
+}
+
+type GeneratePreviewUrlOutput {
+    preview_url: String!
+}
+
+type Mutation {
+    import_certificate_authority(
+        election_event_id: uuid!
+        pem_content: String!
+    ): ImportCertificateAuthorityOutput
+}
+
+type ImportCertificateAuthorityOutput {
+    inserted_count: Int!
+    skipped_count: Int!
+    errors: [String!]!
+}
+
+type Mutation {
+    delete_certificate_authority(
+        ids: [uuid!]!
+        election_event_id: uuid!
+    ): DeleteCertificateAuthorityOutput
+}
+
+type DeleteCertificateAuthorityOutput {
+    deleted_count: Int!
+}
+
+type Mutation {
+    export_certificate_authority(
+        ids: [uuid!]!
+        election_event_id: uuid!
+    ): ExportCertificateAuthorityOutput
+}
+
+type ExportCertificateAuthorityOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
+type UpdateRealmAttributesOutput {
+    updated: Boolean!
 }

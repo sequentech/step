@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,8 +6,8 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation, useNavigate} from "react-router-dom"
-import styled from "@emotion/styled"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {styled} from "@mui/material/styles"
+import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Election,
@@ -21,6 +21,7 @@ import {
     IContest,
     IElection,
     ICandidate,
+    translateFromPresentation,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {
@@ -48,11 +49,11 @@ import {useLazyQuery} from "@apollo/client"
 import {
     FETCH_CANDIDATE_TREE,
     FETCH_CONTEST_TREE,
-    FETCH_ELECTION_EVENTS_TREE,
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -215,6 +216,7 @@ export default function ElectionEvents() {
     const [instantSearchInput, setInstantSearchInput] = useState<string>("")
     const [searchInput, setSearchInput] = useState<string>("")
     const navigate = useNavigate()
+    const aliasRenderer = useAliasRenderer()
 
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
@@ -250,6 +252,9 @@ export default function ElectionEvents() {
                 enabled: !!election_event_id,
                 onSuccess: (data) => {
                     setElectionEventId(data.id)
+                    setElectionId("")
+                    setContestId("")
+                    setCandidateId("")
                 },
             }
         )
@@ -291,12 +296,6 @@ export default function ElectionEvents() {
             },
         }
     )
-    // Get subtrees
-    const [
-        getElectionEventTree,
-        {data: electionEventTreeData, refetch: _electionEventTreeRefetch},
-    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
-
     const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
         useLazyQuery(FETCH_ELECTIONS_TREE)
 
@@ -309,12 +308,10 @@ export default function ElectionEvents() {
     // Wrapper refetch functions: only call the internal refetch if variables
     // are set
     const electionEventTreeRefetch = () => {
-        if (tenantId && electionEventId) {
-            _electionEventTreeRefetch({
-                variables: {
-                    tenantId,
-                    isArchived: isArchivedElectionEvents,
-                },
+        if (tenantId) {
+            originalRefetch({
+                tenantId,
+                isArchived: isArchivedElectionEvents,
             })
         }
     }
@@ -354,16 +351,15 @@ export default function ElectionEvents() {
 
     // Instead of setting variables in the options, we now call the lazy queries
     // only when variables exist.
+    // Force reload election event data when tenant ID changes or component mounts
     useEffect(() => {
         if (tenantId) {
-            getElectionEventTree({
-                variables: {
-                    tenantId,
-                    isArchived: isArchivedElectionEvents,
-                },
+            originalRefetch({
+                tenantId,
+                isArchived: isArchivedElectionEvents,
             })
         }
-    }, [tenantId, isArchivedElectionEvents, getElectionEventTree])
+    }, [tenantId, isArchivedElectionEvents, originalRefetch])
 
     useEffect(() => {
         if (tenantId && electionEventId) {
@@ -415,6 +411,9 @@ export default function ElectionEvents() {
         } else if (callerPath === "sequent_backend_candidate") {
             candidateData()
             candidateTreeRefetch()
+        } else if (callerPath === "sequent_backend_election_event") {
+            electionEventTreeRefetch()
+            electionEventDataRefetch()
         } else {
             // do nothing
         }
@@ -435,13 +434,6 @@ export default function ElectionEvents() {
             }
         }
     }, [getCandidateIdFlag, candidate_id])
-
-    useEffect(() => {
-        if (!electionEventData || !electionEventId) return
-        if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
-            setArchivedElectionEvents(electionEventData?.is_archived ?? false)
-        }
-    }, [electionEventId, electionEventData, setArchivedElectionEvents])
 
     let resultData = {...data}
 
@@ -465,6 +457,14 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
+    const transformElectionEvent = (electionEvent: ElectionEventType): ElectionEventType => {
+        return {
+            ...electionEvent,
+            name: translateFromPresentation(electionEvent, "name", i18n.language) ?? "-",
+            alias: aliasRenderer(electionEvent),
+        }
+    }
+
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
         return elections.map((election) => {
             return {
@@ -472,6 +472,8 @@ export default function ElectionEvents() {
                 tenant_id: tenantId || "",
                 image_document_id: election.image_document_id ?? "",
                 contests: [],
+                name: translateFromPresentation(election, "name", i18n.language) ?? "-",
+                alias: aliasRenderer(election),
             }
         })
     }
@@ -486,6 +488,8 @@ export default function ElectionEvents() {
                 min_votes: 0,
                 winning_candidates_num: 0,
                 is_encrypted: false,
+                name: translateFromPresentation(contest, "name", i18n.language) ?? "-",
+                alias: aliasRenderer(contest),
             }
         })
     }
@@ -497,6 +501,8 @@ export default function ElectionEvents() {
                 id: candidate.id,
                 election_id: electionId || "",
                 tenant_id: tenantId || "",
+                name: translateFromPresentation(candidate, "name", i18n.language) ?? "-",
+                alias: aliasRenderer(candidate),
             }
         })
     }
@@ -512,8 +518,9 @@ export default function ElectionEvents() {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
                     const electionOrderType = electionEvent?.presentation?.elections_order
+
                     return {
-                        ...electionEvent,
+                        ...transformElectionEvent(electionEvent),
                         ...(electionEvent.id === electionEventId
                             ? {
                                   active: true,
@@ -609,7 +616,6 @@ export default function ElectionEvents() {
         electionId,
         contestId,
         candidateId,
-        electionEventTreeData,
         electionTreeData,
         contestTreeData,
         candidateTreeData,
@@ -630,13 +636,13 @@ export default function ElectionEvents() {
     }
 
     const debouncedSearchChange = useMemo(() => {
-        const debouncedFn = debounce((value) => {
+        const debouncedFn = debounce((value: string) => {
             console.log(`edu: debounce: ${value}`)
             // Expensive operation or API call
             setSearchInput(value)
         }, 300)
 
-        return (value: any) => {
+        return (value: string) => {
             // Update state immediately
             setInstantSearchInput(value)
             debouncedFn(value)
@@ -679,7 +685,7 @@ export default function ElectionEvents() {
                         <StyledIconButton
                             onClick={handleOpenCreateElectionEventMenu}
                             className="election-event-create-button"
-                            icon={faPlusCircle}
+                            icon={faPlusCircle as any}
                             size="xs"
                         />
                     ) : null}
@@ -690,7 +696,7 @@ export default function ElectionEvents() {
                         <SideBarContainer dir={i18n.dir(i18n.language)}>
                             <TextField
                                 dir={i18n.dir(i18n.language)}
-                                label={t("sideMenu.search")}
+                                label={String(t("sideMenu.search"))}
                                 size="small"
                                 value={instantSearchInput}
                                 onChange={(e) => debouncedSearchChange(e.target.value)}

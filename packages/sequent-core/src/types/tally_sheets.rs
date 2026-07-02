@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
@@ -23,6 +23,24 @@ pub enum VotingChannel {
     PAPER,
     POSTAL,
     IN_PERSON,
+}
+
+#[derive(
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    Eq,
+    PartialEq,
+    Display,
+    EnumString,
+)]
+pub enum TallySheetStatus {
+    #[default]
+    PENDING,
+    APPROVED,
+    DISAPPROVED,
 }
 
 impl Default for VotingChannel {
@@ -51,7 +69,7 @@ pub struct CandidateResults {
     pub total_votes: Option<u64>,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AreaContestResults {
     pub area_id: String,
     pub contest_id: String,

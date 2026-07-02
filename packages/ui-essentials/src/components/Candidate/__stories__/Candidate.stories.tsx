@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -7,6 +7,7 @@ import Candidate, {CandidateProps} from "../Candidate"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {Box} from "@mui/material"
 import Image from "mui-image"
+
 import CandidateImg from "../../../../public/example_candidate.jpg"
 
 const CandidateWrapper: React.FC<CandidateProps & {className?: string}> = ({
@@ -41,7 +42,7 @@ export const Primary: Story = {
         children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description: "Candidate Description",
-        isActive: true,
+        isSelectable: true,
         checked: true,
         url: "https://google.com",
     },
@@ -57,7 +58,7 @@ export const ReadOnly: Story = {
         children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description: "Candidate Description",
-        isActive: false,
+        isSelectable: false,
         checked: true,
         url: "https://google.com",
     },
@@ -72,7 +73,7 @@ export const NoImage: Story = {
     args: {
         title: "Micky Mouse",
         description: "Candidate Description",
-        isActive: true,
+        isSelectable: true,
         url: "https://google.com",
     },
     parameters: {
@@ -86,7 +87,7 @@ export const NoDescription: Story = {
     args: {
         children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
-        isActive: true,
+        isSelectable: true,
         url: "https://google.com",
         checked: false,
     },
@@ -100,7 +101,7 @@ export const NoDescription: Story = {
 export const OnlyTitle: Story = {
     args: {
         title: "Micky Mouse",
-        isActive: true,
+        isSelectable: true,
         checked: false,
     },
     parameters: {
@@ -127,10 +128,9 @@ export const LongDescription: Story = {
 export const LongTitle: Story = {
     args: {
         children: <Image src={CandidateImg} duration={100} />,
-        title:
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        title: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
         description: "Candidate Description",
-        isActive: true,
+        isSelectable: true,
         url: "https://google.com",
     },
     parameters: {
@@ -153,7 +153,7 @@ export const WithHtml: Story = {
                 Candidate <b>description</b>
             </>
         ),
-        isActive: true,
+        isSelectable: true,
         url: "https://google.com",
     },
     parameters: {
@@ -169,7 +169,7 @@ export const Hover: Story = {
         title: "Micky Mouse",
         description: "Candidate Description",
         className: "hover",
-        isActive: true,
+        isSelectable: true,
         url: "https://google.com",
     },
     parameters: {
@@ -190,7 +190,7 @@ export const Active: Story = {
         title: "Micky Mouse",
         description: "Candidate Description",
         className: "hover active",
-        isActive: true,
+        isSelectable: true,
         url: "https://google.com",
     },
     parameters: {
@@ -209,7 +209,7 @@ export const WriteInSimple: Story = {
     args: {
         title: "",
         description: "",
-        isActive: true,
+        isSelectable: true,
         isWriteIn: true,
     },
     parameters: {
@@ -223,7 +223,7 @@ export const WriteInInvalid: Story = {
     args: {
         title: "",
         description: "",
-        isActive: true,
+        isSelectable: true,
         isWriteIn: true,
         writeInValue: "John Connor",
         isInvalidWriteIn: true,
@@ -239,7 +239,7 @@ export const WriteInFields: Story = {
     args: {
         title: "",
         description: "",
-        isActive: true,
+        isSelectable: true,
         isWriteIn: true,
     },
     parameters: {
@@ -252,9 +252,28 @@ export const WriteInFields: Story = {
 export const InvalidVote: Story = {
     args: {
         title: "Micky Mouse",
-        isActive: true,
+        isSelectable: true,
         isInvalidVote: true,
         checked: false,
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const PreferentialVote: Story = {
+    args: {
+        children: <Image src={CandidateImg} duration={100} />,
+        title: "Micky Mouse",
+        description: "Candidate Description",
+        isSelectable: true,
+        checked: true,
+        url: "https://google.com",
+        isPreferentialVote: true,
+        totalCandidates: 10,
+        maxVotes: 3,
     },
     parameters: {
         viewport: {

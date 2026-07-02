@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,6 +34,7 @@ import {
     ValidationErrorMessage,
     AutocompleteInput,
     ReferenceInput,
+    BooleanInput,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -44,11 +44,16 @@ import {useTranslation} from "react-i18next"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Dialog} from "@sequentech/ui-essentials"
-import {isNull} from "@sequentech/ui-core"
+import {
+    EElectionEventCeremoniesPolicy,
+    IElectionEventPresentation,
+    isNull,
+} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
+import {CreateKeysError} from "@/types/ceremonies"
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -103,6 +108,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     )
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
+    const [isAutomaticCeremony, setIsAutomaticCeremony] = useState<boolean>(false)
     const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
@@ -148,6 +154,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         Sequent_Backend_Trustee[] | undefined
     >()
 
+    const filteredTrusteesSorted = useMemo(
+        () =>
+            [...(filteredTrustees ?? [])]?.sort((a, b) =>
+                (a.name ?? "").localeCompare(b.name ?? "")
+            ),
+        [filteredTrustees]
+    )
+    const trusteeListSorted = useMemo(
+        () => [...(trusteeList ?? [])]?.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+        [trusteeList]
+    )
+
     useEffect(() => {
         setFilteredTrustees(
             trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
@@ -188,7 +206,14 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         trusteeNames: string[]
         electionId?: string
         name?: string
-    }) => Promise<string | null> = async ({threshold, trusteeNames, electionId, name}) => {
+        isAutomaticCeremony: boolean
+    }) => Promise<string | null> = async ({
+        threshold,
+        trusteeNames,
+        electionId,
+        name,
+        isAutomaticCeremony,
+    }) => {
         const {data, errors} = await createKeysCeremonyMutation({
             variables: {
                 electionEventId: electionEvent.id,
@@ -196,8 +221,17 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 trusteeNames,
                 electionId: electionId || null,
                 name: name ?? t("keysGeneration.configureStep.name"),
+                isAutomaticCeremony: isAutomaticCeremony ?? false,
             },
         })
+
+        let error_message = data?.create_keys_ceremony?.error_message
+        if (error_message) {
+            let error = error_message as CreateKeysError
+            if (error == CreateKeysError.PERMISSION_LABELS) {
+                setErrors(t("keysGeneration.configureStep.errorPermisionLabels"))
+            }
+        }
         if (errors) {
             setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {code: error + ""}))
             return null
@@ -227,6 +261,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 trusteeNames,
                 name: electionName,
                 electionId: electionId ?? undefined,
+                isAutomaticCeremony: isAutomaticCeremony,
             })
             if (keysCeremonyId) {
                 setNewId(keysCeremonyId)
@@ -244,11 +279,17 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     // Called by the form. Saves the information and shows the confirmation
     // dialog
-    const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames, electionId}) => {
+    const onSubmit: SubmitHandler<FieldValues> = async ({
+        threshold,
+        trusteeNames,
+        electionId,
+        isAutomatic,
+    }) => {
         setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
         setElectionId(electionId ?? null)
+        setIsAutomaticCeremony(isAutomatic)
     }
 
     // Default values
@@ -297,6 +338,10 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
 
+    const isElectionEventAutomatedCeremonyPolicy =
+        electionEvent.presentation?.ceremonies_policy ===
+        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
     return (
         <>
             <WizardStyles.ContentBox>
@@ -316,7 +361,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             <WizardStyles.CreateButton
                                 className="keys-create-button"
                                 icon={<ArrowForwardIosIcon />}
-                                label={t("keysGeneration.configureStep.create")}
+                                label={String(t("keysGeneration.configureStep.create"))}
                             />
                         </WizardStyles.Toolbar>
                     }
@@ -332,7 +377,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <TextInput
                             dir={i18n.dir(i18n.language)}
                             source="threshold"
-                            label={t("keysGeneration.configureStep.threshold")}
+                            label={String(t("keysGeneration.configureStep.threshold"))}
                             value={threshold}
                             validate={validateThreshold}
                             type="number"
@@ -341,6 +386,15 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             }}
                             variant="filled"
                         />
+                        {isElectionEventAutomatedCeremonyPolicy && (
+                            <BooleanInput
+                                disabled={!isElectionEventAutomatedCeremonyPolicy}
+                                source="isAutomatic"
+                                label={String(
+                                    t("keysGeneration.configureStep.automaticCeremonyToggle")
+                                )}
+                            />
+                        )}
                         {trusteeList ? (
                             <>
                                 <InputLabel dir={i18n.dir(i18n.language)}>
@@ -353,7 +407,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     <OutlinedInput
                                         id="trustees-filter"
                                         dir={i18n.dir(i18n.language)}
-                                        label={t("keysGeneration.configureStep.filterTrustees")}
+                                        label={String(
+                                            t("keysGeneration.configureStep.filterTrustees")
+                                        )}
                                         value={filterTrustees}
                                         type="text"
                                         onChange={(e) => setFilterTrustees(e.target.value)}
@@ -375,7 +431,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     validate={validateTrusteeList}
                                     label=""
                                     source="trusteeNames"
-                                    choices={filteredTrustees || trusteeList}
+                                    choices={filteredTrusteesSorted || trusteeListSorted}
                                     translateChoice={false}
                                     optionText="name"
                                     optionValue="name"
@@ -390,7 +446,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
                         <ReferenceInput
                             fullWidth
-                            label={t("electionScreen.common.title")}
+                            label={String(t("electionScreen.common.title"))}
                             source="electionId"
                             id="searchable-elections"
                             reference="sequent_backend_election"
@@ -404,6 +460,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 },
                             }}
                             perPage={50}
+                            sort={{field: "alias", order: "ASC"}}
                         >
                             <AutocompleteInput
                                 className="election-selector"
@@ -425,9 +482,15 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 <Dialog
                     variant="warning"
                     open={openConfirmationModal}
-                    ok={t("keysGeneration.configureStep.confirmdDialog.ok")}
-                    cancel={t("keysGeneration.configureStep.confirmdDialog.cancel")}
-                    title={t("keysGeneration.configureStep.confirmdDialog.title")}
+                    ok={String(t("keysGeneration.configureStep.confirmdDialog.ok"))}
+                    cancel={String(t("keysGeneration.configureStep.confirmdDialog.cancel"))}
+                    title={
+                        isAutomaticCeremony
+                            ? t(
+                                  "keysGeneration.configureStep.confirmdDialog.automaticCeremonyTitle"
+                              )
+                            : t("keysGeneration.configureStep.confirmdDialog.title")
+                    }
                     handleClose={(result: boolean) => {
                         if (result) {
                             confirmCreateKeysCeremony()
@@ -435,7 +498,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         setOpenConfirmationModal(false)
                     }}
                 >
-                    {t("keysGeneration.configureStep.confirmdDialog.description")}
+                    {isAutomaticCeremony
+                        ? t(
+                              "keysGeneration.configureStep.confirmdDialog.automaticCeremonyDescription"
+                          )
+                        : t("keysGeneration.configureStep.confirmdDialog.description")}
                 </Dialog>
             </WizardStyles.ContentBox>
         </>

@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -25,6 +24,8 @@ import {
     RaRecord,
     PreferencesEditorContext,
     useListContext,
+    ReferenceArrayField,
+    SingleFieldList,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -76,7 +77,6 @@ import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
-import eStyled from "@emotion/styled"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -87,17 +87,22 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
-import {useLocation} from "react-router"
+import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
+
+const DataGridContainerStyle = styled(DatagridConfigurable, {
+    shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
+})<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflow-x: auto;
+        overflowx: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
-        &  > div:first-child {
+            `maxWidth: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        &  > div:first-of-type {
             position: absolute;
             width: 100%;
         }
@@ -108,7 +113,7 @@ const StyledChip = styled(Chip)`
     margin: 4px;
 `
 
-const StyledNull = eStyled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `
@@ -125,6 +130,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
+    const aliasRenderer = useAliasRenderer()
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
@@ -203,7 +209,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         tenantId={tenantId}
                         electionEventId={electionEventId}
                         source="attributes.area-id"
-                        label={t("usersAndRolesScreen.users.fields.area")}
+                        label={String(t("usersAndRolesScreen.users.fields.area"))}
                     />
                 )
             }
@@ -212,7 +218,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <BooleanInput
                         key="has_voted"
                         source={"has_voted"}
-                        label={t("usersAndRolesScreen.users.fields.has_voted")}
+                        label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                     />
                 )
             }
@@ -413,7 +419,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setRecordIds([id])
     }
 
-    const actionsConfig: Record<string, Action> = {
+    const actionsConfig: Record<string, any> = {
         [UserActionTypes.COMMUNICATION]: {
             icon: <MailIcon />,
             action: sendTemplateForIdAction,
@@ -565,7 +571,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setExporting(true)
 
             if (electionEventId) {
-                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS)
+                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, undefined)
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })
@@ -575,12 +581,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     updateWidgetFail(currWidget.identifier)
                     return
                 }
-                let documentId = exportUsersData.export_users?.document_id
                 const task_id = exportUsersData?.export_users?.task_execution?.id
-                setExportDocumentId(documentId)
                 task_id
                     ? setWidgetTaskId(currWidget.identifier, task_id)
                     : updateWidgetFail(currWidget.identifier)
+                setExporting(false)
+                setOpenExport(false)
             } else {
                 const {data: exportUsersData, errors} = await exportTenantUsers({
                     variables: {tenantId},
@@ -615,14 +621,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     </Typography>
                     <ResourceListStyles.EmptyButtonList className="voter-add-button">
                         <Button onClick={() => setOpenNew(true)}>
-                            <ResourceListStyles.CreateIcon icon={faPlus} />
+                            <ResourceListStyles.CreateIcon icon={faPlus as any} />
                             {t(
                                 `usersAndRolesScreen.${
                                     electionEventId ? "voters" : "users"
                                 }.create.subtitle`
                             )}
                         </Button>
-                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
+                        <ReactAdminButton
+                            onClick={handleImport}
+                            label={String(t("common.label.import"))}
+                        >
                             <UploadIcon />
                         </ReactAdminButton>
                     </ResourceListStyles.EmptyButtonList>
@@ -794,7 +803,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const resetMenuItem = () => {
         // renders the reset custom menu item
         return (
-            <MenuItem onClick={() => handleApplyCustomMenu(null, null)}>
+            <MenuItem key="reset-menu-item" onClick={() => handleApplyCustomMenu(null, null)}>
                 <Stack direction="row" alignItems="center">
                     <span style={{width: "32px"}} />
                     <span>{t("electionEventScreen.common.reset")} </span>
@@ -814,7 +823,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
                 return (
-                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index + 1)}>
+                    <MenuItem
+                        key={`custom-filter-${index}`}
+                        onClick={() => handleApplyCustomMenu(filter, index + 1)}
+                    >
                         <Stack direction="row" alignItems="center">
                             <span style={{width: "32px"}}>
                                 {selectedCustomItemMenu && selectedCustomItemMenu === index + 1 ? (
@@ -838,7 +850,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
-        const currWidget = addWidget(ETasksExecution.IMPORT_USERS)
+        const currWidget = addWidget(ETasksExecution.IMPORT_USERS, undefined)
         try {
             let {data, errors} = await importUsers({
                 variables: {
@@ -860,7 +872,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         } catch (err) {
             console.log(`Tenant ID: ${tenantId}`)
             console.log(`Document ID: ${documentId}`)
-            console.log(`Election Event ID: ${electionEvent.id}`)
+            console.log(`Election Event ID: ${electionEvent?.id}`)
             console.log(``)
             console.log(`Error importing voters: ${err}`)
             updateWidgetFail(currWidget.identifier)
@@ -885,6 +897,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
+            if (attr.name === AUTHORIZED_ELECTION_IDS) return null
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
@@ -914,8 +927,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 attr.name && userBasicInfo.includes(attr.name)
                                     ? (record as any)[attr.name]
                                     : attr?.name
-                                    ? (record as any).attributes[attr?.name]
-                                    : "-"
+                                      ? (record as any).attributes[attr?.name]
+                                      : "-"
 
                             return (
                                 <>
@@ -1011,6 +1024,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }, [isFetching, filtersChanged])
 
+        const hasAuthorizedElectionIdsAttributes = useMemo(
+            () =>
+                userAttributes?.get_user_profile_attributes.find(
+                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
+                ),
+            [userAttributes?.get_user_profile_attributes]
+        )
+
         if (isLoading || (isFetching && filtersChanged)) {
             return <TableSkeleton rowCount={perPage} />
         }
@@ -1023,20 +1044,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
                         bulkActionButtons={<BulkActions />}
+                        rowClick={false}
                     >
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         <BooleanField
                             source="email_verified"
-                            label={t("usersAndRolesScreen.users.fields.emailVerified")}
+                            label={String(t("usersAndRolesScreen.users.fields.emailVerified"))}
                         />
                         <BooleanField
                             source="enabled"
-                            label={t("usersAndRolesScreen.users.fields.enabled")}
+                            label={String(t("usersAndRolesScreen.users.fields.enabled"))}
                         />
                         {renderFields(listFields.basicInfoFields)}
                         {electionEventId && (
                             <FunctionField
-                                label={t("usersAndRolesScreen.users.fields.area")}
+                                label={String(t("usersAndRolesScreen.users.fields.area"))}
                                 render={(record: IUser) =>
                                     record?.area?.name ? (
                                         <Chip label={record?.area?.name ?? ""} />
@@ -1046,17 +1068,43 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }
                             />
                         )}
+                        {electionEventId && hasAuthorizedElectionIdsAttributes && (
+                            <ReferenceArrayField
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.authorized-election-ids")
+                                )}
+                                source="attributes.authorized-election-ids"
+                                reference="sequent_backend_election_by_external_id"
+                                queryOptions={{
+                                    meta: {filter: {election_event_id: electionEventId}},
+                                }}
+                            >
+                                <SingleFieldList linkType={false}>
+                                    <FunctionField
+                                        render={(e: any) => (
+                                            <Chip key={e.id} label={aliasRenderer(e)} />
+                                        )}
+                                    />
+                                </SingleFieldList>
+                            </ReferenceArrayField>
+                        )}
+
                         {renderFields(listFields.attributesFields)}
                         {electionEventId && (
-                            <FunctionField
+                            <FunctionField<IUser>
                                 source="has_voted"
-                                label={t("usersAndRolesScreen.users.fields.has_voted")}
-                                render={(record: IUser, source: string | undefined) => {
+                                label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
+                                render={(record, source) => {
                                     let newRecord = {
                                         has_voted: checkIsVoted(record),
                                         ...record,
                                     }
-                                    return <BooleanField record={newRecord} source={source} />
+                                    return source ? (
+                                        <BooleanField
+                                            record={newRecord}
+                                            source={source as keyof IUser}
+                                        />
+                                    ) : null
                                 }}
                             />
                         )}
@@ -1176,9 +1224,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
@@ -1188,15 +1236,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
+
             <Dialog
                 variant="warning"
                 open={openManualVerificationModal}
                 okEnabled={() => {
                     return checkUserEmailAndPhoneNumber() && !documentId
                 }}
-                ok={t("usersAndRolesScreen.voters.manualVerification.verify")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("usersAndRolesScreen.voters.manualVerification.verify"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 errorMessage={
                     checkUserEmailAndPhoneNumber()
                         ? undefined
@@ -1235,6 +1284,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+
             <ImportDataDrawer
                 open={openImportDrawer}
                 closeDrawer={() => setOpenImportDrawer(false)}
@@ -1247,9 +1297,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteBulkAction()
@@ -1260,13 +1310,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
             </Dialog>
+
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={String(t("common.label.export"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.export"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
@@ -1295,26 +1346,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+
             <Dialog
                 fullWidth={true}
                 variant="info"
                 maxWidth={"xl"}
-                title={t("usersAndRolesScreen.voters.logs.label")}
-                ok={t("common.label.close")}
+                title={String(t("usersAndRolesScreen.voters.logs.label"))}
+                ok={String(t("common.label.close"))}
                 open={openUsersLogsModal}
                 handleClose={handleClose}
             >
-                {/* The conditional below prevents re-rendering and data
+                <>
+                    {/* The conditional below prevents re-rendering and data
                 refetching when closing the dialog with no id */}
-                {recordIds && recordIds.length > 0 && (
-                    <ElectoralLogList
-                        electionEventId={electionEventId}
-                        showActions={false}
-                        filterToShow={ElectoralLogFilters.USER_ID}
-                        filterValue={recordIds[0]?.toString()}
-                    />
-                )}
+                    {recordIds && recordIds.length > 0 && (
+                        <ElectoralLogList
+                            electionEventId={electionEventId}
+                            showActions={false}
+                            filterToShow={ElectoralLogFilters.USER_ID}
+                            filterValue={recordIds[0]?.toString()}
+                        />
+                    )}
+                </>
             </Dialog>
+
             {openEditPassword && (
                 <EditPassword
                     open={openEditPassword}

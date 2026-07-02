@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
@@ -51,13 +51,11 @@ export const GET_TALLY_DATA = gql`
         ) {
             tenant_id
             status
-            alias
             statistics
             spoil_ballot_option
             receipts
             presentation
             num_allowed_revotes
-            name
             last_updated_at
             labels
             is_kiosk
@@ -68,6 +66,7 @@ export const GET_TALLY_DATA = gql`
             election_event_id
             description
             created_at
+            external_id
         }
         sequent_backend_candidate(
             where: {
@@ -79,7 +78,6 @@ export const GET_TALLY_DATA = gql`
             type
             tenant_id
             presentation
-            name
             last_updated_at
             labels
             is_public
@@ -90,7 +88,6 @@ export const GET_TALLY_DATA = gql`
             created_at
             contest_id
             annotations
-            alias
         }
         sequent_backend_contest(
             where: {
@@ -104,7 +101,6 @@ export const GET_TALLY_DATA = gql`
             tenant_id
             tally_configuration
             presentation
-            name
             min_votes
             max_votes
             last_updated_at
@@ -121,7 +117,6 @@ export const GET_TALLY_DATA = gql`
             counting_algorithm
             conditions
             annotations
-            alias
         }
         sequent_backend_results_event(
             where: {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
@@ -9,7 +9,6 @@ import {
     SimpleForm,
     useNotify,
     useRefresh,
-    AutocompleteArrayInput,
     BooleanInput,
     useGetList,
 } from "react-admin"
@@ -64,7 +63,8 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
-import type {ChangeEvent} from "react"
+import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
+import {useCustomNotify} from "@/hooks/useCustomNotify"
 
 interface ListUserRolesProps {
     userId?: string
@@ -81,6 +81,60 @@ export interface Trustee {
     name: string
 }
 
+const getAttributeStringValue = (value: string | string[] | null | undefined): string => {
+    if (Array.isArray(value)) {
+        return value[0] ?? ""
+    }
+
+    return value ?? ""
+}
+
+interface DateAttributeInputProps {
+    disabled: boolean
+    label: string
+    onCommit: (value: string) => void
+    required: boolean
+    value: string | string[] | null | undefined
+}
+
+const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
+    disabled,
+    label,
+    onCommit,
+    required,
+    value,
+}) => {
+    const normalizedValue = getAttributeStringValue(value)
+    const [draftValue, setDraftValue] = useState(normalizedValue)
+    const [isFocused, setIsFocused] = useState(false)
+
+    useEffect(() => {
+        if (!isFocused) {
+            setDraftValue(normalizedValue)
+        }
+    }, [isFocused, normalizedValue])
+
+    return (
+        <FormStyles.TextField
+            type="date"
+            label={label}
+            value={draftValue}
+            onChange={(event) => setDraftValue(event.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={(event) => {
+                setIsFocused(false)
+                if (event.target.value !== normalizedValue) {
+                    onCommit(event.target.value)
+                }
+            }}
+            disabled={disabled}
+            required={required}
+            fullWidth
+            InputLabelProps={{shrink: true}}
+        />
+    )
+}
+
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     userRoles,
     rolesList,
@@ -95,7 +149,7 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
     const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const refresh = useRefresh()
-    const notify = useNotify()
+    const notify = useCustomNotify()
 
     const activeRoleIds = createMode
         ? selectedRolesOnCreate
@@ -126,13 +180,13 @@ export const ListUserRoles: React.FC<ListUserRolesProps> = ({
                 },
             })
             if (errors) {
-                notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+                notify(`usersAndRolesScreen.roles.notifications.permissionEditError`, {
                     type: "error",
                 })
                 console.log(`Error editing permission: ${errors}`)
                 return
             }
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+            notify("usersAndRolesScreen.roles.notifications.permissionEditSuccess", {
                 type: "success",
             })
             refresh()
@@ -280,7 +334,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             userId: id!,
             electionEventId: electionEventId,
         },
-        skip: !id || !tenantId || !electionEventId,
+        skip: !id || !tenantId,
     })
 
     const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
@@ -458,8 +512,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleAttrChange =
         (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {name, value} = e.target
-            debouncedHandleChange(name, value)
+            const {value} = e.target
+            debouncedHandleChange(attrName, value)
         }
 
     const debouncedHandleChange = useCallback(
@@ -477,19 +531,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
-    const handleDateChange =
-        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...(prev?.attributes ?? {}),
-                        [attrName]: [value],
-                    },
-                }
-            })
-        }
+    const handleDateChange = (attrName: string) => (value: string) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...(prev?.attributes ?? {}),
+                    [attrName]: [value],
+                },
+            }
+        })
+    }
 
     const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
@@ -515,21 +567,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
-    const handlePermissionLabelRemoved = (value: string[]) => {
-        if (value?.length < permissionLabels?.length) {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...prev?.attributes,
-                        permission_labels: value,
-                    },
-                }
-            })
-        }
-    }
-
-    const handlePermissionLabelAdded = (value: string[]) => {
+    const handlePermissionLabelChanged = (value: string[]) => {
         setUser((prev) => {
             return {
                 ...prev,
@@ -583,8 +621,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return {"name@_ilike,alias@_ilike": searched.current}
     }
 
+    const formattedElections = electionsList?.map((e) => {
+        return {
+            external_id: e.external_id ?? "",
+            id: e.id,
+            name: aliasRenderer(e),
+        }
+    })
+
     const renderFormField = useCallback(
-        (attr: UserProfileAttribute) => {
+        (attr: UserProfileAttribute, index: number) => {
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -594,8 +640,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const isRequired = isFieldRequired(attr)
                 if (attr.annotations?.inputType === "select") {
                     return (
-                        <Grid container spacing={2}>
-                            <Grid item xs={12}>
+                        <Grid key={index} container spacing={2}>
+                            <Grid size={12}>
                                 <FormControl fullWidth>
                                     <Autocomplete
                                         defaultValue={value || null}
@@ -614,13 +660,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params} // Spread all params provided by Autocomplete
-                                                label={
-                                                    `${getTranslationLabel(
-                                                        attr.name,
-                                                        attr.display_name,
-                                                        t
-                                                    )} ${isRequired ? "*" : ""}` || "-"
-                                                }
+                                                label={`${getTranslationLabel(
+                                                    attr.name,
+                                                    attr.display_name,
+                                                    t
+                                                )} ${isRequired ? "*" : ""}`}
                                                 inputProps={{
                                                     ...params.inputProps,
                                                     id: "autocomplete-input",
@@ -665,7 +709,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         }
                     )
                     return (
-                        <FormControl component="fieldset">
+                        <FormControl key={index} component="fieldset">
                             <FormLabel component="legend" style={{margin: 0}}>
                                 {getTranslationLabel(attr.name, attr.display_name, t)}
                             </FormLabel>
@@ -704,10 +748,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.annotations?.inputType === "html5-date") {
                     return (
-                        <FormStyles.DateInput
-                            source={`attributes.${attr.name}`}
-                            onChange={handleDateChange(attr.name)}
+                        <DateAttributeInput
+                            key={attr.name ?? index}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            value={value}
+                            onCommit={handleDateChange(attr.name)}
+                            required={isRequired}
                             disabled={
                                 !(
                                     createMode ||
@@ -723,6 +769,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 } else if (attr.name.toLowerCase().includes("mobile-number")) {
                     return (
                         <PhoneInput
+                            key={index}
                             handlePhoneNumberChange={handlePhoneNumberChange(attr.name)}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             fullWidth
@@ -740,9 +787,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("trustee")) {
                     return (
-                        <FormControl fullWidth>
+                        <FormControl key={index} fullWidth>
                             <SelectActedTrustee
-                                label={t("usersAndRolesScreen.users.fields.trustee")}
+                                label={String(t("usersAndRolesScreen.users.fields.trustee"))}
                                 source={createMode ? "attributes.trustee" : "trustee"}
                                 defaultValue={value?.[0] ?? ""}
                                 tenantId={tenantId}
@@ -756,13 +803,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <>
                             <FormStyles.AutocompleteArrayInput
+                                key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth
-                                choices={electionsList || []}
+                                choices={formattedElections || []}
                                 source="attributes.authorized-election-ids"
-                                optionValue="alias"
-                                optionText={aliasRenderer}
+                                optionValue={"external_id"}
+                                optionText={"name"}
                                 onChange={handleArraySelectChange}
                                 disabled={
                                     !(
@@ -777,55 +825,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.name.toLowerCase().includes("permission_labels")) {
                     return (
-                        <AutocompleteArrayInput
-                            key={user?.id || "create"}
-                            source={`attributes.${attr.name}`}
-                            label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                        <CustomAutocompleteArrayInput
+                            key={index}
+                            label={String(t("usersAndRolesScreen.users.fields.permissionLabel"))}
                             defaultValue={permissionLabels}
-                            fullWidth
-                            onChange={handlePermissionLabelRemoved}
-                            onCreate={(newLabel) => {
-                                if (newLabel) {
-                                    const updatedChoices = [
-                                        ...choices,
-                                        {id: newLabel, name: newLabel},
-                                    ]
-                                    const updatedLabels = [...permissionLabels, newLabel]
-                                    setChoices(updatedChoices)
-                                    setPermissionLabels(updatedLabels)
-                                    handlePermissionLabelAdded(updatedLabels)
-                                    return newLabel
-                                }
-                            }}
-                            optionText="name"
+                            onChange={handlePermissionLabelChanged}
                             choices={choices}
-                            freeSolo={true}
                             disabled={
-                                !(
-                                    createMode ||
-                                    !electionEventId ||
-                                    canEditVoters ||
-                                    enabledByVoteNum
-                                )
+                                !createMode &&
+                                !electionEventId &&
+                                !canEditVoters &&
+                                !enabledByVoteNum
                             }
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault()
-                                    const input = e.target as HTMLInputElement
-                                    const newLabel = input.value
-                                    if (newLabel) {
-                                        const updatedChoices = [
-                                            ...choices,
-                                            {id: newLabel, name: newLabel},
-                                        ]
-                                        const updatedLabels = [...permissionLabels, newLabel]
-                                        setChoices(updatedChoices)
-                                        setPermissionLabels(updatedLabels)
-                                        handlePermissionLabelAdded(updatedLabels)
-                                        input.value = ""
-                                    }
-                                }
-                            }}
                         />
                     )
                 }
@@ -833,6 +844,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <>
                         {isCustomAttribute ? (
                             <FormStyles.TextField
+                                key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
                                 onChange={handleAttrChange(attr.name)}
@@ -873,7 +885,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices]
+        [user, permissionLabels, choices, electionsList]
     )
 
     const isFieldRequired = (config: UserProfileAttribute): boolean => {
@@ -889,8 +901,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const formFields = useMemo(() => {
         // to check if fields are required
-        return userAttributes?.map((attr) => renderFormField(attr))
-    }, [userAttributes, user, permissionLabels, choices])
+        return userAttributes?.map((attr, index) => (
+            <React.Fragment key={attr.name || index}>{renderFormField(attr, index)}</React.Fragment>
+        ))
+    }, [userAttributes, user, permissionLabels, choices, electionsList])
 
     if (!user && !createMode) {
         return null
@@ -1029,8 +1043,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 <Box sx={{display: "flex", gap: "8px"}}>
                                     {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
                                     <IconTooltip
-                                        icon={faInfoCircle}
-                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                        icon={faInfoCircle as any}
+                                        info={String(
+                                            t(`usersAndRolesScreen.editPassword.temporatyInfo`)
+                                        )}
                                     />
                                 </Box>
                             </InputLabelStyle>

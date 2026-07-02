@@ -1,6 +1,6 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// //
+// // SPDX-License-Identifier: AGPL-3.0-only
 
 mod commands;
 mod tests;
@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
-    name = "seq",
+    name = "cli",
     version = "1.0",
     about = "CLI tool for managing Sequent tasks"
 )]
@@ -36,9 +36,9 @@ enum StepCommands {
     CreateArea(commands::create_area::CreateArea),
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
     CreateVoter(commands::create_voter::CreateVoter),
+    ExportCastVotes(commands::export_cast_votes::ExportCastVotes),
+    ExportElectionEvent(commands::export_election_event::ExportElectionEventCommand),
     UpdateVoter(commands::update_voter::UpdateVoter),
-    UpdateElectionEventStatus(commands::update_election_event_status::UpdateElectionEventStatus),
-    UpdateElectionStatus(commands::update_election_status::UpdateElectionStatus),
     ImportElection(commands::import_election_event::ImportElectionEventFile),
     Publish(commands::publish_changes::PublishChanges),
     RefreshToken(commands::refresh_token::Refresh),
@@ -46,8 +46,20 @@ enum StepCommands {
     CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
     StartTally(commands::start_tally::StartTallyCeremony),
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
+    SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
     ConfirmKeyTally(commands::confirm_tally_ceremoney_key::ConfirmKeyForTally),
     RenderTemplate(commands::render_template::RenderTemplate),
+    GenerateVoters(commands::generate_voters::GenerateVoters),
+    DuplicateVotes(commands::duplicate_votes::DuplicateVotes),
+    CreateApplications(commands::create_applications::CreateApplications),
+    CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
+    HashPassword(commands::hash_passwords::HashPasswords),
+    UpdateEventVotingStatus(commands::update_event_voting_status::UpdateElectionEventVotingStatus),
+    UpdateElectionVotingStatus(
+        commands::update_election_voting_status::UpdateElectionVotingStatusCommand,
+    ),
+    DownloadTallyResults(commands::download_tally_results::DownloadTallyResults),
+    GeneratePreviewUrl(commands::generate_preview::GeneratePreview),
 }
 
 fn main() {
@@ -62,8 +74,8 @@ fn main() {
             StepCommands::CreateCandidate(create_candidate) => create_candidate.run(),
             StepCommands::CreateArea(create_area) => create_area.run(),
             StepCommands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
-            StepCommands::UpdateElectionEventStatus(update_event) => update_event.run(),
-            StepCommands::UpdateElectionStatus(update_election) => update_election.run(),
+            StepCommands::ExportCastVotes(export_cast_votes) => export_cast_votes.run(),
+            StepCommands::ExportElectionEvent(export_election_event) => export_election_event.run(),
             StepCommands::ImportElection(import) => import.run(),
             StepCommands::CreateVoter(create_voter) => create_voter.run(),
             StepCommands::UpdateVoter(update_voter) => update_voter.run(),
@@ -73,8 +85,22 @@ fn main() {
             StepCommands::CompleteKeyCeremony(complete) => complete.run(),
             StepCommands::StartTally(start) => start.run(),
             StepCommands::UpdateTally(update) => update.run(),
+            StepCommands::SubmitTallyResolution(submit) => submit.run(),
             StepCommands::ConfirmKeyTally(confirm) => confirm.run(),
             StepCommands::RenderTemplate(render) => render.run(),
+            StepCommands::GenerateVoters(render) => render.run(),
+            StepCommands::DuplicateVotes(render) => render.run(),
+            StepCommands::CreateApplications(render) => render.run(),
+            StepCommands::CreateElectoralLogs(render) => render.run(),
+            StepCommands::HashPassword(render) => render.run(),
+            StepCommands::UpdateEventVotingStatus(update_event_voting_status) => {
+                update_event_voting_status.run()
+            }
+            StepCommands::UpdateElectionVotingStatus(update_election_voting_status) => {
+                update_election_voting_status.run()
+            }
+            StepCommands::DownloadTallyResults(download) => download.run(),
+            StepCommands::GeneratePreviewUrl(render) => render.run(),
         },
     }
 }

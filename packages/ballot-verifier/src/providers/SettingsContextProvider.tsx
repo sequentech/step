@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress} from "@mui/material"
@@ -15,6 +15,7 @@ export interface GlobalSettings {
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string
+    PUBLIC_BUCKET_URL: string
 }
 
 interface SettingsContextValues {
@@ -30,10 +31,11 @@ const defaultSettingsValues: SettingsContextValues = {
         DEFAULT_TENANT_ID: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
         DEFAULT_EVENT_ID: "33f18502-a67c-4853-8333-a58630663559",
         ONLINE_VOTING_CLIENT_ID: "ballot-verifier",
-        KEYCLOAK_URL: "http://127.0.0.1:8090/",
+        KEYCLOAK_URL: "http://localhost:8090/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
         APP_VERSION: "-",
         APP_HASH: "-",
+        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
     },
 }
 
@@ -43,7 +45,7 @@ interface SettingsContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {

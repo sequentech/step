@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
@@ -8,6 +8,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
 
+// Keys for annotations fields in ResultAreaContest
+pub const EXTENDED_METRICS: &str = "extended_metrics";
+pub const PROCESS_RESULTS: &str = "process_results";
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ResultDocumentType {
     Json,
@@ -15,7 +19,6 @@ pub enum ResultDocumentType {
     Html,
     TarGz,
     TarGzOriginal,
-    VoteReceiptsPdf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
@@ -25,7 +28,9 @@ pub struct ResultDocuments {
     pub html: Option<String>,
     pub tar_gz: Option<String>,
     pub tar_gz_original: Option<String>,
-    pub vote_receipts_pdf: Option<String>,
+    pub tar_gz_pdfs: Option<String>,
+    pub all_areas_html: Option<String>,
+    pub all_areas_json: Option<String>,
 }
 
 impl ResultDocuments {
@@ -39,9 +44,6 @@ impl ResultDocuments {
             ResultDocumentType::Html => self.html.clone(),
             ResultDocumentType::TarGz => self.tar_gz.clone(),
             ResultDocumentType::TarGzOriginal => self.tar_gz_original.clone(),
-            ResultDocumentType::VoteReceiptsPdf => {
-                self.vote_receipts_pdf.clone()
-            }
         }
     }
 }
@@ -75,6 +77,20 @@ pub struct ResultsElection {
     pub annotations: Option<Value>,
     pub total_voters_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsElectionArea {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub area_id: String,
+    pub results_event_id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub documents: Option<ResultDocuments>,
+    pub name: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

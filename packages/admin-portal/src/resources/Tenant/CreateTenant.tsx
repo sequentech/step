@@ -1,17 +1,29 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {CircularProgress, Drawer, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
-import {SimpleForm, TextInput, Create, useNotify, useRefresh, useGetOne} from "react-admin"
+import {
+    SimpleForm,
+    TextInput,
+    Create,
+    useNotify,
+    SaveButton,
+    Toolbar,
+    useRefresh,
+    useGetOne,
+} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {INSERT_TENANT} from "../../queries/InsertTenant"
 import {InsertTenantMutation} from "../../gql/graphql"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {useTranslation} from "react-i18next"
-import {useNavigate} from "react-router"
+import {useNavigate} from "react-router-dom"
 import {isNull} from "@sequentech/ui-core"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 interface CreateTenantProps {
     isDrawerOpen: boolean
@@ -20,10 +32,10 @@ interface CreateTenantProps {
 
 export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDrawerOpen}) => {
     const [createTenant] = useMutation<InsertTenantMutation>(INSERT_TENANT)
-    const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const authContext = useContext(AuthContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
@@ -41,31 +53,37 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         }
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            notify(t("tenantScreen.createError"), {type: "error"})
             setIsDrawerOpen(false)
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
-            notify(t("tenantScreen.createSuccess"), {type: "success"})
             setIsDrawerOpen(false)
         }
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
 
     const onSubmit: SubmitHandler<FieldValues> = async ({slug}) => {
-        let {data, errors} = await createTenant({
-            variables: {
-                slug,
-            },
-        })
+        const currWidget: WidgetProps = addWidget(ETasksExecution.CREATE_TEMANT, undefined)
+        try {
+            let {data, errors} = await createTenant({
+                variables: {
+                    slug,
+                },
+            })
+            if (errors || data?.insertTenant?.error_msg) {
+                setIsLoading(false)
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
 
-        if (data?.insertTenant?.id) {
             setNewId(data?.insertTenant?.id)
             setIsLoading(true)
-        } else {
-            notify(t("tenantScreen.createError"), {type: "error"})
+            let taskId = data?.insertTenant?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, taskId)
+        } catch (e) {
             setIsLoading(false)
+            updateWidgetFail(currWidget.identifier)
         }
     }
     return (
@@ -77,7 +95,14 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
                 sx: {width: "30%"},
             }}
         >
-            <SimpleForm onSubmit={onSubmit}>
+            <SimpleForm
+                onSubmit={onSubmit}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton disabled={isLoading} />
+                    </Toolbar>
+                }
+            >
                 <Typography variant="h4">{`${t("tenantScreen.common.title")} ${
                     newTenant?.slug
                 }`}</Typography>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -53,7 +53,7 @@ pub async fn verify_user_application(
 ) -> Result<Json<ApplicationVerificationResult>, JsonError> {
     let input: ApplicationVerifyBody = body.into_inner();
 
-    info!("Verifiying application: {input:?}");
+    info!("Verifiying application");
 
     let required_perm: Permissions = Permissions::SERVICE_ACCOUNT;
 

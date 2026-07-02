@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -8,9 +8,11 @@ import {Sequent_Backend_Candidate} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditCandidateData} from "./EditCandidateData"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const CandidateTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
+    const aliasRenderer = useAliasRenderer()
     const {setCandidateIdFlag, setContestIdFlag, setElectionEventIdFlag} =
         useElectionEventTallyStore()
 
@@ -24,7 +26,10 @@ export const CandidateTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name || ""} subtitle="candidateScreen.common.subtitle" />
+            <ElectionHeader
+                title={aliasRenderer(record) || ""}
+                subtitle="candidateScreen.common.subtitle"
+            />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditCandidateData record={record} />

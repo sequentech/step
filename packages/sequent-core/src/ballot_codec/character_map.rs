@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
@@ -146,6 +146,7 @@ mod tests {
     use crate::fixtures::ballot_codec::get_configurable_contest;
     use crate::fixtures::ballot_codec::get_contest_candidates_n;
     use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use crate::types::ceremonies::CountingAlgType;
     use rand::Rng;
 
     #[test]
@@ -198,6 +199,7 @@ mod tests {
         let vote = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices,
@@ -228,7 +230,7 @@ mod tests {
         let mut contest = get_configurable_contest(
             1,
             3,
-            "plurality-at-large".to_string(),
+            CountingAlgType::PluralityAtLarge,
             true,
             Some(vec![2]),
             false,
@@ -237,6 +239,7 @@ mod tests {
         let ballot = DecodedVoteContest {
             contest_id: contest.id.clone(),
             is_explicit_invalid: false,
+            is_decline_to_vote: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![

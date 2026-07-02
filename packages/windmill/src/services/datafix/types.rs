@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Result};
-use rand::{distributions, Rng};
+use rand::{distr, Rng};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::Annotations;
@@ -26,6 +26,7 @@ pub struct VoterInformationBody {
     pub schoolboard: Option<String>,
     pub poll: Option<String>,
     pub birthdate: Option<String>,
+    pub enabled: Option<bool>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -116,7 +117,7 @@ impl PasswordPolicy {
                 pass
             }
             CharactersPolicy::Alphanumeric => rand::thread_rng()
-                .sample_iter(distributions::Alphanumeric)
+                .sample_iter(distr::Alphanumeric)
                 .take(self.size)
                 .map(char::from)
                 .collect(),

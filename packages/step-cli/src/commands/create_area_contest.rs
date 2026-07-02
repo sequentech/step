@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -34,7 +35,11 @@ impl CreateAreaContest {
     pub fn run(&self) {
         match create_area_contest(&self.election_event_id, &self.contest_id, &self.area_id) {
             Ok(id) => {
-                println!("Success! Area contest created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Area contest created successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create Area contest: {}", err)

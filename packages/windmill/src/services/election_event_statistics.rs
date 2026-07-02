@@ -1,12 +1,12 @@
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::cast_votes::CastVoteStatus;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use tokio_postgres::row::Row;
 use tracing::instrument;
-use uuid::Uuid;
 
 /**
  * Returns the count of areas per election event
@@ -35,8 +35,8 @@ pub async fn get_count_areas(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -79,8 +79,8 @@ pub async fn get_count_elections(
         .query(
             &total_elections_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -112,7 +112,7 @@ pub async fn update_election_event_statistics(
             SET
                 statistics = jsonb_set(
                     jsonb_set(
-                        statistics, 
+                        COALESCE(statistics, '{}'),
                         '{num_emails_sent}', 
                         (COALESCE(statistics->>'num_emails_sent', '0')::int8 + $3)::text::jsonb
                     ),
@@ -130,8 +130,8 @@ pub async fn update_election_event_statistics(
         .query(
             &update_stats_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &inc_emails_sent,
                 &inc_sms_sent,
             ],
@@ -167,8 +167,8 @@ pub async fn get_count_distinct_voters(
         .query(
             &total_distinct_voters_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &status,
             ],
         )

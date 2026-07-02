@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use schemars::JsonSchema;
@@ -39,6 +38,9 @@ pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
 pub const PERMISSION_LABELS: &str = "permission_labels";
+pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
+    "voter-certificate-policy";
+pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {

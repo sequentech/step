@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -21,7 +21,14 @@ export const translate = <T, K extends keyof T>(
     return input[key] as string
 }
 
-export const translateElection = (object: any, key: string, lang: string): string | undefined => {
+export const translateFromPresentation = (
+    object: any,
+    key: string,
+    lang: string
+): string | undefined => {
+    if (object?.["i18n"]) {
+        return object["i18n"][lang]?.[key] || undefined
+    }
     if (object?.["presentation"]?.["i18n"]) {
         return object["presentation"]["i18n"][lang]?.[key] || object[key] || undefined
     } else {

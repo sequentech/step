@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::types::*;
@@ -161,7 +161,7 @@ pub async fn update_datafix_voter(
         .edit_user(
             realm,
             &user_id,
-            None,
+            voter_info.enabled,
             attributes,
             None,
             None,

@@ -8,17 +8,18 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
       role: admin-user
     - comment: ""
       permission:
@@ -26,17 +27,18 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
       role: area-create
     - comment: ""
       permission:
@@ -44,17 +46,18 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
       role: area-upsert
     - comment: ""
       permission:
@@ -62,50 +65,53 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
       role: area-write
     - comment: ""
       permission:
           check: {}
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
       role: service-account
 select_permissions:
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -114,17 +120,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -133,17 +140,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -152,17 +160,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -171,17 +180,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -190,17 +200,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -209,17 +220,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -228,17 +240,18 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -247,33 +260,35 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter: {}
       role: service-account
     - comment: ""
       permission:
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               _and:
                   - tenant_id:
@@ -288,17 +303,18 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -307,17 +323,18 @@ update_permissions:
       permission:
           check: {}
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -328,17 +345,18 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -347,17 +365,18 @@ update_permissions:
       permission:
           check: {}
           columns:
-              - name
-              - type
               - annotations
-              - labels
-              - description
               - created_at
-              - last_updated_at
+              - description
               - election_event_id
               - id
+              - labels
+              - last_updated_at
+              - name
               - parent_id
+              - presentation
               - tenant_id
+              - type
           filter: {}
       role: service-account
 delete_permissions:

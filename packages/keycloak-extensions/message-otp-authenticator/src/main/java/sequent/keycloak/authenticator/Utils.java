@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,7 +13,9 @@ import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.net.URI;
+import java.text.Bidi;
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -63,6 +65,16 @@ import sequent.keycloak.authenticator.otl.OTLActionToken;
 @UtilityClass
 @JBossLog
 public class Utils {
+  // Login details:
+  public final String VOTER_CERT_SUBJECT_DN = "voter_cert_subject_dn";
+  public final String CA_CERT_ISSUER_CN = "ca_cert_issuer_cn";
+  // Authentication notes:
+  public final String AUTH_NOTE_DENY_TYPE = "deny-type";
+  // Deny codes:
+  public final String CERT_NOT_PROVIDED = "cert-not-provided";
+  public final String USER_NOT_FOUND = "user-not-found";
+  public final String ACCESS_DENIED = "access-denied";
+
   public final String CODE = "code";
   public final String CODE_LENGTH = "length";
   public final String CODE_TTL = "ttl";
@@ -79,6 +91,14 @@ public class Utils {
   public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
   public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
   public final String RESEND_ACTIVATION_TIMER = "resendCoudActivationTimer";
+
+  // Default values for message-otp authenticator configuration. Referenced
+  // from both MessageOTPAuthenticatorFactory (admin UI default) and
+  // ResetMessageOTPRequiredAction (runtime fallback when the realm's saved
+  // config is missing the key).
+  public final String CODE_LENGTH_DEFAULT = "6";
+  public final String CODE_TTL_DEFAULT = "300";
+  public final String RESEND_ACTIVATION_TIMER_DEFAULT = "60";
 
   public final String SEND_LINK_SMS_I18N_KEY = "messageOtp.sendLink.sms.text";
   public final String SEND_LINK_EMAIL_SUBJECT = "messageOtp.sendLink.email.subject";
@@ -116,6 +136,10 @@ public class Utils {
   public static final String EVENT_TYPE_COMMUNICATIONS = "communications";
   public static final String TEST_MODE_ATTRIBUTE = "test-mode";
   public static final String TEST_MODE_CODE_ATTRIBUTE = "test-mode-code";
+  public static final String MAX_RECEIVER_REUSE = "max-receiver-reuse";
+  public static final String VALID_COUNTRY_CODES = "valid-country-codes";
+  public static final List<String> VALID_COUNTRY_CODES_DEFAULT =
+      Collections.unmodifiableList(Arrays.asList());
 
   public enum MessageCourier {
     SMS,
@@ -125,11 +149,12 @@ public class Utils {
 
     // Method to convert a string value to a NotificationType
     public static MessageCourier fromString(String type) {
-      if (type != null) {
-        for (MessageCourier messageCourier : MessageCourier.values()) {
-          if (type.equalsIgnoreCase(messageCourier.name())) {
-            return messageCourier;
-          }
+      if (type == null || type.isEmpty()) {
+        return BOTH;
+      }
+      for (MessageCourier messageCourier : MessageCourier.values()) {
+        if (type.equalsIgnoreCase(messageCourier.name())) {
+          return messageCourier;
         }
       }
       throw new IllegalArgumentException("No constant with text " + type + " found");
@@ -178,6 +203,61 @@ public class Utils {
     }
   }
 
+  public List<String> getMultivalueString(
+      AuthenticatorConfigModel config, String configKey, List<String> defaultValue) {
+    log.infov("getMultivalueString(configKey={0}, defaultValue={1})", configKey, defaultValue);
+    if (config == null) {
+      log.infov("getMultivalueString(): NULL config={0}", config);
+      return defaultValue;
+    }
+
+    Map<String, String> mapConfig = config.getConfig();
+    if (mapConfig == null
+        || !mapConfig.containsKey(configKey)
+        || mapConfig.get(configKey).strip().length() == 0) {
+      log.infov("getMultivalueString(): NullOrNotFound mapConfig={0}", mapConfig);
+      return defaultValue;
+    }
+
+    log.infov("getMultivalueString(): value={0}", mapConfig.get(configKey));
+
+    return Arrays.asList(mapConfig.get(configKey).split(","));
+  }
+
+  String getMobileNumber(
+      AuthenticatorConfigModel config,
+      UserModel user,
+      AuthenticationSessionModel authSession,
+      boolean deferredUser)
+      throws IOException {
+    String mobileNumber = null;
+
+    // Handle deferred user
+    if (deferredUser) {
+      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
+      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
+    } else {
+      mobileNumber = Utils.getMobile(config, user);
+    }
+
+    return mobileNumber;
+  }
+
+  String getEmailAddress(
+      UserModel user, AuthenticationSessionModel authSession, boolean deferredUser)
+      throws IOException {
+    String emailAddress = null;
+
+    // Handle deferred user
+    if (deferredUser) {
+      emailAddress = authSession.getAuthNote("email");
+    } else {
+      emailAddress = user.getEmail();
+    }
+
+    return emailAddress;
+  }
+
   /** Sends code and also sets the auth notes related to the code */
   void sendCode(
       AuthenticatorConfigModel config,
@@ -191,24 +271,16 @@ public class Utils {
       Object context)
       throws IOException, EmailException {
     log.info("sendCode(): start");
-    String mobileNumber = null;
-    String emailAddress = null;
+    Map<String, String> configMap = MessageOTPAuthenticatorFactory.getConfigMap(config);
+    String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
+    String emailAddress = Utils.getEmailAddress(user, authSession, deferredUser);
     String code = null;
 
-    // Handle deferred user
-    if (deferredUser) {
-      String mobileNumberAttribute = config.getConfig().get(Utils.TEL_USER_ATTRIBUTE);
-      mobileNumber = authSession.getAuthNote(mobileNumberAttribute);
-      emailAddress = authSession.getAuthNote("email");
-    } else {
-      mobileNumber = Utils.getMobile(config, user);
-      emailAddress = user.getEmail();
-    }
     log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
     log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
-    int length = Integer.parseInt(config.getConfig().get(Utils.CODE_LENGTH));
-    int ttl = Integer.parseInt(config.getConfig().get(Utils.CODE_TTL));
+    int length = Integer.parseInt(configMap.get(Utils.CODE_LENGTH));
+    int ttl = Integer.parseInt(configMap.get(Utils.CODE_TTL));
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
 
@@ -469,6 +541,13 @@ public class Utils {
         }
       }
       attributes.put("locale", locale);
+
+      // Determine text direction based on locale using java.text.Bidi
+      // This follows the same approach as Keycloak's LocaleBean.isLeftToRight()
+      String localizedName = locale.getDisplayName(locale);
+      Bidi bidi = new Bidi(localizedName, Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT);
+      boolean isLtr = bidi.isLeftToRight();
+      attributes.put("ltr", isLtr);
 
       Properties messages = theme.getEnhancedMessages(realm, locale);
       attributes.put("msg", new MessageFormatterMethod(locale, messages));

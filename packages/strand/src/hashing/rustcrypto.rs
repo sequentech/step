@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ use sha2::Sha256;
 use sha2::Sha512;
 use sha3::Shake256;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 use std::path::PathBuf;
 
 use crate::util::StrandError;
@@ -148,23 +148,6 @@ pub fn hash_b64(bytes: &[u8]) -> Result<String, StrandError> {
 pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
 pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()
-}
-
-// Rustcrypto ecdsa signatures are only used on the wasm target
-cfg_if::cfg_if! {
-    if #[cfg(feature = "wasm")] {
-        // The rustcrypto signature backend requires 384 bit hashes. Calling
-        // verify_digest on a RustCrypto ecdsa VerifyingKey<P384> fails to compile,
-        // unless the digest passed is Sha384:
-        /*
-            the trait `DigestVerifier<CoreWrapper<CtVariableCoreWrapper<Sha256VarCore, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, OidSha256>>, _>` is not implemented for `ecdsa::VerifyingKey<NistP384>`
-        */
-        use sha2::Sha384;
-        pub(crate) fn rust_crypto_ecdsa_hasher() -> RustCryptoHasher {
-            Sha384::new()
-        }
-        pub(crate) type RustCryptoHasher = Sha384;
-    }
 }
 
 pub fn info() -> String {

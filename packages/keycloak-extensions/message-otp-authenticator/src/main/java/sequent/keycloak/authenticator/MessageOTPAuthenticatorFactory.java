@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,6 +7,8 @@ package sequent.keycloak.authenticator;
 import static java.util.Arrays.asList;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +16,7 @@ import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -23,6 +26,29 @@ import org.keycloak.provider.ServerInfoAwareProviderFactory;
 public class MessageOTPAuthenticatorFactory
     implements AuthenticatorFactory, ServerInfoAwareProviderFactory {
   public static final String PROVIDER_ID = "message-otp-authenticator";
+
+  private static volatile Map<String, String> defaultConfig;
+
+  private static Map<String, String> getDefaultConfig() {
+    if (defaultConfig == null) {
+      Map<String, String> defaults = new HashMap<>();
+      for (ProviderConfigProperty prop :
+          new MessageOTPAuthenticatorFactory().getConfigProperties()) {
+        Object defaultValue = prop.getDefaultValue();
+        defaults.put(prop.getName(), defaultValue != null ? defaultValue.toString() : "");
+      }
+      defaultConfig = Collections.unmodifiableMap(defaults);
+    }
+    return defaultConfig;
+  }
+
+  /** Returns the config map from the model, falling back to defaults if config is null. */
+  public static Map<String, String> getConfigMap(AuthenticatorConfigModel config) {
+    if (config == null || config.getConfig() == null) {
+      return getDefaultConfig();
+    }
+    return config.getConfig();
+  }
 
   private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
     AuthenticationExecutionModel.Requirement.REQUIRED,
@@ -93,13 +119,13 @@ public class MessageOTPAuthenticatorFactory
             "Code length",
             "The number of digits of the generated code.",
             ProviderConfigProperty.STRING_TYPE,
-            6),
+            Utils.CODE_LENGTH_DEFAULT),
         new ProviderConfigProperty(
             Utils.CODE_TTL,
             "Time-to-live",
             "The time to live in seconds for the code to be valid.",
             ProviderConfigProperty.STRING_TYPE,
-            "300"),
+            Utils.CODE_TTL_DEFAULT),
         new ProviderConfigProperty(
             Utils.SENDER_ID,
             "SenderId",
@@ -129,7 +155,7 @@ public class MessageOTPAuthenticatorFactory
             "Seconds to activate resend",
             "Time in seconds the resend code gets re activated",
             ProviderConfigProperty.STRING_TYPE,
-            "60"),
+            Utils.RESEND_ACTIVATION_TIMER_DEFAULT),
         new ProviderConfigProperty(
             Utils.TEST_MODE_ATTRIBUTE,
             "Test Mode",
@@ -142,6 +168,18 @@ public class MessageOTPAuthenticatorFactory
             "Will be used for test mode. code will contain only digit and with the same number of digits as Code length specify",
             ProviderConfigProperty.STRING_TYPE,
             "123456"),
+        new ProviderConfigProperty(
+            Utils.MAX_RECEIVER_REUSE,
+            "Maximum users with the same Phone/Email",
+            "Maximum number of users using the same Phone Number/Email.",
+            ProviderConfigProperty.STRING_TYPE,
+            "1"),
+        new ProviderConfigProperty(
+            Utils.VALID_COUNTRY_CODES,
+            "Valid country codes, separated by comma",
+            "List of prefixes/country codes that are valid, separated by comma. For example '+1,+44'. If empty, all will be valid. User won't be able to send OTP messages to phone numbers from other countries.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
         messageCourier);
   }
 

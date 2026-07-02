@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -81,13 +81,13 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             },
         })
         if (errors) {
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+            notify(t("usersAndRolesScreen.roles.notifications.permissionEditError"), {
                 type: "error",
             })
             console.log(`Error editing permission: ${errors}`)
             return
         }
-        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+        notify(t("usersAndRolesScreen.roles.notifications.permissionEditSuccess"), {
             type: "success",
         })
         refresh()
@@ -114,7 +114,7 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
     return (
         <PageHeaderStyles.Wrapper>
             <ElectionHeader
-                title={t("usersAndRolesScreen.roles.edit.title")}
+                title={String(t("usersAndRolesScreen.roles.edit.title"))}
                 subtitle="usersAndRolesScreen.roles.edit.subtitle"
             />
 

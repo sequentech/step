@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,11 +10,13 @@ use tracing::{event, instrument, Level};
 
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
+use crate::postgres::tally_session::get_tally_session_by_election_event_id_pending_post_tally_task;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
+use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
 
@@ -81,6 +83,25 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
                 tally_session.id.clone(),
                 tally_session.tally_type.clone(),
                 tally_session.election_ids.clone(),
+            ))
+            .await?;
+        event!(Level::INFO, "Sent task {}", task.task_id);
+    }
+
+    // Run post tally
+    // fetch tally_sessions
+    let tally_sessions = get_tally_session_by_election_event_id_pending_post_tally_task(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
+    for tally_session in tally_sessions {
+        let task = celery_app
+            .send_task(post_tally_task::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                tally_session.id.clone(),
             ))
             .await?;
         event!(Level::INFO, "Sent task {}", task.task_id);

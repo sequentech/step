@@ -1,2 +1,0 @@
-alter table "sequent_backend"."tally_sheet" add column "created_by_user_id" text
- null;

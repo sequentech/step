@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,6 +7,7 @@ use crate::{
     utils::{read_config::read_config, upload_file::GetUploadUrl},
 };
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -32,7 +33,11 @@ impl ImportElectionEventFile {
     pub fn run(&self) {
         match import(&self.file_path, self.is_local) {
             Ok(id) => {
-                println!("Success! Election event created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Election event created successfully! ID".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create election event: {}", err)

@@ -24,7 +24,7 @@ use super::*;
 /// et al., Haines; based on Wikstrom et al. The generators
 /// are computed with a seed from the configuration label
 /// and the mix number.
-pub(crate) fn mix<C: Ctx>(
+pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     source_h: &CiphertextsHash,
@@ -32,7 +32,7 @@ pub(crate) fn mix<C: Ctx>(
     signer_t: TrusteePosition,
     mix_no: &MixNumber,
     trustees: &TrusteeSet,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let ctx = C::default();
@@ -116,7 +116,7 @@ pub(crate) fn mix<C: Ctx>(
 /// et al., Haines; based on Wikstrom et al. The generators
 /// are computed with a seed from the configuration label
 /// and the mix number.
-pub(crate) fn sign_mix<C: Ctx>(
+pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     source_h: &CiphertextsHash,
@@ -127,7 +127,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     signert_t: TrusteePosition,
     pk_h: &PublicKeyHash,
     mix_no: &MixNumber,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let ctx = C::default();
 

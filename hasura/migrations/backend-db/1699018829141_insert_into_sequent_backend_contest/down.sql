@@ -1,1 +1,0 @@
-DELETE FROM "sequent_backend"."contest" WHERE "election_event_id" = '33f18502-a67c-4853-8333-a58630663559' AND "id" = '69f2f987-460c-48ac-ac7a-4d44d99b37e6' AND "tenant_id" = '90505c8a-23a9-4cdf-a26b-4e19f6a097d5';

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -27,6 +27,7 @@ export {
     BreadCrumbStepsVariant,
 } from "./components/BreadCrumbSteps/BreadCrumbSteps"
 export {default as Candidate} from "./components/Candidate/Candidate"
+export {getOrdinalSuffix} from "./components/Candidate/ordinalUtils"
 export {default as BallotHash} from "./components/BallotHash/BallotHash"
 export {default as QRCode} from "./components/QRCode/QRCode"
 export {default as CandidatesList} from "./components/CandidatesList/CandidatesList"
@@ -34,3 +35,9 @@ export {default as SelectElection} from "./components/SelectElection/SelectElect
 export {default as Tree} from "./components/Tree/Tree"
 export {NotFoundScreen} from "./components/NotFoundScreen"
 export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
+export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
+export {default as Loader} from "./components/Loader/Loader"
+export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"
+export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
+export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"

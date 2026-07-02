@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -16,13 +16,13 @@ use sequent_core::types::scheduled_event::{
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-}
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
 
 #[instrument(err, skip(replacement_map))]
 pub async fn import_scheduled_events(
@@ -85,10 +85,10 @@ pub async fn process_record(
                 .and_then(|id| id.as_str().map(String::from))
         });
 
-    let election_id = if old_election_id.is_some() {
+    let election_id = if let Some(old_election_id) = old_election_id {
         Some(
             replacement_map
-                .get(&old_election_id.unwrap().to_string())
+                .get(&old_election_id)
                 .ok_or(anyhow!("Can't find election id in replacement map"))?
                 .clone(),
         )

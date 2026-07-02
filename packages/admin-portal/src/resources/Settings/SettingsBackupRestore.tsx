@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -44,7 +44,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
     })
 
     const handleBackup = async () => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TENANT_CONFIG)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TENANT_CONFIG, undefined)
         try {
             setLoading(true)
             let {data, errors} = await export_tenant_config({
@@ -79,7 +79,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
     })
 
     const handleRestore = async (documentId: string, sha256: string) => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG, undefined)
         try {
             setLoading(true)
             setOpenImportDrawer(false)
@@ -145,7 +145,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 toolbar={
                     <SaveButton
                         className="save"
-                        label={t("settings.backupRestore.backup.label")}
+                        label={String(t("settings.backupRestore.backup.label"))}
                         alwaysEnable
                         disabled={isLoading}
                     />
@@ -164,7 +164,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 toolbar={
                     <SaveButton
                         className="save"
-                        label={t("settings.backupRestore.restore.label")}
+                        label={String(t("settings.backupRestore.restore.label"))}
                         alwaysEnable
                         disabled={
                             // TODO: fix disable mode
@@ -190,7 +190,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             onChange={(event) => handleImportOptionsChange("includeTenant", event)}
                         />
                     }
-                    label={t("settings.backupRestore.restore.tenantConfigOption")}
+                    label={String(t("settings.backupRestore.restore.tenantConfigOption"))}
                 />
 
                 <FormControlLabel
@@ -202,7 +202,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             }
                         />
                     }
-                    label={t("settings.backupRestore.restore.keycloakConfigOption")}
+                    label={String(t("settings.backupRestore.restore.keycloakConfigOption"))}
                 />
 
                 <FormControlLabel
@@ -212,7 +212,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             onChange={(event) => handleImportOptionsChange("includeRoles", event)}
                         />
                     }
-                    label={t("settings.backupRestore.restore.RolesConfigOption")}
+                    label={String(t("settings.backupRestore.restore.RolesConfigOption"))}
                 />
             </SimpleForm>
 
@@ -226,7 +226,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             setExportDocumentId(undefined)
                             setLoading(false)
                         }}
-                        onSucess={() => setLoading(false)}
+                        onSuccess={() => setLoading(false)}
                     />
                 </>
             )}

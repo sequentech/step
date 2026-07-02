@@ -1,22 +1,38 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {useTranslation} from "react-i18next"
-import Candidate from "../Candidate/Candidate"
+import {BorderBox, UnselectableTypography} from "../Candidate/Candidate"
+import {theme} from "../../services/theme"
 
-const BlankAnswer: React.FC = () => {
+interface BlankAnswerProps {
+    title?: string
+}
+const BlankAnswer: React.FC<BlankAnswerProps> = ({title}) => {
     const {t} = useTranslation()
 
     return (
-        <Candidate
-            title={t("candidate.blankVote")}
-            isActive={false}
-            checked={true}
-            setChecked={() => undefined}
+        <BorderBox
+            isSelectable={false}
             hasCategory={false}
-            shouldDisable={false}
-        />
+            isInvalidVote={false}
+            isDisabled={false}
+            className="candidate-item blank-answer"
+        >
+            <UnselectableTypography
+                className="candidate-title"
+                fontWeight="bold"
+                fontSize="16px"
+                lineHeight="22px"
+                marginTop="4px"
+                marginBottom="4px"
+                marginInlineStart="8px"
+                color={theme.palette.customGrey.contrastText}
+            >
+                {title || t("candidate.blankVote")}
+            </UnselectableTypography>
+        </BorderBox>
     )
 }
 

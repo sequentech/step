@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -33,10 +33,15 @@ import {Cron} from "react-js-cron"
 import "react-js-cron/dist/styles.css"
 import {ENCRYPT_REPORT} from "@/queries/EncryptReport"
 import {IPermissions} from "@/types/keycloak"
-import {Dialog} from "@sequentech/ui-essentials"
+import {CustomAutocompleteArrayInput, Dialog} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {FormStyles} from "@/components/styles/FormStyles"
+
+type Choice = {
+    id: string
+    name: string
+}
 
 interface CreateReportProps {
     close?: () => void
@@ -172,7 +177,7 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
     return (
         <>
             <SelectInput
-                label={t("reportsScreen.reportEncryptionPolicy.title")}
+                label={String(t("reportsScreen.reportEncryptionPolicy.title"))}
                 source={"encryption_policy"}
                 defaultValue={EReportEncryption.UNENCRYPTED}
                 choices={reportEncryptionPolicyChoices}
@@ -190,32 +195,34 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
                 handleClose={handleCloseDialog}
                 okEnabled={checkIsValidPassword}
                 aria-labelledby="password-dialog-title"
-                title={t("electionEventScreen.export.passwordTitle")}
-                ok={t("usersAndRolesScreen.users.fields.savePassword")}
+                title={String(t("electionEventScreen.export.passwordTitle"))}
+                ok={String(t("usersAndRolesScreen.users.fields.savePassword"))}
             >
-                <InputContainerStyle>
-                    <InputLabelStyle>
-                        {t("usersAndRolesScreen.users.fields.password")}:
-                    </InputLabelStyle>
-                    <PasswordInputStyle
-                        label={false}
-                        source="password"
-                        onChange={handleChangePassword}
-                        value={filePassword.password}
-                    />
-                </InputContainerStyle>
-                <InputContainerStyle>
-                    <InputLabelStyle>
-                        {t("usersAndRolesScreen.users.fields.repeatPassword")}:
-                    </InputLabelStyle>
-                    <PasswordInputStyle
-                        label={false}
-                        source="confirmPassword"
-                        validate={equalToPassword}
-                        onChange={handleChangeConfirmPassword}
-                        value={filePassword.confirmPassword}
-                    />
-                </InputContainerStyle>
+                <>
+                    <InputContainerStyle>
+                        <InputLabelStyle>
+                            {t("usersAndRolesScreen.users.fields.password")}:
+                        </InputLabelStyle>
+                        <PasswordInputStyle
+                            label={false}
+                            source="password"
+                            onChange={handleChangePassword}
+                            value={filePassword.password}
+                        />
+                    </InputContainerStyle>
+                    <InputContainerStyle>
+                        <InputLabelStyle>
+                            {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                        </InputLabelStyle>
+                        <PasswordInputStyle
+                            label={false}
+                            source="confirmPassword"
+                            validate={equalToPassword}
+                            onChange={handleChangeConfirmPassword}
+                            value={filePassword.confirmPassword}
+                        />
+                    </InputContainerStyle>
+                </>
             </Dialog>
         </>
     )
@@ -270,6 +277,19 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
         }
         if ("password" in formValues) {
             delete formValues.password
+        }
+
+        if (isCronActive) {
+            const expr = values.cron_config?.cron_expression
+            const emails = values.cron_config?.email_recipients || []
+            if (!expr) {
+                notify("Please configure a cron schedule before saving", {type: "error"})
+                return
+            }
+            if (emails.length === 0) {
+                notify("Please enter at least one e-mail recipient", {type: "error"})
+                return
+            }
         }
 
         const formData: Partial<Sequent_Backend_Report> = {
@@ -387,6 +407,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 interface EmailRecipientsInputProps extends InputProps {
     label?: string
     placeholder?: string
+    onChange?: (newValue: any) => void
 }
 
 interface EmailRecipientsInputProps extends InputProps {
@@ -401,6 +422,7 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
         isRequired,
         id,
     } = useInput(props)
+    const {label, placeholder, onChange} = props
 
     return (
         <Autocomplete
@@ -409,7 +431,10 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
             options={[] as string[]}
             value={field.value || []}
             onChange={(event: any, newValue: string[]) => {
-                field.onChange(newValue)
+                field.onChange(newValue || [])
+                if (onChange) {
+                    onChange(newValue || []) // Call the passed onChange prop
+                }
             }}
             fullWidth={true}
             renderTags={(value: string[], getTagProps) =>
@@ -421,8 +446,8 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
                 <TextField
                     {...params}
                     variant="outlined"
-                    label={props.label}
-                    placeholder={props.placeholder}
+                    label={label}
+                    placeholder={placeholder}
                     error={fieldState.invalid}
                     helperText={fieldState.error?.message}
                     required={isRequired}
@@ -438,6 +463,64 @@ interface ReportTypeInputProps extends InputProps {
     label?: string
     choices: {id: any; name: string}[]
     onChange?: (newValue: any) => void // Add this line
+}
+
+interface PermissionLabelsInputProps extends InputProps {
+    label?: string
+    choices?: Choice[]
+    setChoices?: React.Dispatch<React.SetStateAction<Choice[]>>
+}
+
+const PermissionLabelsInput: React.FC<PermissionLabelsInputProps> = (props) => {
+    const {field, fieldState, isRequired, id} = useInput({
+        ...props,
+        source: "permission_label",
+    })
+
+    // Initialize local choices state if not provided in props
+    const [internalChoices, setInternalChoices] = useState<Choice[]>(props.choices || [])
+    const choices = props.choices || internalChoices
+
+    // Update form value when choices change
+    const handleChange = (newValue: string[]) => {
+        field.onChange(newValue)
+        // Also update choices if needed
+        if (props.setChoices) {
+            props.setChoices(newValue.map((label) => ({id: label, name: label})))
+        }
+    }
+
+    // Handle creating new entries
+    const handleCreate = (newValue: string) => {
+        if (newValue && !choices.find((choice: Choice) => choice.id === newValue)) {
+            const newChoice = {id: newValue, name: newValue}
+            const updatedChoices = [...choices, newChoice]
+
+            // Update local state if no external state management provided
+            if (!props.setChoices) {
+                setInternalChoices(updatedChoices)
+            } else {
+                props.setChoices(updatedChoices)
+            }
+
+            // Ensure the field value includes the new item
+            const currentValue = field.value || []
+            if (!currentValue.includes(newValue)) {
+                field.onChange([...currentValue, newValue])
+            }
+        }
+        return {id: newValue, name: newValue}
+    }
+
+    return (
+        <CustomAutocompleteArrayInput
+            label={props.label ?? ""}
+            defaultValue={field.value || []}
+            onChange={handleChange}
+            onCreate={handleCreate}
+            choices={choices}
+        />
+    )
 }
 
 const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
@@ -460,7 +543,7 @@ const ReportTypeInput: React.FC<ReportTypeInputProps> = (props) => {
             renderInput={(params) => (
                 <TextField
                     {...params}
-                    label={label}
+                    label={label ?? ""}
                     variant="outlined"
                     required={isRequired}
                     error={fieldState.invalid}
@@ -515,10 +598,12 @@ const FormContent: React.FC<CreateReportProps> = ({
         doCronActive?.(isCronActive)
     }, [isCronActive, doCronActive])
 
-    const reportTypeChoices = Object.values(EReportType).map((reportType) => ({
-        id: reportType,
-        name: t(`template.type.${reportType}`),
-    }))
+    const reportTypeChoices = Object.values(EReportType)
+        .sort()
+        .map((reportType) => ({
+            id: reportType,
+            name: t(`template.type.${reportType}`),
+        }))
 
     const electionPolicy = useMemo((): EReportElectionPolicy => {
         if (!reportType) {
@@ -578,17 +663,27 @@ const FormContent: React.FC<CreateReportProps> = ({
 
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
 
-    const [permissionLabelChoices, setPermissionLabelChoices] = useState<any[]>(
-        (report?.permission_label as string[])?.map((label) => ({
-            id: label,
-            name: label,
-        })) || []
-    )
+    const [permissionLabelChoices, setPermissionLabelChoices] = useState<Choice[]>([])
+
+    useEffect(() => {
+        if (report?.permission_label) {
+            const choices = (report.permission_label as string[]).map((label) => ({
+                id: label,
+                name: label,
+            }))
+            setPermissionLabelChoices(choices)
+        }
+    }, [report?.permission_label])
 
     const handlePermissionLabelRemoved = (value: string[]) => {
         if (value?.length < permissionLabels?.length) {
             setValue("permission_label", value)
         }
+    }
+
+    const handlePermissionLabelChanged = (value: string[]) => {
+        setValue("permission_label", value)
+        setPermissionLabels(value)
     }
 
     const handlePermissionLabelAdded = (value: string[]) => {
@@ -605,33 +700,30 @@ const FormContent: React.FC<CreateReportProps> = ({
                     ? t("reportsScreen.edit.subtitle")
                     : t("reportsScreen.create.subtitle")}
             </Typography>
-
             <ReportTypeInput
                 source="report_type"
-                label={t("template.form.type")}
+                label={String(t("template.form.type"))}
                 choices={reportTypeChoices}
                 isRequired={true}
                 onChange={handleReportTypeChange}
             />
-
             <SelectElection
                 tenantId={tenantId}
                 electionEventId={electionEventId}
-                label={t("reportsScreen.fields.electionId")}
+                label={String(t("reportsScreen.fields.electionId"))}
                 onSelectElection={(electionId) => setElectionId(electionId)}
                 source="election_id"
                 value={electionId}
                 isRequired={electionPolicy === EReportElectionPolicy.ELECTION_REQUIRED}
                 disabled={electionPolicy === EReportElectionPolicy.ELECTION_NOT_ALLOWED}
             />
-
             <SelectTemplate
                 tenantId={tenantId}
                 templateType={
                     reportType ? reportTypeConfig[reportType]?.associatedTemplateType : undefined
                 }
                 source={"template_alias"}
-                label={t("reportsScreen.fields.template")}
+                label={String(t("reportsScreen.fields.template"))}
                 onSelectTemplate={(template) => {
                     console.log("Selected templateId:", template.alias)
                     setTemplateAlias(template.alias)
@@ -640,56 +732,20 @@ const FormContent: React.FC<CreateReportProps> = ({
                 isRequired={isTemplateRequired}
             />
 
-            <AutocompleteArrayInput
-                source={"permission_label"}
-                label={t("usersAndRolesScreen.users.fields.permissionLabel")}
-                defaultValue={permissionLabels}
-                fullWidth
-                onChange={handlePermissionLabelRemoved}
-                onCreate={(newLabel) => {
-                    if (newLabel) {
-                        const updatedChoices = [
-                            ...permissionLabelChoices,
-                            {id: newLabel, name: newLabel},
-                        ]
-                        const updatedLabels = [...permissionLabels, newLabel]
-                        setPermissionLabelChoices(updatedChoices)
-                        setPermissionLabels(updatedLabels)
-                        handlePermissionLabelAdded(updatedLabels)
-                        return {id: newLabel, name: newLabel}
-                    }
-                }}
-                optionText="name"
+            <PermissionLabelsInput
+                label={String(t("usersAndRolesScreen.users.fields.permissionLabel"))}
                 choices={permissionLabelChoices}
-                freeSolo={true}
-                onKeyDown={(e) => {
-                    let input = (e.target as HTMLInputElement).value
-                    if (e.key === "Enter" && input.trim()) {
-                        e.preventDefault()
-                        const newLabel = input
-                        if (newLabel) {
-                            const updatedChoices = [
-                                ...permissionLabelChoices,
-                                {id: newLabel, name: newLabel},
-                            ]
-                            const updatedLabels = [...permissionLabels, newLabel]
-                            setPermissionLabelChoices(updatedChoices)
-                            setPermissionLabels(updatedLabels)
-                            handlePermissionLabelAdded(updatedLabels)
-                        }
-                    }
-                }}
-                value={permissionLabels}
+                setChoices={setPermissionLabelChoices}
+                source="permission_label"
             />
 
             {canGenerateReportScheduled && (
                 <BooleanInput
                     source="cron_config.is_active"
-                    label={t("reportsScreen.fields.repeatable")}
+                    label={String(t("reportsScreen.fields.repeatable"))}
                     onChange={handleCronToggle}
                 />
             )}
-
             {isCronActive && (
                 <>
                     <Cron
@@ -708,9 +764,12 @@ const FormContent: React.FC<CreateReportProps> = ({
                     />
                     <EmailRecipientsInput
                         source="cron_config.email_recipients"
-                        label={t("reportsScreen.fields.emailRecipients")}
+                        label={String(t("reportsScreen.fields.emailRecipients"))}
                         placeholder={t("reportsScreen.fields.emailRecipientsPlaceholder")}
                         isRequired={false}
+                        onChange={(newValue) => {
+                            setValue("cron_config.email_recipients", newValue)
+                        }}
                     />
                 </>
             )}

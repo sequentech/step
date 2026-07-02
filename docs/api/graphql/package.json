@@ -1,0 +1,24 @@
+{
+  "name": "graphql",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+
+  "scripts": {
+    "preprocess-schema": "node ./preprocess-schema.js",
+    "generate-docs-graphql": "npx spectaql spectaql-config.yml",
+    "generate-full-docs": "mkdir -p ./docs && yarn run preprocess-schema && yarn run generate-docs-graphql"
+  },
+  "dependencies": {
+    "graphql": "^16.11.0",
+    "spectaql": "^3.0.5"
+  },
+  "resolutions": {
+    "graphql": "16.11.0",
+    "qs": "6.14.1",
+    "glob": "10.5.0",
+    "lodash": "4.17.23",
+    "lodash.unset": "npm:lodash@^4.17.23",
+    "js-yaml": "3.14.2"
+  }
+}

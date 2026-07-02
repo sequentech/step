@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -8,18 +8,20 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
-import React, {ReactElement, useContext, useMemo, useState} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo, useRef, useState} from "react"
 import moment from "moment-timezone"
 import {
     DatagridConfigurable,
     FunctionField,
     List,
+    SelectInput,
     TextField,
+    TextInput,
     useGetList,
     useGetOne,
+    useListContext,
     useNotify,
     useRefresh,
-    useSidebarState,
     WrapperField,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -54,13 +56,38 @@ export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBa
     }
 `
 
+const FilterWatcher = ({
+    fieldName,
+    onFilterChange,
+}: {
+    fieldName: string
+    onFilterChange: () => void
+}) => {
+    const {filterValues} = useListContext()
+    const previousFilters = useRef(filterValues)
+
+    useEffect(() => {
+        // Check which filters were removed
+        Object.keys(previousFilters.current).forEach((key) => {
+            if (!(key in filterValues)) {
+                if (key === fieldName) {
+                    onFilterChange()
+                }
+            }
+        })
+
+        previousFilters.current = filterValues
+    }, [filterValues])
+
+    return null
+}
+
 interface EditEventsProps {
     electionEventId: string
 }
 const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
-    const [isOpenSidebar] = useSidebarState()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
@@ -103,7 +130,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 200},
+            pagination: {page: 1, perPage: 500},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
@@ -122,7 +149,15 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         }
     )
 
-    const electionIds = useMemo(() => elections?.map((election) => election.id) ?? [], [elections])
+    const [eventScreeElectionId, setEventScreenElectionId] = useState<string | null>(null)
+
+    const electionIds = useMemo(() => {
+        let electionsList = elections?.map((election) => election.id) ?? []
+        if (eventScreeElectionId) {
+            electionsList = electionsList.filter((item) => item === eventScreeElectionId)
+        }
+        return electionsList
+    }, [elections, eventScreeElectionId])
 
     const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event): string => {
         let electionId = (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)
@@ -132,8 +167,6 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     }
 
     const OMIT_FIELDS: Array<string> = ["id"]
-
-    const Filters: Array<ReactElement> = []
 
     const editAction = (id: any) => {
         setOpenCreateEvent(true)
@@ -218,7 +251,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     </Typography>
                     <ResourceListStyles.EmptyButtonList className="voter-add-button">
                         <Button onClick={() => setOpenCreateEvent(true)}>
-                            <ResourceListStyles.CreateIcon icon={faPlus} />
+                            <ResourceListStyles.CreateIcon icon={faPlus as any} />
                             {t(`eventsScreen.empty.button`)}
                         </Button>
                     </ResourceListStyles.EmptyButtonList>
@@ -226,9 +259,39 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             ) : null}
         </ResourceListStyles.EmptyBox>
     )
+
+    // Define the filters as an array of elements
+    const Filters: Array<ReactElement> = [
+        <SelectInput
+            source="event_processor"
+            key="event_processor_filter"
+            label={String(t("eventsScreen.fields.eventProcessor"))}
+            choices={Object.values(EventProcessors).map((eventType) => ({
+                id: eventType,
+                name: t(`eventsScreen.eventType.${eventType}`),
+            }))}
+        />,
+        <SelectInput
+            source="event_payload.election_id"
+            key="election_id_filter"
+            label={String(t("eventsScreen.fields.electionId"))}
+            choices={elections?.map((election) => ({
+                id: election.id,
+                name: aliasRenderer(election),
+            }))}
+            onChange={(e: any) => {
+                setEventScreenElectionId(e.target.value)
+            }}
+        />,
+        <TextInput key="id_filter" source="id" label={"id"} />,
+    ]
+
     return (
         <>
-            <ElectionHeader title={t("eventsScreen.title")} subtitle="eventsScreen.subtitle" />
+            <ElectionHeader
+                title={String(t("eventsScreen.title"))}
+                subtitle="eventsScreen.subtitle"
+            />
             <List
                 resource="sequent_backend_scheduled_event"
                 filter={{
@@ -270,22 +333,25 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 disableSyncWithLocation
             >
                 <DatagridConfigurable bulkActionButtons={false} omit={OMIT_FIELDS}>
+                    <FilterWatcher
+                        fieldName="event_payload"
+                        onFilterChange={() => setEventScreenElectionId(null)}
+                    />
                     <TextField source="id" />
-
                     <FunctionField
-                        label={t("eventsScreen.fields.electionId")}
+                        label={String(t("eventsScreen.fields.electionId"))}
                         source="event_payload.election_id"
                         render={getElectionName}
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.eventProcessor")}
+                        label={String(t("eventsScreen.fields.eventProcessor"))}
                         source="event_processor"
                         render={(record: {event_processor: keyof typeof EventProcessors}) =>
                             t("eventsScreen.eventType." + record.event_processor)
                         }
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.stoppedAt")}
+                        label={String(t("eventsScreen.fields.stoppedAt"))}
                         source="stopped_at"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             (record.stopped_at &&
@@ -296,7 +362,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.scheduledDate")}
+                        label={String(t("eventsScreen.fields.scheduledDate"))}
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
@@ -306,7 +372,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             "-"
                         }
                     />
-                    <WrapperField label={t("common.label.actions")}>
+                    <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
@@ -323,9 +389,9 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Dialog
                 variant="warning"
                 open={isDeleteModalOpen}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={async (result: boolean) => {
                     if (result) {
                         await confirmDeleteAction()

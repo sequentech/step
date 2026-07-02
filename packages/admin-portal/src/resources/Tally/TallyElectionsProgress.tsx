@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
@@ -10,11 +10,12 @@ import {
 } from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
 import {formatPercentOne} from "@sequentech/ui-core"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
@@ -34,7 +35,8 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     tallySessionExecutions: execution,
     allElections,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const elections = useMemo(() => {
         return (
@@ -49,14 +51,15 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     useEffect(() => {
         if (elections) {
             const temp: Array<Sequent_Backend_Election_Extended> = (elections || []).map(
-                (election, index) => ({
-                    ...election,
-                    rowId: index,
-                    id: election.id || "",
-                    name: election.name,
-                    status: election.status || "",
-                    progress: 0,
-                })
+                (election, index) => {
+                    return {
+                        ...election,
+                        rowId: index,
+                        id: election.id || "",
+                        status: election.status || "",
+                        progress: 0,
+                    }
+                }
             )
             setElectionsData(temp)
         }
@@ -64,10 +67,13 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
 
     const columns: GridColDef[] = [
         {
-            field: "name",
+            field: `presentation.i18n[${i18n.language}].alias`,
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return props.value ? props.value : aliasRenderer(props.row)
+            },
         },
         {
             field: "status",
@@ -116,7 +122,7 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
         },
     ]
 
-    const ProgressBarDiv = styled.div`
+    const ProgressBarDiv = styled("div")`
         width: 100%;
         max-width: 18rem;
         display: flex;

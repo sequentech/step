@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
@@ -34,7 +34,7 @@ export const GetCastVotesByIp = (params: any) => {
                     id
                     ip
                     country
-                    election_name
+                    election_presentation
                     vote_count
                     voters_id
                 }

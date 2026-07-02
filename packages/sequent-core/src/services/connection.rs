@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
@@ -202,8 +202,7 @@ struct TokenResponseExtended {
 
 /// Last access token can be reused if it´s not expired, this is to avoid
 /// Keycloak having to hold one token per Api request which could lead quickly
-/// to many thousands of tokens.
-///
+/// to many thousands of tokens.<br>
 /// Keycloak can hold multiple tokens for the same client, so we do not care
 /// about using the previous token if one thread read it and while didn´t send
 /// it yet other thread wrote it. As long as it is not expired, we can reuse it.

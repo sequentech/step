@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -8,7 +8,7 @@ import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {Button, Typography} from "@mui/material"
 import {Header, HeaderErrorVariant} from "@sequentech/ui-essentials"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -62,6 +62,20 @@ export function ErrorPage() {
                         <i>{error.data.message}</i>
                     </Typography>
                 )}
+            </>
+        )
+    } else if (
+        error instanceof VotingPortalError &&
+        error.type === VotingPortalErrorType.CERT_AUTH_FAILED
+    ) {
+        content = (
+            <>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.certAuthFailedTitle")}
+                </StyledTitle>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.certAuthFailedMessage")}
+                </Typography>
             </>
         )
     } else if (isErrorType) {

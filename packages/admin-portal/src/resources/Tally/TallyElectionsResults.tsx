@@ -1,24 +1,29 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import Chart, {Props} from "react-apexcharts"
+import CardChart from "@/components/dashboard/charts/Charts"
+import {Box, Typography} from "@mui/material"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {NoItem} from "@/components/NoItem"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {formatPercentOne, isNumber} from "@sequentech/ui-core"
+import {EDeclineToVotePolicy, formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {Loader} from "@sequentech/ui-essentials"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
     resultsEventId: string | null
     electionIds?: string[] | null
+    isMultiContest: boolean
 }
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
@@ -28,13 +33,127 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     elegible_census: number | "-"
     total_voters: number | "-"
     total_voters_percent: number | "-"
+    total_declined_to_vote?: number | "-"
+}
+
+interface GeneralInformationChartsProps {
+    results: Sequent_Backend_Election_Extended[]
+    selectedElectionId?: string
+    aliasRenderer: (item: any) => string
+}
+
+export const LoadingResults: React.FC = () => {
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "200px",
+                position: "relative",
+            }}
+        >
+            <Loader />
+        </Box>
+    )
+}
+
+const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
+    results,
+    selectedElectionId,
+    aliasRenderer,
+}) => {
+    const {t} = useTranslation()
+
+    // Filter out results with valid participation data
+    const validResults = results.filter(
+        (result) => isNumber(result.elegible_census) && isNumber(result.total_voters)
+    )
+
+    if (validResults.length === 0) {
+        return null
+    }
+
+    // Find the selected result or use the first one as default
+    const selectedResult = selectedElectionId
+        ? validResults.find((result) => result.id === selectedElectionId)
+        : validResults[0]
+
+    if (!selectedResult) {
+        return null
+    }
+
+    const result = selectedResult
+    const election_name = aliasRenderer(result.presentation)
+    const eligibleCensus = result.elegible_census as number
+    const totalVoters = result.total_voters as number
+    const nonVoters = eligibleCensus - totalVoters
+
+    const chartData = [
+        {
+            label: t("tally.chart.totalVoters"),
+            value: totalVoters,
+        },
+        {
+            label: t("tally.chart.nonVoters"),
+            value: nonVoters,
+        },
+    ].filter((item) => item.value > 0)
+
+    const chartOptions: Props = {
+        options: {
+            labels: chartData.map((item) => item.label),
+            legend: {
+                position: "right",
+            },
+            responsive: [
+                {
+                    breakpoint: 480,
+                    options: {
+                        chart: {
+                            width: 200,
+                        },
+                        legend: {
+                            position: "bottom",
+                        },
+                    },
+                },
+            ],
+        },
+        series: chartData.map((item) => item.value),
+    }
+
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                mb: 2,
+                border: "1px solid #cccccc99",
+                maxWidth: {xs: "100%", lg: 450},
+            }}
+        >
+            <CardChart title={election_name} collapsible={true}>
+                <Chart
+                    options={chartOptions.options}
+                    series={chartOptions.series}
+                    type="pie"
+                    width="100%"
+                    height={300}
+                />
+            </CardChart>
+        </Box>
+    )
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, resultsEventId, electionIds} = props
-    const {t} = useTranslation()
+    const {tenantId, electionEventId, resultsEventId, electionIds, isMultiContest} = props
+    const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
+    const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
@@ -47,83 +166,192 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     )
 
     const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_election,
+        () =>
+            tallyData?.sequent_backend_results_election &&
+            tallyData?.sequent_backend_results_election.length > 0
+                ? tallyData?.sequent_backend_results_election.filter(
+                      (result) => result.results_event_id === resultsEventId
+                  )
+                : undefined,
         [tallyData?.sequent_backend_results_election]
     )
 
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return !!tallyData?.sequent_backend_results_event.find(
+            (event) => event.id === resultsEventId
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
+    const safeParseJson = (value: unknown) => {
+        if (typeof value !== "string") {
+            return value
+        }
+
+        try {
+            return JSON.parse(value)
+        } catch {
+            return null
+        }
+    }
+
     useEffect(() => {
-        if (elections && results) {
+        setIsLoading(true)
+        if (elections && results && elections.length > 0 && results.length > 0) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
                     const result = results?.find((r) => r.election_id === item.id)
+
+                    /// If the election has a decline to vote policy, we need to get the total
+                    // invalid votes from the one of the results contests (all contests supposed to have the same value)
+                    let contest_annotations = tallyData?.sequent_backend_results_contest.find(
+                        (c) => c.election_id === item.id
+                    )?.annotations
+                    let total_declined_to_vote =
+                        safeParseJson(contest_annotations)?.extended_metrics
+                            ?.total_declined_to_vote ?? null
+                    const electionPresentation = safeParseJson(item.presentation)
+                    const isDeclineToVote =
+                        electionPresentation?.decline_to_vote_policy ===
+                            EDeclineToVotePolicy.ENABLED && isMultiContest
 
                     return {
                         ...item,
                         rowId: index,
                         id: item.id || "",
-                        name: item.name,
                         status: item.status || "",
                         elegible_census: result?.elegible_census ?? "-",
                         total_voters: result?.total_voters ?? "-",
                         total_voters_percent: result?.total_voters_percent ?? "-",
+                        ...(isDeclineToVote
+                            ? {total_declined_to_vote: total_declined_to_vote ?? "-"}
+                            : {}),
                     }
                 }
             )
 
             setResultsData(temp)
+            // Set default selected election to the first one if none is selected
+            if (!selectedElectionId && temp.length > 0) {
+                setSelectedElectionId(temp[0].id)
+            }
+            setIsLoading(false)
         }
-    }, [results, elections])
+        if (isTallyDataMatchCurrentResults && (!elections?.length || !results?.length)) {
+            setIsLoading(false)
+        }
+    }, [results, elections, selectedElectionId, isTallyDataMatchCurrentResults])
 
-    const columns: GridColDef[] = [
-        {
-            field: "name",
-            headerName: t("tally.table.elections"),
-            flex: 1,
-            editable: false,
-            valueGetter(params) {
-                return aliasRenderer(params.row)
+    const showTotalInvalidVotesColumn = useMemo(
+        () => resultsData.some((row) => isNumber(row.total_declined_to_vote)),
+        [resultsData]
+    )
+
+    const columns: GridColDef[] = useMemo(
+        () => [
+            {
+                field: `presentation.i18n[${i18n.language}].alias`,
+                headerName: t("tally.table.elections"),
+                flex: 1,
+                editable: false,
+                valueGetter(value, row) {
+                    return value ? value : aliasRenderer(row.presentation)
+                },
             },
-        },
-        {
-            field: "elegible_census",
-            headerName: t("tally.table.elegible_census"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
-        },
-        {
-            field: "total_voters",
-            headerName: t("tally.table.total_votes"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
-        },
-        {
-            field: "total_voters_percent",
-            headerName: t("tally.table.total_votes_percent"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) =>
-                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
-        },
-    ]
+            {
+                field: "elegible_census",
+                headerName: t("tally.table.elegible_census"),
+                flex: 1,
+                editable: false,
+                renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
+            },
+            {
+                field: "total_voters",
+                headerName: t("tally.table.total_votes"),
+                flex: 1,
+                editable: false,
+                renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+            },
+            ...(showTotalInvalidVotesColumn
+                ? [
+                      {
+                          field: "total_declined_to_vote",
+                          headerName: t("tally.table.total_declined_to_vote"),
+                          flex: 1.5,
+                          editable: false,
+                          renderCell: (props: GridRenderCellParams<any, number>) =>
+                              props["value"] ?? "-",
+                      } satisfies GridColDef,
+                  ]
+                : []),
+            {
+                field: "total_voters_percent",
+                headerName: t("tally.table.total_votes_percent"),
+                flex: 1,
+                editable: false,
+                renderCell: (props: GridRenderCellParams<any, number>) =>
+                    isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
+            },
+        ],
+        [aliasRenderer, i18n.language, showTotalInvalidVotesColumn, t]
+    )
 
     return (
         <>
             {resultsData.length ? (
-                <DataGrid
-                    rows={resultsData}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 10,
-                            },
-                        },
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: {xs: "column", lg: "row"},
+                        gap: 4,
+                        alignItems: "flex-start",
                     }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                    disableRowSelectionOnClick
-                />
+                >
+                    <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
+                        <GeneralInformationCharts
+                            results={resultsData}
+                            selectedElectionId={selectedElectionId || undefined}
+                            aliasRenderer={aliasRenderer}
+                        />
+                    </Box>
+                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>
+                        <DataGrid
+                            sx={{
+                                "mt": 0,
+                                "& .MuiDataGrid-row.selected": {
+                                    backgroundColor: "rgba(25, 118, 210, 0.08)",
+                                },
+                                "& .MuiDataGrid-row.selected:hover": {
+                                    backgroundColor: "rgba(25, 118, 210, 0.12)",
+                                },
+                                "& .MuiDataGrid-cell:focus": {
+                                    outline: "none",
+                                },
+                                "& .MuiDataGrid-cell:focus-within": {
+                                    outline: "none",
+                                },
+                            }}
+                            rows={resultsData}
+                            columns={columns}
+                            initialState={{
+                                pagination: {
+                                    paginationModel: {
+                                        pageSize: 10,
+                                    },
+                                },
+                            }}
+                            pageSizeOptions={[10, 20, 50, 100]}
+                            disableRowSelectionOnClick
+                            onRowClick={(params) => {
+                                setSelectedElectionId(params.row.id)
+                            }}
+                            getRowClassName={(params) =>
+                                params.row.id === selectedElectionId ? "selected" : ""
+                            }
+                        />
+                    </Box>
+                </Box>
+            ) : isLoading || !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
             ) : (
                 <NoItem />
             )}

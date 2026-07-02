@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,7 +12,8 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     strategy:
       matrix:
         include:
@@ -25,6 +26,7 @@ jobs:
             extra: --features keycloak
           - service: velvet
           - service: windmill
+            build_jobs: 2
           - service: wrap-map-err
 
       fail-fast: false
@@ -33,17 +35,40 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: nightly-2024-08-02
+          toolchain: 1.96.0
           components: rustfmt
-          override: true
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: packages/${{ matrix.service }}/target
+          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-${{ matrix.service }}-
 
       - name: Install system dependencies
         run: |
             sudo apt-get update
-            sudo apt-get install -y protobuf-compiler libprotobuf-dev
+            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+
+      - name: Install Chrome
+        run: |
+            sudo apt-get install -y wget
+            wget -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y ./chrome.deb
 
       - name: Run tests
         env:
@@ -64,4 +89,66 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
+          CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
+
+  # ===========================================================================
+  # JOB: notify-on-failure
+  # ===========================================================================
+  # Sends a Slack notification to the dev channel when the test job fails.
+  # Runs on the GCP runner — it will be a fresh pod, not the one that failed.
+  # ===========================================================================
+  notify-on-failure:
+    name: Notify on failure
+    needs: run-tests
+    if: failure()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":rotating_light: *GHA Runner Failure* — `${{ github.repository }}`"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n${{ github.workflow }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered by:*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch/PR:*\n${{ github.head_ref || github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Run:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+                    }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": ":warning: Possible OOM kill \u2014 runner lost communication with GitHub."
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

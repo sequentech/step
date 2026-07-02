@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
+import {EditBase, Identifier, RaRecord, useUpdate, useRefresh} from "react-admin"
 import {
     EditElectionEventDataForm,
     Sequent_Backend_Election_Event_Extended,
@@ -17,6 +17,7 @@ import {
 
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
+    const refresh = useRefresh()
 
     function updateElectionsOrder(data: Sequent_Backend_Election_Event_Extended) {
         data.electionsOrder?.map((election: Sequent_Backend_Election, index: number) => {
@@ -84,13 +85,20 @@ export const EditElectionEventData: React.FC = () => {
                 language_conf: {
                     ...language_conf,
                     default_language_code: data?.presentation?.language_conf?.default_language_code,
+                    language_detection_policy:
+                        data?.presentation?.language_conf?.language_detection_policy,
                 },
             },
         }
     }
 
     return (
-        <EditBase redirect={"."} transform={transform}>
+        <EditBase
+            redirect={"."}
+            transform={transform}
+            mutationMode="pessimistic"
+            mutationOptions={{onSuccess: refresh}}
+        >
             <EditElectionEventDataForm />
         </EditBase>
     )

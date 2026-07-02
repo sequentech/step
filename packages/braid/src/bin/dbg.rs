@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ use tracing_tree::HierarchicalLayer;
 fn main() {
     let log_reload = init_log();
     let ctx = RistrettoCtx;
-    braid::test::dbg::dbg(ctx, log_reload).unwrap();
+    braid::native::test::dbg::dbg(ctx, log_reload).unwrap();
 }
 
 /// Initialize the tracing log, returning a handle that

@@ -1,11 +1,12 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 
@@ -78,6 +79,7 @@ pub enum TallyExecutionStatus {
     STARTED,
     CONNECTED,
     IN_PROGRESS,
+    AWAITING_INPUT,
     SUCCESS,
     CANCELLED,
 }
@@ -158,4 +160,229 @@ pub enum TallyType {
     ELECTORAL_RESULTS,
     #[strum(serialize = "INITIALIZATION_REPORT")]
     INITIALIZATION_REPORT,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub struct TallySessionDocuments {
+    pub sqlite: Option<String>,
+    pub xlsx: Option<String>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum CeremoniesPolicy {
+    #[default]
+    #[strum(serialize = "manual-ceremonies")]
+    #[serde(rename = "manual-ceremonies")]
+    MANUAL_CEREMONIES,
+    #[strum(serialize = "automated-ceremonies")]
+    #[serde(rename = "automated-ceremonies")]
+    AUTOMATED_CEREMONIES,
+}
+
+#[derive(
+    Debug,
+    Display,
+    EnumString,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub enum TallyOperation {
+    #[strum(serialize = "process-ballots-all")]
+    #[serde(rename = "process-ballots-all")]
+    ProcessBallotsAll, /* Process ballots to calculate Candidate Results
+                        * and participation
+                        * statistics */
+    #[strum(serialize = "aggregate-results")]
+    #[serde(rename = "aggregate-results")]
+    AggregateResults, /* Aggregate results that have been processed in
+                       * every area */
+    #[strum(serialize = "skip-candidate-results")]
+    #[serde(rename = "skip-candidate-results")]
+    SkipCandidateResults, /* Needs the ballots to calculate participation
+                           * statistics but without the Candidate Results */
+}
+
+#[derive(Debug, Display)]
+pub enum ScopeOperation {
+    Area(TallyOperation),
+    Contest(TallyOperation),
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+)]
+pub enum TieBreakingMethod {
+    Random,
+    ExternalProcedure,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+)]
+pub struct TallySessionResolutionData {
+    pub round_number: Option<u64>,
+    pub tied_candidate_ids: Vec<String>,
+    pub vote_count: u64,
+    pub method_used: TieBreakingMethod,
+    pub resolved_by_candidate_id: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TallySessionResolutionType {
+    IrvTieBreak,
+}
+
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum TallySessionResolutionStatus {
+    Pending,
+    Resolved,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionResolution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub tally_session_id: String,
+    pub contest_id: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub resolution_type: TallySessionResolutionType,
+    pub status: TallySessionResolutionStatus,
+    pub resolution_data: Option<TallySessionResolutionData>,
+    pub resolved_by_user: Option<String>,
+    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallyResolution {
+    pub contest_id: String,
+    pub selected_candidate_id: String,
+}
+
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    EnumString,
+    Display,
+    Default,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    Clone,
+    Copy,
+)]
+pub enum CountingAlgType {
+    #[strum(serialize = "plurality-at-large")]
+    #[serde(rename = "plurality-at-large")]
+    #[default]
+    PluralityAtLarge,
+    #[strum(serialize = "instant-runoff")]
+    #[serde(rename = "instant-runoff")]
+    InstantRunoff,
+    #[strum(serialize = "borda-nauru")]
+    #[serde(rename = "borda-nauru")]
+    BordaNauru,
+    #[strum(serialize = "borda")]
+    #[serde(rename = "borda")]
+    Borda,
+    #[strum(serialize = "borda-mas-madrid")]
+    #[serde(rename = "borda-mas-madrid")]
+    BordaMasMadrid,
+    #[strum(serialize = "pairwise-beta")]
+    #[serde(rename = "pairwise-beta")]
+    PairwiseBeta,
+    #[strum(serialize = "desborda3")]
+    #[serde(rename = "desborda3")]
+    Desborda3,
+    #[strum(serialize = "desborda2")]
+    #[serde(rename = "desborda2")]
+    Desborda2,
+    #[strum(serialize = "desborda")]
+    #[serde(rename = "desborda")]
+    Desborda,
+    #[strum(serialize = "cumulative")]
+    #[serde(rename = "cumulative")]
+    Cumulative,
+}
+
+impl CountingAlgType {
+    /// Returns true if the counting algorithm is preferential (ranked-choice).
+    pub fn is_preferential(&self) -> bool {
+        matches!(
+            self,
+            CountingAlgType::InstantRunoff
+                | CountingAlgType::Borda
+                | CountingAlgType::BordaNauru
+                | CountingAlgType::BordaMasMadrid
+                | CountingAlgType::PairwiseBeta
+                | CountingAlgType::Desborda
+                | CountingAlgType::Desborda2
+                | CountingAlgType::Desborda3
+        )
+    }
+
+    pub fn get_default_tally_operation_for_contest(&self) -> TallyOperation {
+        if self.is_preferential() {
+            TallyOperation::ProcessBallotsAll
+        } else {
+            TallyOperation::AggregateResults
+        }
+    }
+
+    pub fn get_default_tally_operation_for_area(&self) -> TallyOperation {
+        if self.is_preferential() {
+            TallyOperation::SkipCandidateResults
+        } else {
+            TallyOperation::ProcessBallotsAll
+        }
+    }
 }

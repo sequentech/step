@@ -1,27 +1,62 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-module.exports = {
-    stories: ["../src/**/*.mdx", "../src/**/*.stories.mdx", "../src/**/*.stories.@(js|jsx|ts|tsx)"],
+import type {StorybookConfig} from "@storybook/react-vite"
+import {mergeConfig} from "vite"
+import path from "path"
+
+const config: StorybookConfig = {
+    stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|jsx|ts|tsx)"],
     addons: [
         "@storybook/addon-links",
         "@storybook/addon-essentials",
         "@storybook/addon-interactions",
-        "@storybook/preset-create-react-app",
-        "storybook-addon-react-router-v6",
-        "@storybook/addon-mdx-gfm",
+        "@storybook/addon-docs",
+        "storybook-addon-remix-react-router",
         "storybook-addon-pseudo-states",
+        "@storybook/addon-viewport",
     ],
     framework: {
-        name: "@storybook/react-webpack5",
+        name: "@storybook/react-vite",
         options: {},
     },
-    features: {
-        interactionsDebugger: true, // 👈 Enable playback controls
-    },
-
-    port: 9009,
     docs: {
         autodocs: true,
+        defaultName: "Docs",
+    },
+
+    typescript: {
+        reactDocgen: "react-docgen-typescript",
+        reactDocgenTypescriptOptions: {
+            shouldExtractLiteralValuesFromEnum: true,
+            shouldRemoveUndefinedFromOptional: true,
+            propFilter: (prop) => {
+                if (prop.parent) {
+                    return (
+                        !prop.parent.fileName.includes("node_modules") &&
+                        !prop.parent.fileName.includes("/dist/")
+                    )
+                }
+                return true
+            },
+        },
+    },
+
+    async viteFinal(viteConfig, {configType}) {
+        return mergeConfig(viteConfig, {
+            resolve: {
+                alias: [{find: "@root", replacement: path.resolve(__dirname, "../src")}],
+            },
+
+            build: {
+                sourcemap: configType === "DEVELOPMENT",
+            },
+
+            optimizeDeps: {
+                exclude: ["sequent-core"],
+            },
+        })
     },
 }
+
+export default config

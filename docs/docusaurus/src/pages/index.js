@@ -1,0 +1,13 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+import React from 'react';
+import { Redirect } from '@docusaurus/router';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+export default function Home() {
+  const baseUrl = useBaseUrl('/');
+  return <Redirect to={`${baseUrl}docs/system_introduction`} />;
+}

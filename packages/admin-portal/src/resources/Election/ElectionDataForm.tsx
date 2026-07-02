@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,7 +9,6 @@ import {
     useRecordContext,
     SimpleForm,
     useGetOne,
-    RadioButtonGroupInput,
     Toolbar,
     SaveButton,
     useNotify,
@@ -54,13 +52,21 @@ import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
+    ECastVoteGoldLevelPolicy,
+    EStartScreenTitlePolicy,
     EGracePeriodPolicy,
+    ESecurityConfirmationPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
     EAllowTally,
+    EConsolidatedReportPolicy,
+    getDefaultConsolidatedReportPolicy,
+    EDeclineToVotePolicy,
+    getDefaultDeclineToVotePolicy,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -68,7 +74,7 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ITemplateMethod} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -77,12 +83,14 @@ import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
+import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
 
-const ContestRows = styled.div`
+const ContestRows = styled("div")`
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -99,8 +107,8 @@ export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const [tenantId] = useTenantStore()
-
     const {t} = useTranslation()
+    const getImageUrl = useGetDocumentUrl()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -126,29 +134,29 @@ export const ElectionDataForm: React.FC = () => {
     const [activateSave, setActivateSave] = useState(false)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
-        id: record.election_event_id,
+        id: record?.election_event_id,
     })
 
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
-        id: record.tenant_id || tenantId,
+        id: record?.tenant_id || tenantId,
     })
 
     const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
         filter: {
-            election_id: record.id,
-            tenant_id: record.tenant_id,
-            election_event_id: record.election_event_id,
+            election_id: record?.id,
+            tenant_id: record?.tenant_id,
+            election_event_id: record?.election_event_id,
         },
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
+            id: record?.image_document_id || record?.tenant_id,
+            meta: {tenant_id: record?.tenant_id},
         },
         {
-            enabled: !!record.image_document_id || !!record.tenant_id,
+            enabled: !!record?.image_document_id || !!record?.tenant_id,
             onError: (error: any) => {
                 console.log(`error fetching image doc: ${error.message}`)
             },
@@ -219,7 +227,7 @@ export const ElectionDataForm: React.FC = () => {
                 }
             }
 
-            if (!incoming.presentation) {
+            if (!incoming?.presentation) {
                 temp.presentation = {}
             }
 
@@ -236,8 +244,21 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
 
+            if (!temp.presentation) {
+                temp.presentation = {}
+            }
+
             temp.presentation.contests_order =
                 temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
+
+            temp.presentation.audit_button_cfg ??= EVotingPortalAuditButtonCfg.SHOW
+            temp.presentation.cast_vote_gold_level ??= ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL
+            temp.presentation.start_screen_title_policy ??= EStartScreenTitlePolicy.ELECTION
+            temp.presentation.security_confirmation_policy ??= ESecurityConfirmationPolicy.NONE
+            temp.presentation.initialization_report_policy ??= EInitializeReportPolicy.NOT_REQUIRED
+            temp.presentation.grace_period_policy ??= EGracePeriodPolicy.NO_GRACE_PERIOD
+            temp.presentation.grace_period_secs ??= 0
+            temp.presentation.consolidated_report_policy ??= getDefaultConsolidatedReportPolicy()
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
@@ -270,8 +291,7 @@ export const ElectionDataForm: React.FC = () => {
             if (!temp.presentation?.i18n?.en) {
                 temp.presentation.i18n.en = {}
             }
-            temp.presentation.i18n.en.name = temp.name
-            temp.presentation.i18n.en.alias = temp.alias
+
             temp.presentation.i18n.en.description = temp.description
 
             // receipts
@@ -308,44 +328,8 @@ export const ElectionDataForm: React.FC = () => {
         [data, tenantData?.voting_channels]
     )
 
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
-        return errors
-    }
-
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
-    }
-
-    const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
-        return (
-            <LangsWrapper>
-                {languageSettings.map((lang) => (
-                    <BooleanInput
-                        key={lang}
-                        source={`enabled_languages.${lang}`}
-                        label={t(`common.language.${lang}`)}
-                        helperText={false}
-                    />
-                ))}
-            </LangsWrapper>
-        )
-    }
-
-    const renderDefaultLangs = (_parsedValue: Sequent_Backend_Election_Extended) => {
-        let langNodes = languageSettings.map((lang) => ({
-            id: lang,
-            name: t(`electionScreen.edit.default`),
-        }))
-
-        return (
-            <RadioButtonGroupInput
-                label={false}
-                source="presentation.language_conf.default_language_code"
-                choices={langNodes}
-                row={true}
-            />
-        )
     }
 
     const renderVotingChannels = (parsedValue: Sequent_Backend_Election_Extended) => {
@@ -355,7 +339,7 @@ export const ElectionDataForm: React.FC = () => {
                 <BooleanInput
                     key={channel}
                     source={`voting_channels[${channel}]`}
-                    label={t(`common.channel.${channel}`)}
+                    label={String(t(`common.channel.${channel}`))}
                 />
             )
         }
@@ -366,7 +350,9 @@ export const ElectionDataForm: React.FC = () => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
-                tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+                tabNodes.push(
+                    <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+                )
             }
         }
 
@@ -383,6 +369,10 @@ export const ElectionDataForm: React.FC = () => {
     const renderTabContent = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         let index = 0
+        let hasTos =
+            ESecurityConfirmationPolicy.MANDATORY ===
+            (parsedValue.presentation as IElectionPresentation | undefined)
+                ?.security_confirmation_policy
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(
@@ -390,16 +380,24 @@ export const ElectionDataForm: React.FC = () => {
                         <div style={{marginTop: "16px"}}>
                             <TextInput
                                 source={`presentation.i18n[${lang}].name`}
-                                label={t("electionEventScreen.field.name")}
+                                label={String(t("electionEventScreen.field.name"))}
                             />
                             <TextInput
                                 source={`presentation.i18n[${lang}].alias`}
-                                label={t("electionEventScreen.field.alias")}
+                                label={String(t("electionEventScreen.field.alias"))}
                             />
                             <TextInput
                                 source={`presentation.i18n[${lang}].description`}
-                                label={t("electionEventScreen.field.description")}
+                                label={String(t("electionEventScreen.field.description"))}
                             />
+                            {hasTos ? (
+                                <TextInput
+                                    source={`presentation.i18n[${lang}].security_confirmation_html`}
+                                    label={String(
+                                        t("electionScreen.field.securityConfirmationHtml")
+                                    )}
+                                />
+                            ) : null}
                         </div>
                     </CustomTabPanel>
                 )
@@ -434,7 +432,7 @@ export const ElectionDataForm: React.FC = () => {
                     notify(t("electionScreen.error.fileLoaded"), {type: "success"})
 
                     updateImage("sequent_backend_election", {
-                        id: record.id,
+                        id: record?.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
                         },
@@ -465,11 +463,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
-    const templateMethodChoices = () => {
-        return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
-        }))
+    const securityConfirmationPolicyChoices = () => {
+        return (Object.values(ESecurityConfirmationPolicy) as ESecurityConfirmationPolicy[]).map(
+            (value) => ({
+                id: value,
+                name: t(`electionScreen.securityConfirmationPolicy.${value.toLowerCase()}`),
+            })
+        )
     }
 
     const sortedContests = (contests ?? []).sort((a, b) => {
@@ -492,6 +492,20 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const startScreenTitleChoices = (): Array<EnumChoice<EStartScreenTitlePolicy>> => {
+        return Object.values(EStartScreenTitlePolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.startScreenTitlePolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const goldLevelChoices = (): Array<EnumChoice<ECastVoteGoldLevelPolicy>> => {
+        return Object.values(ECastVoteGoldLevelPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.castVoteGoldLevelPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
         return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
             id: value,
@@ -507,6 +521,20 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const consolidatedReportPolicyChoices = (): Array<EnumChoice<EConsolidatedReportPolicy>> => {
+        return Object.values(EConsolidatedReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.consolidatedReportPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const declineToVotePolicyChoices = (): Array<EnumChoice<EDeclineToVotePolicy>> => {
+        return Object.values(EDeclineToVotePolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.declineToVotePolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Extended,
         {newData}: UpdateFunctionProps
@@ -515,12 +543,23 @@ export const ElectionDataForm: React.FC = () => {
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
     }
-    return data ? (
+
+    const isShowDeclineToVotePolicy =
+        (data?.presentation as IElectionEventPresentation | undefined)
+            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+    return record && data ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(
                     incoming as Sequent_Backend_Election_Extended,
                     languageSettings
+                )
+
+                const imageUrl = getImageUrl(
+                    parsedValue?.tenant_id,
+                    parsedValue?.image_document_id,
+                    imageData?.name
                 )
 
                 const onSave = async () => {}
@@ -561,6 +600,11 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("electionScreen.field.externalId"))}
+                                    readOnly={!!record.external_id}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs(parsedValue)}
                                 </Tabs>
@@ -591,8 +635,10 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <ElectionStyles.AccordionContainer>
                                     <ElectionStyles.AccordionWrapper>
-                                        {renderLangs(parsedValue)}
-                                        {renderDefaultLangs(parsedValue)}
+                                        <SettingsLanguageSelector
+                                            languageSettings={languageSettings}
+                                            canEdit={canEdit}
+                                        />
                                     </ElectionStyles.AccordionWrapper>
                                 </ElectionStyles.AccordionContainer>
                             </AccordionDetails>
@@ -618,7 +664,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
+                                    <Grid size={{xs: 12, md: 6}}>
                                         {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
@@ -647,7 +693,7 @@ export const ElectionDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.audit_button_cfg`}
                                     choices={auditButtonConfigChoices()}
-                                    label={t(`contestScreen.auditButtonConfig.label`)}
+                                    label={String(t(`contestScreen.auditButtonConfig.label`))}
                                     defaultValue={EVotingPortalAuditButtonCfg.SHOW}
                                     validate={required()}
                                 />
@@ -655,6 +701,7 @@ export const ElectionDataForm: React.FC = () => {
                                     source="presentation.contests_order"
                                     choices={orderAnswerChoices()}
                                     validate={required()}
+                                    defaultValue={ContestsOrder.ALPHABETICAL}
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
@@ -705,18 +752,18 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                alt={imageUrl}
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />
@@ -748,16 +795,32 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <BooleanInput
                                     source={"presentation.cast_vote_confirm"}
-                                    label={t(`electionScreen.edit.castVoteConfirm`)}
+                                    label={String(t(`electionScreen.edit.castVoteConfirm`))}
                                 />
                                 <NumberInput
                                     source="num_allowed_revotes"
-                                    label={t("electionScreen.edit.numAllowedVotes")}
+                                    label={String(t("electionScreen.edit.numAllowedVotes"))}
                                     min={0}
+                                />
+                                <SelectInput
+                                    label={String(
+                                        t("electionScreen.castVoteGoldLevelPolicy.label")
+                                    )}
+                                    source="presentation.cast_vote_gold_level"
+                                    choices={goldLevelChoices()}
+                                    defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
+                                    validate={required()}
+                                />
+                                <SelectInput
+                                    label={String(t("electionScreen.startScreenTitlePolicy.label"))}
+                                    source="presentation.start_screen_title_policy"
+                                    choices={startScreenTitleChoices()}
+                                    defaultValue={EStartScreenTitlePolicy.ELECTION}
+                                    validate={required()}
                                 />
                                 {canEditPermissionLabel && (
                                     <TextInput
-                                        label={t("electionScreen.edit.permissionLabel")}
+                                        label={String(t("electionScreen.edit.permissionLabel"))}
                                         source="permission_label"
                                     />
                                 )}
@@ -769,8 +832,9 @@ export const ElectionDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.initialization_report_policy`}
                                     choices={initializationReportChoices()}
-                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    label={String(t("electionScreen.initializeReportPolicy.label"))}
                                     validate={required()}
+                                    defaultValue={EInitializeReportPolicy.NOT_REQUIRED}
                                 />
                                 <Box>
                                     <Typography
@@ -799,12 +863,14 @@ export const ElectionDataForm: React.FC = () => {
                                 <ManagedSelectInput
                                     source={`presentation.grace_period_policy`}
                                     choices={gracePeriodPolicyChoices()}
-                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    label={String(t(`electionScreen.gracePeriodPolicy.label`))}
                                     defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
                                 />
                                 <ManagedNumberInput
                                     source={"presentation.grace_period_secs"}
-                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    label={String(
+                                        t("electionScreen.gracePeriodPolicy.gracePeriodSecs")
+                                    )}
                                     defaultValue={0}
                                     sourceToWatch="presentation.grace_period_policy"
                                     isDisabled={(selectedPolicy: any) =>
@@ -814,9 +880,38 @@ export const ElectionDataForm: React.FC = () => {
                                 <ManagedSelectInput
                                     source={`status.allow_tally`}
                                     choices={allowTallyChoices()}
-                                    label={t(`electionScreen.edit.allowTallyPolicy`)}
+                                    label={String(t(`electionScreen.edit.allowTallyPolicy`))}
                                     defaultValue={EAllowTally.ALLOWED}
                                 />
+
+                                <ManagedSelectInput
+                                    source={`presentation.security_confirmation_policy`}
+                                    choices={securityConfirmationPolicyChoices()}
+                                    label={String(
+                                        t(`electionScreen.securityConfirmationPolicy.label`)
+                                    )}
+                                    defaultValue={ESecurityConfirmationPolicy.NONE}
+                                />
+                                <SelectInput
+                                    source={`presentation.consolidated_report_policy`}
+                                    choices={consolidatedReportPolicyChoices()}
+                                    label={String(
+                                        t("electionScreen.consolidatedReportPolicy.label")
+                                    )}
+                                    validate={required()}
+                                    defaultValue={getDefaultConsolidatedReportPolicy()}
+                                />
+                                {isShowDeclineToVotePolicy && (
+                                    <SelectInput
+                                        source={`presentation.decline_to_vote_policy`}
+                                        choices={declineToVotePolicyChoices()}
+                                        label={String(
+                                            t("electionScreen.declineToVotePolicy.label")
+                                        )}
+                                        validate={required()}
+                                        defaultValue={getDefaultDeclineToVotePolicy()}
+                                    />
+                                )}
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

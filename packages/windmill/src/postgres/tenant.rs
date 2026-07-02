@@ -1,8 +1,9 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Tenant;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -39,7 +40,7 @@ pub async fn get_tenant_by_id(
     }
 
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -79,7 +80,7 @@ pub async fn update_tenant(
     old_tenant_id: &str,
 ) -> Result<()> {
     let old_tenant_uuid =
-        Uuid::parse_str(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
+        parse_uuid_v4(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -128,4 +129,125 @@ pub async fn update_tenant(
     }
 
     Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_tenant(
+    hasura_transaction: &Transaction<'_>,
+    id: &str,
+    slug: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.tenant
+                (id, slug, is_active)
+                VALUES ($1, $2, true)
+                RETURNING
+                id,
+                slug,
+                created_at,
+                updated_at,
+                labels,
+                annotations,
+                is_active;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
+
+    let _rows = hasura_transaction
+        .execute(&statement, &[&parse_uuid_v4(&id)?, &slug])
+        .await
+        .context("Failed to execute update tenant")?;
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_tenant_by_id_if_exist(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<Option<Tenant>> {
+    // Check if tenant_id is a valid UUID string
+    if tenant_id.is_empty() {
+        return Err(anyhow!("Tenant ID is empty"));
+    }
+
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.tenant
+            WHERE
+                id = $1;
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(&statement, &[&tenant_uuid])
+        .await
+        .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
+
+    if (rows.is_empty()) {
+        return Ok(None);
+    }
+
+    let tenants: Vec<Tenant> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: TenantWrapper| res.0))
+        .collect::<Result<Vec<_>, _>>()
+        .context("Error converting database rows to Tenant")?;
+
+    let tenant = tenants
+        .get(0)
+        .map(|tenant| tenant.clone())
+        .context("Error obtaining Tenant")?;
+    Ok(Some(tenant))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_tenant_by_slug_if_exist(
+    hasura_transaction: &Transaction<'_>,
+    slug: &str,
+) -> Result<Option<Tenant>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.tenant
+            WHERE
+                slug = $1;
+            "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(&statement, &[&slug])
+        .await
+        .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
+
+    if (rows.is_empty()) {
+        return Ok(None);
+    }
+
+    let tenants: Vec<Tenant> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: TenantWrapper| res.0))
+        .collect::<Result<Vec<_>, _>>()
+        .context("Error converting database rows to Tenant")?;
+
+    let tenant = tenants
+        .get(0)
+        .map(|tenant| tenant.clone())
+        .context("Error obtaining Tenant")?;
+    Ok(Some(tenant))
 }

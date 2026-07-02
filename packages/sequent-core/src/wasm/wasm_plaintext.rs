@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use wasm_bindgen::prelude::*;
@@ -22,9 +22,9 @@ extern "C" {
 const IINVALID_PLAINTEXT_ERROR: &'static str = r#"
 interface IInvalidPlaintextError {
     error_type: IInvalidPlaintextErrorType;
-    candidate_id?: number;
+    candidate_id?: string;
     message?: string;
-    message_map: Map<string, string>;
+    message_map: { [key: string]: string };
 }
 "#;
 
@@ -39,6 +39,7 @@ const IDECODED_VOTE_CONTEST: &'static str = r#"
 interface IDecodedVoteContest {
     contest_id: string;
     is_explicit_invalid: boolean;
+    is_decline_to_vote: boolean;
     invalid_errors: Array<IInvalidPlaintextError>;
     invalid_alerts: Array<IInvalidPlaintextError>;
     choices: Array<IDecodedVoteChoice>;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
@@ -29,6 +29,7 @@ import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/Tal
 import {sortFunction} from "./utils"
 import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -62,7 +63,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     const {contest, submitRef, tallySheet} = props
 
     const notify = useNotify()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
@@ -119,7 +121,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
-                            name: candidate.name,
+                            name: aliasRenderer(candidate.presentation),
                             total_votes:
                                 contentTemp.candidate_results?.[candidate.id]?.total_votes ?? 0,
                         }
@@ -135,7 +137,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 setChannel(tallySheetTemp.channel)
             }
         }
-    }, [tallySheet, candidates])
+    }, [tallySheet, candidates, i18n.language])
 
     useEffect(() => {
         if (contest) {
@@ -145,19 +147,6 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             }))
         }
     }, [contest])
-
-    useEffect(() => {
-        if (candidates) {
-            const candidatesTemp: ICandidateResultsExtended[] = []
-            for (const candidate of candidates) {
-                const candidateTemp: ICandidateResultsExtended = {
-                    candidate_id: candidate.id,
-                    name: candidate.name,
-                }
-                candidatesTemp.push(candidateTemp)
-            }
-        }
-    }, [candidates])
 
     useEffect(() => {
         if (areas) {
@@ -281,6 +270,10 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         }
     }
 
+    function CustomTextField({InputLabelProps = {}, ...props}) {
+        return <TextField InputLabelProps={{...InputLabelProps, shrink: true}} {...props} />
+    }
+
     return (
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
@@ -294,7 +287,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     <Select
                         name="area_id"
                         value={results.area_id || ""}
-                        label={t("tallysheet.label.area")}
+                        label={String(t("tallysheet.label.area"))}
                         onChange={handleChange}
                         disabled
                     >
@@ -311,7 +304,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     <Select
                         name="channel"
                         value={channel || ""}
-                        label={t("tallysheet.label.channel")}
+                        label={String(t("tallysheet.label.channel"))}
                         onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
                         disabled
                     >
@@ -328,7 +321,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                 </PageHeaderStyles.Wrapper>
 
                 <TextField
-                    label={t("tallysheet.label.contest_id")}
+                    label={String(t("tallysheet.label.contest_id"))}
                     name="constest_id"
                     value={results.contest_id}
                     onChange={handleTextChange}
@@ -337,8 +330,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     style={{display: "none"}}
                 />
 
-                <TextField
-                    label={t("tallysheet.label.total_votes")}
+                <CustomTextField
+                    label={String(t("tallysheet.label.total_votes"))}
                     name="total_votes"
                     value={results.total_votes}
                     onChange={handleTextChange}
@@ -346,8 +339,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     disabled
                     type="number"
                 />
-                <TextField
-                    label={t("tallysheet.label.total_valid_votes")}
+                <CustomTextField
+                    label={String(t("tallysheet.label.total_valid_votes"))}
                     name="total_valid_votes"
                     value={results.total_valid_votes}
                     onChange={handleTextChange}
@@ -366,8 +359,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         gap: "1rem",
                     }}
                 >
-                    <TextField
-                        label={t("tallysheet.label.total_invalid")}
+                    <CustomTextField
+                        label={String(t("tallysheet.label.total_invalid"))}
                         name="total_invalid"
                         value={invalids.total_invalid}
                         onChange={handleInvalidChange}
@@ -375,8 +368,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         disabled
                         type="number"
                     />
-                    <TextField
-                        label={t("tallysheet.label.implicit_invalid")}
+                    <CustomTextField
+                        label={String(t("tallysheet.label.implicit_invalid"))}
                         name="implicit_invalid"
                         value={invalids.implicit_invalid}
                         onChange={handleInvalidChange}
@@ -384,8 +377,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         disabled
                         type="number"
                     />
-                    <TextField
-                        label={t("tallysheet.label.explicit_invalid")}
+                    <CustomTextField
+                        label={String(t("tallysheet.label.explicit_invalid"))}
                         name="explicit_invalid"
                         value={invalids.explicit_invalid}
                         onChange={handleInvalidChange}
@@ -395,8 +388,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     />
                 </Box>
 
-                <TextField
-                    label={t("tallysheet.label.total_blank_votes")}
+                <CustomTextField
+                    label={String(t("tallysheet.label.total_blank_votes"))}
                     name="total_blank_votes"
                     value={results.total_blank_votes}
                     onChange={handleTextChange}
@@ -404,8 +397,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     disabled
                     type="number"
                 />
-                <TextField
-                    label={t("tallysheet.label.census")}
+                <CustomTextField
+                    label={String(t("tallysheet.label.census"))}
                     name="census"
                     value={results.census}
                     onChange={handleTextChange}
@@ -437,7 +430,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         </Typography>
                         <TextField
                             id={candidate.candidate_id}
-                            label={t("tallysheet.label.total_votes")}
+                            label={String(t("tallysheet.label.total_votes"))}
                             name="total_votes"
                             value={candidate.total_votes}
                             onChange={handleCandidateChange}

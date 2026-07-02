@@ -1,0 +1,14 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as CustomAutocompleteArrayInputStories from './CustomAutocompleteArrayInput.stories'
+
+<Meta of={CustomAutocompleteArrayInputStories} title="components/CustomAutocompleteArrayInput"/>
+
+# CustomAutocompleteArrayInput
+
+This custom component CustomAutocompleteArrayInput uses Material UI's Autocomplete and TextField to provide the same functionality as AutocompleteArrayInput from react-admin, but it ensures that the input field does not lose focus after entering a new value.
+
+A string with space separated words will be bulk converted to labels.
+
+## Desktop
+
+<Canvas of={CustomAutocompleteArrayInputStories.Default} />

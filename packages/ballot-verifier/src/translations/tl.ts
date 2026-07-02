@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 const tagalogTranslation = {
@@ -71,8 +71,11 @@ const tagalogTranslation = {
             markedInvalid: "Ang balota ay tahasang minarkahan bilang hindi wasto",
             points: "({{points}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
+            declineToVote: "Hindi bumoto",
         },
-        poweredBy: "Pinapagana ng",
+        footer: {
+            poweredBy: "Pinapagana ng <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Hindi sapat na mga pagpipilian upang ma-decode",

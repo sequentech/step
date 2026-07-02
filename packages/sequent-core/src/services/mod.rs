@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,9 +6,9 @@
 pub mod area_tree;
 #[cfg(feature = "keycloak")]
 pub mod connection;
-#[cfg(feature = "keycloak")]
+#[cfg(feature = "time")]
 pub mod date;
-#[cfg(feature = "keycloak")]
+#[cfg(feature = "jwt")]
 pub mod jwt;
 #[cfg(feature = "keycloak")]
 pub mod keycloak;
@@ -24,8 +24,13 @@ pub mod s3;
 pub mod error_checker;
 pub mod generate_urls;
 
-#[cfg(feature = "reports")]
 pub mod translations;
 
 #[cfg(feature = "keycloak")]
 pub mod replace_uuids;
+
+#[cfg(feature = "keycloak")]
+pub mod authorization;
+
+#[cfg(feature = "keycloak")]
+pub mod uuid_validation;
