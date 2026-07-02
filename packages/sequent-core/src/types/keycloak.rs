@@ -42,6 +42,12 @@ pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
 pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
 
+/// Default client ID used by the IVR for system-level interactions.
+pub const DEFAULT_IVR_SERVICE_CLIENT_ID: &str = "ivr-service";
+/// Client ID used by the IVR for voting.
+///  Can't be changed as `authorize_voter_election` depends on its fixed value.
+pub const IVR_VOTING_CLIENT_ID: &str = "ivr-voting";
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {
     pub id: Option<String>,
