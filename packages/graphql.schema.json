@@ -84076,7 +84076,7 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -84088,7 +84088,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -84697,7 +84745,7 @@
         "description": "aggregate avg on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -84709,7 +84757,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -84955,7 +85051,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -84965,7 +85061,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Int_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Int_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "numeric_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "numeric_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -88492,7 +88628,7 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -88502,7 +88638,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -88673,7 +88849,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -88683,7 +88859,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -88945,7 +89161,7 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -88957,7 +89173,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -89244,7 +89508,7 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -89256,7 +89520,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -89660,7 +89972,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -89670,7 +89982,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -90043,13 +90395,37 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -90222,7 +90598,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -90232,7 +90608,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -90482,7 +90898,7 @@
         "description": "aggregate stddev on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -90494,7 +90910,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -90673,7 +91137,7 @@
         "description": "aggregate stddev_pop on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -90685,7 +91149,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -90864,7 +91376,7 @@
         "description": "aggregate stddev_samp on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -90876,7 +91388,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -91111,7 +91671,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -91121,7 +91681,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -91371,7 +91971,7 @@
         "description": "aggregate sum on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -91383,7 +91983,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -91577,13 +92225,37 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -91830,7 +92502,7 @@
         "description": "aggregate var_pop on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -91842,7 +92514,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -92021,7 +92741,7 @@
         "description": "aggregate var_samp on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -92033,7 +92753,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -92212,7 +92980,7 @@
         "description": "aggregate variance on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -92224,7 +92992,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -92426,7 +93242,7 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -92438,7 +93254,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -93083,7 +93947,7 @@
         "description": "aggregate avg on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -93095,7 +93959,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -93331,7 +94243,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -93341,7 +94253,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Int_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Int_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "numeric_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "numeric_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -96796,7 +97748,7 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -96806,7 +97758,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -96967,7 +97959,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -96977,7 +97969,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -97257,7 +98289,7 @@
         "description": "aggregate max on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -97269,7 +98301,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -97580,7 +98660,7 @@
         "description": "aggregate min on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -97592,7 +98672,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -98022,7 +99150,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -98032,7 +99160,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -98429,13 +99597,37 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -98616,7 +99808,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -98626,7 +99818,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -98906,7 +100138,7 @@
         "description": "aggregate stddev on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -98918,7 +100150,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -99097,7 +100377,7 @@
         "description": "aggregate stddev_pop on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -99109,7 +100389,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -99288,7 +100616,7 @@
         "description": "aggregate stddev_samp on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -99300,7 +100628,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -99525,7 +100901,7 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -99535,7 +100911,47 @@
             "defaultValue": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -99815,7 +101231,7 @@
         "description": "aggregate sum on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -99827,7 +101243,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -100015,13 +101479,37 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -100286,7 +101774,7 @@
         "description": "aggregate var_pop on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -100298,7 +101786,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -100477,7 +102013,7 @@
         "description": "aggregate var_samp on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -100489,7 +102025,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -100668,7 +102252,7 @@
         "description": "aggregate variance on columns",
         "fields": [
           {
-            "name": "blank_votes",
+            "name": "total_blank_votes",
             "description": null,
             "args": [],
             "type": {
@@ -100680,7 +102264,55 @@
             "deprecationReason": null
           },
           {
-            "name": "blank_votes_percent",
+            "name": "explicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "explicit_blank_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "implicit_blank_votes_percent",
             "description": null,
             "args": [],
             "type": {

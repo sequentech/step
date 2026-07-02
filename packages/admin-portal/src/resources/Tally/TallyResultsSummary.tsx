@@ -21,7 +21,6 @@ import {
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Area_Contest,
 } from "../../gql/graphql"
-import {parseBlankVotes} from "./utils"
 
 interface TallyResultsSummaryProps {
     general:
@@ -39,12 +38,6 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
     weight = null,
 }) => {
     const {t} = useTranslation()
-    const blankVotes = parseBlankVotes(general?.[0]?.annotations)
-    const totalVotes = general?.[0]?.total_votes ?? 0
-    const explicitBlankVotesPercent =
-        totalVotes && blankVotes ? blankVotes.explicit / totalVotes : null
-    const implicitBlankVotesPercent =
-        totalVotes && blankVotes ? blankVotes.implicit / totalVotes : null
 
     return (
         <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
@@ -204,11 +197,13 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                             {t("tally.table.blank_votes")}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {general?.[0].blank_votes ?? "-"}
+                                            {general?.[0].total_blank_votes ?? "-"}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {isNumber(general?.[0].blank_votes_percent)
-                                                ? formatPercentOne(general[0].blank_votes_percent)
+                                            {isNumber(general?.[0].total_blank_votes_percent)
+                                                ? formatPercentOne(
+                                                      general[0].total_blank_votes_percent
+                                                  )
                                                 : "-"}
                                         </TableCell>
                                     </TableRow>
@@ -219,11 +214,13 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                             {t("tally.table.explicit_blank_votes")}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {blankVotes?.explicit ?? "-"}
+                                            {general?.[0].explicit_blank_votes ?? "-"}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {isNumber(explicitBlankVotesPercent)
-                                                ? formatPercentOne(explicitBlankVotesPercent)
+                                            {isNumber(general?.[0].explicit_blank_votes_percent)
+                                                ? formatPercentOne(
+                                                      general[0].explicit_blank_votes_percent
+                                                  )
                                                 : "-"}
                                         </TableCell>
                                     </TableRow>
@@ -234,11 +231,13 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                             {t("tally.table.implicit_blank_votes")}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {blankVotes?.implicit ?? "-"}
+                                            {general?.[0].implicit_blank_votes ?? "-"}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {isNumber(implicitBlankVotesPercent)
-                                                ? formatPercentOne(implicitBlankVotesPercent)
+                                            {isNumber(general?.[0].implicit_blank_votes_percent)
+                                                ? formatPercentOne(
+                                                      general[0].implicit_blank_votes_percent
+                                                  )
                                                 : "-"}
                                         </TableCell>
                                     </TableRow>

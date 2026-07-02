@@ -7,11 +7,6 @@ import {ParsedAnnotations, RunoffStatus} from "./types"
 import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "@/gql/graphql"
 import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
 
-export interface ParsedBlankVotes {
-    explicit: number
-    implicit: number
-}
-
 /**
  * Safely extracts the value from a GraphQL 'Maybe<T>' type.
  * Returns undefined if the value is null or undefined.
@@ -116,28 +111,6 @@ export const parseProcessResults = (
         return null
     } catch (error) {
         console.error("Error parsing process_results:", error)
-        return null
-    }
-}
-
-export const parseBlankVotes = (
-    annotations: string | null | undefined
-): ParsedBlankVotes | null => {
-    try {
-        const parsedAnnotations: ParsedAnnotations | null = annotations
-            ? (JSON.parse(annotations as string) as ParsedAnnotations)
-            : null
-
-        if (!parsedAnnotations?.blank_votes) {
-            return null
-        }
-
-        return {
-            explicit: parsedAnnotations.blank_votes.explicit ?? 0,
-            implicit: parsedAnnotations.blank_votes.implicit ?? 0,
-        }
-    } catch (error) {
-        console.error("Error parsing blank_votes:", error)
         return null
     }
 }

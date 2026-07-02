@@ -698,41 +698,45 @@ pub async fn process_results_contest_record(
 
     let implicit_invalid_votes = get_opt_i64_item(record, 9).await?;
 
-    let blank_votes = get_opt_i64_item(record, 10).await?;
+    let total_blank_votes = get_opt_i64_item(record, 10).await?;
+    let explicit_blank_votes = get_opt_i64_item(record, 11).await?;
+    let implicit_blank_votes = get_opt_i64_item(record, 12).await?;
 
-    let voting_type: Option<String> = get_string_or_null_item(&record, 11).await?;
-    let counting_algorithm: Option<String> = get_string_or_null_item(&record, 12).await?;
-    let name: Option<String> = get_string_or_null_item(&record, 13).await?;
+    let voting_type: Option<String> = get_string_or_null_item(&record, 13).await?;
+    let counting_algorithm: Option<String> = get_string_or_null_item(&record, 14).await?;
+    let name: Option<String> = get_string_or_null_item(&record, 15).await?;
 
-    let created_at = get_opt_date(&record, 14).await?;
-    let last_updated_at = get_opt_date(&record, 15).await?;
+    let created_at = get_opt_date(&record, 16).await?;
+    let last_updated_at = get_opt_date(&record, 17).await?;
 
-    let labels = get_opt_json_value_item(record, 16).await?;
+    let labels = get_opt_json_value_item(record, 18).await?;
 
-    let annotations = get_opt_json_value_item(record, 17).await?;
+    let annotations = get_opt_json_value_item(record, 19).await?;
 
-    let total_invalid_votes = get_opt_i64_item(record, 18).await?;
+    let total_invalid_votes = get_opt_i64_item(record, 20).await?;
 
-    let total_invalid_votes_percent = get_opt_f64_item(record, 19).await?;
-    let total_valid_votes_percent = get_opt_f64_item(record, 20).await?;
+    let total_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
+    let total_valid_votes_percent = get_opt_f64_item(record, 22).await?;
 
-    let explicit_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
-    let implicit_invalid_votes_percent = get_opt_f64_item(record, 22).await?;
-    let blank_votes_percent = get_opt_f64_item(record, 23).await?;
+    let explicit_invalid_votes_percent = get_opt_f64_item(record, 23).await?;
+    let implicit_invalid_votes_percent = get_opt_f64_item(record, 24).await?;
+    let total_blank_votes_percent = get_opt_f64_item(record, 25).await?;
+    let explicit_blank_votes_percent = get_opt_f64_item(record, 26).await?;
+    let implicit_blank_votes_percent = get_opt_f64_item(record, 27).await?;
 
-    let total_votes = get_opt_i64_item(record, 24).await?;
-    let total_votes_percent = get_opt_f64_item(record, 25).await?;
+    let total_votes = get_opt_i64_item(record, 28).await?;
+    let total_votes_percent = get_opt_f64_item(record, 29).await?;
 
     let documents = record
-        .get(26)
+        .get(30)
         .map(str::trim)
         .filter(|s| *s != "null" && *s != "\"null\"")
         .map(|s| deserialize_str(s))
         .transpose()
         .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
-    let total_auditable_votes = get_opt_i64_item(record, 27).await?;
-    let total_auditable_votes_percent = get_opt_f64_item(record, 28).await?;
+    let total_auditable_votes = get_opt_i64_item(record, 31).await?;
+    let total_auditable_votes_percent = get_opt_f64_item(record, 32).await?;
 
     let results_contest = ResultsContest {
         id: Uuid::new_v4().to_string(),
@@ -745,7 +749,9 @@ pub async fn process_results_contest_record(
         total_valid_votes,
         explicit_invalid_votes,
         implicit_invalid_votes,
-        blank_votes,
+        total_blank_votes,
+        explicit_blank_votes,
+        implicit_blank_votes,
         voting_type,
         counting_algorithm,
         name,
@@ -758,7 +764,9 @@ pub async fn process_results_contest_record(
         total_valid_votes_percent,
         explicit_invalid_votes_percent,
         implicit_invalid_votes_percent,
-        blank_votes_percent,
+        total_blank_votes_percent,
+        explicit_blank_votes_percent,
+        implicit_blank_votes_percent,
         total_votes,
         total_votes_percent,
         documents,
@@ -792,30 +800,34 @@ async fn process_results_area_contest_file(
         let total_valid_votes = get_opt_i64_item(&record, 8).await?;
         let explicit_invalid_votes = get_opt_i64_item(&record, 9).await?;
         let implicit_invalid_votes = get_opt_i64_item(&record, 10).await?;
-        let blank_votes = get_opt_i64_item(&record, 11).await?;
-        let created_at = get_opt_date(&record, 12).await?;
-        let last_updated_at = get_opt_date(&record, 13).await?;
-        let labels = get_opt_json_value_item(&record, 14).await?;
-        let annotations = get_opt_json_value_item(&record, 15).await?;
-        let total_valid_votes_percent = get_opt_f64_item(&record, 16).await?;
-        let total_invalid_votes = get_opt_i64_item(&record, 17).await?;
-        let total_invalid_votes_percent = get_opt_f64_item(&record, 18).await?;
-        let explicit_invalid_votes_percent = get_opt_f64_item(&record, 19).await?;
-        let blank_votes_percent = get_opt_f64_item(&record, 20).await?;
-        let implicit_invalid_votes_percent = get_opt_f64_item(&record, 21).await?;
-        let total_votes = get_opt_i64_item(&record, 22).await?;
-        let total_votes_percent = get_opt_f64_item(&record, 23).await?;
+        let total_blank_votes = get_opt_i64_item(&record, 11).await?;
+        let explicit_blank_votes = get_opt_i64_item(&record, 12).await?;
+        let implicit_blank_votes = get_opt_i64_item(&record, 13).await?;
+        let created_at = get_opt_date(&record, 14).await?;
+        let last_updated_at = get_opt_date(&record, 15).await?;
+        let labels = get_opt_json_value_item(&record, 16).await?;
+        let annotations = get_opt_json_value_item(&record, 17).await?;
+        let total_valid_votes_percent = get_opt_f64_item(&record, 18).await?;
+        let total_invalid_votes = get_opt_i64_item(&record, 19).await?;
+        let total_invalid_votes_percent = get_opt_f64_item(&record, 20).await?;
+        let explicit_invalid_votes_percent = get_opt_f64_item(&record, 21).await?;
+        let implicit_invalid_votes_percent = get_opt_f64_item(&record, 22).await?;
+        let total_blank_votes_percent = get_opt_f64_item(&record, 23).await?;
+        let explicit_blank_votes_percent = get_opt_f64_item(&record, 24).await?;
+        let implicit_blank_votes_percent = get_opt_f64_item(&record, 25).await?;
+        let total_votes = get_opt_i64_item(&record, 26).await?;
+        let total_votes_percent = get_opt_f64_item(&record, 27).await?;
 
         let documents = record
-            .get(24)
+            .get(28)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
-        let total_auditable_votes = get_opt_i64_item(&record, 25).await?;
-        let total_auditable_votes_percent = get_opt_f64_item(&record, 26).await?;
+        let total_auditable_votes = get_opt_i64_item(&record, 29).await?;
+        let total_auditable_votes_percent = get_opt_f64_item(&record, 30).await?;
 
         let results_area_contest = ResultsAreaContest {
             id: Uuid::new_v4().to_string(),
@@ -829,7 +841,9 @@ async fn process_results_area_contest_file(
             total_valid_votes,
             explicit_invalid_votes,
             implicit_invalid_votes,
-            blank_votes,
+            total_blank_votes,
+            explicit_blank_votes,
+            implicit_blank_votes,
             created_at,
             last_updated_at,
             labels,
@@ -838,8 +852,10 @@ async fn process_results_area_contest_file(
             total_invalid_votes,
             total_invalid_votes_percent,
             explicit_invalid_votes_percent,
-            blank_votes_percent,
             implicit_invalid_votes_percent,
+            total_blank_votes_percent,
+            explicit_blank_votes_percent,
+            implicit_blank_votes_percent,
             total_votes,
             total_votes_percent,
             documents,

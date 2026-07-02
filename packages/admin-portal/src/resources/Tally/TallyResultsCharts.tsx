@@ -31,7 +31,7 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     const eligibleCensus = result.elegible_census as number
     const validVotes = result.total_valid_votes as number
     const invalidVotes = result.total_invalid_votes as number
-    const blankVotes = result.blank_votes as number
+    const blankVotes = result.total_blank_votes as number
     const VotesForCandidates = validVotes - blankVotes
     const nonVoters = eligibleCensus - validVotes - invalidVotes
     const chartData = [

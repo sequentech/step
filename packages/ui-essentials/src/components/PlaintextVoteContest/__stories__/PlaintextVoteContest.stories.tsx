@@ -258,6 +258,7 @@ export const ExplicitBlankVote: Story = {
             contestNotFoundLabel="Contest not found"
             markedInvalidLabel="Marked as invalid"
             pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
         />
     ),
     parameters: commonParameters,

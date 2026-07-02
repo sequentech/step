@@ -10,8 +10,12 @@ insert_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents
@@ -42,8 +46,12 @@ insert_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents
@@ -75,8 +83,12 @@ select_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents
@@ -110,8 +122,12 @@ select_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents
@@ -143,8 +159,12 @@ select_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents
@@ -181,8 +201,12 @@ update_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents
@@ -216,8 +240,12 @@ update_permissions:
           columns:
               - annotations
               - area_id
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - created_at
               - documents

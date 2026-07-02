@@ -11,7 +11,6 @@ use std::default::Default;
 // Keys for annotations fields in ResultAreaContest
 pub const EXTENDED_METRICS: &str = "extended_metrics";
 pub const PROCESS_RESULTS: &str = "process_results";
-pub const BLANK_VOTES: &str = "blank_votes";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ResultDocumentType {
@@ -106,7 +105,9 @@ pub struct ResultsContest {
     pub total_valid_votes: Option<i64>,
     pub explicit_invalid_votes: Option<i64>,
     pub implicit_invalid_votes: Option<i64>,
-    pub blank_votes: Option<i64>,
+    pub total_blank_votes: Option<i64>,
+    pub explicit_blank_votes: Option<i64>,
+    pub implicit_blank_votes: Option<i64>,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>,
     pub name: Option<String>,
@@ -119,7 +120,9 @@ pub struct ResultsContest {
     pub total_valid_votes_percent: Option<NotNan<f64>>,
     pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
     pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
-    pub blank_votes_percent: Option<NotNan<f64>>,
+    pub total_blank_votes_percent: Option<NotNan<f64>>,
+    pub explicit_blank_votes_percent: Option<NotNan<f64>>,
+    pub implicit_blank_votes_percent: Option<NotNan<f64>>,
     pub total_votes: Option<i64>,
     pub total_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
@@ -160,7 +163,9 @@ pub struct ResultsAreaContest {
     pub total_valid_votes: Option<i64>,
     pub explicit_invalid_votes: Option<i64>,
     pub implicit_invalid_votes: Option<i64>,
-    pub blank_votes: Option<i64>,
+    pub total_blank_votes: Option<i64>,
+    pub explicit_blank_votes: Option<i64>,
+    pub implicit_blank_votes: Option<i64>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
@@ -169,8 +174,10 @@ pub struct ResultsAreaContest {
     pub total_invalid_votes: Option<i64>,
     pub total_invalid_votes_percent: Option<NotNan<f64>>,
     pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
-    pub blank_votes_percent: Option<NotNan<f64>>,
     pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
+    pub total_blank_votes_percent: Option<NotNan<f64>>,
+    pub explicit_blank_votes_percent: Option<NotNan<f64>>,
+    pub implicit_blank_votes_percent: Option<NotNan<f64>>,
     pub total_votes: Option<i64>,
     pub total_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,

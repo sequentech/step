@@ -9,8 +9,12 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at
@@ -43,8 +47,12 @@ insert_permissions:
           check: {}
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at
@@ -78,8 +86,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at
@@ -115,8 +127,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at
@@ -150,8 +166,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at
@@ -190,8 +210,12 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at
@@ -227,8 +251,12 @@ update_permissions:
           check: {}
           columns:
               - annotations
-              - blank_votes
-              - blank_votes_percent
+              - explicit_blank_votes
+              - explicit_blank_votes_percent
+              - implicit_blank_votes
+              - implicit_blank_votes_percent
+              - total_blank_votes
+              - total_blank_votes_percent
               - contest_id
               - counting_algorithm
               - created_at

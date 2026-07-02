@@ -65,9 +65,5 @@ export interface RunoffStatus {
 
 export interface ParsedAnnotations {
     extended_metrics: ExtendedMetricsContest
-    blank_votes?: {
-        explicit: number
-        implicit: number
-    }
     process_results?: RunoffStatus | unknown
 }
