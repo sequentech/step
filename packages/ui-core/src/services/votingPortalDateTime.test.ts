@@ -50,6 +50,15 @@ describe("parseVotingPortalDateTimePattern", () => {
     it("throws on a pattern with no recognized token", () => {
         expect(() => parseVotingPortalDateTimePattern("hello world")).toThrow(DateTimePatternError)
     })
+
+    it("rejects misused tokens from other conventions (YYYY, DD, hh)", () => {
+        expect(() => parseVotingPortalDateTimePattern("DD/MM/YYYY")).toThrow(DateTimePatternError)
+        expect(() => parseVotingPortalDateTimePattern("dd/MM/YYYY")).toThrow(DateTimePatternError)
+        expect(() => parseVotingPortalDateTimePattern("DD/MM/yyyy")).toThrow(DateTimePatternError)
+        expect(() => parseVotingPortalDateTimePattern("yyyy-MM-dd hh:mm")).toThrow(
+            DateTimePatternError
+        )
+    })
 })
 
 describe("isValidVotingPortalDateTimePattern", () => {
@@ -61,6 +70,11 @@ describe("isValidVotingPortalDateTimePattern", () => {
         expect(isValidVotingPortalDateTimePattern("")).toBe(false)
         expect(isValidVotingPortalDateTimePattern("   ")).toBe(false)
         expect(isValidVotingPortalDateTimePattern("hello world")).toBe(false)
+    })
+
+    it("returns false for patterns with misused tokens", () => {
+        expect(isValidVotingPortalDateTimePattern("DD/MM/YYYY")).toBe(false)
+        expect(isValidVotingPortalDateTimePattern("hh:mm")).toBe(false)
     })
 })
 

@@ -50,8 +50,14 @@ const pad = (value: number, length = 2): string => String(value).padStart(length
 
 // Supported override tokens. Rendered in the voter's local time; any other
 // characters in the pattern are passed through literally.
+// Unicode LDML date field symbols (UTS #35 / CLDR)
 const TOKEN_SOURCE = "yyyy|MM|dd|HH|mm|ss"
 const hasToken = (pattern: string): boolean => new RegExp(TOKEN_SOURCE).test(pattern)
+
+// Common tokens from other conventions (Moment-style YYYY/DD, 12-hour hh) that
+// LDML assigns different meanings. Rendering them literally would silently
+// corrupt voter-facing dates, so patterns containing them are rejected.
+const MISUSED_TOKEN_SOURCE = "YYYY|DD|hh"
 
 const tokenValue = (token: string, date: Date): string => {
     switch (token) {
@@ -83,13 +89,20 @@ export const isCustomVotingPortalDateTimeFormat = (
 
 /**
  * Validates and compiles an override pattern into a formatter. Throws a
- * {@link DateTimePatternError} on an empty pattern or one that contains no
- * recognized token. This is the single function that validates the override,
- * reused at admin save time and at render time.
+ * {@link DateTimePatternError} on an empty pattern, one that contains no
+ * recognized token, or one that contains a misused token from another
+ * convention (YYYY, DD, hh). This is the single function that validates the
+ * override, reused at admin save time and at render time.
  */
 export const parseVotingPortalDateTimePattern = (pattern: string): Formatter => {
     if (!pattern || !pattern.trim()) {
         throw new DateTimePatternError("Empty date/time pattern")
+    }
+    const misused = pattern.match(new RegExp(MISUSED_TOKEN_SOURCE))
+    if (misused) {
+        throw new DateTimePatternError(
+            `Unsupported token "${misused[0]}" in pattern: "${pattern}"; tokens are case-sensitive`
+        )
     }
     if (!hasToken(pattern)) {
         throw new DateTimePatternError(`No recognized token in pattern: "${pattern}"`)
