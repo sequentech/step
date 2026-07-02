@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voting Portal Date &amp; Time Format | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/voting_portal_datetime_format"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voting Portal Date &amp; Time Format | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2819/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/voting_portal_datetime_format"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/voting_portal_datetime_format" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/voting_portal_datetime_format" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voting Portal Date & Time Format","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/voting_portal_datetime_format"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2819/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2819/assets/js/runtime~main.e4490781.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2819/assets/js/runtime~main.64ee73b2.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2819/assets/js/main.9bf5ba13.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,7 +15,8 @@
 voters across the Voting Portal for a given Election Event. It is configured in two
 complementary ways:</p>
 <ul>
-<li class="">An <strong>event-wide preset</strong> chosen from a controlled list in the Admin Portal.</li>
+<li class="">An <strong>event-wide format</strong> chosen in the Admin Portal — either a preset from a
+controlled list, or a <strong>custom token pattern</strong>.</li>
 <li class="">An optional <strong>per-language override</strong> typed as a translation string in the
 Localization tab.</li>
 </ul>
@@ -35,6 +36,15 @@ feature existed, so existing events do not change appearance.</p>
 <code>LOCALE_MEDIUM</code> and <code>DATE_ONLY</code> are rendered in the voter&#x27;s active language; the other
 presets are locale-pinned for stable output.</p>
 <hr>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="custom-event-wide-format">Custom event-wide format<a href="#custom-event-wide-format" class="hash-link" aria-label="Direct link to Custom event-wide format" title="Direct link to Custom event-wide format" translate="no">​</a></h2>
+<p>The same select also offers <strong>Custom format</strong>. Selecting it reveals a <strong>Custom date &amp;
+time format</strong> field where a token pattern (see the token reference below) applies
+<strong>event-wide</strong>, exactly like a preset.</p>
+<p>The pattern is validated when saving the Data tab: an invalid pattern blocks the save
+and shows the error below the field, so it is never persisted. It is stored inline in
+the same <code>voting_portal_datetime_format</code> field as the presets, as
+<code>{&quot;custom&quot;: &quot;&lt;pattern&gt;&quot;}</code>.</p>
+<hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="per-language-override">Per-language override<a href="#per-language-override" class="hash-link" aria-label="Direct link to Per-language override" title="Direct link to Per-language override" translate="no">​</a></h2>
 <p>The preset can be overridden <strong>per language</strong> using the existing Localization workflow.
 This is useful when a specific language needs a different field layout than the
@@ -48,24 +58,32 @@ time; any other characters (separators, spaces, literals) pass through unchanged
 <table><thead><tr><th>Token</th><th>Meaning</th><th>Example (for 2026-03-09 07:05)</th></tr></thead><tbody><tr><td><code>yyyy</code></td><td>4-digit year</td><td><code>2026</code></td></tr><tr><td><code>MM</code></td><td>2-digit month</td><td><code>03</code></td></tr><tr><td><code>dd</code></td><td>2-digit day</td><td><code>09</code></td></tr><tr><td><code>HH</code></td><td>2-digit hour (24h)</td><td><code>07</code></td></tr><tr><td><code>mm</code></td><td>2-digit minute</td><td><code>05</code></td></tr><tr><td><code>ss</code></td><td>2-digit second</td><td><code>00</code></td></tr></tbody></table>
 <p><strong>Worked examples:</strong></p>
 <table><thead><tr><th>Pattern</th><th>Output</th></tr></thead><tbody><tr><td><code>dd/MM/yyyy HH:mm</code></td><td><code>09/03/2026 07:05</code></td></tr><tr><td><code>yyyy-MM-dd</code></td><td><code>2026-03-09</code></td></tr><tr><td><code>dd.MM.yyyy HH:mm:ss</code></td><td><code>09.03.2026 07:05:00</code></td></tr></tbody></table>
-<p>An invalid override (empty, or containing no recognized token) is <strong>rejected at save
-time</strong> in the Localization tab with an error notification, so it is never persisted.</p>
+<p>Tokens follow the Unicode LDML (CLDR) date field symbols and are <strong>case-sensitive</strong>.
+Patterns containing the lookalike tokens <code>YYYY</code>, <code>DD</code>, or <code>hh</code> (common in Moment-style
+or 12-hour conventions) are rejected outright: in LDML they mean something else
+entirely (<code>YYYY</code> is the week-numbering year, <code>DD</code> the day of year), so accepting them
+would silently corrupt voter-facing dates. Use <code>yyyy</code>, <code>dd</code>, and <code>HH</code> instead.</p>
+<p>An invalid pattern (empty, containing no recognized token, or containing one of the
+rejected tokens above) is <strong>rejected at save time</strong> — in the Localization tab with an
+error notification, and in the Data tab&#x27;s custom format field with an inline error —
+so it is never persisted. The same validation applies to both.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="behavior-and-resolution-order">Behavior and resolution order<a href="#behavior-and-resolution-order" class="hash-link" aria-label="Direct link to Behavior and resolution order" title="Direct link to Behavior and resolution order" translate="no">​</a></h2>
 <p>For each voter-facing date, the format is resolved in this order:</p>
 <ol>
 <li class=""><strong>Per-language override</strong> — <code>votingPortalDateTimeFormat</code> in the voter&#x27;s active
 language, if present and valid.</li>
-<li class=""><strong>Event preset</strong> — the <code>voting_portal_datetime_format</code> selected in the Data tab.</li>
+<li class=""><strong>Event format</strong> — the preset or custom pattern selected in the Data tab.</li>
 <li class=""><strong>Legacy GB 24h</strong> — the hard fallback.</li>
 </ol>
 <p>The override is per-language: a language without an override falls through to the event
 preset.</p>
 <p><strong>Graceful fallback:</strong> if an override that nonetheless reaches a voter is empty,
 unrecognized, or fails to format (for example, legacy data predating save-time
-validation), the Voting Portal silently uses the event preset for that language. There
-is <strong>no voter-visible error</strong> — only a <code>console.warn</code> is logged, and other languages are
-unaffected.</p>
+validation), the Voting Portal silently uses the event format for that language.
+Likewise, a stored custom event-wide pattern that is no longer valid falls back to
+<strong>Legacy GB 24h</strong>. There is <strong>no voter-visible error</strong> — only a <code>console.warn</code> is
+logged, and other languages are unaffected.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="affected-surfaces">Affected surfaces<a href="#affected-surfaces" class="hash-link" aria-label="Direct link to Affected surfaces" title="Direct link to Affected surfaces" translate="no">​</a></h2>
 <p>The configured format applies to the voter-visible dates rendered by the Voting Portal:</p>
@@ -78,6 +96,6 @@ unaffected.</p>
 feature they render in the configured format (in local time), consistent with the rest
 of the Voting Portal.</p>
 </blockquote>
-<p>This setting only affects <strong>display</strong>; the underlying stored instants are unchanged.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/08-voting-portal-datetime-format.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/decline_to_vote"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Decline to Vote</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/user-manual/settings/settings_backup-restore"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Backup &amp; Restore</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#presets" class="table-of-contents__link toc-highlight">Presets</a></li><li><a href="#per-language-override" class="table-of-contents__link toc-highlight">Per-language override</a></li><li><a href="#behavior-and-resolution-order" class="table-of-contents__link toc-highlight">Behavior and resolution order</a></li><li><a href="#affected-surfaces" class="table-of-contents__link toc-highlight">Affected surfaces</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+<p>This setting only affects <strong>display</strong>; the underlying stored instants are unchanged.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/08-voting-portal-datetime-format.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/decline_to_vote"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Decline to Vote</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2819/docs/election_managers/reference/user-manual/settings/settings_backup-restore"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Backup &amp; Restore</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#presets" class="table-of-contents__link toc-highlight">Presets</a></li><li><a href="#custom-event-wide-format" class="table-of-contents__link toc-highlight">Custom event-wide format</a></li><li><a href="#per-language-override" class="table-of-contents__link toc-highlight">Per-language override</a></li><li><a href="#behavior-and-resolution-order" class="table-of-contents__link toc-highlight">Behavior and resolution order</a></li><li><a href="#affected-surfaces" class="table-of-contents__link toc-highlight">Affected surfaces</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
