@@ -13,7 +13,8 @@ The **Voting Portal date & time format** controls how dates and times are displa
 voters across the Voting Portal for a given Election Event. It is configured in two
 complementary ways:
 
-- An **event-wide preset** chosen from a controlled list in the Admin Portal.
+- An **event-wide format** chosen in the Admin Portal — either a preset from a
+  controlled list, or a **custom token pattern**.
 - An optional **per-language override** typed as a translation string in the
   Localization tab.
 
@@ -48,6 +49,19 @@ presets are locale-pinned for stable output.
 
 ---
 
+## Custom event-wide format
+
+The same select also offers **Custom format**. Selecting it reveals a **Custom date &
+time format** field where a token pattern (see the token reference below) applies
+**event-wide**, exactly like a preset.
+
+The pattern is validated when saving the Data tab: an invalid pattern blocks the save
+and shows the error below the field, so it is never persisted. It is stored inline in
+the same `voting_portal_datetime_format` field as the presets, as
+`{"custom": "<pattern>"}`.
+
+---
+
 ## Per-language override
 
 The preset can be overridden **per language** using the existing Localization workflow.
@@ -79,8 +93,16 @@ time; any other characters (separators, spaces, literals) pass through unchanged
 | `yyyy-MM-dd` | `2026-03-09` |
 | `dd.MM.yyyy HH:mm:ss` | `09.03.2026 07:05:00` |
 
-An invalid override (empty, or containing no recognized token) is **rejected at save
-time** in the Localization tab with an error notification, so it is never persisted.
+Tokens follow the Unicode LDML (CLDR) date field symbols and are **case-sensitive**.
+Patterns containing the lookalike tokens `YYYY`, `DD`, or `hh` (common in Moment-style
+or 12-hour conventions) are rejected outright: in LDML they mean something else
+entirely (`YYYY` is the week-numbering year, `DD` the day of year), so accepting them
+would silently corrupt voter-facing dates. Use `yyyy`, `dd`, and `HH` instead.
+
+An invalid pattern (empty, containing no recognized token, or containing one of the
+rejected tokens above) is **rejected at save time** — in the Localization tab with an
+error notification, and in the Data tab's custom format field with an inline error —
+so it is never persisted. The same validation applies to both.
 
 ---
 
@@ -90,7 +112,7 @@ For each voter-facing date, the format is resolved in this order:
 
 1. **Per-language override** — `votingPortalDateTimeFormat` in the voter's active
    language, if present and valid.
-2. **Event preset** — the `voting_portal_datetime_format` selected in the Data tab.
+2. **Event format** — the preset or custom pattern selected in the Data tab.
 3. **Legacy GB 24h** — the hard fallback.
 
 The override is per-language: a language without an override falls through to the event
@@ -98,9 +120,10 @@ preset.
 
 **Graceful fallback:** if an override that nonetheless reaches a voter is empty,
 unrecognized, or fails to format (for example, legacy data predating save-time
-validation), the Voting Portal silently uses the event preset for that language. There
-is **no voter-visible error** — only a `console.warn` is logged, and other languages are
-unaffected.
+validation), the Voting Portal silently uses the event format for that language.
+Likewise, a stored custom event-wide pattern that is no longer valid falls back to
+**Legacy GB 24h**. There is **no voter-visible error** — only a `console.warn` is
+logged, and other languages are unaffected.
 
 ---
 

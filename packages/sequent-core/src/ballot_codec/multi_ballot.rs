@@ -1782,7 +1782,7 @@ mod tests {
     // slots" heuristic that desyncs on some random draws (~6.5% failure rate),
     // misreading a contest's `is_explicit_invalid` slot. Needs deterministic seeding
     // plus reconstructing expected slot positions from the style layout instead of the
-    // heuristic. Tracking issue: https://github.com/sequentech/meta/issues/TBD
+    // heuristic. Tracking issue: https://github.com/sequentech/meta/issues/12418
     #[test]
     #[ignore = "flaky: unseeded RNG + fragile index tracking; see sequentech/meta tracking issue"]
     fn test_mixed_radix_encode() {
