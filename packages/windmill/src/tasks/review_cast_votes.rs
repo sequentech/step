@@ -47,7 +47,7 @@ pub async fn review_cast_votes() -> Result<()> {
             "review_cast_votes: Processing {} cast votes",
             ballots_list.len()
         );
-        // For this celery has to be propperly configured with acks_late=true and a ralistic value for prefetch_count which stablishes the number of tasks executed in parallel
+        // For this Celery has to be properly configured with acks_late=true and a realistic value for prefetch_count, which establishes the number of tasks executed in parallel.
         for ballot in ballots_list {
             celery_app
                 .send_task(process_cast_vote::new(ballot.clone()))
