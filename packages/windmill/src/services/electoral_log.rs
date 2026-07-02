@@ -443,7 +443,7 @@ impl ElectoralLog {
         )?;
 
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
-            "Error converting Message::cast_vote_message into ElectoralLogMessage"
+            "Error converting Message::external_api_request_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
             election_event_id: event_id,
