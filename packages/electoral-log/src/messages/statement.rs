@@ -54,10 +54,10 @@ impl StatementHead {
                 description: "Error inserting cast vote.".to_string(),
                 ..default_head
             },
-            StatementBody::ExternalApiRequest(election_id, direction, api_name, operation) => StatementHead {
+            StatementBody::ExternalApiRequest(event_id, direction, api_name, operation) => StatementHead {
                 kind: StatementType::ExternalApiRequest,
                 description: format!(
-                    "{api_name} api {direction} request for election event {election_id:?} to {operation}.",
+                    "{api_name} api {direction} request for election event {event_id:?} to {operation}.",
                 ),
                 ..default_head
             },
