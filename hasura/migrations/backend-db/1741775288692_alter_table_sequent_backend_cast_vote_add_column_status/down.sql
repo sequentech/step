@@ -1,4 +1,1 @@
--- Could not auto-generate a down migration.
--- Please write an appropriate down migration for the SQL below:
--- alter table "sequent_backend"."cast_vote" add column "status" text
---  null;
+ALTER TABLE "sequent_backend"."cast_vote" DROP COLUMN IF EXISTS "status";
