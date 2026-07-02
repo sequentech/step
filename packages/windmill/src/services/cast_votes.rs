@@ -143,12 +143,20 @@ pub async fn find_area_ballots(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+/// Returns a batch of cast votes with the given status, using keyset
+/// pagination on the `(election_id, voter_id_string)` key: pass the last
+/// returned pair as `after` to fetch the next batch. Offset pagination is not
+/// safe here because rows leave the result set while workers update statuses.
 pub async fn get_cast_votes_batch_by_status(
     hasura_transaction: &Transaction<'_>,
     status: CastVoteStatus,
     limit: i64,
-    offset: i64,
+    after: Option<(Uuid, String)>,
 ) -> Result<Option<Vec<CastVote>>> {
+    let (after_election_id, after_voter_id) = match after {
+        Some((election_id, voter_id)) => (Some(election_id), Some(voter_id)),
+        None => (None, None),
+    };
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -166,14 +174,25 @@ pub async fn get_cast_votes_batch_by_status(
                         ballot_id
                     FROM "sequent_backend".cast_vote
                     WHERE
-                        status = $1
+                        status = $1 AND
+                        election_id IS NOT NULL AND
+                        voter_id_string IS NOT NULL AND
+                        ($2::UUID IS NULL OR (election_id, voter_id_string) > ($2::UUID, $3::VARCHAR))
                     ORDER BY election_id, voter_id_string, created_at DESC
-                    LIMIT $2 OFFSET $3
+                    LIMIT $4
                 "#,
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&status.to_string(), &limit, &offset])
+        .query(
+            &statement,
+            &[
+                &status.to_string(),
+                &after_election_id,
+                &after_voter_id,
+                &limit,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error running the CastVote query: {}", err))?;
 

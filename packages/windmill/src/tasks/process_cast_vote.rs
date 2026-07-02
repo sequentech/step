@@ -111,12 +111,15 @@ pub async fn process_cast_vote(cast_vote: CastVote) -> Result<()> {
             .map_err(|e| format!("Error updating cast vote status {e:?}"))?;
     }
 
-    let _commit = hasura_transaction
+    let commit_result = hasura_transaction
         .commit()
         .await
         .map_err(|e| format!("process_cast_vote: Commit failed {e:?}"));
 
+    // Release the lock even if the commit failed; the error is still
+    // propagated so the vote is retried by the next review_cast_votes run.
     lock.release().await?;
+    commit_result?;
     Ok(())
 }
 
@@ -180,14 +183,14 @@ pub async fn process_soap_request_to_datafix(
                     vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
                 );
                 let attributes = Some(hash_map);
-                let _user = client
+                if let Err(e) = client
                     .edit_user(
                         realm, &voter_id, None, attributes, None, None, None, None, None, None,
                     )
                     .await
-                    .map_err(|e| {
-                        error!("Error editing user Internet channel: {e:?}");
-                    });
+                {
+                    error!("Error editing user Internet channel: {e:?}");
+                }
                 (Ok(CastVoteStatus::Valid), format!("{req_type} Succeeded"))
             }
             Ok(SoapRequestResponse::HasVotedErrorMsg) => {
