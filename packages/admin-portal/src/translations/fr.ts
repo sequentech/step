@@ -334,9 +334,9 @@ const frenchTranslation: TranslationType = {
                     helperText:
                         "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (JJ/MM/AAAA HH:mm, 24h)",
-                        "iso-local": "ISO Local (AAAA-MM-JJ HH:mm)",
-                        "us-12h": "US 12h (MM/JJ/AAAA h:mm AM/PM)",
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (date moyenne, heure courte)",
                         "date-only": "Date Only (sans heure)",
                         "custom": "Format personnalisé",

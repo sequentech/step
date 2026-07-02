@@ -334,9 +334,9 @@ const galegoTranslation: TranslationType = {
                     helperText:
                         'Aplícase a todo o evento. Para substituílo por idioma, engade a clave "votingPortalDateTimeFormat" na pestana Localización usando os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta a documentación para máis detalles.',
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
-                        "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",
-                        "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data media, hora curta)",
                         "date-only": "Date Only (sen hora)",
                         "custom": "Formato personalizado",

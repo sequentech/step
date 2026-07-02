@@ -334,9 +334,9 @@ const basqueTranslation: TranslationType = {
                     helperText:
                         'Gertaera osoari aplikatzen zaio. Hizkuntza bakoitzeko gainjartzeko, gehitu "votingPortalDateTimeFormat" gakoa Lokalizazioa fitxan, yyyy, MM, dd, HH, mm, ss tokenak erabiliz (adib. dd/MM/yyyy HH:mm). Ikus dokumentazioa xehetasunetarako.',
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/UUUU HH:mm, 24h)",
-                        "iso-local": "ISO Local (UUUU-MM-DD HH:mm)",
-                        "us-12h": "US 12h (MM/DD/UUUU h:mm AM/PM)",
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data ertaina, ordu laburra)",
                         "date-only": "Date Only (ordurik gabe)",
                         "custom": "Formatu pertsonalizatua",

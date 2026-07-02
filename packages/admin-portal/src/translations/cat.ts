@@ -334,9 +334,9 @@ const catalanTranslation: TranslationType = {
                     helperText:
                         "S'aplica a tot l'esdeveniment. Per substituir-ho per idioma, afegeix la clau \"votingPortalDateTimeFormat\" a la pestanya Localització amb els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta la documentació per a més detalls.",
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/AAAA HH:mm, 24h)",
-                        "iso-local": "ISO Local (AAAA-MM-DD HH:mm)",
-                        "us-12h": "US 12h (MM/DD/AAAA h:mm AM/PM)",
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (data mitjana, hora curta)",
                         "date-only": "Date Only (sense hora)",
                         "custom": "Format personalitzat",

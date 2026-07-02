@@ -335,9 +335,9 @@ const englishTranslation = {
                     helperText:
                         'Applies event-wide. To override per language, add the key "votingPortalDateTimeFormat" in the Localization tab using tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). See the docs for details.',
                     options: {
-                        "legacy-gb-24h": "Legacy GB 24h (DD/MM/YYYY HH:mm, 24h)",
-                        "iso-local": "ISO Local (YYYY-MM-DD HH:mm)",
-                        "us-12h": "US 12h (MM/DD/YYYY h:mm AM/PM)",
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
                         "locale-medium": "Locale Medium (medium date, short time)",
                         "date-only": "Date Only (no time)",
                         "custom": "Custom format",
