@@ -132,7 +132,7 @@ jobs:
   # ===========================================================================
   notify-on-failure:
     name: Notify on failure
-    needs: run-tests
+    needs: [run-tests, run-frontend-tests]
     if: failure()
     runs-on: ubuntu-24.04
     steps:
