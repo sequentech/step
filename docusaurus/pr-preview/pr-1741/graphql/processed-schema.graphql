@@ -8043,6 +8043,7 @@ type cast_vote {
     path: String
   ): jsonb
   last_updated_at: timestamptz
+  status: String!
   tenant_id: uuid!
   voter_id_string: String
 }
@@ -8088,6 +8089,7 @@ input cast_vote_bool_exp {
   id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
+  status: String_comparison_exp
   tenant_id: uuid_comparison_exp
   voter_id_string: String_comparison_exp
 }
@@ -8141,6 +8143,7 @@ input cast_vote_insert_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8155,6 +8158,7 @@ type cast_vote_max_fields {
   election_id: uuid
   id: uuid
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8169,6 +8173,7 @@ type cast_vote_min_fields {
   election_id: uuid
   id: uuid
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8205,6 +8210,7 @@ input cast_vote_order_by {
   id: order_by
   labels: order_by
   last_updated_at: order_by
+  status: order_by
   tenant_id: order_by
   voter_id_string: order_by
 }
@@ -8249,6 +8255,8 @@ enum cast_vote_select_column {
   """column name"""
   last_updated_at
   """column name"""
+  status
+  """column name"""
   tenant_id
   """column name"""
   voter_id_string
@@ -8269,6 +8277,7 @@ input cast_vote_set_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8296,6 +8305,7 @@ input cast_vote_stream_cursor_value_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8326,6 +8336,8 @@ enum cast_vote_update_column {
   labels
   """column name"""
   last_updated_at
+  """column name"""
+  status
   """column name"""
   tenant_id
   """column name"""
