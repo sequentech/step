@@ -126,6 +126,43 @@ pub async fn update_cast_vote_status(
     Ok(())
 }
 
+/// Counts the cast votes of an election that have the given status. Used to
+/// guard the tally against extracting ballots while votes are still
+/// `in-progress` (and therefore not yet countable).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn count_cast_votes_by_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    status: CastVoteStatus,
+) -> Result<i64> {
+    let status = status.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT COUNT(*) AS count
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    status = $4
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[tenant_id, election_event_id, election_id, &status],
+        )
+        .await
+        .map_err(|err| anyhow!("Error counting cast votes by status: {}", err))?;
+
+    Ok(row.get("count"))
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes(
     hasura_transaction: &Transaction<'_>,

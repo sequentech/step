@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
+use crate::postgres::cast_vote::count_cast_votes_by_status;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
@@ -18,7 +19,7 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
-use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::cast_votes::{count_cast_votes_election, CastVoteStatus, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
@@ -78,6 +79,7 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
@@ -802,6 +804,40 @@ async fn map_plaintext_data(
             TallyExecutionStatus::IN_PROGRESS.to_string()
         );
         return Ok(None);
+    }
+
+    // Refuse to tally while any cast vote is still `in-progress`. Those votes
+    // are not yet countable (find_area_ballots filters to `valid`), so tallying
+    // now would silently under-count. Fail-closed per election and let the
+    // operator re-run once the review_cast_votes pipeline has drained them.
+    let tenant_uuid = parse_uuid_v4(&tenant_id).with_context(|| "Error parsing tenant_id")?;
+    let election_event_uuid =
+        parse_uuid_v4(&election_event_id).with_context(|| "Error parsing election_event_id")?;
+    let mut election_ids: Vec<String> = tally_session_contest
+        .iter()
+        .map(|contest| contest.election_id.clone())
+        .collect();
+    election_ids.sort();
+    election_ids.dedup();
+    for election_id in &election_ids {
+        let election_uuid =
+            parse_uuid_v4(election_id).with_context(|| "Error parsing election_id")?;
+        let in_progress_count = count_cast_votes_by_status(
+            hasura_transaction,
+            &tenant_uuid,
+            &election_event_uuid,
+            &election_uuid,
+            CastVoteStatus::InProgress,
+        )
+        .await?;
+        if in_progress_count > 0 {
+            return Err(anyhow!(
+                "Refusing to tally election {election_id} for event {election_event_id}: \
+                 {in_progress_count} cast vote(s) still in-progress. Wait for the \
+                 review_cast_votes pipeline to finish processing them and re-run the tally."
+            )
+            .into());
+        }
     }
 
     let last_message_id: i64 = tally_session_execution.current_message_id as i64;

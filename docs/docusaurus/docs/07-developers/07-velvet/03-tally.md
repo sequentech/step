@@ -153,6 +153,25 @@ This behavior is implemented by `get_area_tally_operation`, which selects the co
 
 When in doubt or when configuration is missing, the tally engine will always choose a safe default based on the counting algorithm, so tallying can proceed even without explicit `tally_operation` settings.
 
+## Cast vote status guard
+
+Each cast vote carries a `status` (`in-progress`, `valid`, or `discarded`). Only
+`valid` votes are extracted for tallying — a vote enters as `in-progress` and is
+promoted to `valid` (or `discarded`) by the asynchronous `process_cast_vote`
+pipeline, with the `review_cast_votes` beat retrying any stragglers.
+
+To avoid silently under-counting, a tally session **refuses to proceed while any
+cast vote for the elections being tallied is still `in-progress`**. The check is
+fail-closed and scoped **per election**: before extracting ballots, the engine
+counts the `in-progress` votes for each election in the session and, if any
+remain, aborts the tally with an operator-visible error instead of tallying a
+partial result. A second backstop check runs immediately before ballot
+extraction (`find_area_ballots`) for the same reason.
+
+When this happens, wait for the `process_cast_vote` / `review_cast_votes`
+pipeline to finish draining the `in-progress` votes (normally seconds after
+voting closes), then re-run the tally.
+
 ## Location
 
 Tally engine implementation: `/packages/velvet/src/pipes/do_tally/`

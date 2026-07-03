@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::cast_vote::count_cast_votes_by_status;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::cast_votes::{find_area_ballots, CastVote, CastVoteStatus};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
@@ -33,6 +34,7 @@ use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use serde_json::json;
 use std::collections::HashMap;
@@ -168,6 +170,32 @@ pub async fn insert_ballots_messages(
                         "Creating temporary file for ballots with path {:?}",
                         ballots_temp_file.path()
                     );
+
+                    // Backstop for the tally-session guard: never extract
+                    // ballots for an election that still has `in-progress`
+                    // cast votes, which are not yet countable.
+                    let tenant_uuid = parse_uuid_v4(&tenant_id_clone)
+                        .with_context(|| "Error parsing tenant_id")?;
+                    let election_event_uuid = parse_uuid_v4(&election_event_id_clone)
+                        .with_context(|| "Error parsing election_event_id")?;
+                    let election_uuid = parse_uuid_v4(&tally_session_contest.election_id)
+                        .with_context(|| "Error parsing election_id")?;
+                    let in_progress_count = count_cast_votes_by_status(
+                        &hasura_transaction_clone,
+                        &tenant_uuid,
+                        &election_event_uuid,
+                        &election_uuid,
+                        CastVoteStatus::InProgress,
+                    )
+                    .await?;
+                    if in_progress_count > 0 {
+                        return Err(anyhow!(
+                            "Refusing to extract ballots for election {} area {}: \
+                             {in_progress_count} cast vote(s) still in-progress",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
 
                     find_area_ballots(
                         &hasura_transaction_clone,
