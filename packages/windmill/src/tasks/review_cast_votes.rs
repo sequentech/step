@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::{
-    cast_votes::{get_cast_votes_batch_by_status, CastVote, CastVoteStatus},
+    cast_votes::{get_in_progress_cast_votes_batch, CastVote},
     celery_app::get_celery_app,
     database::{get_hasura_pool, PgConfig},
 };
@@ -34,13 +34,8 @@ pub async fn review_cast_votes() -> Result<()> {
     let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
     info!("review_cast_votes: Checking cast_votes in progress");
-    while let Some(ballots_list) = get_cast_votes_batch_by_status(
-        &hasura_transaction,
-        CastVoteStatus::InProgress,
-        batch_size,
-        after.clone(),
-    )
-    .await?
+    while let Some(ballots_list) =
+        get_in_progress_cast_votes_batch(&hasura_transaction, batch_size, after.clone()).await?
     {
         info!(
             "review_cast_votes: Processing {} cast votes",

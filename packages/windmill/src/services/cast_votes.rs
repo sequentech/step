@@ -143,13 +143,17 @@ pub async fn find_area_ballots(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-/// Returns a batch of cast votes with the given status, using keyset
-/// pagination on the `(election_id, voter_id_string)` key: pass the last
-/// returned pair as `after` to fetch the next batch. Offset pagination is not
-/// safe here because rows leave the result set while workers update statuses.
-pub async fn get_cast_votes_batch_by_status(
+/// Returns a batch of `in-progress` cast votes, using keyset pagination on the
+/// `(election_id, voter_id_string)` key: pass the last returned pair as `after`
+/// to fetch the next batch. Offset pagination is not safe here because rows
+/// leave the result set while workers update statuses.
+///
+/// The `status = 'in-progress'` predicate is inlined as a literal (rather than
+/// bound as a parameter) so the planner can always match the partial index
+/// `idx_cast_vote_in_progress` regardless of whether it picks a custom or
+/// generic plan.
+pub async fn get_in_progress_cast_votes_batch(
     hasura_transaction: &Transaction<'_>,
-    status: CastVoteStatus,
     limit: i64,
     after: Option<(Uuid, String)>,
 ) -> Result<Option<Vec<CastVote>>> {
@@ -174,25 +178,17 @@ pub async fn get_cast_votes_batch_by_status(
                         ballot_id
                     FROM "sequent_backend".cast_vote
                     WHERE
-                        status = $1 AND
+                        status = 'in-progress' AND
                         election_id IS NOT NULL AND
                         voter_id_string IS NOT NULL AND
-                        ($2::UUID IS NULL OR (election_id, voter_id_string) > ($2::UUID, $3::VARCHAR))
+                        ($1::UUID IS NULL OR (election_id, voter_id_string) > ($1::UUID, $2::VARCHAR))
                     ORDER BY election_id, voter_id_string, created_at DESC
-                    LIMIT $4
+                    LIMIT $3
                 "#,
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &status.to_string(),
-                &after_election_id,
-                &after_voter_id,
-                &limit,
-            ],
-        )
+        .query(&statement, &[&after_election_id, &after_voter_id, &limit])
         .await
         .map_err(|err| anyhow!("Error running the CastVote query: {}", err))?;
 
