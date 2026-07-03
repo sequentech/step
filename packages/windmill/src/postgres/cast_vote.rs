@@ -126,6 +126,50 @@ pub async fn update_cast_vote_status(
     Ok(())
 }
 
+/// Returns whether the voter already has at least one `valid` cast vote in
+/// the election event. Used by the datafix flow to tell a VoterView
+/// `HasVoted` response caused by our own earlier `SetVoted` (a legitimate
+/// re-vote) apart from a genuine "already voted through another channel".
+#[instrument(skip(hasura_transaction), err)]
+pub async fn has_valid_cast_vote(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id_string: &str,
+) -> Result<bool> {
+    let status = CastVoteStatus::Valid.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        voter_id_string = $3 AND
+                        status = $4
+                ) AS found
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &voter_id_string,
+                &status,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error checking for valid cast votes: {}", err))?;
+
+    Ok(row.get("found"))
+}
+
 /// Counts the cast votes of an election that have the given status. Used to
 /// guard the tally against extracting ballots while votes are still
 /// `in-progress` (and therefore not yet countable).

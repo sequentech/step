@@ -275,21 +275,26 @@ pub async fn insert_cast_vote(
         duration.as_millis()
     );
 
+    // The vote is already committed: an enqueue failure must not fail the
+    // request. The review_cast_votes beat picks up any in-progress vote whose
+    // task was never delivered.
     let celery_app = get_celery_app().await;
-    let celery_task = celery_app
+    match celery_app
         .send_task(process_cast_vote::process_cast_vote::new(
             inserted_cast_vote.clone(),
         ))
         .await
-        .map_err(|e| {
-            error!("Error sending cast_vote_actions task: {e:?}");
-            ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::UnknownError.to_string().as_str(),
-                ErrorCode::UnknownError,
-            )
-        })?;
-    info!("Sent process_cast_vote task {}", celery_task.task_id);
+    {
+        Ok(celery_task) => {
+            info!("Sent process_cast_vote task {}", celery_task.task_id);
+        }
+        Err(e) => {
+            error!(
+                "Error sending process_cast_vote task for cast vote {}: {e:?}; the review_cast_votes beat will retry it",
+                inserted_cast_vote.id
+            );
+        }
+    }
 
     Ok(Json(inserted_cast_vote))
 }

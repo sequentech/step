@@ -4,6 +4,9 @@
 
 import {gql} from "@apollo/client"
 
+// Only "valid" cast votes count towards dashboards: "in-progress" votes are
+// still being processed and "discarded" ones were rejected (see the backend
+// CastVoteStatus enum in windmill).
 export const GET_CAST_VOTES_BY_DATERANGE = gql`
     query GetCastVotesByDateRange(
         $electionEventId: uuid!
@@ -17,6 +20,7 @@ export const GET_CAST_VOTES_BY_DATERANGE = gql`
                     election_event_id: {_eq: $electionEventId}
                     tenant_id: {_eq: $tenantId}
                     created_at: {_gte: $startDate, _lte: $endDate}
+                    status: {_eq: "valid"}
                 }
             }
         ) {
@@ -34,7 +38,13 @@ export const GET_CAST_VOTES_BY_DATERANGE = gql`
 export const GET_CAST_VOTES = gql`
     query GetCastVotes($electionEventId: uuid!, $tenantId: uuid!) {
         sequent_backend_cast_vote(
-            where: {_and: {tenant_id: {_eq: $tenantId}, election_event_id: {_eq: $electionEventId}}}
+            where: {
+                _and: {
+                    tenant_id: {_eq: $tenantId}
+                    election_event_id: {_eq: $electionEventId}
+                    status: {_eq: "valid"}
+                }
+            }
         ) {
             id
             tenant_id
@@ -55,6 +65,7 @@ export const GET_CAST_VOTES_FOR_ELECTION = gql`
                     tenant_id: {_eq: $tenantId}
                     election_event_id: {_eq: $electionEventId}
                     election_id: {_eq: $electionId}
+                    status: {_eq: "valid"}
                 }
             }
         ) {

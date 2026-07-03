@@ -726,7 +726,7 @@ pub async fn edit_user(
                 let req_type = SoapRequest::SetNotVoted;
                 let operation = match res {
                     Ok(SoapRequestResponse::Ok) => {
-                        format!("{req_type} Succeded")
+                        format!("{req_type} Succeeded")
                     }
                     _ => {
                         format!("{req_type} Failed")

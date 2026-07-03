@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -24,6 +24,9 @@ pub async fn review_cast_votes() -> Result<()> {
         .get()
         .await
         .map_err(|e| anyhow!("Error getting hasura client {e:?}"))?;
+    // Read-only transaction: intentionally dropped without commit (rollback)
+    // at the end of the task, it only provides a consistent snapshot for the
+    // paginated reads below.
     let hasura_transaction = hasura_db_client
         .transaction()
         .await

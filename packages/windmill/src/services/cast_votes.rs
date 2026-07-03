@@ -142,6 +142,11 @@ pub async fn find_area_ballots(
     Ok(())
 }
 
+/// Votes younger than this are skipped by the review beat: their
+/// process_cast_vote task published directly by harvest is normally still in
+/// flight, so re-enqueueing them would only produce redundant PgLock skips.
+const IN_PROGRESS_ENQUEUE_GRACE_SECS: f64 = 90.0;
+
 #[instrument(skip(hasura_transaction), err)]
 /// Returns a batch of `in-progress` cast votes, using keyset pagination on the
 /// `(election_id, voter_id_string)` key: pass the last returned pair as `after`
@@ -152,6 +157,12 @@ pub async fn find_area_ballots(
 /// bound as a parameter) so the planner can always match the partial index
 /// `idx_cast_vote_in_progress` regardless of whether it picks a custom or
 /// generic plan.
+///
+/// `DISTINCT ON` returns only the newest in-progress vote per voter, so when a
+/// voter stacked several re-votes during an outage they drain one beat cycle at
+/// a time (the older vote surfaces once the newer one leaves the set). This is
+/// accepted: the per-voter PgLock in process_cast_vote serializes them anyway,
+/// and the tally guard keeps blocking until the set is fully drained.
 pub async fn get_in_progress_cast_votes_batch(
     hasura_transaction: &Transaction<'_>,
     limit: i64,
@@ -181,6 +192,7 @@ pub async fn get_in_progress_cast_votes_batch(
                         status = 'in-progress' AND
                         election_id IS NOT NULL AND
                         voter_id_string IS NOT NULL AND
+                        created_at < NOW() - make_interval(secs => $4) AND
                         ($1::UUID IS NULL OR (election_id, voter_id_string) > ($1::UUID, $2::VARCHAR))
                     ORDER BY election_id, voter_id_string, created_at DESC
                     LIMIT $3
@@ -188,7 +200,15 @@ pub async fn get_in_progress_cast_votes_batch(
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&after_election_id, &after_voter_id, &limit])
+        .query(
+            &statement,
+            &[
+                &after_election_id,
+                &after_voter_id,
+                &limit,
+                &IN_PROGRESS_ENQUEUE_GRACE_SECS,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("Error running the CastVote query: {}", err))?;
 

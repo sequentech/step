@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::cast_vote::update_cast_vote_status;
+use crate::postgres::cast_vote::{has_valid_cast_vote, update_cast_vote_status};
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -24,8 +24,10 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
+use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::collections::HashMap;
-use tracing::{error, info, instrument};
+use std::time::Duration as StdDuration;
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 #[instrument(skip(cast_vote), err)]
@@ -151,11 +153,14 @@ pub async fn process_soap_request_to_datafix(
             .last()
             .map(|val_ref| val_ref.to_owned())
             .unwrap_or_default(),
-        Ok(_) => {
-            return Err(format!("Multiple users found with id {voter_id}").into());
+        Ok((_, 0)) => {
+            return Err(format!("Voter not found with id {voter_id}").into());
+        }
+        Ok((_, count)) => {
+            return Err(format!("Multiple users ({count}) found with id {voter_id}").into());
         }
         Err(e) => {
-            return Err(format!("Voter not found with id {voter_id}, error: {e:?}").into());
+            return Err(format!("Error listing users with id {voter_id}: {e:?}").into());
         }
     };
     let attributes = user.attributes.clone().unwrap_or_default();
@@ -172,29 +177,43 @@ pub async fn process_soap_request_to_datafix(
         let req_type = SoapRequest::SetVoted;
         let (result, operation) = match result {
             Ok(SoapRequestResponse::Ok) => {
-                let client = KeycloakAdminClient::new()
-                    .await
-                    .map_err(|e| format!("Error obtaining keycloak admin client {e:?}"))?;
-
-                // Set the attribute to avoid sending it again on the next vote.
-                let mut hash_map = HashMap::new();
-                hash_map.insert(
-                    VOTED_CHANNEL.to_string(),
-                    vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
-                );
-                let attributes = Some(hash_map);
-                if let Err(e) = client
-                    .edit_user(
-                        realm, &voter_id, None, attributes, None, None, None, None, None, None,
-                    )
-                    .await
-                {
+                // Losing this attribute would make the next re-vote re-send
+                // SetVoted and be answered with HasVoted, so its loss is
+                // tolerated only because the HasVoted arm below falls back to
+                // checking for a prior valid vote.
+                if let Err(e) = mark_voted_via_internet(realm, &voter_id).await {
                     error!("Error editing user Internet channel: {e:?}");
                 }
                 (Ok(CastVoteStatus::Valid), format!("{req_type} Succeeded"))
             }
             Ok(SoapRequestResponse::HasVotedErrorMsg) => {
-                (Ok(CastVoteStatus::Discarded), format!("{req_type} Failed"))
+                // HasVoted can mean two things: the voter genuinely voted
+                // through another channel (discard), or our own earlier
+                // SetVoted succeeded but the Keycloak attribute was lost —
+                // then this is a legitimate re-vote and must not be dropped.
+                let prior_valid_vote = has_valid_cast_vote(
+                    hasura_transaction,
+                    &cast_vote.tenant_id,
+                    &cast_vote.election_event_id,
+                    &voter_id,
+                )
+                .await
+                .map_err(|e| format!("Error checking prior valid cast votes: {e:?}"))?;
+                if prior_valid_vote {
+                    warn!(
+                        "VoterView reports HasVoted but voter {voter_id} has a prior valid \
+                         internet vote; accepting the re-vote and restoring the channel attribute"
+                    );
+                    if let Err(e) = mark_voted_via_internet(realm, &voter_id).await {
+                        error!("Error editing user Internet channel: {e:?}");
+                    }
+                    (
+                        Ok(CastVoteStatus::Valid),
+                        format!("{req_type} HasVoted: prior internet vote found, re-vote accepted"),
+                    )
+                } else {
+                    (Ok(CastVoteStatus::Discarded), format!("{req_type} Failed"))
+                }
             }
             Ok(SoapRequestResponse::OtherErrorMsg(msg)) => {
                 error!("Error sending request to Datafix: {msg:?}");
@@ -226,4 +245,46 @@ pub async fn process_soap_request_to_datafix(
     } else {
         Ok(CastVoteStatus::Valid)
     }
+}
+
+/// Sets the `VOTED_CHANNEL=internet` Keycloak attribute that prevents
+/// re-sending `SetVoted` on the voter's next vote. Retried because losing it
+/// silently would expose the next re-vote to a wrong HasVoted rejection.
+#[instrument(err)]
+async fn mark_voted_via_internet(realm: &str, voter_id: &str) -> Result<()> {
+    let mut hash_map = HashMap::new();
+    hash_map.insert(
+        VOTED_CHANNEL.to_string(),
+        vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+    );
+    let attributes = Some(hash_map);
+    retry_with_exponential_backoff(
+        // edit_user consumes the client, so each attempt builds a fresh one
+        // (which also renews the admin token).
+        || async {
+            let client = KeycloakAdminClient::new()
+                .await
+                .map_err(|e| format!("Error obtaining keycloak admin client {e:?}"))?;
+            client
+                .edit_user(
+                    realm,
+                    voter_id,
+                    None,
+                    attributes.clone(),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await
+                .map_err(|e| format!("Error editing user: {e:?}"))
+        },
+        3,
+        StdDuration::from_millis(500),
+    )
+    .await
+    .map_err(|e| format!("Error editing user Internet channel after retries: {e}"))?;
+    Ok(())
 }
