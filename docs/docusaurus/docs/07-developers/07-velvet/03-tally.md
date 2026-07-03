@@ -170,7 +170,10 @@ extraction (`find_area_ballots`) for the same reason.
 
 When this happens, wait for the `process_cast_vote` / `review_cast_votes`
 pipeline to finish draining the `in-progress` votes (normally seconds after
-voting closes), then re-run the tally.
+voting closes), then re-run the tally. For events integrated with an external
+voter registry, see the
+[Datafix / VoterView integration](../../integrations/datafix_voterview_integration.md)
+for how statuses are resolved.
 
 ## Location
 

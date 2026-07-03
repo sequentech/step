@@ -32,7 +32,7 @@ fn authorize_user(claims: &DatafixClaims) -> Result<(), JsonErrorResponse> {
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(Status::Forbidden, DatafixErrorCode::Forbidden)
     })
 }
 
@@ -133,23 +133,35 @@ pub async fn replace_pin(
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
 
     let (election_event_id, datafix_annotations) =
@@ -160,8 +172,13 @@ pub async fn replace_pin(
         )
         .await?;
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
-    let user_id =
-        get_user_id(&keycloak_transaction, &realm, &input.voter_id).await?;
+    // Best-effort lookup: it is only used for the electoral-log entry, and a
+    // failed operation must still be audit-logged even when the voter does
+    // not exist.
+    let user_id = get_user_id(&keycloak_transaction, &realm, &input.voter_id)
+        .await
+        .ok()
+        .unwrap_or_default();
 
     let endpoint_name = EndpointNames::ReplacePin;
     let (pin_result, operation) =
@@ -178,7 +195,13 @@ pub async fn replace_pin(
         .await
         {
             Ok(pin) => (Ok(pin), format!("{endpoint_name} Succeeded")),
-            Err(err) => (Err(err), format!("{endpoint_name} Failed")),
+            Err(err) => {
+                let operation = match err.error_code() {
+                    Some(code) => format!("{endpoint_name} Failed: {code}"),
+                    None => format!("{endpoint_name} Failed"),
+                };
+                (Err(err), operation)
+            }
         };
 
     post_operation_result_to_electoral_log(
@@ -203,23 +226,35 @@ async fn handle_voter_operation(
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            )
         })?;
 
     let (election_event_id, _) = get_event_id_and_datafix_annotations(
@@ -299,14 +334,29 @@ async fn handle_voter_operation(
             input.voter_id,
         ),
 
-        _ => return Err(DatafixResponse::new(Status::InternalServerError)),
+        _ => {
+            return Err(DatafixResponse::error(
+                Status::InternalServerError,
+                DatafixErrorCode::InternalError,
+            ))
+        }
     };
 
-    let user_id = get_user_id(&keycloak_transaction, &realm, &username).await?;
+    // Best-effort lookup: it is only used for the electoral-log entry, and a
+    // failed operation (e.g. add-voter for a user that was never created)
+    // must still be audit-logged — a `?` here would both skip the log entry
+    // and mask the operation's own error with a lookup error.
+    let user_id = get_user_id(&keycloak_transaction, &realm, &username)
+        .await
+        .ok()
+        .unwrap_or_default();
 
-    let operation = match result.is_ok() {
-        true => format!("{endpoint_name} Succeeded"),
-        false => format!("{endpoint_name} Failed"),
+    let operation = match &result {
+        Ok(_) => format!("{endpoint_name} Succeeded"),
+        Err(err) => match err.error_code() {
+            Some(code) => format!("{endpoint_name} Failed: {code}"),
+            None => format!("{endpoint_name} Failed"),
+        },
     };
 
     post_operation_result_to_electoral_log(

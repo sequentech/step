@@ -42,21 +42,104 @@ pub enum VoterOperationInput {
     MarkVoted(MarkVotedBody),
 }
 
+/// Machine-readable error codes returned by the Datafix API. These are a
+/// public contract with the Datafix integration: changing an existing value
+/// is a breaking change.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
+pub enum DatafixErrorCode {
+    /// add-voter for a username that already exists in the realm.
+    #[serde(rename = "voter-already-exists")]
+    #[strum(serialize = "voter-already-exists")]
+    VoterAlreadyExists,
+    /// No voter matches the given voter_id (username).
+    #[serde(rename = "voter-not-found")]
+    #[strum(serialize = "voter-not-found")]
+    VoterNotFound,
+    /// More than one voter matches the given voter_id: data-integrity issue.
+    #[serde(rename = "voter-not-unique")]
+    #[strum(serialize = "voter-not-unique")]
+    VoterNotUnique,
+    /// No area matches the ward/schoolboard/poll combination in the request.
+    #[serde(rename = "area-not-found")]
+    #[strum(serialize = "area-not-found")]
+    AreaNotFound,
+    /// No election event is annotated with the requester's datafix event id.
+    #[serde(rename = "event-not-found")]
+    #[strum(serialize = "event-not-found")]
+    EventNotFound,
+    /// The request body is malformed or contains invalid values.
+    #[serde(rename = "invalid-request")]
+    #[strum(serialize = "invalid-request")]
+    InvalidRequest,
+    /// The credentials are missing or invalid.
+    #[serde(rename = "unauthorized")]
+    #[strum(serialize = "unauthorized")]
+    Unauthorized,
+    /// The credentials are valid but lack the Datafix permission.
+    #[serde(rename = "forbidden")]
+    #[strum(serialize = "forbidden")]
+    Forbidden,
+    /// Unexpected server-side failure; safe to retry later.
+    #[serde(rename = "internal-error")]
+    #[strum(serialize = "internal-error")]
+    InternalError,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DatafixResponse {
     pub code: u16,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<DatafixErrorCode>,
 }
 
-pub type JsonErrorResponse = Json<DatafixResponse>;
+/// Error responder for the Datafix API routes: sets the real HTTP status and
+/// serializes a `DatafixResponse` body, so clients that only check the HTTP
+/// status and clients that parse the body agree on the outcome.
+#[derive(Debug)]
+pub struct JsonErrorResponse {
+    pub status: Status,
+    pub body: DatafixResponse,
+}
+
+impl JsonErrorResponse {
+    pub fn error_code(&self) -> Option<DatafixErrorCode> {
+        self.body.error_code
+    }
+}
+
+impl<'r> rocket::response::Responder<'r, 'static> for JsonErrorResponse {
+    fn respond_to(self, request: &'r rocket::Request<'_>) -> rocket::response::Result<'static> {
+        let json = Json(self.body).respond_to(request)?;
+        Ok(rocket::Response::build_from(json)
+            .status(self.status)
+            .finalize())
+    }
+}
 
 impl DatafixResponse {
+    /// Success body for the `Ok` arm of the Datafix routes.
     #[instrument]
-    pub fn new(status: Status) -> JsonErrorResponse {
+    pub fn ok() -> Json<DatafixResponse> {
         Json(DatafixResponse {
-            code: status.code,
-            message: status.reason().unwrap_or_default().to_string(),
+            code: Status::Ok.code,
+            message: Status::Ok.reason().unwrap_or_default().to_string(),
+            error_code: None,
         })
+    }
+
+    /// Error response carrying both the HTTP status and the stable
+    /// machine-readable error code.
+    #[instrument]
+    pub fn error(status: Status, error_code: DatafixErrorCode) -> JsonErrorResponse {
+        JsonErrorResponse {
+            status,
+            body: DatafixResponse {
+                code: status.code,
+                message: status.reason().unwrap_or_default().to_string(),
+                error_code: Some(error_code),
+            },
+        }
     }
 }
 

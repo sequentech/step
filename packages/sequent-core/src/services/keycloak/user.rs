@@ -397,8 +397,11 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
+            // Wrap instead of formatting so callers can downcast to
+            // KeycloakError (e.g. to detect a 409 duplicate-user conflict).
             .map_err(|err| {
-                anyhow!("Failed to create user in keycloak: {:?}", err)
+                anyhow::Error::new(err)
+                    .context("Failed to create user in keycloak")
             })?;
         let found_users = self
             .client
