@@ -10,6 +10,7 @@ use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
+use crate::services::cast_votes::CastVoteStatus;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_users, ListUsersFilter};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -104,6 +105,7 @@ impl ParticipationReportTemplate {
             .transpose()
             .with_context(|| "Error parsing election_id as UUID")?;
 
+        let status = CastVoteStatus::Valid.to_string();
         let statement = hasura_transaction
             .prepare(
                 r#"
@@ -116,6 +118,7 @@ impl ParticipationReportTemplate {
                     tenant_id = $1
                     AND election_event_id = $2
                     AND ($3::uuid IS NULL OR election_id = $3::uuid)
+                    AND status = $4
                 "#,
             )
             .await
@@ -124,7 +127,7 @@ impl ParticipationReportTemplate {
         let row: Row = hasura_transaction
             .query_one(
                 &statement,
-                &[&tenant_uuid, &election_event_uuid, &election_uuid],
+                &[&tenant_uuid, &election_event_uuid, &election_uuid, &status],
             )
             .await
             .map_err(|err| anyhow!("Error running participation report query: {err}"))?;
