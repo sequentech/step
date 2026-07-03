@@ -170,12 +170,13 @@ pub async fn get_cast_votes(
     election_event_id: &Uuid,
     election_id: &Uuid,
     voter_id_string: &str,
+    statuses: &[CastVoteStatus],
 ) -> Result<Vec<CastVote>> {
-    let status = CastVoteStatus::Valid.to_string();
+    let statuses: Vec<String> = statuses.iter().map(|status| status.to_string()).collect();
     let statement = hasura_transaction
         .prepare(
             r#"
-                SELECT 
+                SELECT
                     id,
                     ballot_id,
                     election_id,
@@ -198,7 +199,7 @@ pub async fn get_cast_votes(
                     election_event_id = $2 AND
                     election_id = $3 AND
                     voter_id_string = $4 AND
-                    status = $5
+                    status = ANY($5)
                 ;
             "#,
         )
@@ -212,7 +213,7 @@ pub async fn get_cast_votes(
                 &election_event_id,
                 &election_id,
                 &voter_id_string,
-                &status,
+                &statuses,
             ],
         )
         .await

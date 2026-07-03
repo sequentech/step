@@ -7,7 +7,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::cast_votes::CastVote;
+use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
@@ -901,12 +901,17 @@ async fn check_previous_votes(
             election_event_id,
             election_id,
         ),
+        // `in-progress` votes count toward the revote / cross-area check so a
+        // voter can't bypass it by voting again before the async
+        // process_cast_vote pipeline promotes the previous vote. `discarded`
+        // votes do not count (they never became a recorded vote).
         postgres::cast_vote::get_cast_votes(
             &hasura_transaction,
             tenant_uuid,
             election_event_uuid,
             election_uuid,
             voter_id_string,
+            &[CastVoteStatus::Valid, CastVoteStatus::InProgress],
         )
     )
     .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
