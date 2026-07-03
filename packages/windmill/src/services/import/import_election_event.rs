@@ -233,12 +233,18 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     let mut realm_copy = realm.clone();
 
     // Collect well-known clients and their secrets to set.
-    let keycloak_client_id =
-        env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
-    let keycloak_client_secret =
-        env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
+    let keycloak_client_id = env::var("KEYCLOAK_CLIENT_ID")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .with_context(|| "KEYCLOAK_CLIENT_ID can't be empty")?;
+    let keycloak_client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .with_context(|| "KEYCLOAK_CLIENT_SECRET can't be empty")?;
     let mut known_clients = vec![
-        // Keycloak client is always known and required.
+        // Keycloak client is always known and required, as checked (and failed if required) above.
         (keycloak_client_id, Some(keycloak_client_secret)),
         // IVR specific clients are optional, their secrets may or may not be configured during deployment.
         // This is not considered a failure, it will be ignored, and a new secret will be generated.
