@@ -202,4 +202,5 @@ export enum IPermissions {
     PHONE_BLACKLIST_READ = "phone-blacklist-read",
     PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
     PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
+    PHONE_BLACKLIST_UPDATE = "phone-blacklist-update",
 }

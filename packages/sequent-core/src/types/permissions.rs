@@ -379,6 +379,8 @@ pub enum Permissions {
     PHONE_BLACKLIST_READ,
     #[strum(serialize = "phone-blacklist-create")]
     PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-update")]
+    PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
 }

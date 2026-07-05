@@ -1851,6 +1851,15 @@
         "attributes": {}
       },
       {
+        "id": "0b57621a-2429-49c0-8802-bc0219682e77",
+        "name": "phone-blacklist-update",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "92fb4a5d-f1bb-4983-b33a-90c7223fffe7",
         "name": "phone-blacklist-delete",
         "description": "",
@@ -2453,6 +2462,7 @@
         "tally-resolution-submit",
         "phone-blacklist-read",
         "phone-blacklist-create",
+        "phone-blacklist-update",
         "phone-blacklist-delete"
       ],
       "clientRoles": {}
