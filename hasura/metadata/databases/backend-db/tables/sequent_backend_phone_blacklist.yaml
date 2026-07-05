@@ -74,13 +74,7 @@ update_permissions:
     - comment: ""
       permission:
           columns:
-              - phone_e164
               - reason
-              - created_at
-              - created_by
-              - election_event_id
-              - id
-              - tenant_id
               - updated_at
           filter:
               tenant_id:
@@ -93,6 +87,7 @@ update_permissions:
       permission:
           columns:
               - reason
+              - updated_at
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -103,13 +98,7 @@ update_permissions:
     - comment: ""
       permission:
           columns:
-              - phone_e164
               - reason
-              - created_at
-              - created_by
-              - election_event_id
-              - id
-              - tenant_id
               - updated_at
           filter: {}
           check: {}
