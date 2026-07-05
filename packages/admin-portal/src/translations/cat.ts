@@ -263,6 +263,9 @@ const catalanTranslation: TranslationType = {
                 voter_authentication: "Autenticació del votant",
                 realm_attributes: "Keycloak realm attributes",
                 realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Inici de sessió",

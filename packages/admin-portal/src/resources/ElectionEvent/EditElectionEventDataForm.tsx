@@ -59,6 +59,7 @@ import {
     EElectionEventDelegatedVotingPolicy,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
+    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -172,6 +173,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     })
     const [realmAttributes, setRealmAttributes] = useState<Record<string, string>>({})
     const [realmAttributesError, setRealmAttributesError] = useState<string>()
+    const [realmAttributesDirty, setRealmAttributesDirty] = useState(false)
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -518,6 +520,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         if (attributes) {
             setRealmAttributes(attributes)
             setRealmAttributesError(undefined)
+            setRealmAttributesDirty(false)
         }
     }, [realmAttributesData])
 
@@ -649,6 +652,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         try {
             setRealmAttributes(normalizeRealmAttributes(newData))
             setRealmAttributesError(undefined)
+            setRealmAttributesDirty(true)
             setActivateSave(true)
         } catch (error) {
             const message = error instanceof Error ? error.message : "Invalid realm attributes"
@@ -656,6 +660,14 @@ export const EditElectionEventDataForm: React.FC = () => {
             setActivateSave(true)
             return false
         }
+    }
+
+    const setRealmAttributeDraftValue = (key: string, value: string) => {
+        if (!canEditRealmAttributes) {
+            return
+        }
+        setRealmAttributes((prev) => ({...prev, [key]: value}))
+        setRealmAttributesDirty(true)
     }
 
     const handleEnrollmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -781,6 +793,12 @@ export const EditElectionEventDataForm: React.FC = () => {
             notify(realmAttributesError, {type: "error"})
             return false
         }
+        // Never push a draft based on attributes that failed to load: the
+        // edits were made against incomplete data.
+        if (canReadRealmAttributes && (isRealmAttributesLoading || realmAttributesQueryError)) {
+            notify(t("electionEventScreen.edit.realm_attributes_not_loaded"), {type: "error"})
+            return false
+        }
 
         try {
             await manageRealmAttributes({
@@ -792,10 +810,11 @@ export const EditElectionEventDataForm: React.FC = () => {
             if (canReadRealmAttributes) {
                 await refetchRealmAttributes()
             }
+            setRealmAttributesDirty(false)
             return true
         } catch (err: any) {
             console.error(err)
-            notify("Error updating realm attributes", {type: "error"})
+            notify(t("electionEventScreen.edit.realm_attributes_update_error"), {type: "error"})
             return false
         }
     }
@@ -816,7 +835,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             )
         }
 
-        if (canEditRealmAttributes) {
+        if (canEditRealmAttributes && realmAttributesDirty) {
             const updatedRealmAttributes = await handleUpdateRealmAttributes(record.id)
             if (!updatedRealmAttributes) {
                 return
@@ -1391,6 +1410,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                             defaultValue={EVoterCertificatePolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+                                    e.target.value as EVoterCertificatePolicy
+                                )
+                            }
                         />
                         <Box
                             sx={{

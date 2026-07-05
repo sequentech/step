@@ -19,10 +19,10 @@ SPDX-License-Identifier: AGPL-3.0-only
     <modules>
         <module>aws-ses-email-sender-provider</module>
         <module>conditional-authenticators</module>
-	        <module>dummy-email-sender-provider</module>
-	        <module>voter-enrollment</module>
-	        <module>action-token-login-bridge</module>
-	        <module>message-otp-authenticator</module>
+        <module>dummy-email-sender-provider</module>
+        <module>voter-enrollment</module>
+        <module>action-token-login-bridge</module>
+        <module>message-otp-authenticator</module>
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
         <module>custom-event-listener</module>
@@ -161,10 +161,10 @@ SPDX-License-Identifier: AGPL-3.0-only
               <includes>
                 <include>aws-ses-email-sender-provider/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
-					<include>dummy-email-sender-provider/pom.xml</include>
-					<include>voter-enrollment/pom.xml</include>
-					<include>action-token-login-bridge/pom.xml</include>
-					<include>message-otp-authenticator/pom.xml</include>
+                <include>dummy-email-sender-provider/pom.xml</include>
+                <include>voter-enrollment/pom.xml</include>
+                <include>action-token-login-bridge/pom.xml</include>
+                <include>message-otp-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
@@ -178,10 +178,10 @@ SPDX-License-Identifier: AGPL-3.0-only
               <includes>
                 <include>aws-ses-email-sender-provider/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
-					<include>dummy-email-sender-provider/pom.xml</include>
-					<include>voter-enrollment/pom.xml</include>
-					<include>action-token-login-bridge/pom.xml</include>
-					<include>message-otp-authenticator/pom.xml</include>
+                <include>dummy-email-sender-provider/pom.xml</include>
+                <include>voter-enrollment/pom.xml</include>
+                <include>action-token-login-bridge/pom.xml</include>
+                <include>message-otp-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>

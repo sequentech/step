@@ -47,7 +47,7 @@ public class LoginBridgeActionTokenHandler
   @Override
   public Response handleToken(
       LoginBridgeActionToken token, ActionTokenContext<LoginBridgeActionToken> tokenContext) {
-    log.infof(
+    log.debugf(
         "handleToken(): called with iss=%s, user=%s", token.getIssuedFor(), token.getUserId());
     UserModel user = tokenContext.getAuthenticationSession().getAuthenticatedUser();
 
@@ -58,7 +58,7 @@ public class LoginBridgeActionTokenHandler
         (token.getRedirectUri() != null)
             ? token.getRedirectUri()
             : ResolveRelative.resolveRelativeUri(session, client.getRootUrl(), client.getBaseUrl());
-    log.infof("handleToken(): redirectUri=%s", redirectUri);
+    log.debugf("handleToken(): redirectUri=%s", redirectUri);
 
     String shouldRedirect = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
 

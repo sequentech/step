@@ -41,8 +41,9 @@ public final class LoginBridge {
     String scopes = authSession.getClientNote(OIDCLoginProtocol.SCOPE_PARAM);
     String state = authSession.getClientNote(OIDCLoginProtocol.STATE_PARAM);
     String nonce = authSession.getClientNote(OIDCLoginProtocol.NONCE_PARAM);
-    log.infof("Creating login bridge token for %s, %s, %s", user.getEmail(), clientId, redirectUri);
-    log.infof("Login bridge token extra vars %s %s %s %b", scopes, state, nonce, rememberMe);
+    log.debugf(
+        "Creating login bridge token for user %s, %s, %s", user.getId(), clientId, redirectUri);
+    log.debugf("Login bridge token extra vars %s %s %s %b", scopes, state, nonce, rememberMe);
     return createActionToken(
         user,
         clientId,

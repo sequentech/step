@@ -208,9 +208,13 @@ Supported second-generation attribute checks are:
 
 | Required attribute | Check |
 | --- | --- |
-| `email` | Compared with the Keycloak user's email, case-insensitively. |
-| `tlf` | Compared with the Keycloak user's mobile phone attribute, `sequent.read-only.mobile-number`. |
+| `email` | Compared with the Keycloak user's email, case-insensitively and ignoring spaces. |
+| `tlf` | Compared with the Keycloak user's mobile phone attribute, `sequent.read-only.mobile-number`, ignoring whitespace. |
 | any other name | Compared exactly with the Keycloak user attribute of the same name. |
+
+Note that required attributes are plain query parameters: they are **not**
+covered by the token's HMAC signature. They act as an additional knowledge
+check against the census user, not as integrity-protected data.
 
 Unsupported first-generation field types such as `password`, `otp-code`,
 `captcha`, `image` and `dict` are not part of Smart Link HMAC authentication in
@@ -274,8 +278,9 @@ user attribute, while `email` and `tlf` use the special checks described above.
 - **Mint at click time.** Do not pre-generate links; generate one when the voter
   acts, so it is consumed well within its validity window.
 - **Treat required attributes as login data.** Required attributes are URL query
-  parameters, so avoid adding more personal data than the election needs, and
-  keep the token lifetime short.
+  parameters that are not covered by the HMAC signature, so avoid adding more
+  personal data than the election needs (it can end up in access logs and
+  browser history), and keep the token lifetime short.
 - **Keep clocks in sync.** Sequent rejects both expired tokens and tokens minted
   in the future (beyond `smart-link-clock-skew-secs`), so use NTP on both sides.
 - **Errors are deliberately vague.** Disabled or misconfigured realms return
