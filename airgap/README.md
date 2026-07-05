@@ -137,8 +137,26 @@ Before going to the lab, you must bundle all required artifacts.
 3.  This will create an `airgap-output/` directory containing:
     - K3s and Kubectl binaries.
     - Offline Debian packages (git, curl, etc.).
+    - Bundled OS security-update packages (`os-security-updates/`).
     - A 3.5GB `images/step-airgap-infra.tar` containing all required base images.
+    - `release/image-digests.txt` — sha256 image IDs of every bundled image.
+    - `release/trivy-report.txt` — HIGH/CRITICAL vulnerability scan of the Sequent-built images.
+    - `checksums.txt` — sha256 of every release artifact (for `sha256sum -c`).
 4.  Copy the entire `airgap-output/` directory to your USB drive.
+
+### Release Versioning & Integrity
+
+Every Sequent-built image is tagged with a release version (from `git describe`,
+overridable via `RELEASE_VERSION=x.y.z ./airgap/prepare.sh`) alongside `:latest`.
+On arrival at the airgap machine, verify the bundle before deploying:
+
+```bash
+cd airgap-output
+sha256sum -c checksums.txt
+```
+
+Review `release/trivy-report.txt` for known HIGH/CRITICAL CVEs and
+`release/image-digests.txt` for the exact image IDs shipped in this release.
 
 ---
 
@@ -158,6 +176,23 @@ This will load the infrastructure images and apply all Kubernetes manifests in a
 ```bash
 sudo ./manage.sh --deploy
 ```
+
+---
+
+### Applying OS Security Updates (Offline)
+
+The bundle ships the Ubuntu `-security` pocket packages captured during preparation.
+To patch the offline server without internet access:
+
+```bash
+cd airgap-output
+sudo ./manage.sh --update-os
+```
+
+This installs every bundled security `.deb` via `dpkg` (dependencies are resolved
+from the complete bundled set). Reboot the server afterwards if a kernel package
+was updated. Refresh the bundle by re-running `./airgap/prepare.sh` on the online
+machine whenever new security updates are published.
 
 ---
 

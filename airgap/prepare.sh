@@ -12,6 +12,12 @@ OUTPUT_DIR="$PROJECT_ROOT/airgap-output"
 
 # Versions
 K3S_VERSION="v1.35.4+k3s1"
+TRIVY_VERSION="0.58.1"
+
+# Release version stamped onto built images and recorded in the release manifest.
+# Override with RELEASE_VERSION=x.y.z ./prepare.sh
+RELEASE_VERSION="${RELEASE_VERSION:-$(git -C "$PROJECT_ROOT" describe --tags --always --dirty 2>/dev/null || date +%Y%m%d)}"
+echo "Release Version: $RELEASE_VERSION"
 
 # Detect Architecture
 case $(uname -m) in
@@ -21,11 +27,12 @@ case $(uname -m) in
 esac
 echo "Target Architecture: $ARCH"
 
-echo "--- [1/7] Cleaning and Preparing Output Directory ---"
+echo "--- [1/9] Cleaning and Preparing Output Directory ---"
 rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR/k3s/$ARCH" "$OUTPUT_DIR/deb-packages/$ARCH" "$OUTPUT_DIR/images"
+mkdir -p "$OUTPUT_DIR/k3s/$ARCH" "$OUTPUT_DIR/deb-packages/$ARCH" \
+    "$OUTPUT_DIR/os-security-updates/$ARCH" "$OUTPUT_DIR/images" "$OUTPUT_DIR/release"
 
-echo "--- [2/7] Downloading K3s Airgap Artifacts ($ARCH) ---"
+echo "--- [2/9] Downloading K3s Airgap Artifacts ($ARCH) ---"
 K3S_SUFFIX=""
 if [ "$ARCH" = "arm64" ]; then K3S_SUFFIX="-arm64"; fi
 
@@ -35,7 +42,7 @@ curl -Lo "$OUTPUT_DIR/k3s/$ARCH/k3s-airgap-images-${ARCH}.tar.zst" "https://gith
 curl -Lo "$OUTPUT_DIR/k3s/install.sh" "https://get.k3s.io"
 chmod +x "$OUTPUT_DIR/k3s/$ARCH/k3s" "$OUTPUT_DIR/k3s/$ARCH/kubectl" "$OUTPUT_DIR/k3s/install.sh"
 
-echo "--- [3/7] Downloading Debian Packages (Git/SSH for $ARCH) ---"
+echo "--- [3/9] Downloading Debian Packages (Git/SSH for $ARCH) ---"
 # Detect OS version for the target (default to jammy if not on linux)
 if command -v lsb_release >/dev/null 2>&1; then
     OS_CODENAME=$(lsb_release -cs)
@@ -55,7 +62,34 @@ docker run --rm --platform "linux/$ARCH" \
     "
 
 
-echo "--- [4/7] Pulling Infrastructure & CI Base Images ---"
+echo "--- [4/9] Downloading OS Security Updates ($ARCH) ---"
+# Bundle the security-pocket .debs so the offline server can be patched without
+# internet access. manage.sh --update-os installs these on the airgapped node.
+# We resolve them against the base image; the server applies whatever is newer
+# than its installed set. Only the *-security pocket is used (no feature updates).
+docker run --rm --platform "linux/$ARCH" \
+    -v "$OUTPUT_DIR/os-security-updates/$ARCH:/output" \
+    "ubuntu:$OS_CODENAME" bash -c '
+        set -e
+        codename="$(. /etc/os-release; echo "$VERSION_CODENAME")"
+        # Restrict apt to the security pocket only. Handle both the legacy
+        # sources.list and the deb822 ubuntu.sources (24.04+) layouts.
+        rm -f /etc/apt/sources.list.d/ubuntu.sources
+        cat > /etc/apt/sources.list <<L
+deb http://security.ubuntu.com/ubuntu ${codename}-security main restricted universe multiverse
+L
+        apt-get update
+        apt-get -y --download-only upgrade
+        if ls /var/cache/apt/archives/*.deb >/dev/null 2>&1; then
+            cp /var/cache/apt/archives/*.deb /output/
+            echo "Bundled $(ls /output/*.deb | wc -l) security package(s)."
+        else
+            echo "No pending security updates for the base image."
+        fi
+    '
+
+
+echo "--- [5/9] Pulling Infrastructure & CI Base Images ---"
 # Pulling only for current host architecture to keep it simple, 
 # but infrastructure images are usually multi-arch.
 CI_RUNNER_IMAGES=(
@@ -95,7 +129,7 @@ docker build -t sequentech.local/runner-ubuntu:22.04 -f "$PROJECT_ROOT/packages/
 echo "Building offline dependencies base image..."
 docker build -t sequentech.local/offline-dependencies:latest -f "$PROJECT_ROOT/packages/Dockerfile.offline-dependencies" "$PROJECT_ROOT/packages"
 
-echo "--- [5/7] Building Application Images ---"
+echo "--- [6/9] Building Application Images ---"
 echo "Building Immudb..."
 docker build -t sequentech.local/immudb:latest -f "$PROJECT_ROOT/packages/Dockerfile.immudb" "$PROJECT_ROOT/packages"
 
@@ -105,11 +139,9 @@ docker build -t sequentech.local/b4:latest -f "$PROJECT_ROOT/packages/b4/Dockerf
 echo "Building Braid (Trustees)..."
 docker build -t sequentech.local/braid:latest -f "$PROJECT_ROOT/packages/braid/Dockerfile.prod" "$PROJECT_ROOT/packages"
 
-echo "--- [6/7] Saving Images to Tarball ---"
-ALL_IMAGES=(
-    "${CI_RUNNER_IMAGES[@]}"
-    "${CI_BUILD_ENV_IMAGES[@]}"
-    "${INFRA_IMAGES[@]}"
+# Stamp every Sequent-built image with the release version (kept alongside the
+# :latest tag the manifests reference) for traceable, reproducible releases.
+SEQUENT_IMAGES=(
     "sequentech.local/postgresql"
     "sequentech.local/keycloak"
     "sequentech.local/ci-builder:latest"
@@ -119,9 +151,59 @@ ALL_IMAGES=(
     "sequentech.local/b4:latest"
     "sequentech.local/braid:latest"
 )
+VERSIONED_IMAGES=()
+for img in "${SEQUENT_IMAGES[@]}"; do
+    repo="${img%%:*}"
+    versioned="${repo}:${RELEASE_VERSION}"
+    docker tag "$img" "$versioned"
+    VERSIONED_IMAGES+=("$versioned")
+done
+
+echo "--- [7/9] Saving Images to Tarball ---"
+ALL_IMAGES=(
+    "${CI_RUNNER_IMAGES[@]}"
+    "${CI_BUILD_ENV_IMAGES[@]}"
+    "${INFRA_IMAGES[@]}"
+    "${SEQUENT_IMAGES[@]}"
+    "${VERSIONED_IMAGES[@]}"
+)
 docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
 
-echo "--- [7/7] Finalizing Output ---"
+echo "--- [8/9] Scanning Images & Recording Release Manifest ---"
+# Record the image content digest (immutable sha256 ID) of every bundled image.
+IMAGE_DIGESTS_FILE="$OUTPUT_DIR/release/image-digests.txt"
+{
+    echo "# Sequent airgap release $RELEASE_VERSION ($ARCH)"
+    echo "# Generated $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "# <image>  <sha256 image id>"
+} > "$IMAGE_DIGESTS_FILE"
+for img in "${ALL_IMAGES[@]}"; do
+    digest=$(docker image inspect --format '{{.Id}}' "$img")
+    printf '%s  %s\n' "$img" "$digest" >> "$IMAGE_DIGESTS_FILE"
+done
+echo "Wrote image digests to $IMAGE_DIGESTS_FILE"
+
+TRIVY_REPORT="$OUTPUT_DIR/release/trivy-report.txt"
+: > "$TRIVY_REPORT"
+# Scan each Sequent-built image via the official Trivy container.
+# The Docker socket is mounted so Trivy can reach local images directly.
+# Do not fail the build on findings — the report is an audit artifact.
+for img in "${SEQUENT_IMAGES[@]}"; do
+    echo "Scanning $img..."
+    {
+        echo "================================================================"
+        echo "Image: $img"
+        echo "================================================================"
+        docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "aquasec/trivy:${TRIVY_VERSION}" \
+            image --severity HIGH,CRITICAL --no-progress "$img" || true
+        echo ""
+    } >> "$TRIVY_REPORT"
+done
+echo "Wrote vulnerability report to $TRIVY_REPORT"
+
+echo "--- [9/9] Finalizing Output ---"
 cp -r "$AIRGAP_DIR/kubernetes" "$OUTPUT_DIR/"
 cp "$AIRGAP_DIR/manage.sh" "$OUTPUT_DIR/"
 cp "$AIRGAP_DIR/README.md" "$OUTPUT_DIR/"
@@ -135,5 +217,16 @@ tar -czf "$OUTPUT_DIR/step-source.tar.gz" \
     --exclude="./.git" \
     .
 
+echo "Generating SHA256 checksums for all release artifacts..."
+# checksums.txt lets the airgap operator verify every transferred artifact
+# (image tarball, source bundle, binaries, packages) with `sha256sum -c`.
+CHECKSUMS_FILE="$OUTPUT_DIR/checksums.txt"
+( cd "$OUTPUT_DIR" && \
+    find . -type f ! -name checksums.txt -print0 \
+        | sort -z | xargs -0 sha256sum > "$CHECKSUMS_FILE" )
+echo "Wrote $CHECKSUMS_FILE"
+
 echo "--- Preparation Complete! ---"
+echo "Release version: $RELEASE_VERSION"
 echo "Transfer 'airgap-output/' to the airgap machine."
+echo "Verify integrity on arrival with: (cd airgap-output && sha256sum -c checksums.txt)"

@@ -17,6 +17,7 @@ show_help() {
     echo "  --setup-server   Install K3s, load system images, and start the cluster."
     echo "  --setup-client   Install Git/SSH packages for the Ubuntu Desktop."
     echo "  --deploy         Load infrastructure images and apply Kubernetes manifests."
+    echo "  --update-os      Apply bundled OS security updates on the offline server."
     echo "  --run-dev        Extract source and provide instructions for Gitea push."
     echo "  --help           Show this help message."
     echo ""
@@ -144,6 +145,25 @@ EOF
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/"
         
         echo "Stack is deploying! Use 'kubectl get pods -A' to monitor."
+        ;;
+
+    --update-os)
+        echo "--- Applying Offline OS Security Updates ---"
+        ARCH=$(dpkg --print-architecture)
+        UPDATE_DIR="$PROJECT_ROOT/os-security-updates/$ARCH"
+        if [ ! -d "$UPDATE_DIR" ]; then
+            echo "Error: No OS update bundle found for architecture $ARCH"
+            exit 1
+        fi
+        if ! ls "$UPDATE_DIR"/*.deb >/dev/null 2>&1; then
+            echo "No security update packages bundled — nothing to apply."
+            exit 0
+        fi
+        echo "Installing $(ls "$UPDATE_DIR"/*.deb | wc -l) package(s) from $UPDATE_DIR"
+        # All dependencies are present in the bundle, so dpkg resolves ordering
+        # from the full set. --force-confold keeps existing config files.
+        sudo dpkg -i --force-confold "$UPDATE_DIR"/*.deb
+        echo "OS security updates applied. Reboot if a kernel package was updated."
         ;;
 
     --run-dev)
