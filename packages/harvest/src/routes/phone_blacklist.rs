@@ -27,6 +27,11 @@ pub struct DeletePhoneBlacklistEntryInput {
     election_event_id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeletePhoneBlacklistEntryOutput {
+    id: String,
+}
+
 #[instrument(skip(claims, input))]
 #[post("/create-phone-blacklist-entry", format = "json", data = "<input>")]
 pub async fn create_phone_blacklist_entry(
@@ -74,11 +79,11 @@ pub async fn create_phone_blacklist_entry(
 }
 
 #[instrument(skip(claims, input))]
-#[post("/delete-phone-blacklist", format = "json", data = "<input>")]
+#[post("/delete-phone-blacklist-entry", format = "json", data = "<input>")]
 pub async fn delete_phone_blacklist_entry(
     claims: JwtClaims,
     input: Json<DeletePhoneBlacklistEntryInput>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<DeletePhoneBlacklistEntryOutput>, (Status, String)> {
     let tenant_id_str = claims.hasura_claims.tenant_id.clone();
     authorize(
         &claims,
@@ -114,5 +119,5 @@ pub async fn delete_phone_blacklist_entry(
     })?;
     // TODO: Add to the electoral log
 
-    Ok(())
+    Ok(Json(DeletePhoneBlacklistEntryOutput { id: body.id }))
 }
