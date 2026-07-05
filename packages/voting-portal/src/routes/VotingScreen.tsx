@@ -22,17 +22,26 @@ import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
+import {
+    Link as RouterLink,
+    redirect,
+    useLocation,
+    useNavigate,
+    useParams,
+    useSubmit,
+} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
+import {useIsDeclineToVotePolicyEnabled} from "../hooks/useIsDeclineToVotePolicyEnabled"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -102,9 +111,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
-    const {electionId} = useParams<{electionId?: string}>()
+    const {tenantId, eventId, electionId} = useParams<TenantEventType & {electionId?: string}>()
+    const location = useLocation()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const isDeclineToVotePolicyEnabled = useIsDeclineToVotePolicyEnabled(electionId)
     const dispatch = useAppDispatch()
+
+    // With decline to vote enabled, the voter must be able to return to the start
+    // screen to access the decline option; otherwise go back to the election chooser
+    const exitLink = isDeclineToVotePolicyEnabled
+        ? `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
+        : backLink
 
     function handleClear() {
         if (ballotStyle) {
@@ -133,7 +150,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             <ActionsContainer>
                 <StyledLink
-                    to={pageIndex && pageIndex > 0 ? "" : backLink}
+                    to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >

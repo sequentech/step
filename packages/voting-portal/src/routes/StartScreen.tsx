@@ -11,8 +11,6 @@ import {
     translateFromPresentation,
     EStartScreenTitlePolicy,
     ESecurityConfirmationPolicy,
-    EElectionEventContestEncryptionPolicy,
-    EDeclineToVotePolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
@@ -32,6 +30,10 @@ import {
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setDeclinedToVote, setIsVoted} from "../store/extra/extraSlice"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
+import {
+    isMultiContestBallotStyle,
+    useIsDeclineToVotePolicyEnabled,
+} from "../hooks/useIsDeclineToVotePolicyEnabled"
 import {store} from "../store/store"
 
 const StyledTitle = styled(Typography)`
@@ -211,12 +213,8 @@ const StartScreen: React.FC = () => {
         dispatch(clearIsVoted())
     }, [ballotStyle])
 
-    const declineToVotePolicy = election?.presentation?.decline_to_vote_policy
-    const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
-        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const isDeclineToVotePolicyEnabled =
-        declineToVotePolicy === EDeclineToVotePolicy.ENABLED && isMultiContest
+    const isMultiContest = isMultiContestBallotStyle(ballotStyle)
+    const isDeclineToVotePolicyEnabled = useIsDeclineToVotePolicyEnabled(electionId)
 
     const confirmDeclineToVote = () => {
         if (!ballotStyle || !election) {
