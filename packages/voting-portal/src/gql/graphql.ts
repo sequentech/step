@@ -538,6 +538,11 @@ export type GetUsersOutput = {
   total: TotalAggregate;
 };
 
+export type IdOutput = {
+  __typename?: 'IdOutput';
+  id: Scalars['String']['output'];
+};
+
 export type ImportCertificateAuthorityOutput = {
   __typename?: 'ImportCertificateAuthorityOutput';
   errors: Array<Scalars['String']['output']>;
@@ -786,6 +791,18 @@ export enum PgAuditTable {
   PgauditHasura = 'pgaudit_hasura',
   PgauditKeycloak = 'pgaudit_keycloak'
 }
+
+export type PhoneBlacklistEntry = {
+  __typename?: 'PhoneBlacklistEntry';
+  created_at?: Maybe<Scalars['String']['output']>;
+  created_by?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  phone_e164: Scalars['String']['output'];
+  reason?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['String']['output']>;
+};
 
 export type PluginsRouteOutput = {
   __typename?: 'PluginsRouteOutput';
@@ -1131,6 +1148,7 @@ export type Mutation_Root = {
   /** create_new_tally_sheet */
   create_new_tally_sheet?: Maybe<TallySheetOutput>;
   create_permission?: Maybe<KeycloakPermission>;
+  create_phone_blacklist_entry?: Maybe<PhoneBlacklistEntry>;
   create_role: KeycloakRole;
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
@@ -1139,6 +1157,7 @@ export type Mutation_Root = {
   delete_certificate_authority?: Maybe<DeleteCertificateAuthorityOutput>;
   delete_election_event?: Maybe<DeleteElectionEvent>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
+  delete_phone_blacklist_entry?: Maybe<IdOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
   delete_role_permission?: Maybe<SetRolePermissionOutput>;
   /** delete data from the table: "sequent_backend.applications" */
@@ -1854,6 +1873,14 @@ export type Mutation_RootCreate_PermissionArgs = {
 
 
 /** mutation root */
+export type Mutation_RootCreate_Phone_Blacklist_EntryArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  phone_e164: Scalars['String']['input'];
+  reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
 export type Mutation_RootCreate_RoleArgs = {
   role: KeycloakRole2;
   tenant_id: Scalars['String']['input'];
@@ -1905,6 +1932,12 @@ export type Mutation_RootDelete_Election_EventArgs = {
 export type Mutation_RootDelete_PermissionArgs = {
   permission_name: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Phone_Blacklist_EntryArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -12631,7 +12664,7 @@ export type Sequent_Backend_Phone_Blacklist = {
   __typename?: 'sequent_backend_phone_blacklist';
   created_at: Scalars['timestamptz']['output'];
   created_by: Scalars['uuid']['output'];
-  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_event_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   phone_e164: Scalars['String']['output'];
   reason?: Maybe<Scalars['String']['output']>;
