@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Smart Link SSO Integration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/integrations/smart_link_integration_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Smart Link SSO Integration | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2748/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/integrations/smart_link_integration_guide"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/integrations/smart_link_integration_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/integrations/smart_link_integration_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Smart Link SSO Integration","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2748/docs/integrations/smart_link_integration_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2748/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2748/assets/js/runtime~main.05044290.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2748/assets/js/runtime~main.9811cc8f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2748/assets/js/main.6e8d769b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -123,7 +123,10 @@ query parameters. They are <strong>not</strong> added to the HMAC message; the <
 format stays exactly the same as first generation.</p>
 <div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">https://&lt;keycloak-host&gt;/realms/&lt;realm&gt;/election/&lt;election-id&gt;/public/login</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  ?auth-token=&lt;auth-token&gt;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  &amp;email=example%40sequentech.io</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  &amp;tlf=%2B34600111222</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  &amp;student_id=12345</span><br></span></code></pre></div></div>
 <p>Supported second-generation attribute checks are:</p>
-<table><thead><tr><th>Required attribute</th><th>Check</th></tr></thead><tbody><tr><td><code>email</code></td><td>Compared with the Keycloak user&#x27;s email, case-insensitively.</td></tr><tr><td><code>tlf</code></td><td>Compared with the Keycloak user&#x27;s mobile phone attribute, <code>sequent.read-only.mobile-number</code>.</td></tr><tr><td>any other name</td><td>Compared exactly with the Keycloak user attribute of the same name.</td></tr></tbody></table>
+<table><thead><tr><th>Required attribute</th><th>Check</th></tr></thead><tbody><tr><td><code>email</code></td><td>Compared with the Keycloak user&#x27;s email, case-insensitively and ignoring spaces.</td></tr><tr><td><code>tlf</code></td><td>Compared with the Keycloak user&#x27;s mobile phone attribute, <code>sequent.read-only.mobile-number</code>, ignoring whitespace.</td></tr><tr><td>any other name</td><td>Compared exactly with the Keycloak user attribute of the same name.</td></tr></tbody></table>
+<p>Note that required attributes are plain query parameters: they are <strong>not</strong>
+covered by the token&#x27;s HMAC signature. They act as an additional knowledge
+check against the census user, not as integrity-protected data.</p>
 <p>Unsupported first-generation field types such as <code>password</code>, <code>otp-code</code>,
 <code>captcha</code>, <code>image</code> and <code>dict</code> are not part of Smart Link HMAC authentication in
 this generation.</p>
@@ -163,8 +166,9 @@ validity window short (the 90 s default is recommended).</li>
 <li><strong>Mint at click time.</strong> Do not pre-generate links; generate one when the voter
 acts, so it is consumed well within its validity window.</li>
 <li><strong>Treat required attributes as login data.</strong> Required attributes are URL query
-parameters, so avoid adding more personal data than the election needs, and
-keep the token lifetime short.</li>
+parameters that are not covered by the HMAC signature, so avoid adding more
+personal data than the election needs (it can end up in access logs and
+browser history), and keep the token lifetime short.</li>
 <li><strong>Keep clocks in sync.</strong> Sequent rejects both expired tokens and tokens minted
 in the future (beyond <code>smart-link-clock-skew-secs</code>), so use NTP on both sides.</li>
 <li><strong>Errors are deliberately vague.</strong> Disabled or misconfigured realms return
