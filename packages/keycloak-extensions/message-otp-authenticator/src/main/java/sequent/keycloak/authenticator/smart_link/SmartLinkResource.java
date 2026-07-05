@@ -11,6 +11,8 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
+import sequent.keycloak.login_bridge.LoginBridge;
+import sequent.keycloak.login_bridge.LoginBridgeActionToken;
 
 @JBossLog
 public class SmartLinkResource extends AbstractAdminResource {
@@ -33,7 +35,7 @@ public class SmartLinkResource extends AbstractAdminResource {
           String.format("Client with ID %s not found.", request.getClientId()));
     }
 
-    if (!SmartLink.validateRedirectUri(session, request.getRedirectUri(), client)) {
+    if (!LoginBridge.validateRedirectUri(session, request.getRedirectUri(), client)) {
       throw new BadRequestException(
           String.format("redirectUri %s disallowed by client.", request.getRedirectUri()));
     }
@@ -65,8 +67,8 @@ public class SmartLinkResource extends AbstractAdminResource {
               "User with email/username %s not found, and forceCreate is off.", emailOrUsername));
     }
 
-    SmartLinkActionToken token =
-        SmartLink.createActionToken(
+    LoginBridgeActionToken token =
+        LoginBridge.createActionToken(
             user,
             request.getClientId(),
             request.getRedirectUri(),
@@ -77,7 +79,7 @@ public class SmartLinkResource extends AbstractAdminResource {
             request.getRememberMe(),
             request.getActionTokenPersistent(),
             request.getMarkEmailVerified());
-    String link = SmartLink.linkFromActionToken(session, realm, token);
+    String link = LoginBridge.linkFromActionToken(session, realm, token);
     boolean sent = false;
     if (sendNotification) {
       sent = SmartLink.sendSmartLinkNotification(session, user, link);

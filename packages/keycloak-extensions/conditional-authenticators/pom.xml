@@ -46,6 +46,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<artifactId>message-otp-authenticator</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+        <dependency>
+            <groupId>sequent</groupId>
+            <artifactId>action-token-login-bridge</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- Keycloak dependencies -->
         <dependency>
             <groupId>org.keycloak</groupId>

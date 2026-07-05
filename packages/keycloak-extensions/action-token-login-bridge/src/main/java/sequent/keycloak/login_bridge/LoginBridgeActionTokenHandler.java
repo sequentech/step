@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package sequent.keycloak.authenticator.smart_link;
+package sequent.keycloak.login_bridge;
 
 import jakarta.ws.rs.core.Response;
 import lombok.extern.jbosslog.JBossLog;
@@ -21,11 +21,12 @@ import org.keycloak.services.util.ResolveRelative;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 @JBossLog
-public class SmartLinkActionTokenHandler extends AbstractActionTokenHandler<SmartLinkActionToken> {
-  public SmartLinkActionTokenHandler() {
+public class LoginBridgeActionTokenHandler
+    extends AbstractActionTokenHandler<LoginBridgeActionToken> {
+  public LoginBridgeActionTokenHandler() {
     super(
-        SmartLinkActionToken.TOKEN_TYPE,
-        SmartLinkActionToken.class,
+        LoginBridgeActionToken.TOKEN_TYPE,
+        LoginBridgeActionToken.class,
         Messages.INVALID_REQUEST,
         EventType.EXECUTE_ACTION_TOKEN,
         Errors.INVALID_REQUEST);
@@ -33,21 +34,20 @@ public class SmartLinkActionTokenHandler extends AbstractActionTokenHandler<Smar
 
   @Override
   public AuthenticationSessionModel startFreshAuthenticationSession(
-      SmartLinkActionToken token, ActionTokenContext<SmartLinkActionToken> tokenContext) {
+      LoginBridgeActionToken token, ActionTokenContext<LoginBridgeActionToken> tokenContext) {
     return tokenContext.createAuthenticationSessionForClient(token.getIssuedFor());
   }
 
   @Override
   public boolean canUseTokenRepeatedly(
-      SmartLinkActionToken token, ActionTokenContext<SmartLinkActionToken> tokenContext) {
-    // only allow repeated uses of a token if it is persistent
-    return token.getPersistent();
+      LoginBridgeActionToken token, ActionTokenContext<LoginBridgeActionToken> tokenContext) {
+    return Boolean.TRUE.equals(token.getPersistent());
   }
 
   @Override
   public Response handleToken(
-      SmartLinkActionToken token, ActionTokenContext<SmartLinkActionToken> tokenContext) {
-    log.infof(
+      LoginBridgeActionToken token, ActionTokenContext<LoginBridgeActionToken> tokenContext) {
+    log.debugf(
         "handleToken(): called with iss=%s, user=%s", token.getIssuedFor(), token.getUserId());
     UserModel user = tokenContext.getAuthenticationSession().getAuthenticatedUser();
 
@@ -58,7 +58,7 @@ public class SmartLinkActionTokenHandler extends AbstractActionTokenHandler<Smar
         (token.getRedirectUri() != null)
             ? token.getRedirectUri()
             : ResolveRelative.resolveRelativeUri(session, client.getRootUrl(), client.getBaseUrl());
-    log.infof("handleToken(): redirectUri=%s", redirectUri);
+    log.debugf("handleToken(): redirectUri=%s", redirectUri);
 
     String shouldRedirect = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
 
@@ -81,14 +81,14 @@ public class SmartLinkActionTokenHandler extends AbstractActionTokenHandler<Smar
       AuthenticationManager.setClientScopesInSession(session, authSession);
     }
 
-    if (token.getRememberMe() != null && token.getRememberMe()) {
+    if (Boolean.TRUE.equals(token.getRememberMe())) {
       authSession.setAuthNote(Details.REMEMBER_ME, "true");
       tokenContext.getEvent().detail(Details.REMEMBER_ME, "true");
     } else {
       authSession.removeAuthNote(Details.REMEMBER_ME);
     }
 
-    if (token.getMarkEmailVerified()) {
+    if (Boolean.TRUE.equals(token.getMarkEmailVerified())) {
       user.setEmailVerified(true);
     }
 

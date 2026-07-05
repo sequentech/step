@@ -20,6 +20,12 @@ type Query {
     count_users(body: CountUsersInput!): CountUsersOutput!
 }
 
+type Query {
+    get_realm_attributes(
+        election_event_id: String!
+    ): GetRealmAttributesOutput!
+}
+
 type Mutation {
     createScheduledEvent(
         tenant_id: String!
@@ -1696,6 +1702,10 @@ type Mutation {
 
 type DeleteCertificateAuthorityOutput {
     deleted_count: Int!
+}
+
+type GetRealmAttributesOutput {
+    attributes: jsonb!
 }
 
 type Mutation {
