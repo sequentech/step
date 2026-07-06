@@ -226,7 +226,7 @@ export const PhoneBlacklist: React.FC = () => {
                 <DatagridConfigurable empty={<Empty/>} bulkActionButtons={false}>
                     <TextField
                         source="phone_e164"
-                        label={t("electionEventScreen.ivr.blacklist.columns.reason")}
+                        label={t("electionEventScreen.ivr.blacklist.columns.phone")}
                     />
                     <TextField
                         source="reason"

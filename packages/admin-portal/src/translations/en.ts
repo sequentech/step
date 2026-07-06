@@ -413,7 +413,7 @@ const englishTranslation = {
                         createdAt: "Created at",
                         createdBy: "Created by",
                     },
-                    emptyMsg: "The blacklist is empty",
+                    emptyMsg: "There are no entries in the blacklist",
                     saveSuccess: "Saved successfully",
                     saveError: "Failed to save",
                     deleteSuccess: "Deleted successfully",

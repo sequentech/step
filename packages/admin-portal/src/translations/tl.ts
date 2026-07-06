@@ -404,21 +404,21 @@ const tagalogTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     blacklist: "Blacklist",
-                    prompts: "Prompts",
+                    prompts: "Mga voice prompt",
                 },
                 blacklist: {
                     columns: {
-                        phone: "Phone number",
-                        reason: "Reason",
-                        createdAt: "Created at",
-                        createdBy: "Created by",
+                        phone: "Numero ng telepono",
+                        reason: "Dahilan",
+                        createdAt: "Ginawa noong",
+                        createdBy: "Ginawa ni",
                     },
-                    emptyMsg: "The blacklist is empty",
-                    saveSuccess: "Saved successfully",
-                    saveError: "Failed to save",
-                    deleteSuccess: "Deleted successfully",
-                    deleteError: "Failed to delete",
-                    phoneRequired: "Phone number is required",
+                    emptyMsg: "Walang entry sa blacklist",
+                    saveSuccess: "Matagumpay na na-save",
+                    saveError: "Nabigong i-save",
+                    deleteSuccess: "Matagumpay na natanggal",
+                    deleteError: "Nabigong tanggalin",
+                    phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },
             stats: {
