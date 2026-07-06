@@ -41,7 +41,7 @@ use b4::messages::newtypes::{
 };
 use b4::messages::wire::{MessageType, WireMessage};
 
-use crate::datalog::{self, Action};
+use crate::datalog::{self, Action, MixSource};
 use crate::messages::store::MessageStore;
 
 /// Wire `date` used for all M1 messages. The timestamp is wire-only metadata
@@ -137,11 +137,11 @@ impl<C: Context> SessionTrustee<C> {
             Action::ComputePublicKey(cfg, shares_hashes, self_index) => {
                 self.compute_public_key(cfg, shares_hashes, *self_index)
             }
-            Action::ComputeMix(cfg, public_key, input, self_index) => {
-                self.compute_mix(cfg, public_key, input, *self_index)
+            Action::ComputeMix(cfg, public_key, source, input, self_index) => {
+                self.compute_mix(cfg, public_key, source, input, *self_index)
             }
-            Action::SignMix(cfg, public_key, input, output, self_index) => {
-                self.sign_mix(cfg, public_key, input, output, *self_index)
+            Action::SignMix(cfg, public_key, source, input, output, self_index) => {
+                self.sign_mix(cfg, public_key, source, input, output, *self_index)
             }
             Action::ComputePartialDecryptions(
                 cfg,
@@ -295,16 +295,53 @@ impl<C: Context> SessionTrustee<C> {
         })
     }
 
+    /// The input ciphertexts of a mix, fetched directly from the store named by
+    /// `source` (§8) and keyed by `input_hash`. The store accessors are
+    /// content-addressed by `input_hash`, so if `source` and `input_hash`
+    /// disagree the lookup returns nothing and this errors — the sanity check
+    /// that replaces the old ballots-first fall-through.
+    fn mix_input_ciphertexts<const W: usize>(
+        &self,
+        source: &MixSource,
+        input_hash: &CiphertextsHash,
+    ) -> Result<Vec<Ciphertext<C, W>>> {
+        match source {
+            MixSource::Ballots => {
+                let body = self.store.ballots_body(input_hash).ok_or_else(|| {
+                    anyhow!(
+                        "MixSource::Ballots named for input {:?}, but no ballots have that hash",
+                        input_hash
+                    )
+                })?;
+                Ok(Ballots::<C, W>::deser(body)
+                    .map_err(|e| anyhow!("failed to deserialize ballots: {:?}", e))?
+                    .ciphertexts)
+            }
+            MixSource::PriorMix => {
+                let body = self.store.mix_body_by_output(input_hash).ok_or_else(|| {
+                    anyhow!(
+                        "MixSource::PriorMix named for input {:?}, but no mix has that output",
+                        input_hash
+                    )
+                })?;
+                Ok(Mix::<C, W>::deser(body)
+                    .map_err(|e| anyhow!("failed to deserialize source mix: {:?}", e))?
+                    .ciphertexts)
+            }
+        }
+    }
+
     /// `ComputeMix` (§8): re-encrypt and permute this trustee's input
-    /// ciphertexts, then prove the shuffle. The input is either the manager's
-    /// `Ballots` (first mixer) or the previous mixer's `Mix` output; both are
-    /// resolved from the store by the input ciphertexts hash carried in the
-    /// action. The shuffle's Fiat-Shamir domain is bound to that input hash
-    /// (§9.4), which every verifier can reproduce.
+    /// ciphertexts, then prove the shuffle. `source` names where the input comes
+    /// from — the manager's `Ballots` (first mixer) or the previous mixer's `Mix`
+    /// output — so it is fetched directly from that store (keyed by `input_hash`,
+    /// which also cross-checks the source). The shuffle's Fiat-Shamir domain is
+    /// bound to `cfg_hash` + `input_hash` (§9.4), which every verifier reproduces.
     fn compute_mix(
         &self,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
+        source: &MixSource,
         input_hash: &CiphertextsHash,
         _self_index: TrusteeIndex,
     ) -> Result<Vec<WireMessage<C>>> {
@@ -321,17 +358,7 @@ impl<C: Context> SessionTrustee<C> {
 
         crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
             let input_ciphertexts: Vec<Ciphertext<C, W>> =
-                if let Some(body) = self.store.ballots_body(input_hash) {
-                    Ballots::<C, W>::deser(body)
-                        .map_err(|e| anyhow!("failed to deserialize ballots: {:?}", e))?
-                        .ciphertexts
-                } else if let Some(body) = self.store.mix_body_by_output(input_hash) {
-                    Mix::<C, W>::deser(body)
-                        .map_err(|e| anyhow!("failed to deserialize source mix: {:?}", e))?
-                        .ciphertexts
-                } else {
-                    return Err(anyhow!("missing input ciphertexts for {:?}", input_hash));
-                };
+                self.mix_input_ciphertexts::<W>(source, input_hash)?;
 
             // An empty input yields a null mix: no shuffle, no proof (§8).
             if input_ciphertexts.is_empty() {
@@ -365,14 +392,16 @@ impl<C: Context> SessionTrustee<C> {
     }
 
     /// `SignMix` (§8): verify a mix's shuffle proof against its input and, on
-    /// success, post the signature that advances the mixing chain. The input
-    /// ciphertexts and the mix itself are resolved from the store by the input
-    /// and output hashes carried in the action; the Fiat-Shamir domain is
-    /// re-derived from the input hash exactly as the mixer derived it.
+    /// success, post the signature that advances the mixing chain. `source` names
+    /// where the mix's input comes from (the ballots for the first mix, a prior
+    /// mixer's output otherwise), fetched directly by `input_hash`; the mix itself
+    /// is fetched by (`input_hash`, `output_hash`). The Fiat-Shamir domain is
+    /// re-derived from `cfg_hash` + `input_hash` exactly as the mixer derived it.
     fn sign_mix(
         &self,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
+        source: &MixSource,
         input_hash: &CiphertextsHash,
         output_hash: &CiphertextsHash,
         _self_index: TrusteeIndex,
@@ -389,19 +418,9 @@ impl<C: Context> SessionTrustee<C> {
             .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
 
         crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
-            // The mix's input: either the ballots or a previous mixer's output.
-            let source: Vec<Ciphertext<C, W>> =
-                if let Some(body) = self.store.ballots_body(input_hash) {
-                    Ballots::<C, W>::deser(body)
-                        .map_err(|e| anyhow!("failed to deserialize ballots: {:?}", e))?
-                        .ciphertexts
-                } else if let Some(body) = self.store.mix_body_by_output(input_hash) {
-                    Mix::<C, W>::deser(body)
-                        .map_err(|e| anyhow!("failed to deserialize source mix: {:?}", e))?
-                        .ciphertexts
-                } else {
-                    return Err(anyhow!("missing source ciphertexts for {:?}", input_hash));
-                };
+            // The mix's input, drawn from the store named by `source`.
+            let source_ciphertexts: Vec<Ciphertext<C, W>> =
+                self.mix_input_ciphertexts::<W>(source, input_hash)?;
 
             let mix_body = self
                 .store
@@ -411,7 +430,7 @@ impl<C: Context> SessionTrustee<C> {
                 .map_err(|e| anyhow!("failed to deserialize mix: {:?}", e))?;
 
             // A null mix carries no ciphertexts and no proof; verify by shape.
-            if source.is_empty() {
+            if source_ciphertexts.is_empty() {
                 if !mix.ciphertexts.is_empty() || mix.proof.is_some() {
                     return Err(anyhow!("null mix must have empty output and no proof"));
                 }
@@ -431,12 +450,12 @@ impl<C: Context> SessionTrustee<C> {
                 .ok_or_else(|| anyhow!("non-null mix is missing its shuffle proof"))?;
             let pk = PublicKey::new(dkg_pk.pk.clone());
             let seed = shuffle_generators_seed(cfg_hash, input_hash);
-            let generators = C::G::ind_generators(source.len(), &seed)
+            let generators = C::G::ind_generators(source_ciphertexts.len(), &seed)
                 .map_err(|e| anyhow!("failed to derive shuffle generators: {:?}", e))?;
             let shuffler = Shuffler::new(generators, pk);
             let label = shuffle_proof_label(cfg_hash, input_hash);
             let verified = shuffler
-                .verify(&source, &mix.ciphertexts, &proof, &label)
+                .verify(&source_ciphertexts, &mix.ciphertexts, &proof, &label)
                 .map_err(|e| anyhow!("mix verification errored: {:?}", e))?;
             if !verified {
                 return Err(anyhow!(

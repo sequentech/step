@@ -85,7 +85,7 @@ pub mod infer {
         // Compute a mix of the ballot ciphertexts if the trustee accepts the
         // configuration, its position is 1, the ciphertexts are the ballots, and
         // it has not yet posted its mix.
-        action(Action::ComputeMix(*cfg_hash, *pk_hash, *ciphertexts_hash, *self_index)) <--
+        action(Action::ComputeMix(*cfg_hash, *pk_hash, MixSource::Ballots, *ciphertexts_hash, *self_index)) <--
             configuration_valid(cfg_hash, _, _, self_index),
             mixing_position(cfg_hash, pk_hash, ciphertexts_hash, 1, self_index),
             public_keys_all(cfg_hash, pk_hash),
@@ -96,7 +96,7 @@ pub mod infer {
         // configuration, is assigned the given position, the given ciphertexts
         // are the previous position's output, all participants signed the
         // previous mix, and it has not yet posted its mix.
-        action(Action::ComputeMix(*cfg_hash, *pk_hash, *out_ciphertexts_hash, *self_index)) <--
+        action(Action::ComputeMix(*cfg_hash, *pk_hash, MixSource::PriorMix, *out_ciphertexts_hash, *self_index)) <--
             configuration_valid(cfg_hash, _, _, self_index),
             public_keys_all(cfg_hash, pk_hash),
             mixing_position(cfg_hash, pk_hash, ciphertexts_hash, position, self_index),
@@ -129,12 +129,30 @@ pub mod infer {
 
         // Verify a mix if the trustee accepts the configuration, is a
         // participant, the mix has been computed, and it has not yet signed it.
-        action(Action::SignMix(*cfg_hash, *pk_hash, *in_ciphertexts_hash, *out_ciphertexts_hash, *self_index)) <--
+        // Split by the mix's input provenance so the action names the source
+        // (`Ballots` for the first mix, `PriorMix` otherwise) the signer must
+        // fetch to re-derive the shuffle context; the two rules are mutually
+        // exclusive (a mix input equal to both the ballots and a prior output
+        // would be a hash collision, already caught by the chain-endpoint errors).
+
+        // First mix: its input is the ballots ciphertexts.
+        action(Action::SignMix(*cfg_hash, *pk_hash, MixSource::Ballots, *in_ciphertexts_hash, *out_ciphertexts_hash, *self_index)) <--
             configuration_valid(cfg_hash, _, _, self_index),
             public_keys_all(cfg_hash, pk_hash),
             // only selected trustees sign mixes
             mixing_position(cfg_hash, pk_hash, ciphertexts_hash, _, self_index),
             mix(cfg_hash, pk_hash, in_ciphertexts_hash, out_ciphertexts_hash, _),
+            ballots(cfg_hash, pk_hash, in_ciphertexts_hash, _),
+            !mix_signature(cfg_hash, pk_hash, in_ciphertexts_hash, out_ciphertexts_hash, self_index);
+
+        // Later mix: its input is a previous mixer's output.
+        action(Action::SignMix(*cfg_hash, *pk_hash, MixSource::PriorMix, *in_ciphertexts_hash, *out_ciphertexts_hash, *self_index)) <--
+            configuration_valid(cfg_hash, _, _, self_index),
+            public_keys_all(cfg_hash, pk_hash),
+            // only selected trustees sign mixes
+            mixing_position(cfg_hash, pk_hash, ciphertexts_hash, _, self_index),
+            mix(cfg_hash, pk_hash, in_ciphertexts_hash, out_ciphertexts_hash, _),
+            mix(cfg_hash, pk_hash, _, in_ciphertexts_hash, _),
             !mix_signature(cfg_hash, pk_hash, in_ciphertexts_hash, out_ciphertexts_hash, self_index);
 
         // The mix chain extends to position 1 if the position-1 trustee mixed

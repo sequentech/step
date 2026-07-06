@@ -26,9 +26,9 @@
 #![allow(dead_code)]
 
 pub mod accumulator;
+pub mod decrypt;
 pub mod dkg;
 pub mod mix;
-pub mod decrypt;
 
 /// Type shorthands used by the ascent rule templates.
 ///
@@ -65,6 +65,20 @@ pub mod types {
 
 use types::*;
 
+/// Where a mix's input ciphertexts come from (§8). The datalog — which knows the
+/// mixing position — tags each mix action with its source so the trustee fetches
+/// from the correct store directly, instead of probing both. Because the store
+/// accessors are content-addressed by the action's input hash, naming the wrong
+/// source simply yields no body (an explicit error), which doubles as a sanity
+/// check that the source and the input hash agree.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum MixSource {
+    /// The manager's `Ballots` ciphertexts — the first mixer's input.
+    Ballots,
+    /// A previous mixer's `Mix` output ciphertexts — a later mixer's input.
+    PriorMix,
+}
+
 /// Actions a trustee can take during protocol execution.
 ///
 /// Each variant corresponds to a computation the trustee must perform; they are
@@ -83,12 +97,19 @@ pub enum Action {
     ComputeShares(CfgHash, TrusteeIndex),
     /// Compute and post this trustee's view of the joint public key.
     ComputePublicKey(CfgHash, SharesHashes, TrusteeIndex),
-    /// Compute and post a mix of the given input ciphertexts.
-    ComputeMix(CfgHash, PublicKeyHash, CiphertextsHash, TrusteeIndex),
-    /// Verify and sign a mix (`input` -> `output`).
+    /// Compute and post a mix of the input ciphertexts drawn from `MixSource`.
+    ComputeMix(
+        CfgHash,
+        PublicKeyHash,
+        MixSource,
+        CiphertextsHash,
+        TrusteeIndex,
+    ),
+    /// Verify and sign a mix (`input` -> `output`); `input` is drawn from `MixSource`.
     SignMix(
         CfgHash,
         PublicKeyHash,
+        MixSource,
         CiphertextsHash,
         CiphertextsHash,
         TrusteeIndex,
@@ -186,7 +207,7 @@ ascent::ascent_source! { prelude:
 pub mod composed {
     use super::accumulator::AccumulatorSet;
     use super::types::*;
-    use super::Action;
+    use super::{Action, MixSource};
     use crate::messages::predicate::Predicate;
 
     ascent::ascent! {
@@ -249,4 +270,3 @@ mod tests {
         );
     }
 }
-
