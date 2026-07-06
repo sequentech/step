@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Datafix / VoterView Integration | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Datafix / VoterView Integration | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-1741/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Datafix / VoterView Integration","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-1741/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-1741/assets/js/runtime~main.cf9318db.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-1741/assets/js/runtime~main.b6c971d0.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-1741/assets/js/main.76c32c76.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -19,8 +19,10 @@ mail, online). The integration has two directions:</p>
 <li class=""><strong>Inbound</strong>: Datafix manages the voter roll through a REST API exposed by
 the platform (add/update/delete voters, mark/unmark voted, replace PIN).</li>
 <li class=""><strong>Outbound</strong>: when a voter casts an online vote, the platform notifies
-VoterView with a <code>SetVoted</code> SOAP request (and <code>SetNotVoted</code> when a voter is
-re-enabled), so the voter cannot also vote through another channel.</li>
+VoterView with a <code>SetVoted</code> SOAP request, so the voter cannot also vote
+through another channel; when an administrator disables a voter, the
+platform sends <code>SetNotVoted</code>, releasing the voter to vote through another
+channel.</li>
 </ul>
 <p>An election event participates in this integration when its annotations
 contain the Datafix configuration (<code>datafix:id</code>, VoterView credentials and
@@ -39,7 +41,8 @@ the <code>review_cast_votes</code> beat (default every 90s) re-enqueues any
 <ul>
 <li class=""><strong>Non-Datafix events</strong>: promoted to <code>valid</code> immediately.</li>
 <li class=""><strong>Datafix events</strong>: if the voter is not yet marked as having voted via
-internet, a <code>SetVoted</code> request is sent to VoterView first (see below).</li>
+internet, a <code>SetVoted</code> request is sent to VoterView first (see
+<a href="#outbound-requests-to-voterview" class="">Outbound requests</a>).</li>
 </ul>
 </li>
 <li class="">A tally session <strong>refuses to run</strong> while any vote of the elections being
@@ -47,7 +50,16 @@ tallied is still <code>in-progress</code> (see the
 <a class="" href="/docusaurus/pr-preview/pr-1741/docs/developers/velvet/velvet_tally">tally engine documentation</a>), so a
 VoterView outage blocks the tally rather than under-counting.</li>
 </ol>
-<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setvoted-semantics">SetVoted semantics<a href="#setvoted-semantics" class="hash-link" aria-label="Direct link to SetVoted semantics" title="Direct link to SetVoted semantics" translate="no">​</a></h3>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="outbound-requests-to-voterview">Outbound requests to VoterView<a href="#outbound-requests-to-voterview" class="hash-link" aria-label="Direct link to Outbound requests to VoterView" title="Direct link to Outbound requests to VoterView" translate="no">​</a></h2>
+<p>The platform sends two SOAP requests to VoterView, both only for Datafix
+election events. Every request posts its outcome to the immutable electoral
+log with direction <em>outbound</em>: the log description shows the short outcome
+(e.g. <code>Outbound request SetVoted Succeeded.</code>), and when VoterView returns an
+error message it is kept in the full log message (e.g. <code>SetNotVoted Failed: The voter has not voted.</code>).</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setvoted--a-voter-casts-an-online-vote"><code>SetVoted</code> — a voter casts an online vote<a href="#setvoted--a-voter-casts-an-online-vote" class="hash-link" aria-label="Direct link to setvoted--a-voter-casts-an-online-vote" title="Direct link to setvoted--a-voter-casts-an-online-vote" translate="no">​</a></h3>
+<p>Sent by the <code>process_cast_vote</code> task (windmill) while resolving the status of
+a newly inserted vote, to mark the voter in VoterView as having voted so they
+cannot also vote through another channel.</p>
 <ul>
 <li class=""><code>SetVoted</code> is sent <strong>once per voter</strong>: after a successful request the
 voter&#x27;s <code>voted_channel=internet</code> attribute is stored in Keycloak (with
@@ -63,8 +75,24 @@ through another channel).</li>
 <code>in-progress</code>: it is retried on the next beat and, if the situation
 persists, the tally stays blocked until an operator intervenes.</li>
 </ul>
-<p>All outbound requests post their outcome to the immutable electoral log
-(e.g. <code>SetVoted Succeeded</code>, <code>SetVoted Failed</code>).</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="setnotvoted--an-administrator-disables-a-voter"><code>SetNotVoted</code> — an administrator disables a voter<a href="#setnotvoted--an-administrator-disables-a-voter" class="hash-link" aria-label="Direct link to setnotvoted--an-administrator-disables-a-voter" title="Direct link to setnotvoted--an-administrator-disables-a-voter" translate="no">​</a></h3>
+<p>Sent by harvest&#x27;s <code>/edit-user</code> endpoint (the admin-portal voter edit) when a
+request on a Datafix election event sets the voter&#x27;s <code>enabled</code> flag to
+<code>false</code>. Disabling the voter withdraws their ability to vote online, so
+VoterView is told to clear their voted mark, releasing the voter to vote
+through another channel — a Datafix requirement.</p>
+<ul>
+<li class="">The request is triggered by the edit itself: it is sent whenever an edit
+disables the voter, regardless of the voter&#x27;s previous enabled state or of
+whether they had actually voted online.</li>
+<li class="">The edit does not fail if the request fails: the voter is disabled on the
+platform either way, and the outcome is only recorded in the electoral log
+(<code>SetNotVoted Succeeded</code> / <code>SetNotVoted Failed: &lt;VoterView&#x27;s message&gt;</code>).</li>
+<li class="">Re-enabling a voter sends nothing. Note that <code>SetNotVoted</code> does not clear
+the voter&#x27;s <code>voted_channel=internet</code> Keycloak attribute either: if a voter
+who already voted online is disabled and later re-enabled, a new vote is
+accepted without re-sending <code>SetVoted</code>.</li>
+</ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="inbound-api">Inbound API<a href="#inbound-api" class="hash-link" aria-label="Direct link to Inbound API" title="Direct link to Inbound API" translate="no">​</a></h2>
 <p>All endpoints are <code>POST</code>, require a JWT with the <code>DATAFIX_ACCOUNT</code>
 permission, and identify the election event through the caller&#x27;s
@@ -96,6 +124,6 @@ flag (default 90 seconds).</li>
 <li class="">Cast votes can only be inserted through the <code>insert_cast_vote</code> action
 (harvest); there is no direct GraphQL insert, so no vote can skip the
 status pipeline.</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/integrations/datafix_voterview_integration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-1741/docs/developers/ivr/keycloak-config"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Keycloak Configuration</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-1741/docs/integrations/idp_initiated_sso_integration_guide"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">IdP-Initiated SSO Integration</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#cast-vote-lifecycle" class="table-of-contents__link toc-highlight">Cast vote lifecycle</a><ul><li><a href="#setvoted-semantics" class="table-of-contents__link toc-highlight">SetVoted semantics</a></li></ul></li><li><a href="#inbound-api" class="table-of-contents__link toc-highlight">Inbound API</a><ul><li><a href="#responses-and-error-codes" class="table-of-contents__link toc-highlight">Responses and error codes</a></li></ul></li><li><a href="#operational-notes" class="table-of-contents__link toc-highlight">Operational notes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/integrations/datafix_voterview_integration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-1741/docs/developers/ivr/keycloak-config"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Keycloak Configuration</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-1741/docs/integrations/idp_initiated_sso_integration_guide"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">IdP-Initiated SSO Integration</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#cast-vote-lifecycle" class="table-of-contents__link toc-highlight">Cast vote lifecycle</a></li><li><a href="#outbound-requests-to-voterview" class="table-of-contents__link toc-highlight">Outbound requests to VoterView</a><ul><li><a href="#setvoted--a-voter-casts-an-online-vote" class="table-of-contents__link toc-highlight"><code>SetVoted</code> — a voter casts an online vote</a></li><li><a href="#setnotvoted--an-administrator-disables-a-voter" class="table-of-contents__link toc-highlight"><code>SetNotVoted</code> — an administrator disables a voter</a></li></ul></li><li><a href="#inbound-api" class="table-of-contents__link toc-highlight">Inbound API</a><ul><li><a href="#responses-and-error-codes" class="table-of-contents__link toc-highlight">Responses and error codes</a></li></ul></li><li><a href="#operational-notes" class="table-of-contents__link toc-highlight">Operational notes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
