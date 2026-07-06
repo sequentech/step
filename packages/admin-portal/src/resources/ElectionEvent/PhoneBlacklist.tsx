@@ -35,9 +35,7 @@ const Empty: React.FC = () => {
     const {t} = useTranslation()
     return (
         <ResourceListStyles.EmptyBox>
-            <Typography variant="h4">
-                {t("electionEventScreen.ivr.blacklist.emptyMsg")}
-            </Typography>
+            <Typography variant="h4">{t("electionEventScreen.ivr.blacklist.emptyMsg")}</Typography>
         </ResourceListStyles.EmptyBox>
     )
 }
@@ -99,7 +97,7 @@ export const PhoneBlacklist: React.FC = () => {
     const [editPhoneE164, setEditPhoneE164] = useState("")
     const [editReason, setEditReason] = useState("")
     const [openDeleteModal, setOpenDeleteModal] = useState<boolean>(false)
-    const [pendingDeleteId, setPendingDeleteId] = useState<string|null>(null)
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
     const canCreate = authContext.isAuthorized(
         true,
@@ -191,15 +189,15 @@ export const PhoneBlacklist: React.FC = () => {
 
     const confirmDeleteAction = () => {
         if (pendingDeleteId) {
-            deletePhoneBlacklist({variables: {id: pendingDeleteId, election_event_id: record?.id}});
+            deletePhoneBlacklist({variables: {id: pendingDeleteId, election_event_id: record?.id}})
             setPendingDeleteId(null)
         }
         setOpenDeleteModal(false)
     }
 
     const handleOpenDelete = (id: string) => {
-        setPendingDeleteId(id);
-        setOpenDeleteModal(true);
+        setPendingDeleteId(id)
+        setOpenDeleteModal(true)
     }
 
     if (!record?.id) {
