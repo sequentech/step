@@ -147,22 +147,13 @@ pub async fn find_area_ballots(
 /// flight, so re-enqueueing them would only produce redundant PgLock skips.
 const IN_PROGRESS_ENQUEUE_GRACE_SECS: f64 = 90.0;
 
+/// Returns a batch of `in-progress` cast votes using keyset pagination on
+/// `(election_id, voter_id_string)`: pass the last returned pair as `after` to
+/// fetch the next batch (offset pagination is unsafe while workers update
+/// statuses). `status` is inlined as a literal so the planner can match the
+/// partial index `idx_cast_vote_in_progress`. `DISTINCT ON` keeps only the
+/// newest vote per voter; older stacked re-votes drain on later beat cycles.
 #[instrument(skip(hasura_transaction), err)]
-/// Returns a batch of `in-progress` cast votes, using keyset pagination on the
-/// `(election_id, voter_id_string)` key: pass the last returned pair as `after`
-/// to fetch the next batch. Offset pagination is not safe here because rows
-/// leave the result set while workers update statuses.
-///
-/// The `status = 'in-progress'` predicate is inlined as a literal (rather than
-/// bound as a parameter) so the planner can always match the partial index
-/// `idx_cast_vote_in_progress` regardless of whether it picks a custom or
-/// generic plan.
-///
-/// `DISTINCT ON` returns only the newest in-progress vote per voter, so when a
-/// voter stacked several re-votes during an outage they drain one beat cycle at
-/// a time (the older vote surfaces once the newer one leaves the set). This is
-/// accepted: the per-voter PgLock in process_cast_vote serializes them anyway,
-/// and the tally guard keeps blocking until the set is fully drained.
 pub async fn get_in_progress_cast_votes_batch(
     hasura_transaction: &Transaction<'_>,
     limit: i64,
