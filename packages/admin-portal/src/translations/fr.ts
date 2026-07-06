@@ -673,6 +673,13 @@ const frenchTranslation: TranslationType = {
                     disabled: "Désactivé",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Politique du bouton Retour de l’écran de vote",
+                options: {
+                    "election-selection-screen": "Aller à l’écran de sélection des élections",
+                    "start-screen": "Aller à l’écran d’accueil de l’élection",
+                },
+            },
         },
         tenantScreen: {
             common: {

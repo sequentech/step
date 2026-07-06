@@ -671,6 +671,13 @@ const galegoTranslation: TranslationType = {
                     disabled: "Desactivado",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Política do botón Atrás da pantalla de votación",
+                options: {
+                    "election-selection-screen": "Ir á pantalla de selección de eleccións",
+                    "start-screen": "Ir á pantalla de inicio da elección",
+                },
+            },
         },
         tenantScreen: {
             common: {

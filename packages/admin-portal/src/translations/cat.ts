@@ -672,6 +672,13 @@ const catalanTranslation: TranslationType = {
                     disabled: "Desactivat",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Política del botó Enrere de la pantalla de votació",
+                options: {
+                    "election-selection-screen": "Vés a la pantalla de selecció d'eleccions",
+                    "start-screen": "Vés a la pantalla d'inici de l'elecció",
+                },
+            },
         },
         tenantScreen: {
             common: {

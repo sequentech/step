@@ -670,6 +670,13 @@ const englishTranslation = {
                     disabled: "Disabled",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Voting Screen Back Button Policy",
+                options: {
+                    "election-selection-screen": "Go to the election selection screen",
+                    "start-screen": "Go to the election start screen",
+                },
+            },
         },
         tenantScreen: {
             common: {

@@ -16,6 +16,7 @@ import {
     IContest,
     EElectionEventContestEncryptionPolicy,
     BallotSelection,
+    getDefaultVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -41,7 +42,6 @@ import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {useRootBackLink} from "../hooks/root-back-link"
-import {useIsDeclineToVotePolicyEnabled} from "../hooks/useIsDeclineToVotePolicyEnabled"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -113,15 +113,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const backLink = useRootBackLink()
     const {tenantId, eventId, electionId} = useParams<TenantEventType & {electionId?: string}>()
     const location = useLocation()
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-    const isDeclineToVotePolicyEnabled = useIsDeclineToVotePolicyEnabled(electionId)
     const dispatch = useAppDispatch()
 
-    // With decline to vote enabled, the voter must be able to return to the start
-    // screen to access the decline option; otherwise go back to the election chooser
-    const exitLink = isDeclineToVotePolicyEnabled
-        ? `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
-        : backLink
+    const votingScreenBackPolicy =
+        election?.presentation?.voting_screen_back_policy ?? getDefaultVotingScreenBackPolicy()
+    const exitLink =
+        votingScreenBackPolicy === "start-screen"
+            ? `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
+            : backLink
 
     function handleClear() {
         if (ballotStyle) {

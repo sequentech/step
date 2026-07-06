@@ -70,7 +70,7 @@ When Decline to Vote is enabled for an Election, voters see an additional option
 
 If the voter clicks **Start Voting** instead, they proceed through contests normally. Choosing **Decline to Vote** after starting the normal flow is not supported — decline is only available from the Start Screen.
 
-When Decline to Vote is enabled for the Election, the **Back** button on the first voting screen returns the voter to the Start Screen, so the decline option remains reachable. When it is disabled, the **Back** button returns to the election selection screen as usual.
+The destination of the **Back** button on the first voting screen is controlled by the Election-level **Voting Screen Back Button Policy**. When Decline to Vote is enabled, set that policy to **Go to the election start screen** so the decline option remains reachable; otherwise the **Back** button returns to the election selection screen (the default). See [Election Data](./03-election/03-election_management_election_data.md).
 
 Whenever a voter arrives at the Start Screen, the ballot is reset to its initial state: all previous selections — including any previous decline selection — are cleared.
 
