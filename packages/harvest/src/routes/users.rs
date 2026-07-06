@@ -706,12 +706,10 @@ pub async fn edit_user(
                 )
             })?;
             if is_datafix_election_event(&election_event) {
-                let current_user = client
-                    .get_user(&realm, &input.user_id)
-                    .await
-                    .map_err(|e| {
-                        (Status::InternalServerError, format!("{:?}", e))
-                    })?;
+                let current_user =
+                    client.get_user(&realm, &input.user_id).await.map_err(
+                        |e| (Status::InternalServerError, format!("{:?}", e)),
+                    )?;
                 set_not_voted_in_voterview(
                     &hasura_transaction,
                     election_event,
