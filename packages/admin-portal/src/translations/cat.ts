@@ -402,6 +402,26 @@ const catalanTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Esdeveniment Electoral creat",
             createElectionEventError: "Error creant Esdeveniment Electoral",
+            ivr: {
+                tabs: {
+                    blacklist: "Blacklist",
+                    prompts: "Prompts",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Phone number",
+                        reason: "Reason",
+                        createdAt: "Created at",
+                        createdBy: "Created by",
+                    },
+                    emptyMsg: "The blacklist is empty",
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
+                    phoneRequired: "Phone number is required",
+                },
+            },
             stats: {
                 elegibleVoters: "Electors",
                 voters: "Votants",
@@ -440,6 +460,7 @@ const catalanTranslation: TranslationType = {
                 dashboard: "Tauler de Control",
                 monitoring: "Monitoratge",
                 data: "Dades",
+                ivr: "IVR",
                 localization: "Localització",
                 voters: "Votants",
                 areas: "Àrees",

@@ -401,6 +401,26 @@ const tagalogTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Nalikha ang Kaganapan ng Halalan",
             createElectionEventError: "Error sa paglikha ng kaganapan ng halalan",
+            ivr: {
+                tabs: {
+                    blacklist: "Blacklist",
+                    prompts: "Prompts",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Phone number",
+                        reason: "Reason",
+                        createdAt: "Created at",
+                        createdBy: "Created by",
+                    },
+                    emptyMsg: "The blacklist is empty",
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
+                    phoneRequired: "Phone number is required",
+                },
+            },
             stats: {
                 elegibleVoters: "Mga Kwalipikadong Botante",
                 voters: "Mga Aktwal na Botante",
@@ -439,6 +459,7 @@ const tagalogTranslation: TranslationType = {
                 dashboard: "Dashboard",
                 monitoring: "Pagsubaybay",
                 data: "Data",
+                ivr: "IVR",
                 localization: "Localization",
                 voters: "Mga Botante",
                 areas: "Mga Lugar",

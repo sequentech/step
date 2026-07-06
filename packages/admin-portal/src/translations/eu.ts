@@ -402,6 +402,26 @@ const basqueTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Hauteskunde Gertaera sortua",
             createElectionEventError: "Errorea hauteskunde gertaera sortzerakoan",
+            ivr: {
+                tabs: {
+                    blacklist: "Blacklist",
+                    prompts: "Prompts",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Phone number",
+                        reason: "Reason",
+                        createdAt: "Created at",
+                        createdBy: "Created by",
+                    },
+                    emptyMsg: "The blacklist is empty",
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
+                    phoneRequired: "Phone number is required",
+                },
+            },
             stats: {
                 elegibleVoters: "Bozkatzaile Eskudunak",
                 voters: "Egiazko Bozkatzaileak",
@@ -440,6 +460,7 @@ const basqueTranslation: TranslationType = {
                 dashboard: "Panela",
                 monitoring: "Monitorizazioa",
                 data: "Datuak",
+                ivr: "IVR",
                 localization: "Lokalizazioa",
                 voters: "Bozkatzaileak",
                 areas: "Eremuak",

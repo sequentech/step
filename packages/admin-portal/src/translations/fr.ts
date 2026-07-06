@@ -402,6 +402,26 @@ const frenchTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Événement Électoral créé",
             createElectionEventError: "Erreur lors de la création de l'Événement Électoral",
+            ivr: {
+                tabs: {
+                    blacklist: "Blacklist",
+                    prompts: "Prompts",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Phone number",
+                        reason: "Reason",
+                        createdAt: "Created at",
+                        createdBy: "Created by",
+                    },
+                    emptyMsg: "The blacklist is empty",
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
+                    phoneRequired: "Phone number is required",
+                },
+            },
             stats: {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
@@ -440,6 +460,7 @@ const frenchTranslation: TranslationType = {
                 dashboard: "Tableau de Bord",
                 monitoring: "Surveillance",
                 data: "Données",
+                ivr: "IVR",
                 localization: "Localisation",
                 voters: "Électeurs",
                 areas: "Zones",
