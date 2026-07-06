@@ -62,7 +62,7 @@ pub async fn insert_phone_blacklist_entry(
                 &parse_uuid_v4(election_event_id)?,
                 &phone_e164,
                 &reason,
-                &user_id,
+                &parse_uuid_v4(user_id)?,
             ],
         )
         .await?
