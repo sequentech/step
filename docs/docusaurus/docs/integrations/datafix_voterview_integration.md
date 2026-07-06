@@ -18,9 +18,9 @@ mail, online). The integration has two directions:
   the platform (add/update/delete voters, mark/unmark voted, replace PIN).
 - **Outbound**: when a voter casts an online vote, the platform notifies
   VoterView with a `SetVoted` SOAP request, so the voter cannot also vote
-  through another channel; when an administrator disables a voter, the
-  platform sends `SetNotVoted`, releasing the voter to vote through another
-  channel.
+  through another channel; when an administrator disables a voter who has
+  voted online, the platform sends `SetNotVoted`, releasing the voter to
+  vote through another channel.
 
 An election event participates in this integration when its annotations
 contain the Datafix configuration (`datafix:id`, VoterView credentials and
@@ -58,9 +58,10 @@ The flow:
 The platform sends two SOAP requests to VoterView, both only for Datafix
 election events. Every request posts its outcome to the immutable electoral
 log with direction *outbound*: the log description shows the short outcome
-(e.g. `Outbound request SetVoted Succeeded.`), and when VoterView returns an
-error message it is kept in the full log message (e.g. `SetNotVoted Failed:
-The voter has not voted.`).
+(e.g. `Outbound request SetVoted Succeeded.`), and the failure reason is kept
+in the full log message — VoterView's error message when it returns one (e.g.
+`SetNotVoted Failed: The voter has not voted.`), otherwise the HTTP status or
+transport error (e.g. `SetNotVoted Failed: HTTP 504 Gateway Timeout`).
 
 ### `SetVoted` — a voter casts an online vote
 
@@ -86,16 +87,26 @@ cannot also vote through another channel.
 
 Sent by harvest's `/edit-user` endpoint (the admin-portal voter edit) when a
 request on a Datafix election event sets the voter's `enabled` flag to
-`false`. Disabling the voter withdraws their ability to vote online, so
-VoterView is told to clear their voted mark, releasing the voter to vote
-through another channel — a Datafix requirement.
+`false` and the voter has a prior `valid` online vote in the event.
+Disabling the voter withdraws their ability to vote online, so VoterView is
+told to clear their voted mark, releasing the voter to vote through another
+channel — a Datafix requirement.
 
-- The request is triggered by the edit itself: it is sent whenever an edit
-  disables the voter, regardless of the voter's previous enabled state or of
-  whether they had actually voted online.
-- The edit does not fail if the request fails: the voter is disabled on the
-  platform either way, and the outcome is only recorded in the electoral log
-  (`SetNotVoted Succeeded` / `SetNotVoted Failed: <VoterView's message>`).
+- The request is only sent if the voter has a prior `valid` vote in the
+  event — without one, VoterView has nothing to clear and would answer
+  `The voter has not voted.`. Disabling a voter who never voted online (or
+  whose vote is still `in-progress` or `discarded`) sends nothing and
+  records nothing in the electoral log. The voter's previous enabled state
+  is not checked.
+- The request is sent in the background: the edit response does not wait for
+  the VoterView round-trip and does not fail if the request fails — the voter
+  is disabled on the platform either way, and the outcome is only recorded in
+  the electoral log (`SetNotVoted Succeeded` / `SetNotVoted Failed:
+  <VoterView's message>`).
+- Transport and HTTP-level failures (timeouts, gateway errors) are retried a
+  few times with exponential backoff before the failure is recorded;
+  `Success=false` answers are definitive and are not retried. Re-saving the
+  voter with `enabled` unchecked sends the request again.
 - Re-enabling a voter sends nothing. Note that `SetNotVoted` does not clear
   the voter's `voted_channel=internet` Keycloak attribute either: if a voter
   who already voted online is disabled and later re-enabled, a new vote is
@@ -156,6 +167,9 @@ but existing ones will not change meaning. Clients should branch on
   `voterview_setvoted.hbs` / `voterview_setnotvoted.hbs` Handlebars templates
   stored in the MinIO **public assets** bucket — they must be present in every
   environment.
+- VoterView requests time out after 30 seconds; a timed-out request counts as
+  failed (a timed-out `SetVoted` leaves the vote `in-progress` and is
+  retried).
 - Workers must consume the `process_cast_vote_queue`; otherwise votes stay
   `in-progress` and tallies are blocked.
 - The beat interval is configurable via the `--review-cast-votes-interval`

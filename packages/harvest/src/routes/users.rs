@@ -6,7 +6,7 @@ use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
@@ -14,16 +14,20 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
+use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
+use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
+use std::time::Duration;
 use tracing::instrument;
 use uuid::Uuid;
+use windmill::postgres::cast_vote::has_valid_cast_vote;
 use windmill::postgres::election_event::{
     get_election_event_by_id, ElectionEventDatafix,
 };
@@ -684,6 +688,44 @@ pub async fn edit_user(
         .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
     }
 
+    // If the user is disabled via EDIT: we send a SetNotVoted request to
+    // VoterView before disabling it, it is a Datafix requirement. A failed
+    // notification aborts the edit, so the voter stays enabled in Keycloak.
+    match (input.election_event_id.clone(), input.enabled) {
+        (Some(election_event_id), Some(enabled)) if !enabled => {
+            let election_event = get_election_event_by_id(
+                &hasura_transaction,
+                &input.tenant_id,
+                &election_event_id,
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error get_election_event_by_id {e:?}"),
+                )
+            })?;
+            if is_datafix_election_event(&election_event) {
+                let current_user = client
+                    .get_user(&realm, &input.user_id)
+                    .await
+                    .map_err(|e| {
+                        (Status::InternalServerError, format!("{:?}", e))
+                    })?;
+                set_not_voted_in_voterview(
+                    &hasura_transaction,
+                    election_event,
+                    &input.tenant_id,
+                    &election_event_id,
+                    &input.user_id,
+                    current_user.username,
+                )
+                .await?;
+            }
+        }
+        _ => {}
+    }
+
     let user = client
         .edit_user(
             &realm,
@@ -700,58 +742,85 @@ pub async fn edit_user(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    // If the user is disabled via EDIT: we send a SetNotVoted request to
-    // VoterView, it is a Datafix requirement.
-    match (input.election_event_id.clone(), input.enabled) {
-        (Some(election_event_id), Some(enabled)) if !enabled => {
-            let election_event = get_election_event_by_id(
-                &hasura_transaction,
-                &input.tenant_id,
-                &election_event_id,
-            )
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error get_election_event_by_id {e:?}"),
-                )
-            })?;
-            if is_datafix_election_event(&election_event) {
-                let res = datafix::voterview_requests::send(
-                    SoapRequest::SetNotVoted,
-                    ElectionEventDatafix(election_event),
-                    &user.username,
-                )
-                .await;
-                let req_type = SoapRequest::SetNotVoted;
-                let operation = match res {
-                    Ok(SoapRequestResponse::Ok) => {
-                        format!("{req_type} Succeeded")
-                    }
-                    _ => {
-                        format!("{req_type} Failed")
-                    }
-                };
+    Ok(Json(user))
+}
 
-                let username_ref = user.username.as_deref().unwrap_or_default();
-                let election_event_id_ref =
-                    input.election_event_id.as_deref().unwrap_or_default();
-                post_operation_result_to_electoral_log(
-                    &hasura_transaction,
-                    &input.tenant_id,
-                    election_event_id_ref,
-                    &input.user_id,
-                    username_ref,
-                    ExtApiRequestDirection::Outbound,
-                    operation,
-                )
-                .await;
-            }
-        }
-        _ => {}
+/// Notifies VoterView that a disabled voter can vote through another channel
+/// (`SetNotVoted`, a Datafix requirement) and records the outcome in the
+/// electoral log. Voters without a prior valid vote are skipped — VoterView
+/// has nothing to clear and the voter can still be disabled. Any other
+/// failure is returned so the caller aborts the edit.
+#[instrument(skip(hasura_transaction, election_event))]
+async fn set_not_voted_in_voterview(
+    hasura_transaction: &Transaction<'_>,
+    election_event: ElectionEvent,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    username: Option<String>,
+) -> Result<(), (Status, String)> {
+    let prior_valid_vote = has_valid_cast_vote(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error checking prior valid cast votes: {e:?}"),
+        )
+    })?;
+
+    if !prior_valid_vote {
+        info!("Voter {user_id} has no prior valid cast votes, skipping SetNotVoted request to VoterView");
+        return Ok(());
     }
 
-    Ok(Json(user))
+    // Retry only transport/HTTP-level failures (Err and SOAP faults): a
+    // `Success=false` answer such as "The voter has not voted." is a
+    // definitive VoterView response and must not be repeated.
+    let res = retry_with_exponential_backoff(
+        || async {
+            match datafix::voterview_requests::send(
+                SoapRequest::SetNotVoted,
+                ElectionEventDatafix(election_event.clone()),
+                &username,
+            )
+            .await?
+            {
+                SoapRequestResponse::Faultstring(msg) => Err(anyhow!("{msg}")),
+                response => Ok(response),
+            }
+        },
+        3,
+        Duration::from_millis(500),
+    )
+    .await;
+
+    let req_type = SoapRequest::SetNotVoted;
+    let operation = match &res {
+        Ok(SoapRequestResponse::Ok) => format!("{req_type} Succeeded"),
+        Ok(response) => req_type.failed_operation(response.error_message()),
+        Err(e) => req_type.failed_operation(Some(e.to_string())),
+    };
+
+    post_operation_result_to_electoral_log(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        user_id,
+        username.as_deref().unwrap_or_default(),
+        ExtApiRequestDirection::Outbound,
+        operation.clone(),
+    )
+    .await;
+
+    match res {
+        Ok(SoapRequestResponse::Ok) => Ok(()),
+        _ => Err((Status::InternalServerError, operation)),
+    }
 }
 
 #[derive(Deserialize, Debug)]

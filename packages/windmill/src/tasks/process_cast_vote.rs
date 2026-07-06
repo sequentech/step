@@ -219,29 +219,27 @@ pub async fn process_soap_request_to_datafix(
                 } else {
                     (
                         Ok(CastVoteStatus::Discarded),
-                        format!("{set_voted_req} Failed"),
+                        set_voted_req.failed_operation(
+                            SoapRequestResponse::HasVotedErrorMsg.error_message(),
+                        ),
                     )
                 }
             }
-            Ok(SoapRequestResponse::OtherErrorMsg(msg)) => {
-                error!("Error sending request to Datafix: {msg:?}");
+            Ok(
+                response @ (SoapRequestResponse::OtherErrorMsg(_)
+                | SoapRequestResponse::Faultstring(_)),
+            ) => {
+                error!("Error sending request to Datafix: {response:?}");
                 (
                     Ok(CastVoteStatus::InProgress),
-                    format!("{set_voted_req} Failed"),
-                )
-            }
-            Ok(SoapRequestResponse::Faultstring(msg)) => {
-                error!("Error sending request to Datafix: {msg:?}");
-                (
-                    Ok(CastVoteStatus::InProgress),
-                    format!("{set_voted_req} Failed"),
+                    set_voted_req.failed_operation(response.error_message()),
                 )
             }
             Err(e) => {
                 error!("Error sending request to Datafix: {e:?}");
                 (
                     Ok(CastVoteStatus::InProgress),
-                    format!("{set_voted_req} Failed"),
+                    set_voted_req.failed_operation(Some(e.to_string())),
                 )
             }
         };

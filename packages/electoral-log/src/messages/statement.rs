@@ -54,13 +54,17 @@ impl StatementHead {
                 description: "Error inserting cast vote.".to_string(),
                 ..default_head
             },
-            StatementBody::ExternalApiRequest(event_id, direction, api_name, operation) => StatementHead {
-                kind: StatementType::ExternalApiRequest,
-                description: format!(
-                    "{api_name} api {direction} request for election event {event_id:?} to {operation}.",
-                ),
-                ..default_head
-            },
+            StatementBody::ExternalApiRequest(_, direction, _, operation) => {
+                // Keep the description short: only the outcome before any
+                // ": <detail>" suffix. The full operation string, with the
+                // external API's message, remains in the statement body.
+                let outcome = operation.split(':').next().unwrap_or_default().trim();
+                StatementHead {
+                    kind: StatementType::ExternalApiRequest,
+                    description: format!("{direction} request {outcome}."),
+                    ..default_head
+                }
+            }
             StatementBody::ElectionPublish(_, _) => StatementHead {
                 kind: StatementType::ElectionPublish,
                 description: "Election published.".to_string(),
@@ -252,7 +256,10 @@ pub enum StatementBody {
         VoterIpString,
         VoterCountryString,
     ),
-    /// The last String indicates the operation.
+    /// The last String indicates the operation outcome, formatted as
+    /// `<Operation> <Succeeded|Failed>` optionally followed by `: <detail>`
+    /// with the external API's message. Only the part before the ':' is used
+    /// in the head description.
     ExternalApiRequest(EventIdString, ExtApiRequestDirection, ExtApiName, String),
     // /workspaces/step/packages/harvest/src/main.rs
     //    routes::ballot_publication::publish_ballot
@@ -355,6 +362,46 @@ pub enum StatementType {
 pub enum StatementEventType {
     USER,
     SYSTEM,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn external_api_request_description(operation: &str) -> String {
+        let event_id = EventIdString("0609dd53-3c33-41cd-b2cd-0ffb39738d2d".to_string());
+        let body = StatementBody::ExternalApiRequest(
+            event_id.clone(),
+            ExtApiRequestDirection::Outbound,
+            ExtApiName::Datafix,
+            operation.to_string(),
+        );
+        StatementHead::from_body(event_id, &body).description
+    }
+
+    #[test]
+    fn external_api_request_description_success() {
+        assert_eq!(
+            external_api_request_description("SetVoted Succeeded"),
+            "Outbound request SetVoted Succeeded."
+        );
+    }
+
+    #[test]
+    fn external_api_request_description_failure_without_detail() {
+        assert_eq!(
+            external_api_request_description("SetNotVoted Failed"),
+            "Outbound request SetNotVoted Failed."
+        );
+    }
+
+    #[test]
+    fn external_api_request_description_excludes_detail() {
+        assert_eq!(
+            external_api_request_description("SetNotVoted Failed: The voter has not voted."),
+            "Outbound request SetNotVoted Failed."
+        );
+    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
