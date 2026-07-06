@@ -45,6 +45,7 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
@@ -69,6 +70,7 @@ select_permissions:
               - tenant_id
               - updated_at
           filter: {}
+          allow_aggregations: true
       role: service-account
 update_permissions:
     - comment: ""
