@@ -673,6 +673,13 @@ const basqueTranslation: TranslationType = {
                     disabled: "Desgaituta",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Bozketa-pantailako atzera botoiaren politika",
+                options: {
+                    "election-selection-screen": "Joan hauteskundeak hautatzeko pantailara",
+                    "start-screen": "Joan hauteskundearen hasierako pantailara",
+                },
+            },
         },
         tenantScreen: {
             common: {
