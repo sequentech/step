@@ -112,7 +112,7 @@ type Mutation {
 }
 
 type Mutation {
-    delete_phone_blacklist_entry(id: uuid!): IdOutput
+    delete_phone_blacklist_entry(id: uuid!, election_event_id: uuid!): IdOutput
 }
 
 type Mutation {
