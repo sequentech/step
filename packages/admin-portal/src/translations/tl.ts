@@ -671,6 +671,13 @@ const tagalogTranslation: TranslationType = {
                     disabled: "Naka-disable",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Patakaran sa pindutang Bumalik ng screen ng pagboto",
+                options: {
+                    "election-selection-screen": "Pumunta sa screen ng pagpili ng halalan",
+                    "start-screen": "Pumunta sa panimulang screen ng halalan",
+                },
+            },
         },
         tenantScreen: {
             common: {

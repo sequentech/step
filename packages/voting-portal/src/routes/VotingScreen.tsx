@@ -16,18 +16,27 @@ import {
     IContest,
     EElectionEventContestEncryptionPolicy,
     BallotSelection,
+    getDefaultVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {Link as RouterLink, redirect, useNavigate, useParams, useSubmit} from "react-router-dom"
+import {
+    Link as RouterLink,
+    redirect,
+    useLocation,
+    useNavigate,
+    useParams,
+    useSubmit,
+} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
+import {TenantEventType} from ".."
 import {provideBallotService} from "../services/BallotService"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -102,9 +111,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 }) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
-    const {electionId} = useParams<{electionId?: string}>()
+    const {tenantId, eventId, electionId} = useParams<TenantEventType & {electionId?: string}>()
+    const location = useLocation()
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
+
+    const votingScreenBackPolicy =
+        election?.presentation?.voting_screen_back_policy ?? getDefaultVotingScreenBackPolicy()
+    const exitLink =
+        votingScreenBackPolicy === "start-screen"
+            ? `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
+            : `${backLink}${location.search}`
 
     function handleClear() {
         if (ballotStyle) {
@@ -133,7 +151,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             <ActionsContainer>
                 <StyledLink
-                    to={pageIndex && pageIndex > 0 ? "" : backLink}
+                    to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
