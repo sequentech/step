@@ -73,7 +73,13 @@ pub async fn create_phone_blacklist_entry(
             format!("Failed to insert the entry: {e:?}"),
         )
     })?;
-    // TODO: Add to the electoral log
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Failed to commit the transaction: {e:?}"),
+        )
+    })?;
 
     Ok(Json(entry))
 }
@@ -117,7 +123,12 @@ pub async fn delete_phone_blacklist_entry(
             format!("Failed to delete the entry: {e:?}"),
         )
     })?;
-    // TODO: Add to the electoral log
+    hasura_transaction.commit().await.map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Failed to commit the transaction: {e:?}"),
+        )
+    })?;
 
     Ok(Json(DeletePhoneBlacklistEntryOutput { id: body.id }))
 }
