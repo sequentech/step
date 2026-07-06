@@ -17,8 +17,10 @@ mail, online). The integration has two directions:
 - **Inbound**: Datafix manages the voter roll through a REST API exposed by
   the platform (add/update/delete voters, mark/unmark voted, replace PIN).
 - **Outbound**: when a voter casts an online vote, the platform notifies
-  VoterView with a `SetVoted` SOAP request (and `SetNotVoted` when a voter is
-  re-enabled), so the voter cannot also vote through another channel.
+  VoterView with a `SetVoted` SOAP request, so the voter cannot also vote
+  through another channel; when an administrator disables a voter, the
+  platform sends `SetNotVoted`, releasing the voter to vote through another
+  channel.
 
 An election event participates in this integration when its annotations
 contain the Datafix configuration (`datafix:id`, VoterView credentials and
@@ -44,13 +46,27 @@ The flow:
 2. `process_cast_vote` resolves the status:
    - **Non-Datafix events**: promoted to `valid` immediately.
    - **Datafix events**: if the voter is not yet marked as having voted via
-     internet, a `SetVoted` request is sent to VoterView first (see below).
+     internet, a `SetVoted` request is sent to VoterView first (see
+     [Outbound requests](#outbound-requests-to-voterview)).
 3. A tally session **refuses to run** while any vote of the elections being
    tallied is still `in-progress` (see the
    [tally engine documentation](../07-developers/07-velvet/03-tally.md)), so a
    VoterView outage blocks the tally rather than under-counting.
 
-### SetVoted semantics
+## Outbound requests to VoterView
+
+The platform sends two SOAP requests to VoterView, both only for Datafix
+election events. Every request posts its outcome to the immutable electoral
+log with direction *outbound*: the log description shows the short outcome
+(e.g. `Outbound request SetVoted Succeeded.`), and when VoterView returns an
+error message it is kept in the full log message (e.g. `SetNotVoted Failed:
+The voter has not voted.`).
+
+### `SetVoted` — a voter casts an online vote
+
+Sent by the `process_cast_vote` task (windmill) while resolving the status of
+a newly inserted vote, to mark the voter in VoterView as having voted so they
+cannot also vote through another channel.
 
 - `SetVoted` is sent **once per voter**: after a successful request the
   voter's `voted_channel=internet` attribute is stored in Keycloak (with
@@ -66,8 +82,24 @@ The flow:
   `in-progress`: it is retried on the next beat and, if the situation
   persists, the tally stays blocked until an operator intervenes.
 
-All outbound requests post their outcome to the immutable electoral log
-(e.g. `SetVoted Succeeded`, `SetVoted Failed`).
+### `SetNotVoted` — an administrator disables a voter
+
+Sent by harvest's `/edit-user` endpoint (the admin-portal voter edit) when a
+request on a Datafix election event sets the voter's `enabled` flag to
+`false`. Disabling the voter withdraws their ability to vote online, so
+VoterView is told to clear their voted mark, releasing the voter to vote
+through another channel — a Datafix requirement.
+
+- The request is triggered by the edit itself: it is sent whenever an edit
+  disables the voter, regardless of the voter's previous enabled state or of
+  whether they had actually voted online.
+- The edit does not fail if the request fails: the voter is disabled on the
+  platform either way, and the outcome is only recorded in the electoral log
+  (`SetNotVoted Succeeded` / `SetNotVoted Failed: <VoterView's message>`).
+- Re-enabling a voter sends nothing. Note that `SetNotVoted` does not clear
+  the voter's `voted_channel=internet` Keycloak attribute either: if a voter
+  who already voted online is disabled and later re-enabled, a new vote is
+  accepted without re-sending `SetVoted`.
 
 ## Inbound API
 
