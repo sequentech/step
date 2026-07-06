@@ -4,7 +4,10 @@
 extern crate cfg_if;
 
 
+pub mod datalog;
+pub mod messages;
 pub mod protocol;
+pub mod runtime;
 pub mod util;
 
 // Platform-specific modules

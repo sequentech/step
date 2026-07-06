@@ -31,6 +31,7 @@ sha3 = "0.11"
 
 # Message types dependencies
 strum = { version = "0.27", features = ["derive"] }
+enum_dispatch = "0.3.13"
 hex = "0.4"
 base64 = "0.22"
 log = "0.4"

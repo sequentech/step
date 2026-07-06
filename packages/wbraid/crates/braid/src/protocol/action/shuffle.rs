@@ -8,8 +8,8 @@ use anyhow::Result;
 
 use super::*;
 use cryptography::cryptosystem::elgamal::PublicKey;
-use cryptography::zkp::shuffle::Shuffler;
 use cryptography::traits::groups::CryptographicGroup;
+use cryptography::zkp::shuffle::Shuffler;
 
 /// Computes a mix.
 ///
@@ -79,7 +79,7 @@ pub(crate) fn mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
 
         // Null mix
         if ciphertexts.len() == 0 {
-            let mix = Mix::<C, W>::null(*mix_no);
+            let mix = Mix::<C, W>::null();
             let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
             return Ok(vec![m]);
         }
@@ -107,7 +107,7 @@ pub(crate) fn mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
         // let ok = shuffler.verify(&ciphertexts, &e_primes, &proof, &label);
         // assert!(ok);
 
-        let mix = Mix::new(e_primes, proof, *mix_no);
+        let mix = Mix::new(e_primes, proof);
         let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
         Ok(vec![m])
     })
@@ -138,7 +138,7 @@ pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>
     trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
-    
+
     crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
         let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
             let ballots = trustee
@@ -169,7 +169,9 @@ pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>
         let target = trustee.get_mix::<W>(cipher_h, *batch, signert_t);
         let mix = target.add_context("Signing mix")?;
 
-        let mix_number = mix.mix_number;
+        // The `Mix` artifact no longer carries a `mix_number` (v0.6, §4.4); this
+        // legacy reference path recovers the mixing position from `mix_no`.
+        let mix_number = *mix_no;
 
         // Null mix
         if source_cs.len() == 0 {
@@ -179,7 +181,8 @@ pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>
                 )));
             }
 
-            let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
+            let m =
+                Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
             return Ok(vec![m]);
         }
 

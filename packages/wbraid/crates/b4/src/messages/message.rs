@@ -4,16 +4,16 @@
 
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
-use cryptography::utils::serialization::VSerializable;
-use cryptography::VSerializable as VSer;
-use cryptography::utils::signatures::SignatureScheme;
 use cryptography::utils::error::Error as CryptoError;
+use cryptography::utils::serialization::VSerializable;
+use cryptography::utils::signatures::SignatureScheme;
+use cryptography::VSerializable as VSer;
 use sha3::Digest;
 
 use crate::messages::artifact::*;
+use crate::messages::newtypes::*;
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementType;
-use crate::messages::newtypes::*;
 use crate::Hasher;
 use cryptography::utils::hash::Hasher as HasherTrait;
 
@@ -75,12 +75,12 @@ impl<C: Context> Message<C> {
         let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
-        
+
         let commitments_bytes = channel.ser();
         let mut hasher = Hasher::hasher();
         hasher.update(&commitments_bytes);
         let commitments_hash = hasher.finalize();
-        
+
         let statement =
             Statement::channel_stmt(ConfigurationHash(cfg_h), ChannelHash(commitments_hash));
 
@@ -120,7 +120,7 @@ impl<C: Context> Message<C> {
         let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
-        
+
         let share_bytes = shares.ser();
         let mut hasher = Hasher::hasher();
         hasher.update(&share_bytes);
@@ -143,7 +143,7 @@ impl<C: Context> Message<C> {
         let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
-        
+
         let pk_bytes = dkgpk.ser();
         let mut hasher = Hasher::hasher();
         hasher.update(&pk_bytes);
@@ -181,7 +181,7 @@ impl<C: Context> Message<C> {
         let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
-        
+
         let ballots_bytes = ballots.ser();
         let mut hasher = Hasher::hasher();
         hasher.update(&ballots_bytes);
@@ -209,18 +209,21 @@ impl<C: Context> Message<C> {
         let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
-        
+
         let mix_bytes = mix.ser();
         let mut hasher = Hasher::hasher();
         hasher.update(&mix_bytes);
         let mix_h = hasher.finalize();
 
+        // Legacy (pre-v0.6) path, reference-only: the `Mix` artifact body no longer
+        // carries a `mix_number` (v0.6, §4.4), so this vestigial legacy `Statement`
+        // field is fixed at 0 pending the b4-server migration in M2 (§8.1).
         let statement = Statement::mix_stmt(
             ConfigurationHash(cfg_h),
             CiphertextsHash(previous_ciphertexts_h.0),
             CiphertextsHash(mix_h),
             batch,
-            mix.mix_number,
+            0,
         );
         trustee.sign(statement, Some(mix_bytes))
     }
@@ -368,7 +371,7 @@ impl<C: Context> Message<C> {
         } else {
             &configuration.trustees[index]
         };
-        
+
         // Direct verification - no conversion needed!
         let verified = verifier.verify(&bytes, &self.signature);
 
@@ -513,14 +516,14 @@ pub trait Signer<C: Context> {
         artifact: Option<Vec<u8>>,
     ) -> Result<Message<C>, CryptoError> {
         use cryptography::utils::signatures::Signer as CryptoSigner;
-        
+
         let sk = self.get_signing_key();
         let bytes = statement.ser();
         let signature = sk.sign(&bytes);
-        
+
         // Get verifying key directly - no conversion needed!
         let pk = C::SignatureScheme::verifying_key(sk);
-        
+
         let sender = Sender::new(self.get_name(), pk);
 
         Ok(Message {
@@ -548,7 +551,10 @@ impl<C: Context> Clone for Sender<C> {
 }
 
 impl<C: Context> Sender<C> {
-    pub fn new(name: String, pk: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier) -> Sender<C> {
+    pub fn new(
+        name: String,
+        pk: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
+    ) -> Sender<C> {
         Sender { name, pk }
     }
 }

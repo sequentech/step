@@ -67,7 +67,7 @@ impl std::fmt::Debug for ChannelsHashes {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VSer)]
 pub struct SharesHash(pub Hash);
 impl std::fmt::Debug for SharesHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -103,7 +103,7 @@ impl std::fmt::Debug for CiphertextsHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VSer)]
 pub struct DecryptionFactorsHash(pub Hash);
 impl std::fmt::Debug for DecryptionFactorsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -146,6 +146,9 @@ pub type Threshold = usize;
 pub type TrusteeCount = usize;
 // 1-based: the elements of the array are 1-based trustee positions
 pub type TrusteeSet = [usize; MAX_TRUSTEES];
+
+// 1-based trustee index of a message sender (see crates/braid/v0.6_spec.md §4.3)
+pub type TrusteeIndex = usize;
 
 // 1-based, the position in the mixing chain (note this is not the same as the
 // position of the mixing trustee, since active trustees are set by the ballots artifact)

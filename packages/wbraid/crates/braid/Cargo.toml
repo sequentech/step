@@ -18,6 +18,8 @@ rand = "0.9"
 vsc = { path="../vsc", optional = true }
 b4 = { path="../b4", optional = true, default-features = false }
 crepe = "0.1"
+ascent = { version = "0.8", default-features = false, features = ["wasm-bindgen"] }
+enum_dispatch = "0.3.13"
 strum = { version = "0.27", features = ["derive"] }
 
 # Native-only dependencies
