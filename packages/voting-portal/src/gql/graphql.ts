@@ -1937,6 +1937,7 @@ export type Mutation_RootDelete_PermissionArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Phone_Blacklist_EntryArgs = {
+  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
 };
 
