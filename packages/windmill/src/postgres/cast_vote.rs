@@ -126,10 +126,11 @@ pub async fn update_cast_vote_status(
     Ok(())
 }
 
-/// Returns whether the voter already has at least one `valid` cast vote in
-/// the election event. Used by the datafix flow to tell a VoterView
+/// Used by the datafix flow to tell a VoterView
 /// `HasVoted` response caused by our own earlier `SetVoted` (a legitimate
-/// re-vote) apart from a genuine "already voted through another channel".
+/// re-vote) apart from a genuine "already voted through another channel". <br/>
+/// Returns whether the voter already has at least one `valid` cast vote in
+/// the cast_vote table for this election event.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn has_valid_cast_vote(
     hasura_transaction: &Transaction<'_>,

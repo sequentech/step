@@ -174,8 +174,8 @@ pub async fn process_soap_request_to_datafix(
         )
         .await;
 
-        let req_type = SoapRequest::SetVoted;
-        let (result, operation) = match result {
+        let set_voted_req = SoapRequest::SetVoted;
+        let (status_result, operation_to_log) = match result {
             Ok(SoapRequestResponse::Ok) => {
                 // Losing this attribute would make the next re-vote re-send
                 // SetVoted and be answered with HasVoted, so its loss is
@@ -184,7 +184,10 @@ pub async fn process_soap_request_to_datafix(
                 if let Err(e) = mark_voted_via_internet(realm, &voter_id).await {
                     error!("Error editing user Internet channel: {e:?}");
                 }
-                (Ok(CastVoteStatus::Valid), format!("{req_type} Succeeded"))
+                (
+                    Ok(CastVoteStatus::Valid),
+                    format!("{set_voted_req} Succeeded"),
+                )
             }
             Ok(SoapRequestResponse::HasVotedErrorMsg) => {
                 // HasVoted can mean two things: the voter genuinely voted
@@ -209,23 +212,37 @@ pub async fn process_soap_request_to_datafix(
                     }
                     (
                         Ok(CastVoteStatus::Valid),
-                        format!("{req_type} HasVoted: prior internet vote found, re-vote accepted"),
+                        format!(
+                            "{set_voted_req} HasVoted: prior internet vote found, re-vote accepted"
+                        ),
                     )
                 } else {
-                    (Ok(CastVoteStatus::Discarded), format!("{req_type} Failed"))
+                    (
+                        Ok(CastVoteStatus::Discarded),
+                        format!("{set_voted_req} Failed"),
+                    )
                 }
             }
             Ok(SoapRequestResponse::OtherErrorMsg(msg)) => {
                 error!("Error sending request to Datafix: {msg:?}");
-                (Ok(CastVoteStatus::InProgress), format!("{req_type} Failed"))
+                (
+                    Ok(CastVoteStatus::InProgress),
+                    format!("{set_voted_req} Failed"),
+                )
             }
             Ok(SoapRequestResponse::Faultstring(msg)) => {
                 error!("Error sending request to Datafix: {msg:?}");
-                (Ok(CastVoteStatus::InProgress), format!("{req_type} Failed"))
+                (
+                    Ok(CastVoteStatus::InProgress),
+                    format!("{set_voted_req} Failed"),
+                )
             }
             Err(e) => {
                 error!("Error sending request to Datafix: {e:?}");
-                (Ok(CastVoteStatus::InProgress), format!("{req_type} Failed"))
+                (
+                    Ok(CastVoteStatus::InProgress),
+                    format!("{set_voted_req} Failed"),
+                )
             }
         };
 
@@ -237,11 +254,11 @@ pub async fn process_soap_request_to_datafix(
             &voter_id,
             username_str,
             ExtApiRequestDirection::Outbound,
-            operation,
+            operation_to_log,
         )
         .await;
 
-        result
+        status_result
     } else {
         Ok(CastVoteStatus::Valid)
     }
