@@ -51,6 +51,17 @@ select_permissions:
       permission:
           columns:
               - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: phone-blacklist-update
+    - comment: ""
+      permission:
+          columns:
+              - election_event_id
               - phone_e164
               - tenant_id
           filter:
