@@ -122,7 +122,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const exitLink =
         votingScreenBackPolicy === "start-screen"
             ? `/tenant/${tenantId}/event/${eventId}/election/${electionId}/start${location.search}`
-            : backLink
+            : `${backLink}${location.search}`
 
     function handleClear() {
         if (ballotStyle) {
