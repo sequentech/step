@@ -1,0 +1,44 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {Suspense, useContext} from "react"
+import {useTranslation} from "react-i18next"
+import {Tabs} from "@/components/Tabs"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {PhoneBlacklist} from "./PhoneBlacklist"
+
+const BlacklistTab: React.FC = () => (
+    <Suspense fallback={<div>Loading...</div>}>
+        <PhoneBlacklist />
+    </Suspense>
+)
+
+const PromptsTab: React.FC = () => (
+    <Suspense fallback={<div>Loading...</div>}>
+        <p>Work in progress...</p>
+    </Suspense>
+)
+
+export const EditElectionEventIvr: React.FC = () => {
+    const {t} = useTranslation()
+    const authContext = useContext(AuthContext)
+
+    const tabs: Array<{label: string; component: React.ComponentType<any>}> = []
+
+    if (authContext.isAuthorized(true, authContext.tenantId, IPermissions.PHONE_BLACKLIST_READ)) {
+        tabs.push({
+            label: t("electionEventScreen.ivr.tabs.blacklist"),
+            component: BlacklistTab,
+        })
+    }
+
+    if (authContext.isAuthorized(true, authContext.tenantId, IPermissions.IVR_PROMPTS_READ)) {
+        tabs.push({
+            label: t("electionEventScreen.ivr.tabs.prompts"),
+            component: PromptsTab,
+        })
+    }
+
+    return <Tabs elements={tabs} />
+}
