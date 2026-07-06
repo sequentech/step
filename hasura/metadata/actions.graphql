@@ -721,6 +721,7 @@ enum VotingStatusChannel {
     ONLINE
     KIOSK
     EARLY_VOTING
+    TELEPHONE
 }
 
 input TemplateInput {
