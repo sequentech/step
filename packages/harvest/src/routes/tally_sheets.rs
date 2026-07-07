@@ -32,7 +32,7 @@ use windmill::postgres::{
         get_tally_sessions_by_election_event_id, update_tally_session_status,
     },
     tally_sheet,
-    tally_sheet_import::get_tally_sheet_import_items,
+    tally_sheet_import::get_tally_sheet_import_items_for_review,
 };
 use windmill::services::{
     celery_app::get_celery_app,
@@ -483,7 +483,7 @@ async fn maybe_trigger_automatic_recount_for_import(
         return Ok(0);
     }
 
-    let items = get_tally_sheet_import_items(
+    let items = get_tally_sheet_import_items_for_review(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -670,6 +670,17 @@ async fn read_import_document(
     )
     .await?
     .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
+
+    if let Some(document_size) = document.size {
+        let normalized_size = u64::try_from(document_size)
+            .map_err(|_| anyhow::anyhow!("Document {document_id} has invalid size {document_size}"))?;
+        if normalized_size > MAX_TALLY_SHEET_IMPORT_BYTES {
+            return Err(anyhow::anyhow!(
+                "Document {document_id} is too large ({normalized_size} bytes, max {MAX_TALLY_SHEET_IMPORT_BYTES} bytes)"
+            ));
+        }
+    }
+
     let file = get_document_as_temp_file(tenant_id, &document).await?;
     let file_size = tokio::fs::metadata(file.path()).await?.len();
     if file_size > MAX_TALLY_SHEET_IMPORT_BYTES {

@@ -265,6 +265,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     const [preview, setPreview] = useState<TallySheetImportPreview | null>(null)
     const [isWorking, setIsWorking] = useState(false)
     const [pendingDetailImportId, setPendingDetailImportId] = useState<string | null>(null)
+    const [duplicateSourceSha256, setDuplicateSourceSha256] = useState<string | null>(null)
     const [duplicateSourceImport, setDuplicateSourceImport] =
         useState<TallySheetImportRecord | null>(null)
     const detailImportRecords = useMemo(() => (detailImport ? [detailImport] : []), [detailImport])
@@ -282,17 +283,24 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     )
     const detailCreatorUsernames = useCreatorUsernames(detailImportRecords, tenantId)
 
-    const {data: imports = [], refetch: refetchImports} = useGetList<TallySheetImportRecord>(
+    const {data: duplicateSourceImports = []} = useGetList<TallySheetImportRecord>(
         "sequent_backend_tally_sheet_import",
         {
-            pagination: {page: 1, perPage: 50},
+            pagination: {page: 1, perPage: 1},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
                 election_event_id: electionEvent?.id,
+                source_sha256: duplicateSourceSha256,
             },
         },
-        {enabled: canView && !!tenantId && !!electionEvent?.id}
+        {
+            enabled:
+                canView &&
+                !!tenantId &&
+                !!electionEvent?.id &&
+                !!duplicateSourceSha256,
+        }
     )
 
     const {
@@ -357,19 +365,23 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         }
 
         const matchedImport =
-            imports.find((item) => item.id === pendingDetailImportId) ??
-            (pendingDetailImport?.id === pendingDetailImportId ? pendingDetailImport : undefined)
+            pendingDetailImport?.id === pendingDetailImportId ? pendingDetailImport : undefined
         if (matchedImport) {
             setDetailImport(matchedImport)
             setPendingDetailImportId(null)
             onOpenImportHandled?.()
         }
-    }, [imports, onOpenImportHandled, pendingDetailImport, pendingDetailImportId])
+    }, [onOpenImportHandled, pendingDetailImport, pendingDetailImportId])
+
+    useEffect(() => {
+        setDuplicateSourceImport(duplicateSourceImports[0] ?? null)
+    }, [duplicateSourceImports])
 
     const resetUpload = useCallback(() => {
         setFile(null)
         setUploadedDocumentId(null)
         setUploadedSourceSha256(null)
+        setDuplicateSourceSha256(null)
         setDuplicateSourceImport(null)
         setPreview(null)
         setIsWorking(false)
@@ -385,6 +397,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         setFile(nextFile)
         setUploadedDocumentId(null)
         setUploadedSourceSha256(null)
+        setDuplicateSourceSha256(null)
         setDuplicateSourceImport(null)
         setPreview(null)
     }, [])
@@ -422,15 +435,9 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         }
         setUploadedDocumentId(upload.document_id)
         setUploadedSourceSha256(sha256 ?? null)
-        setDuplicateSourceImport(
-            sha256
-                ? (imports.find(
-                      (item) => item.source_sha256?.toLowerCase() === sha256.toLowerCase()
-                  ) ?? null)
-                : null
-        )
+        setDuplicateSourceSha256(sha256 ?? null)
         return {documentId: upload.document_id, sha256}
-    }, [electionEvent?.id, file, getUploadUrl, imports, sourceFormat, t])
+    }, [electionEvent?.id, file, getUploadUrl, sourceFormat, t])
 
     const handlePreview = useCallback(async () => {
         if (!electionEvent?.id) {
@@ -493,7 +500,6 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
             }
             notify(t("tallySheetImport.notifications.created"), {type: "success"})
             closeUpload()
-            await refetchImports()
             refresh()
         } catch (error) {
             notify(
@@ -510,7 +516,6 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         createImport,
         electionEvent?.id,
         notify,
-        refetchImports,
         refresh,
         selectedChannel,
         sourceFormat,
@@ -548,7 +553,6 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                         {type: "success"}
                     )
                 }
-                await refetchImports()
                 await refetchItems()
                 refresh()
             } catch (error) {
@@ -566,7 +570,6 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
             detailImport?.id,
             electionEvent?.id,
             notify,
-            refetchImports,
             refetchItems,
             refresh,
             reviewImport,
@@ -849,7 +852,15 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                         ) : (
                             <Stack gap={1}>
                                 {detailItems.map((item) => (
-                                    <Accordion key={item.id} disableGutters>
+                                    <Accordion
+                                        key={item.id}
+                                        disableGutters
+                                        slotProps={{
+                                            transition: {
+                                                unmountOnExit: true,
+                                            },
+                                        }}
+                                    >
                                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                                             <Stack
                                                 direction="row"
@@ -1153,7 +1164,15 @@ const PreviewPanel: React.FC<{preview: TallySheetImportPreview}> = ({preview}) =
             <ValidationErrors errors={preview.validation_errors} />
         ) : null}
         {preview.items.map((item) => (
-            <Accordion key={`${item.area_id}:${item.contest_id}:${item.channel}`} disableGutters>
+            <Accordion
+                key={`${item.area_id}:${item.contest_id}:${item.channel}`}
+                disableGutters
+                slotProps={{
+                    transition: {
+                        unmountOnExit: true,
+                    },
+                }}
+            >
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                     <Stack direction="row" spacing={1} alignItems="center" sx={{width: "100%"}}>
                         <Typography sx={{flexGrow: 1}}>

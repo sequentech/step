@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext} from "react"
+import React, {ReactElement, useContext, useMemo} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -10,7 +10,8 @@ import {
     TextField,
     TextInput,
     WrapperField,
-    useGetOne,
+    useGetMany,
+    useListContext,
     useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
@@ -65,9 +66,13 @@ type TallySheetVersionRecord = Sequent_Backend_Tally_Sheet & {
 interface TallySheetImportReference {
     id: string
     status: string
-    source_document_id: string
+    source_document_id?: string | null
     source_file_name?: string | null
 }
+
+const ImportedVersionSourceContext = React.createContext<Map<string, TallySheetImportReference>>(
+    new Map<string, TallySheetImportReference>()
+)
 
 interface TTallySheetListVersions {
     tallySheet: Sequent_Backend_Tally_Sheet
@@ -179,18 +184,19 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 filters={Filters}
                 empty={<Empty />}
             >
-                <DatagridConfigurable
-                    bulkActionButtons={false}
-                    omit={OMIT_FIELDS}
-                    sx={{
-                        flexGrow: 1,
-                        overflowX: "auto",
-                        width: "100%",
-                        maxWidth: "100%",
-                    }}
-                >
-                    <TextField source="id" />
-                    <TextField source="channel" />
+                <ImportedVersionSourceContextProvider canViewImport={canViewImport}>
+                    <DatagridConfigurable
+                        bulkActionButtons={false}
+                        omit={OMIT_FIELDS}
+                        sx={{
+                            flexGrow: 1,
+                            overflowX: "auto",
+                            width: "100%",
+                            maxWidth: "100%",
+                        }}
+                    >
+                        <TextField source="id" />
+                        <TextField source="channel" />
 
                     <FunctionField
                         source="contest_id"
@@ -266,15 +272,16 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                         )}
                     />
 
-                    <WrapperField source="actions" label="Actions">
-                        <FunctionField
-                            label={t("tallysheet.table.area")}
-                            render={(record: Sequent_Backend_Tally_Sheet) => (
-                                <ActionsColumn actions={actions(record)} />
-                            )}
-                        />
-                    </WrapperField>
-                </DatagridConfigurable>
+                        <WrapperField source="actions" label="Actions">
+                            <FunctionField
+                                label={t("tallysheet.table.area")}
+                                render={(record: Sequent_Backend_Tally_Sheet) => (
+                                    <ActionsColumn actions={actions(record)} />
+                                )}
+                            />
+                        </WrapperField>
+                    </DatagridConfigurable>
+                </ImportedVersionSourceContextProvider>
             </List>
             <WizardStyles.Toolbar>
                 <WizardStyles.BackButton
@@ -287,6 +294,44 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 </WizardStyles.BackButton>
             </WizardStyles.Toolbar>
         </>
+    )
+}
+
+const ImportedVersionSourceContextProvider: React.FC<{
+    children: React.ReactNode
+    canViewImport: boolean
+}> = ({children, canViewImport}) => {
+    const {data: versions = []} = useListContext<TallySheetVersionRecord>()
+    const importIds = useMemo(
+        () =>
+            Array.from(
+                new Set(
+                    versions
+                        .map((version) => version.import_id)
+                        .filter((importId): importId is string => !!importId)
+                )
+            ),
+        [versions]
+    )
+
+    const {data: imports = []} = useGetMany<TallySheetImportReference>(
+        "sequent_backend_tally_sheet_import",
+        {ids: importIds},
+        {enabled: canViewImport && importIds.length > 0}
+    )
+
+    const importsById = useMemo(() => {
+        const importMap = new Map<string, TallySheetImportReference>()
+        imports.forEach((item) => {
+            importMap.set(item.id, item)
+        })
+        return importMap
+    }, [imports])
+
+    return (
+        <ImportedVersionSourceContext.Provider value={importsById}>
+            {children}
+        </ImportedVersionSourceContext.Provider>
     )
 }
 
@@ -306,11 +351,8 @@ const ImportedVersionSource: React.FC<ImportedVersionSourceProps> = ({
     const location = useLocation()
     const navigate = useNavigate()
     const importId = record.import_id
-    const {data: sourceImport} = useGetOne<TallySheetImportReference>(
-        "sequent_backend_tally_sheet_import",
-        {id: importId || ""},
-        {enabled: canViewImport && !!importId}
-    )
+    const importReferencesById = useContext(ImportedVersionSourceContext)
+    const sourceImport = importId ? importReferencesById.get(importId) : undefined
     const [fetchDocument] = useLazyQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         fetchPolicy: "no-cache",
     })

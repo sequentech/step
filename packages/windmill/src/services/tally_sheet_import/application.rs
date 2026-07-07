@@ -30,10 +30,11 @@ use crate::postgres::{
         review_tally_sheet_status, soft_delete_tally_sheet_leftover_versions,
     },
     tally_sheet_import::{
-        get_tally_sheet_import_by_id, get_tally_sheet_import_items, insert_tally_sheet_import,
-        insert_tally_sheet_import_item, update_tally_sheet_import_items_status,
-        update_tally_sheet_import_items_status_by_ids, update_tally_sheet_import_status,
-        update_tally_sheet_import_status_with_conflict_count,
+        get_tally_sheet_import_by_id, get_tally_sheet_import_items_for_review,
+        insert_tally_sheet_import, insert_tally_sheet_import_items,
+        update_tally_sheet_import_items_status, update_tally_sheet_import_items_status_by_ids,
+        update_tally_sheet_import_status, update_tally_sheet_import_status_with_conflict_count,
+        TallySheetImportItemReviewSnapshot,
     },
 };
 
@@ -55,6 +56,8 @@ pub async fn preview_tally_sheet_import(
 ) -> Result<TallySheetImportPreview> {
     let (parsed_imports, mut validation_errors) = parse_canonical_csv(canonical_csv_bytes);
     let mut items = Vec::new();
+    let mut resolution_cache = BallotBoxResolutionCache::default();
+    let mut baseline_cache: HashMap<BallotBoxKey, Option<TallySheet>> = HashMap::new();
 
     for parsed_import in parsed_imports {
         if parsed_import.key.channel != selected_channel {
@@ -80,6 +83,7 @@ pub async fn preview_tally_sheet_import(
             &parsed_import.key.area_name,
             &parsed_import.key.contest_external_id,
             parsed_import.content,
+            &mut resolution_cache,
         )
         .await
         {
@@ -105,16 +109,28 @@ pub async fn preview_tally_sheet_import(
             &resolved.content,
         ));
 
-        let baseline = get_latest_approved_tally_sheet(
-            transaction,
-            tenant_id,
-            election_event_id,
-            &resolved.contest.election_id,
-            &resolved.area.id,
-            &resolved.contest.id,
-            &parsed_import.key.channel,
-        )
-        .await?;
+        let ballot_box_key = BallotBoxKey {
+            election_id: resolved.contest.election_id.clone(),
+            area_id: resolved.area.id.clone(),
+            contest_id: resolved.contest.id.clone(),
+            channel: parsed_import.key.channel.to_string(),
+        };
+        let baseline = if let Some(cached_baseline) = baseline_cache.get(&ballot_box_key) {
+            cached_baseline.clone()
+        } else {
+            let latest = get_latest_approved_tally_sheet(
+                transaction,
+                tenant_id,
+                election_event_id,
+                &resolved.contest.election_id,
+                &resolved.area.id,
+                &resolved.contest.id,
+                &parsed_import.key.channel,
+            )
+            .await?;
+            baseline_cache.insert(ballot_box_key, latest.clone());
+            latest
+        };
         let previous = baseline.as_ref().and_then(|sheet| sheet.content.clone());
         let previous_csv = previous
             .as_ref()
@@ -221,6 +237,8 @@ pub async fn create_tally_sheet_import(
     )
     .await?;
 
+    let mut import_items = Vec::with_capacity(preview.items.len());
+
     for item in preview.items {
         let generated_tally_sheet_id = match item.change_type {
             TallySheetImportChangeType::NEW | TallySheetImportChangeType::CHANGED => {
@@ -265,9 +283,7 @@ pub async fn create_tally_sheet_import(
             TallySheetImportChangeType::UNCHANGED => None,
         };
 
-        insert_tally_sheet_import_item(
-            transaction,
-            &TallySheetImportItem {
+        import_items.push(TallySheetImportItem {
                 id: Uuid::new_v4().to_string(),
                 tenant_id: tenant_id.to_string(),
                 election_event_id: election_event_id.to_string(),
@@ -289,10 +305,10 @@ pub async fn create_tally_sheet_import(
                 validation_warnings: None,
                 labels: None,
                 annotations: None,
-            },
-        )
-        .await?;
+            });
     }
+
+    insert_tally_sheet_import_items(transaction, &import_items).await?;
 
     Ok(import)
 }
@@ -318,8 +334,13 @@ pub async fn review_tally_sheet_import(
         ));
     }
 
-    let items =
-        get_tally_sheet_import_items(transaction, tenant_id, election_event_id, import_id).await?;
+    let items = get_tally_sheet_import_items_for_review(
+        transaction,
+        tenant_id,
+        election_event_id,
+        import_id,
+    )
+    .await?;
     if decision == TallySheetImportReviewDecision::APPROVE {
         let conflicted_item_ids =
             find_stale_baseline_conflicts(transaction, tenant_id, election_event_id, &items)
@@ -403,7 +424,7 @@ async fn find_stale_baseline_conflicts(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    items: &[TallySheetImportItem],
+    items: &[TallySheetImportItemReviewSnapshot],
 ) -> Result<Vec<String>> {
     let mut conflicted_item_ids = Vec::new();
 
@@ -452,7 +473,7 @@ async fn generated_tally_sheet_is_stale(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    item: &TallySheetImportItem,
+    item: &TallySheetImportItemReviewSnapshot,
 ) -> Result<bool> {
     let Some(generated_tally_sheet_id) = item.generated_tally_sheet_id.as_ref() else {
         return Ok(false);
@@ -480,7 +501,7 @@ async fn generated_tally_sheet_is_stale(
 }
 
 fn baseline_matches_import_item(
-    item: &TallySheetImportItem,
+    item: &TallySheetImportItemReviewSnapshot,
     latest_approved: Option<&TallySheet>,
 ) -> Result<bool> {
     let latest_id = latest_approved.map(|sheet| sheet.id.clone());
@@ -505,6 +526,22 @@ struct ResolvedBallotBoxImport {
     source_candidate_external_ids: Vec<String>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct BallotBoxKey {
+    election_id: String,
+    area_id: String,
+    contest_id: String,
+    channel: String,
+}
+
+#[derive(Default)]
+struct BallotBoxResolutionCache {
+    areas_by_name: HashMap<String, Area>,
+    contests_by_external_id: HashMap<String, Contest>,
+    area_contest_membership: HashMap<(String, String), bool>,
+    candidates_by_contest_id: HashMap<String, Vec<Candidate>>,
+}
+
 async fn resolve_ballot_box_import(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -512,35 +549,75 @@ async fn resolve_ballot_box_import(
     area_name: &str,
     contest_external_id: &str,
     mut content: AreaContestResults,
+    cache: &mut BallotBoxResolutionCache,
 ) -> Result<ResolvedBallotBoxImport> {
-    let area = get_area_by_name(transaction, tenant_id, election_event_id, area_name)
-        .await?
-        .ok_or_else(|| anyhow!("Area '{area_name}' not found"))?;
-    let contest = get_contest_by_external_id(
-        transaction,
-        tenant_id,
-        election_event_id,
-        contest_external_id,
-    )
-    .await?
-    .ok_or_else(|| anyhow!("Contest external id '{contest_external_id}' not found"))?;
-    if !area_contest_exists(
-        transaction,
-        tenant_id,
-        election_event_id,
-        &area.id,
-        &contest.id,
-    )
-    .await?
+    let area = if let Some(cached_area) = cache.areas_by_name.get(area_name) {
+        cached_area.clone()
+    } else {
+        let loaded_area = get_area_by_name(transaction, tenant_id, election_event_id, area_name)
+            .await?
+            .ok_or_else(|| anyhow!("Area '{area_name}' not found"))?;
+        cache
+            .areas_by_name
+            .insert(area_name.to_string(), loaded_area.clone());
+        loaded_area
+    };
+    let contest = if let Some(cached_contest) = cache.contests_by_external_id.get(contest_external_id)
     {
+        cached_contest.clone()
+    } else {
+        let loaded_contest = get_contest_by_external_id(
+            transaction,
+            tenant_id,
+            election_event_id,
+            contest_external_id,
+        )
+        .await?
+        .ok_or_else(|| anyhow!("Contest external id '{contest_external_id}' not found"))?;
+        cache
+            .contests_by_external_id
+            .insert(contest_external_id.to_string(), loaded_contest.clone());
+        loaded_contest
+    };
+    let area_contest_key = (area.id.clone(), contest.id.clone());
+    let area_has_contest = if let Some(cached_membership) = cache.area_contest_membership.get(&area_contest_key) {
+        *cached_membership
+    } else {
+        let exists = area_contest_exists(
+            transaction,
+            tenant_id,
+            election_event_id,
+            &area.id,
+            &contest.id,
+        )
+        .await?;
+        cache
+            .area_contest_membership
+            .insert(area_contest_key, exists);
+        exists
+    };
+    if !area_has_contest {
         return Err(anyhow!(
             "Area '{area_name}' is not assigned to contest external id '{contest_external_id}'"
         ));
     }
 
-    let candidates =
-        get_candidates_by_contest_id(transaction, tenant_id, election_event_id, &contest.id)
-            .await?;
+    let candidates = if let Some(cached_candidates) = cache.candidates_by_contest_id.get(&contest.id)
+    {
+        cached_candidates.clone()
+    } else {
+        let loaded_candidates = get_candidates_by_contest_id(
+            transaction,
+            tenant_id,
+            election_event_id,
+            &contest.id,
+        )
+        .await?;
+        cache
+            .candidates_by_contest_id
+            .insert(contest.id.clone(), loaded_candidates.clone());
+        loaded_candidates
+    };
     let mut candidates_by_external_id = HashMap::new();
     let mut duplicate_candidate_external_ids = BTreeSet::new();
     let mut candidates_missing_external_id = Vec::new();
