@@ -404,8 +404,15 @@ const catalanTranslation: TranslationType = {
             createElectionEventError: "Error creant Esdeveniment Electoral",
             ivr: {
                 tabs: {
+                    config: "Configuració",
                     blacklist: "Llista negra",
                     prompts: "Locucions",
+                },
+                common: {
+                    saveSuccess: "S'ha desat correctament",
+                    saveError: "No s'ha pogut desar",
+                    deleteSuccess: "S'ha eliminat correctament",
+                    deleteError: "No s'ha pogut eliminar",
                 },
                 blacklist: {
                     columns: {
@@ -415,10 +422,6 @@ const catalanTranslation: TranslationType = {
                         createdBy: "Creat per",
                     },
                     emptyMsg: "No hi ha cap entrada a la llista negra",
-                    saveSuccess: "S'ha desat correctament",
-                    saveError: "No s'ha pogut desar",
-                    deleteSuccess: "S'ha eliminat correctament",
-                    deleteError: "No s'ha pogut eliminar",
                     phoneRequired: "El número de telèfon és obligatori",
                 },
             },
