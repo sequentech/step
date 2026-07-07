@@ -404,7 +404,7 @@ const englishTranslation = {
             ivr: {
                 tabs: {
                     config: "Configuration",
-                    blacklist: "Blacklist",
+                    blacklist: "Blocklist",
                     prompts: "Prompts",
                 },
                 common: {
@@ -420,7 +420,7 @@ const englishTranslation = {
                         createdAt: "Created at",
                         createdBy: "Created by",
                     },
-                    emptyMsg: "There are no entries in the blacklist",
+                    emptyMsg: "There are no entries in the blocklist",
                     phoneRequired: "Phone number is required",
                 },
             },

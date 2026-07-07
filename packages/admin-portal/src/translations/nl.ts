@@ -403,7 +403,7 @@ const dutchTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     config: "Configuratie",
-                    blacklist: "Zwarte lijst",
+                    blacklist: "Blokkeerlijst",
                     prompts: "Spraakprompts",
                 },
                 common: {
@@ -419,7 +419,7 @@ const dutchTranslation: TranslationType = {
                         createdAt: "Aangemaakt op",
                         createdBy: "Aangemaakt door",
                     },
-                    emptyMsg: "Er staan geen vermeldingen op de zwarte lijst",
+                    emptyMsg: "Er zijn geen vermeldingen in de blokkeerlijst",
                     phoneRequired: "Telefoonnummer is verplicht",
                 },
             },

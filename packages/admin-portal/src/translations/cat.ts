@@ -405,7 +405,7 @@ const catalanTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     config: "Configuració",
-                    blacklist: "Llista negra",
+                    blacklist: "Llista de bloqueig",
                     prompts: "Locucions",
                 },
                 common: {
@@ -421,7 +421,7 @@ const catalanTranslation: TranslationType = {
                         createdAt: "Creat el",
                         createdBy: "Creat per",
                     },
-                    emptyMsg: "No hi ha cap entrada a la llista negra",
+                    emptyMsg: "No hi ha cap entrada a la llista de bloqueig",
                     phoneRequired: "El número de telèfon és obligatori",
                 },
             },

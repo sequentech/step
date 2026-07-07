@@ -405,7 +405,7 @@ const frenchTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     config: "Configuration",
-                    blacklist: "Liste noire",
+                    blacklist: "Liste de blocage",
                     prompts: "Messages vocaux",
                 },
                 common: {
@@ -421,7 +421,7 @@ const frenchTranslation: TranslationType = {
                         createdAt: "Créé le",
                         createdBy: "Créé par",
                     },
-                    emptyMsg: "Aucune entrée dans la liste noire",
+                    emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
                     phoneRequired: "Le numéro de téléphone est obligatoire",
                 },
             },

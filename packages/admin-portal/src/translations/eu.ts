@@ -405,7 +405,7 @@ const basqueTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     config: "Konfigurazioa",
-                    blacklist: "Zerrenda beltza",
+                    blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
                 },
                 common: {
@@ -421,7 +421,7 @@ const basqueTranslation: TranslationType = {
                         createdAt: "Sortze-data",
                         createdBy: "Nork sortua",
                     },
-                    emptyMsg: "Ez dago sarrerarik zerrenda beltzean",
+                    emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
                 },
             },

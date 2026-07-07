@@ -61,6 +61,14 @@ type Mutation {
 }
 
 type Mutation {
+    create_phone_blacklist_entry(
+        election_event_id: uuid!
+        phone_e164: String!
+        reason: String
+    ): PhoneBlacklistEntry
+}
+
+type Mutation {
     create_role(tenant_id: String!, role: KeycloakRole2!): KeycloakRole!
 }
 
@@ -101,6 +109,10 @@ type Mutation {
         tenant_id: String!
         permission_name: String!
     ): SetRolePermissionOutput
+}
+
+type Mutation {
+    delete_phone_blacklist_entry(id: uuid!, election_event_id: uuid!): IdOutput
 }
 
 type Mutation {
@@ -1712,4 +1724,19 @@ type ExportCertificateAuthorityOutput {
 
 type UpdateRealmAttributesOutput {
     updated: Boolean!
+}
+
+type PhoneBlacklistEntry {
+    id: uuid
+    tenant_id: uuid
+    election_event_id: uuid
+    phone_e164: String!
+    reason: String
+    created_at: String
+    created_by: String
+    updated_at: String
+}
+
+type IdOutput {
+    id: String!
 }
