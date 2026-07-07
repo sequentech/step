@@ -35,7 +35,9 @@ const Empty: React.FC = () => {
     const {t} = useTranslation()
     return (
         <ResourceListStyles.EmptyBox>
-            <Typography variant="subtitle1">{t("electionEventScreen.ivr.blacklist.emptyMsg")}</Typography>
+            <Typography variant="subtitle1">
+                {t("electionEventScreen.ivr.blacklist.emptyMsg")}
+            </Typography>
         </ResourceListStyles.EmptyBox>
     )
 }
@@ -223,7 +225,7 @@ export const PhoneBlacklist: React.FC = () => {
                     />
                 }
             >
-                <DatagridConfigurable empty={<Empty/>} bulkActionButtons={false}>
+                <DatagridConfigurable empty={<Empty />} bulkActionButtons={false}>
                     <TextField
                         source="phone_e164"
                         label={t("electionEventScreen.ivr.blacklist.columns.phone")}
