@@ -744,6 +744,15 @@
         "attributes": {}
       },
       {
+        "id": "7f9d0130-c877-490d-9c23-c05e18061672",
+        "name": "election-event-ivr-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "b1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
         "name": "ca-read",
         "description": "",
@@ -1851,6 +1860,15 @@
         "attributes": {}
       },
       {
+        "id": "0b57621a-2429-49c0-8802-bc0219682e77",
+        "name": "phone-blacklist-update",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "92fb4a5d-f1bb-4983-b33a-90c7223fffe7",
         "name": "phone-blacklist-delete",
         "description": "",
@@ -2275,6 +2293,7 @@
         "support-material-write",
         "user-write",
         "election-event-write",
+        "election-event-ivr-tab",
         "election-event-cas-tab",
         "ca-read",
         "ca-write",
@@ -2453,6 +2472,7 @@
         "tally-resolution-submit",
         "phone-blacklist-read",
         "phone-blacklist-create",
+        "phone-blacklist-update",
         "phone-blacklist-delete"
       ],
       "clientRoles": {}
@@ -2485,6 +2505,7 @@
         "tally-write",
         "user-write",
         "election-event-write",
+        "election-event-ivr-tab",
         "election-event-cas-tab",
         "ca-read",
         "ca-write",
