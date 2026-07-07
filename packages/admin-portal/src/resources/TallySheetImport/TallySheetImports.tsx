@@ -64,7 +64,6 @@ import {FetchDocumentQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
 import {downloadUrl} from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
-import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "./events"
 import {LIST_USERS} from "@/queries/GetUsers"
 
 type TallySheetImportSourceFormat = "ESS_ENHANCED_XML" | "CANONICAL_CSV"
@@ -190,8 +189,6 @@ interface TallySheetImportRecord {
     source_sha256?: string | null
     created_at?: string | null
     created_by_user_id: string
-    labels?: unknown
-    annotations?: unknown
     summary?: TallySheetImportSummary | null
     validation_report?: TallySheetImportValidationError[] | null
     canonical_csv_sha256?: string | null
@@ -211,8 +208,6 @@ interface TallySheetImportItemRecord {
     status: string
     previous_csv?: string | null
     incoming_csv: string
-    labels?: unknown
-    annotations?: unknown
     source_refs?: {
         area_name?: string
         contest_external_id?: string
@@ -235,8 +230,6 @@ const Filters: Array<ReactElement> = [
     <TextInput label="File" source="source_file_name" key="file" />,
     <TextInput label="Status" source="status" key="status" />,
     <TextInput label="Created by" source="created_by_user_id" key="created_by" />,
-    <TextInput label="Labels" source="labels" key="labels" />,
-    <TextInput label="Annotations" source="annotations" key="annotations" />,
 ]
 
 interface TallySheetImportsProps {
@@ -336,18 +329,6 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     const [fetchDocument] = useLazyQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         fetchPolicy: "no-cache",
     })
-
-    useEffect(() => {
-        const handleOpenImport = (event: Event) => {
-            const importId = (event as CustomEvent<{importId?: string}>).detail?.importId
-            if (importId) {
-                setPendingDetailImportId(importId)
-            }
-        }
-
-        window.addEventListener(TALLY_SHEET_IMPORT_OPEN_EVENT, handleOpenImport)
-        return () => window.removeEventListener(TALLY_SHEET_IMPORT_OPEN_EVENT, handleOpenImport)
-    }, [])
 
     useEffect(() => {
         if (openImportId) {
@@ -887,18 +868,6 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                                         )}
                                                     </Typography>
                                                 ) : null}
-                                                <MetadataLine
-                                                    label={String(
-                                                        t("tallySheetImport.table.labels")
-                                                    )}
-                                                    value={formatJsonValue(item.labels)}
-                                                />
-                                                <MetadataLine
-                                                    label={String(
-                                                        t("tallySheetImport.table.annotations")
-                                                    )}
-                                                    value={formatJsonValue(item.annotations)}
-                                                />
                                                 <CsvDiffView
                                                     previous={item.previous_csv ?? ""}
                                                     incoming={item.incoming_csv}
@@ -984,9 +953,6 @@ const TallySheetImportsDatagrid: React.FC<{
                 "& .column-source_file_name": {
                     maxWidth: 280,
                 },
-                "& .column-labels, & .column-annotations": {
-                    maxWidth: 240,
-                },
                 "& .column-actions": {
                     maxWidth: 96,
                     width: 96,
@@ -1031,16 +997,6 @@ const TallySheetImportsDatagrid: React.FC<{
                 source="status"
                 label={String(t("tallySheetImport.table.status"))}
                 render={(record: TallySheetImportRecord) => <Status status={record.status} />}
-            />
-            <FunctionField
-                source="labels"
-                label={String(t("tallySheetImport.table.labels"))}
-                render={(record: TallySheetImportRecord) => formatJsonValue(record.labels)}
-            />
-            <FunctionField
-                source="annotations"
-                label={String(t("tallySheetImport.table.annotations"))}
-                render={(record: TallySheetImportRecord) => formatJsonValue(record.annotations)}
             />
             <FunctionField
                 source="summary.imported_ballot_box_count"
@@ -1100,14 +1056,6 @@ const ImportMetadata: React.FC<{
             <MetadataLine
                 label={String(t("tallySheetImport.table.created"))}
                 value={formatDate(item.created_at)}
-            />
-            <MetadataLine
-                label={String(t("tallySheetImport.table.labels"))}
-                value={formatJsonValue(item.labels)}
-            />
-            <MetadataLine
-                label={String(t("tallySheetImport.table.annotations"))}
-                value={formatJsonValue(item.annotations)}
             />
         </Stack>
     )
@@ -1285,20 +1233,6 @@ const formatDate = (value?: string | null) => {
         return "-"
     }
     return new Date(value).toLocaleString()
-}
-
-const formatJsonValue = (value: unknown) => {
-    if (value === null || value === undefined || value === "") {
-        return "-"
-    }
-    if (typeof value === "string") {
-        return value
-    }
-    try {
-        return JSON.stringify(value)
-    } catch (_error) {
-        return String(value)
-    }
 }
 
 const hashFileSha256 = async (file: File): Promise<string | undefined> => {

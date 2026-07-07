@@ -98,7 +98,7 @@ For ES&S Enhanced XML uploads:
 - precinct names are matched to STEP areas by exact area name
 - contest `altId1` is matched to contest external ID
 - candidate `altId1` is matched to candidate external ID
-- ES&S reporting groups are summed into one result for the selected STEP channel
+- only ES&S reporting group `1` is read: its values are summed per precinct into one result for the selected STEP channel, and all other reporting groups are ignored
 - ES&S overvotes become STEP implicit invalid votes
 - ES&S blank votes become STEP blank votes
 - ES&S undervotes are treated with the overlap-safe rule `max(underVotes - blankVotes, 0)` before adding them to implicit invalid votes

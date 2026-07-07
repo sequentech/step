@@ -1400,6 +1400,7 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Hautagaia konfigurazioa.",
             },
             edit: {
+                externalId: "Kanpoko IDa",
                 general: "Orokorra",
                 type: "Mota",
                 image: "Irudia",
@@ -1439,6 +1440,7 @@ const basqueTranslation: TranslationType = {
                 subtitle: "Lehiaketa konfigurazioa.",
             },
             edit: {
+                externalId: "Kanpoko IDa",
                 general: "Orokorra",
                 type: "Mota",
                 image: "Irudia",
@@ -1759,6 +1761,13 @@ const basqueTranslation: TranslationType = {
             startTallyCeremonyError: "Ezin izan da Zenbaketa Zeremonia hasi",
             cancelTallyCeremonySuccess: "Zenbaketa Zeremonia ezeztatua",
             cancelTallyCeremonyError: "Ezin izan da Zenbaketa Zeremonia ezeztatu",
+            recountTallyCeremony: "Berriro zenbatu",
+            recountTallyCeremonyMessage:
+                "Honek emaitza-gertaera berri bat sortuko du osatutako zenbaketa-saiorako.",
+            recountTallyCeremonyStarting: "Birzenbaketa hasten...",
+            recountTallyCeremonySuccess: "Birzenbaketa hasita",
+            recountTallyCeremonyError: "Ezin izan da birzenbaketa hasi",
+            recountTallyCeremonyOk: "Berriro zenbatu",
             trusteeTitle: "Fideikomisarioen prozesua",
             trusteeSubTitle: "Mesedez igo zure giltza zatia",
             invited: "Zenbaketa zeremonoia batean parte hartzeko gonbidatu zaituzte. Mesedez ",

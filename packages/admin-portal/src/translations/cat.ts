@@ -1414,6 +1414,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració de candidats.",
             },
             edit: {
+                externalId: "ID extern",
                 general: "General",
                 type: "Tipus",
                 image: "Imatge",
@@ -1453,6 +1454,7 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració de pregunta.",
             },
             edit: {
+                externalId: "ID extern",
                 general: "General",
                 type: "Tipus",
                 image: "Imatge",
@@ -1771,6 +1773,13 @@ const catalanTranslation: TranslationType = {
             startTallyCeremonyError: "No s'ha pogut iniciar la cerimònia del recompte",
             cancelTallyCeremonySuccess: "Cancel·lada la cerimònia del recompte",
             cancelTallyCeremonyError: "No s'ha pogut cancel·lar la cerimònia del recompte",
+            recountTallyCeremony: "Repetir el recompte",
+            recountTallyCeremonyMessage:
+                "Això generarà un nou esdeveniment de resultats per a la sessió de recompte completada.",
+            recountTallyCeremonyStarting: "S'està iniciant el recompte...",
+            recountTallyCeremonySuccess: "Recompte iniciat",
+            recountTallyCeremonyError: "No s'ha pogut iniciar el recompte",
+            recountTallyCeremonyOk: "Repetir el recompte",
             trusteeTitle: "Proces del trustee",
             trusteeSubTitle: "Si us plau, importeu el vostre fragment de clau",
             invited: "Has estat convidat a participar en una cerimònia de recompte. Si us plau, ",

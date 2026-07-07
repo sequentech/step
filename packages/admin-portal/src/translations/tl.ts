@@ -1405,6 +1405,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pag-configure ng Kandidato",
             },
             edit: {
+                externalId: "Panlabas na ID",
                 general: "Pangkalahatan",
                 type: "Uri",
                 image: "Larawan",
@@ -1444,6 +1445,7 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pag-configure ng Paligsahan",
             },
             edit: {
+                externalId: "Panlabas na ID",
                 general: "Pangkalahatan",
                 type: "Uri",
                 image: "Larawan",
@@ -1765,6 +1767,13 @@ const tagalogTranslation: TranslationType = {
             startTallyCeremonyError: "Hindi nasimulan ang seremonya ng pagbibilang",
             cancelTallyCeremonySuccess: "Nakansela ang seremonya ng pagbibilang",
             cancelTallyCeremonyError: "Hindi nakansela ang seremonya ng pagbibilang",
+            recountTallyCeremony: "Muling pagbibilang",
+            recountTallyCeremonyMessage:
+                "Gagawa ito ng bagong resulta para sa natapos na sesyon ng pagbibilang.",
+            recountTallyCeremonyStarting: "Sinisimulan ang muling pagbibilang...",
+            recountTallyCeremonySuccess: "Nagsimula ang muling pagbibilang",
+            recountTallyCeremonyError: "Hindi nasimulan ang muling pagbibilang",
+            recountTallyCeremonyOk: "Muling bilangin",
             trusteeTitle: "Proseso ng tagapagtiwala",
             trusteeSubTitle: "Pakilagay ang iyong fragment ng key",
             invited: "Naanyayahan kang lumahok sa isang seremonya ng pagbibilang. Pakisuyo, ",

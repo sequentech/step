@@ -23,6 +23,7 @@ import {Button} from "react-admin"
 import {Alert, Box, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
+    RecountTallySessionMutation,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -95,12 +96,6 @@ const TrusteeKeyIcon = styled(KeyIcon)`
 `
 
 export interface ListAreaProps {}
-
-interface RecountTallySessionMutation {
-    recount_tally_session?: {
-        tally_session_id: string
-    } | null
-}
 
 export const ListTally: React.FC<ListAreaProps> = () => {
     const {t} = useTranslation()
@@ -329,7 +324,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         },
         {
             icon: (
-                <Tooltip title={String(t("tally.recountTallyCeremony", "Recount tally"))}>
+                <Tooltip title={String(t("tally.recountTallyCeremony"))}>
                     <ReplayIcon />
                 </Tooltip>
             ),
@@ -393,19 +388,19 @@ export const ListTally: React.FC<ListAreaProps> = () => {
             })
 
             if (errors || !data?.recount_tally_session) {
-                notify(t("tally.recountTallyCeremonyError", "Could not start recount"), {
+                notify(t("tally.recountTallyCeremonyError"), {
                     type: "error",
                 })
                 return
             }
 
-            notify(t("tally.recountTallyCeremonySuccess", "Recount started"), {
+            notify(t("tally.recountTallyCeremonySuccess"), {
                 type: "success",
             })
             refresh()
         } catch (error) {
             console.log("TallyCeremony :: confirmRecountAction :: error", error)
-            notify(t("tally.recountTallyCeremonyError", "Could not start recount"), {
+            notify(t("tally.recountTallyCeremonyError"), {
                 type: "error",
             })
         } finally {
@@ -607,9 +602,9 @@ export const ListTally: React.FC<ListAreaProps> = () => {
             <Dialog
                 variant="warning"
                 open={openRecountTally}
-                ok={String(t("tally.common.dialog.okCancel"))}
+                ok={String(t("tally.recountTallyCeremonyOk"))}
                 cancel={String(t("tally.common.dialog.cancel"))}
-                title={String(t("tally.recountTallyCeremony", "Recount tally"))}
+                title={String(t("tally.recountTallyCeremony"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmRecountAction()
@@ -618,11 +613,8 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 }}
             >
                 {isRecountingTally
-                    ? t("tally.recountTallyCeremonyStarting", "Starting recount...")
-                    : t(
-                          "tally.recountTallyCeremonyMessage",
-                          "This will generate a fresh results event for the completed tally session."
-                      )}
+                    ? t("tally.recountTallyCeremonyStarting")
+                    : t("tally.recountTallyCeremonyMessage")}
             </Dialog>
         </>
     )

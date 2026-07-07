@@ -1405,6 +1405,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de candidatos.",
             },
             edit: {
+                externalId: "ID externo",
                 general: "General",
                 type: "Tipo",
                 image: "Imagen",
@@ -1444,6 +1445,7 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de pregunta.",
             },
             edit: {
+                externalId: "ID externo",
                 general: "General",
                 type: "Tipo",
                 image: "Imagen",
@@ -1764,6 +1766,13 @@ const spanishTranslation: TranslationType = {
             startTallyCeremonyError: "No se ha podido iniciar la ceremonia del recuento",
             cancelTallyCeremonySuccess: "Cancelada la ceremonya del recuento",
             cancelTallyCeremonyError: "No se ha podido cancelar la ceremonia del recuento",
+            recountTallyCeremony: "Repetir el recuento",
+            recountTallyCeremonyMessage:
+                "Esto generará un nuevo evento de resultados para la sesión de recuento completada.",
+            recountTallyCeremonyStarting: "Iniciando el recuento...",
+            recountTallyCeremonySuccess: "Recuento iniciado",
+            recountTallyCeremonyError: "No se ha podido iniciar el recuento",
+            recountTallyCeremonyOk: "Repetir el recuento",
             trusteeTitle: "Proceso del trustee",
             trusteeSubTitle: "Por favor, importe su fragmento de clave",
             invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",

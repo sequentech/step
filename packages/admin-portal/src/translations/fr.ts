@@ -1412,6 +1412,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration des candidats.",
             },
             edit: {
+                externalId: "ID externe",
                 general: "Général",
                 type: "Type",
                 image: "Image",
@@ -1451,6 +1452,7 @@ const frenchTranslation: TranslationType = {
                 subtitle: "Configuration des questions.",
             },
             edit: {
+                externalId: "ID externe",
                 general: "Général",
                 type: "Type",
                 image: "Image",
@@ -1775,6 +1777,13 @@ const frenchTranslation: TranslationType = {
             startTallyCeremonyError: "Impossible de démarrer la cérémonie de comptage",
             cancelTallyCeremonySuccess: "Cérémonie de comptage annulée",
             cancelTallyCeremonyError: "Impossible d'annuler la cérémonie de comptage",
+            recountTallyCeremony: "Recompter",
+            recountTallyCeremonyMessage:
+                "Cela générera un nouvel événement de résultats pour la session de comptage terminée.",
+            recountTallyCeremonyStarting: "Démarrage du recomptage...",
+            recountTallyCeremonySuccess: "Recomptage commencé",
+            recountTallyCeremonyError: "Impossible de démarrer le recomptage",
+            recountTallyCeremonyOk: "Recompter",
             trusteeTitle: "Processus du trustee",
             trusteeSubTitle: "Veuillez importer votre fragment de clé",
             invited: "Vous avez été invité à participer à une cérémonie de comptage. Veuillez, ",

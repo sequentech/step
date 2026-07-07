@@ -40,7 +40,6 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {downloadUrl} from "@sequentech/ui-core"
-import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "../TallySheetImport/events"
 import {useLocation, useNavigate} from "react-router-dom"
 
 const OMIT_FIELDS = ["id", "channel", "area_id", "contest_id"]
@@ -371,7 +370,6 @@ const ImportedVersionSource: React.FC<ImportedVersionSourceProps> = ({
         nextSearch.set("tabId", "tally-sheet-imports")
         nextSearch.set("tallySheetImportId", importId)
         navigate({pathname: location.pathname, search: `?${nextSearch.toString()}`})
-        window.dispatchEvent(new CustomEvent(TALLY_SHEET_IMPORT_OPEN_EVENT, {detail: {importId}}))
     }
 
     const downloadSource = async () => {

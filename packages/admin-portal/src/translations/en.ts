@@ -1393,6 +1393,7 @@ const englishTranslation = {
                 subtitle: "Candidate configuration.",
             },
             edit: {
+                externalId: "External ID",
                 general: "General",
                 type: "Type",
                 image: "Image",
@@ -1432,6 +1433,7 @@ const englishTranslation = {
                 subtitle: "Contest configuration.",
             },
             edit: {
+                externalId: "External ID",
                 general: "General",
                 type: "Type",
                 image: "Image",
@@ -1748,6 +1750,13 @@ const englishTranslation = {
             startTallyCeremonyError: "Could not start Tally Ceremony",
             cancelTallyCeremonySuccess: "Tally Ceremony canceled",
             cancelTallyCeremonyError: "Could not cancel Tally Ceremony",
+            recountTallyCeremony: "Recount tally",
+            recountTallyCeremonyMessage:
+                "This will generate a fresh results event for the completed tally session.",
+            recountTallyCeremonyStarting: "Starting recount...",
+            recountTallyCeremonySuccess: "Recount started",
+            recountTallyCeremonyError: "Could not start recount",
+            recountTallyCeremonyOk: "Recount",
             trusteeTitle: "Trustees process",
             trusteeSubTitle: "Please upload you key fragment",
             invited: "You have been invited to participate in a Tally ceremony. Please ",

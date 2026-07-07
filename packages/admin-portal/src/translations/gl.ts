@@ -1405,6 +1405,7 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración do candidato.",
             },
             edit: {
+                externalId: "ID externo",
                 general: "Xeral",
                 type: "Tipo",
                 image: "Imaxe",
@@ -1444,6 +1445,7 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración do concurso.",
             },
             edit: {
+                externalId: "ID externo",
                 general: "Xeral",
                 type: "Tipo",
                 image: "Imaxe",
@@ -1762,6 +1764,13 @@ const galegoTranslation: TranslationType = {
             startTallyCeremonyError: "Non se puido iniciar a Cerimonia de Escrutinio",
             cancelTallyCeremonySuccess: "Cerimonia de Escrutinio cancelada",
             cancelTallyCeremonyError: "Non se puido cancelar a Cerimonia de Escrutinio",
+            recountTallyCeremony: "Repetir o reconto",
+            recountTallyCeremonyMessage:
+                "Isto xerará un novo evento de resultados para a sesión de escrutinio completada.",
+            recountTallyCeremonyStarting: "Iniciando o reconto...",
+            recountTallyCeremonySuccess: "Reconto iniciado",
+            recountTallyCeremonyError: "Non se puido iniciar o reconto",
+            recountTallyCeremonyOk: "Repetir o reconto",
             trusteeTitle: "Proceso dos Fiduciarios",
             trusteeSubTitle: "Por favor, carga o teu fragmento de chave",
             invited: "Fostes invitado a participar nunha Cerimonia de Escrutinio. Por favor ",

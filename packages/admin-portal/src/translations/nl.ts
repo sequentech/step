@@ -1401,6 +1401,7 @@ const dutchTranslation: TranslationType = {
                 subtitle: "Configuratie kandidaat.",
             },
             edit: {
+                externalId: "Externe ID",
                 general: "Algemeen",
                 type: "Type",
                 image: "Afbeelding",
@@ -1440,6 +1441,7 @@ const dutchTranslation: TranslationType = {
                 subtitle: "Configuratie verkiezing.",
             },
             edit: {
+                externalId: "Externe ID",
                 general: "Algemeen",
                 type: "Type",
                 image: "Afbeelding",
@@ -1757,6 +1759,13 @@ const dutchTranslation: TranslationType = {
             startTallyCeremonyError: "Kon telceremonie niet starten",
             cancelTallyCeremonySuccess: "Telceremonie geannuleerd",
             cancelTallyCeremonyError: "Kon telceremonie niet annuleren",
+            recountTallyCeremony: "Hertelling",
+            recountTallyCeremonyMessage:
+                "Dit genereert een nieuw resultatenevenement voor de voltooide telsessie.",
+            recountTallyCeremonyStarting: "Hertelling wordt gestart...",
+            recountTallyCeremonySuccess: "Hertelling gestart",
+            recountTallyCeremonyError: "Kon hertelling niet starten",
+            recountTallyCeremonyOk: "Hertellen",
             trusteeTitle: "Proces Trustees",
             trusteeSubTitle: "Gelieve uw sleutelfragment te uploaden",
             invited: "U bent uitgenodigd om deel te nemen aan een Telceremonie. Gelieve ",

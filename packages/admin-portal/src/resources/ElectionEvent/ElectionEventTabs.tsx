@@ -25,7 +25,6 @@ import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {TALLY_SHEET_IMPORT_OPEN_EVENT} from "../TallySheetImport/events"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -231,7 +230,16 @@ export const ElectionEventTabs: React.FC = () => {
     })
     const clearPendingTallySheetImportId = useCallback(() => {
         setPendingTallySheetImportId(null)
-    }, [])
+        const searchParams = new URLSearchParams(location.search)
+        if (searchParams.has("tallySheetImportId")) {
+            searchParams.delete("tallySheetImportId")
+            const search = searchParams.toString()
+            navigate(
+                {pathname: location.pathname, search: search ? `?${search}` : ""},
+                {replace: true}
+            )
+        }
+    }, [location.pathname, location.search, navigate])
 
     // Dashboard refresh logic// Dashboard refresh logic
     const [loadedChildren, setLoadedChildren] = useState(0)
@@ -512,21 +520,6 @@ export const ElectionEventTabs: React.FC = () => {
             setPendingTallySheetImportId(importId)
         }
     }, [location.search, tallySheetImportsTabIndex])
-
-    useEffect(() => {
-        const handleOpenImport = (event: Event) => {
-            const importId = (event as CustomEvent<{importId?: string}>).detail?.importId
-            if (!importId || tallySheetImportsTabIndex < 0) {
-                return
-            }
-
-            setPendingTallySheetImportId(importId)
-            setSelectedTab(tallySheetImportsTabIndex)
-        }
-
-        window.addEventListener(TALLY_SHEET_IMPORT_OPEN_EVENT, handleOpenImport)
-        return () => window.removeEventListener(TALLY_SHEET_IMPORT_OPEN_EVENT, handleOpenImport)
-    }, [tallySheetImportsTabIndex])
 
     if (!record) {
         return (
