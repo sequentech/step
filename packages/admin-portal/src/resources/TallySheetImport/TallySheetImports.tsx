@@ -805,7 +805,9 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                 subtitle={detailImport.id}
                             />
                             <Stack direction="row" gap={1}>
-                                {canReview && detailImport.status === "PENDING_REVIEW" ? (
+                                {canReview &&
+                                (detailImport.status === "PENDING_REVIEW" ||
+                                    detailImport.status === "CONFLICTED") ? (
                                     <>
                                         <Button
                                             color="success"

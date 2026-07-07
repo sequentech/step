@@ -158,6 +158,8 @@ pub async fn insert_tally_sheet_import_item(
 ) -> Result<TallySheetImportItem> {
     let source_refs = import_item.source_refs.clone();
     let validation_warnings = import_item.validation_warnings.clone();
+    let annotations = import_item.annotations.clone();
+    let labels = import_item.labels.clone();
     let statement = transaction
         .prepare(
             r#"
@@ -169,7 +171,7 @@ pub async fn insert_tally_sheet_import_item(
                 annotations, labels, created_at, last_updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, NULL, NULL, NOW(), NOW()
+                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW()
             ) RETURNING *;
             "#,
         )
@@ -206,6 +208,8 @@ pub async fn insert_tally_sheet_import_item(
                 &import_item.incoming_csv,
                 &source_refs,
                 &validation_warnings,
+                &annotations,
+                &labels,
             ],
         )
         .await?;

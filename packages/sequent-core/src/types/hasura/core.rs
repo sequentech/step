@@ -19,7 +19,7 @@ use crate::{
             AutomaticRecountPolicy, CeremoniesPolicy,
             KeysCeremonyExecutionStatus, KeysCeremonyStatus,
         },
-        tally_sheets::AreaContestResults,
+        tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
 
@@ -328,7 +328,7 @@ pub struct TallySheet {
     pub deleted_at: Option<DateTime<Local>>, /* Mark as deleted when a new
                                               * version is created. */
     pub created_by_user_id: String,
-    pub status: String,
+    pub status: TallySheetStatus,
     pub version: i32,
     pub import_id: Option<String>,
 }

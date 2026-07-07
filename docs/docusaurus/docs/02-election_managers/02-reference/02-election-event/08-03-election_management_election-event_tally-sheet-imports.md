@@ -56,7 +56,7 @@ Uploaded files are stored as normal STEP documents. The UI and CLI send a SHA-25
 
 `area_name` must exactly match an existing area name in the election event.
 
-`contest_external_id` must match the contest external ID configured in STEP.
+`contest_external_id` must match the contest external ID configured in STEP. Because the canonical CSV format has no election column, **contest external IDs must be unique within an election event** for tally sheet import to resolve rows correctly. If an election event has multiple elections that reuse the same external ID for different contests, the import will fail with an ambiguous-match error — rename the duplicate external IDs before importing.
 
 `field` must be one of:
 

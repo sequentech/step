@@ -654,6 +654,8 @@ async fn reset_failed_automatic_recount_status(
     Ok(())
 }
 
+const MAX_TALLY_SHEET_IMPORT_BYTES: u64 = 50 * 1024 * 1024;
+
 async fn read_import_document(
     transaction: &deadpool_postgres::Transaction<'_>,
     tenant_id: &str,
@@ -669,6 +671,12 @@ async fn read_import_document(
     .await?
     .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
     let file = get_document_as_temp_file(tenant_id, &document).await?;
+    let file_size = tokio::fs::metadata(file.path()).await?.len();
+    if file_size > MAX_TALLY_SHEET_IMPORT_BYTES {
+        return Err(anyhow::anyhow!(
+            "Document {document_id} is too large ({file_size} bytes, max {MAX_TALLY_SHEET_IMPORT_BYTES} bytes)"
+        ));
+    }
     let bytes = tokio::fs::read(file.path()).await?;
     Ok((document, bytes))
 }

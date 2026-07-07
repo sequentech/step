@@ -283,7 +283,9 @@ pub async fn get_contest_by_external_id(
         0 => Ok(None),
         1 => Ok(elements.first().cloned()),
         count => Err(anyhow!(
-            "Contest external id '{}' matched {} contests in election event {}",
+            "Contest external id '{}' matched {} contests in election event {}. \
+            Contest external_id must be unique within an election event for tally \
+            sheet import to work — rename the duplicate(s) before importing.",
             external_id,
             count,
             election_event_id

@@ -11,6 +11,7 @@ use sequent_core::types::{
     tally_sheets::{TallySheetStatus, VotingChannel},
 };
 use serde_json::Value;
+use std::str::FromStr;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::instrument;
@@ -37,7 +38,8 @@ impl TryFrom<Row> for TallySheetWrapper {
             annotations: item.try_get("annotations")?,
             reviewed_at: item.get("reviewed_at"),
             reviewed_by_user_id: item.try_get("reviewed_by_user_id")?,
-            status: item.try_get("status")?,
+            status: TallySheetStatus::from_str(&item.try_get::<_, String>("status")?)
+                .map_err(|err| anyhow!("Invalid tally sheet status: {err}"))?,
             version: item.try_get("version")?,
             content: content,
             channel: item.try_get("channel")?,
@@ -213,11 +215,11 @@ pub async fn get_latest_ballot_box_version(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
-                &Uuid::parse_str(area_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(contest_id)?,
                 &channel.to_string(),
             ],
         )
@@ -320,22 +322,21 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
         )
         .await?;
 
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.tenant_id.as_str())
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet.tenant_id.as_str())
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid =
-        Uuid::parse_str(tally_sheet.election_event_id.as_str())
-            .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.election_id.as_str())
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet.election_event_id.as_str())
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet.election_id.as_str())
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.area_id.as_str())
+    let area_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet.area_id.as_str())
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.contest_id.as_str())
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet.contest_id.as_str())
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let channel_str = tally_sheet
         .channel
         .as_deref()
         .ok_or(anyhow!("Channel is None"))?;
-    let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet.id.as_str())
+    let tally_sheet_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet.id.as_str())
         .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
     let params: Vec<&(dyn ToSql + Sync)> = vec![
         &tenant_uuid,
@@ -432,16 +433,16 @@ pub async fn insert_tally_sheet(
     version: i32,
     import_id: Option<&str>,
 ) -> Result<TallySheet> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = Uuid::parse_str(contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid =
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
     let content_value = serde_json::to_value(content)?;
     let channel_str = channel.to_string();
     let status_str = status.to_string();

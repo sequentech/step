@@ -308,7 +308,10 @@ pub async fn review_tally_sheet_import(
     let import = get_tally_sheet_import_by_id(transaction, tenant_id, election_event_id, import_id)
         .await?
         .ok_or_else(|| anyhow!("Tally sheet import {import_id} not found"))?;
-    if import.status != TallySheetImportStatus::PENDING_REVIEW {
+    if !matches!(
+        import.status,
+        TallySheetImportStatus::PENDING_REVIEW | TallySheetImportStatus::CONFLICTED
+    ) {
         return Err(anyhow!(
             "Tally sheet import {import_id} cannot be reviewed from status {}",
             import.status
@@ -405,6 +408,11 @@ async fn find_stale_baseline_conflicts(
     let mut conflicted_item_ids = Vec::new();
 
     for item in items {
+        if item.generated_tally_sheet_id.is_none() {
+            // UNCHANGED items never created/replaced a tally sheet, so they can't have a stale baseline.
+            continue;
+        }
+
         lock_ballot_box_version_assignment(
             transaction,
             tenant_id,
@@ -467,7 +475,7 @@ async fn generated_tally_sheet_is_stale(
 
     Ok(
         latest_sheet.id.as_str() != generated_tally_sheet_id.as_str()
-            || latest_sheet.status != TallySheetStatus::PENDING.to_string(),
+            || latest_sheet.status != TallySheetStatus::PENDING,
     )
 }
 
