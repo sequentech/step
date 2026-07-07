@@ -405,7 +405,7 @@ const galegoTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     config: "Configuración",
-                    blacklist: "Lista negra",
+                    blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
                 },
                 common: {
@@ -421,7 +421,7 @@ const galegoTranslation: TranslationType = {
                         createdAt: "Creado o",
                         createdBy: "Creado por",
                     },
-                    emptyMsg: "Non hai entradas na lista negra",
+                    emptyMsg: "Non hai entradas na lista de bloqueo",
                     phoneRequired: "O número de teléfono é obrigatorio",
                 },
             },

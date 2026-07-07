@@ -404,7 +404,7 @@ const tagalogTranslation: TranslationType = {
             ivr: {
                 tabs: {
                     config: "Configuration",
-                    blacklist: "Blacklist",
+                    blacklist: "Listahan ng pag-block",
                     prompts: "Mga voice prompt",
                 },
                 common: {
@@ -420,7 +420,7 @@ const tagalogTranslation: TranslationType = {
                         createdAt: "Ginawa noong",
                         createdBy: "Ginawa ni",
                     },
-                    emptyMsg: "Walang entry sa blacklist",
+                    emptyMsg: "Walang entry sa listahan ng pag-block",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },
