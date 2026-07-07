@@ -23,8 +23,7 @@ import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {isVotedByElectionId} from "../../store/extra/extraSlice"
 import {useParams} from "react-router-dom"
-import {error} from "console"
-import {IInvalidPlaintextErrorType} from "sequent-core"
+import {IInvalidPlaintextErrorType} from "../../types/errors"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
