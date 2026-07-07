@@ -16,7 +16,6 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
-    IElectionEventPresentation,
     EVotingStatus,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
@@ -30,7 +29,6 @@ import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -134,7 +132,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const location = useLocation()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
-    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const [createBallotReceipt] = useMutation(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
@@ -145,7 +142,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
     const [isPolling, setIsPolling] = useState<boolean>(false)
 
-    let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
+    let presentation = ballotStyle?.ballot_eml.election_event_presentation
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {

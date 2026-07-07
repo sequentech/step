@@ -277,8 +277,13 @@ const ElectionSelectionScreen: React.FC = () => {
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+    const electionEventPresentation = oneBallotStyle?.ballot_eml.election_event_presentation
     //Handle both transalations from presentation and i18n language change.
-    useUpdateTranslation({electionEvent}, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
+    useUpdateTranslation(
+        {presentation: electionEventPresentation},
+        defaultLanguageTouched,
+        setDefaultLanguageTouched
+    ) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const dispatch = useAppDispatch()
@@ -468,8 +473,8 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
-        setIsMaterialsActivated(electionEvent?.presentation?.materials?.activated || false)
-    }, [electionEvent?.presentation?.materials?.activated])
+        setIsMaterialsActivated(electionEventPresentation?.materials?.activated || false)
+    }, [electionEventPresentation?.materials?.activated])
 
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {

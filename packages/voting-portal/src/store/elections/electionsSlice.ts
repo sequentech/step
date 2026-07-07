@@ -43,7 +43,8 @@ export const {setElection} = electionsSlice.actions
 export const selectElectionIds = (state: RootState) => {
     return sortElectionList(
         Object.values(state.elections) as unknown as IElection[],
-        Object.values(state.electionEvent)[0]?.presentation?.elections_order
+        Object.values(state.ballotStyles)[0]?.ballot_eml.election_event_presentation
+            ?.elections_order
     ).map((election) => election.id)
 }
 
