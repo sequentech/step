@@ -1089,7 +1089,7 @@ type mutation_root {
   delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
-  delete_phone_blacklist_entry(id: uuid!): IdOutput
+  delete_phone_blacklist_entry(election_event_id: uuid!, id: uuid!): IdOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
   delete_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
   """
