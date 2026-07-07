@@ -767,6 +767,13 @@ const spanishTranslation: TranslationType = {
                     disabled: "Deshabilitado",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Política del botón Atrás de la pantalla de votación",
+                options: {
+                    "election-selection-screen": "Ir a la pantalla de selección de elecciones",
+                    "start-screen": "Ir a la pantalla de inicio de la elección",
+                },
+            },
         },
         tenantScreen: {
             common: {

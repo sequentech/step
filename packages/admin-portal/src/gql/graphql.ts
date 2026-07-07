@@ -12893,7 +12893,7 @@ export type Sequent_Backend_Phone_Blacklist = {
   __typename?: 'sequent_backend_phone_blacklist';
   created_at: Scalars['timestamptz']['output'];
   created_by: Scalars['uuid']['output'];
-  election_event_id: Scalars['uuid']['output'];
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
   id: Scalars['uuid']['output'];
   phone_e164: Scalars['String']['output'];
   reason?: Maybe<Scalars['String']['output']>;

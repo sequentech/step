@@ -763,6 +763,13 @@ const dutchTranslation: TranslationType = {
                     disabled: "Uitgeschakeld",
                 },
             },
+            votingScreenBackPolicy: {
+                label: "Beleid voor de terugknop van het stemscherm",
+                options: {
+                    "election-selection-screen": "Ga naar het verkiezingskeuzescherm",
+                    "start-screen": "Ga naar het startscherm van de verkiezing",
+                },
+            },
         },
         tenantScreen: {
             common: {
