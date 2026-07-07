@@ -82,7 +82,7 @@ pub async fn delete_phone_blacklist_entry(
     tenant_id: &str,
     election_event_id: &str,
     entry_id: &str,
-) -> Result<()> {
+) -> Result<PhoneBlacklistEntry> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -90,12 +90,13 @@ pub async fn delete_phone_blacklist_entry(
                 WHERE
                   tenant_id = $1
                   AND election_event_id = $2
-                  AND id = $3;
+                  AND id = $3
+                  RETURNING *;
                 "#,
         )
         .await?;
-    hasura_transaction
-        .execute(
+    let deleted_row = hasura_transaction
+        .query_one(
             &statement,
             &[
                 &parse_uuid_v4(tenant_id)?,
@@ -104,6 +105,7 @@ pub async fn delete_phone_blacklist_entry(
             ],
         )
         .await?;
+    let deleted = PhoneBlacklistEntryRow::try_from(deleted_row).map(|entry_row| entry_row.0)?;
 
-    Ok(())
+    Ok(deleted)
 }
