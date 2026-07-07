@@ -33,12 +33,5 @@ export const EditElectionEventIvr: React.FC = () => {
         })
     }
 
-    if (authContext.isAuthorized(true, authContext.tenantId, IPermissions.IVR_PROMPTS_READ)) {
-        tabs.push({
-            label: t("electionEventScreen.ivr.tabs.prompts"),
-            component: PromptsTab,
-        })
-    }
-
     return <Tabs elements={tabs} />
 }
