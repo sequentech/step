@@ -32,8 +32,9 @@ export const IvrConfig: React.FC = () => {
         }
     }, [stringConfig])
 
+    const [saving, setSaving] = useState(false)
     const [editorData, setEditorData] = useState(parsedConfig)
-    const pendingConfigPayload = useMemo(()=> {
+    const pendingConfigPayload = useMemo(() => {
         return JSON.stringify(editorData)
     }, [editorData])
 
@@ -46,10 +47,9 @@ export const IvrConfig: React.FC = () => {
         return null
     }
 
-    const [saving, setSaving] = useState(false)
-    const handleDefault: DefaultValueFunction = (input, newKey)=> {
+    const handleDefault: DefaultValueFunction = (input, newKey) => {
         if (input.level === 1 && input.key === "flow") {
-            return {"phase": "", "name": ""}
+            return {phase: "", name: ""}
         }
     }
     const handleCancel = () => {
