@@ -6,10 +6,10 @@ schema {
 
 """whether this query should be cached (Hasura Cloud only)"""
 directive @cached(
-  """refresh the cache entry"""
-  refresh: Boolean! = false
   """measured in seconds"""
   ttl: Int! = 60
+  """refresh the cache entry"""
+  refresh: Boolean! = false
 ) on QUERY
 
 type Aggregate {
@@ -473,6 +473,7 @@ input GetUsersInput {
   show_votes_info: Boolean
   sort: jsonb
   tenant_id: uuid!
+  user_ids: [String!]
   username: jsonb
 }
 
@@ -930,6 +931,7 @@ enum VotingStatusChannel {
   EARLY_VOTING
   KIOSK
   ONLINE
+  TELEPHONE
 }
 
 type applicationOutput {
@@ -13119,7 +13121,7 @@ columns and relationships of "sequent_backend.phone_blacklist"
 type phone_blacklist {
   created_at: timestamptz!
   created_by: uuid!
-  election_event_id: uuid!
+  election_event_id: uuid
   id: uuid!
   phone_e164: String!
   reason: String
@@ -20065,6 +20067,10 @@ input tally_sheet_delete_key_input {
 columns and relationships of "sequent_backend.tally_sheet_import"
 """
 type tally_sheet_import {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
   canonical_csv_sha256: String
   created_at: timestamptz!
   created_by_user_id: String!
@@ -20096,6 +20102,10 @@ type tally_sheet_import {
     """filter the rows returned"""
     where: tally_sheet_import_item_bool_exp
   ): tally_sheet_import_item_aggregate!
+  labels(
+    """JSON select path"""
+    path: String
+  ): jsonb
   last_updated_at: timestamptz!
   selected_channel: String!
   """An object relationship"""
@@ -20135,6 +20145,8 @@ type tally_sheet_import_aggregate_fields {
 
 """append existing jsonb value of filtered columns with new jsonb value"""
 input tally_sheet_import_append_input {
+  annotations: jsonb
+  labels: jsonb
   summary: jsonb
   validation_report: jsonb
 }
@@ -20146,6 +20158,7 @@ input tally_sheet_import_bool_exp {
   _and: [tally_sheet_import_bool_exp!]
   _not: tally_sheet_import_bool_exp
   _or: [tally_sheet_import_bool_exp!]
+  annotations: jsonb_comparison_exp
   canonical_csv_sha256: String_comparison_exp
   created_at: timestamptz_comparison_exp
   created_by_user_id: String_comparison_exp
@@ -20153,6 +20166,7 @@ input tally_sheet_import_bool_exp {
   id: uuid_comparison_exp
   items: tally_sheet_import_item_bool_exp
   items_aggregate: tally_sheet_import_item_aggregate_bool_exp
+  labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
   selected_channel: String_comparison_exp
   source_document: document_bool_exp
@@ -20180,6 +20194,8 @@ enum tally_sheet_import_constraint {
 delete the field or element with specified path (for JSON arrays, negative integers count from the end)
 """
 input tally_sheet_import_delete_at_path_input {
+  annotations: [String!]
+  labels: [String!]
   summary: [String!]
   validation_report: [String!]
 }
@@ -20188,6 +20204,8 @@ input tally_sheet_import_delete_at_path_input {
 delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
 """
 input tally_sheet_import_delete_elem_input {
+  annotations: Int
+  labels: Int
   summary: Int
   validation_report: Int
 }
@@ -20196,6 +20214,8 @@ input tally_sheet_import_delete_elem_input {
 delete key/value pair or string element. key/value pairs are matched based on their key value
 """
 input tally_sheet_import_delete_key_input {
+  annotations: String
+  labels: String
   summary: String
   validation_report: String
 }
@@ -20204,12 +20224,14 @@ input tally_sheet_import_delete_key_input {
 input type for inserting data into table "sequent_backend.tally_sheet_import"
 """
 input tally_sheet_import_insert_input {
+  annotations: jsonb
   canonical_csv_sha256: String
   created_at: timestamptz
   created_by_user_id: String
   election_event_id: uuid
   id: uuid
   items: tally_sheet_import_item_arr_rel_insert_input
+  labels: jsonb
   last_updated_at: timestamptz
   selected_channel: String
   source_document: document_obj_rel_insert_input
@@ -20227,6 +20249,10 @@ input tally_sheet_import_insert_input {
 columns and relationships of "sequent_backend.tally_sheet_import_item"
 """
 type tally_sheet_import_item {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
   area_id: uuid!
   baseline_approved_tally_sheet_id: uuid
   baseline_approved_version: Int
@@ -20246,6 +20272,10 @@ type tally_sheet_import_item {
   import_id: uuid!
   incoming_content_hash: String!
   incoming_csv: String!
+  labels(
+    """JSON select path"""
+    path: String
+  ): jsonb
   last_updated_at: timestamptz!
   previous_csv: String
   source_refs(
@@ -20315,6 +20345,8 @@ input tally_sheet_import_item_aggregate_order_by {
 
 """append existing jsonb value of filtered columns with new jsonb value"""
 input tally_sheet_import_item_append_input {
+  annotations: jsonb
+  labels: jsonb
   source_refs: jsonb
   validation_warnings: jsonb
 }
@@ -20347,6 +20379,7 @@ input tally_sheet_import_item_bool_exp {
   _and: [tally_sheet_import_item_bool_exp!]
   _not: tally_sheet_import_item_bool_exp
   _or: [tally_sheet_import_item_bool_exp!]
+  annotations: jsonb_comparison_exp
   area_id: uuid_comparison_exp
   baseline_approved_tally_sheet_id: uuid_comparison_exp
   baseline_approved_version: Int_comparison_exp
@@ -20364,6 +20397,7 @@ input tally_sheet_import_item_bool_exp {
   import_id: uuid_comparison_exp
   incoming_content_hash: String_comparison_exp
   incoming_csv: String_comparison_exp
+  labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
   previous_csv: String_comparison_exp
   source_refs: jsonb_comparison_exp
@@ -20390,6 +20424,8 @@ enum tally_sheet_import_item_constraint {
 delete the field or element with specified path (for JSON arrays, negative integers count from the end)
 """
 input tally_sheet_import_item_delete_at_path_input {
+  annotations: [String!]
+  labels: [String!]
   source_refs: [String!]
   validation_warnings: [String!]
 }
@@ -20398,6 +20434,8 @@ input tally_sheet_import_item_delete_at_path_input {
 delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
 """
 input tally_sheet_import_item_delete_elem_input {
+  annotations: Int
+  labels: Int
   source_refs: Int
   validation_warnings: Int
 }
@@ -20406,6 +20444,8 @@ input tally_sheet_import_item_delete_elem_input {
 delete key/value pair or string element. key/value pairs are matched based on their key value
 """
 input tally_sheet_import_item_delete_key_input {
+  annotations: String
+  labels: String
   source_refs: String
   validation_warnings: String
 }
@@ -20421,6 +20461,7 @@ input tally_sheet_import_item_inc_input {
 input type for inserting data into table "sequent_backend.tally_sheet_import_item"
 """
 input tally_sheet_import_item_insert_input {
+  annotations: jsonb
   area_id: uuid
   baseline_approved_tally_sheet_id: uuid
   baseline_approved_version: Int
@@ -20438,6 +20479,7 @@ input tally_sheet_import_item_insert_input {
   import_id: uuid
   incoming_content_hash: String
   incoming_csv: String
+  labels: jsonb
   last_updated_at: timestamptz
   previous_csv: String
   source_refs: jsonb
@@ -20565,6 +20607,7 @@ input tally_sheet_import_item_on_conflict {
 Ordering options when selecting data from "sequent_backend.tally_sheet_import_item".
 """
 input tally_sheet_import_item_order_by {
+  annotations: order_by
   area_id: order_by
   baseline_approved_tally_sheet_id: order_by
   baseline_approved_version: order_by
@@ -20582,6 +20625,7 @@ input tally_sheet_import_item_order_by {
   import_id: order_by
   incoming_content_hash: order_by
   incoming_csv: order_by
+  labels: order_by
   last_updated_at: order_by
   previous_csv: order_by
   source_refs: order_by
@@ -20599,6 +20643,8 @@ input tally_sheet_import_item_pk_columns_input {
 
 """prepend existing jsonb value of filtered columns with new jsonb value"""
 input tally_sheet_import_item_prepend_input {
+  annotations: jsonb
+  labels: jsonb
   source_refs: jsonb
   validation_warnings: jsonb
 }
@@ -20607,6 +20653,8 @@ input tally_sheet_import_item_prepend_input {
 select columns of table "sequent_backend.tally_sheet_import_item"
 """
 enum tally_sheet_import_item_select_column {
+  """column name"""
+  annotations
   """column name"""
   area_id
   """column name"""
@@ -20638,6 +20686,8 @@ enum tally_sheet_import_item_select_column {
   """column name"""
   incoming_csv
   """column name"""
+  labels
+  """column name"""
   last_updated_at
   """column name"""
   previous_csv
@@ -20655,6 +20705,7 @@ enum tally_sheet_import_item_select_column {
 input type for updating data in table "sequent_backend.tally_sheet_import_item"
 """
 input tally_sheet_import_item_set_input {
+  annotations: jsonb
   area_id: uuid
   baseline_approved_tally_sheet_id: uuid
   baseline_approved_version: Int
@@ -20670,6 +20721,7 @@ input tally_sheet_import_item_set_input {
   import_id: uuid
   incoming_content_hash: String
   incoming_csv: String
+  labels: jsonb
   last_updated_at: timestamptz
   previous_csv: String
   source_refs: jsonb
@@ -20726,6 +20778,7 @@ input tally_sheet_import_item_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input tally_sheet_import_item_stream_cursor_value_input {
+  annotations: jsonb
   area_id: uuid
   baseline_approved_tally_sheet_id: uuid
   baseline_approved_version: Int
@@ -20741,6 +20794,7 @@ input tally_sheet_import_item_stream_cursor_value_input {
   import_id: uuid
   incoming_content_hash: String
   incoming_csv: String
+  labels: jsonb
   last_updated_at: timestamptz
   previous_csv: String
   source_refs: jsonb
@@ -20765,6 +20819,8 @@ input tally_sheet_import_item_sum_order_by {
 update columns of table "sequent_backend.tally_sheet_import_item"
 """
 enum tally_sheet_import_item_update_column {
+  """column name"""
+  annotations
   """column name"""
   area_id
   """column name"""
@@ -20795,6 +20851,8 @@ enum tally_sheet_import_item_update_column {
   incoming_content_hash
   """column name"""
   incoming_csv
+  """column name"""
+  labels
   """column name"""
   last_updated_at
   """column name"""
@@ -20936,12 +20994,14 @@ input tally_sheet_import_on_conflict {
 Ordering options when selecting data from "sequent_backend.tally_sheet_import".
 """
 input tally_sheet_import_order_by {
+  annotations: order_by
   canonical_csv_sha256: order_by
   created_at: order_by
   created_by_user_id: order_by
   election_event_id: order_by
   id: order_by
   items_aggregate: tally_sheet_import_item_aggregate_order_by
+  labels: order_by
   last_updated_at: order_by
   selected_channel: order_by
   source_document: document_order_by
@@ -20964,6 +21024,8 @@ input tally_sheet_import_pk_columns_input {
 
 """prepend existing jsonb value of filtered columns with new jsonb value"""
 input tally_sheet_import_prepend_input {
+  annotations: jsonb
+  labels: jsonb
   summary: jsonb
   validation_report: jsonb
 }
@@ -20972,6 +21034,8 @@ input tally_sheet_import_prepend_input {
 select columns of table "sequent_backend.tally_sheet_import"
 """
 enum tally_sheet_import_select_column {
+  """column name"""
+  annotations
   """column name"""
   canonical_csv_sha256
   """column name"""
@@ -20982,6 +21046,8 @@ enum tally_sheet_import_select_column {
   election_event_id
   """column name"""
   id
+  """column name"""
+  labels
   """column name"""
   last_updated_at
   """column name"""
@@ -21008,11 +21074,13 @@ enum tally_sheet_import_select_column {
 input type for updating data in table "sequent_backend.tally_sheet_import"
 """
 input tally_sheet_import_set_input {
+  annotations: jsonb
   canonical_csv_sha256: String
   created_at: timestamptz
   created_by_user_id: String
   election_event_id: uuid
   id: uuid
+  labels: jsonb
   last_updated_at: timestamptz
   selected_channel: String
   source_document_id: uuid
@@ -21037,11 +21105,13 @@ input tally_sheet_import_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input tally_sheet_import_stream_cursor_value_input {
+  annotations: jsonb
   canonical_csv_sha256: String
   created_at: timestamptz
   created_by_user_id: String
   election_event_id: uuid
   id: uuid
+  labels: jsonb
   last_updated_at: timestamptz
   selected_channel: String
   source_document_id: uuid
@@ -21059,6 +21129,8 @@ update columns of table "sequent_backend.tally_sheet_import"
 """
 enum tally_sheet_import_update_column {
   """column name"""
+  annotations
+  """column name"""
   canonical_csv_sha256
   """column name"""
   created_at
@@ -21068,6 +21140,8 @@ enum tally_sheet_import_update_column {
   election_event_id
   """column name"""
   id
+  """column name"""
+  labels
   """column name"""
   last_updated_at
   """column name"""
