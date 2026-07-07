@@ -109,6 +109,16 @@ The encoded vector is composed in this order:
 3. **ordinary candidate section**
 4. **write-in text section**, if write-ins are enabled
 
+The fixed-size part of the vector therefore contains:
+
+```text
+1
++ (1 if the contest defines an explicit blank marker else 0)
++ number_of_ordinary_candidates
+```
+
+positions, followed by the variable-length write-in section.
+
 ### 4.2 Explicit invalid flag
 
 The first position is always reserved for the explicit invalid flag.
@@ -290,6 +300,10 @@ policies, including:
 An explicit blank vote must still be treated as a blank vote when applying blank
 vote policy. It must not be treated as a normal candidate selection.
 
+For the minimum-selections rule, a set explicit invalid flag or a set explicit
+blank flag counts as one selection: a contest that is deliberately marked
+invalid or blank must not additionally be reported as under the minimum.
+
 ## 9. Error conditions
 
 Compatible implementations must detect and report at least the following error
@@ -374,20 +388,39 @@ This codec is intended for:
 
 - plurality-at-large contests only
 - no write-ins
-- one ballot-level explicit invalid flag
+- an optional ballot-level decline-to-vote flag
+- one explicit invalid flag per contest
+- one explicit blank flag per contest when the contest defines an explicit
+  blank marker
 
 ### 11.2 Layout
 
 The multi-contest representation is:
 
-1. one ballot-level explicit invalid flag
-2. a contiguous block of fixed-size contest segments
+1. one ballot-level decline-to-vote flag, when decline-to-vote is enabled
+2. a contiguous block of fixed-size contest segments, sorted by contest
+   identifier
 
-Each contest segment has exactly `max_votes` positions.
+Each contest segment is encoded as:
+
+1. explicit invalid flag
+2. explicit blank flag, if the contest defines an explicit blank marker
+3. `max_votes` sparse ordinary-candidate positions
+
+The number of positions is therefore:
+
+```text
+(1 if decline-to-vote is enabled else 0)
++ number_of_contests
++ number_of_contests_with_explicit_blank_markers
++ sum(contest.max_votes)
+```
 
 ### 11.3 Slot meaning
 
-Each position in a contest segment uses:
+The explicit invalid and explicit blank flags use base `2`.
+
+Each sparse ordinary-candidate position uses:
 
 ```text
 number_of_ordinary_candidates + 1
@@ -402,15 +435,23 @@ Unlike the single-contest codec, the multi-contest codec is **sparse**: it
 stores up to `max_votes` selected candidate references rather than one boolean
 slot per ordinary candidate.
 
+Explicit invalid and explicit blank marker candidates are not part of the sparse
+ordinary-candidate positions. Selecting one of those marker candidates sets the
+corresponding bit instead, and decoding that bit reconstructs the marker
+candidate as selected.
+
 ### 11.4 Decoding
 
 To decode a multi-contest ballot:
 
-1. read the ballot-level explicit invalid flag
-2. partition the remaining positions by contest, in contest order
-3. decode each non-zero slot back to its candidate reference
-4. reconstruct the decoded contest selections
-5. apply the same semantic validation rules described earlier
+1. read the ballot-level decline-to-vote flag, when present
+2. for each contest in contest identifier order, read the explicit invalid flag
+3. read the explicit blank flag when the contest defines an explicit blank
+   marker
+4. decode each non-zero sparse slot back to its ordinary candidate reference
+5. reconstruct explicit invalid and explicit blank marker candidates from their
+   bits
+6. apply the same semantic validation rules described earlier
 
 ## 12. Interoperability requirements
 

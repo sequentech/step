@@ -109,9 +109,15 @@ impl RawBallotCodec for Contest {
         // - Invalid vote candidate (if any)
         // - Write-ins (if any)
         // - Valid candidates (normal candidates + write-ins if any)
-        let invalid_vote: u64 =
-            if plaintext.is_explicit_invalid { 1 } else { 0 };
-        choices.push(invalid_vote);
+        let is_explicit_invalid = plaintext.is_explicit_invalid
+            || sorted_choices.iter().any(|choice| {
+                choice.selected > -1
+                    && candidates_map
+                        .get(&choice.id)
+                        .map(|candidate| candidate.is_explicit_invalid())
+                        .unwrap_or(false)
+            });
+        choices.push(u64::from(is_explicit_invalid));
         if let Some(candidate) = explicit_blank_candidate {
             let is_explicit_blank = sorted_choices
                 .iter()
@@ -416,32 +422,40 @@ impl RawBallotCodec for Contest {
             check_max_min_votes_policy(self.max_votes, self.min_votes);
         decoded_contest.update(maxmin_errors);
 
+        // Explicit invalid and explicit blank flags count as selections
+        // for the min_votes, max_votes, undervote and blank-vote rules.
+        let num_selected_with_markers = num_selected_candidates
+            + usize::from(is_explicit_invalid)
+            + usize::from(is_explicit_blank);
+
         if let Some(max_votes) = max_votes.clone() {
             let overvote_check = check_over_vote_policy(
                 &presentation,
-                num_selected_candidates,
+                num_selected_with_markers,
                 max_votes,
             );
             decoded_contest.update(overvote_check);
         }
+
         if let Some(min_votes) = min_votes.clone() {
             let min_check =
-                check_min_vote_policy(num_selected_candidates, min_votes);
+                check_min_vote_policy(num_selected_with_markers, min_votes);
             decoded_contest.update(min_check);
         }
 
         let under_vote_check = check_under_vote_policy(
             &presentation,
-            num_selected_candidates,
+            num_selected_with_markers,
             max_votes.clone(),
             min_votes.clone(),
         );
         decoded_contest.update(under_vote_check);
 
-        // handle blank vote policy
+        // handle blank vote policy. A selected explicit blank or explicit
+        // invalid marker counts as a selection, so it is not a blank vote.
         let blank_vote_check = check_blank_vote_policy(
             &presentation,
-            num_selected_candidates,
+            num_selected_with_markers,
             is_explicit_invalid,
         );
         decoded_contest.update(blank_vote_check);
@@ -791,6 +805,215 @@ mod tests {
                 .filter(|choice| choice.selected > -1)
                 .count(),
             1
+        );
+    }
+
+    #[test]
+    fn test_explicit_blank_satisfies_min_vote_policy() {
+        let (mut contest, implicit_blank, explicit_blank) =
+            explicit_blank_fixture();
+        contest.min_votes = 1;
+
+        let has_selected_min = |plaintext: &DecodedVoteContest| {
+            let raw_ballot = contest
+                .encode_to_raw_ballot(plaintext)
+                .expect("Expected raw ballot");
+            let decoded = contest
+                .decode_from_raw_ballot(&raw_ballot)
+                .expect("Expected decoded contest");
+            decoded.invalid_errors.iter().any(|error| {
+                error.message.as_deref() == Some("errors.implicit.selectedMin")
+            })
+        };
+
+        assert!(has_selected_min(&implicit_blank));
+        assert!(!has_selected_min(&explicit_blank));
+    }
+
+    #[test]
+    fn test_selected_explicit_invalid_candidate_sets_invalid_flag() {
+        let mut contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+        contest.candidates[0]
+            .presentation
+            .get_or_insert_with(ballot::CandidatePresentation::default)
+            .is_explicit_invalid = Some(true);
+        let invalid_id = contest.candidates[0].id.clone();
+
+        let plaintext = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if candidate.id == invalid_id { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+
+        let raw_ballot = contest
+            .encode_to_raw_ballot(&plaintext)
+            .expect("Expected raw ballot");
+
+        assert_eq!(raw_ballot.bases, vec![2, 2, 2]);
+        assert_eq!(raw_ballot.choices, vec![1, 0, 0]);
+
+        let decoded = contest
+            .decode_from_raw_ballot(&raw_ballot)
+            .expect("Expected decoded contest");
+        assert!(decoded.is_explicit_invalid);
+    }
+
+    #[test]
+    fn test_explicit_blank_counts_towards_under_vote_alert() {
+        let (mut contest, _implicit_blank, explicit_blank) =
+            explicit_blank_fixture();
+        contest.min_votes = 1;
+        contest.max_votes = 2;
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .under_vote_policy = Some(EUnderVotePolicy::WARN);
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .blank_vote_policy = Some(ballot::EBlankVotePolicy::WARN);
+
+        let raw_ballot = contest
+            .encode_to_raw_ballot(&explicit_blank)
+            .expect("Expected raw ballot");
+        let decoded = contest
+            .decode_from_raw_ballot(&raw_ballot)
+            .expect("Expected decoded contest");
+
+        assert!(
+            decoded
+                .invalid_alerts
+                .iter()
+                .any(|alert| alert.message.as_deref()
+                    == Some("errors.implicit.underVote")),
+            "Expected undervote alert for explicit blank selection"
+        );
+        assert!(
+            !decoded
+                .invalid_errors
+                .iter()
+                .any(|error| error.message.as_deref()
+                    == Some("errors.implicit.selectedMin")),
+            "Explicit blank should satisfy min_votes"
+        );
+        assert!(
+            !decoded
+                .invalid_alerts
+                .iter()
+                .chain(decoded.invalid_errors.iter())
+                .any(|alert| alert.message.as_deref()
+                    == Some("errors.implicit.blankVote")),
+            "Explicit blank should not be reported as a blank vote"
+        );
+    }
+
+    #[test]
+    fn test_explicit_blank_counts_towards_max_votes() {
+        let (mut contest, _implicit_blank, mut explicit_blank) =
+            explicit_blank_fixture();
+        contest.min_votes = 0;
+        contest.max_votes = 1;
+        // Select a normal candidate in addition to the explicit blank
+        // marker: together they exceed max_votes.
+        explicit_blank.choices[0].selected = 0;
+
+        let raw_ballot = contest
+            .encode_to_raw_ballot(&explicit_blank)
+            .expect("Expected raw ballot");
+        let decoded = contest
+            .decode_from_raw_ballot(&raw_ballot)
+            .expect("Expected decoded contest");
+
+        assert!(
+            decoded
+                .invalid_errors
+                .iter()
+                .any(|error| error.message.as_deref()
+                    == Some("errors.implicit.selectedMax")),
+            "Explicit blank should count towards max_votes"
+        );
+    }
+
+    #[test]
+    fn test_explicit_invalid_counts_towards_under_vote_alert() {
+        let mut contest = get_configurable_contest(
+            2,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+        contest.min_votes = 1;
+        contest.max_votes = 2;
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .under_vote_policy = Some(EUnderVotePolicy::WARN);
+        contest.candidates[0]
+            .presentation
+            .get_or_insert_with(ballot::CandidatePresentation::default)
+            .is_explicit_invalid = Some(true);
+        let invalid_id = contest.candidates[0].id.clone();
+
+        let plaintext = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if candidate.id == invalid_id { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+
+        let raw_ballot = contest
+            .encode_to_raw_ballot(&plaintext)
+            .expect("Expected raw ballot");
+        let decoded = contest
+            .decode_from_raw_ballot(&raw_ballot)
+            .expect("Expected decoded contest");
+
+        assert!(decoded.is_explicit_invalid);
+        assert!(
+            decoded
+                .invalid_alerts
+                .iter()
+                .any(|alert| alert.message.as_deref()
+                    == Some("errors.implicit.underVote")),
+            "Expected undervote alert for explicit invalid selection"
+        );
+        assert!(
+            !decoded
+                .invalid_errors
+                .iter()
+                .any(|error| error.message.as_deref()
+                    == Some("errors.implicit.selectedMin")),
+            "Explicit invalid should satisfy min_votes"
         );
     }
 }
