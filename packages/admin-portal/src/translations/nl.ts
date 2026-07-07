@@ -400,6 +400,26 @@ const dutchTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Verkiezingsevenement aangemaakt",
             createElectionEventError: "Fout bij aanmaken verkiezingsevenement",
+            ivr: {
+                tabs: {
+                    blacklist: "Zwarte lijst",
+                    prompts: "Spraakprompts",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Telefoonnummer",
+                        reason: "Reden",
+                        createdAt: "Aangemaakt op",
+                        createdBy: "Aangemaakt door",
+                    },
+                    emptyMsg: "Er staan geen vermeldingen op de zwarte lijst",
+                    saveSuccess: "Succesvol opgeslagen",
+                    saveError: "Opslaan mislukt",
+                    deleteSuccess: "Succesvol verwijderd",
+                    deleteError: "Verwijderen mislukt",
+                    phoneRequired: "Telefoonnummer is verplicht",
+                },
+            },
             stats: {
                 elegibleVoters: "Stemgerechtigde Kiezers",
                 voters: "Effectieve Kiezers",
@@ -438,6 +458,7 @@ const dutchTranslation: TranslationType = {
                 dashboard: "Dashboard",
                 monitoring: "Monitoring",
                 data: "Gegevens",
+                ivr: "IVR",
                 localization: "Localisatie",
                 voters: "Kiezers",
                 areas: "Gebieden",

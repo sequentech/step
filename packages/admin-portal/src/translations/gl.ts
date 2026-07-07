@@ -402,6 +402,26 @@ const galegoTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento Electoral creado",
             createElectionEventError: "Erro ao crear o evento electoral",
+            ivr: {
+                tabs: {
+                    blacklist: "Lista negra",
+                    prompts: "Locucións",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Número de teléfono",
+                        reason: "Motivo",
+                        createdAt: "Creado o",
+                        createdBy: "Creado por",
+                    },
+                    emptyMsg: "Non hai entradas na lista negra",
+                    saveSuccess: "Gardado correctamente",
+                    saveError: "Non se puido gardar",
+                    deleteSuccess: "Eliminado correctamente",
+                    deleteError: "Non se puido eliminar",
+                    phoneRequired: "O número de teléfono é obrigatorio",
+                },
+            },
             stats: {
                 elegibleVoters: "Votantes Elixibles",
                 voters: "Votantes Actuais",
@@ -440,6 +460,7 @@ const galegoTranslation: TranslationType = {
                 dashboard: "Taboleiro",
                 monitoring: "Monitoreo",
                 data: "Datos",
+                ivr: "IVR",
                 localization: "Localización",
                 voters: "Votantes",
                 areas: "Áreas",

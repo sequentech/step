@@ -201,6 +201,8 @@ pub enum Permissions {
     ELECTION_EVENT_SCHEDULED_TAB,
     #[strum(serialize = "election-event-reports-tab")]
     ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-event-ivr-tab")]
+    ELECTION_EVENT_IVR_TAB,
     #[strum(serialize = "election-event-cas-tab")]
     ELECTION_EVENT_CAS_TAB,
     #[strum(serialize = "ca-read")]
@@ -379,6 +381,8 @@ pub enum Permissions {
     PHONE_BLACKLIST_READ,
     #[strum(serialize = "phone-blacklist-create")]
     PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-update")]
+    PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
 }

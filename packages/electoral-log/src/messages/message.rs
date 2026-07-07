@@ -283,6 +283,28 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
+    pub fn phone_blacklist_entry_created_message(
+        event: EventIdString,
+        phone: PhoneE164String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::PhoneBlacklistUpdated(phone, PhoneBlacklistAction::CreateEntry);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    pub fn phone_blacklist_entry_deleted_message(
+        event: EventIdString,
+        phone: PhoneE164String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::PhoneBlacklistUpdated(phone, PhoneBlacklistAction::DeleteEntry);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
     pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,
