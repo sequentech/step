@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
@@ -171,10 +171,12 @@ fn precinct_names_by_id(document: &Document<'_>) -> Result<HashMap<String, Strin
     Ok(precinct_names)
 }
 
+// Keyed by a BTreeMap so the canonical CSV rows are emitted in a stable
+// precinct order and the stored canonical_csv_sha256 is reproducible.
 fn contest_totals_by_precinct(
     contest: Node<'_, '_>,
-) -> Result<HashMap<String, ContestPrecinctTotals>> {
-    let mut totals_by_precinct: HashMap<String, ContestPrecinctTotals> = HashMap::new();
+) -> Result<BTreeMap<String, ContestPrecinctTotals>> {
+    let mut totals_by_precinct: BTreeMap<String, ContestPrecinctTotals> = BTreeMap::new();
     for group in contest
         .children()
         .filter(|node| node.has_tag_name("ContestReportingGroup"))
@@ -242,9 +244,9 @@ fn normal_candidate_votes(contest: Node<'_, '_>) -> Result<Vec<CandidateVotes>> 
 fn candidate_reporting_group_contest_data(
     contest: Node<'_, '_>,
     document: &Document<'_>,
-) -> Result<(HashMap<String, ContestPrecinctTotals>, Vec<CandidateVotes>)> {
+) -> Result<(BTreeMap<String, ContestPrecinctTotals>, Vec<CandidateVotes>)> {
     let precinct_totals = precinct_reporting_group_totals_by_precinct(document)?;
-    let mut totals_by_precinct: HashMap<String, ContestPrecinctTotals> = HashMap::new();
+    let mut totals_by_precinct: BTreeMap<String, ContestPrecinctTotals> = BTreeMap::new();
     let mut candidates = Vec::new();
 
     for candidate in contest
@@ -545,6 +547,51 @@ mod tests {
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,4"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,census,,20"));
         assert!(!csv.contains("candidate_votes,cand-1,99"));
+    }
+
+    #[test]
+    fn emits_precinct_rows_in_deterministic_order() {
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p2" name="Ward 2" />
+                    <Precinct id="p1" name="Ward 1" />
+                </JurisdictionMap>
+                <Contest altId1="contest-1">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p2" ballotsCast="10" overVotes="0" underVotes="0" blankVotes="1" />
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="1" underVotes="2" blankVotes="2" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
+                        <CandidatePrecinctVotes refPrecinctId="p2" votes="4" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let expected = "\
+channel,area_name,contest_external_id,field,candidate_external_id,value
+PAPER,Ward 1,contest-1,total_votes,,10
+PAPER,Ward 1,contest-1,total_valid_votes,,9
+PAPER,Ward 1,contest-1,implicit_invalid,,1
+PAPER,Ward 1,contest-1,explicit_invalid,,0
+PAPER,Ward 1,contest-1,total_blank_votes,,2
+PAPER,Ward 1,contest-1,census,,20
+PAPER,Ward 1,contest-1,candidate_votes,cand-1,7
+PAPER,Ward 2,contest-1,total_votes,,5
+PAPER,Ward 2,contest-1,total_valid_votes,,5
+PAPER,Ward 2,contest-1,implicit_invalid,,0
+PAPER,Ward 2,contest-1,explicit_invalid,,0
+PAPER,Ward 2,contest-1,total_blank_votes,,1
+PAPER,Ward 2,contest-1,census,,10
+PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
+";
+
+        for _ in 0..5 {
+            let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+            assert_eq!(String::from_utf8(csv).unwrap(), expected);
+        }
     }
 
     #[test]
