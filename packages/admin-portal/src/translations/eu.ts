@@ -404,7 +404,7 @@ const basqueTranslation: TranslationType = {
             createElectionEventError: "Errorea hauteskunde gertaera sortzerakoan",
             ivr: {
                 tabs: {
-                    blacklist: "Zerrenda beltza",
+                    blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
                 },
                 blacklist: {
@@ -414,7 +414,7 @@ const basqueTranslation: TranslationType = {
                         createdAt: "Sortze-data",
                         createdBy: "Nork sortua",
                     },
-                    emptyMsg: "Ez dago sarrerarik zerrenda beltzean",
+                    emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
                     saveSuccess: "Behar bezala gorde da",
                     saveError: "Ezin izan da gorde",
                     deleteSuccess: "Behar bezala ezabatu da",
