@@ -9,6 +9,8 @@ use csv::Writer;
 use roxmltree::{Document, Node};
 use sequent_core::types::tally_sheets::VotingChannel;
 
+const IMPORT_REPORTING_GROUP_ID: &str = "1";
+
 #[derive(Debug, Clone, Default)]
 struct ContestPrecinctTotals {
     ballots_cast: u64,
@@ -49,8 +51,17 @@ pub fn convert_ess_enhanced_xml_to_csv(
         if contest_external_id.trim().is_empty() {
             return Err(anyhow!("Contest is missing altId1 import id"));
         }
-        let totals_by_precinct = contest_totals_by_precinct(contest)?;
-        let candidates = normal_candidate_votes(contest)?;
+        let (totals_by_precinct, candidates) = if contest
+            .children()
+            .any(|node| node.has_tag_name("ContestReportingGroup"))
+        {
+            (
+                contest_totals_by_precinct(contest)?,
+                normal_candidate_votes(contest)?,
+            )
+        } else {
+            candidate_reporting_group_contest_data(contest, &document)?
+        };
 
         for (precinct_id, totals) in totals_by_precinct {
             let Some(area_name) = precinct_names.get(&precinct_id) else {
@@ -169,7 +180,7 @@ fn contest_totals_by_precinct(
         .filter(|node| node.has_tag_name("ContestReportingGroup"))
     {
         let reporting_group_id = required_attr(group, "reportingGroupId", "ContestReportingGroup")?;
-        if reporting_group_id == "0" {
+        if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
             continue;
         }
         for votes in group
@@ -226,6 +237,166 @@ fn normal_candidate_votes(contest: Node<'_, '_>) -> Result<Vec<CandidateVotes>> 
         });
     }
     Ok(candidates)
+}
+
+fn candidate_reporting_group_contest_data(
+    contest: Node<'_, '_>,
+    document: &Document<'_>,
+) -> Result<(HashMap<String, ContestPrecinctTotals>, Vec<CandidateVotes>)> {
+    let precinct_totals = precinct_reporting_group_totals_by_precinct(document)?;
+    let mut totals_by_precinct: HashMap<String, ContestPrecinctTotals> = HashMap::new();
+    let mut candidates = Vec::new();
+
+    for candidate in contest
+        .children()
+        .filter(|node| node.has_tag_name("Candidate"))
+    {
+        let candidate_type = candidate.attribute("type").unwrap_or("NORMAL");
+        let votes_by_precinct = candidate_reporting_group_votes_by_precinct(candidate)?;
+
+        for precinct_id in votes_by_precinct.keys() {
+            if totals_by_precinct.contains_key(precinct_id) {
+                continue;
+            }
+            let Some(precinct_totals_entry) = precinct_totals.get(precinct_id) else {
+                return Err(anyhow!(
+                    "CandidateReportingGroupPrecinct references precinct id '{}' not present in PrecinctReportingGroup reportingGroupId={} data",
+                    precinct_id,
+                    IMPORT_REPORTING_GROUP_ID
+                ));
+            };
+            totals_by_precinct.insert(precinct_id.clone(), precinct_totals_entry.clone());
+        }
+
+        if candidate_type == "OVERVOTES" {
+            for (precinct_id, votes) in votes_by_precinct {
+                totals_by_precinct
+                    .entry(precinct_id)
+                    .or_default()
+                    .over_votes += votes;
+            }
+            continue;
+        }
+
+        if candidate_type == "UNDERVOTES" {
+            for (precinct_id, votes) in votes_by_precinct {
+                totals_by_precinct
+                    .entry(precinct_id)
+                    .or_default()
+                    .under_votes += votes;
+            }
+            continue;
+        }
+
+        let external_id = required_attr(candidate, "altId1", "Candidate")?;
+        if external_id.trim().is_empty() {
+            return Err(anyhow!("Candidate is missing altId1 import id"));
+        }
+
+        candidates.push(CandidateVotes {
+            external_id,
+            votes_by_precinct,
+        });
+    }
+
+    if totals_by_precinct.is_empty() {
+        return Err(anyhow!(
+            "Contest is missing CandidateReportingGroup data for reportingGroupId={}",
+            IMPORT_REPORTING_GROUP_ID
+        ));
+    }
+
+    Ok((totals_by_precinct, candidates))
+}
+
+fn precinct_reporting_group_totals_by_precinct(
+    document: &Document<'_>,
+) -> Result<HashMap<String, ContestPrecinctTotals>> {
+    let mut totals_by_precinct: HashMap<String, ContestPrecinctTotals> = HashMap::new();
+
+    for precinct in document
+        .descendants()
+        .filter(|node| node.has_tag_name("Precinct"))
+    {
+        let precinct_id = required_attr(precinct, "id", "Precinct")?;
+        let mut found_import_group = false;
+
+        for reporting_group in precinct
+            .children()
+            .filter(|node| node.has_tag_name("PrecinctReportingGroup"))
+        {
+            let reporting_group_id =
+                required_attr(reporting_group, "reportingGroupId", "PrecinctReportingGroup")?;
+            if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
+                continue;
+            }
+
+            found_import_group = true;
+            let entry = totals_by_precinct
+                .entry(precinct_id.clone())
+                .or_default();
+            entry.ballots_cast += parse_u64_attr(
+                reporting_group,
+                "ballotsCast",
+                "PrecinctReportingGroup",
+            )?;
+            entry.blank_votes += parse_u64_attr(
+                reporting_group,
+                "blanksCast",
+                "PrecinctReportingGroup",
+            )?;
+        }
+
+        if !found_import_group {
+            continue;
+        }
+    }
+
+    Ok(totals_by_precinct)
+}
+
+fn candidate_reporting_group_votes_by_precinct(
+    candidate: Node<'_, '_>,
+) -> Result<HashMap<String, u64>> {
+    let mut votes_by_precinct = HashMap::new();
+
+    for reporting_group in candidate
+        .children()
+        .filter(|node| node.has_tag_name("CandidateReportingGroup"))
+    {
+        let reporting_group_id = required_attr(
+            reporting_group,
+            "reportingGroupId",
+            "CandidateReportingGroup",
+        )?;
+        if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
+            continue;
+        }
+
+        for votes in reporting_group
+            .children()
+            .filter(|node| node.has_tag_name("CandidateReportingGroupPrecinct"))
+        {
+            let precinct_id = required_attr(
+                votes,
+                "refPrecinctId",
+                "CandidateReportingGroupPrecinct",
+            )?;
+            let vote_count = parse_u64_attr(votes, "votes", "CandidateReportingGroupPrecinct")?;
+            if votes_by_precinct
+                .insert(precinct_id.clone(), vote_count)
+                .is_some()
+            {
+                return Err(anyhow!(
+                    "Duplicate CandidateReportingGroupPrecinct for precinct id '{}' in reportingGroupId={}",
+                    precinct_id,
+                    IMPORT_REPORTING_GROUP_ID
+                ));
+            }
+        }
+    }
+
+    Ok(votes_by_precinct)
 }
 
 fn write_scalar_row(
@@ -296,5 +467,118 @@ mod tests {
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,17"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,7"));
         assert!(!csv.contains("ignored-overvotes"));
+    }
+
+    #[test]
+    fn converts_candidate_reporting_group_variant_to_canonical_csv() {
+        let xml = br#"
+            <Owner name="EVS Electionware Enhanced XML Results File version 1.3">
+                <JurisdictionMap>
+                    <Jurisdiction id="1" title="Jurisdiction">
+                        <Precinct id="precinct-1" name="Precinct 1">
+                            <PrecinctReportingGroup reportingGroupId="0" ballotsCast="100" blanksCast="6"/>
+                            <PrecinctReportingGroup reportingGroupId="1" ballotsCast="100" blanksCast="6"/>
+                        </Precinct>
+                        <Contest id="contest-source-1" altId1="contest-1" title="Contest">
+                            <Candidate id="candidate-source-a" type="NORMAL" altId1="cand-1" name="Candidate A">
+                                <CandidateReportingGroup reportingGroupId="0" totalVotes="58">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="58"/>
+                                </CandidateReportingGroup>
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="58">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="58"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                            <Candidate id="candidate-source-b" type="NORMAL" altId1="cand-2" name="Candidate B">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="34">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="34"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                            <Candidate id="source-overvotes" type="OVERVOTES" altId1="" name="OverVotes">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="2">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="2"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                            <Candidate id="source-undervotes" type="UNDERVOTES" altId1="" name="UnderVotes">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="6">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="6"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                        </Contest>
+                    </Jurisdiction>
+                </JurisdictionMap>
+            </Owner>
+        "#;
+
+        let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,58"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-2,34"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,6"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,census,,100"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,implicit_invalid,,2"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,98"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,100"));
+    }
+
+    #[test]
+    fn ignores_group_zero_when_group_one_exists() {
+        let xml = br#"
+            <Owner name="EVS Electionware Enhanced XML Results File version 1.3">
+                <JurisdictionMap>
+                    <Jurisdiction id="1" title="Jurisdiction">
+                        <Precinct id="precinct-1" name="Precinct 1">
+                            <PrecinctReportingGroup reportingGroupId="0" ballotsCast="100" blanksCast="90"/>
+                            <PrecinctReportingGroup reportingGroupId="1" ballotsCast="20" blanksCast="4"/>
+                        </Precinct>
+                        <Contest id="contest-source-1" altId1="contest-1" title="Contest">
+                            <Candidate id="candidate-source-a" type="NORMAL" altId1="cand-1" name="Candidate A">
+                                <CandidateReportingGroup reportingGroupId="0" totalVotes="99">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="99"/>
+                                </CandidateReportingGroup>
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="7">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="7"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                        </Contest>
+                    </Jurisdiction>
+                </JurisdictionMap>
+            </Owner>
+        "#;
+
+        let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,7"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,4"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,census,,20"));
+        assert!(!csv.contains("candidate_votes,cand-1,99"));
+    }
+
+    #[test]
+    fn fails_when_candidate_reporting_group_variant_has_no_group_one_data() {
+        let xml = br#"
+            <Owner>
+                <JurisdictionMap>
+                    <Jurisdiction id="1" title="Jurisdiction">
+                        <Precinct id="precinct-1" name="Precinct 1">
+                            <PrecinctReportingGroup reportingGroupId="0" ballotsCast="100" blanksCast="6"/>
+                        </Precinct>
+                        <Contest id="contest-source-1" altId1="contest-1" title="Contest">
+                            <Candidate id="candidate-source-a" type="NORMAL" altId1="cand-1" name="Candidate A">
+                                <CandidateReportingGroup reportingGroupId="0" totalVotes="58">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="58"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                        </Contest>
+                    </Jurisdiction>
+                </JurisdictionMap>
+            </Owner>
+        "#;
+
+        let error = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Contest is missing CandidateReportingGroup data for reportingGroupId=1"));
     }
 }
