@@ -640,7 +640,8 @@ impl KeycloakAdminClient {
                         client.base_url = login_url.clone();
                         client.redirect_uris = Some(vec![
                             "/*".to_string(),
-                            format!("{}/*", ballot_verifier_url),
+                            format!("{ballot_verifier_url}/*"),
+                            format!("{voting_portal_url_env}/*"),
                         ]);
                     }
 
