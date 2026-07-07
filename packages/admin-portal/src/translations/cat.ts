@@ -404,7 +404,7 @@ const catalanTranslation: TranslationType = {
             createElectionEventError: "Error creant Esdeveniment Electoral",
             ivr: {
                 tabs: {
-                    blacklist: "Llista negra",
+                    blacklist: "Llista de bloqueig",
                     prompts: "Locucions",
                 },
                 blacklist: {
@@ -414,7 +414,7 @@ const catalanTranslation: TranslationType = {
                         createdAt: "Creat el",
                         createdBy: "Creat per",
                     },
-                    emptyMsg: "No hi ha cap entrada a la llista negra",
+                    emptyMsg: "No hi ha cap entrada a la llista de bloqueig",
                     saveSuccess: "S'ha desat correctament",
                     saveError: "No s'ha pogut desar",
                     deleteSuccess: "S'ha eliminat correctament",

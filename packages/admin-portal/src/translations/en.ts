@@ -403,7 +403,7 @@ const englishTranslation = {
             createElectionEventError: "Error creating election event",
             ivr: {
                 tabs: {
-                    blacklist: "Blacklist",
+                    blacklist: "Blocklist",
                     prompts: "Prompts",
                 },
                 blacklist: {
@@ -413,7 +413,7 @@ const englishTranslation = {
                         createdAt: "Created at",
                         createdBy: "Created by",
                     },
-                    emptyMsg: "There are no entries in the blacklist",
+                    emptyMsg: "There are no entries in the blocklist",
                     saveSuccess: "Saved successfully",
                     saveError: "Failed to save",
                     deleteSuccess: "Deleted successfully",

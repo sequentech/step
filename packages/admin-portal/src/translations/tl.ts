@@ -403,7 +403,7 @@ const tagalogTranslation: TranslationType = {
             createElectionEventError: "Error sa paglikha ng kaganapan ng halalan",
             ivr: {
                 tabs: {
-                    blacklist: "Blacklist",
+                    blacklist: "Listahan ng pag-block",
                     prompts: "Mga voice prompt",
                 },
                 blacklist: {
@@ -413,7 +413,7 @@ const tagalogTranslation: TranslationType = {
                         createdAt: "Ginawa noong",
                         createdBy: "Ginawa ni",
                     },
-                    emptyMsg: "Walang entry sa blacklist",
+                    emptyMsg: "Walang entry sa listahan ng pag-block",
                     saveSuccess: "Matagumpay na na-save",
                     saveError: "Nabigong i-save",
                     deleteSuccess: "Matagumpay na natanggal",

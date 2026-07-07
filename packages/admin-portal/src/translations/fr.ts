@@ -404,7 +404,7 @@ const frenchTranslation: TranslationType = {
             createElectionEventError: "Erreur lors de la création de l'Événement Électoral",
             ivr: {
                 tabs: {
-                    blacklist: "Liste noire",
+                    blacklist: "Liste de blocage",
                     prompts: "Messages vocaux",
                 },
                 blacklist: {
@@ -414,7 +414,7 @@ const frenchTranslation: TranslationType = {
                         createdAt: "Créé le",
                         createdBy: "Créé par",
                     },
-                    emptyMsg: "Aucune entrée dans la liste noire",
+                    emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
                     saveSuccess: "Enregistré avec succès",
                     saveError: "Échec de l’enregistrement",
                     deleteSuccess: "Supprimé avec succès",

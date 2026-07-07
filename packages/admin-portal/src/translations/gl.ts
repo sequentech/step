@@ -404,7 +404,7 @@ const galegoTranslation: TranslationType = {
             createElectionEventError: "Erro ao crear o evento electoral",
             ivr: {
                 tabs: {
-                    blacklist: "Lista negra",
+                    blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
                 },
                 blacklist: {
@@ -414,7 +414,7 @@ const galegoTranslation: TranslationType = {
                         createdAt: "Creado o",
                         createdBy: "Creado por",
                     },
-                    emptyMsg: "Non hai entradas na lista negra",
+                    emptyMsg: "Non hai entradas na lista de bloqueo",
                     saveSuccess: "Gardado correctamente",
                     saveError: "Non se puido gardar",
                     deleteSuccess: "Eliminado correctamente",

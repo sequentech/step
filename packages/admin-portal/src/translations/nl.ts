@@ -402,7 +402,7 @@ const dutchTranslation: TranslationType = {
             createElectionEventError: "Fout bij aanmaken verkiezingsevenement",
             ivr: {
                 tabs: {
-                    blacklist: "Zwarte lijst",
+                    blacklist: "Blokkeerlijst",
                     prompts: "Spraakprompts",
                 },
                 blacklist: {
@@ -412,7 +412,7 @@ const dutchTranslation: TranslationType = {
                         createdAt: "Aangemaakt op",
                         createdBy: "Aangemaakt door",
                     },
-                    emptyMsg: "Er staan geen vermeldingen op de zwarte lijst",
+                    emptyMsg: "Er zijn geen vermeldingen in de blokkeerlijst",
                     saveSuccess: "Succesvol opgeslagen",
                     saveError: "Opslaan mislukt",
                     deleteSuccess: "Succesvol verwijderd",
