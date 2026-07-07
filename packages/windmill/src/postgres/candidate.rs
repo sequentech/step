@@ -218,62 +218,6 @@ pub async fn get_candidates_by_contest_id(
     Ok(candidate)
 }
 
-#[instrument(skip(hasura_transaction), err)]
-pub async fn get_candidate_by_external_id(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    contest_id: &str,
-    external_id: &str,
-) -> Result<Option<Candidate>> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-            SELECT
-                *
-            FROM
-                sequent_backend.candidate
-            WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                contest_id = $3 AND
-                external_id = $4;
-            "#,
-        )
-        .await?;
-
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-                &parse_uuid_v4(contest_id)?,
-                &external_id,
-            ],
-        )
-        .await?;
-
-    let candidates: Vec<Candidate> = rows
-        .into_iter()
-        .map(|row| -> Result<Candidate> {
-            row.try_into()
-                .map(|res: CandidateWrapper| -> Candidate { res.0 })
-        })
-        .collect::<Result<Vec<Candidate>>>()?;
-
-    match candidates.len() {
-        0 => Ok(None),
-        1 => Ok(candidates.first().cloned()),
-        count => Err(anyhow!(
-            "Candidate external id '{}' matched {} candidates in contest {}",
-            external_id,
-            count,
-            contest_id
-        )),
-    }
-}
-
 #[instrument(err, skip_all)]
 pub async fn export_candidate_csv(
     hasura_transaction: &Transaction<'_>,

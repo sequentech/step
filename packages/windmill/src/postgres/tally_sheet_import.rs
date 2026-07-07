@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::tally_sheet_import::{
-    TallySheetImport, TallySheetImportChangeType, TallySheetImportItem, TallySheetImportItemStatus,
+    TallySheetImport, TallySheetImportItem, TallySheetImportItemStatus,
     TallySheetImportSourceFormat, TallySheetImportStatus, TallySheetImportSummary,
 };
 use sequent_core::types::tally_sheets::VotingChannel;
@@ -18,7 +18,6 @@ use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TallySheetImportWrapper(pub TallySheetImport);
-pub struct TallySheetImportItemWrapper(pub TallySheetImportItem);
 
 #[derive(Debug, Clone)]
 pub struct TallySheetImportItemReviewSnapshot {
@@ -63,47 +62,6 @@ impl TryFrom<Row> for TallySheetImportWrapper {
             summary,
             validation_report: row.try_get("validation_report")?,
             canonical_csv_sha256: row.try_get("canonical_csv_sha256")?,
-        }))
-    }
-}
-
-impl TryFrom<Row> for TallySheetImportItemWrapper {
-    type Error = anyhow::Error;
-
-    fn try_from(row: Row) -> Result<Self> {
-        let channel: String = row.try_get("channel")?;
-        let change_type: String = row.try_get("change_type")?;
-        let status: String = row.try_get("status")?;
-
-        Ok(TallySheetImportItemWrapper(TallySheetImportItem {
-            id: row.try_get::<_, Uuid>("id")?.to_string(),
-            tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
-            election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
-            import_id: row.try_get::<_, Uuid>("import_id")?.to_string(),
-            election_id: row.try_get::<_, Uuid>("election_id")?.to_string(),
-            area_id: row.try_get::<_, Uuid>("area_id")?.to_string(),
-            contest_id: row.try_get::<_, Uuid>("contest_id")?.to_string(),
-            channel: VotingChannel::from_str(&channel)
-                .map_err(|err| anyhow!("Invalid import item channel: {err}"))?,
-            generated_tally_sheet_id: row
-                .try_get::<_, Option<Uuid>>("generated_tally_sheet_id")?
-                .map(|value| value.to_string()),
-            baseline_approved_tally_sheet_id: row
-                .try_get::<_, Option<Uuid>>("baseline_approved_tally_sheet_id")?
-                .map(|value| value.to_string()),
-            baseline_approved_version: row.try_get("baseline_approved_version")?,
-            baseline_content_hash: row.try_get("baseline_content_hash")?,
-            incoming_content_hash: row.try_get("incoming_content_hash")?,
-            change_type: TallySheetImportChangeType::from_str(&change_type)
-                .map_err(|err| anyhow!("Invalid import item change type: {err}"))?,
-            status: TallySheetImportItemStatus::from_str(&status)
-                .map_err(|err| anyhow!("Invalid import item status: {err}"))?,
-            previous_csv: row.try_get("previous_csv")?,
-            incoming_csv: row.try_get("incoming_csv")?,
-            source_refs: row.try_get("source_refs")?,
-            validation_warnings: row.try_get("validation_warnings")?,
-            labels: row.try_get("labels")?,
-            annotations: row.try_get("annotations")?,
         }))
     }
 }
@@ -191,72 +149,6 @@ pub async fn insert_tally_sheet_import(
         .await?;
 
     one_import(rows)
-}
-
-#[instrument(err, skip_all)]
-pub async fn insert_tally_sheet_import_item(
-    transaction: &Transaction<'_>,
-    import_item: &TallySheetImportItem,
-) -> Result<TallySheetImportItem> {
-    let source_refs = import_item.source_refs.clone();
-    let validation_warnings = import_item.validation_warnings.clone();
-    let annotations = import_item.annotations.clone();
-    let labels = import_item.labels.clone();
-    let statement = transaction
-        .prepare(
-            r#"
-            INSERT INTO sequent_backend.tally_sheet_import_item (
-                id, tenant_id, election_event_id, import_id, election_id, area_id, contest_id,
-                channel, generated_tally_sheet_id, baseline_approved_tally_sheet_id,
-                baseline_approved_version, baseline_content_hash, incoming_content_hash,
-                change_type, status, previous_csv, incoming_csv, source_refs, validation_warnings,
-                annotations, labels, created_at, last_updated_at
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW(), NOW()
-            ) RETURNING *;
-            "#,
-        )
-        .await?;
-
-    let rows = transaction
-        .query(
-            &statement,
-            &[
-                &parse_uuid_v4(&import_item.id)?,
-                &parse_uuid_v4(&import_item.tenant_id)?,
-                &parse_uuid_v4(&import_item.election_event_id)?,
-                &parse_uuid_v4(&import_item.import_id)?,
-                &parse_uuid_v4(&import_item.election_id)?,
-                &parse_uuid_v4(&import_item.area_id)?,
-                &parse_uuid_v4(&import_item.contest_id)?,
-                &import_item.channel.to_string(),
-                &import_item
-                    .generated_tally_sheet_id
-                    .as_ref()
-                    .map(|id| parse_uuid_v4(id))
-                    .transpose()?,
-                &import_item
-                    .baseline_approved_tally_sheet_id
-                    .as_ref()
-                    .map(|id| parse_uuid_v4(id))
-                    .transpose()?,
-                &import_item.baseline_approved_version,
-                &import_item.baseline_content_hash,
-                &import_item.incoming_content_hash,
-                &import_item.change_type.to_string(),
-                &import_item.status.to_string(),
-                &import_item.previous_csv,
-                &import_item.incoming_csv,
-                &source_refs,
-                &validation_warnings,
-                &annotations,
-                &labels,
-            ],
-        )
-        .await?;
-
-    one_import_item(rows)
 }
 
 #[instrument(err, skip_all)]
@@ -514,46 +406,6 @@ pub async fn get_tally_sheet_import_by_id(
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_tally_sheet_import_items(
-    transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    import_id: &str,
-) -> Result<Vec<TallySheetImportItem>> {
-    let statement = transaction
-        .prepare(
-            r#"
-            SELECT
-                id, tenant_id, election_event_id, import_id, election_id, area_id, contest_id,
-                channel, generated_tally_sheet_id, baseline_approved_tally_sheet_id,
-                baseline_approved_version, baseline_content_hash, incoming_content_hash,
-                change_type, status, previous_csv, incoming_csv, source_refs, validation_warnings,
-                annotations, labels
-            FROM sequent_backend.tally_sheet_import_item
-            WHERE tenant_id = $1 AND election_event_id = $2 AND import_id = $3
-            ORDER BY area_id, contest_id, channel;
-            "#,
-        )
-        .await?;
-    let rows = transaction
-        .query(
-            &statement,
-            &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-                &parse_uuid_v4(import_id)?,
-            ],
-        )
-        .await?;
-    rows.into_iter()
-        .map(|row| {
-            row.try_into()
-                .map(|wrapper: TallySheetImportItemWrapper| wrapper.0)
-        })
-        .collect::<Result<Vec<TallySheetImportItem>>>()
-}
-
-#[instrument(err, skip_all)]
 pub async fn get_tally_sheet_import_items_for_review(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -746,24 +598,6 @@ fn one_import(rows: Vec<Row>) -> Result<TallySheetImport> {
         _ => Err(anyhow!(
             "Unexpected tally_sheet_import rows affected {}",
             imports.len()
-        )),
-    }
-}
-
-fn one_import_item(rows: Vec<Row>) -> Result<TallySheetImportItem> {
-    let import_items = rows
-        .into_iter()
-        .map(|row| {
-            row.try_into()
-                .map(|wrapper: TallySheetImportItemWrapper| wrapper.0)
-        })
-        .collect::<Result<Vec<TallySheetImportItem>>>()?;
-
-    match import_items.len() {
-        1 => Ok(import_items[0].clone()),
-        _ => Err(anyhow!(
-            "Unexpected tally_sheet_import_item rows affected {}",
-            import_items.len()
         )),
     }
 }
