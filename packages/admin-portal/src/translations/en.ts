@@ -403,8 +403,15 @@ const englishTranslation = {
             createElectionEventError: "Error creating election event",
             ivr: {
                 tabs: {
+                    config: "Configuration",
                     blacklist: "Blacklist",
                     prompts: "Prompts",
+                },
+                common: {
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
                 },
                 blacklist: {
                     columns: {
@@ -414,10 +421,6 @@ const englishTranslation = {
                         createdBy: "Created by",
                     },
                     emptyMsg: "There are no entries in the blacklist",
-                    saveSuccess: "Saved successfully",
-                    saveError: "Failed to save",
-                    deleteSuccess: "Deleted successfully",
-                    deleteError: "Failed to delete",
                     phoneRequired: "Phone number is required",
                 },
             },

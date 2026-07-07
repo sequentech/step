@@ -402,8 +402,15 @@ const dutchTranslation: TranslationType = {
             createElectionEventError: "Fout bij aanmaken verkiezingsevenement",
             ivr: {
                 tabs: {
+                    config: "Configuratie",
                     blacklist: "Zwarte lijst",
                     prompts: "Spraakprompts",
+                },
+                common: {
+                    saveSuccess: "Succesvol opgeslagen",
+                    saveError: "Opslaan mislukt",
+                    deleteSuccess: "Succesvol verwijderd",
+                    deleteError: "Verwijderen mislukt",
                 },
                 blacklist: {
                     columns: {
@@ -413,10 +420,6 @@ const dutchTranslation: TranslationType = {
                         createdBy: "Aangemaakt door",
                     },
                     emptyMsg: "Er staan geen vermeldingen op de zwarte lijst",
-                    saveSuccess: "Succesvol opgeslagen",
-                    saveError: "Opslaan mislukt",
-                    deleteSuccess: "Succesvol verwijderd",
-                    deleteError: "Verwijderen mislukt",
                     phoneRequired: "Telefoonnummer is verplicht",
                 },
             },
