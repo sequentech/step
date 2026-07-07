@@ -224,19 +224,33 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     return (
         <ErrorWrapper className="error-list">
             {numAvailableChars < 0 ? (
-                <WarnBox variant="warning">
+                <WarnBox
+                    variant="warning"
+                    warnId="errors.encoding.writeInCharsExceeded"
+                    warnType={IInvalidPlaintextErrorType.EncodingError}
+                >
                     {t("errors.encoding.writeInCharsExceeded", {
                         numCharsExceeded: -numAvailableChars,
                     })}
                 </WarnBox>
             ) : null}
             {filteredSelection?.invalid_errors.map((error, index) => (
-                <WarnBox variant="warning" key={index}>
+                <WarnBox
+                    variant="warning"
+                    key={index}
+                    warnId={error.message}
+                    warnType={error.error_type}
+                >
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
             {filteredSelection?.invalid_alerts.map((error, index) => (
-                <WarnBox variant="info" key={index}>
+                <WarnBox
+                    variant="info"
+                    key={index}
+                    warnId={error.message}
+                    warnType={error.error_type}
+                >
                     {t(error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
