@@ -25,6 +25,7 @@ pub mod error_checker;
 pub mod generate_urls;
 
 pub mod translations;
+pub mod tally_sheet_validation;
 
 #[cfg(feature = "keycloak")]
 pub mod replace_uuids;

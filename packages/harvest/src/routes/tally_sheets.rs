@@ -8,6 +8,7 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::tally_sheet_validation::validate_area_contest_results;
 use sequent_core::types::ceremonies::{
     AutomaticRecountPolicy, TallyExecutionStatus,
 };
@@ -72,6 +73,18 @@ pub async fn create_new_tally_sheet(
         vec![Permissions::TALLY_SHEET_CREATE],
     )?;
     let input = body.into_inner();
+    let validation_errors = validate_area_contest_results(&input.content);
+    if !validation_errors.is_empty() {
+        let messages = validation_errors
+            .into_iter()
+            .map(|error| format!("{}: {}", error.code, error.message))
+            .collect::<Vec<String>>()
+            .join("; ");
+        return Err((
+            Status::BadRequest,
+            format!("Invalid tally sheet content: {messages}"),
+        ));
+    }
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await

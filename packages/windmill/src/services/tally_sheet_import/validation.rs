@@ -4,6 +4,7 @@
 
 use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::{AreaContestResults, VotingChannel};
+use sequent_core::services::tally_sheet_validation::validate_area_contest_results;
 
 pub fn validate_import_content(
     channel: &VotingChannel,
@@ -11,72 +12,19 @@ pub fn validate_import_content(
     contest_external_id: &str,
     content: &AreaContestResults,
 ) -> Vec<TallySheetImportValidationError> {
-    let mut errors = Vec::new();
-    let invalid_votes = content.invalid_votes.clone().unwrap_or_default();
-    let implicit_invalid = invalid_votes.implicit_invalid.unwrap_or(0);
-    let explicit_invalid = invalid_votes.explicit_invalid.unwrap_or(0);
-    let total_invalid = invalid_votes.total_invalid.unwrap_or(0);
-    let total_valid_votes = content.total_valid_votes.unwrap_or(0);
-    let total_blank_votes = content.total_blank_votes.unwrap_or(0);
-    let total_votes = content.total_votes.unwrap_or(0);
-    let census = content.census.unwrap_or(0);
-    let candidate_votes_sum: u64 = content
-        .candidate_results
-        .values()
-        .map(|candidate_result| candidate_result.total_votes.unwrap_or(0))
-        .sum();
-
-    if total_invalid != implicit_invalid + explicit_invalid {
-        errors.push(error(
-            "invalid_total_invalid",
-            format!(
-                "total_invalid ({total_invalid}) must equal implicit_invalid ({implicit_invalid}) + explicit_invalid ({explicit_invalid})"
-            ),
-            channel,
-            area_name,
-            contest_external_id,
-            "total_invalid",
-        ));
-    }
-
-    if total_valid_votes != candidate_votes_sum + total_blank_votes {
-        errors.push(error(
-            "invalid_total_valid_votes",
-            format!(
-                "total_valid_votes ({total_valid_votes}) must equal candidate votes ({candidate_votes_sum}) + blank votes ({total_blank_votes})"
-            ),
-            channel,
-            area_name,
-            contest_external_id,
-            "total_valid_votes",
-        ));
-    }
-
-    if total_votes != total_valid_votes + total_invalid {
-        errors.push(error(
-            "invalid_total_votes",
-            format!(
-                "total_votes ({total_votes}) must equal total_valid_votes ({total_valid_votes}) + total_invalid ({total_invalid})"
-            ),
-            channel,
-            area_name,
-            contest_external_id,
-            "total_votes",
-        ));
-    }
-
-    if total_votes > census {
-        errors.push(error(
-            "total_votes_exceeds_census",
-            format!("total_votes ({total_votes}) must not be greater than census ({census})"),
-            channel,
-            area_name,
-            contest_external_id,
-            "census",
-        ));
-    }
-
-    errors
+    validate_area_contest_results(content)
+        .into_iter()
+        .map(|shared_error| {
+            error(
+                &shared_error.code,
+                shared_error.message,
+                channel,
+                area_name,
+                contest_external_id,
+                &shared_error.field,
+            )
+        })
+        .collect()
 }
 
 fn error(
