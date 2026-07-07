@@ -284,28 +284,28 @@ pub async fn create_tally_sheet_import(
         };
 
         import_items.push(TallySheetImportItem {
-                id: Uuid::new_v4().to_string(),
-                tenant_id: tenant_id.to_string(),
-                election_event_id: election_event_id.to_string(),
-                import_id: import.id.clone(),
-                election_id: item.election_id,
-                area_id: item.area_id,
-                contest_id: item.contest_id,
-                channel: item.channel,
-                generated_tally_sheet_id,
-                baseline_approved_tally_sheet_id: item.baseline_tally_sheet_id,
-                baseline_approved_version: item.baseline_version,
-                baseline_content_hash: item.baseline_content_hash,
-                incoming_content_hash: item.incoming_content_hash,
-                change_type: item.change_type,
-                status: TallySheetImportItemStatus::PENDING_REVIEW,
-                previous_csv: item.previous_csv,
-                incoming_csv: item.incoming_csv,
-                source_refs: item.source_refs,
-                validation_warnings: None,
-                labels: None,
-                annotations: None,
-            });
+            id: Uuid::new_v4().to_string(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            import_id: import.id.clone(),
+            election_id: item.election_id,
+            area_id: item.area_id,
+            contest_id: item.contest_id,
+            channel: item.channel,
+            generated_tally_sheet_id,
+            baseline_approved_tally_sheet_id: item.baseline_tally_sheet_id,
+            baseline_approved_version: item.baseline_version,
+            baseline_content_hash: item.baseline_content_hash,
+            incoming_content_hash: item.incoming_content_hash,
+            change_type: item.change_type,
+            status: TallySheetImportItemStatus::PENDING_REVIEW,
+            previous_csv: item.previous_csv,
+            incoming_csv: item.incoming_csv,
+            source_refs: item.source_refs,
+            validation_warnings: None,
+            labels: None,
+            annotations: None,
+        });
     }
 
     insert_tally_sheet_import_items(transaction, &import_items).await?;
@@ -562,57 +562,55 @@ async fn resolve_ballot_box_import(
             .insert(area_name.to_string(), loaded_area.clone());
         loaded_area
     };
-    let contest = if let Some(cached_contest) = cache.contests_by_external_id.get(contest_external_id)
-    {
-        cached_contest.clone()
-    } else {
-        let loaded_contest = get_contest_by_external_id(
-            transaction,
-            tenant_id,
-            election_event_id,
-            contest_external_id,
-        )
-        .await?
-        .ok_or_else(|| anyhow!("Contest external id '{contest_external_id}' not found"))?;
-        cache
-            .contests_by_external_id
-            .insert(contest_external_id.to_string(), loaded_contest.clone());
-        loaded_contest
-    };
+    let contest =
+        if let Some(cached_contest) = cache.contests_by_external_id.get(contest_external_id) {
+            cached_contest.clone()
+        } else {
+            let loaded_contest = get_contest_by_external_id(
+                transaction,
+                tenant_id,
+                election_event_id,
+                contest_external_id,
+            )
+            .await?
+            .ok_or_else(|| anyhow!("Contest external id '{contest_external_id}' not found"))?;
+            cache
+                .contests_by_external_id
+                .insert(contest_external_id.to_string(), loaded_contest.clone());
+            loaded_contest
+        };
     let area_contest_key = (area.id.clone(), contest.id.clone());
-    let area_has_contest = if let Some(cached_membership) = cache.area_contest_membership.get(&area_contest_key) {
-        *cached_membership
-    } else {
-        let exists = area_contest_exists(
-            transaction,
-            tenant_id,
-            election_event_id,
-            &area.id,
-            &contest.id,
-        )
-        .await?;
-        cache
-            .area_contest_membership
-            .insert(area_contest_key, exists);
-        exists
-    };
+    let area_has_contest =
+        if let Some(cached_membership) = cache.area_contest_membership.get(&area_contest_key) {
+            *cached_membership
+        } else {
+            let exists = area_contest_exists(
+                transaction,
+                tenant_id,
+                election_event_id,
+                &area.id,
+                &contest.id,
+            )
+            .await?;
+            cache
+                .area_contest_membership
+                .insert(area_contest_key, exists);
+            exists
+        };
     if !area_has_contest {
         return Err(anyhow!(
             "Area '{area_name}' is not assigned to contest external id '{contest_external_id}'"
         ));
     }
 
-    let candidates = if let Some(cached_candidates) = cache.candidates_by_contest_id.get(&contest.id)
+    let candidates = if let Some(cached_candidates) =
+        cache.candidates_by_contest_id.get(&contest.id)
     {
         cached_candidates.clone()
     } else {
-        let loaded_candidates = get_candidates_by_contest_id(
-            transaction,
-            tenant_id,
-            election_event_id,
-            &contest.id,
-        )
-        .await?;
+        let loaded_candidates =
+            get_candidates_by_contest_id(transaction, tenant_id, election_event_id, &contest.id)
+                .await?;
         cache
             .candidates_by_contest_id
             .insert(contest.id.clone(), loaded_candidates.clone());

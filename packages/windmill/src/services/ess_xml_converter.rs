@@ -325,26 +325,21 @@ fn precinct_reporting_group_totals_by_precinct(
             .children()
             .filter(|node| node.has_tag_name("PrecinctReportingGroup"))
         {
-            let reporting_group_id =
-                required_attr(reporting_group, "reportingGroupId", "PrecinctReportingGroup")?;
+            let reporting_group_id = required_attr(
+                reporting_group,
+                "reportingGroupId",
+                "PrecinctReportingGroup",
+            )?;
             if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
                 continue;
             }
 
             found_import_group = true;
-            let entry = totals_by_precinct
-                .entry(precinct_id.clone())
-                .or_default();
-            entry.ballots_cast += parse_u64_attr(
-                reporting_group,
-                "ballotsCast",
-                "PrecinctReportingGroup",
-            )?;
-            entry.blank_votes += parse_u64_attr(
-                reporting_group,
-                "blanksCast",
-                "PrecinctReportingGroup",
-            )?;
+            let entry = totals_by_precinct.entry(precinct_id.clone()).or_default();
+            entry.ballots_cast +=
+                parse_u64_attr(reporting_group, "ballotsCast", "PrecinctReportingGroup")?;
+            entry.blank_votes +=
+                parse_u64_attr(reporting_group, "blanksCast", "PrecinctReportingGroup")?;
         }
 
         if !found_import_group {
@@ -377,11 +372,8 @@ fn candidate_reporting_group_votes_by_precinct(
             .children()
             .filter(|node| node.has_tag_name("CandidateReportingGroupPrecinct"))
         {
-            let precinct_id = required_attr(
-                votes,
-                "refPrecinctId",
-                "CandidateReportingGroupPrecinct",
-            )?;
+            let precinct_id =
+                required_attr(votes, "refPrecinctId", "CandidateReportingGroupPrecinct")?;
             let vote_count = parse_u64_attr(votes, "votes", "CandidateReportingGroupPrecinct")?;
             if votes_by_precinct
                 .insert(precinct_id.clone(), vote_count)

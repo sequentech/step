@@ -88,10 +88,9 @@ interface SharedValidationError {
     field: string
 }
 
-const validateAreaContestResults =
-    (SequentCore as any).validate_area_contest_results_js as (
-        content: IAreaContestResults
-    ) => SharedValidationError[]
+const validateAreaContestResults = (SequentCore as any).validate_area_contest_results_js as (
+    content: IAreaContestResults
+) => SharedValidationError[]
 
 const numbersRegExp = /^[0-9]+$/
 

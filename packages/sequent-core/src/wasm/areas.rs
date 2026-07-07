@@ -73,13 +73,15 @@ pub fn get_contest_matches_js(
 pub fn validate_area_contest_results_js(
     content_json: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let content: AreaContestResults = serde_wasm_bindgen::from_value(content_json)
-        .map_err(|err| {
-            format!(
-                "Error reading javascript area contest results for validation: {}",
-                err
-            )
-        })?;
+    let content: AreaContestResults = serde_wasm_bindgen::from_value(
+        content_json,
+    )
+    .map_err(|err| {
+        format!(
+            "Error reading javascript area contest results for validation: {}",
+            err
+        )
+    })?;
 
     let errors = validate_area_contest_results(&content);
     let serializer = Serializer::json_compatible();

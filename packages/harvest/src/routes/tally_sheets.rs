@@ -685,8 +685,11 @@ async fn read_import_document(
     .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
 
     if let Some(document_size) = document.size {
-        let normalized_size = u64::try_from(document_size)
-            .map_err(|_| anyhow::anyhow!("Document {document_id} has invalid size {document_size}"))?;
+        let normalized_size = u64::try_from(document_size).map_err(|_| {
+            anyhow::anyhow!(
+                "Document {document_id} has invalid size {document_size}"
+            )
+        })?;
         if normalized_size > MAX_TALLY_SHEET_IMPORT_BYTES {
             return Err(anyhow::anyhow!(
                 "Document {document_id} is too large ({normalized_size} bytes, max {MAX_TALLY_SHEET_IMPORT_BYTES} bytes)"

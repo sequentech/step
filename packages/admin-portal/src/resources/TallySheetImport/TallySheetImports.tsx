@@ -295,11 +295,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
             },
         },
         {
-            enabled:
-                canView &&
-                !!tenantId &&
-                !!electionEvent?.id &&
-                !!duplicateSourceSha256,
+            enabled: canView && !!tenantId && !!electionEvent?.id && !!duplicateSourceSha256,
         }
     )
 
@@ -566,15 +562,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                 setIsWorking(false)
             }
         },
-        [
-            detailImport?.id,
-            electionEvent?.id,
-            notify,
-            refetchItems,
-            refresh,
-            reviewImport,
-            t,
-        ]
+        [detailImport?.id, electionEvent?.id, notify, refetchItems, refresh, reviewImport, t]
     )
 
     const handleDownloadSource = useCallback(

@@ -198,79 +198,83 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                         <TextField source="id" />
                         <TextField source="channel" />
 
-                    <FunctionField
-                        source="contest_id"
-                        label={t("tallysheet.table.contest")}
-                        render={(record: Sequent_Backend_Tally_Sheet) => (
-                            <ContestItem record={record.contest_id} />
-                        )}
-                    />
+                        <FunctionField
+                            source="contest_id"
+                            label={t("tallysheet.table.contest")}
+                            render={(record: Sequent_Backend_Tally_Sheet) => (
+                                <ContestItem record={record.contest_id} />
+                            )}
+                        />
 
-                    <FunctionField
-                        source="area_id"
-                        label={t("tallysheet.table.area")}
-                        render={(record: Sequent_Backend_Tally_Sheet) => (
-                            <AreaItem record={record.area_id} />
-                        )}
-                    />
+                        <FunctionField
+                            source="area_id"
+                            label={t("tallysheet.table.area")}
+                            render={(record: Sequent_Backend_Tally_Sheet) => (
+                                <AreaItem record={record.area_id} />
+                            )}
+                        />
 
-                    <FunctionField
-                        key={"Version"}
-                        label={t("tallysheet.versionsTable.version")}
-                        render={(record: any) => <TextField source="version" />}
-                    />
+                        <FunctionField
+                            key={"Version"}
+                            label={t("tallysheet.versionsTable.version")}
+                            render={(record: any) => <TextField source="version" />}
+                        />
 
-                    <FunctionField
-                        key={"Created by"}
-                        label={t("tallysheet.versionsTable.createdBy")}
-                        render={(record: any) => <TextField source="created_by_user_id" />}
-                    />
-                    <TextField source="created_at" />
+                        <FunctionField
+                            key={"Created by"}
+                            label={t("tallysheet.versionsTable.createdBy")}
+                            render={(record: any) => <TextField source="created_by_user_id" />}
+                        />
+                        <TextField source="created_at" />
 
-                    <FunctionField
-                        key={"Reviewed by"}
-                        label={t("tallysheet.versionsTable.reviewedBy")}
-                        render={(record: Sequent_Backend_Tally_Sheet) =>
-                            record.reviewed_at ? <TextField source="reviewed_by_user_id" /> : "-"
-                        }
-                    />
+                        <FunctionField
+                            key={"Reviewed by"}
+                            label={t("tallysheet.versionsTable.reviewedBy")}
+                            render={(record: Sequent_Backend_Tally_Sheet) =>
+                                record.reviewed_at ? (
+                                    <TextField source="reviewed_by_user_id" />
+                                ) : (
+                                    "-"
+                                )
+                            }
+                        />
 
-                    <FunctionField
-                        key={"reviewed_at"}
-                        label={t("tallysheet.versionsTable.reviewedAt")}
-                        render={(record: any) =>
-                            record.reviewed_at ? <TextField source="reviewed_at" /> : "-"
-                        }
-                    />
-                    <TextField source="status" />
+                        <FunctionField
+                            key={"reviewed_at"}
+                            label={t("tallysheet.versionsTable.reviewedAt")}
+                            render={(record: any) =>
+                                record.reviewed_at ? <TextField source="reviewed_at" /> : "-"
+                            }
+                        />
+                        <TextField source="status" />
 
-                    <FunctionField
-                        source="labels"
-                        label={t("tallysheet.table.labels")}
-                        render={(record: Sequent_Backend_Tally_Sheet) =>
-                            formatJsonValue(record.labels)
-                        }
-                    />
+                        <FunctionField
+                            source="labels"
+                            label={t("tallysheet.table.labels")}
+                            render={(record: Sequent_Backend_Tally_Sheet) =>
+                                formatJsonValue(record.labels)
+                            }
+                        />
 
-                    <FunctionField
-                        source="annotations"
-                        label={t("tallysheet.table.annotations")}
-                        render={(record: Sequent_Backend_Tally_Sheet) =>
-                            formatJsonValue(record.annotations)
-                        }
-                    />
+                        <FunctionField
+                            source="annotations"
+                            label={t("tallysheet.table.annotations")}
+                            render={(record: Sequent_Backend_Tally_Sheet) =>
+                                formatJsonValue(record.annotations)
+                            }
+                        />
 
-                    <FunctionField
-                        key="source-import"
-                        label={t("tallysheet.versionsTable.sourceImport")}
-                        render={(record: TallySheetVersionRecord) => (
-                            <ImportedVersionSource
-                                record={record}
-                                electionEventId={String(tallySheet.election_event_id)}
-                                canViewImport={canViewImport}
-                            />
-                        )}
-                    />
+                        <FunctionField
+                            key="source-import"
+                            label={t("tallysheet.versionsTable.sourceImport")}
+                            render={(record: TallySheetVersionRecord) => (
+                                <ImportedVersionSource
+                                    record={record}
+                                    electionEventId={String(tallySheet.election_event_id)}
+                                    canViewImport={canViewImport}
+                                />
+                            )}
+                        />
 
                         <WrapperField source="actions" label="Actions">
                             <FunctionField
