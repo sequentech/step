@@ -101,7 +101,9 @@ use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
-use sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS;
+use sequent_core::types::keycloak::{
+    CERTIFICATES_IDP_ALIAS, DEFAULT_IVR_SERVICE_CLIENT_ID, IVR_VOTING_CLIENT_ID,
+};
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -228,17 +230,39 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
-    let keycloak_client_id =
-        env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
-    let keycloak_client_secret =
-        env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
     let mut realm_copy = realm.clone();
+
+    // Collect well-known clients and their secrets to set.
+    let keycloak_client_id = env::var("KEYCLOAK_CLIENT_ID")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .with_context(|| "KEYCLOAK_CLIENT_ID can't be empty")?;
+    let keycloak_client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .with_context(|| "KEYCLOAK_CLIENT_SECRET can't be empty")?;
+    let mut known_clients = vec![
+        // Keycloak client is always known and required, as checked (and failed if required) above.
+        (keycloak_client_id, Some(keycloak_client_secret)),
+        // IVR specific clients are optional, their secrets may or may not be configured during deployment.
+        // This is not considered a failure, it will be ignored, and a new secret will be generated.
+        (
+            env::var("KEYCLOAK_IVR_SERVICE_CLIENT_ID")
+                .unwrap_or(DEFAULT_IVR_SERVICE_CLIENT_ID.to_string()),
+            env::var("KEYCLOAK_IVR_SERVICE_CLIENT_SECRET").ok(),
+        ),
+        (
+            IVR_VOTING_CLIENT_ID.to_string(),
+            env::var("KEYCLOAK_IVR_VOTING_CLIENT_SECRET").ok(),
+        ),
+    ];
 
     // For each IDP that has both clientId and clientSecret configured,
     // look if it is the special CERTIFICATES_IDP_ALIAS, then generate a
-    // new secret, update the IDP config, and record (clientId -> newSecret) so the
+    // new secret, update the IDP config, and record (clientId -> newSecret) in the known_clients so the
     // matching Keycloak client can be given the same credential in the client's loop below.
-    let mut certs_client: Option<(String, String)> = None;
     if let Some(identity_providers) = realm_copy.identity_providers.clone() {
         let new_identity_providers = identity_providers
             .iter()
@@ -251,7 +275,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                             if new_config.contains_key("clientSecret") {
                                 let new_secret = generate_client_secret();
                                 new_config.insert("clientSecret".to_string(), new_secret.clone());
-                                certs_client = Some((idp_client_id, new_secret));
+                                known_clients.push((idp_client_id, Some(new_secret)));
                             }
                         }
                         idp_copy.config = Some(new_config);
@@ -266,25 +290,30 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
         realm_copy.identity_providers = Some(new_identity_providers);
     }
 
-    // For each client, assign its secret based on priority:
-    // 1. The designated Keycloak client gets the configured env var secret.
-    // 2. Client that appear configured in IDP CERTIFICATES_IDP_ALIAS get the generated client secret.
+    // For each client, assign its secret:
+    // 1. The known Keycloak clients (such as service-account, or ivr clients) get the configured env var secret.
+    // 2. The client that was configured in IDP CERTIFICATES_IDP_ALIAS gets the generated client secret (becomes a "known client").
     // 3. All others have their secret cleared so Keycloak regenerates it.
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                client_copy.secret = match client.client_id.as_deref() {
-                    Some(id) if id == keycloak_client_id => Some(keycloak_client_secret.clone()),
-                    Some(id) => match &certs_client {
-                        Some((certs_client_id, secret)) if id == certs_client_id => {
-                            Some(secret.clone())
-                        }
-                        _ => None,
-                    },
-                    None => None,
-                };
+                // Check if the client matches with any known client.
+                // If not, we'll leave None, and Keycloak will regenerate it.
+                client_copy.secret = client.client_id.as_deref().and_then(|client_id| {
+                    known_clients
+                        .iter()
+                        .find(|(known_id, _)| client_id == known_id)
+                        .and_then(|(known_id, known_secret)| {
+                            // Don't accept empty values
+                            let secret = known_secret.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+                            if secret.is_none() {
+                                tracing::warn!("Known client '{known_id}' had no secret configured, regenerating");
+                            }
+                            secret
+                        })
+                });
                 client_copy
             })
             .collect()
