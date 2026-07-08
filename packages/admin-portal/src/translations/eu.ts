@@ -414,6 +414,12 @@ const basqueTranslation: TranslationType = {
                     deleteSuccess: "Behar bezala ezabatu da",
                     deleteError: "Ezin izan da ezabatu",
                 },
+                prompts: {
+                    infoMsg:
+                        "Konfiguratu IVRak erabiltzen dituen promptak. Iragarpen-promptak nahitaezkoak dira, eta sistema-promptak nahi diren hizkuntzetarako gainidatz daitezke. SSML onartzen da, hizkuntzak nahasteko ere bai.",
+                    editorTitle: "Prompta",
+                    editorSubtitle: "Promptaren konfigurazioa",
+                },
                 blacklist: {
                     columns: {
                         phone: "Telefono-zenbakia",

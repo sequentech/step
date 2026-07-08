@@ -414,6 +414,12 @@ const catalanTranslation: TranslationType = {
                     deleteSuccess: "S'ha eliminat correctament",
                     deleteError: "No s'ha pogut eliminar",
                 },
+                prompts: {
+                    infoMsg:
+                        "Configureu els missatges utilitzats per l’IVR. Els missatges d’anunci són obligatoris, i els missatges del sistema es poden sobreescriure per als idiomes desitjats. S’admet SSML, també per barrejar idiomes.",
+                    editorTitle: "Missatge",
+                    editorSubtitle: "Configuració del missatge",
+                },
                 blacklist: {
                     columns: {
                         phone: "Número de telèfon",

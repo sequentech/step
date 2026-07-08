@@ -309,11 +309,7 @@ export const IvrPrompts: React.FC = () => {
 
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
-            <Alert severity="info">
-                Configure the prompts used by the IVR. Announcement prompts are required, and system
-                prompts can be overridden for desired languages. SSML is supported, including for
-                mixing languages.
-            </Alert>
+            <Alert severity="info">{t("electionEventScreen.ivr.prompts.infoMsg")}</Alert>
             <Box>
                 <Box
                     sx={{
@@ -404,10 +400,10 @@ export const IvrPrompts: React.FC = () => {
                     >
                         <>
                             <PageHeaderStyles.Title>
-                                {t("electionEventScreen.localization.common.title")}
+                                {t("electionEventScreen.ivr.prompts.editorTitle")}
                             </PageHeaderStyles.Title>
                             <PageHeaderStyles.SubTitle>
-                                {t("electionEventScreen.localization.common.subTitle")}
+                                {t("electionEventScreen.ivr.prompts.editorSubtitle")}
                             </PageHeaderStyles.SubTitle>
 
                             <TextInput
@@ -450,10 +446,10 @@ export const IvrPrompts: React.FC = () => {
                     >
                         <>
                             <PageHeaderStyles.Title>
-                                {t("electionEventScreen.localization.common.title")}
+                                {t("electionEventScreen.ivr.prompts.editorTitle")}
                             </PageHeaderStyles.Title>
                             <PageHeaderStyles.SubTitle>
-                                {t("electionEventScreen.localization.common.subTitle")}
+                                {t("electionEventScreen.ivr.prompts.editorSubtitle")}
                             </PageHeaderStyles.SubTitle>
 
                             <TextInput

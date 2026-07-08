@@ -413,6 +413,12 @@ const englishTranslation = {
                     deleteSuccess: "Deleted successfully",
                     deleteError: "Failed to delete",
                 },
+                prompts: {
+                    infoMsg:
+                        "Configure the prompts used by the IVR. Announcement prompts are required, and system prompts can be overridden for desired languages. SSML is supported, including for mixing languages.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Prompt configuration",
+                },
                 blacklist: {
                     columns: {
                         phone: "Phone number",

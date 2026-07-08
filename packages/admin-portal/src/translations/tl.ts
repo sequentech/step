@@ -413,6 +413,12 @@ const tagalogTranslation: TranslationType = {
                     deleteSuccess: "Matagumpay na natanggal",
                     deleteError: "Nabigong tanggalin",
                 },
+                prompts: {
+                    infoMsg:
+                        "I-configure ang mga prompt na ginagamit ng IVR. Kinakailangan ang mga announcement prompt, at maaaring i-override ang mga system prompt para sa mga gustong wika. Sinusuportahan ang SSML, kabilang ang paghahalo ng mga wika.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Configuration ng prompt",
+                },
                 blacklist: {
                     columns: {
                         phone: "Numero ng telepono",

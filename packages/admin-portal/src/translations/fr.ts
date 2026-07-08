@@ -414,6 +414,12 @@ const frenchTranslation: TranslationType = {
                     deleteSuccess: "Supprimé avec succès",
                     deleteError: "Échec de la suppression",
                 },
+                prompts: {
+                    infoMsg:
+                        "Configurez les messages utilisés par le SVI. Les messages d’annonce sont obligatoires, et les messages système peuvent être remplacés pour les langues souhaitées. SSML est pris en charge, y compris pour mélanger les langues.",
+                    editorTitle: "Message",
+                    editorSubtitle: "Configuration du message",
+                },
                 blacklist: {
                     columns: {
                         phone: "Numéro de téléphone",
