@@ -624,6 +624,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                ivrPrompt: "IVR prompt",
                 externalId: "External ID",
             },
             securityConfirmationPolicy: {

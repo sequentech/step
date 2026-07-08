@@ -625,6 +625,7 @@ const galegoTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descrición",
                 securityConfirmationHtml: "Confirmación de seguridade HTML",
+                ivrPrompt: "Mensaxe IVR",
                 externalId: "ID externo",
             },
             securityConfirmationPolicy: {

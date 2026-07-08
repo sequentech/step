@@ -625,6 +625,7 @@ const tagalogTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Paglalarawan",
                 securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+                ivrPrompt: "Prompt ng IVR",
                 externalId: "Panlabas na ID",
             },
             securityConfirmationPolicy: {

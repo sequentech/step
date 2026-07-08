@@ -626,6 +626,7 @@ const catalanTranslation: TranslationType = {
                 alias: "Àlies",
                 description: "Descripció",
                 securityConfirmationHtml: "Confirmació de seguretat HTML",
+                ivrPrompt: "Missatge IVR",
                 externalId: "ID extern",
             },
             securityConfirmationPolicy: {

@@ -622,6 +622,7 @@ const dutchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Beschrijving",
                 securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+                ivrPrompt: "IVR-bericht",
                 externalId: "Externe ID",
             },
             securityConfirmationPolicy: {

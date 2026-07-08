@@ -36,6 +36,7 @@ import {useMutation} from "@apollo/client"
 import {CREATE_ELECTION} from "@/queries/CreateElection"
 import {CreateElectionMutation} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 const Hidden = styled(Box)`
     display: none;
@@ -85,6 +86,7 @@ export const CreateElection: React.FC = () => {
             i18n,
             language_conf: tenantLangConf,
         }
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
         return {
             ...data,
             presentation,
