@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-24.04
+    runs-on: aws-selfhosted-ubuntu24
     if: github.event_name == 'workflow_call'
     strategy:
       matrix:

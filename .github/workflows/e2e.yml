@@ -18,7 +18,7 @@ on:
 
 jobs:
   e2e:
-    runs-on: ubuntu-24.04
+    runs-on: aws-selfhosted-ubuntu24
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v26

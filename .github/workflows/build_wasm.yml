@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_wasm:
-    runs-on: ubuntu-24.04
+    runs-on: aws-selfhosted-ubuntu24
 
     steps:
       - name: Checkout Repository
