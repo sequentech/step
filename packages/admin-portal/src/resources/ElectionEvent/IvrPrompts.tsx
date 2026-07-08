@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo, useState} from "react"
+import React, {ReactElement, useEffect, useMemo, useState} from "react"
 import {
     Datagrid,
     FormDataConsumer,
@@ -28,17 +28,20 @@ import {
     MenuItem,
     Select,
     TablePagination,
+    Typography,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IVR_CONFIG_ANNOTATION, IVR_PROMPTS_ANNOTATION} from "@/utils/ivr"
 import {JsonEditor} from "json-edit-react"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import Add from "@mui/icons-material/Add"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
 
 const RESOURCE = "sequent_backend_election_event"
 
@@ -67,6 +70,29 @@ interface PromptsListProps {
     requiredPromptKeys: Set<string>
     selectedLanguage: string
     actions: Action[]
+    empty: ReactElement
+}
+
+interface EmptyPromptsProps {
+    onAdd: () => void
+}
+
+const EmptyPrompts: React.FC<EmptyPromptsProps> = ({onAdd}) => {
+    const {t} = useTranslation()
+    return (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" component="p">
+                {t("electionEventScreen.ivr.prompts.emptyMsg")}
+            </Typography>
+            <Button onClick={onAdd}>
+                <IconButton icon={faPlus as any} fontSize="24px" />
+                {t("common.label.add")}
+            </Button>
+            <Typography variant="body1" component="p">
+                {t("common.resources.noResult.askCreate")}
+            </Typography>
+        </ResourceListStyles.EmptyBox>
+    )
 }
 
 const PromptsList: React.FC<PromptsListProps> = ({
@@ -74,6 +100,7 @@ const PromptsList: React.FC<PromptsListProps> = ({
     requiredPromptKeys,
     selectedLanguage,
     actions,
+    empty,
 }) => {
     const {t} = useTranslation()
     const data = useMemo(() => {
@@ -94,7 +121,8 @@ const PromptsList: React.FC<PromptsListProps> = ({
             <Card>
                 <Datagrid
                     bulkActionButtons={false}
-                    onClick={(e) => e.preventDefault()}
+                    empty={empty}
+                    rowClick={false}
                     sx={{
                         "& .column-id": {minWidth: "150px"},
                         "& .column-value": {width: "100%"},
@@ -208,6 +236,7 @@ export const IvrPrompts: React.FC = () => {
         })
     }
     const editorValid: boolean = useMemo(() => promptsValid(editorData), [editorData])
+    const promptsEmpty: boolean = Object.keys(editorData[selectedLanguage]).length < 1
 
     if (!record?.id) {
         return null
@@ -311,55 +340,64 @@ export const IvrPrompts: React.FC = () => {
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
             <Alert severity="info">{t("electionEventScreen.ivr.prompts.infoMsg")}</Alert>
             <Box>
-                <Box
-                    sx={{
-                        flexGrow: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        width: "100%",
-                        justifyContent: "space-between",
-                    }}
-                >
-                    <FormControl key="select-language" sx={{width: "50%"}}>
-                        <InputLabel id="select-language">
-                            {t("electionEventScreen.localization.selectLanguage")}
-                        </InputLabel>
-                        <Select
-                            labelId="select-language"
-                            fullWidth
-                            label={String(t("electionEventScreen.localization.selectLanguage"))}
-                            onChange={(e) => {
-                                let newLang = e?.target?.value
-                                if (newLang && typeof newLang === "string")
-                                    setSelectedLanguage(newLang)
-                            }}
-                            value={selectedLanguage}
-                        >
-                            {languages &&
-                                languages.map((lang) => {
-                                    return (
-                                        <MenuItem key={lang} value={lang}>
-                                            {t(`common.language.${lang}`)}
-                                        </MenuItem>
-                                    )
-                                })}
-                        </Select>
-                    </FormControl>
-                    <Button
-                        onClick={() => {
-                            setOpenCreate(true)
+                {!promptsEmpty ? (
+                    <Box
+                        sx={{
+                            flexGrow: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            width: "100%",
+                            justifyContent: "space-between",
                         }}
                     >
-                        <Add />
-                        {t("common.label.add")}
-                    </Button>
-                </Box>
+                        <FormControl key="select-language" sx={{width: "50%"}}>
+                            <InputLabel id="select-language">
+                                {t("electionEventScreen.localization.selectLanguage")}
+                            </InputLabel>
+                            <Select
+                                labelId="select-language"
+                                fullWidth
+                                label={String(t("electionEventScreen.localization.selectLanguage"))}
+                                onChange={(e) => {
+                                    let newLang = e?.target?.value
+                                    if (newLang && typeof newLang === "string")
+                                        setSelectedLanguage(newLang)
+                                }}
+                                value={selectedLanguage}
+                            >
+                                {languages &&
+                                    languages.map((lang) => {
+                                        return (
+                                            <MenuItem key={lang} value={lang}>
+                                                {t(`common.language.${lang}`)}
+                                            </MenuItem>
+                                        )
+                                    })}
+                            </Select>
+                        </FormControl>
+                        <Button
+                            onClick={() => {
+                                setOpenCreate(true)
+                            }}
+                        >
+                            <Add />
+                            {t("common.label.add")}
+                        </Button>
+                    </Box>
+                ) : null}
                 <Box sx={{flexGrow: 1, width: "100%"}}>
                     <PromptsList
                         prompts={editorData}
                         selectedLanguage={selectedLanguage}
                         actions={actions}
                         requiredPromptKeys={requiredPromptKeys}
+                        empty={
+                            <EmptyPrompts
+                                onAdd={() => {
+                                    setOpenCreate(true)
+                                }}
+                            />
+                        }
                     />
                 </Box>
             </Box>
