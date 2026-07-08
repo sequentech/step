@@ -84,8 +84,15 @@ pub async fn preview_tally_sheet_import(
     source_format: TallySheetImportSourceFormat,
     selected_channel: VotingChannel,
     canonical_csv_bytes: &[u8],
+    // Errors already known before parsing, e.g. from converting a source
+    // XML file to canonical CSV (a problem scoped to one Contest there
+    // skips just that contest rather than failing the whole import, so it
+    // surfaces here instead, same as any other validation error).
+    conversion_validation_errors: Vec<TallySheetImportValidationError>,
 ) -> Result<TallySheetImportPreview> {
-    let (parsed_imports, mut validation_errors) = parse_canonical_csv(canonical_csv_bytes);
+    let (parsed_imports, parse_errors) = parse_canonical_csv(canonical_csv_bytes);
+    let mut validation_errors = conversion_validation_errors;
+    validation_errors.extend(parse_errors);
     let mut items = Vec::new();
     let mut resolution_cache = BallotBoxResolutionCache::default();
     let mut baseline_cache: HashMap<BallotBoxKey, Option<TallySheet>> = HashMap::new();
@@ -230,6 +237,7 @@ pub async fn create_tally_sheet_import(
     canonical_csv_bytes: &[u8],
     source_bytes: &[u8],
     created_by_user_id: &str,
+    conversion_validation_errors: Vec<TallySheetImportValidationError>,
 ) -> Result<TallySheetImport> {
     let preview = preview_tally_sheet_import(
         transaction,
@@ -239,6 +247,7 @@ pub async fn create_tally_sheet_import(
         source_format.clone(),
         selected_channel.clone(),
         canonical_csv_bytes,
+        conversion_validation_errors,
     )
     .await?;
 

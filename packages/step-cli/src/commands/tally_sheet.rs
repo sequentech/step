@@ -712,8 +712,16 @@ pub fn convert_ess_xml_to_tally_csv(
     selected_channel: VotingChannelArg,
 ) -> Result<(), Box<dyn Error>> {
     let xml_bytes = fs::read(input)?;
-    let csv_bytes = convert_ess_enhanced_xml_to_csv(&xml_bytes, selected_channel.to_core())?;
+    let (csv_bytes, validation_errors) =
+        convert_ess_enhanced_xml_to_csv(&xml_bytes, selected_channel.to_core())?;
     fs::write(output, csv_bytes)?;
+    for error in &validation_errors {
+        let context = match &error.contest_external_id {
+            Some(contest_external_id) => format!("[{contest_external_id}] "),
+            None => String::new(),
+        };
+        eprintln!("{} {context}{}", "Warning:".yellow(), error.message);
+    }
     Ok(())
 }
 

@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use roxmltree::{Document, Node};
+use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::VotingChannel;
 use tracing::instrument;
 
@@ -29,11 +30,51 @@ struct CandidateVotes {
     votes_by_precinct: HashMap<String, u64>,
 }
 
+/// Builds a validation error for a problem scoped to a single `Contest`
+/// element (or, if the contest couldn't even be identified yet, the whole
+/// file). Mirrors the shape `parse_canonical_csv` uses for its own errors,
+/// so XML and CSV import problems are reported identically to the caller.
+fn xml_error(
+    selected_channel: &VotingChannel,
+    contest_external_id: Option<&str>,
+    message: impl Into<String>,
+) -> TallySheetImportValidationError {
+    TallySheetImportValidationError {
+        code: "xml_conversion_error".to_string(),
+        message: message.into(),
+        channel: Some(selected_channel.clone()),
+        area_name: None,
+        contest_external_id: contest_external_id.map(|id| id.to_string()),
+        candidate_external_id: None,
+        field: None,
+    }
+}
+
+/// Resolves a single contest's precinct totals and candidate votes,
+/// regardless of which of the two ES&S XML variants it uses.
+fn resolve_contest_data(
+    contest: Node<'_, '_>,
+    document: &Document<'_>,
+    reporting_group_id: &str,
+) -> Result<(BTreeMap<String, ContestPrecinctTotals>, Vec<CandidateVotes>)> {
+    if contest
+        .children()
+        .any(|node| node.has_tag_name("ContestReportingGroup"))
+    {
+        Ok((
+            contest_totals_by_precinct(contest, reporting_group_id)?,
+            normal_candidate_votes(contest)?,
+        ))
+    } else {
+        candidate_reporting_group_contest_data(contest, document, reporting_group_id)
+    }
+}
+
 #[instrument(skip_all, err)]
 pub fn convert_ess_enhanced_xml_to_csv(
     xml_bytes: &[u8],
     selected_channel: VotingChannel,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     convert_ess_enhanced_xml_to_csv_for_reporting_group(
         xml_bytes,
         selected_channel,
@@ -41,16 +82,27 @@ pub fn convert_ess_enhanced_xml_to_csv(
     )
 }
 
+/// Converts an ES&S Enhanced XML file to canonical tally sheet CSV.
+///
+/// Only genuinely file-wide problems (invalid UTF-8, unparseable XML, a
+/// malformed `JurisdictionMap`) are hard failures. A structural problem
+/// scoped to a single `Contest` (missing reporting-group data, a duplicate
+/// or unresolved precinct reference, a non-numeric attribute, a missing
+/// `altId1`) skips just that contest and is instead reported as a
+/// `TallySheetImportValidationError`, exactly like `parse_canonical_csv`
+/// does for a bad CSV row — so a file with one broken contest still
+/// converts and imports every other contest in it.
 #[instrument(skip_all, err)]
 pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
     xml_bytes: &[u8],
     selected_channel: VotingChannel,
     reporting_group_id: &str,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     let xml = std::str::from_utf8(xml_bytes).context("ES&S XML import must be valid UTF-8")?;
     let document = Document::parse(xml).context("Invalid ES&S Enhanced XML")?;
     let precinct_names = precinct_names_by_id(&document)?;
     let mut writer = Writer::from_writer(Vec::new());
+    let mut validation_errors = Vec::new();
 
     writer.write_record([
         "channel",
@@ -65,28 +117,42 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
         .descendants()
         .filter(|node| node.has_tag_name("Contest"))
     {
-        let contest_external_id = required_attr(contest, "altId1", "Contest")?;
-        if contest_external_id.trim().is_empty() {
-            return Err(anyhow!("Contest is missing altId1 import id"));
-        }
-        let (totals_by_precinct, candidates) = if contest
-            .children()
-            .any(|node| node.has_tag_name("ContestReportingGroup"))
-        {
-            (
-                contest_totals_by_precinct(contest, reporting_group_id)?,
-                normal_candidate_votes(contest)?,
-            )
-        } else {
-            candidate_reporting_group_contest_data(contest, &document, reporting_group_id)?
+        let contest_external_id = match required_attr(contest, "altId1", "Contest") {
+            Ok(id) if !id.trim().is_empty() => id,
+            Ok(_) | Err(_) => {
+                validation_errors.push(xml_error(
+                    &selected_channel,
+                    None,
+                    "Contest is missing altId1 import id",
+                ));
+                continue;
+            }
         };
+
+        let (totals_by_precinct, candidates) =
+            match resolve_contest_data(contest, &document, reporting_group_id) {
+                Ok(data) => data,
+                Err(error) => {
+                    validation_errors.push(xml_error(
+                        &selected_channel,
+                        Some(&contest_external_id),
+                        error.to_string(),
+                    ));
+                    continue;
+                }
+            };
 
         for (precinct_id, totals) in totals_by_precinct {
             let Some(area_name) = precinct_names.get(&precinct_id) else {
-                return Err(anyhow!(
-                    "Contest references precinct id '{}' not present in JurisdictionMap",
-                    precinct_id
+                validation_errors.push(xml_error(
+                    &selected_channel,
+                    Some(&contest_external_id),
+                    format!(
+                        "Contest references precinct id '{}' not present in JurisdictionMap",
+                        precinct_id
+                    ),
                 ));
+                continue;
             };
 
             let candidate_votes_sum = candidates
@@ -173,7 +239,8 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
         }
     }
 
-    writer.into_inner().map_err(|err| anyhow!(err))
+    let csv_bytes = writer.into_inner().map_err(|err| anyhow!(err))?;
+    Ok((csv_bytes, validation_errors))
 }
 
 #[instrument(skip_all, err)]
@@ -483,9 +550,10 @@ mod tests {
             </ElectionReport>
         "#;
 
-        let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
+        assert!(errors.is_empty());
         assert!(csv.contains("PAPER,Precinct 1,contest-1,implicit_invalid,,3"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,4"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,14"));
@@ -534,9 +602,10 @@ mod tests {
             </Owner>
         "#;
 
-        let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
+        assert!(errors.is_empty());
         assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,58"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-2,34"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,6"));
@@ -571,9 +640,10 @@ mod tests {
             </Owner>
         "#;
 
-        let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
+        assert!(errors.is_empty());
         assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,7"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,4"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,census,,20"));
@@ -620,13 +690,14 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
 ";
 
         for _ in 0..5 {
-            let csv = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+            let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+            assert!(errors.is_empty());
             assert_eq!(String::from_utf8(csv).unwrap(), expected);
         }
     }
 
     #[test]
-    fn fails_when_candidate_reporting_group_variant_has_no_group_one_data() {
+    fn reports_a_validation_error_when_candidate_reporting_group_variant_has_no_group_one_data() {
         let xml = br#"
             <Owner>
                 <JurisdictionMap>
@@ -646,9 +717,67 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
             </Owner>
         "#;
 
-        let error = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap_err();
-        assert!(error
-            .to_string()
+        // A structural problem scoped to one contest is a validation error,
+        // not a hard failure: the conversion still succeeds (with an empty
+        // canonical CSV, since this file's only contest is the broken one).
+        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "xml_conversion_error");
+        assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
+        assert!(errors[0]
+            .message
             .contains("Contest is missing CandidateReportingGroup data for reportingGroupId=1"));
+        assert_eq!(
+            String::from_utf8(csv).unwrap(),
+            "channel,area_name,contest_external_id,field,candidate_external_id,value\n"
+        );
+    }
+
+    #[test]
+    fn a_broken_contest_does_not_block_other_contests_in_the_same_file() {
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1" />
+                </JurisdictionMap>
+                <Contest altId1="broken-contest">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="2" underVotes="5" blankVotes="4" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
+                    </Candidate>
+                </Contest>
+                <Contest altId1="good-contest">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="2" underVotes="5" blankVotes="4" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
+                    </Candidate>
+                    <Candidate altId1="cand-2" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="3" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].contest_external_id,
+            Some("broken-contest".to_string())
+        );
+        assert!(errors[0]
+            .message
+            .contains("Duplicate CandidatePrecinctVotes"));
+
+        assert!(!csv.contains("broken-contest"));
+        assert!(csv.contains("PAPER,Precinct 1,good-contest,candidate_votes,cand-1,7"));
+        assert!(csv.contains("PAPER,Precinct 1,good-contest,candidate_votes,cand-2,3"));
+        assert!(csv.contains("PAPER,Precinct 1,good-contest,total_votes,,17"));
     }
 }

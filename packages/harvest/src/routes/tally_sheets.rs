@@ -17,6 +17,7 @@ use sequent_core::types::permissions::Permissions;
 use sequent_core::types::tally_sheet_import::{
     TallySheetImportItemStatus, TallySheetImportReviewDecision,
     TallySheetImportSourceFormat, TallySheetImportStatus,
+    TallySheetImportValidationError,
 };
 use sequent_core::types::tally_sheets::{
     AreaContestResults, TallySheetStatus, VotingChannel,
@@ -330,7 +331,7 @@ pub async fn preview_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
-    let canonical_csv = canonical_csv_bytes(
+    let (canonical_csv, conversion_validation_errors) = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
@@ -345,6 +346,7 @@ pub async fn preview_tally_sheet_import(
         input.source_format,
         input.selected_channel,
         &canonical_csv,
+        conversion_validation_errors,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
@@ -393,7 +395,7 @@ pub async fn create_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
-    let canonical_csv = canonical_csv_bytes(
+    let (canonical_csv, conversion_validation_errors) = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
@@ -411,6 +413,7 @@ pub async fn create_tally_sheet_import(
         &canonical_csv,
         &source_bytes,
         &claims.hasura_claims.user_id,
+        conversion_validation_errors,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
@@ -721,14 +724,19 @@ async fn read_import_document(
     Ok((document, bytes))
 }
 
+/// Returns the canonical CSV bytes plus any validation errors already known
+/// before parsing (only possible for XML sources, where a problem scoped to
+/// one Contest skips just that contest instead of failing the whole file).
+/// The `Result` here is reserved for genuinely file-wide problems (invalid
+/// UTF-8, unparseable XML, an unreadable CSV byte stream).
 fn canonical_csv_bytes(
     source_bytes: &[u8],
     source_format: &TallySheetImportSourceFormat,
     selected_channel: &VotingChannel,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     match source_format {
         TallySheetImportSourceFormat::CANONICAL_CSV => {
-            Ok(source_bytes.to_vec())
+            Ok((source_bytes.to_vec(), Vec::new()))
         }
         TallySheetImportSourceFormat::ESS_ENHANCED_XML => {
             convert_ess_enhanced_xml_to_csv(
