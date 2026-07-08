@@ -602,6 +602,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descripción",
                 securityConfirmationHtml: "Confirmación de seguridad HTML",
+                ivrPrompt: "Mensaje IVR",
                 externalId: "ID externo",
             },
             securityConfirmationPolicy: {

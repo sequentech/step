@@ -602,6 +602,7 @@ const basqueTranslation: TranslationType = {
                 alias: "Ezizena",
                 description: "Deskribapena",
                 securityConfirmationHtml: "Segurtasun-berrespena HTML",
+                ivrPrompt: "IVR mezua",
                 externalId: "Kanpoko IDa",
             },
             securityConfirmationPolicy: {
