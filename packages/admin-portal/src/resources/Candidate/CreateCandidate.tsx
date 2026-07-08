@@ -83,6 +83,7 @@ export const CreateCandidate: React.FC = () => {
                 <TextInput
                     source="external_id"
                     label={String(t("candidateScreen.edit.externalId"))}
+                    required
                 />
                 <Hidden>
                     <TextInput source="type" />

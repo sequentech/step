@@ -34,6 +34,7 @@ insert_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -62,6 +63,7 @@ insert_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -90,6 +92,7 @@ insert_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -118,6 +121,7 @@ insert_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -144,6 +148,7 @@ insert_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -170,6 +175,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -199,6 +205,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -228,6 +235,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -257,6 +265,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -286,6 +295,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -315,6 +325,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -344,6 +355,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -373,6 +385,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -400,6 +413,7 @@ select_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -429,6 +443,7 @@ update_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -460,6 +475,7 @@ update_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -489,6 +505,7 @@ update_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -520,6 +537,7 @@ update_permissions:
               - presentation
               - tally_configuration
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at

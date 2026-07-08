@@ -392,6 +392,11 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("candidateScreen.edit.externalId"))}
+                                    readOnly={!!record.external_id}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>
@@ -418,10 +423,6 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput
-                                    source="external_id"
-                                    label={String(t("candidateScreen.edit.externalId"))}
-                                />
                                 <TextInput
                                     source="type"
                                     label={String(t("candidateScreen.edit.type"))}
