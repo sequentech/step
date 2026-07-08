@@ -405,8 +405,15 @@ const spanishTranslation: TranslationType = {
             createElectionEventError: "Error creando Evento Electoral",
             ivr: {
                 tabs: {
+                    config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locuciones",
+                },
+                common: {
+                    saveSuccess: "Guardado correctamente",
+                    saveError: "No se pudo guardar",
+                    deleteSuccess: "Eliminado correctamente",
+                    deleteError: "No se pudo eliminar",
                 },
                 blacklist: {
                     columns: {
@@ -416,10 +423,6 @@ const spanishTranslation: TranslationType = {
                         createdBy: "Creado por",
                     },
                     emptyMsg: "No hay entradas en la lista de bloqueo",
-                    saveSuccess: "Guardado correctamente",
-                    saveError: "No se pudo guardar",
-                    deleteSuccess: "Eliminado correctamente",
-                    deleteError: "No se pudo eliminar",
                     phoneRequired: "El número de teléfono es obligatorio",
                 },
             },

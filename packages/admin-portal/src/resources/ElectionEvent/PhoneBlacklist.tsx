@@ -120,38 +120,38 @@ export const PhoneBlacklist: React.FC = () => {
     const [insertPhoneBlacklist, {loading: inserting}] = useMutation(CREATE_PHONE_BLACKLIST_ENTRY, {
         context: {headers: {"x-hasura-role": IPermissions.PHONE_BLACKLIST_CREATE}},
         onCompleted: () => {
-            notify(t("electionEventScreen.ivr.blacklist.saveSuccess"), {type: "success"})
+            notify(t("electionEventScreen.ivr.common.saveSuccess"), {type: "success"})
             setDrawerOpen(false)
             setPhoneE164("")
             setReason("")
             refresh()
         },
         onError: () => {
-            notify(t("electionEventScreen.ivr.blacklist.saveError"), {type: "error"})
+            notify(t("electionEventScreen.ivr.common.saveError"), {type: "error"})
         },
     })
 
     const [updatePhoneBlacklist, {loading: updating}] = useMutation(UPDATE_PHONE_BLACKLIST_ENTRY, {
         context: {headers: {"x-hasura-role": IPermissions.PHONE_BLACKLIST_UPDATE}},
         onCompleted: () => {
-            notify(t("electionEventScreen.ivr.blacklist.saveSuccess"), {type: "success"})
+            notify(t("electionEventScreen.ivr.common.saveSuccess"), {type: "success"})
             setEditDrawerOpen(false)
             setEditId(null)
             refresh()
         },
         onError: () => {
-            notify(t("electionEventScreen.ivr.blacklist.saveError"), {type: "error"})
+            notify(t("electionEventScreen.ivr.common.saveError"), {type: "error"})
         },
     })
 
     const [deletePhoneBlacklist] = useMutation(DELETE_PHONE_BLACKLIST_ENTRY, {
         context: {headers: {"x-hasura-role": IPermissions.PHONE_BLACKLIST_DELETE}},
         onCompleted: () => {
-            notify(t("electionEventScreen.ivr.blacklist.deleteSuccess"), {type: "success"})
+            notify(t("electionEventScreen.ivr.common.deleteSuccess"), {type: "success"})
             refresh()
         },
         onError: () => {
-            notify(t("electionEventScreen.ivr.blacklist.deleteError"), {type: "error"})
+            notify(t("electionEventScreen.ivr.common.deleteError"), {type: "error"})
         },
     })
 

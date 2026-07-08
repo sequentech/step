@@ -404,8 +404,15 @@ const frenchTranslation: TranslationType = {
             createElectionEventError: "Erreur lors de la création de l'Événement Électoral",
             ivr: {
                 tabs: {
+                    config: "Configuration",
                     blacklist: "Liste de blocage",
                     prompts: "Messages vocaux",
+                },
+                common: {
+                    saveSuccess: "Enregistré avec succès",
+                    saveError: "Échec de l’enregistrement",
+                    deleteSuccess: "Supprimé avec succès",
+                    deleteError: "Échec de la suppression",
                 },
                 blacklist: {
                     columns: {
@@ -415,10 +422,6 @@ const frenchTranslation: TranslationType = {
                         createdBy: "Créé par",
                     },
                     emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
-                    saveSuccess: "Enregistré avec succès",
-                    saveError: "Échec de l’enregistrement",
-                    deleteSuccess: "Supprimé avec succès",
-                    deleteError: "Échec de la suppression",
                     phoneRequired: "Le numéro de téléphone est obligatoire",
                 },
             },
