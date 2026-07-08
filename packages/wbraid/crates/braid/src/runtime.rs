@@ -2,26 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The v0.6 session runtime: the trustee-side loop that turns a verified
-//! message set into the next round of signed messages.
+//! The v0.6 session runtime: the trustee-side protocol engine.
 //!
 //! This is the new (M1) replacement for `crate::protocol::{trustee, action}`.
-//! A [`SessionTrustee`] owns a single board's [`MessageStore`] plus this
-//! trustee's key material, and its [`SessionTrustee::step`] closes the loop:
+//! A [`SessionTrustee`] holds only this trustee's identity and secrets; the board
+//! state lives in the board client (`crate::board`). Its [`SessionTrustee::step`]
+//! is a **pure** function of the board's [`MessageStore`] read view:
 //!
-//! 1. **accept** the incoming [`WireMessage`]s into the store (§6.1);
-//! 2. read the store's predicate set and **run the datalog** engine
-//!    ([`crate::datalog::composed::run`], §7.4) to derive the enabled
-//!    [`Action`]s;
+//! 1. read the board-sourced predicate set and add this trustee's own
+//!    `ConfigurationValid` fact (§9.7), forming the datalog EDB;
+//! 2. **run the datalog** engine ([`crate::datalog::composed::run`], §7.4) to
+//!    derive the enabled [`Action`]s;
 //! 3. **execute** each action — the cryptography ported from the old
 //!    `protocol::action` modules, minus channels/symmetric wrapping/batches
-//!    (§9.4) — producing signed [`WireMessage`]s;
-//! 4. **self-accept** the produced messages so the trustee's own view advances
-//!    without waiting for a board round-trip, and return them for posting.
+//!    (§9.4) — producing signed [`WireMessage`]s, which are returned (never
+//!    stored or posted here).
 //!
-//! The store stays `C`-only and width-agnostic (§6.1); the action layer picks up
-//! the ciphertext width and the threshold/trustee counts from the configuration
-//! and lowers them to const generics via the dispatch macros.
+//! Per the loop-back rule (§6) the trustee never advances on its own output: a
+//! produced message only takes effect once the board client posts it and fetches
+//! it back. The action layer picks up the ciphertext width and threshold/trustee
+//! counts from the view's configuration and lowers them to const generics via the
+//! dispatch macros.
+//!
+//! [`MessageStore`]: crate::messages::store::MessageStore
 
 use anyhow::{anyhow, Result};
 
@@ -37,11 +40,12 @@ use b4::messages::artifact::{
 use b4::messages::message::Signer;
 use b4::messages::newtypes::{
     CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PublicKeyHash, SharesHash,
-    Timestamp, TrusteeIndex,
+    Timestamp, TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
-use b4::messages::wire::{MessageType, WireMessage};
+use b4::messages::wire::WireMessage;
 
 use crate::datalog::{self, Action, MixSource};
+use crate::messages::predicate::ConfigurationValid;
 use crate::messages::store::MessageStore;
 
 /// Wire `date` used for all M1 messages. The timestamp is wire-only metadata
@@ -51,11 +55,13 @@ const M1_TIMESTAMP: Timestamp = 0;
 
 /// A trustee driving a single board through the v0.6 protocol.
 ///
-/// Owns the board's verified-message [`MessageStore`] and this trustee's two
-/// secrets: the `signing_key` (authenticates every message it posts) and the
-/// `share_encryption` ElGamal keypair (its public element is published in the
-/// configuration; its secret decrypts the DKG shares dealt to this trustee,
-/// replacing the old per-trustee `Channel`, §9.4).
+/// A **pure** protocol engine: it owns only its own identity and secrets — the
+/// `signing_key` (authenticates every message it posts), the `share_encryption`
+/// ElGamal keypair (its public element is in the configuration; its secret
+/// decrypts the DKG shares dealt to it, replacing the old `Channel`, §9.4), and
+/// the derived self-scoped `configuration_valid` fact (§9.7). The board state
+/// lives in the board client; [`step`](Self::step) reads it through the board
+/// client's [`MessageStore`] and returns messages with no side effect (§6 loop-back).
 pub struct SessionTrustee<C: Context> {
     /// Human-readable sender name, stamped into every posted message.
     name: String,
@@ -63,8 +69,9 @@ pub struct SessionTrustee<C: Context> {
     signing_key: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer,
     /// Keypair whose secret decrypts shares dealt to this trustee (§9.4).
     share_encryption: KeyPair<C>,
-    /// The verified-message store and datalog EDB source for this board.
-    store: MessageStore<C>,
+    /// This trustee's self-scoped configuration fact (§9.7), derived once at
+    /// construction and injected into the datalog EDB at every `step`.
+    configuration_valid: ConfigurationValid,
 }
 
 impl<C: Context> Signer<C> for SessionTrustee<C> {
@@ -78,70 +85,72 @@ impl<C: Context> Signer<C> for SessionTrustee<C> {
 }
 
 impl<C: Context> SessionTrustee<C> {
-    /// Construct a trustee for the board defined by `configuration_message`.
-    ///
-    /// The configuration message is verified and accepted at construction (§9.8);
-    /// this trustee's position in it is derived from `signing_key`'s public side.
+    /// Construct a trustee against the board's accepted `configuration` (held by
+    /// the board client — §9.8: constructing the trustee requires a constructed
+    /// board client). This trustee's 1-based index is derived from `signing_key`'s
+    /// public side, and its self-scoped `ConfigurationValid` fact (§9.7) is cached
+    /// for injection at `step`.
     pub fn new(
         name: String,
         signing_key: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer,
         share_encryption: KeyPair<C>,
-        configuration_message: &WireMessage<C>,
+        configuration: &Configuration<C>,
     ) -> Result<Self> {
         let self_pk = C::SignatureScheme::verifying_key(&signing_key);
-        let store = MessageStore::from_configuration_message(configuration_message, &self_pk)?;
+        let position = configuration
+            .get_trustee_position(&self_pk)
+            .ok_or_else(|| anyhow!("this trustee's key is not part of the configuration"))?;
+        if position == PROTOCOL_MANAGER_INDEX as usize {
+            return Err(anyhow!("the protocol manager does not run a trustee"));
+        }
+        // 0-based configuration position -> 1-based trustee index (§4.3).
+        let self_index: TrusteeIndex = position + 1;
+        let configuration_valid = ConfigurationValid {
+            configuration: ConfigurationHash::from_configuration(configuration)?,
+            threshold: configuration.threshold,
+            trustee_count: configuration.trustees.len(),
+            self_index,
+        };
         Ok(Self {
             name,
             signing_key,
             share_encryption,
-            store,
+            configuration_valid,
         })
     }
 
-    /// The accepted configuration for this trustee's board.
-    pub fn configuration(&self) -> &Configuration<C> {
-        self.store.configuration()
-    }
-
-    /// Advance the protocol one round: accept `incoming`, run the datalog, and
-    /// return the messages this trustee produces (already self-accepted).
+    /// Run inference over the board `view` and return the messages this trustee
+    /// should post — a **pure** function (§6): nothing is stored or posted here,
+    /// and the trustee does not advance on its own output (that takes effect only
+    /// once it loops back through the board client, §6).
     ///
-    /// `Configuration` messages in `incoming` are skipped — the configuration is
-    /// consumed once at construction and is never a datalog input (§9.8).
-    pub fn step(&mut self, incoming: &[WireMessage<C>]) -> Result<Vec<WireMessage<C>>> {
-        for message in incoming {
-            if message.message_type == MessageType::Configuration {
-                continue;
-            }
-            self.store.accept(message)?;
-        }
+    /// The EDB is the board-sourced predicates plus this trustee's own
+    /// `ConfigurationValid` fact (§9.7), which only it can compute.
+    pub fn step(&self, view: &MessageStore<C>) -> Result<Vec<WireMessage<C>>> {
+        let mut predicates = view.get_predicates();
+        predicates.push(self.configuration_valid.clone().into());
 
-        let predicates = self.store.get_predicates();
         let actions = datalog::composed::run(&predicates).map_err(|e| anyhow!(e))?;
 
         let mut outgoing = Vec::new();
         for action in &actions {
-            let produced = self.execute(action)?;
-            for message in &produced {
-                self.store.accept(message)?;
-            }
-            outgoing.extend(produced);
+            outgoing.extend(self.execute(action, view)?);
         }
         Ok(outgoing)
     }
 
     /// Execute a single datalog-derived action, producing the message(s) to post.
-    fn execute(&self, action: &Action) -> Result<Vec<WireMessage<C>>> {
+    fn execute(&self, action: &Action, view: &MessageStore<C>) -> Result<Vec<WireMessage<C>>> {
         match action {
-            Action::ComputeShares(cfg, self_index) => self.compute_shares(cfg, *self_index),
+            Action::ComputeShares(cfg, self_index) => self.compute_shares(view, cfg, *self_index),
             Action::ComputePublicKey(cfg, shares_hashes, self_index) => {
-                self.compute_public_key(cfg, shares_hashes, *self_index)
+                self.compute_public_key(view, cfg, shares_hashes, *self_index)
             }
             Action::ComputeMix(cfg, public_key, source, input, self_index) => {
-                self.compute_mix(cfg, public_key, source, input, *self_index)
+                self.compute_mix(view, cfg, public_key, source, input, *self_index)
             }
             Action::SignMix(cfg, public_key, source, input, output, self_index) => {
-                self.sign_mix(cfg, public_key, source, input, output, *self_index)
+                self.sign_mix(view, cfg, public_key, source, input, output, *self_index)
             }
             Action::ComputePartialDecryptions(
                 cfg,
@@ -150,6 +159,7 @@ impl<C: Context> SessionTrustee<C> {
                 shares_hashes,
                 self_index,
             ) => self.compute_partial_decryptions(
+                view,
                 cfg,
                 public_key,
                 ciphertexts,
@@ -163,6 +173,7 @@ impl<C: Context> SessionTrustee<C> {
                 decryptions_hashes,
                 self_index,
             ) => self.compute_plaintexts(
+                view,
                 cfg,
                 public_key,
                 ciphertexts,
@@ -181,12 +192,13 @@ impl<C: Context> SessionTrustee<C> {
     /// symmetric wrapping, or PoK.
     fn compute_shares(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         _self_index: TrusteeIndex,
     ) -> Result<Vec<WireMessage<C>>> {
         use cryptography::dkgd::dealer::Dealer;
 
-        let cfg = self.store.configuration();
+        let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
 
@@ -229,6 +241,7 @@ impl<C: Context> SessionTrustee<C> {
     /// the action only fires once all dealers' shares are accumulated (§7).
     fn compute_public_key(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         shares_hashes: &[SharesHash],
         self_index: TrusteeIndex,
@@ -236,7 +249,7 @@ impl<C: Context> SessionTrustee<C> {
         use cryptography::dkgd::dealer::VerifiableShare;
         use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
 
-        let cfg = self.store.configuration();
+        let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
         // 1-based trustee index -> 0-based recipient slot in each dealer's shares.
@@ -248,8 +261,7 @@ impl<C: Context> SessionTrustee<C> {
             let mut all_checking_values: Vec<[C::Element; T]> = Vec::with_capacity(num_trustees);
 
             for shares_hash in shares_hashes {
-                let body = self
-                    .store
+                let body = view
                     .shares_body(shares_hash)
                     .ok_or_else(|| anyhow!("missing shares body for {:?}", shares_hash))?;
                 let shares = Shares::<C>::deser(body)
@@ -296,18 +308,19 @@ impl<C: Context> SessionTrustee<C> {
     }
 
     /// The input ciphertexts of a mix, fetched directly from the store named by
-    /// `source` (§8) and keyed by `input_hash`. The store accessors are
+    /// `source` (§8) and keyed by `input_hash`. The view accessors are
     /// content-addressed by `input_hash`, so if `source` and `input_hash`
     /// disagree the lookup returns nothing and this errors — the sanity check
     /// that replaces the old ballots-first fall-through.
     fn mix_input_ciphertexts<const W: usize>(
         &self,
+        view: &MessageStore<C>,
         source: &MixSource,
         input_hash: &CiphertextsHash,
     ) -> Result<Vec<Ciphertext<C, W>>> {
         match source {
             MixSource::Ballots => {
-                let body = self.store.ballots_body(input_hash).ok_or_else(|| {
+                let body = view.ballots_body(input_hash).ok_or_else(|| {
                     anyhow!(
                         "MixSource::Ballots named for input {:?}, but no ballots have that hash",
                         input_hash
@@ -318,7 +331,7 @@ impl<C: Context> SessionTrustee<C> {
                     .ciphertexts)
             }
             MixSource::PriorMix => {
-                let body = self.store.mix_body_by_output(input_hash).ok_or_else(|| {
+                let body = view.mix_body_by_output(input_hash).ok_or_else(|| {
                     anyhow!(
                         "MixSource::PriorMix named for input {:?}, but no mix has that output",
                         input_hash
@@ -339,6 +352,7 @@ impl<C: Context> SessionTrustee<C> {
     /// bound to `cfg_hash` + `input_hash` (§9.4), which every verifier reproduces.
     fn compute_mix(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         source: &MixSource,
@@ -348,9 +362,8 @@ impl<C: Context> SessionTrustee<C> {
         use cryptography::cryptosystem::elgamal::PublicKey;
         use cryptography::zkp::shuffle::Shuffler;
 
-        let cfg = self.store.configuration();
-        let pk_body = self
-            .store
+        let cfg = view.configuration();
+        let pk_body = view
             .public_key_body(pk_hash)
             .ok_or_else(|| anyhow!("missing public key body for {:?}", pk_hash))?;
         let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
@@ -358,7 +371,7 @@ impl<C: Context> SessionTrustee<C> {
 
         crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
             let input_ciphertexts: Vec<Ciphertext<C, W>> =
-                self.mix_input_ciphertexts::<W>(source, input_hash)?;
+                self.mix_input_ciphertexts::<W>(view, source, input_hash)?;
 
             // An empty input yields a null mix: no shuffle, no proof (§8).
             if input_ciphertexts.is_empty() {
@@ -399,6 +412,7 @@ impl<C: Context> SessionTrustee<C> {
     /// re-derived from `cfg_hash` + `input_hash` exactly as the mixer derived it.
     fn sign_mix(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         source: &MixSource,
@@ -409,9 +423,8 @@ impl<C: Context> SessionTrustee<C> {
         use cryptography::cryptosystem::elgamal::PublicKey;
         use cryptography::zkp::shuffle::Shuffler;
 
-        let cfg = self.store.configuration();
-        let pk_body = self
-            .store
+        let cfg = view.configuration();
+        let pk_body = view
             .public_key_body(pk_hash)
             .ok_or_else(|| anyhow!("missing public key body for {:?}", pk_hash))?;
         let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
@@ -420,10 +433,9 @@ impl<C: Context> SessionTrustee<C> {
         crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
             // The mix's input, drawn from the store named by `source`.
             let source_ciphertexts: Vec<Ciphertext<C, W>> =
-                self.mix_input_ciphertexts::<W>(source, input_hash)?;
+                self.mix_input_ciphertexts::<W>(view, source, input_hash)?;
 
-            let mix_body = self
-                .store
+            let mix_body = view
                 .mix_body(input_hash, output_hash)
                 .ok_or_else(|| anyhow!("missing mix {:?} -> {:?}", input_hash, output_hash))?;
             let mix = Mix::<C, W>::deser(mix_body)
@@ -485,6 +497,7 @@ impl<C: Context> SessionTrustee<C> {
     /// shares are also held in the store.
     fn compute_partial_decryptions(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
@@ -493,14 +506,13 @@ impl<C: Context> SessionTrustee<C> {
     ) -> Result<Vec<WireMessage<C>>> {
         use cryptography::traits::groups::GroupScalar;
 
-        let cfg = self.store.configuration();
+        let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
         // 1-based trustee index -> 0-based recipient slot / verification-key index.
         let self_slot = self_index - 1;
 
-        let pk_body = self
-            .store
+        let pk_body = view
             .public_key_body(pk_hash)
             .ok_or_else(|| anyhow!("missing public key body for {:?}", pk_hash))?;
         let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
@@ -511,8 +523,7 @@ impl<C: Context> SessionTrustee<C> {
         // every dealer (§9.4): secret = Σ_d decrypt(shares_d[self_slot]).
         let mut secret = C::Scalar::zero();
         for shares_hash in shares_hashes {
-            let body = self
-                .store
+            let body = view
                 .shares_body(shares_hash)
                 .ok_or_else(|| anyhow!("missing shares body for {:?}", shares_hash))?;
             let shares = Shares::<C>::deser(body)
@@ -533,6 +544,7 @@ impl<C: Context> SessionTrustee<C> {
         crate::dispatch_threshold_trustees!(threshold, num_trustees, {
             crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
                 self.compute_partial_decryptions_inner::<W, T, P>(
+                    view,
                     cfg_hash,
                     pk_hash,
                     ciphertexts_hash,
@@ -552,6 +564,7 @@ impl<C: Context> SessionTrustee<C> {
     #[inline(never)]
     fn compute_partial_decryptions_inner<const W: usize, const T: usize, const P: usize>(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
@@ -563,8 +576,7 @@ impl<C: Context> SessionTrustee<C> {
 
         let label = domain_label(cfg_hash, "decryption proof");
 
-        let mix_body = self
-            .store
+        let mix_body = view
             .mix_body_by_output(ciphertexts_hash)
             .ok_or_else(|| anyhow!("missing final mix output {:?}", ciphertexts_hash))?;
         let mix = Mix::<C, W>::deser(mix_body)
@@ -603,18 +615,18 @@ impl<C: Context> SessionTrustee<C> {
     /// the order of the hashes, which may skip non-participating trustees.
     fn compute_plaintexts(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
         decryptions_hashes: &[DecryptionFactorsHash],
         _self_index: TrusteeIndex,
     ) -> Result<Vec<WireMessage<C>>> {
-        let cfg = self.store.configuration();
+        let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
 
-        let pk_body = self
-            .store
+        let pk_body = view
             .public_key_body(pk_hash)
             .ok_or_else(|| anyhow!("missing public key body for {:?}", pk_hash))?;
         let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
@@ -626,6 +638,7 @@ impl<C: Context> SessionTrustee<C> {
         crate::dispatch_threshold_trustees!(threshold, num_trustees, {
             crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
                 self.compute_plaintexts_inner::<W, T, P>(
+                    view,
                     cfg_hash,
                     pk_hash,
                     ciphertexts_hash,
@@ -642,6 +655,7 @@ impl<C: Context> SessionTrustee<C> {
     #[inline(never)]
     fn compute_plaintexts_inner<const W: usize, const T: usize, const P: usize>(
         &self,
+        view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
@@ -654,8 +668,7 @@ impl<C: Context> SessionTrustee<C> {
 
         let label = domain_label(cfg_hash, "decryption proof");
 
-        let mix_body = self
-            .store
+        let mix_body = view
             .mix_body_by_output(ciphertexts_hash)
             .ok_or_else(|| anyhow!("missing final mix output {:?}", ciphertexts_hash))?;
         let mix = Mix::<C, W>::deser(mix_body)
@@ -666,8 +679,7 @@ impl<C: Context> SessionTrustee<C> {
         let mut vkeys_vec: Vec<C::Element> = Vec::with_capacity(decryptions_hashes.len());
 
         for df_hash in decryptions_hashes {
-            let (sender, body) = self
-                .store
+            let (sender, body) = view
                 .partial_decryptions_by_hash(df_hash)
                 .ok_or_else(|| anyhow!("missing partial decryptions body for {:?}", df_hash))?;
             let partial = PartialDecryption::<C, W>::deser(body)

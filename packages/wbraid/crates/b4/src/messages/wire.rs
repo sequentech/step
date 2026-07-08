@@ -198,6 +198,18 @@ pub struct WireMessage<C: Context> {
     pub body: Option<Vec<u8>>,
 }
 
+impl<C: Context> Clone for WireMessage<C> {
+    fn clone(&self) -> Self {
+        WireMessage {
+            sender: self.sender.clone(),
+            signature: self.signature.clone(),
+            message_type: self.message_type.clone(),
+            head: self.head.clone(),
+            body: self.body.clone(),
+        }
+    }
+}
+
 impl<C: Context> std::fmt::Debug for WireMessage<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -301,7 +313,10 @@ impl<C: Context> WireMessage<C> {
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
         let out_hash = hash(&body_bytes);
-        let head = SharesHead { date, configuration };
+        let head = SharesHead {
+            date,
+            configuration,
+        };
         let signed = statement_bytes(&head, Some(&out_hash));
         Self::sign_wire(
             signer,
@@ -321,7 +336,10 @@ impl<C: Context> WireMessage<C> {
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
         let out_hash = hash(&body_bytes);
-        let head = PublicKeyHead { date, configuration };
+        let head = PublicKeyHead {
+            date,
+            configuration,
+        };
         let signed = statement_bytes(&head, Some(&out_hash));
         Self::sign_wire(
             signer,
@@ -379,7 +397,13 @@ impl<C: Context> WireMessage<C> {
             input,
         };
         let signed = statement_bytes(&head, Some(&out_hash));
-        Self::sign_wire(signer, MessageType::Mix, head.ser(), &signed, Some(body_bytes))
+        Self::sign_wire(
+            signer,
+            MessageType::Mix,
+            head.ser(),
+            &signed,
+            Some(body_bytes),
+        )
     }
 
     /// `MixSignature` (BODYLESS): both `input` and `output` are in-hashes carried

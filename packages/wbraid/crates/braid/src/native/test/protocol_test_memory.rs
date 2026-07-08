@@ -2,15 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! In-memory M1 protocol test: drive the v0.6 [`SessionTrustee`] runtime through
-//! a full DKG → encrypt → mix → threshold-decrypt round on a single shared board.
+//! In-memory M1 protocol test: drive the v0.6 runtime through a full DKG →
+//! encrypt → mix → threshold-decrypt round.
 //!
-//! The "board" is just an ordered `Vec<WireMessage>`; the driver relays each
-//! trustee's freshly produced messages back to the others and iterates to a
-//! fixpoint (§9). Unlike the legacy `protocol::*` harness there are no channels,
-//! symmetric wrapping, or batches (§9.4): the manager posts a single `Ballots`
-//! set directly naming the mixing subset, and every trustee's share is
-//! ElGamal-encrypted to its configured share-encryption key.
+//! Each trustee runs as a [`Session`] (a functional [`SessionTrustee`] over a
+//! [`BoardClient`]); all board clients share one in-memory [`MemoryBoard`] that
+//! stands in for b4. The driver runs the **update-first** cycle (§6): every board
+//! client pulls the latest board, each trustee `step`s (in parallel — CPU-bound
+//! crypto) over its view, and the produced messages are posted back. A trustee's
+//! own output takes effect only once it loops back on the next update. There are
+//! no channels, symmetric wrapping, or batches (§9.4): the manager posts a single
+//! `Ballots` set directly, and each share is ElGamal-encrypted to its recipient's
+//! configured share-encryption key.
 
 use anyhow::{anyhow, Result};
 use log::info;
@@ -34,7 +37,11 @@ use b4::messages::newtypes::{
 use b4::messages::protocol_manager::ProtocolManager;
 use b4::messages::wire::{MessageType, WireMessage};
 
+use crate::board::persistence::NoOpPersistence;
+use crate::board::transport::{MemoryBoard, MemoryTransport};
+use crate::board::BoardClient;
 use crate::runtime::SessionTrustee;
+use crate::session::Session;
 
 /// Wire `date` for every message the harness posts (§3.1); a fixed value is fine
 /// (M1 does not verify timestamps).
@@ -43,16 +50,29 @@ const DATE: Timestamp = 0;
 /// Safety cap on driver rounds; a healthy run converges in a handful of passes.
 const MAX_ROUNDS: usize = 200;
 
+/// A trustee session backed by the in-memory (mock-b4) transport and no
+/// persistence — the M1 shape.
+type MemorySession<C> = Session<C, MemoryTransport<C>, NoOpPersistence>;
+
 /// Entry point (kept signature-compatible with the legacy harness). `batches` is
 /// vestigial — M1 runs a single ballot set — and must be 1.
+///
+/// The session/board-client cycle is async; this sync `#[test]` entry point drives
+/// it on a current-thread tokio runtime. The heavy crypto still runs on rayon's
+/// pool (the parallel `step`), independent of the runtime.
 pub fn run<C: Context>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
     assert_eq!(batches, 1, "M1 in-memory harness runs a single ballot set");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .expect("failed to build tokio runtime");
     crate::dispatch_ciphertext_width!(ciphertext_width, {
-        run_with_width::<C, W>(ciphertexts).unwrap()
+        runtime
+            .block_on(run_with_width::<C, W>(ciphertexts))
+            .unwrap()
     });
 }
 
-fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<()> {
+async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<()> {
     // --- pick a random committee size and threshold/mixing subset ---
     let mut setup_rng = rand::rng();
     let n_trustees = setup_rng.random_range(2..=MAX_TRUSTEES);
@@ -96,38 +116,40 @@ fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<()> {
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
 
-    // --- one SessionTrustee per configured trustee ---
-    let mut trustees: Vec<SessionTrustee<C>> = Vec::with_capacity(n_trustees);
+    // --- the shared in-memory board (mock b4), seeded with the Configuration ---
+    let board = MemoryBoard::<C>::new();
+    board.push(cfg_message);
+
+    // --- one Session (trustee + board client) per configured trustee ---
+    let mut sessions: Vec<MemorySession<C>> = Vec::with_capacity(n_trustees);
     for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
-        trustees.push(SessionTrustee::new(
+        let transport = MemoryTransport::new(board.clone());
+        let client = BoardClient::connect(transport, NoOpPersistence).await?;
+        let trustee = SessionTrustee::new(
             (i + 1).to_string(),
             signing_key,
             keypair,
-            &cfg_message,
-        )?);
+            client.configuration(),
+        )?;
+        sessions.push(Session::new(trustee, client));
     }
-
-    // The board is the ordered log of every posted message; `cursors[i]` tracks
-    // how far trustee `i` has already consumed.
-    let mut board: Vec<WireMessage<C>> = Vec::new();
-    let mut cursors = vec![0usize; n_trustees];
 
     // --- phase 1: DKG (shares + joint public key) ---
     info!(
         "Running DKG for {} trustees (threshold {})",
         n_trustees, n_threshold
     );
-    drive(&mut trustees, &mut board, &mut cursors)?;
+    drive(&mut sessions).await?;
 
-    let pk_body = board
+    let dkg_messages = board.snapshot();
+    let pk_body = dkg_messages
         .iter()
         .find(|m| m.message_type == MessageType::PublicKey)
         .and_then(|m| m.body.as_ref())
-        .ok_or_else(|| anyhow!("DKG did not produce a public key"))?
-        .clone();
-    let dkg_pk = DkgPublicKey::<C>::deser(&pk_body)
+        .ok_or_else(|| anyhow!("DKG did not produce a public key"))?;
+    let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
         .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
-    let pk_hash = PublicKeyHash(b4::hash_bytes(&pk_body));
+    let pk_hash = PublicKeyHash(b4::hash_bytes(pk_body));
 
     // --- manager encrypts a batch of plaintexts and posts the ballots ---
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
@@ -151,9 +173,10 @@ fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<()> {
 
     // --- phase 2: mixing + threshold decryption ---
     info!("Mixing and decrypting");
-    drive(&mut trustees, &mut board, &mut cursors)?;
+    drive(&mut sessions).await?;
 
-    let pt_body = board
+    let final_messages = board.snapshot();
+    let pt_body = final_messages
         .iter()
         .find(|m| m.message_type == MessageType::Plaintexts)
         .and_then(|m| m.body.as_ref())
@@ -178,46 +201,31 @@ fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<()> {
     Ok(())
 }
 
-/// Relay messages between trustees until no trustee produces anything new.
+/// Drive the sessions to a protocol fixpoint using the update-first cycle (§6).
 ///
-/// Each pass steps every trustee **in parallel** (rayon) over the same immutable
-/// snapshot of the board — the messages it has not yet consumed — then appends
-/// everything they produce so the next pass observes it. Reaching a pass that
-/// produces nothing is the protocol fixpoint. Stepping in parallel (rather than
-/// one trustee at a time) exercises the concurrent use of `SessionTrustee` /
-/// `WireMessage` that the deployed mixnet relies on; it costs at most a few extra
-/// passes (a trustee sees this pass's messages next pass instead of same-pass),
-/// which the order-independent datalog fixpoint absorbs.
-fn drive<C: Context>(
-    trustees: &mut [SessionTrustee<C>],
-    board: &mut Vec<WireMessage<C>>,
-    cursors: &mut [usize],
-) -> Result<()> {
+/// Each round has three phases: (1) every board client updates from the shared
+/// board (async, sequential); (2) every trustee `step`s **in parallel** (rayon —
+/// CPU-bound, over an immutable board view); (3) the produced messages are posted
+/// back (async). A round that produces nothing is the fixpoint. Because it is
+/// update-first, a trustee's own output only takes effect once it loops back on
+/// the next round's update. The parallel `step` also exercises the concurrent use
+/// of `SessionTrustee`/`WireMessage` that the deployed mixnet relies on.
+async fn drive<C: Context>(sessions: &mut [MemorySession<C>]) -> Result<()> {
     for _ in 0..MAX_ROUNDS {
-        // Freeze the board frontier and each trustee's cursor for this pass so
-        // every trustee reads a consistent, immutable view while stepping.
-        let frontier = board.len();
-        let starts: Vec<usize> = cursors.to_vec();
-
-        let produced: Vec<Vec<WireMessage<C>>> = {
-            let board_view: &[WireMessage<C>] = board;
-            trustees
-                .par_iter_mut()
-                .enumerate()
-                .map(|(idx, trustee)| trustee.step(&board_view[starts[idx]..frontier]))
-                .collect::<Result<_>>()?
-        };
-
-        // Every trustee has now consumed up to the frozen frontier.
-        for cursor in cursors.iter_mut() {
-            *cursor = frontier;
+        for session in sessions.iter_mut() {
+            session.update().await?;
         }
 
+        let produced: Vec<Vec<WireMessage<C>>> = sessions
+            .par_iter()
+            .map(|session| session.step())
+            .collect::<Result<_>>()?;
+
         let mut produced_any = false;
-        for messages in produced {
+        for (session, messages) in sessions.iter_mut().zip(produced) {
             if !messages.is_empty() {
                 produced_any = true;
-                board.extend(messages);
+                session.post(messages).await?;
             }
         }
         if !produced_any {
