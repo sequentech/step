@@ -84,24 +84,22 @@ export const IvrConfig: React.FC = () => {
     }
 
     return (
-        <Box>
-            <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 2, maxWidth: 640}}>
-                <JsonEditor
-                    data={editorData}
-                    rootName="ivr:config"
-                    defaultValue={handleDefault}
-                    setData={(nextData) => {
-                        setEditorData(nextData)
-                    }}
-                />
-                <Box sx={{mt: 3, display: "flex", gap: 2}}>
-                    <Button variant="contained" onClick={handleSave} disabled={!dirty || saving}>
-                        {t("common.label.save")}
-                    </Button>
-                    <Button variant="contained" onClick={handleCancel} disabled={!dirty || saving}>
-                        {t("common.label.cancel")}
-                    </Button>
-                </Box>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 2, maxWidth: 640}}>
+            <JsonEditor
+                data={editorData}
+                rootName="ivr:config"
+                defaultValue={handleDefault}
+                setData={(nextData) => {
+                    setEditorData(nextData)
+                }}
+            />
+            <Box sx={{mt: 3, display: "flex", gap: 2}}>
+                <Button variant="contained" onClick={handleSave} disabled={!dirty || saving}>
+                    {t("common.label.save")}
+                </Button>
+                <Button variant="contained" onClick={handleCancel} disabled={!dirty || saving}>
+                    {t("common.label.cancel")}
+                </Button>
             </Box>
         </Box>
     )
