@@ -102,6 +102,9 @@ pub struct ResultsContest {
     pub contest_id: String,
     pub results_event_id: String,
     pub elegible_census: Option<i64>,
+    /// Ballots that are not invalid and not declined. Explicit and implicit
+    /// blank ballots are included; selecting explicit blank with a regular
+    /// candidate is an implicit invalid ballot.
     pub total_valid_votes: Option<i64>,
     pub explicit_invalid_votes: Option<i64>,
     pub implicit_invalid_votes: Option<i64>,
@@ -160,6 +163,9 @@ pub struct ResultsAreaContest {
     pub area_id: String,
     pub results_event_id: String,
     pub elegible_census: Option<i64>,
+    /// Ballots that are not invalid and not declined. Explicit and implicit
+    /// blank ballots are included; selecting explicit blank with a regular
+    /// candidate is an implicit invalid ballot.
     pub total_valid_votes: Option<i64>,
     pub explicit_invalid_votes: Option<i64>,
     pub implicit_invalid_votes: Option<i64>,

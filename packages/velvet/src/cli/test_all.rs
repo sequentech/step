@@ -414,6 +414,25 @@ mod tests {
     use uuid::Uuid;
     use walkdir::WalkDir;
 
+    fn get_blank_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_alerts: vec![],
+            invalid_errors: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
     #[test]
     fn test_create_configs() -> Result<()> {
         let fixture = TestFixture::new()?;
@@ -2024,13 +2043,13 @@ mod tests {
             None,
         );
         let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest2], decoded_contests2);
         assert_eq!(result, true);
 
-        // Case 3: EBlankVotePolicy::NOT_ALLOWED but minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
+        // Case 3: EBlankVotePolicy::NOT_ALLOWED still blocks blank votes when minVotes = 0
         let contest3 = get_contest_plurality(
             EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
@@ -2038,13 +2057,13 @@ mod tests {
             Some(0),
         );
         let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest3);
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest3], decoded_contests3);
         assert_eq!(result, true);
 
-        // Case 4: EBlankVotePolicy::NOT_ALLOWED and InvalidVotePolicy::NOT_ALLOWED with invalid errors -> true
+        // Case 4: EBlankVotePolicy::NOT_ALLOWED blocks blank votes when InvalidVotePolicy is NOT_ALLOWED
         let contest4 = get_contest_plurality(
             EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
@@ -2052,7 +2071,7 @@ mod tests {
             None,
         );
         let mut decoded_contests4: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest4);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest4);
         decoded_contests4.insert(contest4.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
@@ -2083,7 +2102,7 @@ mod tests {
             None,
         );
         let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest2], decoded_contests2);
@@ -2097,7 +2116,7 @@ mod tests {
             Some(0),
         );
         let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest3);
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest3], decoded_contests3);

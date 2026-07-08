@@ -7,10 +7,7 @@ import {AppDispatch} from "../store/store"
 import {isString, IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {
-    checkIsExplicitBlankVote,
-    checkIsInvalidVote,
-} from "./ElectionConfigService"
+import {checkIsExplicitBlankVote, checkIsInvalidVote} from "./ElectionConfigService"
 
 export class BallotStyleConfigurationError extends Error {
     translationKey: string
@@ -59,8 +56,7 @@ export const updateBallotStyleAndSelection = (
         }
         try {
             const electionData: IElectionDTO = JSON.parse(ballotEml)
-            const configurationError =
-                getBallotStyleConfigurationError(electionData)
+            const configurationError = getBallotStyleConfigurationError(electionData)
             if (configurationError) {
                 throw configurationError
             }

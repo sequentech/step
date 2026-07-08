@@ -27,12 +27,10 @@ impl PluralityAtLarge {
     pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
+        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
-        let mut count_invalid_votes = InvalidVotes {
-            explicit: 0,
-            implicit: 0,
-        };
+        let mut count_invalid_votes = InvalidVotes::default();
         let mut count_valid: u64 = 0;
         let mut count_invalid: u64 = 0;
         let mut blank_votes = BlankVotes::default();
@@ -47,50 +45,43 @@ impl PluralityAtLarge {
             let weight = weight_opt.clone().unwrap_or_default();
             total_ballots += 1;
 
-            extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
-            let has_explicit_blank = is_explicit_blank_vote(vote, contest);
-            let has_non_explicit_blank_selection =
-                has_selected_non_explicit_blank_choice(vote, contest);
+            extended_metrics = update_extended_metrics(
+                vote,
+                &extended_metrics,
+                &contest,
+                &explicit_blank_candidate_ids,
+            );
 
-            if vote.is_invalid() {
-                if vote.is_explicit_invalid {
+            match classify_ballot(vote, &explicit_blank_candidate_ids) {
+                BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
-                } else {
+                    count_invalid += 1;
+                }
+                BallotClass::ImplicitInvalid => {
                     count_invalid_votes.implicit += 1;
+                    count_invalid += 1;
                 }
-                count_invalid += 1;
-            } else if vote.is_decline_to_vote() {
-                if vote.is_blank() {
+                BallotClass::Declined => {
                     total_declined_to_vote = total_declined_to_vote.saturating_add(1);
-                } else {
-                    // decline to vote is should be a blank vote, so it is an implicit invalid vote
-                    count_invalid_votes.implicit = count_invalid_votes.implicit.saturating_add(1);
-                    count_invalid = count_invalid.saturating_add(1);
                 }
-            } else if has_explicit_blank && has_non_explicit_blank_selection {
-                count_invalid_votes.implicit += 1;
-                count_invalid += 1;
-            } else if has_explicit_blank {
-                blank_votes.explicit += 1;
-                count_valid += 1;
-            } else {
-                let mut is_blank = true;
-
-                for choice in &vote.choices {
-                    if choice.selected >= 0 {
-                        *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
-                        total_weight += weight;
-                        if is_blank {
-                            is_blank = false;
+                BallotClass::ExplicitBlank => {
+                    blank_votes.explicit += 1;
+                    count_valid += 1;
+                }
+                BallotClass::ImplicitBlank => {
+                    blank_votes.implicit += 1;
+                    count_valid += 1;
+                }
+                BallotClass::Valid => {
+                    for choice in &vote.choices {
+                        if choice.selected >= 0 {
+                            *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
+                            total_weight += weight;
                         }
                     }
-                }
 
-                if is_blank {
-                    blank_votes.implicit += 1;
+                    count_valid += 1;
                 }
-
-                count_valid += 1;
             }
         }
 

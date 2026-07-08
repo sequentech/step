@@ -37,11 +37,20 @@ impl DecodedContestChoices {
 pub fn check_contest_configuration(contest: &Contest) -> CheckerResult {
     let mut checker_result: CheckerResult = Default::default();
 
-    let explicit_invalid_candidates = contest
-        .candidates
-        .iter()
-        .filter(|candidate| candidate.is_explicit_invalid())
-        .count();
+    // Count both marker kinds in a single pass and only allocate error
+    // payloads when a violation is actually found: this function runs in
+    // per-ballot encode/decode paths.
+    let mut explicit_invalid_candidates = 0usize;
+    let mut explicit_blank_candidates = 0usize;
+    for candidate in &contest.candidates {
+        if candidate.is_explicit_invalid() {
+            explicit_invalid_candidates += 1;
+        }
+        if candidate.is_explicit_blank() {
+            explicit_blank_candidates += 1;
+        }
+    }
+
     if explicit_invalid_candidates > 1 {
         checker_result.invalid_errors.push(InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::EncodingError,
@@ -57,11 +66,6 @@ pub fn check_contest_configuration(contest: &Contest) -> CheckerResult {
         });
     }
 
-    let explicit_blank_candidates = contest
-        .candidates
-        .iter()
-        .filter(|candidate| candidate.is_explicit_blank())
-        .count();
     if explicit_blank_candidates > 1 {
         checker_result.invalid_errors.push(InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::EncodingError,

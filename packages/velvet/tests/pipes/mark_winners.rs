@@ -81,10 +81,7 @@ fn test_get_winners() {
         total_valid_votes: 6,
         total_invalid_votes: 8,
         total_blank_votes: 6,
-        invalid_votes: InvalidVotes {
-            explicit: 8,
-            implicit: 0,
-        },
+        invalid_votes: InvalidVotes::new(8, 0),
         candidate_result: vec![
             CandidateResult {
                 candidate: candidate_a.clone(),

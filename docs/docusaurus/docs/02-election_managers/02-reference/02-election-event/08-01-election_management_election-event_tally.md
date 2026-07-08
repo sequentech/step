@@ -69,17 +69,19 @@ After tally completion, results become available under the **Tally** tab:
 - **Participation Summary**:
   - **Eligible Voters**: Total number eligible to vote.
   - **Total Voters**: Number who cast a vote.
-  - **Total Valid Votes**: Count of valid ballots.
+  - **Total Valid Votes**: Count of valid ballots, including blank ballots.
   - **Total Invalid Votes**: Count of invalid ballots, subdivided into:
     - **Explicitly Invalid Votes**: Null votes, spoiled ballots, protest actions.
     - **Implicitly Invalid Votes**: Invalid due to configuration (e.g., multiple selections where only one is allowed).
-  - **Blank Votes**: Ballots cast with no selection (counted as valid in many systems).
+  - **Blank Votes**: Explicit and implicit blank ballots. Blank ballots are
+    included in total valid votes.
 
 ### Candidate Results
 For each Contest, display:
 - **Option / Candidate Name**
 - **Number of Votes**: Count of valid votes for that candidate/option.
-- **Percentage of Votes**: Proportion relative to total valid votes.
+- **Percentage of Votes**: Proportion relative to valid non-blank votes when the
+  result is a candidate row.
 - **Ranking / Position**: Placement among candidates by vote count.
 
 > Note: According to the Election Event Weighted Voting Policy, if the policy is set to ‘Weighted Voting for Areas’, the tally will be calculated using the weights assigned to each area during the last publication prior to the tally.

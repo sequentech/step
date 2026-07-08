@@ -38,22 +38,6 @@ pub trait RawBallotCodec {
     ) -> Result<i32, String>;
 }
 
-fn get_explicit_blank_candidate(
-    contest: &Contest,
-) -> Result<Option<&Candidate>, String> {
-    let configuration_errors = check_contest_configuration(contest);
-    if let Some(error) = configuration_errors.invalid_errors.first() {
-        return Err(error.message.clone().unwrap_or_else(|| {
-            "contest has an invalid configuration".to_string()
-        }));
-    }
-
-    Ok(contest
-        .candidates
-        .iter()
-        .find(|candidate| candidate.is_explicit_blank()))
-}
-
 impl RawBallotCodec for Contest {
     fn available_write_in_characters_estimate(
         &self,
@@ -89,17 +73,14 @@ impl RawBallotCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String> {
-        let mut bases = self.get_bases().map_err(|e| e.to_string())?;
+        let context = ContestCodecContext::new(self)?;
+        let mut bases = context.single_contest_bases();
         let mut choices: Vec<u64> = vec![];
 
         let char_map = self.get_char_map();
-        let explicit_blank_candidate = get_explicit_blank_candidate(self)?;
+        let explicit_blank_candidate = context.explicit_blank_candidate;
 
-        let candidates_map = self
-            .candidates
-            .iter()
-            .map(|candidate| (candidate.id.clone(), candidate))
-            .collect::<HashMap<String, &Candidate>>();
+        let candidates_map = &context.candidates_by_id;
 
         // sort candidates by id
         let mut sorted_choices = plaintext.choices.clone();
@@ -113,7 +94,7 @@ impl RawBallotCodec for Contest {
             || sorted_choices.iter().any(|choice| {
                 choice.selected > -1
                     && candidates_map
-                        .get(&choice.id)
+                        .get(choice.id.as_str())
                         .map(|candidate| candidate.is_explicit_invalid())
                         .unwrap_or(false)
             });
@@ -129,7 +110,7 @@ impl RawBallotCodec for Contest {
 
         for choice in sorted_choices.iter() {
             let candidate =
-                candidates_map.get(&choice.id).ok_or_else(|| {
+                candidates_map.get(choice.id.as_str()).ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
                 })?;
             if candidate.is_explicit_invalid() || candidate.is_explicit_blank()
@@ -164,9 +145,9 @@ impl RawBallotCodec for Contest {
         if self.allow_writeins() {
             for choice in sorted_choices.iter() {
                 let candidate =
-                    candidates_map.get(&choice.id).ok_or_else(|| {
-                        "choice id is not a valid candidate".to_string()
-                    })?;
+                    candidates_map.get(choice.id.as_str()).ok_or_else(
+                        || "choice id is not a valid candidate".to_string(),
+                    )?;
                 let is_write_in = candidate.is_write_in();
                 if choice.write_in_text.is_none() && is_write_in {
                     // we don't do a bases.push_back(256) as this is done in
@@ -212,9 +193,10 @@ impl RawBallotCodec for Contest {
         // valid information (and a comprehensive error list) as possible at
         // the end of the function
 
+        let context = ContestCodecContext::new(self)?;
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
-        let explicit_blank_candidate = get_explicit_blank_candidate(self)?;
+        let explicit_blank_candidate = context.explicit_blank_candidate;
         let mut index = 1usize;
         let is_explicit_blank = if explicit_blank_candidate.is_some() {
             let explicit_blank_flag =
@@ -237,25 +219,17 @@ impl RawBallotCodec for Contest {
         };
         let char_map = self.get_char_map();
 
-        // 1. clone the contest and reset the selections
-        let mut sorted_candidates = self.candidates.clone();
-        sorted_candidates.sort_by_key(|q| q.id.clone());
-
-        // 2. sort & segment candidates
-        let valid_candidates: Vec<&Candidate> = sorted_candidates
-            .iter()
-            .filter(|candidate| {
-                !candidate.is_explicit_invalid()
-                    && !candidate.is_explicit_blank()
-            })
-            .collect();
+        // 1. candidates sorted by id and segmented, precomputed once per
+        //    contest in the codec context
+        let sorted_candidates = &context.sorted_candidates;
         let write_in_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
+            .copied()
             .filter(|candidate| candidate.is_write_in())
             .collect();
         // 4. Do some verifications on the number of choices: Checking that the
         //    raw_ballot has as many choices as required
-        let min_choices_len = valid_candidates.len()
+        let min_choices_len = context.sorted_normal_candidates.len()
             + 1
             + usize::from(explicit_blank_candidate.is_some());
         if choices.len() < min_choices_len {
@@ -275,6 +249,7 @@ impl RawBallotCodec for Contest {
         // invalidVoteFlag
         for candidate in sorted_candidates
             .iter()
+            .copied()
             .filter(|candidate| !candidate.is_explicit_invalid())
         {
             if candidate.is_explicit_blank() {

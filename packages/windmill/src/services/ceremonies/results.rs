@@ -99,7 +99,6 @@ pub async fn save_results(
                 contest_result.extended_metrics.clone().unwrap_or_default();
             let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
                 .expect("Failed to convert to JSON");
-            let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
             annotations[EXTENDED_METRICS] = extended_metrics_value;
             if let Some(process_results) = contest_result.process_results.clone() {
@@ -158,7 +157,7 @@ pub async fn save_results(
                 });
 
                 for candidate in &contest.candidate_result {
-                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
+                    let cast_votes_percent: f64 = candidate.percentage_votes / 100.0;
                     results_area_contest_candidates.push(ResultsAreaContestCandidate {
                         id: Uuid::new_v4().into(),
                         tenant_id: tenant_id.into(),
@@ -235,7 +234,7 @@ pub async fn save_results(
                 });
 
                 for candidate in &contest.candidate_result {
-                    let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
+                    let cast_votes_percent: f64 = candidate.percentage_votes / 100.0;
                     results_contest_candidates.push(ResultsContestCandidate {
                         id: Uuid::new_v4().into(),
                         tenant_id: tenant_id.into(),

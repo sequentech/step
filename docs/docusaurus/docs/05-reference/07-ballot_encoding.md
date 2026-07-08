@@ -236,6 +236,8 @@ For tallying purposes:
 - explicit blank must remain distinguishable from implicit blank in decoded and
   reported data
 - explicit blank must **not** be counted as a normal candidate vote
+- a contest that selects explicit blank together with an ordinary candidate is an
+  implicit invalid vote, not a blank vote
 
 ## 6. Meaning of explicit invalid votes
 

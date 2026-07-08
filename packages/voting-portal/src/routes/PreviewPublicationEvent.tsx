@@ -13,9 +13,7 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Support_Material,
 } from "../gql/graphql"
-import {
-    IBallotStyle as IElectionDTO,
-} from "@sequentech/ui-core"
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {cloneDeep} from "lodash"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {

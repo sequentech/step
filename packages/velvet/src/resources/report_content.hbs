@@ -145,7 +145,7 @@ SPDX-License-Identifier: AGPL-3.0-only
           <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}%</td>
         </tr>
         <tr>
-          <td style="width: 55%;">Total number of valid votes</td>
+          <td style="width: 55%;">Total number of valid votes (including blanks)</td>
           <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
           <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_valid_votes }}%</td>
         </tr>
@@ -186,7 +186,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <tr class="">
               <td style="width: 55%;">Name</td>
               <td style="width: 15%;">Votes</td>
-              <td style="width: 15%;">Percent of votes</td>
+              <td style="width: 15%;">Percent of candidate votes</td>
               <td style="width: 15%;">Winning Position</td>
             </tr>
               {{#each report.candidate_result as |candidate|}}
