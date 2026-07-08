@@ -481,6 +481,10 @@ type GetUsersOutput {
   total: TotalAggregate!
 }
 
+type IdOutput {
+  id: String!
+}
+
 type ImportCertificateAuthorityOutput {
   errors: [String!]!
   inserted_count: Int!
@@ -715,6 +719,17 @@ type PgAuditRow {
 enum PgAuditTable {
   pgaudit_hasura
   pgaudit_keycloak
+}
+
+type PhoneBlacklistEntry {
+  created_at: String
+  created_by: String
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String!
+  reason: String
+  tenant_id: uuid
+  updated_at: String
 }
 
 type PluginsRouteOutput {
@@ -1065,6 +1080,7 @@ type mutation_root {
   """create_new_tally_sheet"""
   create_new_tally_sheet(area_id: String!, channel: String!, content: jsonb!, contest_id: String!, election_event_id: String!): TallySheetOutput
   create_permission(body: CreatePermissionInput!): KeycloakPermission
+  create_phone_blacklist_entry(election_event_id: uuid!, phone_e164: String!, reason: String): PhoneBlacklistEntry
   create_role(role: KeycloakRole2!, tenant_id: String!): KeycloakRole!
   create_tally_ceremony(configuration: jsonb, election_event_id: uuid!, election_ids: [uuid!]!, tally_type: String): CreateTallyOutput
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
@@ -1073,6 +1089,7 @@ type mutation_root {
   delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
+  delete_phone_blacklist_entry(election_event_id: uuid!, id: uuid!): IdOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
   delete_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
   """
@@ -12852,7 +12869,7 @@ columns and relationships of "sequent_backend.phone_blacklist"
 type phone_blacklist {
   created_at: timestamptz!
   created_by: uuid!
-  election_event_id: uuid
+  election_event_id: uuid!
   id: uuid!
   phone_e164: String!
   reason: String
