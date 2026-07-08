@@ -94,7 +94,6 @@ export const CreateContest: React.FC = () => {
                 <TextInput
                     source="external_id"
                     label={String(t("contestScreen.edit.externalId"))}
-                    required
                 />
 
                 <Hidden>

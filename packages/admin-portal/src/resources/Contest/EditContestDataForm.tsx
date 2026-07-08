@@ -668,7 +668,6 @@ export const ContestDataForm: React.FC = () => {
                                 <TextInput
                                     source="external_id"
                                     label={String(t("contestScreen.edit.externalId"))}
-                                    readOnly={!!parsedValue.external_id}
                                 />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
