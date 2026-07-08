@@ -160,6 +160,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: create_phone_blacklist_entry
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-phone-blacklist-entry
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: phone-blacklist-create
     - name: create_role
       definition:
           kind: synchronous
@@ -245,6 +258,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: delete_phone_blacklist_entry
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/delete-phone-blacklist-entry
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: phone-blacklist-delete
     - name: delete_role
       definition:
           kind: synchronous
@@ -1476,6 +1502,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: EARLY_VOTING
+              - description: null
+                is_deprecated: null
+                value: TELEPHONE
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter
@@ -1618,4 +1647,6 @@ custom_types:
         - name: GeneratePreviewUrlOutput
         - name: ImportCertificateAuthorityOutput
         - name: DeleteCertificateAuthorityOutput
+        - name: PhoneBlacklistEntry
+        - name: IdOutput
     scalars: []
