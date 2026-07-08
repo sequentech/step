@@ -404,8 +404,15 @@ const galegoTranslation: TranslationType = {
             createElectionEventError: "Erro ao crear o evento electoral",
             ivr: {
                 tabs: {
+                    config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
+                },
+                common: {
+                    saveSuccess: "Gardado correctamente",
+                    saveError: "Non se puido gardar",
+                    deleteSuccess: "Eliminado correctamente",
+                    deleteError: "Non se puido eliminar",
                 },
                 blacklist: {
                     columns: {
@@ -415,10 +422,6 @@ const galegoTranslation: TranslationType = {
                         createdBy: "Creado por",
                     },
                     emptyMsg: "Non hai entradas na lista de bloqueo",
-                    saveSuccess: "Gardado correctamente",
-                    saveError: "Non se puido gardar",
-                    deleteSuccess: "Eliminado correctamente",
-                    deleteError: "Non se puido eliminar",
                     phoneRequired: "O número de teléfono é obrigatorio",
                 },
             },

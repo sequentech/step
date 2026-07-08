@@ -403,8 +403,15 @@ const tagalogTranslation: TranslationType = {
             createElectionEventError: "Error sa paglikha ng kaganapan ng halalan",
             ivr: {
                 tabs: {
+                    config: "Configuration",
                     blacklist: "Listahan ng pag-block",
                     prompts: "Mga voice prompt",
+                },
+                common: {
+                    saveSuccess: "Matagumpay na na-save",
+                    saveError: "Nabigong i-save",
+                    deleteSuccess: "Matagumpay na natanggal",
+                    deleteError: "Nabigong tanggalin",
                 },
                 blacklist: {
                     columns: {
@@ -414,10 +421,6 @@ const tagalogTranslation: TranslationType = {
                         createdBy: "Ginawa ni",
                     },
                     emptyMsg: "Walang entry sa listahan ng pag-block",
-                    saveSuccess: "Matagumpay na na-save",
-                    saveError: "Nabigong i-save",
-                    deleteSuccess: "Matagumpay na natanggal",
-                    deleteError: "Nabigong tanggalin",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },

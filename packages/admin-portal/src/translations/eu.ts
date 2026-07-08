@@ -404,8 +404,15 @@ const basqueTranslation: TranslationType = {
             createElectionEventError: "Errorea hauteskunde gertaera sortzerakoan",
             ivr: {
                 tabs: {
+                    config: "Konfigurazioa",
                     blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
+                },
+                common: {
+                    saveSuccess: "Behar bezala gorde da",
+                    saveError: "Ezin izan da gorde",
+                    deleteSuccess: "Behar bezala ezabatu da",
+                    deleteError: "Ezin izan da ezabatu",
                 },
                 blacklist: {
                     columns: {
@@ -415,10 +422,6 @@ const basqueTranslation: TranslationType = {
                         createdBy: "Nork sortua",
                     },
                     emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
-                    saveSuccess: "Behar bezala gorde da",
-                    saveError: "Ezin izan da gorde",
-                    deleteSuccess: "Behar bezala ezabatu da",
-                    deleteError: "Ezin izan da ezabatu",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
                 },
             },
