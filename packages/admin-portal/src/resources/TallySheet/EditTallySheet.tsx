@@ -37,7 +37,7 @@ import {
     ICandidatePresentation,
     IContestPresentation,
 } from "@sequentech/ui-core"
-import * as SequentCore from "sequent-core"
+import {validate_area_contest_results_js} from "sequent-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
@@ -88,9 +88,8 @@ interface SharedValidationError {
     field: string
 }
 
-const validateAreaContestResults = (SequentCore as any).validate_area_contest_results_js as (
-    content: IAreaContestResults
-) => SharedValidationError[]
+const validateAreaContestResults = (content: IAreaContestResults): SharedValidationError[] =>
+    validate_area_contest_results_js(content)
 
 const numbersRegExp = /^[0-9]+$/
 
@@ -376,21 +375,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             }
         }
 
-        if (typeof validateAreaContestResults !== "function") {
-            setTotalValidError(false)
-            setCensusError(false)
-            setSharedValidationMessages([
-                "Shared tally sheet validator is unavailable. Rebuild sequent-core WASM package.",
-            ])
-            setIsButtonDisabled(true)
-            return
-        }
-
         const sharedValidationErrors = validateAreaContestResults({
             ...newResults,
             invalid_votes: invalids,
             candidate_results: candidateResultsForValidation,
-        }) as SharedValidationError[]
+        })
 
         const codes = new Set(sharedValidationErrors.map((error) => error.code))
         setTotalValidError(codes.has("invalid_total_valid_votes"))

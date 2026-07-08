@@ -5,5 +5,6 @@
 pub mod application;
 pub mod csv;
 pub mod diff;
+pub mod errors;
 pub mod hash;
 pub mod validation;

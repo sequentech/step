@@ -8,8 +8,12 @@ use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use roxmltree::{Document, Node};
 use sequent_core::types::tally_sheets::VotingChannel;
+use tracing::instrument;
 
-const IMPORT_REPORTING_GROUP_ID: &str = "1";
+/// ES&S Enhanced XML files can carry vote totals for multiple reporting
+/// groups (e.g. election-day vs. absentee); this is the reporting group id
+/// read by default when a caller doesn't ask for a specific one.
+pub const DEFAULT_IMPORT_REPORTING_GROUP_ID: &str = "1";
 
 #[derive(Debug, Clone, Default)]
 struct ContestPrecinctTotals {
@@ -25,9 +29,23 @@ struct CandidateVotes {
     votes_by_precinct: HashMap<String, u64>,
 }
 
+#[instrument(skip_all, err)]
 pub fn convert_ess_enhanced_xml_to_csv(
     xml_bytes: &[u8],
     selected_channel: VotingChannel,
+) -> Result<Vec<u8>> {
+    convert_ess_enhanced_xml_to_csv_for_reporting_group(
+        xml_bytes,
+        selected_channel,
+        DEFAULT_IMPORT_REPORTING_GROUP_ID,
+    )
+}
+
+#[instrument(skip_all, err)]
+pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
+    xml_bytes: &[u8],
+    selected_channel: VotingChannel,
+    reporting_group_id: &str,
 ) -> Result<Vec<u8>> {
     let xml = std::str::from_utf8(xml_bytes).context("ES&S XML import must be valid UTF-8")?;
     let document = Document::parse(xml).context("Invalid ES&S Enhanced XML")?;
@@ -56,11 +74,11 @@ pub fn convert_ess_enhanced_xml_to_csv(
             .any(|node| node.has_tag_name("ContestReportingGroup"))
         {
             (
-                contest_totals_by_precinct(contest)?,
+                contest_totals_by_precinct(contest, reporting_group_id)?,
                 normal_candidate_votes(contest)?,
             )
         } else {
-            candidate_reporting_group_contest_data(contest, &document)?
+            candidate_reporting_group_contest_data(contest, &document, reporting_group_id)?
         };
 
         for (precinct_id, totals) in totals_by_precinct {
@@ -158,6 +176,7 @@ pub fn convert_ess_enhanced_xml_to_csv(
     writer.into_inner().map_err(|err| anyhow!(err))
 }
 
+#[instrument(skip_all, err)]
 fn precinct_names_by_id(document: &Document<'_>) -> Result<HashMap<String, String>> {
     let mut precinct_names = HashMap::new();
     for precinct in document
@@ -173,16 +192,19 @@ fn precinct_names_by_id(document: &Document<'_>) -> Result<HashMap<String, Strin
 
 // Keyed by a BTreeMap so the canonical CSV rows are emitted in a stable
 // precinct order and the stored canonical_csv_sha256 is reproducible.
+#[instrument(skip_all, err)]
 fn contest_totals_by_precinct(
     contest: Node<'_, '_>,
+    reporting_group_id: &str,
 ) -> Result<BTreeMap<String, ContestPrecinctTotals>> {
     let mut totals_by_precinct: BTreeMap<String, ContestPrecinctTotals> = BTreeMap::new();
     for group in contest
         .children()
         .filter(|node| node.has_tag_name("ContestReportingGroup"))
     {
-        let reporting_group_id = required_attr(group, "reportingGroupId", "ContestReportingGroup")?;
-        if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
+        let group_reporting_group_id =
+            required_attr(group, "reportingGroupId", "ContestReportingGroup")?;
+        if group_reporting_group_id != reporting_group_id {
             continue;
         }
         for votes in group
@@ -201,6 +223,7 @@ fn contest_totals_by_precinct(
     Ok(totals_by_precinct)
 }
 
+#[instrument(skip_all, err)]
 fn normal_candidate_votes(contest: Node<'_, '_>) -> Result<Vec<CandidateVotes>> {
     let mut candidates = Vec::new();
     for candidate in contest
@@ -241,11 +264,14 @@ fn normal_candidate_votes(contest: Node<'_, '_>) -> Result<Vec<CandidateVotes>> 
     Ok(candidates)
 }
 
+#[instrument(skip_all, err)]
 fn candidate_reporting_group_contest_data(
     contest: Node<'_, '_>,
     document: &Document<'_>,
+    reporting_group_id: &str,
 ) -> Result<(BTreeMap<String, ContestPrecinctTotals>, Vec<CandidateVotes>)> {
-    let precinct_totals = precinct_reporting_group_totals_by_precinct(document)?;
+    let precinct_totals =
+        precinct_reporting_group_totals_by_precinct(document, reporting_group_id)?;
     let mut totals_by_precinct: BTreeMap<String, ContestPrecinctTotals> = BTreeMap::new();
     let mut candidates = Vec::new();
 
@@ -254,7 +280,8 @@ fn candidate_reporting_group_contest_data(
         .filter(|node| node.has_tag_name("Candidate"))
     {
         let candidate_type = candidate.attribute("type").unwrap_or("NORMAL");
-        let votes_by_precinct = candidate_reporting_group_votes_by_precinct(candidate)?;
+        let votes_by_precinct =
+            candidate_reporting_group_votes_by_precinct(candidate, reporting_group_id)?;
 
         for precinct_id in votes_by_precinct.keys() {
             if totals_by_precinct.contains_key(precinct_id) {
@@ -264,7 +291,7 @@ fn candidate_reporting_group_contest_data(
                 return Err(anyhow!(
                     "CandidateReportingGroupPrecinct references precinct id '{}' not present in PrecinctReportingGroup reportingGroupId={} data",
                     precinct_id,
-                    IMPORT_REPORTING_GROUP_ID
+                    reporting_group_id
                 ));
             };
             totals_by_precinct.insert(precinct_id.clone(), precinct_totals_entry.clone());
@@ -304,15 +331,17 @@ fn candidate_reporting_group_contest_data(
     if totals_by_precinct.is_empty() {
         return Err(anyhow!(
             "Contest is missing CandidateReportingGroup data for reportingGroupId={}",
-            IMPORT_REPORTING_GROUP_ID
+            reporting_group_id
         ));
     }
 
     Ok((totals_by_precinct, candidates))
 }
 
+#[instrument(skip_all, err)]
 fn precinct_reporting_group_totals_by_precinct(
     document: &Document<'_>,
+    reporting_group_id: &str,
 ) -> Result<HashMap<String, ContestPrecinctTotals>> {
     let mut totals_by_precinct: HashMap<String, ContestPrecinctTotals> = HashMap::new();
 
@@ -327,12 +356,12 @@ fn precinct_reporting_group_totals_by_precinct(
             .children()
             .filter(|node| node.has_tag_name("PrecinctReportingGroup"))
         {
-            let reporting_group_id = required_attr(
+            let group_reporting_group_id = required_attr(
                 reporting_group,
                 "reportingGroupId",
                 "PrecinctReportingGroup",
             )?;
-            if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
+            if group_reporting_group_id != reporting_group_id {
                 continue;
             }
 
@@ -352,8 +381,10 @@ fn precinct_reporting_group_totals_by_precinct(
     Ok(totals_by_precinct)
 }
 
+#[instrument(skip_all, err)]
 fn candidate_reporting_group_votes_by_precinct(
     candidate: Node<'_, '_>,
+    reporting_group_id: &str,
 ) -> Result<HashMap<String, u64>> {
     let mut votes_by_precinct = HashMap::new();
 
@@ -361,12 +392,12 @@ fn candidate_reporting_group_votes_by_precinct(
         .children()
         .filter(|node| node.has_tag_name("CandidateReportingGroup"))
     {
-        let reporting_group_id = required_attr(
+        let group_reporting_group_id = required_attr(
             reporting_group,
             "reportingGroupId",
             "CandidateReportingGroup",
         )?;
-        if reporting_group_id != IMPORT_REPORTING_GROUP_ID {
+        if group_reporting_group_id != reporting_group_id {
             continue;
         }
 
@@ -384,7 +415,7 @@ fn candidate_reporting_group_votes_by_precinct(
                 return Err(anyhow!(
                     "Duplicate CandidateReportingGroupPrecinct for precinct id '{}' in reportingGroupId={}",
                     precinct_id,
-                    IMPORT_REPORTING_GROUP_ID
+                    reporting_group_id
                 ));
             }
         }

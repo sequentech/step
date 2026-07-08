@@ -23,7 +23,6 @@ pub fn validate_area_contest_results(
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
     let total_votes = content.total_votes.unwrap_or(0);
-    let census = content.census.unwrap_or(0);
     let candidate_votes_sum: u64 = content
         .candidate_results
         .values()
@@ -60,14 +59,18 @@ pub fn validate_area_contest_results(
         ));
     }
 
-    if total_votes > census {
-        errors.push(error(
-            "total_votes_exceeds_census",
-            format!(
-                "total_votes ({total_votes}) must not be greater than census ({census})"
-            ),
-            "census",
-        ));
+    // Census is validated as a required field by the CSV import pipeline and the
+    // manual entry form; skip this check rather than treating an absent census as 0.
+    if let Some(census) = content.census {
+        if total_votes > census {
+            errors.push(error(
+                "total_votes_exceeds_census",
+                format!(
+                    "total_votes ({total_votes}) must not be greater than census ({census})"
+                ),
+                "census",
+            ));
+        }
     }
 
     errors
@@ -161,5 +164,33 @@ mod tests {
                 "total_votes_exceeds_census"
             ]
         );
+    }
+
+    #[test]
+    fn skips_census_check_when_census_is_absent() {
+        let content = AreaContestResults {
+            area_id: "area-1".to_string(),
+            contest_id: "contest-1".to_string(),
+            total_votes: Some(15),
+            total_valid_votes: Some(12),
+            invalid_votes: Some(InvalidVotes {
+                total_invalid: Some(3),
+                implicit_invalid: Some(1),
+                explicit_invalid: Some(2),
+            }),
+            total_blank_votes: Some(2),
+            census: None,
+            candidate_results: HashMap::from([(
+                "candidate-1".to_string(),
+                CandidateResults {
+                    candidate_id: "candidate-1".to_string(),
+                    total_votes: Some(10),
+                },
+            )]),
+        };
+
+        let errors = validate_area_contest_results(&content);
+
+        assert!(errors.is_empty());
     }
 }

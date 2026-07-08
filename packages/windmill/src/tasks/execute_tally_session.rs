@@ -872,9 +872,9 @@ async fn map_plaintext_data(
         Some(msg) => msg,
         None if tie_break_rerun || force_recount => {
             event!(Level::INFO, "Replaying last board message for tally re-run");
-            board_messages
-                .last()
-                .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
+            board_messages.last().ok_or_else(|| {
+                anyhow::anyhow!("No board messages found for tally re-run (tie-break or recount)")
+            })?
         }
         None => {
             event!(Level::INFO, "No new board messages — skipping");
@@ -1448,6 +1448,13 @@ pub async fn transactions_wrapper(
     }
 }
 
+// DEPLOY NOTE: `force_new_results_id` is a required positional argument, so
+// any `execute_tally_session` payload already queued in RabbitMQ (produced by
+// an older windmill version, e.g. during a rolling deploy) will fail to
+// deserialize once this version's consumer picks it up. Drain the
+// `execute_tally_session` queue (or ensure no in-flight tasks reference the
+// old signature) before/while rolling out this change, rather than relying
+// on a mixed-version deploy.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]

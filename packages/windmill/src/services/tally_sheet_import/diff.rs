@@ -7,9 +7,11 @@ use std::collections::HashMap;
 use anyhow::Result;
 use sequent_core::types::tally_sheet_import::TallySheetImportChangeType;
 use sequent_core::types::tally_sheets::AreaContestResults;
+use tracing::instrument;
 
 use super::hash::hash_area_contest_results;
 
+#[instrument(skip_all, err)]
 pub fn classify_change(
     previous: Option<&AreaContestResults>,
     incoming: &AreaContestResults,
@@ -25,9 +27,11 @@ pub fn classify_change(
     }
 }
 
+#[instrument(skip_all)]
 pub fn render_ballot_box_csv(
     content: &AreaContestResults,
     candidate_names: &HashMap<String, String>,
+    candidate_external_ids: &HashMap<String, String>,
 ) -> String {
     let invalid_votes = content.invalid_votes.clone().unwrap_or_default();
     let mut lines = vec!["field,candidate_external_id,candidate_name,value".to_string()];
@@ -69,13 +73,18 @@ pub fn render_ballot_box_csv(
             .get(&candidate_id)
             .and_then(|candidate| candidate.total_votes)
             .unwrap_or(0);
+        let candidate_external_id = candidate_external_ids
+            .get(&candidate_id)
+            .cloned()
+            .unwrap_or_default()
+            .replace(',', " ");
         let candidate_name = candidate_names
             .get(&candidate_id)
             .cloned()
             .unwrap_or_default()
             .replace(',', " ");
         lines.push(format!(
-            "candidate_votes,{candidate_id},{candidate_name},{votes}"
+            "candidate_votes,{candidate_external_id},{candidate_name},{votes}"
         ));
     }
 

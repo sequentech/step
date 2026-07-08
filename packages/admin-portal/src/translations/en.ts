@@ -97,6 +97,11 @@ const englishTranslation = {
                 sourceUrlError: "Could not create source download URL",
                 sourceDownloadError: "Could not download source file",
             },
+            pagination: {
+                range: "{{rangeStart}}-{{rangeEnd}} of {{total}}",
+                previous: "Previous",
+                next: "Next",
+            },
         },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",

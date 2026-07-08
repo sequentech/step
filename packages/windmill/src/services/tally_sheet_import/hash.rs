@@ -8,13 +8,16 @@ use anyhow::Result;
 use sequent_core::types::tally_sheets::AreaContestResults;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use tracing::instrument;
 
+#[instrument(skip_all, err)]
 pub fn hash_area_contest_results(content: &AreaContestResults) -> Result<String> {
     let bytes = serde_json::to_vec(&CanonicalAreaContestResults::from(content))?;
     let digest = Sha256::digest(bytes);
     Ok(hex::encode(digest))
 }
 
+#[instrument(skip_all)]
 pub fn hash_bytes(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     hex::encode(digest)

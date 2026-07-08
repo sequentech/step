@@ -60,30 +60,29 @@ import {
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {FetchDocumentQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {
+    FetchDocumentQuery,
+    GetUploadUrlMutation,
+    GetUploadUrlMutationVariables,
+    PreviewTallySheetImportMutationVariables,
+    ReviewTallySheetImportMutationVariables,
+    Sequent_Backend_Election_Event,
+} from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
 import {downloadUrl} from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {LIST_USERS} from "@/queries/GetUsers"
+import {
+    ETallySheetImportChangeType,
+    ETallySheetImportItemStatus,
+    ETallySheetImportReviewDecision,
+    ETallySheetImportSourceFormat,
+    ETallySheetImportStatus,
+    EVotingChannel,
+} from "@/types/TallySheets"
 
-type TallySheetImportSourceFormat = "ESS_ENHANCED_XML" | "CANONICAL_CSV"
-type TallySheetImportDecision = "APPROVE" | "DISAPPROVE"
-type VotingChannel = "PAPER" | "POSTAL" | "IN_PERSON"
-
-interface GetUploadUrlData {
-    get_upload_url?: {
-        url: string
-        document_id: string
-    } | null
-}
-
-interface GetUploadUrlVariables {
-    name: string
-    media_type: string
-    size: number
-    is_public: boolean
-    election_event_id?: string
-}
+type GetUploadUrlData = GetUploadUrlMutation
+type GetUploadUrlVariables = GetUploadUrlMutationVariables
 
 interface TallySheetImportSummary {
     imported_ballot_box_count: number
@@ -97,7 +96,7 @@ interface TallySheetImportSummary {
 interface TallySheetImportValidationError {
     code: string
     message: string
-    channel?: VotingChannel | null
+    channel?: EVotingChannel | null
     area_name?: string | null
     contest_external_id?: string | null
     candidate_external_id?: string | null
@@ -105,7 +104,7 @@ interface TallySheetImportValidationError {
 }
 
 interface TallySheetImportPreviewItem {
-    channel: VotingChannel
+    channel: EVotingChannel
     area_id: string
     area_name: string
     contest_id: string
@@ -116,18 +115,21 @@ interface TallySheetImportPreviewItem {
     previous_csv?: string | null
     incoming_csv: string
     incoming_content_hash: string
-    change_type: "NEW" | "CHANGED" | "UNCHANGED"
+    change_type: ETallySheetImportChangeType
 }
 
 interface TallySheetImportPreview {
     document_id: string
-    source_format: TallySheetImportSourceFormat
-    selected_channel: VotingChannel
+    source_format: ETallySheetImportSourceFormat
+    selected_channel: EVotingChannel
     summary: TallySheetImportSummary
     items: TallySheetImportPreviewItem[]
     validation_errors: TallySheetImportValidationError[]
 }
 
+// The `preview`/`import` action fields are opaque jsonb in the Hasura schema
+// (see PREVIEW_TALLY_SHEET_IMPORT et al.), so codegen types them as `any`;
+// only their envelope shape (and mutation variables) come from codegen.
 interface PreviewTallySheetImportData {
     preview_tally_sheet_import?: {
         preview: TallySheetImportPreview
@@ -146,18 +148,18 @@ interface ReviewTallySheetImportData {
     } | null
 }
 
-interface TallySheetImportVariables {
-    electionEventId: string
-    documentId: string
-    sha256?: string | null
-    sourceFormat: TallySheetImportSourceFormat
-    selectedChannel: VotingChannel
+// PreviewTallySheetImportMutationVariables and CreateTallySheetImportMutationVariables
+// share the same shape (electionEventId, documentId, sha256, sourceFormat, selectedChannel).
+type TallySheetImportVariables = Omit<
+    PreviewTallySheetImportMutationVariables,
+    "sourceFormat" | "selectedChannel"
+> & {
+    sourceFormat: ETallySheetImportSourceFormat
+    selectedChannel: EVotingChannel
 }
 
-interface ReviewTallySheetImportVariables {
-    electionEventId: string
-    importId: string
-    decision: TallySheetImportDecision
+type ReviewTallySheetImportVariables = Omit<ReviewTallySheetImportMutationVariables, "decision"> & {
+    decision: ETallySheetImportReviewDecision
 }
 
 interface UserSummary {
@@ -183,9 +185,9 @@ interface TallySheetImportRecord {
     id: string
     source_document_id: string
     source_file_name?: string | null
-    source_format: TallySheetImportSourceFormat
-    selected_channel: VotingChannel
-    status: string
+    source_format: ETallySheetImportSourceFormat
+    selected_channel: EVotingChannel
+    status: ETallySheetImportStatus
     source_sha256?: string | null
     created_at?: string | null
     created_by_user_id: string
@@ -200,12 +202,12 @@ interface TallySheetImportItemRecord {
     election_id: string
     area_id: string
     contest_id: string
-    channel: VotingChannel
+    channel: EVotingChannel
     generated_tally_sheet_id?: string | null
     baseline_approved_tally_sheet_id?: string | null
     baseline_approved_version?: number | null
-    change_type: "NEW" | "CHANGED" | "UNCHANGED"
-    status: string
+    change_type: ETallySheetImportChangeType
+    status: ETallySheetImportItemStatus
     previous_csv?: string | null
     incoming_csv: string
     source_refs?: {
@@ -225,6 +227,8 @@ const emptySummary: TallySheetImportSummary = {
 }
 
 const OMIT_FIELDS = ["id", "source_document_id", "source_sha256", "canonical_csv_sha256"]
+
+const DETAIL_ITEMS_PER_PAGE = 100
 
 const Filters: Array<ReactElement> = [
     <TextInput label="File" source="source_file_name" key="file" />,
@@ -252,15 +256,17 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     const [file, setFile] = useState<File | null>(null)
     const [uploadedDocumentId, setUploadedDocumentId] = useState<string | null>(null)
     const [uploadedSourceSha256, setUploadedSourceSha256] = useState<string | null>(null)
-    const [sourceFormat, setSourceFormat] =
-        useState<TallySheetImportSourceFormat>("ESS_ENHANCED_XML")
-    const [selectedChannel, setSelectedChannel] = useState<VotingChannel>("PAPER")
+    const [sourceFormat, setSourceFormat] = useState<ETallySheetImportSourceFormat>(
+        ETallySheetImportSourceFormat.ESS_ENHANCED_XML
+    )
+    const [selectedChannel, setSelectedChannel] = useState<EVotingChannel>(EVotingChannel.PAPER)
     const [preview, setPreview] = useState<TallySheetImportPreview | null>(null)
     const [isWorking, setIsWorking] = useState(false)
     const [pendingDetailImportId, setPendingDetailImportId] = useState<string | null>(null)
     const [duplicateSourceSha256, setDuplicateSourceSha256] = useState<string | null>(null)
     const [duplicateSourceImport, setDuplicateSourceImport] =
         useState<TallySheetImportRecord | null>(null)
+    const [detailItemsPage, setDetailItemsPage] = useState(1)
     const detailImportRecords = useMemo(() => (detailImport ? [detailImport] : []), [detailImport])
 
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_IMPORT_VIEW)
@@ -294,12 +300,13 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
 
     const {
         data: detailItems = [],
+        total: detailItemsTotal,
         isLoading: isLoadingItems,
         refetch: refetchItems,
     } = useGetList<TallySheetImportItemRecord>(
         "sequent_backend_tally_sheet_import_item",
         {
-            pagination: {page: 1, perPage: 250},
+            pagination: {page: detailItemsPage, perPage: DETAIL_ITEMS_PER_PAGE},
             sort: {field: "created_at", order: "ASC"},
             filter: {
                 tenant_id: tenantId,
@@ -354,6 +361,10 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         setDuplicateSourceImport(duplicateSourceImports[0] ?? null)
     }, [duplicateSourceImports])
 
+    useEffect(() => {
+        setDetailItemsPage(1)
+    }, [detailImport?.id])
+
     const resetUpload = useCallback(() => {
         setFile(null)
         setUploadedDocumentId(null)
@@ -388,7 +399,10 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
         }
         const sha256 = await hashFileSha256(file)
         const mediaType =
-            file.type || (sourceFormat === "ESS_ENHANCED_XML" ? "text/xml" : "text/csv")
+            file.type ||
+            (sourceFormat === ETallySheetImportSourceFormat.ESS_ENHANCED_XML
+                ? "text/xml"
+                : "text/csv")
         const {data} = await getUploadUrl({
             variables: {
                 name: file.name,
@@ -502,7 +516,7 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     ])
 
     const handleReview = useCallback(
-        async (decision: TallySheetImportDecision) => {
+        async (decision: ETallySheetImportReviewDecision) => {
             if (!electionEvent?.id || !detailImport?.id) {
                 return
             }
@@ -520,11 +534,11 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                     throw new Error(t("tallySheetImport.notifications.reviewEmpty"))
                 }
                 setDetailImport(nextImport)
-                if (nextImport.status === "CONFLICTED") {
+                if (nextImport.status === ETallySheetImportStatus.CONFLICTED) {
                     notify(t("tallySheetImport.notifications.conflicted"), {type: "warning"})
                 } else {
                     notify(
-                        decision === "APPROVE"
+                        decision === ETallySheetImportReviewDecision.APPROVE
                             ? t("tallySheetImport.notifications.approved")
                             : t("tallySheetImport.notifications.disapproved"),
                         {type: "success"}
@@ -671,17 +685,17 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                 value={sourceFormat}
                                 onChange={(event: SelectChangeEvent) => {
                                     setSourceFormat(
-                                        event.target.value as TallySheetImportSourceFormat
+                                        event.target.value as ETallySheetImportSourceFormat
                                     )
                                     setUploadedDocumentId(null)
                                     setUploadedSourceSha256(null)
                                     setPreview(null)
                                 }}
                             >
-                                <MenuItem value="ESS_ENHANCED_XML">
+                                <MenuItem value={ETallySheetImportSourceFormat.ESS_ENHANCED_XML}>
                                     {t("tallySheetImport.sourceFormat.ESS_ENHANCED_XML")}
                                 </MenuItem>
-                                <MenuItem value="CANONICAL_CSV">
+                                <MenuItem value={ETallySheetImportSourceFormat.CANONICAL_CSV}>
                                     {t("tallySheetImport.sourceFormat.CANONICAL_CSV")}
                                 </MenuItem>
                             </Select>
@@ -692,19 +706,19 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                 label={String(t("tallySheetImport.fields.channel"))}
                                 value={selectedChannel}
                                 onChange={(event: SelectChangeEvent) => {
-                                    setSelectedChannel(event.target.value as VotingChannel)
+                                    setSelectedChannel(event.target.value as EVotingChannel)
                                     setUploadedDocumentId(null)
                                     setUploadedSourceSha256(null)
                                     setPreview(null)
                                 }}
                             >
-                                <MenuItem value="PAPER">
+                                <MenuItem value={EVotingChannel.PAPER}>
                                     {t("tallySheetImport.channel.PAPER")}
                                 </MenuItem>
-                                <MenuItem value="POSTAL">
+                                <MenuItem value={EVotingChannel.POSTAL}>
                                     {t("tallySheetImport.channel.POSTAL")}
                                 </MenuItem>
-                                <MenuItem value="IN_PERSON">
+                                <MenuItem value={EVotingChannel.IN_PERSON}>
                                     {t("tallySheetImport.channel.IN_PERSON")}
                                 </MenuItem>
                             </Select>
@@ -778,15 +792,19 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                             />
                             <Stack direction="row" gap={1}>
                                 {canReview &&
-                                (detailImport.status === "PENDING_REVIEW" ||
-                                    detailImport.status === "CONFLICTED") ? (
+                                (detailImport.status === ETallySheetImportStatus.PENDING_REVIEW ||
+                                    detailImport.status === ETallySheetImportStatus.CONFLICTED) ? (
                                     <>
                                         <Button
                                             color="success"
                                             variant="contained"
                                             startIcon={<DoneIcon />}
                                             disabled={isWorking}
-                                            onClick={() => handleReview("APPROVE")}
+                                            onClick={() =>
+                                                handleReview(
+                                                    ETallySheetImportReviewDecision.APPROVE
+                                                )
+                                            }
                                         >
                                             {t("tallySheetImport.actions.approve")}
                                         </Button>
@@ -795,7 +813,11 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                             variant="outlined"
                                             startIcon={<CloseIcon />}
                                             disabled={isWorking}
-                                            onClick={() => handleReview("DISAPPROVE")}
+                                            onClick={() =>
+                                                handleReview(
+                                                    ETallySheetImportReviewDecision.DISAPPROVE
+                                                )
+                                            }
                                         >
                                             {t("tallySheetImport.actions.disapprove")}
                                         </Button>
@@ -876,12 +898,52 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                         </AccordionDetails>
                                     </Accordion>
                                 ))}
+                                <DetailItemsPagination
+                                    page={detailItemsPage}
+                                    perPage={DETAIL_ITEMS_PER_PAGE}
+                                    total={detailItemsTotal}
+                                    itemCount={detailItems.length}
+                                    onChangePage={setDetailItemsPage}
+                                />
                             </Stack>
                         )}
                     </Stack>
                 ) : null}
             </Drawer>
         </Box>
+    )
+}
+
+const DetailItemsPagination: React.FC<{
+    page: number
+    perPage: number
+    total?: number
+    itemCount: number
+    onChangePage: (page: number) => void
+}> = ({page, perPage, total, itemCount, onChangePage}) => {
+    const {t} = useTranslation()
+
+    if (total === undefined || total <= perPage) {
+        return null
+    }
+
+    const rangeStart = (page - 1) * perPage + 1
+    const rangeEnd = rangeStart + itemCount - 1
+
+    return (
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{pt: 1}}>
+            <Typography variant="body2" color="text.secondary">
+                {t("tallySheetImport.pagination.range", {rangeStart, rangeEnd, total})}
+            </Typography>
+            <Stack direction="row" gap={1}>
+                <Button disabled={page <= 1} onClick={() => onChangePage(page - 1)}>
+                    {t("tallySheetImport.pagination.previous")}
+                </Button>
+                <Button disabled={rangeEnd >= total} onClick={() => onChangePage(page + 1)}>
+                    {t("tallySheetImport.pagination.next")}
+                </Button>
+            </Stack>
+        </Stack>
     )
 }
 
@@ -1216,11 +1278,12 @@ const CsvDiffView: React.FC<{previous: string; incoming: string}> = ({previous, 
 const Status: React.FC<{status: string}> = ({status}) => {
     const {t} = useTranslation()
     const color =
-        status === "APPROVED"
+        status === ETallySheetImportStatus.APPROVED
             ? "success"
-            : status === "DISAPPROVED" || status === "FAILED_VALIDATION"
+            : status === ETallySheetImportStatus.DISAPPROVED ||
+                status === ETallySheetImportStatus.FAILED_VALIDATION
               ? "error"
-              : status === "CONFLICTED"
+              : status === ETallySheetImportStatus.CONFLICTED
                 ? "warning"
                 : "default"
     return (

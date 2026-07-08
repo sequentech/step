@@ -17,6 +17,7 @@ use sequent_core::types::tally_sheets::{
     AreaContestResults, CandidateResults, TallySheetStatus, VotingChannel,
 };
 use serde_json::{json, Value};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::postgres::{
@@ -28,6 +29,7 @@ use crate::postgres::{
         get_latest_approved_tally_sheet, get_latest_ballot_box_tally_sheet,
         get_latest_ballot_box_version, insert_tally_sheet, lock_ballot_box_version_assignment,
         review_tally_sheet_status, soft_delete_tally_sheet_leftover_versions,
+        ReviewTallySheetOutcome,
     },
     tally_sheet_import::{
         get_tally_sheet_import_by_id, get_tally_sheet_import_items_for_review,
@@ -41,10 +43,39 @@ use crate::postgres::{
 use super::{
     csv::parse_canonical_csv,
     diff::{classify_change, render_ballot_box_csv},
+    errors::TallySheetImportError,
     hash::{hash_area_contest_results, hash_bytes},
     validation::validate_import_content,
 };
 
+const DISPLAY_NAME_FALLBACK_LANG: &str = "en";
+
+/// Reads the display name (alias, falling back to name) out of a contest's
+/// or candidate's `presentation` jsonb i18n map, preferring English and
+/// otherwise falling back to any other available language. `description` is
+/// a separate, free-text field and is not the display name shown elsewhere
+/// in the app (see `useAliasRenderer` on the frontend).
+fn presentation_display_name(presentation: &Option<Value>) -> Option<String> {
+    let i18n = presentation.as_ref()?.get("i18n")?.as_object()?;
+
+    let read_field = |lang: &str, field: &str| -> Option<String> {
+        i18n.get(lang)?
+            .get(field)?
+            .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    };
+
+    read_field(DISPLAY_NAME_FALLBACK_LANG, "alias")
+        .or_else(|| read_field(DISPLAY_NAME_FALLBACK_LANG, "name"))
+        .or_else(|| {
+            i18n.keys()
+                .find_map(|lang| read_field(lang, "alias").or_else(|| read_field(lang, "name")))
+        })
+}
+
+#[instrument(skip_all, err)]
 pub async fn preview_tally_sheet_import(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -132,11 +163,18 @@ pub async fn preview_tally_sheet_import(
             latest
         };
         let previous = baseline.as_ref().and_then(|sheet| sheet.content.clone());
-        let previous_csv = previous
-            .as_ref()
-            .map(|content| render_ballot_box_csv(content, &resolved.candidate_names_by_id));
-        let incoming_csv =
-            render_ballot_box_csv(&resolved.content, &resolved.candidate_names_by_id);
+        let previous_csv = previous.as_ref().map(|content| {
+            render_ballot_box_csv(
+                content,
+                &resolved.candidate_names_by_id,
+                &resolved.candidate_external_ids_by_id,
+            )
+        });
+        let incoming_csv = render_ballot_box_csv(
+            &resolved.content,
+            &resolved.candidate_names_by_id,
+            &resolved.candidate_external_ids_by_id,
+        );
         let incoming_content_hash = hash_area_contest_results(&resolved.content)?;
         let change_type = classify_change(previous.as_ref(), &resolved.content)?;
 
@@ -145,7 +183,9 @@ pub async fn preview_tally_sheet_import(
             area_id: resolved.area.id,
             area_name: parsed_import.key.area_name,
             contest_id: resolved.contest.id,
-            contest_name: resolved.contest.description.unwrap_or_default(),
+            contest_name: presentation_display_name(&resolved.contest.presentation)
+                .or(resolved.contest.description)
+                .unwrap_or_default(),
             election_id: resolved.contest.election_id,
             baseline_tally_sheet_id: baseline.as_ref().map(|sheet| sheet.id.clone()),
             baseline_version: baseline.as_ref().map(|sheet| sheet.version),
@@ -178,6 +218,7 @@ pub async fn preview_tally_sheet_import(
     })
 }
 
+#[instrument(skip_all, err)]
 pub async fn create_tally_sheet_import(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -313,6 +354,7 @@ pub async fn create_tally_sheet_import(
     Ok(import)
 }
 
+#[instrument(skip_all, err)]
 pub async fn review_tally_sheet_import(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -323,15 +365,16 @@ pub async fn review_tally_sheet_import(
 ) -> Result<TallySheetImport> {
     let import = get_tally_sheet_import_by_id(transaction, tenant_id, election_event_id, import_id)
         .await?
-        .ok_or_else(|| anyhow!("Tally sheet import {import_id} not found"))?;
+        .ok_or_else(|| TallySheetImportError::NotFound(import_id.to_string()))?;
     if !matches!(
         import.status,
         TallySheetImportStatus::PENDING_REVIEW | TallySheetImportStatus::CONFLICTED
     ) {
-        return Err(anyhow!(
-            "Tally sheet import {import_id} cannot be reviewed from status {}",
-            import.status
-        ));
+        return Err(TallySheetImportError::InvalidReviewState {
+            import_id: import_id.to_string(),
+            status: import.status.to_string(),
+        }
+        .into());
     }
 
     let items = get_tally_sheet_import_items_for_review(
@@ -385,7 +428,7 @@ pub async fn review_tally_sheet_import(
         let Some(tally_sheet_id) = item.generated_tally_sheet_id.as_ref() else {
             continue;
         };
-        let Some(tally_sheet) = review_tally_sheet_status(
+        let tally_sheet = match review_tally_sheet_status(
             transaction,
             tenant_id,
             election_event_id,
@@ -394,8 +437,17 @@ pub async fn review_tally_sheet_import(
             sheet_status.clone(),
         )
         .await?
-        else {
-            return Err(anyhow!("Generated tally sheet {tally_sheet_id} not found"));
+        {
+            ReviewTallySheetOutcome::Reviewed(tally_sheet) => tally_sheet,
+            ReviewTallySheetOutcome::NotPending(tally_sheet) => {
+                return Err(anyhow!(
+                    "Generated tally sheet {tally_sheet_id} cannot be reviewed from status {}",
+                    tally_sheet.status
+                ));
+            }
+            ReviewTallySheetOutcome::NotFound => {
+                return Err(anyhow!("Generated tally sheet {tally_sheet_id} not found"));
+            }
         };
         if sheet_status == TallySheetStatus::APPROVED {
             soft_delete_tally_sheet_leftover_versions(transaction, &tally_sheet).await?;
@@ -420,6 +472,7 @@ pub async fn review_tally_sheet_import(
     .await
 }
 
+#[instrument(skip_all, err)]
 async fn find_stale_baseline_conflicts(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -469,6 +522,7 @@ async fn find_stale_baseline_conflicts(
     Ok(conflicted_item_ids)
 }
 
+#[instrument(skip_all, err)]
 async fn generated_tally_sheet_is_stale(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -521,6 +575,7 @@ struct ResolvedBallotBoxImport {
     contest: Contest,
     content: AreaContestResults,
     candidate_names_by_id: HashMap<String, String>,
+    candidate_external_ids_by_id: HashMap<String, String>,
     source_area_name: String,
     source_contest_external_id: String,
     source_candidate_external_ids: Vec<String>,
@@ -542,6 +597,7 @@ struct BallotBoxResolutionCache {
     candidates_by_contest_id: HashMap<String, Vec<Candidate>>,
 }
 
+#[instrument(skip_all, err)]
 async fn resolve_ballot_box_import(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -620,9 +676,12 @@ async fn resolve_ballot_box_import(
     let mut duplicate_candidate_external_ids = BTreeSet::new();
     let mut candidates_missing_external_id = Vec::new();
     let mut candidate_names_by_id = HashMap::new();
+    let mut candidate_external_ids_by_id = HashMap::new();
 
     for candidate in &candidates {
-        let candidate_name = candidate.description.clone().unwrap_or_default();
+        let candidate_name = presentation_display_name(&candidate.presentation)
+            .or_else(|| candidate.description.clone())
+            .unwrap_or_default();
         candidate_names_by_id.insert(candidate.id.clone(), candidate_name.clone());
         let Some(external_id) = candidate
             .external_id
@@ -637,6 +696,7 @@ async fn resolve_ballot_box_import(
             });
             continue;
         };
+        candidate_external_ids_by_id.insert(candidate.id.clone(), external_id.to_string());
 
         if candidates_by_external_id
             .insert(external_id.to_string(), candidate)
@@ -719,6 +779,7 @@ async fn resolve_ballot_box_import(
         contest,
         content,
         candidate_names_by_id,
+        candidate_external_ids_by_id,
         source_area_name: area_name.to_string(),
         source_contest_external_id: contest_external_id.to_string(),
         source_candidate_external_ids,

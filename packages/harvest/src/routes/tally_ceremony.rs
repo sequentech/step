@@ -315,7 +315,8 @@ pub async fn recount_tally_session(
         )
     })?;
 
-    if tally_session.execution_status.as_deref() != Some("SUCCESS")
+    if tally_session.execution_status.as_deref()
+        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
         || !tally_session.is_execution_completed
     {
         return Err((
@@ -352,7 +353,7 @@ pub async fn recount_tally_session(
             input.tally_session_id.clone(),
             tally_session.tally_type.clone(),
             tally_session.election_ids.clone(),
-            true,
+            true, // force_new_results_id: manual recount always produces a fresh results event
         ))
         .await;
 

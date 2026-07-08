@@ -37,6 +37,7 @@ use windmill::postgres::{
 };
 use windmill::services::{
     celery_app::get_celery_app,
+    ceremonies::tally_ceremony::reset_tally_session_status_after_failed_recount_task,
     database::get_hasura_pool,
     documents::get_document_as_temp_file,
     ess_xml_converter::convert_ess_enhanced_xml_to_csv,
@@ -46,10 +47,30 @@ use windmill::services::{
             preview_tally_sheet_import as preview_tally_sheet_import_service,
             review_tally_sheet_import as review_tally_sheet_import_service,
         },
+        errors::TallySheetImportError,
         hash::hash_bytes,
     },
 };
 use windmill::tasks::execute_tally_session::execute_tally_session;
+
+/// Maps a tally sheet import service error to its HTTP status, downcasting
+/// to the known `TallySheetImportError` domain variants and defaulting to
+/// 500 for anything unexpected (infra/db failures).
+fn map_tally_sheet_import_error(error: anyhow::Error) -> (Status, String) {
+    match error.downcast_ref::<TallySheetImportError>() {
+        Some(TallySheetImportError::NotFound(_))
+        | Some(TallySheetImportError::DocumentNotFound(_)) => {
+            (Status::NotFound, format!("{error:?}"))
+        }
+        Some(TallySheetImportError::DocumentTooLarge { .. }) => {
+            (Status::PayloadTooLarge, format!("{error:?}"))
+        }
+        Some(TallySheetImportError::InvalidReviewState { .. }) => {
+            (Status::Conflict, format!("{error:?}"))
+        }
+        None => (Status::InternalServerError, format!("{error:?}")),
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateNewTallySheetInput {
@@ -229,7 +250,7 @@ pub async fn review_tally_sheet(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let tally_sheet_opt = tally_sheet::review_tally_sheet_status(
+    let review_outcome = tally_sheet::review_tally_sheet_status(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
@@ -240,9 +261,18 @@ pub async fn review_tally_sheet(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let tally_sheet = match tally_sheet_opt {
-        Some(t) => t,
-        None => {
+    let tally_sheet = match review_outcome {
+        tally_sheet::ReviewTallySheetOutcome::Reviewed(t) => t,
+        tally_sheet::ReviewTallySheetOutcome::NotPending(t) => {
+            return Err((
+                Status::Conflict,
+                format!(
+                    "Tally sheet {} cannot be reviewed from status {}",
+                    t.id, t.status
+                ),
+            ));
+        }
+        tally_sheet::ReviewTallySheetOutcome::NotFound => {
             return Err((
                 Status::NotFound,
                 "Tally sheet not found".to_string(),
@@ -297,7 +327,7 @@ pub async fn preview_tally_sheet_import(
         &input.document_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
     let canonical_csv = canonical_csv_bytes(
@@ -360,7 +390,7 @@ pub async fn create_tally_sheet_import(
         &input.document_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
     let canonical_csv = canonical_csv_bytes(
@@ -435,7 +465,7 @@ pub async fn review_tally_sheet_import(
         &claims.hasura_claims.user_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    .map_err(map_tally_sheet_import_error)?;
 
     hasura_transaction
         .commit()
@@ -446,19 +476,33 @@ pub async fn review_tally_sheet_import(
     if should_trigger_recount
         && import.status == TallySheetImportStatus::APPROVED
     {
-        let recount_count = maybe_trigger_automatic_recount_for_import(
+        // The review itself already committed above; a failure here must not
+        // turn into a request failure, or the client would retry a review
+        // that already succeeded (and get "cannot be reviewed from status
+        // APPROVED"). Log it instead so it can be triaged/retried out of band.
+        match maybe_trigger_automatic_recount_for_import(
             &claims.hasura_claims.tenant_id,
             &election_event_id,
             &import_id,
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-        event!(
-            Level::INFO,
-            "Automatic recount policy processed for tally sheet import {}, enqueued {} recount task(s)",
-            import_id,
-            recount_count
-        );
+        {
+            Ok(recount_count) => {
+                event!(
+                    Level::INFO,
+                    "Automatic recount policy processed for tally sheet import {}, enqueued {} recount task(s)",
+                    import_id,
+                    recount_count
+                );
+            }
+            Err(err) => {
+                event!(
+                    Level::ERROR,
+                    "Failed to process automatic recount policy for tally sheet import {}: {err:?}",
+                    import_id,
+                );
+            }
+        }
     }
 
     Ok(Json(TallySheetImportOutput {
@@ -529,7 +573,8 @@ async fn maybe_trigger_automatic_recount_for_import(
         .into_iter()
         .filter(|session| {
             session.is_execution_completed
-                && session.execution_status.as_deref() == Some("SUCCESS")
+                && session.execution_status.as_deref()
+                    == Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
         })
         .filter(|session| {
             session
@@ -600,16 +645,16 @@ async fn enqueue_automatic_recount_tally_session(
             tally_session_id.clone(),
             tally_session.tally_type.clone(),
             tally_session.election_ids.clone(),
-            true,
+            true, // force_new_results_id: automatic recount always produces a fresh results event
         ))
         .await;
 
     if let Err(err) = task {
-        reset_failed_automatic_recount_status(
+        reset_tally_session_status_after_failed_recount_task(
             tenant_id,
             election_event_id,
             &tally_session_id,
-            format!("{err:?}"),
+            &format!("{err:?}"),
         )
         .await?;
         return Err(anyhow::anyhow!(
@@ -624,46 +669,6 @@ async fn enqueue_automatic_recount_tally_session(
         tally_session_id,
     );
 
-    Ok(())
-}
-
-async fn reset_failed_automatic_recount_status(
-    tenant_id: &str,
-    election_event_id: &str,
-    tally_session_id: &str,
-    task_error: String,
-) -> Result<()> {
-    let mut reset_db_client: DbClient =
-        get_hasura_pool().await.get().await.with_context(|| {
-            format!(
-                "failed to send automatic recount task ({task_error}) and failed to get hasura db pool for reset"
-            )
-        })?;
-    let reset_transaction =
-        reset_db_client.transaction().await.with_context(|| {
-            format!(
-                "failed to send automatic recount task ({task_error}) and failed to start reset transaction"
-            )
-        })?;
-    update_tally_session_status(
-        &reset_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-        TallyExecutionStatus::SUCCESS,
-        true,
-    )
-    .await
-    .with_context(|| {
-        format!(
-            "failed to send automatic recount task ({task_error}) and failed to reset tally status"
-        )
-    })?;
-    reset_transaction.commit().await.with_context(|| {
-        format!(
-            "failed to send automatic recount task ({task_error}) and failed to commit reset"
-        )
-    })?;
     Ok(())
 }
 
@@ -682,7 +687,9 @@ async fn read_import_document(
         document_id,
     )
     .await?
-    .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
+    .ok_or_else(|| {
+        TallySheetImportError::DocumentNotFound(document_id.to_string())
+    })?;
 
     if let Some(document_size) = document.size {
         let normalized_size = u64::try_from(document_size).map_err(|_| {
@@ -691,18 +698,24 @@ async fn read_import_document(
             )
         })?;
         if normalized_size > MAX_TALLY_SHEET_IMPORT_BYTES {
-            return Err(anyhow::anyhow!(
-                "Document {document_id} is too large ({normalized_size} bytes, max {MAX_TALLY_SHEET_IMPORT_BYTES} bytes)"
-            ));
+            return Err(TallySheetImportError::DocumentTooLarge {
+                document_id: document_id.to_string(),
+                size: normalized_size,
+                max: MAX_TALLY_SHEET_IMPORT_BYTES,
+            }
+            .into());
         }
     }
 
     let file = get_document_as_temp_file(tenant_id, &document).await?;
     let file_size = tokio::fs::metadata(file.path()).await?.len();
     if file_size > MAX_TALLY_SHEET_IMPORT_BYTES {
-        return Err(anyhow::anyhow!(
-            "Document {document_id} is too large ({file_size} bytes, max {MAX_TALLY_SHEET_IMPORT_BYTES} bytes)"
-        ));
+        return Err(TallySheetImportError::DocumentTooLarge {
+            document_id: document_id.to_string(),
+            size: file_size,
+            max: MAX_TALLY_SHEET_IMPORT_BYTES,
+        }
+        .into());
     }
     let bytes = tokio::fs::read(file.path()).await?;
     Ok((document, bytes))

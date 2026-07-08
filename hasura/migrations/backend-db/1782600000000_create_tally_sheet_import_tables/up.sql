@@ -66,3 +66,24 @@ CREATE TABLE "sequent_backend"."tally_sheet_import_item" (
 
 CREATE UNIQUE INDEX "tally_sheet_import_item_ballot_box_idx" ON "sequent_backend"."tally_sheet_import_item" ("import_id", "election_id", "area_id", "contest_id", "channel");
 CREATE INDEX "tally_sheet_import_item_event_idx" ON "sequent_backend"."tally_sheet_import_item" ("tenant_id", "election_event_id", "import_id");
+
+-- Follow-up fix for migration 1763981518000 (already shipped, left untouched
+-- since environments may have applied it already): the original migration
+-- blindly set every row's "version" to 1 instead of numbering versions per
+-- ballot box, and its unique index didn't exclude soft-deleted rows.
+DROP INDEX IF EXISTS "sequent_backend"."tally_sheet_uniq_version";
+
+WITH ranked AS (
+  SELECT id, ROW_NUMBER() OVER (
+    PARTITION BY tenant_id, election_event_id, election_id, contest_id, area_id, channel
+    ORDER BY created_at, id
+  ) AS rn
+  FROM "sequent_backend"."tally_sheet"
+)
+UPDATE "sequent_backend"."tally_sheet" t
+SET "version" = ranked.rn
+FROM ranked WHERE t.id = ranked.id;
+
+CREATE UNIQUE INDEX "tally_sheet_uniq_version" on
+  "sequent_backend"."tally_sheet" using btree ("tenant_id", "election_event_id", "election_id", "contest_id", "area_id", "channel", "version")
+  WHERE "deleted_at" IS NULL;

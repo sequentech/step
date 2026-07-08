@@ -11,6 +11,7 @@ use sequent_core::types::tally_sheets::{
     AreaContestResults, CandidateResults, InvalidVotes, VotingChannel,
 };
 use serde::Deserialize;
+use tracing::instrument;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct BallotBoxImportKey {
@@ -74,6 +75,7 @@ struct BallotBoxAccumulator {
     candidate_results: HashMap<String, CandidateResults>,
 }
 
+#[instrument(skip_all)]
 pub fn parse_canonical_csv(
     bytes: &[u8],
 ) -> (

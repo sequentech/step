@@ -355,6 +355,16 @@ pub async fn soft_delete_tally_sheet_leftover_versions(
     Ok(())
 }
 
+/// Outcome of attempting to review a tally sheet, distinguishing a sheet
+/// that doesn't exist from one that exists but is no longer reviewable
+/// (e.g. already approved/disapproved) so callers can map each case to the
+/// right HTTP status instead of a blanket 404.
+pub enum ReviewTallySheetOutcome {
+    Reviewed(TallySheet),
+    NotPending(TallySheet),
+    NotFound,
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn review_tally_sheet_status(
     hasura_transaction: &Transaction<'_>,
@@ -363,7 +373,7 @@ pub async fn review_tally_sheet_status(
     tally_sheet_id: &str,
     user_id: &str,
     status: TallySheetStatus,
-) -> Result<Option<TallySheet>> {
+) -> Result<ReviewTallySheetOutcome> {
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -412,9 +422,38 @@ pub async fn review_tally_sheet_status(
         .collect::<Result<Vec<TallySheet>>>()?;
 
     match elements.len() {
-        0 => Ok(None),
-        1 => Ok(Some(elements[0].clone())),
-        _ => Err(anyhow!("Unexpected rows affected {}", elements.len())),
+        1 => return Ok(ReviewTallySheetOutcome::Reviewed(elements[0].clone())),
+        0 => {}
+        _ => return Err(anyhow!("Unexpected rows affected {}", elements.len())),
+    }
+
+    // No row was updated because it doesn't exist, or it exists but isn't
+    // `PENDING` anymore. Look it up (ignoring status) to tell those apart.
+    let existing_statement = hasura_transaction
+        .prepare(
+            r#"
+        SELECT * FROM sequent_backend.tally_sheet tally_sheet
+        WHERE
+            tally_sheet.tenant_id = $1 AND
+            tally_sheet.election_event_id = $2 AND
+            tally_sheet.id = $3 AND
+            tally_sheet.deleted_at IS NULL
+    "#,
+        )
+        .await?;
+    let existing_params: Vec<&(dyn ToSql + Sync)> =
+        vec![&tenant_uuid, &election_event_uuid, &tally_sheet_uuid];
+    let existing_rows: Vec<Row> = hasura_transaction
+        .query(&existing_statement, &existing_params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    match existing_rows.into_iter().next() {
+        Some(row) => {
+            let existing: TallySheet = TallySheetWrapper::try_from(row)?.0;
+            Ok(ReviewTallySheetOutcome::NotPending(existing))
+        }
+        None => Ok(ReviewTallySheetOutcome::NotFound),
     }
 }
 

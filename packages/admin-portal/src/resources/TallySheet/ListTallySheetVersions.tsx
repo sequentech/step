@@ -15,7 +15,6 @@ import {
     useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {ListActionsMenu} from "../../components/ListActionsMenu"
 import {IconButton, Stack, Box, Chip, Tooltip, Typography} from "@mui/material"
 import {useLazyQuery} from "@apollo/client"
 import DownloadIcon from "@mui/icons-material/Download"

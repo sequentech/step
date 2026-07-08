@@ -5,7 +5,9 @@
 use sequent_core::services::tally_sheet_validation::validate_area_contest_results;
 use sequent_core::types::tally_sheet_import::TallySheetImportValidationError;
 use sequent_core::types::tally_sheets::{AreaContestResults, VotingChannel};
+use tracing::instrument;
 
+#[instrument(skip_all)]
 pub fn validate_import_content(
     channel: &VotingChannel,
     area_name: &str,
