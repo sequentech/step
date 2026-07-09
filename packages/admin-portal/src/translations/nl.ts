@@ -511,6 +511,17 @@ const dutchTranslation: TranslationType = {
                     deleteSuccess: "Succesvol verwijderd",
                     deleteError: "Verwijderen mislukt",
                 },
+                config: {
+                    infoMsg:
+                        "Configureer hieronder de IVR-flow en de bijbehorende eigenschappen. Neem voor meer informatie contact op met Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Nog geen prompts aangemaakt",
+                    infoMsg:
+                        "Configureer de prompts die door de IVR worden gebruikt. Aankondigingsprompts zijn verplicht, en systeemprompts kunnen voor de gewenste talen worden overschreven. SSML wordt ondersteund, ook voor het mengen van talen.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Promptconfiguratie",
+                },
                 blacklist: {
                     columns: {
                         phone: "Telefoonnummer",
@@ -521,6 +532,10 @@ const dutchTranslation: TranslationType = {
                         createdAfter: "Aangemaakt na",
                     },
                     emptyMsg: "Er zijn geen vermeldingen in de blokkeerlijst",
+                    infoMsg:
+                        "Configureer de blokkeerlijst voor de IVR. Oproepen van deze nummers worden automatisch door het systeem verbroken.",
+
+                    noFilterMatch: "Geen vermeldingen komen overeen met de opgegeven filters",
                     phoneRequired: "Telefoonnummer is verplicht",
                 },
             },
