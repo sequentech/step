@@ -519,6 +519,8 @@ const basqueTranslation: TranslationType = {
                         reason: "Arrazoia",
                         createdAt: "Sortze-data",
                         createdBy: "Nork sortua",
+                        createdBefore: "Noiz baino lehen sortua",
+                        createdAfter: "Noiz baino ondoren sortua",
                     },
                     emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",

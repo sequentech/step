@@ -519,6 +519,8 @@ const frenchTranslation: TranslationType = {
                         reason: "Motif",
                         createdAt: "Créé le",
                         createdBy: "Créé par",
+                        createdBefore: "Créé avant",
+                        createdAfter: "Créé après",
                     },
                     emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
                     phoneRequired: "Le numéro de téléphone est obligatoire",

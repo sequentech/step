@@ -520,6 +520,8 @@ const spanishTranslation: TranslationType = {
                         reason: "Motivo",
                         createdAt: "Creado el",
                         createdBy: "Creado por",
+                        createdBefore: "Creado antes",
+                        createdAfter: "Creado después",
                     },
                     emptyMsg: "No hay entradas en la lista de bloqueo",
                     phoneRequired: "El número de teléfono es obligatorio",

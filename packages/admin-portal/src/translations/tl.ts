@@ -518,6 +518,8 @@ const tagalogTranslation: TranslationType = {
                         reason: "Dahilan",
                         createdAt: "Ginawa noong",
                         createdBy: "Ginawa ni",
+                        createdBefore: "Ginawa bago ang",
+                        createdAfter: "Ginawa pagkatapos ng",
                     },
                     emptyMsg: "Walang entry sa listahan ng pag-block",
                     phoneRequired: "Kinakailangan ang numero ng telepono",

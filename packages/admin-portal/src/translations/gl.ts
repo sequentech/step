@@ -519,6 +519,8 @@ const galegoTranslation: TranslationType = {
                         reason: "Motivo",
                         createdAt: "Creado o",
                         createdBy: "Creado por",
+                        createdBefore: "Creado antes",
+                        createdAfter: "Creado despois",
                     },
                     emptyMsg: "Non hai entradas na lista de bloqueo",
                     phoneRequired: "O número de teléfono é obrigatorio",
