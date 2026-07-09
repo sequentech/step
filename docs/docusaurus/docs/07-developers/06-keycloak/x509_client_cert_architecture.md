@@ -207,7 +207,7 @@ The IDP alias **must remain `digital-certificates`** — this value is hardcoded
 three places and must stay in sync:
 
 - **Keycloak realm import** — `alias` field in the IDP entry of the realm JSON
-  (e.g. `.devcontainer/keycloak/import/tenant-*-event-*.json`)
+  (e.g. `.devcontainer/minio/public-assets/defaults/keycloak/tenant-*-event-*.json`)
 - **Theme template** — `login.ftl` filters the IDP out of the social-providers
   list when `voter-certificate-policy` is not `enabled`:
   ```

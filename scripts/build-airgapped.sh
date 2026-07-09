@@ -107,14 +107,6 @@ add-docker-compose-to-tarball() {
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL docker-compose.yml
 }
 
-add-keycloak-data-to-tarball() {
-    tmpdir=$(mktemp -d)
-    mkdir -p $tmpdir/keycloak
-    cp -r $PROJECT_ROOT/.devcontainer/keycloak/import $tmpdir/keycloak
-    $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/janitor/config/baseConfig.json $tmpdir/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
-    tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL keycloak
-}
-
 add-trustees-data-to-tarball() {
     tmpdir=$(mktemp -d)
     cp -r $PROJECT_ROOT/.devcontainer/trustees-data $tmpdir/trustees-data
@@ -132,6 +124,8 @@ add-minio-config-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/minio
     cp -r $PROJECT_ROOT/.devcontainer/minio/nginx $tmpdir/minio/nginx
+    cp -r $PROJECT_ROOT/.devcontainer/minio/public-assets $tmpdir/minio/public-assets
+    $PROJECT_ROOT/scripts/replacements.sh $PROJECT_ROOT/packages/windmill/external-bin/janitor/config/baseConfig.json $tmpdir/minio/public-assets/defaults/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL minio
 }
 
@@ -166,7 +160,6 @@ add-images-to-tarball
 add-dotenv-to-tarball
 add-minio-config-to-tarball
 add-docker-compose-to-tarball
-add-keycloak-data-to-tarball
 add-trustees-data-to-tarball
 add-hasura-data-to-tarball
 add-up-script-to-tarball

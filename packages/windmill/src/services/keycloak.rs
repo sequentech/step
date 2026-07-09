@@ -9,7 +9,7 @@ use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::Status;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::RoleAction;
-use sequent_core::services::s3::{get_file_from_s3, get_private_bucket};
+use sequent_core::services::s3::{get_file_from_s3, get_public_bucket};
 use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
 use std::env;
@@ -30,9 +30,9 @@ pub async fn read_realm_config_from_s3(
         return Err(anyhow!("{s3_key_env_var} must not start with `/`"));
     }
 
-    let s3_bucket = get_private_bucket()?;
+    let s3_bucket = get_public_bucket()?;
     if s3_bucket.trim().is_empty() {
-        return Err(anyhow!("AWS_S3_BUCKET must not be empty"));
+        return Err(anyhow!("AWS_S3_PUBLIC_BUCKET must not be empty"));
     }
 
     let realm_config = get_file_from_s3(s3_bucket.clone(), s3_key.clone())
@@ -318,8 +318,8 @@ pub async fn read_roles_config_file(
 mod tests {
     use super::parse_realm_config;
 
-    const S3_BUCKET: &str = "private";
-    const S3_KEY: &str = "defaults/keycloak/tenant.json";
+    const S3_BUCKET: &str = "public";
+    const S3_KEY: &str = "public-assets/defaults/keycloak/tenant.json";
 
     #[test]
     fn parses_realm_config() {

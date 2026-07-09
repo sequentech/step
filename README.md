@@ -140,24 +140,25 @@ The deployment has 2 default Keycloak realms created by default, one for the
 default tenant and another for the default election event inside that tenant.
 
 Those two realms are automatically imported into Keycloak in the Dev Containers
-from the `.devcontainer/keycloak/import/` directory.
+from `.devcontainer/minio/public-assets/defaults/keycloak/`.
 
 Additionally, each tenant and election event have an associated realm. In the
-Dev Containers, Windmill uses the same `.devcontainer/keycloak/import/` files as
-templates for new tenant and election-event realms. The `configure-minio`
-service uploads them to the configured `KEYCLOAK_*_REALM_CONFIG_S3_KEY` paths in
-the private MinIO bucket (`defaults/keycloak/` by default) before Windmill
-starts. Keycloak's own startup import continues to read the local files directly.
+Dev Containers, Windmill uses the same files as templates for new tenant and
+election-event realms. The `configure-minio` service uploads the complete
+`.devcontainer/minio/public-assets/` tree to the public MinIO bucket before
+Windmill starts. The realm object paths are configured with the
+`KEYCLOAK_*_REALM_CONFIG_S3_KEY` variables.
 
 If you change the configuration of the default tenant realm and want to update
-it in `.devcontainer/keycloak/import/` to be used for the default tenant and as
-a template for new tenants, you can export it running the following commands:
+it in `.devcontainer/minio/public-assets/defaults/keycloak/` to be used for the
+default tenant and as a template for new tenants, you can export it running the
+following commands:
 
 ```bash
 export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
 cd /workspaces/step/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
-docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > minio/public-assets/defaults/keycloak/${REALM}.json
 ```
 
 You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"` to export and update the configuration of the default election event:
@@ -166,12 +167,12 @@ You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event
 export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"
 cd /workspaces/step/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
-docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > minio/public-assets/defaults/keycloak/${REALM}.json
 ```
 
 After editing or exporting either template, run the VS Code task
 `logs.reset.minio`. The task reruns `configure-minio`, which always overwrites
-the private-bucket copies with the current tracked files.
+the public-assets copies with the current tracked files.
 
 Whenever a realm is updated, its JWK can also change. The JWKs used to verify
 Keycloak JWTs are stored in `.devcontainer/minio/certs.json`. The
@@ -180,10 +181,6 @@ restarts MinIO and `configure-minio`, re-uploads the realm templates, and shows
 the service logs. If a JWK changed, update `certs.json` and remove the existing
 `public/certs.json` object from MinIO before running the task so the provisioner
 uploads the replacement.
-
-**NOTE:** that this is a task that is useful only for developers: when you
-execute it, the certificates from other election events will be removed from
-`certs.json` so you will need to re-create the election events.
 
 ## Add Hasura migrations/changes
 

@@ -848,7 +848,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop minio configure-minio; docker compose up --build -d --no-deps minio && docker compose up --build --no-deps configure-minio && docker compose logs -f --tail 100 configure-minio minio"
+                "docker compose stop minio configure-minio && docker compose up --build configure-minio && docker compose logs -f --tail 100 configure-minio minio"
             ],
             "options": {
                 "env": {
@@ -904,7 +904,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop minio configure-minio && docker compose up -d --build --no-deps minio && docker compose up --build -d --no-deps configure-minio && docker compose logs -f minio configure-minio",
+                "docker compose stop minio configure-minio && docker compose up --build configure-minio && docker compose logs -f minio configure-minio",
             ],
             "options": {
                 "env": {

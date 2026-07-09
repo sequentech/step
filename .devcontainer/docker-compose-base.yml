@@ -148,8 +148,6 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
-    volumes:
-      - ./keycloak/import:/keycloak/import:ro,z
     depends_on:
       minio:
         condition: service_healthy
@@ -612,7 +610,6 @@ services:
       harvest:
         condition: service_started
     volumes:
-      - ./keycloak/import:/import:z
       - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
