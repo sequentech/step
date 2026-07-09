@@ -4,9 +4,11 @@
 import React, {useContext, useState} from "react"
 import {
     DatagridConfigurable,
+    DateInput,
     List,
     RaRecord,
     TextField,
+    TextInput,
     useNotify,
     useRecordContext,
     useRefresh,
@@ -223,11 +225,27 @@ export const PhoneBlacklist: React.FC = () => {
                 sort={{field: "phone_e164", order: "ASC"}}
                 storeKey={false}
                 empty={false}
+                filters={[
+                    <TextInput
+                        source="phone_e164"
+                        label={t("electionEventScreen.ivr.blacklist.columns.phone")}
+                    />,
+                    <TextInput
+                        source="reason"
+                        label={t("electionEventScreen.ivr.blacklist.columns.reason")}
+                    />,
+                    <TextInput
+                        source="created_by"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdBy")}
+                    />,
+                    <DateInput source="created_at@_lte" label="Created Before" />,
+                    <DateInput source="created_at@_gte" label="Created After" />,
+                ]}
                 actions={
                     <ListActions
                         withImport={false}
                         withExport={false}
-                        withFilter={false}
+                        withFilter={true}
                         withAction={canCreate}
                         doAction={() => setDrawerOpen(true)}
                         actionLabel={t("common.label.add")}
@@ -244,12 +262,12 @@ export const PhoneBlacklist: React.FC = () => {
                         label={t("electionEventScreen.ivr.blacklist.columns.reason")}
                     />
                     <TextField
-                        source="created_at"
-                        label={t("electionEventScreen.ivr.blacklist.columns.createdAt")}
-                    />
-                    <TextField
                         source="created_by"
                         label={t("electionEventScreen.ivr.blacklist.columns.createdBy")}
+                    />
+                    <TextField
+                        source="created_at"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdAt")}
                     />
                     {(canEdit || canDelete) && (
                         <RowActions
