@@ -345,19 +345,16 @@ pub async fn try_insert_cast_vote(
             }
         };
         let transaction_result = hasura_db_client.transaction().await;
-        match transaction_result {
-            Ok(transaction) => {
-                voter_lock = Some(lock);
-                transaction
+        if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+            drop(transaction_result);
+            drop(hasura_db_client);
+            if let Err(release_err) = lock.release().await {
+                error!("Error releasing the Datafix voter lock: {release_err}");
             }
-            Err(err) => {
-                drop(hasura_db_client);
-                if let Err(release_err) = lock.release().await {
-                    error!("Error releasing the Datafix voter lock: {release_err}");
-                }
-                return Err(CastVoteError::GetTransactionFailed(err.to_string()));
-            }
+            return Err(CastVoteError::GetTransactionFailed(err));
         }
+        voter_lock = Some(lock);
+        transaction_result.expect("transaction result was checked above")
     } else {
         hasura_transaction
     };
