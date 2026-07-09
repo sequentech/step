@@ -512,6 +512,17 @@ const tagalogTranslation: TranslationType = {
                     deleteSuccess: "Matagumpay na natanggal",
                     deleteError: "Nabigong tanggalin",
                 },
+                config: {
+                    infoMsg:
+                        "I-configure ang IVR flow at ang mga property nito sa ibaba. Para sa higit pang detalye, makipag-ugnayan sa Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Wala pang nagagawang prompt",
+                    infoMsg:
+                        "I-configure ang mga prompt na ginagamit ng IVR. Kinakailangan ang mga announcement prompt, at maaaring i-override ang mga system prompt para sa mga gustong wika. Sinusuportahan ang SSML, kabilang ang paghahalo ng mga wika.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Configuration ng prompt",
+                },
                 blacklist: {
                     columns: {
                         phone: "Numero ng telepono",
@@ -520,6 +531,10 @@ const tagalogTranslation: TranslationType = {
                         createdBy: "Ginawa ni",
                     },
                     emptyMsg: "Walang entry sa listahan ng pag-block",
+                    infoMsg:
+                        "I-configure ang blocklist para sa IVR. Ang mga tawag mula sa mga numerong ito ay awtomatikong idi-disconnect ng system.",
+
+                    noFilterMatch: "Walang entry na tumutugma sa ibinigay na mga filter",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },
