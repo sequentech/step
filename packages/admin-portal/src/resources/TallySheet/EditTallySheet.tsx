@@ -112,7 +112,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: tallySheet?.area_id || "",
-        contest_id: choosenContest?.id ?? tallySheet?.contest_id,
+        contest_id: choosenContest?.id ?? tallySheet?.contest_id ?? "",
         total_votes: tallySheet?.content?.total_votes || 0,
         total_valid_votes: tallySheet?.content?.total_valid_votes || 0,
         invalid_votes: tallySheet?.content?.invalid_votes || {},
@@ -305,7 +305,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (election) {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
-                contest_id: choosenContest?.id ?? tallySheet?.contest_id,
+                contest_id: choosenContest?.id ?? tallySheet?.contest_id ?? "",
             }))
         }
     }, [election])

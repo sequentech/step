@@ -1464,7 +1464,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), 3.to_string()),
+                            ("numSelected".to_string(), 4.to_string()),
                             ("max".to_string(), 1.to_string()),
                         ]),
                     }
@@ -1475,7 +1475,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), 3.to_string()),
+                            ("numSelected".to_string(), 4.to_string()),
                             ("max".to_string(), 1.to_string()),
                         ]),
                     }
@@ -1663,8 +1663,26 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         write_in_text: None,
                     }
                 ],
-                invalid_errors: vec![],
-                invalid_alerts: vec![],
+                invalid_errors: vec![
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.selectedMax".to_string()),
+                        message_map: HashMap::from([
+                            ("numSelected".to_string(), 2.to_string()),
+                            ("max".to_string(), 1.to_string()),
+                        ]),
+                    }
+                ],
+                invalid_alerts: vec![InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::Implicit,
+                    candidate_id: None,
+                    message: Some("errors.implicit.selectedMax".to_string()),
+                    message_map: HashMap::from([
+                        ("numSelected".to_string(), 2.to_string()),
+                        ("max".to_string(), 1.to_string()),
+                    ]),
+                }],
             },
             encoded_ballot_bigint: "3".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
@@ -2806,7 +2824,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
-                            ("numSelected".to_string(), "3".to_string()),
+                            ("numSelected".to_string(), "4".to_string()),
                             ("max".to_string(), "2".to_string())
                         ]),
                     },

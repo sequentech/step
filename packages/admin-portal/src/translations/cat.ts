@@ -1883,6 +1883,8 @@ const catalanTranslation: TranslationType = {
                 implicit_invalid_votes: "Vots implícitament invàlids",
                 implicit_invalid_votes_percent: "Percentatge de vots implícitament invàlids",
                 blank_votes: "Vots en blanc",
+                explicit_blank_votes: "Vots en blanc explícits",
+                implicit_blank_votes: "Vots en blanc implícits",
                 blank_votes_percent: "Percentatge de vots en blanc",
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",

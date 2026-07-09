@@ -1871,6 +1871,8 @@ const basqueTranslation: TranslationType = {
                 implicit_invalid_votes: "Inplizituki Baliogabeko Botoak",
                 implicit_invalid_votes_percent: "Inplizituki Baliogabeko Boto Ehunekoa",
                 blank_votes: "Boto Zuriak",
+                explicit_blank_votes: "Boto Zuri Esplizituak",
+                implicit_blank_votes: "Boto Zuri Inplizituak",
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
