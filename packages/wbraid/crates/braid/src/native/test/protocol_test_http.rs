@@ -1,10 +1,18 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-use base64::prelude::*;
-use log::{info, warn};
+//! HTTP M2 protocol test: the same DKG → encrypt → mix → threshold-decrypt round
+//! as the in-memory M1 harness, but each trustee runs a [`Session`] over a live
+//! b4 via [`HttpTransport`] (real HTTP + S3).
+//!
+//! This test is `#[ignore]`d (see `tests/test_protocol.rs`): it requires a running
+//! b4 server at [`HTTP_URL`] backed by S3/LocalStack. Persistence is
+//! [`NoOpPersistence`] for now — a clean run does not exercise anti-rewrite /
+//! restart (that is the SQLite persistence follow-up).
+
+use anyhow::{anyhow, Result};
+use log::info;
 use rand::seq::IndexedRandom;
 use rand::Rng;
 use rayon::prelude::*;
@@ -13,362 +21,198 @@ use std::marker::PhantomData;
 use std::time::Instant;
 
 use cryptography::context::Context;
-use cryptography::cryptosystem::elgamal::PublicKey;
-use cryptography::cryptosystem::elgamal::Ciphertext;
-use cryptography::traits::groups::GroupElement;
-use cryptography::utils::serialization::variable::VDeserializable;
-use cryptography::context::RistrettoCtx;
+use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::traits::groups::CryptographicGroup;
+use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::signatures::SignatureScheme;
 
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey};
-use b4::messages::message::Message;
-use b4::messages::newtypes::PublicKeyHash;
-use b4::messages::newtypes::MAX_TRUSTEES;
-use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use b4::messages::newtypes::{
+    ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
+};
+use b4::messages::protocol_manager::ProtocolManager;
+use b4::messages::wire::{MessageType, WireMessage};
 
-use crate::native::board::HttpB4;
-use crate::native::board::HttpB4BoardParams;
-use crate::protocol::board::Board;
-use crate::protocol::board::NoOpStorage;
+use crate::board::http_transport::HttpTransport;
+use crate::board::persistence::NoOpPersistence;
+use crate::board::transport::Transport;
+use crate::board::BoardClient;
+use crate::runtime::SessionTrustee;
+use crate::session::Session;
 
-use crate::native::session::Session;
-use crate::protocol::trustee::Trustee;
+/// b4 server endpoint the test drives against (must be running, with S3).
+const HTTP_URL: &str = "http://127.0.0.1:3000";
 
-const HTTP_URL: &'static str = "http://127.0.0.1:3000";
-const TEST_BOARD: &'static str = "protocoltest";
-const S3_ENDPOINT: &'static str = "http://127.0.0.1:4566";
-const BUCKET_NAME: &'static str = "wbraid-messages";
+/// Wire `date` for every message the harness posts (§3.1).
+const DATE: Timestamp = 0;
 
-pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
+/// Safety cap on driver rounds.
+const MAX_ROUNDS: usize = 200;
+
+/// A trustee session backed by the live HTTP transport, no persistence (M2 gate).
+type HttpSession<C> = Session<C, HttpTransport, NoOpPersistence>;
+
+/// Entry point (kept signature-compatible with the legacy harness). `batches` is
+/// vestigial — M2 runs a single ballot set — and must be 1.
+pub async fn run<C: Context>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
+    assert_eq!(batches, 1, "M2 HTTP harness runs a single ballot set");
     crate::dispatch_ciphertext_width!(ciphertext_width, {
-        run_with_width::<C, W>(ciphertexts, batches).await
-    })
+        run_with_width::<C, W>(ciphertexts).await.unwrap()
+    });
 }
 
-async fn run_with_width<C: Context + 'static, const W: usize>(ciphertexts: u32, batches: usize) {
-    let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
-    let n_threshold = rand::rng().random_range(2..=n_trustees);
-    // To test all trustees participating
-    // let n_trustees = 2;
-    // let n_threshold = n_trustees;
-    let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    let all = &max[0..n_trustees];
-    let mut rng = &mut rand::rng();
-    let threshold: Vec<usize> = all
-        .choose_multiple(&mut rng, n_threshold)
+async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<()> {
+    // --- pick a random committee size and threshold/mixing subset ---
+    let mut setup_rng = rand::rng();
+    let n_trustees = setup_rng.random_range(2..=MAX_TRUSTEES);
+    let n_threshold = setup_rng.random_range(2..=n_trustees);
+    let all: Vec<TrusteeIndex> = (1..=n_trustees).collect();
+    let mixing_trustees: Vec<TrusteeIndex> = all
+        .choose_multiple(&mut setup_rng, n_threshold)
         .cloned()
         .collect();
 
+    // A fresh board per run so re-runs never collide on b4's persistent store.
+    let board = format!("protocoltest_{}", setup_rng.random::<u64>());
+
     let now = Instant::now();
 
-    let test: ProtocolTest<RistrettoCtx> = create_protocol_test::<RistrettoCtx, W>(n_trustees, &threshold)
-        .await
-        .unwrap();
+    // --- manager, per-trustee key material, and the configuration ---
+    let mut key_rng = C::get_rng();
+    let pm = ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut key_rng));
 
-    run_protocol_test_http::<RistrettoCtx, W>(test, ciphertexts, batches, &threshold)
-        .await
-        .unwrap();
+    let mut signing_keys = Vec::with_capacity(n_trustees);
+    let mut trustee_vks = Vec::with_capacity(n_trustees);
+    let mut share_keypairs = Vec::with_capacity(n_trustees);
+    let mut share_enc_keys = Vec::with_capacity(n_trustees);
+    for _ in 0..n_trustees {
+        let sk = C::SignatureScheme::gen_signing_key(&mut key_rng);
+        trustee_vks.push(C::SignatureScheme::verifying_key(&sk));
+        signing_keys.push(sk);
+        let keypair = KeyPair::<C>::generate();
+        share_enc_keys.push(keypair.pkey.y.clone());
+        share_keypairs.push(keypair);
+    }
+
+    let cfg = Configuration::<C>::new(
+        0,
+        C::SignatureScheme::verifying_key(&pm.signing_key),
+        trustee_vks,
+        n_threshold,
+        W,
+        PhantomData,
+    )
+    .with_share_encryption_keys(share_enc_keys);
+    let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
+    let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+
+    // --- create the board on b4 and post the Configuration (manager) ---
+    info!("Creating board {} on b4", board);
+    HttpTransport::create_board(HTTP_URL, &board).await?;
+    let manager_tx = HttpTransport::new(HTTP_URL, &board);
+    Transport::<C>::post(&manager_tx, vec![cfg_message]).await?;
+
+    // --- one Session (trustee + board client) per configured trustee ---
+    let mut sessions: Vec<HttpSession<C>> = Vec::with_capacity(n_trustees);
+    for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
+        let transport = HttpTransport::new(HTTP_URL, &board);
+        let client = BoardClient::connect(transport, NoOpPersistence).await?;
+        let trustee = SessionTrustee::new(
+            (i + 1).to_string(),
+            signing_key,
+            keypair,
+            client.configuration(),
+        )?;
+        sessions.push(Session::new(trustee, client));
+    }
+
+    // --- phase 1: DKG (shares + joint public key) ---
+    info!(
+        "Running DKG for {} trustees (threshold {})",
+        n_trustees, n_threshold
+    );
+    drive(&mut sessions).await?;
+
+    // --- read the joint public key off b4 ---
+    let dkg_messages = Transport::<C>::fetch(&manager_tx).await?;
+    let pk_body = dkg_messages
+        .iter()
+        .find(|m| m.message_type == MessageType::PublicKey)
+        .and_then(|m| m.body.as_ref())
+        .ok_or_else(|| anyhow!("DKG did not produce a public key"))?;
+    let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
+        .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
+    let pk_hash = PublicKeyHash(b4::hash_bytes(pk_body));
+
+    // --- manager encrypts a batch of plaintexts and posts the ballots ---
+    let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+    let mut enc_rng = C::get_rng();
+    info!("Encrypting {} ciphertexts (width {})", ciphertexts, W);
+    let plaintexts_in: Vec<[C::Element; W]> = (0..ciphertexts)
+        .map(|_| std::array::from_fn(|_| C::G::random_element(&mut enc_rng)))
+        .collect();
+    let encrypted: Vec<Ciphertext<C, W>> =
+        plaintexts_in.par_iter().map(|p| pk.encrypt(p)).collect();
+    let ballots = Ballots::<C, W>::new(encrypted);
+    let ballots_message = WireMessage::<C>::ballots(
+        &pm,
+        DATE,
+        cfg_hash,
+        pk_hash,
+        mixing_trustees.clone(),
+        &ballots,
+    );
+    Transport::<C>::post(&manager_tx, vec![ballots_message]).await?;
+
+    // --- phase 2: mixing + threshold decryption ---
+    info!("Mixing and decrypting");
+    drive(&mut sessions).await?;
+
+    // --- read the plaintexts off b4 and compare ---
+    let final_messages = Transport::<C>::fetch(&manager_tx).await?;
+    let pt_body = final_messages
+        .iter()
+        .find(|m| m.message_type == MessageType::Plaintexts)
+        .and_then(|m| m.body.as_ref())
+        .ok_or_else(|| anyhow!("protocol did not produce plaintexts"))?;
+    let plaintexts = Plaintexts::<C, W>::deser(pt_body)
+        .map_err(|e| anyhow!("failed to deserialize plaintexts: {:?}", e))?;
+
+    let expected: HashSet<[C::Element; W]> = plaintexts_in.into_iter().collect();
+    let actual: HashSet<[C::Element; W]> = plaintexts.0.into_iter().collect();
+    assert!(
+        expected == actual,
+        "decrypted plaintexts do not match the encrypted inputs"
+    );
 
     let time = now.elapsed().as_millis() as f64 / 1000.0;
-    info!(
-        "batches = {}, time = {}, rate = {}",
-        batches,
-        time,
-        ((ciphertexts as f64 * batches as f64) / time),
-    );
-}
-
-pub struct ProtocolTest<C: Context> {
-    pub cfg: Configuration<C>,
-    pub protocol_manager: b4::messages::protocol_manager::ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, NoOpStorage>>,
-}
-
-async fn run_protocol_test_http<C: Context + 'static, const W: usize>(
-    test: ProtocolTest<C>,
-    ciphertexts: u32,
-    batches: usize,
-    threshold: &[usize],
-) -> Result<()> {
-    let mut sessions = vec![];
-
-    let _pks: Vec<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier> = 
-        test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
-
-    for t in test.trustees.into_iter() {
-        let board_params = HttpB4BoardParams::new(HTTP_URL);
-        let session: Session<C, HttpB4, NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
-        sessions.push(session);
-    }
-
-    // Create a separate HTTP client for verification queries
-    let client = reqwest::Client::new();
-    let mut dkg_pk_message_id: Option<i64> = None;
-    let count = ciphertexts;
-
-    let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
-    selected_trustees[0..threshold.len()].copy_from_slice(threshold);
-
-    // Run protocol until we get a DKG public key
-    for i in 0..40 {
-        info!("DKG Cycle {}", i);
-
-        for s in sessions.iter_mut() {
-            let result = s.step().await;
-            if result.is_err() {
-                warn!("Step returned err: {:?}", result);
-            }
-        }
-
-        // Check for DKG public key message
-        let response = client
-            .get(format!("{}/boards/{}/messages", HTTP_URL, TEST_BOARD))
-            .send()
-            .await?;
-        
-        if !response.status().is_success() {
-            continue;
-        }
-
-        let messages: serde_json::Value = response.json().await?;
-        if let Some(msgs) = messages["messages"].as_array() {
-            for msg in msgs {
-                // Check statement_kind field directly instead of deserializing
-                if let Some(kind) = msg["statement_kind"].as_str() {
-                    if kind == "PublicKey" {
-                        // Parse id as string then convert to i64
-                        if let Some(id_str) = msg["id"].as_str() {
-                            dkg_pk_message_id = id_str.parse::<i64>().ok();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        if dkg_pk_message_id.is_some() {
-            break;
-        }
-    }
-
-    assert!(dkg_pk_message_id.is_some(), "DKG public key not found");
-
-    // Get the DKG public key
-    let pk_response = client
-        .get(format!(
-            "{}/boards/{}/messages/{}",
-            HTTP_URL, TEST_BOARD, dkg_pk_message_id.unwrap()
-        ))
-        .send()
-        .await?;
-    
-    let pk_msg: serde_json::Value = pk_response.json().await?;
-    
-    // Response format is {"message": {...}, "download_url": ...}
-    let message_obj = &pk_msg["message"];
-    
-    // Handle both inline (message) and S3 (key) formats
-    let pk_bytes_encoded = if let Some(message_data) = message_obj["content_type"]["message"].as_str() {
-        // Inline format
-        BASE64_STANDARD.decode(message_data)?
-    } else if let Some(s3_key) = message_obj["content_type"]["key"].as_str() {
-        // S3 format - download from S3
-        let s3_url = format!("{}/{}/{}", S3_ENDPOINT, BUCKET_NAME, s3_key);
-        let s3_response = client.get(&s3_url).send().await?;
-        s3_response.bytes().await?.to_vec()
-    } else {
-        panic!("Unknown content_type format: {:?}", message_obj["content_type"]);
-    };
-    
-    let pk_message = Message::<C>::deser(&pk_bytes_encoded).unwrap();
-    
-    let pk_bytes = pk_message.artifact.unwrap();
-    let pk_h = b4::hash_to_array(&pk_bytes).unwrap();
-    let dkg_pk = DkgPublicKey::<C>::deser(&pk_bytes).unwrap();
-    let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
-
-    let mut plaintexts_in = vec![];
-    let mut rng = C::get_rng();
-
-    // Encrypt and submit ballots
-    for i in 0..batches {
-        info!("Generating {} plaintexts..", count);
-        let next_p: Vec<[C::Element; W]> = (0..count).map(|_| {
-            std::array::from_fn(|_| C::Element::random(&mut rng))
-        }).collect();
-
-        info!("Encrypting {} ciphertexts..", next_p.len());
-
-        let ballots: Vec<Ciphertext<C, W>> = next_p
-            .par_iter()
-            .map(|p| {
-                pk.encrypt(p)
-            })
-            .collect();
-        let ballot_batch = Ballots::new(ballots);
-
-        let message = Message::ballots_msg(
-            &test.cfg,
-            (i + 1) as u64,
-            &ballot_batch,
-            selected_trustees,
-            PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
-            &test.protocol_manager,
-        )?;
-        plaintexts_in.push(next_p);
-        
-        // Insert ballot message using a temporary board
-        let board_params = HttpB4BoardParams::new(HTTP_URL);
-        let mut temp_board: HttpB4 = board_params.create_board(TEST_BOARD, None);
-        let http_msg = b4::HttpB4Message::from_protocol_message::<C>(message.try_into().unwrap());
-        Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
-    }
-
-    // Wait for decryption
-    let mut plaintexts_out: Vec<(i64, Message<C>)> = vec![];
-    for i in 0..150 {
-        info!("Decryption Cycle {}", i);
-
-        for s in sessions.iter_mut() {
-            let result = s.step().await;
-            if result.is_err() {
-                warn!("Step returned err: {:?}", result);
-            }
-        }
-
-        // Check for plaintext messages
-        let response = client
-            .get(format!("{}/boards/{}/messages", HTTP_URL, TEST_BOARD))
-            .send()
-            .await?;
-        
-        if !response.status().is_success() {
-            continue;
-        }
-
-        let messages: serde_json::Value = response.json().await?;
-        plaintexts_out.clear();
-        
-        if let Some(msgs) = messages["messages"].as_array() {
-            for msg in msgs {
-                // Check statement_kind field first to avoid unnecessary deserialization
-                if let Some(kind) = msg["statement_kind"].as_str() {
-                    if kind == "Plaintexts" {
-                        // Download message bytes (handle both inline and S3)
-                        let message_bytes = if let Some(message_data) = msg["content_type"]["message"].as_str() {
-                            // Inline format
-                            BASE64_STANDARD.decode(message_data)?
-                        } else if let Some(s3_key) = msg["content_type"]["key"].as_str() {
-                            // S3 format - download from S3
-                            let s3_url = format!("{}/{}/{}", S3_ENDPOINT, BUCKET_NAME, s3_key);
-                            let s3_response = client.get(&s3_url).send().await?;
-                            s3_response.bytes().await?.to_vec()
-                        } else {
-                            continue;
-                        };
-                        
-                        if let Ok(message) = Message::deser(&message_bytes) {
-                            if let Some(id_str) = msg["id"].as_str() {
-                                if let Ok(id) = id_str.parse::<i64>() {
-                                    plaintexts_out.push((id, message));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if plaintexts_out.len() == batches {
-            break;
-        }
-    }
-
-    assert!(plaintexts_out.len() == batches, "Expected {} plaintext messages, got {}", batches, plaintexts_out.len());
-    
-    for (_, message) in plaintexts_out {
-        let batch = message.statement.get_batch_number();
-        let plaintexts = b4::messages::artifact::Plaintexts::<C, W>::deser(&message.artifact.unwrap()).unwrap();
-        let expected: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
-        let actual: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts.0.clone());
-        info!("expected {} actual {}", expected.len(), actual.len());
-
-        assert!(expected == actual, "Plaintext mismatch for batch {}", batch);
-        info!("Match ok on plaintexts for batch {}", batch);
-    }
-
     info!("***************************************************************");
-    info!("* Completed");
-    info!("* Trustees = {}", sessions.len());
-    info!("* Threshold = {}", threshold.len());
-    info!("* Ciphertexts = {}", count);
+    info!("* Completed in {}s (board {})", time, board);
+    info!("* Trustees = {} (threshold {})", n_trustees, n_threshold);
+    info!("* Ciphertexts = {} (width = {})", ciphertexts, W);
     info!("***************************************************************");
 
     Ok(())
 }
 
-pub async fn create_protocol_test<C: Context, const W: usize>(
-    n_trustees: usize,
-    threshold: &[usize],
-) -> Result<ProtocolTest<C>> {
-    use cryptography::utils::signatures::SignatureScheme;
-    let mut rng = C::get_rng();
-    let pmkey = C::SignatureScheme::gen_signing_key(&mut rng);
-    let pm = b4::messages::protocol_manager::ProtocolManager {
-        signing_key: pmkey,
-        phantom: PhantomData,
-    };
-    let (trustees, trustee_pks): (Vec<Trustee<C, NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
-        .map(|i| {
-            let sk = C::SignatureScheme::gen_signing_key(&mut rng);
-            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
-            let pk = C::SignatureScheme::verifying_key(&sk);
-            (
-                Trustee::new(
-                    i.to_string(),
-                    "foo".to_string(),
-                    sk,
-                    encryption_key,
-                    NoOpStorage::new(),
-                    None,
-                ),
-                pk,
-            )
-        })
-        .unzip();
-
-    let cfg = Configuration::<C>::new(
-        0,
-        C::SignatureScheme::verifying_key(&pm.signing_key),
-        trustee_pks,
-        threshold.len(),
-        W, // ciphertext_width (now generic)
-        PhantomData,
-    );
-
-    // Bootstrap message will be sent by first session
-    let message = Message::bootstrap_msg(&cfg, &pm)?;
-    
-    // Create HTTP client to initialize board
-    let client = reqwest::Client::new();
-    
-    // Create board (ignore error if already exists)
-    let _ = client
-        .post(format!("{}/boards", HTTP_URL))
-        .json(&serde_json::json!({
-            "name": TEST_BOARD
-        }))
-        .send()
-        .await;
-    
-    // Send bootstrap message
-    let board_params = HttpB4BoardParams::new(HTTP_URL);
-    let mut temp_board: HttpB4 = board_params.create_board(TEST_BOARD, None);
-    let http_msg = b4::HttpB4Message::from_protocol_message::<C>(message.try_into().unwrap());
-    Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
-
-    Ok(ProtocolTest {
-        cfg,
-        protocol_manager: pm,
-        trustees,
-    })
+/// Drive the sessions to a protocol fixpoint over HTTP using the update-first
+/// cycle (§6). Each round advances every session once (update → step → post);
+/// a round that produces nothing is the fixpoint. Sequential (HTTP latency
+/// dominates; the parallel-step path is exercised by the in-memory M1 harness).
+async fn drive<C: Context>(sessions: &mut [HttpSession<C>]) -> Result<()> {
+    for _ in 0..MAX_ROUNDS {
+        let mut produced_any = false;
+        for session in sessions.iter_mut() {
+            if session.advance().await? {
+                produced_any = true;
+            }
+        }
+        if !produced_any {
+            return Ok(());
+        }
+    }
+    Err(anyhow!(
+        "protocol did not reach a fixpoint within {} rounds",
+        MAX_ROUNDS
+    ))
 }

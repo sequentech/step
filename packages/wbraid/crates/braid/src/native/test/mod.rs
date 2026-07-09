@@ -2,13 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// Interactive simulation of the protocol.
-pub mod dbg;
 /// Test the protocol using an HTTP+S3 board.
 pub mod protocol_test_http;
 /// Test the protocol using an in memory board.
 pub mod protocol_test_memory;
-/// An in-memory board.
-pub mod vector_board;
-/// An in-memory session (for one trustee).
-pub mod vector_session;
+// Legacy `dbg`, `vector_board`, `vector_session` are retired from the build for
+// M2; their files remain on disk for reference.

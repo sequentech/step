@@ -18,6 +18,11 @@
 pub mod persistence;
 pub mod transport;
 
+// The live HTTP+S3 transport is native-only (reqwest); the in-memory transport
+// (in `transport`) is platform-agnostic.
+#[cfg(feature = "native")]
+pub mod http_transport;
+
 use anyhow::Result;
 
 use cryptography::context::Context;
