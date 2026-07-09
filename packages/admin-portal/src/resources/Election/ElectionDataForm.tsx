@@ -67,6 +67,9 @@ import {
     EDeclineToVotePolicy,
     getDefaultDeclineToVotePolicy,
     EElectionEventContestEncryptionPolicy,
+    IVotingScreenBackPolicy,
+    getDefaultVotingScreenBackPolicy,
+    getVotingScreenBackPolicyValues,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -541,6 +544,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const votingScreenBackPolicyChoices = (): Array<EnumChoice<IVotingScreenBackPolicy>> => {
+        return getVotingScreenBackPolicyValues().map((value) => ({
+            id: value,
+            name: t(`electionScreen.votingScreenBackPolicy.options.${value}`),
+        }))
+    }
+
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Extended,
         {newData}: UpdateFunctionProps
@@ -918,6 +928,13 @@ export const ElectionDataForm: React.FC = () => {
                                         defaultValue={getDefaultDeclineToVotePolicy()}
                                     />
                                 )}
+                                <SelectInput
+                                    source={`presentation.voting_screen_back_policy`}
+                                    choices={votingScreenBackPolicyChoices()}
+                                    label={String(t("electionScreen.votingScreenBackPolicy.label"))}
+                                    validate={required()}
+                                    defaultValue={getDefaultVotingScreenBackPolicy()}
+                                />
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

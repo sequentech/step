@@ -33,7 +33,7 @@ use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use strum_macros::{Display, EnumString, IntoStaticStr};
+use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -1293,6 +1293,10 @@ pub struct ElectionPresentation {
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
     /// The policy to determine if the voter can decline to vote for an election level.
     pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
+    /// The policy to determine the screen the back button of the voting
+    /// screen navigates to. Defaults to the election selection screen for
+    /// backwards compatibility.
+    pub voting_screen_back_policy: Option<VotingScreenBackPolicy>,
 }
 
 impl core::Election {
@@ -1332,6 +1336,7 @@ impl Default for ElectionPresentation {
                 ConsolidatedReportPolicy::default(),
             ),
             decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
+            voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
         }
     }
 }
@@ -2682,4 +2687,77 @@ pub enum DeclineToVotePolicy {
     #[serde(rename = "enabled")]
     /// The user can decline to vote at the election level (for all contests).
     ENABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    EnumIter,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine the screen the back button of the voting screen
+/// navigates to.
+///
+/// The serialized values must match the `IVotingScreenBackPolicy` TypeScript
+/// type exported in `wasm/wasm.rs`.
+pub enum VotingScreenBackPolicy {
+    #[default]
+    #[strum(serialize = "election-selection-screen")]
+    #[serde(rename = "election-selection-screen")]
+    /// The back button navigates to the election selection screen.
+    ELECTION_SELECTION_SCREEN,
+    #[strum(serialize = "start-screen")]
+    #[serde(rename = "start-screen")]
+    /// The back button navigates to the start screen of the election.
+    START_SCREEN,
+}
+
+#[cfg(test)]
+mod voting_screen_back_policy_tests {
+    use super::*;
+
+    #[test]
+    fn test_default_is_election_selection_screen() {
+        assert_eq!(
+            VotingScreenBackPolicy::default(),
+            VotingScreenBackPolicy::ELECTION_SELECTION_SCREEN
+        );
+    }
+
+    // Pins the serialized values: they must match the
+    // `IVotingScreenBackPolicy` TypeScript type exported in `wasm/wasm.rs`
+    #[test]
+    fn test_serialized_values() {
+        assert_eq!(
+            serde_json::to_string(
+                &VotingScreenBackPolicy::ELECTION_SELECTION_SCREEN
+            )
+            .unwrap(),
+            "\"election-selection-screen\""
+        );
+        assert_eq!(
+            serde_json::to_string(&VotingScreenBackPolicy::START_SCREEN)
+                .unwrap(),
+            "\"start-screen\""
+        );
+    }
+
+    // Election presentations created before this policy existed must
+    // deserialize without the field
+    #[test]
+    fn test_presentation_without_field_is_backwards_compatible() {
+        let presentation: ElectionPresentation =
+            serde_json::from_str("{}").unwrap();
+        assert_eq!(presentation.voting_screen_back_policy, None);
+    }
 }

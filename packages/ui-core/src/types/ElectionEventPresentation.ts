@@ -75,6 +75,11 @@ export enum EElectionEventCeremoniesPolicy {
     AUTOMATED_CEREMONIES = "automated-ceremonies",
 }
 
+export enum EElectionEventAutomaticRecountPolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
 export enum EElectionEventWeightedVotingPolicy {
     AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
     DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
@@ -109,6 +114,7 @@ export interface IElectionEventPresentation {
     enrollment?: EElectionEventEnrollment
     otp?: EElectionEventOTP
     ceremonies_policy?: EElectionEventCeremoniesPolicy
+    automatic_recount_policy?: EElectionEventAutomaticRecountPolicy
     weighted_voting_policy?: EElectionEventWeightedVotingPolicy
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy

@@ -40,6 +40,7 @@ use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
+use strum::IntoEnumIterator;
 
 // use base64;
 // use borsh::{from_slice, to_vec, BorshDeserialize, BorshSerialize};
@@ -1264,6 +1265,34 @@ pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
     serde_wasm_bindgen::to_value(&policy).map_err(|err| {
         JsValue::from_str(&format!(
             "Error serializing default decline to vote policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const IVOTING_SCREEN_BACK_POLICY: &'static str = r#"
+type IVotingScreenBackPolicy = "election-selection-screen" | "start-screen";
+"#;
+
+#[wasm_bindgen]
+/// Returns the default voting screen back policy
+pub fn get_default_voting_screen_back_policy_js() -> Result<JsValue, JsValue> {
+    let policy: VotingScreenBackPolicy = VotingScreenBackPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default voting screen back policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+/// Returns all the voting screen back policy values
+pub fn get_voting_screen_back_policy_values_js() -> Result<JsValue, JsValue> {
+    let values: Vec<VotingScreenBackPolicy> =
+        VotingScreenBackPolicy::iter().collect();
+    serde_wasm_bindgen::to_value(&values).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing voting screen back policy values: {err}"
         ))
     })
 }

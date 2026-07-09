@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::area_tree::*;
+use crate::services::tally_sheet_validation::validate_area_contest_results;
 use crate::types::hasura::core::AreaContest;
+use crate::types::tally_sheets::AreaContestResults;
 use crate::wasm::wasm::IntoResult;
 use std::collections::HashSet;
-use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
-use std::collections::HashMap;
 use std::panic;
 
 #[allow(clippy::all)]
@@ -63,6 +63,27 @@ pub fn get_contest_matches_js(
     let area_contests = contests_tree.get_contest_matches(&contests_hashset);
     let serializer = Serializer::json_compatible();
     area_contests
+        .serialize(&serializer)
+        .map_err(|err| format!("{:?}", err))
+        .into_json()
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn validate_area_contest_results_js(
+    content_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let content: AreaContestResults =
+        serde_wasm_bindgen::from_value(content_json).map_err(|err| {
+            format!(
+            "Error reading javascript area contest results for validation: {}",
+            err
+        )
+        })?;
+
+    let errors = validate_area_contest_results(&content);
+    let serializer = Serializer::json_compatible();
+    errors
         .serialize(&serializer)
         .map_err(|err| format!("{:?}", err))
         .into_json()

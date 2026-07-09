@@ -624,6 +624,10 @@ type Mutation {
         tally_session_id: uuid!
         status: String!
     ): StartTallyOutput
+    recount_tally_session(
+        election_event_id: uuid!
+        tally_session_id: uuid!
+    ): StartTallyOutput
     submit_tally_resolution(
         election_event_id: uuid!
         tally_session_id: uuid!
@@ -688,6 +692,34 @@ type Mutation {
         tally_sheet_id: String!
         new_status: String!
     ): TallySheetOutput
+}
+
+type Mutation {
+    preview_tally_sheet_import(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+        source_format: String!
+        selected_channel: String!
+    ): TallySheetImportPreviewActionOutput
+}
+
+type Mutation {
+    create_tally_sheet_import(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+        source_format: String!
+        selected_channel: String!
+    ): TallySheetImportActionOutput
+}
+
+type Mutation {
+    review_tally_sheet_import(
+        election_event_id: String!
+        import_id: String!
+        decision: String!
+    ): TallySheetImportActionOutput
 }
 
 enum EarlyVotingPolicy {
@@ -809,6 +841,7 @@ input GetUsersInput {
     username: jsonb
     limit: Int
     offset: Int
+    user_ids: [String!]
     show_votes_info: Boolean
     attributes: jsonb
     enabled: Boolean
@@ -1356,6 +1389,15 @@ type TallySheetOutput {
     created_by_user_id: String
     status: String!
     version: Int!
+    import_id: String
+}
+
+type TallySheetImportPreviewActionOutput {
+    preview: jsonb!
+}
+
+type TallySheetImportActionOutput {
+    import: jsonb!
 }
 
 type ExportAllUsersOutput {

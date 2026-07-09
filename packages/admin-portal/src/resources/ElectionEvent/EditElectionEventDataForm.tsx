@@ -15,6 +15,7 @@ import {
     useNotify,
     Button,
     SelectInput,
+    RadioButtonGroupInput,
     required,
     FormDataConsumer,
     useGetList,
@@ -55,6 +56,7 @@ import {
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
+    EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
     ELanguageDetectionPolicy,
@@ -559,6 +561,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const automaticRecountPolicyOptions = () => {
+        return Object.values(EElectionEventAutomaticRecountPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.automaticRecountPolicy.options.${value}`),
+        }))
+    }
+
     const weightedVotingPolicyOptions = () => {
         return Object.values(EElectionEventWeightedVotingPolicy).map((value) => ({
             id: value,
@@ -962,6 +971,20 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <AccordionDetails>
                         <Grid container spacing={4}>
                             <Grid size={{xs: 12, md: 6}}>{renderVotingChannels(parsedValue)}</Grid>
+                            <Grid size={{xs: 12, md: 6}}>
+                                <RadioButtonGroupInput
+                                    disabled={!canEdit}
+                                    source={"presentation.automatic_recount_policy"}
+                                    choices={automaticRecountPolicyOptions()}
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.automaticRecountPolicy.policyLabel"
+                                        )
+                                    )}
+                                    defaultValue={EElectionEventAutomaticRecountPolicy.DISABLED}
+                                    validate={required()}
+                                />
+                            </Grid>
                         </Grid>
                     </AccordionDetails>
                 </Accordion>

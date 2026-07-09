@@ -14,6 +14,37 @@ export enum EStatus {
     DISAPPROVED = "DISAPPROVED",
 }
 
+export enum ETallySheetImportSourceFormat {
+    ESS_ENHANCED_XML = "ESS_ENHANCED_XML",
+    CANONICAL_CSV = "CANONICAL_CSV",
+}
+
+export enum ETallySheetImportChangeType {
+    NEW = "NEW",
+    CHANGED = "CHANGED",
+    UNCHANGED = "UNCHANGED",
+}
+
+export enum ETallySheetImportStatus {
+    PENDING_REVIEW = "PENDING_REVIEW",
+    APPROVED = "APPROVED",
+    DISAPPROVED = "DISAPPROVED",
+    FAILED_VALIDATION = "FAILED_VALIDATION",
+    CONFLICTED = "CONFLICTED",
+}
+
+export enum ETallySheetImportItemStatus {
+    PENDING_REVIEW = "PENDING_REVIEW",
+    APPROVED = "APPROVED",
+    DISAPPROVED = "DISAPPROVED",
+    CONFLICTED = "CONFLICTED",
+}
+
+export enum ETallySheetImportReviewDecision {
+    APPROVE = "APPROVE",
+    DISAPPROVE = "DISAPPROVE",
+}
+
 export interface IInvalidVotes {
     total_invalid?: number
     implicit_invalid?: number

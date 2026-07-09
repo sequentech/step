@@ -16,7 +16,6 @@ import {
     useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {ListActionsMenu} from "../../components/ListActionsMenu"
 import {Button, Chip, Tooltip, Typography} from "@mui/material"
 import {
     ReviewTallySheetMutation,
@@ -54,6 +53,8 @@ const Filters: Array<ReactElement> = [
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Channel" source="channel" key={3} />,
     <TextInput label="Latest version" source="version" key={4} />,
+    <TextInput label="Labels" source="labels" key={5} />,
+    <TextInput label="Annotations" source="annotations" key={6} />,
 ]
 
 interface TTallySheetList {
@@ -229,13 +230,21 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
         {
-            icon: <Add />,
+            icon: (
+                <Tooltip title={String(t("tallysheet.common.add"))}>
+                    <Add />
+                </Tooltip>
+            ),
             action: addAction,
             showAction: () => canCreate,
             label: String(t("tallysheet.common.add")),
         },
         {
-            icon: <WorkHistory />,
+            icon: (
+                <Tooltip title={String(t("tallysheet.common.versions"))}>
+                    <WorkHistory />
+                </Tooltip>
+            ),
             action: versionsTableAction,
             showAction: () => canView,
             label: String(t("tallysheet.common.versions")),
@@ -343,11 +352,27 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                             }
                         />
 
+                        <FunctionField
+                            source="labels"
+                            label={String(t("tallysheet.table.labels"))}
+                            render={(record: Sequent_Backend_Tally_Sheet) =>
+                                formatJsonValue(record.labels)
+                            }
+                        />
+
+                        <FunctionField
+                            source="annotations"
+                            label={String(t("tallysheet.table.annotations"))}
+                            render={(record: Sequent_Backend_Tally_Sheet) =>
+                                formatJsonValue(record.annotations)
+                            }
+                        />
+
                         <WrapperField source="actions" label="Actions">
                             <FunctionField
                                 label={String(t("tallysheet.table.area"))}
                                 render={(record: Sequent_Backend_Tally_Sheet) => (
-                                    <ListActionsMenu actions={actions(record)} />
+                                    <ActionsColumn actions={actions(record)} />
                                 )}
                             />
                         </WrapperField>
@@ -387,4 +412,18 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             </Dialog>
         </>
     )
+}
+
+const formatJsonValue = (value: unknown) => {
+    if (value === null || value === undefined || value === "") {
+        return "-"
+    }
+    if (typeof value === "string") {
+        return value
+    }
+    try {
+        return JSON.stringify(value)
+    } catch (_error) {
+        return String(value)
+    }
 }

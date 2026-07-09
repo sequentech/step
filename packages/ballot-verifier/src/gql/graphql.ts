@@ -530,6 +530,7 @@ export type GetUsersInput = {
     show_votes_info?: InputMaybe<Scalars["Boolean"]["input"]>
     sort?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id: Scalars["uuid"]["input"]
+    user_ids?: InputMaybe<Array<Scalars["String"]["input"]>>
     username?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
@@ -938,6 +939,16 @@ export type TallyResolutionInput = {
     selected_candidate_id: Scalars["uuid"]["input"]
 }
 
+export type TallySheetImportActionOutput = {
+    __typename?: "TallySheetImportActionOutput"
+    import: Scalars["jsonb"]["output"]
+}
+
+export type TallySheetImportPreviewActionOutput = {
+    __typename?: "TallySheetImportPreviewActionOutput"
+    preview: Scalars["jsonb"]["output"]
+}
+
 export type TallySheetOutput = {
     __typename?: "TallySheetOutput"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
@@ -951,6 +962,7 @@ export type TallySheetOutput = {
     election_event_id: Scalars["String"]["output"]
     election_id: Scalars["String"]["output"]
     id: Scalars["String"]["output"]
+    import_id?: Maybe<Scalars["String"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["String"]["output"]>
     reviewed_at?: Maybe<Scalars["String"]["output"]>
@@ -1152,6 +1164,8 @@ export type Mutation_Root = {
     create_phone_blacklist_entry?: Maybe<PhoneBlacklistEntry>
     create_role: KeycloakRole
     create_tally_ceremony?: Maybe<CreateTallyOutput>
+    /** create_tally_sheet_import */
+    create_tally_sheet_import?: Maybe<TallySheetImportActionOutput>
     create_transmission_package?: Maybe<CreateTransmissionPackageOutput>
     create_user: KeycloakUser
     /** Delete a certificate authority by id */
@@ -1305,6 +1319,14 @@ export type Mutation_Root = {
     delete_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
     /** delete single row from the table: "sequent_backend.tally_sheet" */
     delete_sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** delete data from the table: "sequent_backend.tally_sheet_import" */
+    delete_sequent_backend_tally_sheet_import?: Maybe<Sequent_Backend_Tally_Sheet_Import_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.tally_sheet_import" */
+    delete_sequent_backend_tally_sheet_import_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import>
+    /** delete data from the table: "sequent_backend.tally_sheet_import_item" */
+    delete_sequent_backend_tally_sheet_import_item?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.tally_sheet_import_item" */
+    delete_sequent_backend_tally_sheet_import_item_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item>
     /** delete data from the table: "sequent_backend.tasks_execution" */
     delete_sequent_backend_tasks_execution?: Maybe<Sequent_Backend_Tasks_Execution_Mutation_Response>
     /** delete single row from the table: "sequent_backend.tasks_execution" */
@@ -1512,6 +1534,14 @@ export type Mutation_Root = {
     insert_sequent_backend_tally_session_resolution_one?: Maybe<Sequent_Backend_Tally_Session_Resolution>
     /** insert data into the table: "sequent_backend.tally_sheet" */
     insert_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
+    /** insert data into the table: "sequent_backend.tally_sheet_import" */
+    insert_sequent_backend_tally_sheet_import?: Maybe<Sequent_Backend_Tally_Sheet_Import_Mutation_Response>
+    /** insert data into the table: "sequent_backend.tally_sheet_import_item" */
+    insert_sequent_backend_tally_sheet_import_item?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.tally_sheet_import_item" */
+    insert_sequent_backend_tally_sheet_import_item_one?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** insert a single row into the table: "sequent_backend.tally_sheet_import" */
+    insert_sequent_backend_tally_sheet_import_one?: Maybe<Sequent_Backend_Tally_Sheet_Import>
     /** insert a single row into the table: "sequent_backend.tally_sheet" */
     insert_sequent_backend_tally_sheet_one?: Maybe<Sequent_Backend_Tally_Sheet>
     /** insert data into the table: "sequent_backend.tasks_execution" */
@@ -1533,11 +1563,17 @@ export type Mutation_Root = {
     limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>
     manage_election_dates?: Maybe<ManageElectionDatesOutput>
     prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>
+    /** preview_tally_sheet_import */
+    preview_tally_sheet_import?: Maybe<TallySheetImportPreviewActionOutput>
     publish_ballot?: Maybe<PublishBallotOutput>
+    /** Recount a completed tally session with fresh result ids */
+    recount_tally_session?: Maybe<StartTallyOutput>
     render_document_pdf?: Maybe<RenderDocumentPdfOutput>
     restore_private_key?: Maybe<RestorePrivateKeyOutput>
     /** review_tally_sheet */
     review_tally_sheet?: Maybe<TallySheetOutput>
+    /** review_tally_sheet_import */
+    review_tally_sheet_import?: Maybe<TallySheetImportActionOutput>
     send_transmission_package?: Maybe<OptionalId>
     set_custom_urls?: Maybe<SetCustomUrlsOutput>
     set_role_permission?: Maybe<SetRolePermissionOutput>
@@ -1828,6 +1864,22 @@ export type Mutation_Root = {
     update_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
     /** update single row of the table: "sequent_backend.tally_sheet" */
     update_sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** update data of the table: "sequent_backend.tally_sheet_import" */
+    update_sequent_backend_tally_sheet_import?: Maybe<Sequent_Backend_Tally_Sheet_Import_Mutation_Response>
+    /** update single row of the table: "sequent_backend.tally_sheet_import" */
+    update_sequent_backend_tally_sheet_import_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import>
+    /** update data of the table: "sequent_backend.tally_sheet_import_item" */
+    update_sequent_backend_tally_sheet_import_item?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Mutation_Response>
+    /** update single row of the table: "sequent_backend.tally_sheet_import_item" */
+    update_sequent_backend_tally_sheet_import_item_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** update multiples rows of table: "sequent_backend.tally_sheet_import_item" */
+    update_sequent_backend_tally_sheet_import_item_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Mutation_Response>>
+    >
+    /** update multiples rows of table: "sequent_backend.tally_sheet_import" */
+    update_sequent_backend_tally_sheet_import_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Tally_Sheet_Import_Mutation_Response>>
+    >
     /** update multiples rows of table: "sequent_backend.tally_sheet" */
     update_sequent_backend_tally_sheet_many?: Maybe<
         Array<Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>>
@@ -1957,6 +2009,15 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
     election_event_id: Scalars["uuid"]["input"]
     election_ids: Array<Scalars["uuid"]["input"]>
     tally_type?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootCreate_Tally_Sheet_ImportArgs = {
+    document_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    selected_channel: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
+    source_format: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -2421,6 +2482,26 @@ export type Mutation_RootDelete_Sequent_Backend_Tally_Sheet_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Sheet_ImportArgs = {
+    where: Sequent_Backend_Tally_Sheet_Import_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Sheet_Import_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Sheet_Import_ItemArgs = {
+    where: Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Sheet_Import_Item_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -3167,6 +3248,30 @@ export type Mutation_RootInsert_Sequent_Backend_Tally_SheetArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Sheet_ImportArgs = {
+    objects: Array<Sequent_Backend_Tally_Sheet_Import_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Sheet_Import_ItemArgs = {
+    objects: Array<Sequent_Backend_Tally_Sheet_Import_Item_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Sheet_Import_Item_OneArgs = {
+    object: Sequent_Backend_Tally_Sheet_Import_Item_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Sheet_Import_OneArgs = {
+    object: Sequent_Backend_Tally_Sheet_Import_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_On_Conflict>
+}
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_Tally_Sheet_OneArgs = {
     object: Sequent_Backend_Tally_Sheet_Insert_Input
     on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_On_Conflict>
@@ -3241,9 +3346,24 @@ export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootPreview_Tally_Sheet_ImportArgs = {
+    document_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    selected_channel: Scalars["String"]["input"]
+    sha256?: InputMaybe<Scalars["String"]["input"]>
+    source_format: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootPublish_BallotArgs = {
     ballot_publication_id: Scalars["uuid"]["input"]
     election_event_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootRecount_Tally_SessionArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    tally_session_id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -3263,6 +3383,13 @@ export type Mutation_RootReview_Tally_SheetArgs = {
     election_event_id: Scalars["String"]["input"]
     new_status: Scalars["String"]["input"]
     tally_sheet_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootReview_Tally_Sheet_ImportArgs = {
+    decision: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    import_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -4294,6 +4421,62 @@ export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_By_PkArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_ImportArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Set_Input>
+    where: Sequent_Backend_Tally_Sheet_Import_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_Import_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Set_Input>
+    pk_columns: Sequent_Backend_Tally_Sheet_Import_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_Import_ItemArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_Key_Input>
+    _inc?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Inc_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Set_Input>
+    where: Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_Import_Item_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_Key_Input>
+    _inc?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Inc_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Set_Input>
+    pk_columns: Sequent_Backend_Tally_Sheet_Import_Item_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_Import_Item_ManyArgs = {
+    updates: Array<Sequent_Backend_Tally_Sheet_Import_Item_Updates>
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_Import_ManyArgs = {
+    updates: Array<Sequent_Backend_Tally_Sheet_Import_Updates>
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_ManyArgs = {
     updates: Array<Sequent_Backend_Tally_Sheet_Updates>
 }
@@ -4715,6 +4898,18 @@ export type Query_Root = {
     sequent_backend_tally_sheet_aggregate: Sequent_Backend_Tally_Sheet_Aggregate
     /** fetch data from the table: "sequent_backend.tally_sheet" using primary key columns */
     sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** fetch data from the table: "sequent_backend.tally_sheet_import" */
+    sequent_backend_tally_sheet_import: Array<Sequent_Backend_Tally_Sheet_Import>
+    /** fetch aggregated fields from the table: "sequent_backend.tally_sheet_import" */
+    sequent_backend_tally_sheet_import_aggregate: Sequent_Backend_Tally_Sheet_Import_Aggregate
+    /** fetch data from the table: "sequent_backend.tally_sheet_import" using primary key columns */
+    sequent_backend_tally_sheet_import_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import>
+    /** fetch data from the table: "sequent_backend.tally_sheet_import_item" */
+    sequent_backend_tally_sheet_import_item: Array<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** fetch aggregated fields from the table: "sequent_backend.tally_sheet_import_item" */
+    sequent_backend_tally_sheet_import_item_aggregate: Sequent_Backend_Tally_Sheet_Import_Item_Aggregate
+    /** fetch data from the table: "sequent_backend.tally_sheet_import_item" using primary key columns */
+    sequent_backend_tally_sheet_import_item_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item>
     /** fetch data from the table: "sequent_backend.tasks_execution" */
     sequent_backend_tasks_execution: Array<Sequent_Backend_Tasks_Execution>
     /** fetch aggregated fields from the table: "sequent_backend.tasks_execution" */
@@ -5591,6 +5786,46 @@ export type Query_RootSequent_Backend_Tally_Sheet_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Tally_Sheet_ImportArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tally_Sheet_Import_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tally_Sheet_Import_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Tally_Sheet_Import_ItemArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tally_Sheet_Import_Item_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tally_Sheet_Import_Item_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootSequent_Backend_Tasks_ExecutionArgs = {
@@ -9073,6 +9308,13 @@ export type Sequent_Backend_Document_Mutation_Response = {
     affected_rows: Scalars["Int"]["output"]
     /** data from the rows affected by the mutation */
     returning: Array<Sequent_Backend_Document>
+}
+
+/** input type for inserting object relation for remote table "sequent_backend.document" */
+export type Sequent_Backend_Document_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Document_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Document_On_Conflict>
 }
 
 /** on_conflict condition type for table "sequent_backend.document" */
@@ -18620,10 +18862,13 @@ export type Sequent_Backend_Tally_Sheet = {
     election_event_id: Scalars["uuid"]["output"]
     election_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
+    import_id?: Maybe<Scalars["uuid"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at: Scalars["timestamptz"]["output"]
     reviewed_at?: Maybe<Scalars["timestamptz"]["output"]>
     reviewed_by_user_id?: Maybe<Scalars["String"]["output"]>
+    /** An object relationship */
+    source_import?: Maybe<Sequent_Backend_Tally_Sheet_Import>
     status: Scalars["String"]["output"]
     tenant_id: Scalars["uuid"]["output"]
     version: Scalars["Int"]["output"]
@@ -18702,10 +18947,12 @@ export type Sequent_Backend_Tally_Sheet_Bool_Exp = {
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     election_id?: InputMaybe<Uuid_Comparison_Exp>
     id?: InputMaybe<Uuid_Comparison_Exp>
+    import_id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     reviewed_at?: InputMaybe<Timestamptz_Comparison_Exp>
     reviewed_by_user_id?: InputMaybe<String_Comparison_Exp>
+    source_import?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
     status?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     version?: InputMaybe<Int_Comparison_Exp>
@@ -18740,6 +18987,1060 @@ export type Sequent_Backend_Tally_Sheet_Delete_Key_Input = {
     labels?: InputMaybe<Scalars["String"]["input"]>
 }
 
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import = {
+    __typename?: "sequent_backend_tally_sheet_import"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    canonical_csv_sha256?: Maybe<Scalars["String"]["output"]>
+    created_at: Scalars["timestamptz"]["output"]
+    created_by_user_id: Scalars["String"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    id: Scalars["uuid"]["output"]
+    /** An array relationship */
+    items: Array<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** An aggregate relationship */
+    items_aggregate: Sequent_Backend_Tally_Sheet_Import_Item_Aggregate
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    last_updated_at: Scalars["timestamptz"]["output"]
+    selected_channel: Scalars["String"]["output"]
+    /** An object relationship */
+    source_document: Sequent_Backend_Document
+    source_document_id: Scalars["uuid"]["output"]
+    source_file_name?: Maybe<Scalars["String"]["output"]>
+    source_format: Scalars["String"]["output"]
+    source_sha256?: Maybe<Scalars["String"]["output"]>
+    status: Scalars["String"]["output"]
+    summary: Scalars["jsonb"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+    validation_report?: Maybe<Scalars["jsonb"]["output"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_ImportAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_ImportItemsArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_ImportItems_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_ImportLabelsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_ImportSummaryArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_ImportValidation_ReportArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregated selection of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Aggregate = {
+    __typename?: "sequent_backend_tally_sheet_import_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Tally_Sheet_Import_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Tally_Sheet_Import>
+}
+
+/** aggregate fields of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Aggregate_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Tally_Sheet_Import_Max_Fields>
+    min?: Maybe<Sequent_Backend_Tally_Sheet_Import_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Sheet_Import_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    summary?: InputMaybe<Scalars["jsonb"]["input"]>
+    validation_report?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.tally_sheet_import". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Tally_Sheet_Import_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    canonical_csv_sha256?: InputMaybe<String_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    created_by_user_id?: InputMaybe<String_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    items?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+    items_aggregate?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Bool_Exp>
+    labels?: InputMaybe<Jsonb_Comparison_Exp>
+    last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    selected_channel?: InputMaybe<String_Comparison_Exp>
+    source_document?: InputMaybe<Sequent_Backend_Document_Bool_Exp>
+    source_document_id?: InputMaybe<Uuid_Comparison_Exp>
+    source_file_name?: InputMaybe<String_Comparison_Exp>
+    source_format?: InputMaybe<String_Comparison_Exp>
+    source_sha256?: InputMaybe<String_Comparison_Exp>
+    status?: InputMaybe<String_Comparison_Exp>
+    summary?: InputMaybe<Jsonb_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    validation_report?: InputMaybe<Jsonb_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.tally_sheet_import" */
+export enum Sequent_Backend_Tally_Sheet_Import_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    TallySheetImportPkey = "tally_sheet_import_pkey",
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Tally_Sheet_Import_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
+    labels?: InputMaybe<Array<Scalars["String"]["input"]>>
+    summary?: InputMaybe<Array<Scalars["String"]["input"]>>
+    validation_report?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Tally_Sheet_Import_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
+    labels?: InputMaybe<Scalars["Int"]["input"]>
+    summary?: InputMaybe<Scalars["Int"]["input"]>
+    validation_report?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Tally_Sheet_Import_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["String"]["input"]>
+    summary?: InputMaybe<Scalars["String"]["input"]>
+    validation_report?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Insert_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    canonical_csv_sha256?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    created_by_user_id?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    items?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Arr_Rel_Insert_Input>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    selected_channel?: InputMaybe<Scalars["String"]["input"]>
+    source_document?: InputMaybe<Sequent_Backend_Document_Obj_Rel_Insert_Input>
+    source_document_id?: InputMaybe<Scalars["uuid"]["input"]>
+    source_file_name?: InputMaybe<Scalars["String"]["input"]>
+    source_format?: InputMaybe<Scalars["String"]["input"]>
+    source_sha256?: InputMaybe<Scalars["String"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    summary?: InputMaybe<Scalars["jsonb"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    validation_report?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item = {
+    __typename?: "sequent_backend_tally_sheet_import_item"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    area_id: Scalars["uuid"]["output"]
+    baseline_approved_tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+    baseline_approved_version?: Maybe<Scalars["Int"]["output"]>
+    baseline_content_hash?: Maybe<Scalars["String"]["output"]>
+    change_type: Scalars["String"]["output"]
+    channel: Scalars["String"]["output"]
+    contest_id: Scalars["uuid"]["output"]
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    election_id: Scalars["uuid"]["output"]
+    /** An object relationship */
+    generated_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet>
+    generated_tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+    id: Scalars["uuid"]["output"]
+    /** An object relationship */
+    import: Sequent_Backend_Tally_Sheet_Import
+    import_id: Scalars["uuid"]["output"]
+    incoming_content_hash: Scalars["String"]["output"]
+    incoming_csv: Scalars["String"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    last_updated_at: Scalars["timestamptz"]["output"]
+    previous_csv?: Maybe<Scalars["String"]["output"]>
+    source_refs?: Maybe<Scalars["jsonb"]["output"]>
+    status: Scalars["String"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+    validation_warnings?: Maybe<Scalars["jsonb"]["output"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_ItemAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_ItemLabelsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_ItemSource_RefsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_ItemValidation_WarningsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregated selection of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Aggregate = {
+    __typename?: "sequent_backend_tally_sheet_import_item_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Tally_Sheet_Import_Item>
+}
+
+export type Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Bool_Exp = {
+    count?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Bool_Exp_Count>
+}
+
+export type Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Bool_Exp_Count = {
+    arguments?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+    filter?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+    predicate: Int_Comparison_Exp
+}
+
+/** aggregate fields of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_aggregate_fields"
+    avg?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Avg_Fields>
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Max_Fields>
+    min?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Min_Fields>
+    stddev?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Fields>
+    stddev_pop?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Pop_Fields>
+    stddev_samp?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Samp_Fields>
+    sum?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Sum_Fields>
+    var_pop?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Var_Pop_Fields>
+    var_samp?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Var_Samp_Fields>
+    variance?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item_Variance_Fields>
+}
+
+/** aggregate fields of "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** order by aggregate values of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Order_By = {
+    avg?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Avg_Order_By>
+    count?: InputMaybe<Order_By>
+    max?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Max_Order_By>
+    min?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Min_Order_By>
+    stddev?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Order_By>
+    stddev_pop?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Pop_Order_By>
+    stddev_samp?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Samp_Order_By>
+    sum?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Sum_Order_By>
+    var_pop?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Var_Pop_Order_By>
+    var_samp?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Var_Samp_Order_By>
+    variance?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Variance_Order_By>
+}
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    source_refs?: InputMaybe<Scalars["jsonb"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** input type for inserting array relation for remote table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Arr_Rel_Insert_Input = {
+    data: Array<Sequent_Backend_Tally_Sheet_Import_Item_Insert_Input>
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_On_Conflict>
+}
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Avg_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_avg_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by avg() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Avg_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.tally_sheet_import_item". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    area_id?: InputMaybe<Uuid_Comparison_Exp>
+    baseline_approved_tally_sheet_id?: InputMaybe<Uuid_Comparison_Exp>
+    baseline_approved_version?: InputMaybe<Int_Comparison_Exp>
+    baseline_content_hash?: InputMaybe<String_Comparison_Exp>
+    change_type?: InputMaybe<String_Comparison_Exp>
+    channel?: InputMaybe<String_Comparison_Exp>
+    contest_id?: InputMaybe<Uuid_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    election_id?: InputMaybe<Uuid_Comparison_Exp>
+    generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Bool_Exp>
+    generated_tally_sheet_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    import?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+    import_id?: InputMaybe<Uuid_Comparison_Exp>
+    incoming_content_hash?: InputMaybe<String_Comparison_Exp>
+    incoming_csv?: InputMaybe<String_Comparison_Exp>
+    labels?: InputMaybe<Jsonb_Comparison_Exp>
+    last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    previous_csv?: InputMaybe<String_Comparison_Exp>
+    source_refs?: InputMaybe<Jsonb_Comparison_Exp>
+    status?: InputMaybe<String_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    validation_warnings?: InputMaybe<Jsonb_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.tally_sheet_import_item" */
+export enum Sequent_Backend_Tally_Sheet_Import_Item_Constraint {
+    /** unique or primary key constraint on columns "election_id", "contest_id", "area_id", "import_id", "channel" */
+    TallySheetImportItemBallotBoxIdx = "tally_sheet_import_item_ballot_box_idx",
+    /** unique or primary key constraint on columns "id" */
+    TallySheetImportItemPkey = "tally_sheet_import_item_pkey",
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
+    labels?: InputMaybe<Array<Scalars["String"]["input"]>>
+    source_refs?: InputMaybe<Array<Scalars["String"]["input"]>>
+    validation_warnings?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
+    labels?: InputMaybe<Scalars["Int"]["input"]>
+    source_refs?: InputMaybe<Scalars["Int"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["String"]["input"]>
+    source_refs?: InputMaybe<Scalars["String"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** input type for incrementing numeric columns in table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Inc_Input = {
+    baseline_approved_version?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Insert_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    area_id?: InputMaybe<Scalars["uuid"]["input"]>
+    baseline_approved_tally_sheet_id?: InputMaybe<Scalars["uuid"]["input"]>
+    baseline_approved_version?: InputMaybe<Scalars["Int"]["input"]>
+    baseline_content_hash?: InputMaybe<Scalars["String"]["input"]>
+    change_type?: InputMaybe<Scalars["String"]["input"]>
+    channel?: InputMaybe<Scalars["String"]["input"]>
+    contest_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Obj_Rel_Insert_Input>
+    generated_tally_sheet_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    import?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Obj_Rel_Insert_Input>
+    import_id?: InputMaybe<Scalars["uuid"]["input"]>
+    incoming_content_hash?: InputMaybe<Scalars["String"]["input"]>
+    incoming_csv?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    previous_csv?: InputMaybe<Scalars["String"]["input"]>
+    source_refs?: InputMaybe<Scalars["jsonb"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Max_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_max_fields"
+    area_id?: Maybe<Scalars["uuid"]["output"]>
+    baseline_approved_tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+    baseline_approved_version?: Maybe<Scalars["Int"]["output"]>
+    baseline_content_hash?: Maybe<Scalars["String"]["output"]>
+    change_type?: Maybe<Scalars["String"]["output"]>
+    channel?: Maybe<Scalars["String"]["output"]>
+    contest_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    election_id?: Maybe<Scalars["uuid"]["output"]>
+    generated_tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    import_id?: Maybe<Scalars["uuid"]["output"]>
+    incoming_content_hash?: Maybe<Scalars["String"]["output"]>
+    incoming_csv?: Maybe<Scalars["String"]["output"]>
+    last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    previous_csv?: Maybe<Scalars["String"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** order by max() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Max_Order_By = {
+    area_id?: InputMaybe<Order_By>
+    baseline_approved_tally_sheet_id?: InputMaybe<Order_By>
+    baseline_approved_version?: InputMaybe<Order_By>
+    baseline_content_hash?: InputMaybe<Order_By>
+    change_type?: InputMaybe<Order_By>
+    channel?: InputMaybe<Order_By>
+    contest_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    election_id?: InputMaybe<Order_By>
+    generated_tally_sheet_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    import_id?: InputMaybe<Order_By>
+    incoming_content_hash?: InputMaybe<Order_By>
+    incoming_csv?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    previous_csv?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Min_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_min_fields"
+    area_id?: Maybe<Scalars["uuid"]["output"]>
+    baseline_approved_tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+    baseline_approved_version?: Maybe<Scalars["Int"]["output"]>
+    baseline_content_hash?: Maybe<Scalars["String"]["output"]>
+    change_type?: Maybe<Scalars["String"]["output"]>
+    channel?: Maybe<Scalars["String"]["output"]>
+    contest_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    election_id?: Maybe<Scalars["uuid"]["output"]>
+    generated_tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    import_id?: Maybe<Scalars["uuid"]["output"]>
+    incoming_content_hash?: Maybe<Scalars["String"]["output"]>
+    incoming_csv?: Maybe<Scalars["String"]["output"]>
+    last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    previous_csv?: Maybe<Scalars["String"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** order by min() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Min_Order_By = {
+    area_id?: InputMaybe<Order_By>
+    baseline_approved_tally_sheet_id?: InputMaybe<Order_By>
+    baseline_approved_version?: InputMaybe<Order_By>
+    baseline_content_hash?: InputMaybe<Order_By>
+    change_type?: InputMaybe<Order_By>
+    channel?: InputMaybe<Order_By>
+    contest_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    election_id?: InputMaybe<Order_By>
+    generated_tally_sheet_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    import_id?: InputMaybe<Order_By>
+    incoming_content_hash?: InputMaybe<Order_By>
+    incoming_csv?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    previous_csv?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+}
+
+/** response of any mutation on the table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Mutation_Response = {
+    __typename?: "sequent_backend_tally_sheet_import_item_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Tally_Sheet_Import_Item>
+}
+
+/** on_conflict condition type for table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_On_Conflict = {
+    constraint: Sequent_Backend_Tally_Sheet_Import_Item_Constraint
+    update_columns?: Array<Sequent_Backend_Tally_Sheet_Import_Item_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.tally_sheet_import_item". */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Order_By = {
+    annotations?: InputMaybe<Order_By>
+    area_id?: InputMaybe<Order_By>
+    baseline_approved_tally_sheet_id?: InputMaybe<Order_By>
+    baseline_approved_version?: InputMaybe<Order_By>
+    baseline_content_hash?: InputMaybe<Order_By>
+    change_type?: InputMaybe<Order_By>
+    channel?: InputMaybe<Order_By>
+    contest_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    election_id?: InputMaybe<Order_By>
+    generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Order_By>
+    generated_tally_sheet_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    import?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Order_By>
+    import_id?: InputMaybe<Order_By>
+    incoming_content_hash?: InputMaybe<Order_By>
+    incoming_csv?: InputMaybe<Order_By>
+    labels?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    previous_csv?: InputMaybe<Order_By>
+    source_refs?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    validation_warnings?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.tally_sheet_import_item */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    source_refs?: InputMaybe<Scalars["jsonb"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** select columns of table "sequent_backend.tally_sheet_import_item" */
+export enum Sequent_Backend_Tally_Sheet_Import_Item_Select_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    AreaId = "area_id",
+    /** column name */
+    BaselineApprovedTallySheetId = "baseline_approved_tally_sheet_id",
+    /** column name */
+    BaselineApprovedVersion = "baseline_approved_version",
+    /** column name */
+    BaselineContentHash = "baseline_content_hash",
+    /** column name */
+    ChangeType = "change_type",
+    /** column name */
+    Channel = "channel",
+    /** column name */
+    ContestId = "contest_id",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    ElectionId = "election_id",
+    /** column name */
+    GeneratedTallySheetId = "generated_tally_sheet_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    ImportId = "import_id",
+    /** column name */
+    IncomingContentHash = "incoming_content_hash",
+    /** column name */
+    IncomingCsv = "incoming_csv",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    LastUpdatedAt = "last_updated_at",
+    /** column name */
+    PreviousCsv = "previous_csv",
+    /** column name */
+    SourceRefs = "source_refs",
+    /** column name */
+    Status = "status",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    ValidationWarnings = "validation_warnings",
+}
+
+/** input type for updating data in table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Set_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    area_id?: InputMaybe<Scalars["uuid"]["input"]>
+    baseline_approved_tally_sheet_id?: InputMaybe<Scalars["uuid"]["input"]>
+    baseline_approved_version?: InputMaybe<Scalars["Int"]["input"]>
+    baseline_content_hash?: InputMaybe<Scalars["String"]["input"]>
+    change_type?: InputMaybe<Scalars["String"]["input"]>
+    channel?: InputMaybe<Scalars["String"]["input"]>
+    contest_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    generated_tally_sheet_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    import_id?: InputMaybe<Scalars["uuid"]["input"]>
+    incoming_content_hash?: InputMaybe<Scalars["String"]["input"]>
+    incoming_csv?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    previous_csv?: InputMaybe<Scalars["String"]["input"]>
+    source_refs?: InputMaybe<Scalars["jsonb"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_stddev_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by stddev() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Pop_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_stddev_pop_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by stddev_pop() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Pop_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Samp_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_stddev_samp_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by stddev_samp() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stddev_Samp_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** Streaming cursor of the table "sequent_backend_tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Tally_Sheet_Import_Item_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Stream_Cursor_Value_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    area_id?: InputMaybe<Scalars["uuid"]["input"]>
+    baseline_approved_tally_sheet_id?: InputMaybe<Scalars["uuid"]["input"]>
+    baseline_approved_version?: InputMaybe<Scalars["Int"]["input"]>
+    baseline_content_hash?: InputMaybe<Scalars["String"]["input"]>
+    change_type?: InputMaybe<Scalars["String"]["input"]>
+    channel?: InputMaybe<Scalars["String"]["input"]>
+    contest_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    election_id?: InputMaybe<Scalars["uuid"]["input"]>
+    generated_tally_sheet_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    import_id?: InputMaybe<Scalars["uuid"]["input"]>
+    incoming_content_hash?: InputMaybe<Scalars["String"]["input"]>
+    incoming_csv?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    previous_csv?: InputMaybe<Scalars["String"]["input"]>
+    source_refs?: InputMaybe<Scalars["jsonb"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    validation_warnings?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Sum_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_sum_fields"
+    baseline_approved_version?: Maybe<Scalars["Int"]["output"]>
+}
+
+/** order by sum() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Sum_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** update columns of table "sequent_backend.tally_sheet_import_item" */
+export enum Sequent_Backend_Tally_Sheet_Import_Item_Update_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    AreaId = "area_id",
+    /** column name */
+    BaselineApprovedTallySheetId = "baseline_approved_tally_sheet_id",
+    /** column name */
+    BaselineApprovedVersion = "baseline_approved_version",
+    /** column name */
+    BaselineContentHash = "baseline_content_hash",
+    /** column name */
+    ChangeType = "change_type",
+    /** column name */
+    Channel = "channel",
+    /** column name */
+    ContestId = "contest_id",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    ElectionId = "election_id",
+    /** column name */
+    GeneratedTallySheetId = "generated_tally_sheet_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    ImportId = "import_id",
+    /** column name */
+    IncomingContentHash = "incoming_content_hash",
+    /** column name */
+    IncomingCsv = "incoming_csv",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    LastUpdatedAt = "last_updated_at",
+    /** column name */
+    PreviousCsv = "previous_csv",
+    /** column name */
+    SourceRefs = "source_refs",
+    /** column name */
+    Status = "status",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    ValidationWarnings = "validation_warnings",
+}
+
+export type Sequent_Backend_Tally_Sheet_Import_Item_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Delete_Key_Input>
+    /** increments the numeric columns with given value of the filtered values */
+    _inc?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Inc_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Prepend_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp
+}
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Var_Pop_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_var_pop_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by var_pop() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Var_Pop_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Var_Samp_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_var_samp_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by var_samp() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Var_Samp_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Variance_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_item_variance_fields"
+    baseline_approved_version?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** order by variance() on columns of table "sequent_backend.tally_sheet_import_item" */
+export type Sequent_Backend_Tally_Sheet_Import_Item_Variance_Order_By = {
+    baseline_approved_version?: InputMaybe<Order_By>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Max_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_max_fields"
+    canonical_csv_sha256?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    created_by_user_id?: Maybe<Scalars["String"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    selected_channel?: Maybe<Scalars["String"]["output"]>
+    source_document_id?: Maybe<Scalars["uuid"]["output"]>
+    source_file_name?: Maybe<Scalars["String"]["output"]>
+    source_format?: Maybe<Scalars["String"]["output"]>
+    source_sha256?: Maybe<Scalars["String"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Tally_Sheet_Import_Min_Fields = {
+    __typename?: "sequent_backend_tally_sheet_import_min_fields"
+    canonical_csv_sha256?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    created_by_user_id?: Maybe<Scalars["String"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    selected_channel?: Maybe<Scalars["String"]["output"]>
+    source_document_id?: Maybe<Scalars["uuid"]["output"]>
+    source_file_name?: Maybe<Scalars["String"]["output"]>
+    source_format?: Maybe<Scalars["String"]["output"]>
+    source_sha256?: Maybe<Scalars["String"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Mutation_Response = {
+    __typename?: "sequent_backend_tally_sheet_import_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Tally_Sheet_Import>
+}
+
+/** input type for inserting object relation for remote table "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Tally_Sheet_Import_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_On_Conflict>
+}
+
+/** on_conflict condition type for table "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_On_Conflict = {
+    constraint: Sequent_Backend_Tally_Sheet_Import_Constraint
+    update_columns?: Array<Sequent_Backend_Tally_Sheet_Import_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.tally_sheet_import". */
+export type Sequent_Backend_Tally_Sheet_Import_Order_By = {
+    annotations?: InputMaybe<Order_By>
+    canonical_csv_sha256?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    created_by_user_id?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    items_aggregate?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Aggregate_Order_By>
+    labels?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    selected_channel?: InputMaybe<Order_By>
+    source_document?: InputMaybe<Sequent_Backend_Document_Order_By>
+    source_document_id?: InputMaybe<Order_By>
+    source_file_name?: InputMaybe<Order_By>
+    source_format?: InputMaybe<Order_By>
+    source_sha256?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    summary?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    validation_report?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.tally_sheet_import */
+export type Sequent_Backend_Tally_Sheet_Import_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Sheet_Import_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    summary?: InputMaybe<Scalars["jsonb"]["input"]>
+    validation_report?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** select columns of table "sequent_backend.tally_sheet_import" */
+export enum Sequent_Backend_Tally_Sheet_Import_Select_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CanonicalCsvSha256 = "canonical_csv_sha256",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    CreatedByUserId = "created_by_user_id",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    LastUpdatedAt = "last_updated_at",
+    /** column name */
+    SelectedChannel = "selected_channel",
+    /** column name */
+    SourceDocumentId = "source_document_id",
+    /** column name */
+    SourceFileName = "source_file_name",
+    /** column name */
+    SourceFormat = "source_format",
+    /** column name */
+    SourceSha256 = "source_sha256",
+    /** column name */
+    Status = "status",
+    /** column name */
+    Summary = "summary",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    ValidationReport = "validation_report",
+}
+
+/** input type for updating data in table "sequent_backend.tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Set_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    canonical_csv_sha256?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    created_by_user_id?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    selected_channel?: InputMaybe<Scalars["String"]["input"]>
+    source_document_id?: InputMaybe<Scalars["uuid"]["input"]>
+    source_file_name?: InputMaybe<Scalars["String"]["input"]>
+    source_format?: InputMaybe<Scalars["String"]["input"]>
+    source_sha256?: InputMaybe<Scalars["String"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    summary?: InputMaybe<Scalars["jsonb"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    validation_report?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_tally_sheet_import" */
+export type Sequent_Backend_Tally_Sheet_Import_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Tally_Sheet_Import_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Tally_Sheet_Import_Stream_Cursor_Value_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    canonical_csv_sha256?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    created_by_user_id?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    selected_channel?: InputMaybe<Scalars["String"]["input"]>
+    source_document_id?: InputMaybe<Scalars["uuid"]["input"]>
+    source_file_name?: InputMaybe<Scalars["String"]["input"]>
+    source_format?: InputMaybe<Scalars["String"]["input"]>
+    source_sha256?: InputMaybe<Scalars["String"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    summary?: InputMaybe<Scalars["jsonb"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    validation_report?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** update columns of table "sequent_backend.tally_sheet_import" */
+export enum Sequent_Backend_Tally_Sheet_Import_Update_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CanonicalCsvSha256 = "canonical_csv_sha256",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    CreatedByUserId = "created_by_user_id",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    LastUpdatedAt = "last_updated_at",
+    /** column name */
+    SelectedChannel = "selected_channel",
+    /** column name */
+    SourceDocumentId = "source_document_id",
+    /** column name */
+    SourceFileName = "source_file_name",
+    /** column name */
+    SourceFormat = "source_format",
+    /** column name */
+    SourceSha256 = "source_sha256",
+    /** column name */
+    Status = "status",
+    /** column name */
+    Summary = "summary",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    ValidationReport = "validation_report",
+}
+
+export type Sequent_Backend_Tally_Sheet_Import_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Delete_Key_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Prepend_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Tally_Sheet_Import_Bool_Exp
+}
+
 /** input type for incrementing numeric columns in table "sequent_backend.tally_sheet" */
 export type Sequent_Backend_Tally_Sheet_Inc_Input = {
     version?: InputMaybe<Scalars["Int"]["input"]>
@@ -18758,10 +20059,12 @@ export type Sequent_Backend_Tally_Sheet_Insert_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    import_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     reviewed_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     reviewed_by_user_id?: InputMaybe<Scalars["String"]["input"]>
+    source_import?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Obj_Rel_Insert_Input>
     status?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     version?: InputMaybe<Scalars["Int"]["input"]>
@@ -18779,6 +20082,7 @@ export type Sequent_Backend_Tally_Sheet_Max_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    import_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     reviewed_at?: Maybe<Scalars["timestamptz"]["output"]>
     reviewed_by_user_id?: Maybe<Scalars["String"]["output"]>
@@ -18799,6 +20103,7 @@ export type Sequent_Backend_Tally_Sheet_Min_Fields = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
     id?: Maybe<Scalars["uuid"]["output"]>
+    import_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     reviewed_at?: Maybe<Scalars["timestamptz"]["output"]>
     reviewed_by_user_id?: Maybe<Scalars["String"]["output"]>
@@ -18814,6 +20119,13 @@ export type Sequent_Backend_Tally_Sheet_Mutation_Response = {
     affected_rows: Scalars["Int"]["output"]
     /** data from the rows affected by the mutation */
     returning: Array<Sequent_Backend_Tally_Sheet>
+}
+
+/** input type for inserting object relation for remote table "sequent_backend.tally_sheet" */
+export type Sequent_Backend_Tally_Sheet_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Tally_Sheet_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_On_Conflict>
 }
 
 /** on_conflict condition type for table "sequent_backend.tally_sheet" */
@@ -18836,10 +20148,12 @@ export type Sequent_Backend_Tally_Sheet_Order_By = {
     election_event_id?: InputMaybe<Order_By>
     election_id?: InputMaybe<Order_By>
     id?: InputMaybe<Order_By>
+    import_id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     reviewed_at?: InputMaybe<Order_By>
     reviewed_by_user_id?: InputMaybe<Order_By>
+    source_import?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Order_By>
     status?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     version?: InputMaybe<Order_By>
@@ -18884,6 +20198,8 @@ export enum Sequent_Backend_Tally_Sheet_Select_Column {
     /** column name */
     Id = "id",
     /** column name */
+    ImportId = "import_id",
+    /** column name */
     Labels = "labels",
     /** column name */
     LastUpdatedAt = "last_updated_at",
@@ -18912,6 +20228,7 @@ export type Sequent_Backend_Tally_Sheet_Set_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    import_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     reviewed_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -18960,6 +20277,7 @@ export type Sequent_Backend_Tally_Sheet_Stream_Cursor_Value_Input = {
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     election_id?: InputMaybe<Scalars["uuid"]["input"]>
     id?: InputMaybe<Scalars["uuid"]["input"]>
+    import_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     reviewed_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -18999,6 +20317,8 @@ export enum Sequent_Backend_Tally_Sheet_Update_Column {
     ElectionId = "election_id",
     /** column name */
     Id = "id",
+    /** column name */
+    ImportId = "import_id",
     /** column name */
     Labels = "labels",
     /** column name */
@@ -20613,6 +21933,22 @@ export type Subscription_Root = {
     sequent_backend_tally_sheet_aggregate: Sequent_Backend_Tally_Sheet_Aggregate
     /** fetch data from the table: "sequent_backend.tally_sheet" using primary key columns */
     sequent_backend_tally_sheet_by_pk?: Maybe<Sequent_Backend_Tally_Sheet>
+    /** fetch data from the table: "sequent_backend.tally_sheet_import" */
+    sequent_backend_tally_sheet_import: Array<Sequent_Backend_Tally_Sheet_Import>
+    /** fetch aggregated fields from the table: "sequent_backend.tally_sheet_import" */
+    sequent_backend_tally_sheet_import_aggregate: Sequent_Backend_Tally_Sheet_Import_Aggregate
+    /** fetch data from the table: "sequent_backend.tally_sheet_import" using primary key columns */
+    sequent_backend_tally_sheet_import_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import>
+    /** fetch data from the table: "sequent_backend.tally_sheet_import_item" */
+    sequent_backend_tally_sheet_import_item: Array<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** fetch aggregated fields from the table: "sequent_backend.tally_sheet_import_item" */
+    sequent_backend_tally_sheet_import_item_aggregate: Sequent_Backend_Tally_Sheet_Import_Item_Aggregate
+    /** fetch data from the table: "sequent_backend.tally_sheet_import_item" using primary key columns */
+    sequent_backend_tally_sheet_import_item_by_pk?: Maybe<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** fetch data from the table in a streaming manner: "sequent_backend.tally_sheet_import_item" */
+    sequent_backend_tally_sheet_import_item_stream: Array<Sequent_Backend_Tally_Sheet_Import_Item>
+    /** fetch data from the table in a streaming manner: "sequent_backend.tally_sheet_import" */
+    sequent_backend_tally_sheet_import_stream: Array<Sequent_Backend_Tally_Sheet_Import>
     /** fetch data from the table in a streaming manner: "sequent_backend.tally_sheet" */
     sequent_backend_tally_sheet_stream: Array<Sequent_Backend_Tally_Sheet>
     /** fetch data from the table: "sequent_backend.tasks_execution" */
@@ -21628,6 +22964,58 @@ export type Subscription_RootSequent_Backend_Tally_Sheet_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_ImportArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_ItemArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_Item_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Sheet_Import_Item_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_Item_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_Item_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Sheet_Import_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Tally_Sheet_Import_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Tally_Sheet_Import_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_Tally_Sheet_StreamArgs = {

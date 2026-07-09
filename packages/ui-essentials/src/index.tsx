@@ -21,7 +21,7 @@ export {default as PageBanner} from "./components/PageBanner/PageBanner"
 export {default as PageLimit} from "./components/PageLimit/PageLimit"
 export {default as Version} from "./components/Version/Version"
 export {default as VerticalBox} from "./components/VerticalBox/VerticalBox"
-export {default as WarnBox} from "./components/WarnBox/WarnBox"
+export {default as WarnBox, warnIdToClassName} from "./components/WarnBox/WarnBox"
 export {
     default as BreadCrumbSteps,
     BreadCrumbStepsVariant,

@@ -4,7 +4,7 @@
           - name: IvrIsPhoneBlacklisted
             query: |
                 query IvrIsPhoneBlacklisted ($phone: String!, $event_id: uuid!) {
-                  blacklist: sequent_backend_phone_blacklist_aggregate(where: {phone_e164:{_eq:$phone},_or:[{election_event_id:{_eq:$event_id}},{election_event_id:{_is_null:true}}]}, limit: 1) {
+                  blacklist: sequent_backend_phone_blacklist_aggregate(where: {phone_e164:{_eq:$phone},election_event_id:{_eq:$event_id}}, limit: 1) {
                     aggregate {
                       count
                     }
