@@ -39,9 +39,7 @@ The bulletin board (`b4`) provides an immutable, append-only log of all election
 
 The following logs must be preserved for the full duration of the election and for the minimum retention period required by applicable electoral regulation:
 
-- `b4` bulletin board logs — complete record of all election lifecycle events
-- Keycloak authentication logs — all login, logout, and access events
-- `step` CLI command logs — all commands executed during election setup and ceremonies
+- Operator terminal session transcripts (for example, captured with `script(1)` or an equivalent mechanism) for all `cli step ...` commands executed during election setup and ceremonies
 
 Logs must not be modified, deleted, or transferred outside the airgap environment without authorization from the election organizer and Sequent.
 
@@ -54,7 +52,7 @@ This section describes the incident response process applicable to the TOE durin
 If a security incident is suspected during an election, the operator must:
 
 1. **Preserve all logs** — do not modify, delete, or restart any system components
-2. **Suspend voting** if voter data integrity may be at risk — use `cli step update-event-voting-status --voting-status CLOSE`
+2. **Suspend voting** if voter data integrity may be at risk — use `cli step update-event-voting-status --election-event-id <ELECTION_EVENT_ID> --voting-status CLOSED`
 3. **Contact Sequent immediately** through the support channel defined in your service agreement
 4. **Do not attempt remediation** without authorization from Sequent and the election organizer
 
