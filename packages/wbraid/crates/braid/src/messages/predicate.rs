@@ -19,6 +19,10 @@
 
 use enum_dispatch::enum_dispatch;
 
+use cryptography::utils::error::Error;
+use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::VSerializable as VSer;
+
 use b4::messages::newtypes::{
     CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash,
     SharesHash, Threshold, TrusteeCount, TrusteeIndex,
@@ -39,7 +43,7 @@ use b4::messages::newtypes::{
 /// client derives it once from its stored configuration and emits it via
 /// `get_predicates()` so the datalog always has the configuration facts
 /// (threshold, trustee count, and this trustee's own index).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct ConfigurationValid {
     pub configuration: ConfigurationHash,
     pub threshold: Threshold,
@@ -48,7 +52,7 @@ pub struct ConfigurationValid {
 }
 
 /// `Shares`: trustee `sender` published its DKG shares (content hash `shares`).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct Shares {
     pub configuration: ConfigurationHash,
     pub shares: SharesHash,
@@ -56,7 +60,7 @@ pub struct Shares {
 }
 
 /// `PublicKey`: trustee `sender` published its view of the joint public key.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct PublicKey {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -65,7 +69,7 @@ pub struct PublicKey {
 
 /// `Ballots`: the protocol manager published the input ciphertexts for the set
 /// of active mixing `trustees`.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct Ballots {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -74,7 +78,7 @@ pub struct Ballots {
 }
 
 /// `Mix`: trustee `sender` shuffled the `input` ciphertexts into `output`.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct Mix {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -85,7 +89,7 @@ pub struct Mix {
 
 /// `MixSignature`: trustee `sender` signed a mix (`input` -> `output`). Same
 /// shape as [`Mix`] but a distinct — and bodyless (§4.4) — predicate.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct MixSignature {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -96,7 +100,7 @@ pub struct MixSignature {
 
 /// `PartialDecryptions`: trustee `sender` published its decryption factors for
 /// the `ciphertexts`.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct PartialDecryptions {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -107,7 +111,7 @@ pub struct PartialDecryptions {
 
 /// `Plaintexts`: trustee `sender` published the combined plaintexts for the
 /// `ciphertexts`.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, VSer)]
 pub struct Plaintexts {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
@@ -237,6 +241,127 @@ impl Predicate {
             Predicate::MixSignature(p) => p.configuration,
             Predicate::PartialDecryptions(p) => p.configuration,
             Predicate::Plaintexts(p) => p.configuration,
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Serialization
+//
+// Predicates are persisted (§6.2) to enforce anti-rewrite across restarts, so
+// the enum needs a stable wire form. `VSer` is derived per-struct above; the
+// enum's tag dispatch is written by hand (the derive supports structs only) as
+// a `(u8 discriminant, inner bytes)` tuple. The discriminant follows the enum
+// declaration order and must stay in sync with the `match` arms below.
+///////////////////////////////////////////////////////////////////////////
+
+impl VSerializable for Predicate {
+    fn ser(&self) -> Vec<u8> {
+        let (discriminant, inner): (u8, Vec<u8>) = match self {
+            Predicate::ConfigurationValid(p) => (0, p.ser()),
+            Predicate::Shares(p) => (1, p.ser()),
+            Predicate::PublicKey(p) => (2, p.ser()),
+            Predicate::Ballots(p) => (3, p.ser()),
+            Predicate::Mix(p) => (4, p.ser()),
+            Predicate::MixSignature(p) => (5, p.ser()),
+            Predicate::PartialDecryptions(p) => (6, p.ser()),
+            Predicate::Plaintexts(p) => (7, p.ser()),
+        };
+        (discriminant, inner).ser()
+    }
+}
+
+impl VDeserializable for Predicate {
+    fn deser(buffer: &[u8]) -> Result<Self, Error> {
+        let (tag, inner): (u8, Vec<u8>) = <(u8, Vec<u8>)>::deser(buffer)?;
+        let predicate = match tag {
+            0 => Predicate::ConfigurationValid(ConfigurationValid::deser(&inner)?),
+            1 => Predicate::Shares(Shares::deser(&inner)?),
+            2 => Predicate::PublicKey(PublicKey::deser(&inner)?),
+            3 => Predicate::Ballots(Ballots::deser(&inner)?),
+            4 => Predicate::Mix(Mix::deser(&inner)?),
+            5 => Predicate::MixSignature(MixSignature::deser(&inner)?),
+            6 => Predicate::PartialDecryptions(PartialDecryptions::deser(&inner)?),
+            7 => Predicate::Plaintexts(Plaintexts::deser(&inner)?),
+            other => {
+                return Err(Error::DeserializationError(format!(
+                    "unknown Predicate discriminant {other}"
+                )))
+            }
+        };
+        Ok(predicate)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use b4::messages::newtypes::zero_hash;
+
+    fn sample_predicates() -> Vec<Predicate> {
+        let cfg = ConfigurationHash(zero_hash());
+        let pk = PublicKeyHash(zero_hash());
+        let ct = CiphertextsHash(zero_hash());
+        vec![
+            Predicate::ConfigurationValid(ConfigurationValid {
+                configuration: cfg,
+                threshold: 2,
+                trustee_count: 3,
+                self_index: 1,
+            }),
+            Predicate::Shares(Shares {
+                configuration: cfg,
+                shares: SharesHash(zero_hash()),
+                sender: 2,
+            }),
+            Predicate::PublicKey(PublicKey {
+                configuration: cfg,
+                public_key: pk,
+                sender: 3,
+            }),
+            Predicate::Ballots(Ballots {
+                configuration: cfg,
+                public_key: pk,
+                ciphertexts: ct,
+                trustees: vec![1, 2, 3],
+            }),
+            Predicate::Mix(Mix {
+                configuration: cfg,
+                public_key: pk,
+                input: ct,
+                output: ct,
+                sender: 2,
+            }),
+            Predicate::MixSignature(MixSignature {
+                configuration: cfg,
+                public_key: pk,
+                input: ct,
+                output: ct,
+                sender: 2,
+            }),
+            Predicate::PartialDecryptions(PartialDecryptions {
+                configuration: cfg,
+                public_key: pk,
+                ciphertexts: ct,
+                decryptions: DecryptionFactorsHash(zero_hash()),
+                sender: 2,
+            }),
+            Predicate::Plaintexts(Plaintexts {
+                configuration: cfg,
+                public_key: pk,
+                ciphertexts: ct,
+                plaintexts: PlaintextsHash(zero_hash()),
+                sender: 2,
+            }),
+        ]
+    }
+
+    #[test]
+    fn predicate_ser_round_trips() {
+        for predicate in sample_predicates() {
+            let bytes = predicate.ser();
+            let decoded = Predicate::deser(&bytes).expect("deser");
+            assert_eq!(predicate, decoded);
         }
     }
 }
