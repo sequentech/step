@@ -514,6 +514,17 @@ const spanishTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "No se pudo eliminar",
                 },
+                config: {
+                    infoMsg:
+                        "Configure el flujo del IVR y sus propiedades a continuación. Para más detalles, póngase en contacto con Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aún no se ha creado ningún mensaje",
+                    infoMsg:
+                        "Configure los mensajes utilizados por el IVR. Los mensajes de anuncio son obligatorios, y los mensajes del sistema se pueden sobrescribir para los idiomas deseados. Se admite SSML, incluso para mezclar idiomas.",
+                    editorTitle: "Mensaje",
+                    editorSubtitle: "Configuración del mensaje",
+                },
                 blacklist: {
                     columns: {
                         phone: "Número de teléfono",
@@ -522,6 +533,10 @@ const spanishTranslation: TranslationType = {
                         createdBy: "Creado por",
                     },
                     emptyMsg: "No hay entradas en la lista de bloqueo",
+                    infoMsg:
+                        "Configure la lista de bloqueo del IVR. Las llamadas de estos números serán desconectadas automáticamente por el sistema.",
+
+                    noFilterMatch: "Ninguna entrada coincide con los filtros indicados",
                     phoneRequired: "El número de teléfono es obligatorio",
                 },
             },
