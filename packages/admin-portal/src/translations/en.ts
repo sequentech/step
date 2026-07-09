@@ -1860,6 +1860,8 @@ const englishTranslation = {
                 implicit_invalid_votes: "Implicitly Invalid Votes",
                 implicit_invalid_votes_percent: "Implicitly Invalid Votes Percent",
                 blank_votes: "Blank Votes",
+                explicit_blank_votes: "Explicit Blank Votes",
+                implicit_blank_votes: "Implicit Blank Votes",
                 blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",

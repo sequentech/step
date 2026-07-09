@@ -414,6 +414,25 @@ mod tests {
     use uuid::Uuid;
     use walkdir::WalkDir;
 
+    fn get_blank_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_alerts: vec![],
+            invalid_errors: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
     #[test]
     fn test_create_configs() -> Result<()> {
         let fixture = TestFixture::new()?;
@@ -1487,6 +1506,161 @@ mod tests {
     }
 
     #[test]
+    fn test_explicit_blank_votes() -> Result<()> {
+        let fixture = TestFixture::new()?;
+
+        let election_event_id = Uuid::new_v4();
+        let areas: Vec<Uuid> = vec![Uuid::new_v4()];
+
+        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        election.ballot_styles.clear();
+
+        let mut contest =
+            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+        contest.candidates[4]
+            .presentation
+            .get_or_insert_with(Default::default)
+            .is_explicit_blank = Some(true);
+        contest.candidates[4].name = Some("Blank vote".to_string());
+        let contest_config_path = fixture
+            .input_dir_configs
+            .join(format!("election__{}", &election.id))
+            .join(format!("contest__{}", &contest.id))
+            .join("contest-config.json");
+        fs::write(&contest_config_path, serde_json::to_string(&contest)?)?;
+
+        let area_config = fixture.create_area_config(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id).unwrap(),
+            100,
+            0,
+            None,
+            election.areas.first().cloned().map(|val| val.id),
+        )?;
+
+        election.ballot_styles.push(generate_ballot_style(
+            &election.tenant_id,
+            &election.election_event_id,
+            &election.id,
+            &area_config.id,
+            vec![contest.clone()],
+        ));
+
+        let ballot_file = fixture
+            .input_dir_ballots
+            .join(format!("election__{}", &election.id))
+            .join(format!("contest__{}", &contest.id))
+            .join(format!("area__{}", area_config.id));
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .create(true)
+            .open(ballot_file.join("ballots.csv"))?;
+
+        for i in 0..10 {
+            let mut choices = vec![
+                DecodedVoteChoice {
+                    id: "0".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "1".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "2".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "3".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "4".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ];
+
+            let mut plaintext_prepare = DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                is_decline_to_vote: false,
+                invalid_errors: vec![],
+                invalid_alerts: vec![],
+                choices: vec![],
+            };
+
+            if i < 5 {
+                choices[0].selected = 0;
+            } else if i < 8 {
+                choices[4].selected = 0;
+            }
+
+            plaintext_prepare.choices = choices;
+
+            let plaintext = contest
+                .encode_plaintext_contest_bigint(&plaintext_prepare)
+                .unwrap();
+
+            writeln!(file, "{}", plaintext)?;
+        }
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        state.exec_next()?;
+        state.exec_next()?;
+        state.exec_next()?;
+        state.exec_next()?;
+        state.exec_next()?;
+        state.exec_next()?;
+
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
+        path.push(format!("{}{}", PREFIX_AREA, &area_config.id));
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+        let reports: TemplateData = serde_json::from_reader(f)?;
+        let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
+        let explicit_blank_result = report
+            .candidate_result
+            .iter()
+            .find(|candidate_result| candidate_result.candidate.id == "4")
+            .cloned()
+            .unwrap();
+
+        assert_eq!(contest_result.total_votes, 10);
+        assert_eq!(contest_result.total_blank_votes, 5);
+        assert_eq!(contest_result.blank_votes.explicit, 3);
+        assert_eq!(contest_result.blank_votes.implicit, 2);
+        assert_eq!(contest_result.total_valid_votes, 10);
+        assert_eq!(contest_result.total_invalid_votes, 0);
+        assert_eq!(explicit_blank_result.total_count, 3);
+
+        Ok(())
+    }
+
+    #[test]
     fn test_blank_votes_implicit_invalid() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -1869,13 +2043,13 @@ mod tests {
             None,
         );
         let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest2], decoded_contests2);
         assert_eq!(result, true);
 
-        // Case 3: EBlankVotePolicy::NOT_ALLOWED but minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
+        // Case 3: EBlankVotePolicy::NOT_ALLOWED still blocks blank votes when minVotes = 0
         let contest3 = get_contest_plurality(
             EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
@@ -1883,13 +2057,13 @@ mod tests {
             Some(0),
         );
         let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest3);
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest3], decoded_contests3);
         assert_eq!(result, true);
 
-        // Case 4: EBlankVotePolicy::NOT_ALLOWED and InvalidVotePolicy::NOT_ALLOWED with invalid errors -> true
+        // Case 4: EBlankVotePolicy::NOT_ALLOWED blocks blank votes when InvalidVotePolicy is NOT_ALLOWED
         let contest4 = get_contest_plurality(
             EOverVotePolicy::ALLOWED,
             EBlankVotePolicy::NOT_ALLOWED,
@@ -1897,7 +2071,7 @@ mod tests {
             None,
         );
         let mut decoded_contests4: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest4);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest4);
         decoded_contests4.insert(contest4.id.clone(), decoded_contest);
 
         let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
@@ -1928,7 +2102,7 @@ mod tests {
             None,
         );
         let mut decoded_contests2: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest2);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest2], decoded_contests2);
@@ -1942,7 +2116,7 @@ mod tests {
             Some(0),
         );
         let mut decoded_contests3: HashMap<String, DecodedVoteContest> = HashMap::new();
-        let decoded_contest = get_decoded_contest_plurality(&contest3);
+        let decoded_contest = get_blank_decoded_contest_plurality(&contest3);
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
         let result = check_voting_error_dialog_util(vec![contest3], decoded_contests3);
