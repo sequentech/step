@@ -414,6 +414,10 @@ const basqueTranslation: TranslationType = {
                     deleteSuccess: "Behar bezala ezabatu da",
                     deleteError: "Ezin izan da ezabatu",
                 },
+                config: {
+                    infoMsg:
+                        "Konfiguratu IVRaren fluxua eta haren propietateak behean. Xehetasun gehiagorako, jarri harremanetan Sequent-ekin.",
+                },
                 prompts: {
                     emptyMsg: "Oraindik ez da promptik sortu",
                     infoMsg:
@@ -429,6 +433,8 @@ const basqueTranslation: TranslationType = {
                         createdBy: "Nork sortua",
                     },
                     emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
+                    infoMsg:
+                        "Konfiguratu IVRaren blokeo-zerrenda. Zenbaki hauetatik datozen deiak automatikoki deskonektatuko ditu sistemak.",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
                 },
             },

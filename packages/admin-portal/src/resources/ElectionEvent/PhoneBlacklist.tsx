@@ -12,7 +12,15 @@ import {
     useRefresh,
 } from "react-admin"
 import {useMutation} from "@apollo/client"
-import {Box, Button, Drawer, IconButton, TextField as MuiTextField, Typography} from "@mui/material"
+import {
+    Alert,
+    Box,
+    Button,
+    Drawer,
+    IconButton,
+    TextField as MuiTextField,
+    Typography,
+} from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import EditIcon from "@mui/icons-material/Edit"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -208,6 +216,7 @@ export const PhoneBlacklist: React.FC = () => {
 
     return (
         <Box>
+            <Alert severity="info">{t("electionEventScreen.ivr.blacklist.infoMsg")}</Alert>
             <List
                 resource={RESOURCE}
                 filter={{tenant_id: tenantId, election_event_id: record.id}}

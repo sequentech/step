@@ -413,6 +413,10 @@ const tagalogTranslation: TranslationType = {
                     deleteSuccess: "Matagumpay na natanggal",
                     deleteError: "Nabigong tanggalin",
                 },
+                config: {
+                    infoMsg:
+                        "I-configure ang IVR flow at ang mga property nito sa ibaba. Para sa higit pang detalye, makipag-ugnayan sa Sequent.",
+                },
                 prompts: {
                     emptyMsg: "Wala pang nagagawang prompt",
                     infoMsg:
@@ -428,6 +432,8 @@ const tagalogTranslation: TranslationType = {
                         createdBy: "Ginawa ni",
                     },
                     emptyMsg: "Walang entry sa listahan ng pag-block",
+                    infoMsg:
+                        "I-configure ang blocklist para sa IVR. Ang mga tawag mula sa mga numerong ito ay awtomatikong idi-disconnect ng system.",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },

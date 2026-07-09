@@ -415,6 +415,10 @@ const spanishTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "No se pudo eliminar",
                 },
+                config: {
+                    infoMsg:
+                        "Configure el flujo del IVR y sus propiedades a continuación. Para más detalles, póngase en contacto con Sequent.",
+                },
                 prompts: {
                     emptyMsg: "Aún no se ha creado ningún mensaje",
                     infoMsg:
@@ -430,6 +434,8 @@ const spanishTranslation: TranslationType = {
                         createdBy: "Creado por",
                     },
                     emptyMsg: "No hay entradas en la lista de bloqueo",
+                    infoMsg:
+                        "Configure la lista de bloqueo del IVR. Las llamadas de estos números serán desconectadas automáticamente por el sistema.",
                     phoneRequired: "El número de teléfono es obligatorio",
                 },
             },

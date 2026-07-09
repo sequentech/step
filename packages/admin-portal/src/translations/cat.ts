@@ -414,6 +414,10 @@ const catalanTranslation: TranslationType = {
                     deleteSuccess: "S'ha eliminat correctament",
                     deleteError: "No s'ha pogut eliminar",
                 },
+                config: {
+                    infoMsg:
+                        "Configureu el flux de l’IVR i les seves propietats a continuació. Per a més informació, poseu-vos en contacte amb Sequent.",
+                },
                 prompts: {
                     emptyMsg: "Encara no s’ha creat cap missatge",
                     infoMsg:
@@ -429,6 +433,8 @@ const catalanTranslation: TranslationType = {
                         createdBy: "Creat per",
                     },
                     emptyMsg: "No hi ha cap entrada a la llista de bloqueig",
+                    infoMsg:
+                        "Configureu la llista de bloqueig de l’IVR. Les trucades d’aquests números seran desconnectades automàticament pel sistema.",
                     phoneRequired: "El número de telèfon és obligatori",
                 },
             },

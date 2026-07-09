@@ -412,6 +412,10 @@ const dutchTranslation: TranslationType = {
                     deleteSuccess: "Succesvol verwijderd",
                     deleteError: "Verwijderen mislukt",
                 },
+                config: {
+                    infoMsg:
+                        "Configureer hieronder de IVR-flow en de bijbehorende eigenschappen. Neem voor meer informatie contact op met Sequent.",
+                },
                 prompts: {
                     emptyMsg: "Nog geen prompts aangemaakt",
                     infoMsg:
@@ -427,6 +431,8 @@ const dutchTranslation: TranslationType = {
                         createdBy: "Aangemaakt door",
                     },
                     emptyMsg: "Er zijn geen vermeldingen in de blokkeerlijst",
+                    infoMsg:
+                        "Configureer de blokkeerlijst voor de IVR. Oproepen van deze nummers worden automatisch door het systeem verbroken.",
                     phoneRequired: "Telefoonnummer is verplicht",
                 },
             },

@@ -414,6 +414,10 @@ const galegoTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "Non se puido eliminar",
                 },
+                config: {
+                    infoMsg:
+                        "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
+                },
                 prompts: {
                     emptyMsg: "Aínda non se creou ningunha mensaxe",
                     infoMsg:
@@ -429,6 +433,8 @@ const galegoTranslation: TranslationType = {
                         createdBy: "Creado por",
                     },
                     emptyMsg: "Non hai entradas na lista de bloqueo",
+                    infoMsg:
+                        "Configure a lista de bloqueo do IVR. As chamadas destes números serán desconectadas automaticamente polo sistema.",
                     phoneRequired: "O número de teléfono é obrigatorio",
                 },
             },

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
 import {useNotify, useRecordContext, useRefresh, useUpdate} from "react-admin"
-import {Box, Button} from "@mui/material"
+import {Alert, Box, Button} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IVR_CONFIG_ANNOTATION} from "@/utils/ivr"
@@ -84,11 +84,13 @@ export const IvrConfig: React.FC = () => {
     }
 
     return (
-        <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 2, maxWidth: 640}}>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+            <Alert severity="info">{t("electionEventScreen.ivr.config.infoMsg")}</Alert>
             <JsonEditor
                 data={editorData}
                 rootName="ivr:config"
                 defaultValue={handleDefault}
+                maxWidth={"100%"}
                 setData={(nextData) => {
                     setEditorData(nextData)
                 }}

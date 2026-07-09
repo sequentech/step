@@ -414,6 +414,10 @@ const frenchTranslation: TranslationType = {
                     deleteSuccess: "Supprimé avec succès",
                     deleteError: "Échec de la suppression",
                 },
+                config: {
+                    infoMsg:
+                        "Configurez le flux du SVI et ses propriétés ci-dessous. Pour plus de détails, veuillez contacter Sequent.",
+                },
                 prompts: {
                     emptyMsg: "Aucun message n’a encore été créé",
                     infoMsg:
@@ -429,6 +433,8 @@ const frenchTranslation: TranslationType = {
                         createdBy: "Créé par",
                     },
                     emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
+                    infoMsg:
+                        "Configurez la liste de blocage du SVI. Les appels provenant de ces numéros seront automatiquement déconnectés par le système.",
                     phoneRequired: "Le numéro de téléphone est obligatoire",
                 },
             },
