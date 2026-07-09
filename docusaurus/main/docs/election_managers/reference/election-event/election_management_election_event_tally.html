@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tally Ceremony | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/election-event/election_management_election_event_tally"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tally Ceremony | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/election-event/election_management_election_event_tally"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/election-event/election_management_election_event_tally" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/election-event/election_management_election_event_tally" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tally Ceremony","item":"https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/election-event/election_management_election_event_tally"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/main/assets/js/runtime~main.131b625f.js" defer="defer"></script>
-<script src="/docusaurus/main/assets/js/main.6d03b32d.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.89d8079f.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/main.7b4d6ec7.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -75,14 +75,15 @@
 <ul>
 <li class=""><strong>Eligible Voters</strong>: Total number eligible to vote.</li>
 <li class=""><strong>Total Voters</strong>: Number who cast a vote.</li>
-<li class=""><strong>Total Valid Votes</strong>: Count of valid ballots.</li>
+<li class=""><strong>Total Valid Votes</strong>: Count of valid ballots, including blank ballots.</li>
 <li class=""><strong>Total Invalid Votes</strong>: Count of invalid ballots, subdivided into:<!-- -->
 <ul>
 <li class=""><strong>Explicitly Invalid Votes</strong>: Null votes, spoiled ballots, protest actions.</li>
 <li class=""><strong>Implicitly Invalid Votes</strong>: Invalid due to configuration (e.g., multiple selections where only one is allowed).</li>
 </ul>
 </li>
-<li class=""><strong>Blank Votes</strong>: Ballots cast with no selection (counted as valid in many systems).</li>
+<li class=""><strong>Blank Votes</strong>: Explicit and implicit blank ballots. Blank ballots are
+included in total valid votes.</li>
 </ul>
 </li>
 </ul>
@@ -91,7 +92,8 @@
 <ul>
 <li class=""><strong>Option / Candidate Name</strong></li>
 <li class=""><strong>Number of Votes</strong>: Count of valid votes for that candidate/option.</li>
-<li class=""><strong>Percentage of Votes</strong>: Proportion relative to total valid votes.</li>
+<li class=""><strong>Percentage of Votes</strong>: Proportion relative to valid non-blank votes when the
+result is a candidate row.</li>
 <li class=""><strong>Ranking / Position</strong>: Placement among candidates by vote count.</li>
 </ul>
 <blockquote>
