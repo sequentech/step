@@ -344,7 +344,8 @@ pub async fn try_insert_cast_vote(
                 return Err(CastVoteError::GetDbClientFailed(err.to_string()));
             }
         };
-        match hasura_db_client.transaction().await {
+        let transaction_result = hasura_db_client.transaction().await;
+        match transaction_result {
             Ok(transaction) => {
                 voter_lock = Some(lock);
                 transaction

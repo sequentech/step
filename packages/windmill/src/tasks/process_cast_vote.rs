@@ -471,6 +471,7 @@ async fn mark_voted_via_internet(realm: &str, voter_id: &str) -> Result<()> {
         StdDuration::from_millis(500),
     )
     .await
+    .map(|_| ())
     .map_err(|err| format!("Error editing voter Internet channel after retries: {err}").into())
 }
 
