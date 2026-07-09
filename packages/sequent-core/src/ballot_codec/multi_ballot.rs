@@ -736,6 +736,7 @@ impl BallotChoices {
                 &choices[choice_index..],
                 contest_is_explicit_invalid,
                 contest_is_explicit_blank,
+                is_explicit_invalid,
             )?;
             choice_index += max_votes;
             contest_choices.push(next);
@@ -767,11 +768,18 @@ impl BallotChoices {
     /// Values set to 0 (unset) will not return a ContestChoice.
     /// It is the responsibility of the caller to advance the choice slice
     /// as choices are decoded.
+    ///
+    /// `is_ballot_declined` is the ballot-level decline-to-vote flag. A
+    /// declined ballot is intentionally empty in every contest, so the
+    /// per-contest selection policy checks (over/min/under/blank vote) are
+    /// skipped for it; structural checks and the explicit-invalid policy
+    /// check still apply.
     fn decode_contest(
         context: &ContestCodecContext,
         choices: &[u64],
         is_explicit_invalid: bool,
         is_explicit_blank: bool,
+        is_ballot_declined: bool,
     ) -> Result<DecodedContestChoices, String> {
         let contest = context.contest;
 
@@ -863,36 +871,46 @@ impl BallotChoices {
             check_max_min_votes_policy(contest.max_votes, contest.min_votes);
         decoded_contest.update(maxmin_errors);
 
-        if let Some(max_votes_val) = max_votes_opt.clone() {
-            let overvote_check = check_over_vote_policy(
+        // A declined ballot is intentionally empty in every contest, so the
+        // per-contest selection policies (over/min/under/blank vote) do not
+        // apply to it. Without this, a declined ballot in a contest with
+        // min_votes >= 1 or a NOT_ALLOWED blank vote policy would collect
+        // implicit invalid errors and be tallied as invalid instead of
+        // declined.
+        if !is_ballot_declined {
+            if let Some(max_votes_val) = max_votes_opt.clone() {
+                let overvote_check = check_over_vote_policy(
+                    &presentation,
+                    num_selected_with_markers,
+                    max_votes_val,
+                );
+                decoded_contest.update(overvote_check);
+            }
+            if let Some(min_votes_val) = min_votes_opt.clone() {
+                let min_check = check_min_vote_policy(
+                    num_selected_with_markers,
+                    min_votes_val,
+                );
+                decoded_contest.update(min_check);
+            }
+
+            let under_vote_check = check_under_vote_policy(
                 &presentation,
                 num_selected_with_markers,
-                max_votes_val,
+                max_votes_opt.clone(),
+                min_votes_opt.clone(),
             );
-            decoded_contest.update(overvote_check);
-        }
-        if let Some(min_votes_val) = min_votes_opt.clone() {
-            let min_check =
-                check_min_vote_policy(num_selected_with_markers, min_votes_val);
-            decoded_contest.update(min_check);
-        }
+            decoded_contest.update(under_vote_check);
 
-        let under_vote_check = check_under_vote_policy(
-            &presentation,
-            num_selected_with_markers,
-            max_votes_opt.clone(),
-            min_votes_opt.clone(),
-        );
-        decoded_contest.update(under_vote_check);
-
-        // handle blank vote policy. A selected explicit blank or explicit
-        // invalid marker counts as a selection, so it is not a blank vote.
-        let blank_vote_check = check_blank_vote_policy(
-            &presentation,
-            num_selected_with_markers,
-            is_explicit_invalid,
-        );
-        decoded_contest.update(blank_vote_check);
+            // handle blank vote policy. A selected explicit blank or explicit
+            // invalid marker counts as a selection, so it is not a blank vote.
+            let blank_vote_check = check_blank_vote_policy(
+                &presentation,
+                num_selected_with_markers,
+                is_explicit_invalid,
+            );
+            decoded_contest.update(blank_vote_check);
+        }
 
         Ok(decoded_contest)
     }
@@ -2052,6 +2070,77 @@ mod tests {
             err.contains("Decline to vote is not enabled for this election"),
             "Unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn test_declined_ballot_skips_selection_policy_checks() {
+        // A contest with min_votes = 1: an empty non-declined ballot
+        // collects errors.implicit.selectedMin, but a declined ballot is
+        // intentionally empty and must not collect selection policy errors,
+        // otherwise the tally classifies it as implicit invalid instead of
+        // declined.
+        let candidates: Vec<Candidate> = (0..3)
+            .map(|i| random_candidate(i.to_string(), "1".to_string()))
+            .collect();
+        let contest = random_contest("1".to_string(), candidates, 1, 2);
+        let mut style = test_ballot_style(vec![contest]);
+        style.election_presentation = Some(ElectionPresentation {
+            decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
+            ..Default::default()
+        });
+
+        // Control: an empty ballot without the decline flag collects the
+        // min-votes policy error.
+        let empty_ballot = BallotChoices::new(
+            false,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+        let plaintext = empty_ballot
+            .encode_to_30_bytes(&style)
+            .expect("empty ballot should encode");
+        let decoded = BallotChoices::decode_from_30_bytes(&plaintext, &style)
+            .expect("empty ballot should decode");
+        assert!(!decoded.is_explicit_invalid);
+        assert!(
+            decoded.choices[0].invalid_errors.iter().any(|error| {
+                error.message.as_deref() == Some("errors.implicit.selectedMin")
+            }),
+            "empty non-declined ballot should collect the min-votes error"
+        );
+
+        // Declined ballot: no selection policy errors must be collected.
+        let declined_ballot = BallotChoices::new(
+            true,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+        let plaintext = declined_ballot
+            .encode_to_30_bytes(&style)
+            .expect("declined ballot should encode");
+        let decoded = BallotChoices::decode_from_30_bytes(&plaintext, &style)
+            .expect("declined ballot should decode");
+        assert!(decoded.is_explicit_invalid);
+        assert!(
+            decoded.choices[0].invalid_errors.is_empty(),
+            "declined ballot must not collect selection policy errors: {:?}",
+            decoded.choices[0].invalid_errors
+        );
+        assert!(
+            decoded.choices[0].invalid_alerts.is_empty(),
+            "declined ballot must not collect selection policy alerts: {:?}",
+            decoded.choices[0].invalid_alerts
+        );
+
+        // The mapped contests classify as declined and blank, not invalid.
+        let mapped = map_decoded_ballot_choices_to_decoded_contests(
+            decoded,
+            &style.contests,
+        )
+        .expect("mapping decoded ballot choices should succeed");
+        assert!(mapped[0].is_decline_to_vote);
+        assert!(!mapped[0].is_invalid());
+        assert!(mapped[0].is_blank());
     }
 
     #[test]

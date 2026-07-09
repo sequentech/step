@@ -215,6 +215,10 @@ export const ballotSelectionsSlice = createSlice({
             if (!isUndefined(currentElection)) {
                 currentElection.forEach((currentQuestion) => {
                     currentQuestion.is_decline_to_vote = true
+                    // A declined ballot must not carry per-contest explicit
+                    // invalid markers, otherwise it would be tallied as
+                    // invalid instead of declined.
+                    currentQuestion.is_explicit_invalid = false
                     currentQuestion.choices = currentQuestion.choices.map((choice) => {
                         if (choice.selected > -1) {
                             choice.selected = -1

@@ -184,10 +184,35 @@ mod tests {
         }
     }
 
+    fn declined_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: true,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
     fn plurality_at_large(ballots: Vec<DecodedVoteContest>) -> PluralityAtLarge {
         let contest = Contest {
             id: "contest".to_string(),
             max_votes: 1,
+            // A declined ballot must count as declined even when the contest
+            // requires selections.
+            min_votes: 1,
             counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
             candidates: vec![candidate("normal", false), candidate("blank", true)],
             ..Contest::default()
@@ -223,6 +248,30 @@ mod tests {
         assert_eq!(result.total_invalid_votes, 1);
         assert_eq!(result.invalid_votes.explicit, 0);
         assert_eq!(result.invalid_votes.implicit, 1);
+        assert_eq!(result.blank_votes.explicit, 0);
+        assert_eq!(result.blank_votes.implicit, 0);
+        assert!(result
+            .candidate_result
+            .iter()
+            .all(|candidate| candidate.total_count == 0));
+    }
+
+    #[test]
+    fn declined_ballot_is_counted_as_declined_only() {
+        let tally = plurality_at_large(vec![declined_vote()]);
+
+        let result = tally
+            .process_ballots(TallyOperation::ProcessBallotsAll)
+            .expect("declined ballot should be processed");
+
+        let metrics = result
+            .extended_metrics
+            .expect("extended metrics should be present");
+        assert_eq!(metrics.total_declined_to_vote, 1);
+        assert_eq!(result.total_valid_votes, 0);
+        assert_eq!(result.total_invalid_votes, 0);
+        assert_eq!(result.invalid_votes.explicit, 0);
+        assert_eq!(result.invalid_votes.implicit, 0);
         assert_eq!(result.blank_votes.explicit, 0);
         assert_eq!(result.blank_votes.implicit, 0);
         assert!(result

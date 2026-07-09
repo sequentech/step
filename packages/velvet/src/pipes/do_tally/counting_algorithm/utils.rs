@@ -82,15 +82,20 @@ pub fn classify_ballot(
     vote: &DecodedVoteContest,
     explicit_blank_candidate_ids: &HashSet<String>,
 ) -> BallotClass {
-    if vote.is_invalid() {
-        if vote.is_explicit_invalid {
-            BallotClass::ExplicitInvalid
+    // Decline-to-vote takes precedence over the invalid checks: a declined
+    // ballot is intentionally empty, so it must not be reclassified as
+    // invalid. A declined ballot with actual content (selections, an
+    // explicit invalid marker or policy errors) is not blank and classifies
+    // as implicit invalid.
+    if vote.is_decline_to_vote() {
+        if vote.is_blank() {
+            BallotClass::Declined
         } else {
             BallotClass::ImplicitInvalid
         }
-    } else if vote.is_decline_to_vote() {
-        if vote.is_blank() {
-            BallotClass::Declined
+    } else if vote.is_invalid() {
+        if vote.is_explicit_invalid {
+            BallotClass::ExplicitInvalid
         } else {
             BallotClass::ImplicitInvalid
         }
@@ -337,6 +342,23 @@ mod tests {
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
         let mut declined = vote(true, false);
         declined.is_decline_to_vote = true;
+
+        assert_eq!(
+            classify_ballot(&declined, &explicit_blank_candidate_ids),
+            BallotClass::ImplicitInvalid
+        );
+    }
+
+    #[test]
+    fn classifies_declined_before_invalid() {
+        // Decline-to-vote takes precedence over the invalid checks: a
+        // declined ballot carrying an explicit invalid marker is not blank,
+        // so it classifies as implicit invalid (not explicit invalid).
+        let contest = contest();
+        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let mut declined = vote(false, false);
+        declined.is_decline_to_vote = true;
+        declined.is_explicit_invalid = true;
 
         assert_eq!(
             classify_ballot(&declined, &explicit_blank_candidate_ids),

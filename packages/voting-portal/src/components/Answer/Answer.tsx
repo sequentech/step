@@ -116,7 +116,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         // Explicit blank candidates intentionally use the standard
         // selection logic.
         return !isUndefined(selectionState) && selectionState.selected > -1
-3    }
+    }
     const setInvalidVote = (value: boolean) => {
         dispatch(
             setBallotSelectionInvalidVote({
