@@ -297,7 +297,12 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             {!isBallotDeclineToVote && (
                 <>
                     {questionPlaintext.invalid_errors.map((error, index) => (
-                        <WarnBox variant="warning" key={index}>
+                        <WarnBox
+                            variant="warning"
+                            key={index}
+                            warnId={error.message}
+                            warnType={error.error_type}
+                        >
                             {t(error.message || "", normalizeMessageMap(error.message_map))}
                         </WarnBox>
                     ))}
