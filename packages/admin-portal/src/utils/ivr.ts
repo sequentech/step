@@ -6,8 +6,9 @@ export const IVR_CONFIG_ANNOTATION = "ivr:config" as const
 export const IVR_PROMPTS_ANNOTATION = "ivr:prompts" as const
 
 type EntityAnnotations = Record<string, unknown> | null | undefined
-interface IvrEntityI18nAnnotation {
-    prompt?: Record<string, string>
+type IvrEntityI18nAnnotation = Record<string, IvrEntityI18nAnnotationContent>
+interface IvrEntityI18nAnnotationContent {
+    prompt?: string
 }
 
 export const parseIvrEntityAnnotations = (
@@ -24,9 +25,6 @@ export const parseIvrEntityAnnotations = (
         }
     } else if (ivrRaw) {
         console.error("Unexpected type of ivr entity annotation", typeof ivrRaw, ivrRaw)
-    }
-    if (!parsed.prompt) {
-        parsed.prompt = {}
     }
     obj[IVR_ENTITY_I18N_ANNOTATION] = parsed
 

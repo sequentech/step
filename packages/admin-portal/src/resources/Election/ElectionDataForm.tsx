@@ -393,7 +393,7 @@ export const ElectionDataForm: React.FC = () => {
                                 label={String(t("electionEventScreen.field.description"))}
                             />
                             <TextInput
-                                source={`annotations[${IVR_ENTITY_I18N_ANNOTATION}][prompt][${lang}]`}
+                                source={`annotations.${IVR_ENTITY_I18N_ANNOTATION}.${lang}.prompt`}
                                 label={String(t("electionScreen.field.ivrPrompt"))}
                             />
                             {hasTos ? (
