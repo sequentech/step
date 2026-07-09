@@ -121,6 +121,14 @@ pub enum Permissions {
     TALLY_SHEET_CREATE,
     #[strum(serialize = "tally-sheet-review")]
     TALLY_SHEET_REVIEW,
+    #[strum(serialize = "tally-sheet-import-view")]
+    TALLY_SHEET_IMPORT_VIEW,
+    #[strum(serialize = "tally-sheet-import-create")]
+    TALLY_SHEET_IMPORT_CREATE,
+    #[strum(serialize = "tally-sheet-import-review")]
+    TALLY_SHEET_IMPORT_REVIEW,
+    #[strum(serialize = "tally-recount-execute")]
+    TALLY_RECOUNT_EXECUTE,
     #[strum(serialize = "cast-vote-read")]
     CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
@@ -201,6 +209,8 @@ pub enum Permissions {
     ELECTION_EVENT_SCHEDULED_TAB,
     #[strum(serialize = "election-event-reports-tab")]
     ELECTION_EVENT_REPORTS_TAB,
+    #[strum(serialize = "election-event-ivr-tab")]
+    ELECTION_EVENT_IVR_TAB,
     #[strum(serialize = "election-event-cas-tab")]
     ELECTION_EVENT_CAS_TAB,
     #[strum(serialize = "ca-read")]
@@ -379,6 +389,8 @@ pub enum Permissions {
     PHONE_BLACKLIST_READ,
     #[strum(serialize = "phone-blacklist-create")]
     PHONE_BLACKLIST_CREATE,
+    #[strum(serialize = "phone-blacklist-update")]
+    PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
 }

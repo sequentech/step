@@ -1,0 +1,15 @@
+mutation ReviewTallySheet(
+    $election_event_id: String!
+    $tally_sheet_id: String!
+    $new_status: String!
+) {
+    review_tally_sheet(
+        election_event_id: $election_event_id
+        tally_sheet_id: $tally_sheet_id
+        new_status: $new_status
+    ) {
+        id
+        status
+        version
+    }
+}

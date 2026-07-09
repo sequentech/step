@@ -52,11 +52,12 @@ const DragFileElement = styled(Box)`
 
 export interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
+    accept?: string
 }
 
 // based on https://www.codemzy.com/blog/react-drag-drop-file-upload
 export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildren<DropFileProps>>(
-    ({handleFiles, children}, inputRef) => {
+    ({handleFiles, accept, children}, inputRef) => {
         const innerRef = useForwardedRef(inputRef)
         const [dragActive, setDragActive] = useState(false)
         const [fileName, setFileName] = useState<string>("")
@@ -112,6 +113,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         className="drop-input-file"
                         ref={innerRef}
                         type="file"
+                        accept={accept}
                         onChange={handleChange}
                         data-testid="drop-input-file"
                         aria-label="Drop Input File"

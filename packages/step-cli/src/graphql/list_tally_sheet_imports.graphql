@@ -1,0 +1,20 @@
+query ListTallySheetImports($election_event_id: uuid!, $limit: Int!) {
+    sequent_backend_tally_sheet_import(
+        where: {election_event_id: {_eq: $election_event_id}}
+        order_by: {created_at: desc}
+        limit: $limit
+    ) {
+        id
+        source_document_id
+        source_file_name
+        source_sha256
+        source_format
+        selected_channel
+        status
+        created_at
+        created_by_user_id
+        summary
+        validation_report
+        canonical_csv_sha256
+    }
+}

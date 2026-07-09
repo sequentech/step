@@ -1,0 +1,13 @@
+mutation ReviewTallySheetImport(
+    $election_event_id: String!
+    $import_id: String!
+    $decision: String!
+) {
+    review_tally_sheet_import(
+        election_event_id: $election_event_id
+        import_id: $import_id
+        decision: $decision
+    ) {
+        tally_sheet_import: import
+    }
+}
