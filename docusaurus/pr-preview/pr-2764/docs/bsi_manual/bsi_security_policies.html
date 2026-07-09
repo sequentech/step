@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">BSI User Manual — Part 4: Security Policies | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2764/docs/bsi_manual/bsi_security_policies"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="BSI User Manual — Part 4: Security Policies | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2764/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2764/docs/bsi_manual/bsi_security_policies"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2764/docs/bsi_manual/bsi_security_policies" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2764/docs/bsi_manual/bsi_security_policies" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"BSI User Manual — Part 4: Security Policies","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2764/docs/bsi_manual/bsi_security_policies"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2764/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2764/assets/js/runtime~main.c9d89bf7.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-2764/assets/js/main.fe73cc57.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2764/assets/js/runtime~main.f2ff880e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2764/assets/js/main.e663fab7.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -36,9 +36,7 @@
 <p>The bulletin board (<code>b4</code>) provides an immutable, append-only log of all election events. Its design ensures that no record can be modified or deleted once written.</p>
 <p>The following logs must be preserved for the full duration of the election and for the minimum retention period required by applicable electoral regulation:</p>
 <ul>
-<li class=""><code>b4</code> bulletin board logs — complete record of all election lifecycle events</li>
-<li class="">Keycloak authentication logs — all login, logout, and access events</li>
-<li class=""><code>step</code> CLI command logs — all commands executed during election setup and ceremonies</li>
+<li class="">Operator terminal session transcripts (for example, captured with <code>script(1)</code> or an equivalent mechanism) for all <code>cli step ...</code> commands executed during election setup and ceremonies</li>
 </ul>
 <p>Logs must not be modified, deleted, or transferred outside the airgap environment without authorization from the election organizer and Sequent.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="44-incident-response">4.4 Incident Response<a href="#44-incident-response" class="hash-link" aria-label="Direct link to 4.4 Incident Response" title="Direct link to 4.4 Incident Response" translate="no">​</a></h2>
@@ -47,7 +45,7 @@
 <p>If a security incident is suspected during an election, the operator must:</p>
 <ol>
 <li class=""><strong>Preserve all logs</strong> — do not modify, delete, or restart any system components</li>
-<li class=""><strong>Suspend voting</strong> if voter data integrity may be at risk — use <code>cli step update-event-voting-status --voting-status CLOSE</code></li>
+<li class=""><strong>Suspend voting</strong> if voter data integrity may be at risk — use <code>cli step update-event-voting-status --election-event-id &lt;ELECTION_EVENT_ID&gt; --voting-status CLOSED</code></li>
 <li class=""><strong>Contact Sequent immediately</strong> through the support channel defined in your service agreement</li>
 <li class=""><strong>Do not attempt remediation</strong> without authorization from Sequent and the election organizer</li>
 </ol>
