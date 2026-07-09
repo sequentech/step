@@ -8,8 +8,10 @@ set -ex -o pipefail
 source .devcontainer/.env
 docker compose restart graphql-engine
 
-# graphql-engine needs some waiting time before it's up and working
-sleep 10
+# graphql-engine applies migrations and metadata before it starts serving,
+# so poll the health endpoint instead of sleeping a fixed amount of time
+timeout 120 bash -c \
+    'until curl -fsS http://graphql-engine:8080/healthz >/dev/null 2>&1; do sleep 2; done'
 
 # Generate graphql schema
 cd packages/admin-portal
