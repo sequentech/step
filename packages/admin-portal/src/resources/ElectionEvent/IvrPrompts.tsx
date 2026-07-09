@@ -42,6 +42,7 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import Add from "@mui/icons-material/Add"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {cloneDeep} from "lodash"
 
 const RESOURCE = "sequent_backend_election_event"
 
@@ -113,7 +114,7 @@ const PromptsList: React.FC<PromptsListProps> = ({
             .sort((a, b) => {
                 return Number(b.required) - Number(a.required) || a.id.localeCompare(b.id)
             })
-    }, [prompts, selectedLanguage])
+    }, [prompts, selectedLanguage, requiredPromptKeys])
     const listContext = useList({data: data, perPage: 10})
 
     return (
@@ -229,14 +230,17 @@ export const IvrPrompts: React.FC = () => {
             return Object.entries(entries).every(([key, value]) => {
                 // Required prompts must be given for all languages, no exceptions.
                 if (requiredPromptKeys.has(key)) {
-                    return key.trim() && value.trim()
+                    return Boolean(key.trim() && value.trim())
                 }
-                return key.trim()
+                return Boolean(key.trim())
             })
         })
     }
-    const editorValid: boolean = useMemo(() => promptsValid(editorData), [editorData])
-    const promptsEmpty: boolean = Object.keys(editorData[selectedLanguage]).length < 1
+    const editorValid: boolean = useMemo(
+        () => promptsValid(editorData),
+        [editorData, requiredPromptKeys]
+    )
+    const promptsEmpty: boolean = Object.keys(editorData[selectedLanguage] || {}).length < 1
 
     if (!record?.id) {
         return null
@@ -270,7 +274,7 @@ export const IvrPrompts: React.FC = () => {
         let key = (typeof rawKey === "string" ? rawKey : "").trim()
         let value = (typeof rawValue === "string" ? rawValue : "").trim()
         if (key && value) {
-            let newData = {...editorData}
+            let newData = cloneDeep(editorData)
             let langs = [...Object.keys(newData), ...languages, selectedLanguage]
             langs.forEach((lang) => {
                 if (!(lang in newData)) {
@@ -286,14 +290,14 @@ export const IvrPrompts: React.FC = () => {
     const updatePromptKey = (rawValue: any) => {
         let value = (typeof rawValue === "string" ? rawValue : "").trim()
         if (editId) {
-            let newData = {...editorData}
+            let newData = cloneDeep(editorData)
             newData[selectedLanguage][editId] = value
             setEditorData(newData)
         }
     }
     const deletePromptKey = () => {
         if (deleteId && !requiredPromptKeys.has(deleteId)) {
-            let newData = {...editorData}
+            let newData = cloneDeep(editorData)
             let langs = [...Object.keys(newData), ...languages, selectedLanguage]
             langs.forEach((lang) => {
                 if (lang in newData) {
@@ -468,9 +472,9 @@ export const IvrPrompts: React.FC = () => {
                                         disabled={
                                             !formData?.value ||
                                             !formData?.key ||
-                                            Object.keys(editorData[selectedLanguage]).includes(
-                                                formData?.key
-                                            )
+                                            Object.keys(
+                                                editorData[selectedLanguage] || {}
+                                            ).includes(formData?.key)
                                         }
                                         sx={{marginInline: "1rem"}}
                                     />
