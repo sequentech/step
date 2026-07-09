@@ -19,7 +19,6 @@ import {
 } from "react-admin"
 import {
     Button,
-    Alert,
     Box,
     Card,
     Drawer,
@@ -43,6 +42,7 @@ import Add from "@mui/icons-material/Add"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {cloneDeep} from "lodash"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 const RESOURCE = "sequent_backend_election_event"
 
@@ -342,7 +342,9 @@ export const IvrPrompts: React.FC = () => {
 
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
-            <Alert severity="info">{t("electionEventScreen.ivr.prompts.infoMsg")}</Alert>
+            <ElectionHeaderStyles.SubTitle>
+                {t("electionEventScreen.ivr.prompts.infoMsg")}
+            </ElectionHeaderStyles.SubTitle>
             <Box>
                 {!promptsEmpty ? (
                     <Box

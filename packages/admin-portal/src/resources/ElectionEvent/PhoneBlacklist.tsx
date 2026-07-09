@@ -14,15 +14,7 @@ import {
     useRefresh,
 } from "react-admin"
 import {useMutation} from "@apollo/client"
-import {
-    Alert,
-    Box,
-    Button,
-    Drawer,
-    IconButton,
-    TextField as MuiTextField,
-    Typography,
-} from "@mui/material"
+import {Box, Button, Drawer, IconButton, TextField as MuiTextField, Typography} from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import EditIcon from "@mui/icons-material/Edit"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -40,6 +32,7 @@ import {DELETE_PHONE_BLACKLIST_ENTRY} from "@/queries/DeletePhoneBlacklistEntry"
 import {Dialog} from "@sequentech/ui-essentials"
 import {theme} from "@sequentech/ui-essentials"
 import {Add} from "@mui/icons-material"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 const RESOURCE = "sequent_backend_phone_blacklist"
 
@@ -230,7 +223,9 @@ export const PhoneBlacklist: React.FC = () => {
 
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
-            <Alert severity="info">{t("electionEventScreen.ivr.blacklist.infoMsg")}</Alert>
+            <ElectionHeaderStyles.SubTitle>
+                {t("electionEventScreen.ivr.blacklist.infoMsg")}
+            </ElectionHeaderStyles.SubTitle>
             <List
                 resource={RESOURCE}
                 filter={{tenant_id: tenantId, election_event_id: record.id}}
