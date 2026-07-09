@@ -513,17 +513,6 @@ const catalanTranslation: TranslationType = {
                     deleteSuccess: "S'ha eliminat correctament",
                     deleteError: "No s'ha pogut eliminar",
                 },
-                config: {
-                    infoMsg:
-                        "Configureu el flux de l’IVR i les seves propietats a continuació. Per a més informació, poseu-vos en contacte amb Sequent.",
-                },
-                prompts: {
-                    emptyMsg: "Encara no s’ha creat cap missatge",
-                    infoMsg:
-                        "Configureu els missatges utilitzats per l’IVR. Els missatges d’anunci són obligatoris, i els missatges del sistema es poden sobreescriure per als idiomes desitjats. S’admet SSML, també per barrejar idiomes.",
-                    editorTitle: "Missatge",
-                    editorSubtitle: "Configuració del missatge",
-                },
                 blacklist: {
                     columns: {
                         phone: "Número de telèfon",
@@ -532,10 +521,6 @@ const catalanTranslation: TranslationType = {
                         createdBy: "Creat per",
                     },
                     emptyMsg: "No hi ha cap entrada a la llista de bloqueig",
-                    infoMsg:
-                        "Configureu la llista de bloqueig de l’IVR. Les trucades d’aquests números seran desconnectades automàticament pel sistema.",
-
-                    noFilterMatch: "Cap entrada no coincideix amb els filtres indicats",
                     phoneRequired: "El número de telèfon és obligatori",
                 },
             },

@@ -513,17 +513,6 @@ const galegoTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "Non se puido eliminar",
                 },
-                config: {
-                    infoMsg:
-                        "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
-                },
-                prompts: {
-                    emptyMsg: "Aínda non se creou ningunha mensaxe",
-                    infoMsg:
-                        "Configure as mensaxes utilizadas polo IVR. As mensaxes de anuncio son obrigatorias, e as mensaxes do sistema pódense sobrescribir para os idiomas desexados. Admítese SSML, tamén para mesturar idiomas.",
-                    editorTitle: "Mensaxe",
-                    editorSubtitle: "Configuración da mensaxe",
-                },
                 blacklist: {
                     columns: {
                         phone: "Número de teléfono",
@@ -532,10 +521,6 @@ const galegoTranslation: TranslationType = {
                         createdBy: "Creado por",
                     },
                     emptyMsg: "Non hai entradas na lista de bloqueo",
-                    infoMsg:
-                        "Configure a lista de bloqueo do IVR. As chamadas destes números serán desconectadas automaticamente polo sistema.",
-
-                    noFilterMatch: "Ningunha entrada coincide cos filtros indicados",
                     phoneRequired: "O número de teléfono é obrigatorio",
                 },
             },

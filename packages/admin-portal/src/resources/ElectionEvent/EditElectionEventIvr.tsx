@@ -8,7 +8,6 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {PhoneBlacklist} from "./PhoneBlacklist"
 import {IvrConfig} from "./IvrConfig"
-import {IvrPrompts} from "./IvrPrompts"
 
 const ConfigTab: React.FC = () => (
     <Suspense fallback={<div>Loading...</div>}>
@@ -22,12 +21,6 @@ const BlacklistTab: React.FC = () => (
     </Suspense>
 )
 
-const PromptsTab: React.FC = () => (
-    <Suspense fallback={<div>Loading...</div>}>
-        <IvrPrompts />
-    </Suspense>
-)
-
 export const EditElectionEventIvr: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -37,11 +30,6 @@ export const EditElectionEventIvr: React.FC = () => {
     tabs.push({
         label: t("electionEventScreen.ivr.tabs.config"),
         component: ConfigTab,
-    })
-
-    tabs.push({
-        label: t("electionEventScreen.ivr.tabs.prompts"),
-        component: PromptsTab,
     })
 
     if (authContext.isAuthorized(true, authContext.tenantId, IPermissions.PHONE_BLACKLIST_READ)) {

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export const IVR_ENTITY_I18N_ANNOTATION = "ivr:i18n" as const
 export const IVR_CONFIG_ANNOTATION = "ivr:config" as const
-export const IVR_PROMPTS_ANNOTATION = "ivr:prompts" as const
 
 type EntityAnnotations = Record<string, unknown> | null | undefined
 interface IvrEntityI18nAnnotation {
