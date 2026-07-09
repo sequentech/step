@@ -518,7 +518,11 @@ services:
       interval: 5s
       timeout: 10s
       retries: 25
-      start_period: 30s
+      # long start_period to cover the initial cold `cargo run` compilation of
+      # harvest on a fresh checkout; failures during start_period don't count
+      # towards retries and a success flips it healthy immediately, so this
+      # costs nothing on warm starts
+      start_period: 1800s
 
   trustee1:
     profiles: ["full"]
