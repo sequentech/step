@@ -86,7 +86,7 @@ const EmptyPrompts: React.FC<EmptyPromptsProps> = ({onAdd}) => {
                 {t("electionEventScreen.ivr.prompts.emptyMsg")}
             </Typography>
             <Button onClick={onAdd}>
-                <IconButton icon={faPlus as any} fontSize="24px" />
+                <Add />
                 {t("common.label.add")}
             </Button>
             <Typography variant="body1" component="p">
