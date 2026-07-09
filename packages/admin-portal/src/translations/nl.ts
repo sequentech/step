@@ -433,6 +433,8 @@ const dutchTranslation: TranslationType = {
                     emptyMsg: "Er zijn geen vermeldingen in de blokkeerlijst",
                     infoMsg:
                         "Configureer de blokkeerlijst voor de IVR. Oproepen van deze nummers worden automatisch door het systeem verbroken.",
+
+                    noFilterMatch: "Geen vermeldingen komen overeen met de opgegeven filters",
                     phoneRequired: "Telefoonnummer is verplicht",
                 },
             },

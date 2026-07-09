@@ -434,6 +434,8 @@ const tagalogTranslation: TranslationType = {
                     emptyMsg: "Walang entry sa listahan ng pag-block",
                     infoMsg:
                         "I-configure ang blocklist para sa IVR. Ang mga tawag mula sa mga numerong ito ay awtomatikong idi-disconnect ng system.",
+
+                    noFilterMatch: "Walang entry na tumutugma sa ibinigay na mga filter",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },

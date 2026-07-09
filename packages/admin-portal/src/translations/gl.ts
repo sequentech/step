@@ -435,6 +435,8 @@ const galegoTranslation: TranslationType = {
                     emptyMsg: "Non hai entradas na lista de bloqueo",
                     infoMsg:
                         "Configure a lista de bloqueo do IVR. As chamadas destes números serán desconectadas automaticamente polo sistema.",
+
+                    noFilterMatch: "Ningunha entrada coincide cos filtros indicados",
                     phoneRequired: "O número de teléfono é obrigatorio",
                 },
             },

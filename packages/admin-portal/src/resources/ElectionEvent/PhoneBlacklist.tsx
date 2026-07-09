@@ -38,15 +38,27 @@ import {CREATE_PHONE_BLACKLIST_ENTRY} from "@/queries/CreatePhoneBlacklistEntry"
 import {UPDATE_PHONE_BLACKLIST_ENTRY} from "@/queries/UpdatePhoneBlacklistEntry"
 import {DELETE_PHONE_BLACKLIST_ENTRY} from "@/queries/DeletePhoneBlacklistEntry"
 import {Dialog} from "@sequentech/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
+import {Add} from "@mui/icons-material"
 
 const RESOURCE = "sequent_backend_phone_blacklist"
 
-const Empty: React.FC = () => {
+interface EmptyProps {
+    onAdd: () => void
+}
+const Empty: React.FC<EmptyProps> = ({onAdd}) => {
     const {t} = useTranslation()
     return (
         <ResourceListStyles.EmptyBox>
-            <Typography variant="subtitle1">
+            <Typography variant="h4" component="p">
                 {t("electionEventScreen.ivr.blacklist.emptyMsg")}
+            </Typography>
+            <Button onClick={onAdd}>
+                <Add />
+                {t("common.label.add")}
+            </Button>
+            <Typography variant="body1" component="p">
+                {t("common.resources.noResult.askCreate")}
             </Typography>
         </ResourceListStyles.EmptyBox>
     )
@@ -217,14 +229,14 @@ export const PhoneBlacklist: React.FC = () => {
     }
 
     return (
-        <Box>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
             <Alert severity="info">{t("electionEventScreen.ivr.blacklist.infoMsg")}</Alert>
             <List
                 resource={RESOURCE}
                 filter={{tenant_id: tenantId, election_event_id: record.id}}
                 sort={{field: "phone_e164", order: "ASC"}}
                 storeKey={false}
-                empty={false}
+                empty={<Empty onAdd={() => setDrawerOpen(true)} />}
                 filters={[
                     <TextInput
                         source="phone_e164"
@@ -252,7 +264,22 @@ export const PhoneBlacklist: React.FC = () => {
                     />
                 }
             >
-                <DatagridConfigurable empty={<Empty />} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    empty={
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                padding: theme.spacing(2),
+                            }}
+                        >
+                            <Typography variant="subtitle1">
+                                {t("electionEventScreen.ivr.blacklist.noFilterMatch")}
+                            </Typography>
+                        </Box>
+                    }
+                    bulkActionButtons={false}
+                >
                     <TextField
                         source="phone_e164"
                         label={t("electionEventScreen.ivr.blacklist.columns.phone")}

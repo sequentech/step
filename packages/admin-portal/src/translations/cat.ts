@@ -435,6 +435,8 @@ const catalanTranslation: TranslationType = {
                     emptyMsg: "No hi ha cap entrada a la llista de bloqueig",
                     infoMsg:
                         "Configureu la llista de bloqueig de l’IVR. Les trucades d’aquests números seran desconnectades automàticament pel sistema.",
+
+                    noFilterMatch: "Cap entrada no coincideix amb els filtres indicats",
                     phoneRequired: "El número de telèfon és obligatori",
                 },
             },

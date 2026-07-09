@@ -434,6 +434,7 @@ const englishTranslation = {
                     emptyMsg: "There are no entries in the blocklist",
                     infoMsg:
                         "Configure the blocklist for the IVR. Calls from these numbers will be disconnected automatically by the system.",
+                    noFilterMatch: "No entries match the given filters",
                     phoneRequired: "Phone number is required",
                 },
             },

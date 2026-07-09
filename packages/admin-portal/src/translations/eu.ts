@@ -435,6 +435,8 @@ const basqueTranslation: TranslationType = {
                     emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
                     infoMsg:
                         "Konfiguratu IVRaren blokeo-zerrenda. Zenbaki hauetatik datozen deiak automatikoki deskonektatuko ditu sistemak.",
+
+                    noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
                 },
             },

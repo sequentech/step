@@ -435,6 +435,8 @@ const frenchTranslation: TranslationType = {
                     emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
                     infoMsg:
                         "Configurez la liste de blocage du SVI. Les appels provenant de ces numéros seront automatiquement déconnectés par le système.",
+
+                    noFilterMatch: "Aucune entrée ne correspond aux filtres indiqués",
                     phoneRequired: "Le numéro de téléphone est obligatoire",
                 },
             },
