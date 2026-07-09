@@ -168,6 +168,46 @@ pub async fn get_areas_by_contest_id(
 }
 
 #[instrument(err, skip_all)]
+pub async fn area_contest_exists(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    contest_id: &str,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id
+                FROM
+                    sequent_backend.area_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    area_id = $3 AND
+                    contest_id = $4
+                LIMIT 1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(contest_id)?,
+            ],
+        )
+        .await?;
+
+    Ok(!rows.is_empty())
+}
+
+#[instrument(err, skip_all)]
 pub async fn get_area_contests_by_area_contest_ids(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

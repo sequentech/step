@@ -1,0 +1,139 @@
+table:
+    name: tally_sheet_import
+    schema: sequent_backend
+object_relationships:
+    - name: source_document
+      using:
+          foreign_key_constraint_on: source_document_id
+array_relationships:
+    - name: items
+      using:
+          foreign_key_constraint_on:
+              column: import_id
+              table:
+                  name: tally_sheet_import_item
+                  schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - canonical_csv_sha256
+              - created_at
+              - created_by_user_id
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - selected_channel
+              - source_document_id
+              - source_file_name
+              - source_format
+              - source_sha256
+              - status
+              - summary
+              - tenant_id
+              - validation_report
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - canonical_csv_sha256
+              - created_at
+              - created_by_user_id
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - selected_channel
+              - source_document_id
+              - source_file_name
+              - source_format
+              - source_sha256
+              - status
+              - summary
+              - tenant_id
+              - validation_report
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - canonical_csv_sha256
+              - created_at
+              - created_by_user_id
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - selected_channel
+              - source_document_id
+              - source_file_name
+              - source_format
+              - source_sha256
+              - status
+              - summary
+              - tenant_id
+              - validation_report
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-import-view
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - canonical_csv_sha256
+              - created_at
+              - created_by_user_id
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - selected_channel
+              - source_document_id
+              - source_file_name
+              - source_format
+              - source_sha256
+              - status
+              - summary
+              - tenant_id
+              - validation_report
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-import-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - canonical_csv_sha256
+              - created_at
+              - created_by_user_id
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - selected_channel
+              - source_document_id
+              - source_file_name
+              - source_format
+              - source_sha256
+              - status
+              - summary
+              - tenant_id
+              - validation_report
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-sheet-import-review

@@ -121,6 +121,14 @@ pub enum Permissions {
     TALLY_SHEET_CREATE,
     #[strum(serialize = "tally-sheet-review")]
     TALLY_SHEET_REVIEW,
+    #[strum(serialize = "tally-sheet-import-view")]
+    TALLY_SHEET_IMPORT_VIEW,
+    #[strum(serialize = "tally-sheet-import-create")]
+    TALLY_SHEET_IMPORT_CREATE,
+    #[strum(serialize = "tally-sheet-import-review")]
+    TALLY_SHEET_IMPORT_REVIEW,
+    #[strum(serialize = "tally-recount-execute")]
+    TALLY_RECOUNT_EXECUTE,
     #[strum(serialize = "cast-vote-read")]
     CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
