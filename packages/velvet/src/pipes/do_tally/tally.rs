@@ -16,6 +16,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::types::{
     ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
     hasura::core::TallySheet,
+    tally_sheets::TallySheetStatus,
 };
 use serde_json::Value;
 use std::cmp;
@@ -442,8 +443,9 @@ mod tests {
             channel: None,
             deleted_at: None,
             created_by_user_id: "user".to_string(),
-            status: "APPROVED".to_string(),
+            status: TallySheetStatus::APPROVED,
             version: 1,
+            import_id: None,
         }
     }
 
