@@ -232,6 +232,18 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::PhoneBlacklistUpdated(number, action) => {
+                let action_msg = match action {
+                    PhoneBlacklistAction::CreateEntry => "added to",
+                    PhoneBlacklistAction::DeleteEntry => "deleted from",
+                };
+                let description = format!("Phone {} {action_msg} the phone blacklist", number.0);
+                StatementHead {
+                    kind: StatementType::PhoneBlacklistUpdated,
+                    description,
+                    ..default_head
+                }
+            }
         }
     }
 }
@@ -325,6 +337,7 @@ pub enum StatementBody {
     /// Records that one or more CA certificates were imported or deleted for an election event.
     /// Carries the action (Import/Delete) and the subject DNs of the affected certificates.
     CertificateAuthEvent(CertificateAuthEventAction, CertificateSubjectDnsString),
+    PhoneBlacklistUpdated(PhoneE164String, PhoneBlacklistAction),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -356,6 +369,7 @@ pub enum StatementType {
     VoterPublicKey,
     AdminPublicKey,
     CertificateAuthEvent,
+    PhoneBlacklistUpdated,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]

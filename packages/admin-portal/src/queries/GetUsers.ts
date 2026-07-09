@@ -14,6 +14,7 @@ export const LIST_USERS = gql`
         $last_name: jsonb
         $limit: Int
         $offset: Int
+        $userIds: [String!]
         $showVotesInfo: Boolean
         $attributes: jsonb
         $enabled: Boolean
@@ -32,6 +33,7 @@ export const LIST_USERS = gql`
                 last_name: $last_name
                 limit: $limit
                 offset: $offset
+                user_ids: $userIds
                 show_votes_info: $showVotesInfo
                 attributes: $attributes
                 enabled: $enabled
@@ -119,6 +121,7 @@ export const customBuildGetUsersVariables =
                 pagination?.page && pagination?.perPage
                     ? (pagination.page - 1) * pagination.perPage
                     : null,
+            userIds: filter.user_ids || null,
             showVotesInfo: filter.election_event_id ? true : false,
             attributes: filter.attributes ? formatUserAtributesToJsonb(filter.attributes) : null,
             enabled: filter.enabled ?? null,

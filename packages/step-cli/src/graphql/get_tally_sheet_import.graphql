@@ -1,0 +1,33 @@
+query GetTallySheetImport($election_event_id: uuid!, $import_id: uuid!) {
+    sequent_backend_tally_sheet_import(
+        where: {election_event_id: {_eq: $election_event_id}, id: {_eq: $import_id}}
+        limit: 1
+    ) {
+        id
+        source_document_id
+        source_file_name
+        source_sha256
+        source_format
+        selected_channel
+        status
+        created_at
+        created_by_user_id
+        summary
+        validation_report
+        canonical_csv_sha256
+        items(order_by: {created_at: asc}) {
+            id
+            election_id
+            area_id
+            contest_id
+            channel
+            generated_tally_sheet_id
+            baseline_approved_tally_sheet_id
+            baseline_approved_version
+            change_type
+            status
+            source_refs
+            validation_warnings
+        }
+    }
+}

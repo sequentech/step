@@ -33,6 +33,8 @@
 - "!include sequent_backend_tally_session_contest.yaml"
 - "!include sequent_backend_tally_session_execution.yaml"
 - "!include sequent_backend_tally_session_resolution.yaml"
+- "!include sequent_backend_tally_sheet_import.yaml"
+- "!include sequent_backend_tally_sheet_import_item.yaml"
 - "!include sequent_backend_tally_sheet.yaml"
 - "!include sequent_backend_tasks_execution.yaml"
 - "!include sequent_backend_template.yaml"

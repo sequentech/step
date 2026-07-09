@@ -417,6 +417,46 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    pub async fn post_phone_blacklist_entry_created(
+        &self,
+        event_id: String,
+        number_e164: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let message = Message::phone_blacklist_entry_created_message(
+            event,
+            PhoneE164String(number_e164),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_phone_blacklist_entry_deleted(
+        &self,
+        event_id: String,
+        number_e164: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let message = Message::phone_blacklist_entry_deleted_message(
+            event,
+            PhoneE164String(number_e164),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
     pub async fn post_external_api_request(
         &self,
         tenant_id: String,

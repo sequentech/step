@@ -25,10 +25,12 @@ use windmill::postgres::election::get_elections_by_ids;
 use windmill::postgres::tally_session::{
     get_tally_session_by_id, update_tally_session_status,
 };
+use windmill::services::celery_app::get_celery_app;
 use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::ceremonies::tally_resolution;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
+use windmill::tasks::execute_tally_session::execute_tally_session;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -255,6 +257,164 @@ pub async fn update_tally_ceremony(
 
     Ok(Json(CreateTallyCeremonyOutput {
         tally_session_id: input.tally_session_id.clone(),
+    }))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecountTallySessionInput {
+    election_event_id: String,
+    tally_session_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/recount-tally-session", format = "json", data = "<body>")]
+pub async fn recount_tally_session(
+    body: Json<RecountTallySessionInput>,
+    claims: JwtClaims,
+) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TALLY_RECOUNT_EXECUTE],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
+
+    let tally_session = get_tally_session_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await
+    .map_err(|_| {
+        (
+            Status::NotFound,
+            format!(
+                "Could not find tally session by id {}",
+                input.tally_session_id
+            ),
+        )
+    })?;
+
+    if tally_session.execution_status.as_deref()
+        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
+        || !tally_session.is_execution_completed
+    {
+        return Err((
+            Status::BadRequest,
+            "Only completed tally sessions can be recounted".to_string(),
+        ));
+    }
+
+    update_tally_session_status(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        TallyExecutionStatus::IN_PROGRESS,
+        false,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error marking tally session for recount: {err:?}"),
+        )
+    })?;
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
+
+    let celery_app = get_celery_app().await;
+    let task = celery_app
+        .send_task(execute_tally_session::new(
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+            input.tally_session_id.clone(),
+            tally_session.tally_type.clone(),
+            tally_session.election_ids.clone(),
+            true, // force_new_results_id: manual recount always produces a fresh results event
+        ))
+        .await;
+
+    if let Err(err) = task {
+        let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.map_err(|pool_err| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Failed to send recount task ({err:?}) and failed to get hasura db pool for reset: {pool_err}"
+                ),
+            )
+        })?;
+        let reset_transaction = reset_db_client.transaction().await.map_err(|txn_err| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Failed to send recount task ({err:?}) and failed to start reset transaction: {txn_err}"
+                ),
+            )
+        })?;
+        update_tally_session_status(
+            &reset_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &input.tally_session_id,
+            TallyExecutionStatus::SUCCESS,
+            true,
+        )
+        .await
+        .map_err(|reset_err| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Failed to send recount task ({err:?}) and failed to reset tally status: {reset_err:?}"
+                ),
+            )
+        })?;
+        reset_transaction.commit().await.map_err(|commit_err| {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Failed to send recount task ({err:?}) and failed to commit reset: {commit_err}"
+                ),
+            )
+        })?;
+
+        return Err((
+            Status::InternalServerError,
+            format!("Failed to send recount task: {err:?}"),
+        ));
+    }
+
+    event!(
+        Level::INFO,
+        "Sent recount tally task for election_event_id={}, tally_session_id={}",
+        input.election_event_id,
+        input.tally_session_id,
+    );
+
+    Ok(Json(CreateTallyCeremonyOutput {
+        tally_session_id: input.tally_session_id,
     }))
 }
 

@@ -84,7 +84,7 @@ const defaultSettingsValues: SettingsContextValues = {
 </div>`,
         },
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
-        VOTING_PORTAL_URL: "http://127.0.0.1:3000",
+        VOTING_PORTAL_URL: "http://localhost:3000",
         ACTIVATE_MIRU_EXPORT: false,
         CUSTOM_URLS_DOMAIN_NAME: "google.com",
     },

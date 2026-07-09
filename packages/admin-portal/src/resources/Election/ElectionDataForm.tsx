@@ -67,6 +67,9 @@ import {
     EDeclineToVotePolicy,
     getDefaultDeclineToVotePolicy,
     EElectionEventContestEncryptionPolicy,
+    IVotingScreenBackPolicy,
+    getDefaultVotingScreenBackPolicy,
+    getVotingScreenBackPolicyValues,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -85,6 +88,7 @@ import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -293,6 +297,7 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             temp.presentation.i18n.en.description = temp.description
+            temp.annotations = parseIvrEntityAnnotations(temp.annotations)
 
             // receipts
             const template: {[key: string]: string | null} = {}
@@ -389,6 +394,10 @@ export const ElectionDataForm: React.FC = () => {
                             <TextInput
                                 source={`presentation.i18n[${lang}].description`}
                                 label={String(t("electionEventScreen.field.description"))}
+                            />
+                            <TextInput
+                                source={`annotations[${IVR_ENTITY_I18N_ANNOTATION}][prompt][${lang}]`}
+                                label={String(t("electionScreen.field.ivrPrompt"))}
                             />
                             {hasTos ? (
                                 <TextInput
@@ -532,6 +541,13 @@ export const ElectionDataForm: React.FC = () => {
         return Object.values(EDeclineToVotePolicy).map((value) => ({
             id: value,
             name: t(`electionScreen.declineToVotePolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const votingScreenBackPolicyChoices = (): Array<EnumChoice<IVotingScreenBackPolicy>> => {
+        return getVotingScreenBackPolicyValues().map((value) => ({
+            id: value,
+            name: t(`electionScreen.votingScreenBackPolicy.options.${value}`),
         }))
     }
 
@@ -912,6 +928,13 @@ export const ElectionDataForm: React.FC = () => {
                                         defaultValue={getDefaultDeclineToVotePolicy()}
                                     />
                                 )}
+                                <SelectInput
+                                    source={`presentation.voting_screen_back_policy`}
+                                    choices={votingScreenBackPolicyChoices()}
+                                    label={String(t("electionScreen.votingScreenBackPolicy.label"))}
+                                    validate={required()}
+                                    defaultValue={getDefaultVotingScreenBackPolicy()}
+                                />
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

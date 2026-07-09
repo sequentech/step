@@ -61,6 +61,14 @@ type Mutation {
 }
 
 type Mutation {
+    create_phone_blacklist_entry(
+        election_event_id: uuid!
+        phone_e164: String!
+        reason: String
+    ): PhoneBlacklistEntry
+}
+
+type Mutation {
     create_role(tenant_id: String!, role: KeycloakRole2!): KeycloakRole!
 }
 
@@ -101,6 +109,10 @@ type Mutation {
         tenant_id: String!
         permission_name: String!
     ): SetRolePermissionOutput
+}
+
+type Mutation {
+    delete_phone_blacklist_entry(id: uuid!, election_event_id: uuid!): IdOutput
 }
 
 type Mutation {
@@ -612,6 +624,10 @@ type Mutation {
         tally_session_id: uuid!
         status: String!
     ): StartTallyOutput
+    recount_tally_session(
+        election_event_id: uuid!
+        tally_session_id: uuid!
+    ): StartTallyOutput
     submit_tally_resolution(
         election_event_id: uuid!
         tally_session_id: uuid!
@@ -676,6 +692,34 @@ type Mutation {
         tally_sheet_id: String!
         new_status: String!
     ): TallySheetOutput
+}
+
+type Mutation {
+    preview_tally_sheet_import(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+        source_format: String!
+        selected_channel: String!
+    ): TallySheetImportPreviewActionOutput
+}
+
+type Mutation {
+    create_tally_sheet_import(
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+        source_format: String!
+        selected_channel: String!
+    ): TallySheetImportActionOutput
+}
+
+type Mutation {
+    review_tally_sheet_import(
+        election_event_id: String!
+        import_id: String!
+        decision: String!
+    ): TallySheetImportActionOutput
 }
 
 enum EarlyVotingPolicy {
@@ -797,6 +841,7 @@ input GetUsersInput {
     username: jsonb
     limit: Int
     offset: Int
+    user_ids: [String!]
     show_votes_info: Boolean
     attributes: jsonb
     enabled: Boolean
@@ -1344,6 +1389,15 @@ type TallySheetOutput {
     created_by_user_id: String
     status: String!
     version: Int!
+    import_id: String
+}
+
+type TallySheetImportPreviewActionOutput {
+    preview: jsonb!
+}
+
+type TallySheetImportActionOutput {
+    import: jsonb!
 }
 
 type ExportAllUsersOutput {
@@ -1712,4 +1766,19 @@ type ExportCertificateAuthorityOutput {
 
 type UpdateRealmAttributesOutput {
     updated: Boolean!
+}
+
+type PhoneBlacklistEntry {
+    id: uuid
+    tenant_id: uuid
+    election_event_id: uuid
+    phone_e164: String!
+    reason: String
+    created_at: String
+    created_by: String
+    updated_at: String
+}
+
+type IdOutput {
+    id: String!
 }

@@ -7,6 +7,7 @@ import {EditBase, useGetOne} from "react-admin"
 import {CandidateDataForm} from "./CandidateDataForm"
 import {Sequent_Backend_Candidate, Sequent_Backend_Document} from "@/gql/graphql"
 import {CircularProgress} from "@mui/material"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 export const EditCandidateData: React.FC<{record?: Sequent_Backend_Candidate}> = ({record}) => {
     if (!record) {
@@ -45,6 +46,7 @@ export const EditCandidateData: React.FC<{record?: Sequent_Backend_Candidate}> =
             ""
         data.description = fromPresentationDescription
         // END name, alias and description fields
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
 
         return {
             ...data,

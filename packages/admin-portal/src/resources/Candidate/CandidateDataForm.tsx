@@ -61,6 +61,7 @@ import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -162,6 +163,7 @@ export const CandidateDataForm: React.FC<{
             }
 
             newCandidate.description = newCandidate.presentation.i18n.en.description
+            newCandidate.annotations = parseIvrEntityAnnotations(newCandidate.annotations)
 
             return newCandidate
         },
@@ -334,6 +336,10 @@ export const CandidateDataForm: React.FC<{
                             source={`presentation.i18n[${lang}].description`}
                             label={String(t("electionEventScreen.field.description"))}
                         />
+                        <TextInput
+                            source={`annotations[${IVR_ENTITY_I18N_ANNOTATION}][prompt][${lang}]`}
+                            label={String(t("electionScreen.field.ivrPrompt"))}
+                        />
                         <BooleanInput
                             source={`presentation.is_disabled`}
                             label={String(t("candidateScreen.edit.isDisabled"))}
@@ -392,6 +398,10 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("candidateScreen.edit.externalId"))}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>
