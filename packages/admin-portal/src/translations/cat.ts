@@ -431,6 +431,8 @@ const catalanTranslation: TranslationType = {
                         reason: "Motiu",
                         createdAt: "Creat el",
                         createdBy: "Creat per",
+                        createdBefore: "Creat abans",
+                        createdAfter: "Creat després",
                     },
                     emptyMsg: "No hi ha cap entrada a la llista de bloqueig",
                     infoMsg:

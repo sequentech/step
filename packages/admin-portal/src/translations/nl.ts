@@ -429,6 +429,8 @@ const dutchTranslation: TranslationType = {
                         reason: "Reden",
                         createdAt: "Aangemaakt op",
                         createdBy: "Aangemaakt door",
+                        createdBefore: "Aangemaakt vóór",
+                        createdAfter: "Aangemaakt na",
                     },
                     emptyMsg: "Er zijn geen vermeldingen in de blokkeerlijst",
                     infoMsg:
