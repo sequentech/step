@@ -9,6 +9,7 @@ import {IPermissions} from "@/types/keycloak"
 import {PhoneBlacklist} from "./PhoneBlacklist"
 import {IvrConfig} from "./IvrConfig"
 import {IvrPrompts} from "./IvrPrompts"
+import {Box} from "@mui/material"
 
 const ConfigTab: React.FC = () => (
     <Suspense fallback={<div>Loading...</div>}>
@@ -51,5 +52,9 @@ export const EditElectionEventIvr: React.FC = () => {
         })
     }
 
-    return <Tabs elements={tabs} />
+    return (
+        <Box sx={{margin: "-1.5rem 0 0 0"}}>
+            <Tabs elements={tabs} />
+        </Box>
+    )
 }
