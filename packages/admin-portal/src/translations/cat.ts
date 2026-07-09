@@ -415,6 +415,7 @@ const catalanTranslation: TranslationType = {
                     deleteError: "No s'ha pogut eliminar",
                 },
                 prompts: {
+                    emptyMsg: "Encara no s’ha creat cap missatge",
                     infoMsg:
                         "Configureu els missatges utilitzats per l’IVR. Els missatges d’anunci són obligatoris, i els missatges del sistema es poden sobreescriure per als idiomes desitjats. S’admet SSML, també per barrejar idiomes.",
                     editorTitle: "Missatge",

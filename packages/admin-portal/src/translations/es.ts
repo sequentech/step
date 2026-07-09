@@ -416,6 +416,7 @@ const spanishTranslation: TranslationType = {
                     deleteError: "No se pudo eliminar",
                 },
                 prompts: {
+                    emptyMsg: "Aún no se ha creado ningún mensaje",
                     infoMsg:
                         "Configure los mensajes utilizados por el IVR. Los mensajes de anuncio son obligatorios, y los mensajes del sistema se pueden sobrescribir para los idiomas deseados. Se admite SSML, incluso para mezclar idiomas.",
                     editorTitle: "Mensaje",

@@ -415,6 +415,7 @@ const galegoTranslation: TranslationType = {
                     deleteError: "Non se puido eliminar",
                 },
                 prompts: {
+                    emptyMsg: "Aínda non se creou ningunha mensaxe",
                     infoMsg:
                         "Configure as mensaxes utilizadas polo IVR. As mensaxes de anuncio son obrigatorias, e as mensaxes do sistema pódense sobrescribir para os idiomas desexados. Admítese SSML, tamén para mesturar idiomas.",
                     editorTitle: "Mensaxe",

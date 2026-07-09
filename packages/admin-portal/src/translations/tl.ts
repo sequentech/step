@@ -414,6 +414,7 @@ const tagalogTranslation: TranslationType = {
                     deleteError: "Nabigong tanggalin",
                 },
                 prompts: {
+                    emptyMsg: "Wala pang nagagawang prompt",
                     infoMsg:
                         "I-configure ang mga prompt na ginagamit ng IVR. Kinakailangan ang mga announcement prompt, at maaaring i-override ang mga system prompt para sa mga gustong wika. Sinusuportahan ang SSML, kabilang ang paghahalo ng mga wika.",
                     editorTitle: "Prompt",

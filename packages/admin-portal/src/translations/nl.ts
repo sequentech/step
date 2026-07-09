@@ -413,6 +413,7 @@ const dutchTranslation: TranslationType = {
                     deleteError: "Verwijderen mislukt",
                 },
                 prompts: {
+                    emptyMsg: "Nog geen prompts aangemaakt",
                     infoMsg:
                         "Configureer de prompts die door de IVR worden gebruikt. Aankondigingsprompts zijn verplicht, en systeemprompts kunnen voor de gewenste talen worden overschreven. SSML wordt ondersteund, ook voor het mengen van talen.",
                     editorTitle: "Prompt",
