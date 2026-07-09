@@ -161,6 +161,7 @@ const frenchTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
                 IMPORT_USERS: "Importer des utilisateurs",
+                EDIT_USER: "Modifier l'électeur",
                 IMPORT_CANDIDATES: "Importer des candidats",
                 EXPORT_VOTERS: "Exporter les électeurs",
                 CREATE_TRANSMISSION_PACKAGE: "Créer un paquet de transmission",

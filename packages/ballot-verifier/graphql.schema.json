@@ -1829,6 +1829,42 @@
         "possibleTypes": null
       },
       {
+        "kind": "OBJECT",
+        "name": "EditUserOutput",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "task_execution",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "tasks_execution_type",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "user",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "KeycloakUser",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "EditUsersInput",
         "description": null,
@@ -15428,7 +15464,7 @@
               "name": null,
               "ofType": {
                 "kind": "OBJECT",
-                "name": "KeycloakUser",
+                "name": "EditUserOutput",
                 "ofType": null
               }
             },
@@ -90625,13 +90661,9 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

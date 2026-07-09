@@ -160,6 +160,7 @@ const dutchTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
                 IMPORT_USERS: "Gebruikers Importeren",
+                EDIT_USER: "Kiezer Bewerken",
                 IMPORT_CANDIDATES: "Kandidaten Importeren",
                 EXPORT_VOTERS: "Kiezers Exporteren",
                 CREATE_TRANSMISSION_PACKAGE: "Transmissiepakket Aanmaken",

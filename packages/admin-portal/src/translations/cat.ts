@@ -128,6 +128,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
+                EDIT_USER: "Editar votant",
                 IMPORT_CANDIDATES: "Importar candidats",
                 EXPORT_VOTERS: "Exportar votants",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",

@@ -1628,6 +1628,7 @@ custom_types:
         - name: VotesInfo
         - name: KeycloakUser
         - name: GetUsersOutput
+        - name: EditUserOutput
         - name: GetPermissionsOutput
         - name: KeycloakPermission
         - name: GetRolesOutput
