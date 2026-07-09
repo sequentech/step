@@ -500,6 +500,29 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            ivr: {
+                tabs: {
+                    config: "Configuration",
+                    blacklist: "Blocklist",
+                    prompts: "Prompts",
+                },
+                common: {
+                    saveSuccess: "Saved successfully",
+                    saveError: "Failed to save",
+                    deleteSuccess: "Deleted successfully",
+                    deleteError: "Failed to delete",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Phone number",
+                        reason: "Reason",
+                        createdAt: "Created at",
+                        createdBy: "Created by",
+                    },
+                    emptyMsg: "There are no entries in the blocklist",
+                    phoneRequired: "Phone number is required",
+                },
+            },
             stats: {
                 elegibleVoters: "Eligible Voters",
                 voters: "Actual Voters",
@@ -538,6 +561,7 @@ const englishTranslation = {
                 dashboard: "Dashboard",
                 monitoring: "Monitoring",
                 data: "Data",
+                ivr: "IVR",
                 localization: "Localization",
                 voters: "Voters",
                 areas: "Areas",
@@ -700,6 +724,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                ivrPrompt: "IVR prompt",
                 externalId: "External ID",
             },
             securityConfirmationPolicy: {

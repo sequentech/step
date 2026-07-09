@@ -7,6 +7,7 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
@@ -49,6 +50,10 @@ pub async fn insert_cast_vote(
             ErrorCode::Unauthorized,
         )
     })?;
+    let auth_time = &claims.auth_time.or_else(|| {
+        matches!(voting_channel, VotingStatusChannel::TELEPHONE)
+            .then_some(claims.iat)
+    });
 
     info!("insert-cast-vote: starting");
 
@@ -61,7 +66,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.user_id,
                 &area_id,
                 voting_channel,
-                &claims.auth_time,
+                auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
                     .country_code

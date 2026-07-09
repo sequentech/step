@@ -97,6 +97,8 @@ async fn rocket() -> _ {
                 routes::permissions::get_permissions,
                 routes::permissions::set_role_permission,
                 routes::permissions::delete_role_permission,
+                routes::phone_blacklist::create_phone_blacklist_entry,
+                routes::phone_blacklist::delete_phone_blacklist_entry,
                 routes::upload_document::get_upload_url,
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_private_key,

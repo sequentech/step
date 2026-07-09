@@ -501,6 +501,29 @@ const frenchTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Événement Électoral créé",
             createElectionEventError: "Erreur lors de la création de l'Événement Électoral",
+            ivr: {
+                tabs: {
+                    config: "Configuration",
+                    blacklist: "Liste de blocage",
+                    prompts: "Messages vocaux",
+                },
+                common: {
+                    saveSuccess: "Enregistré avec succès",
+                    saveError: "Échec de l’enregistrement",
+                    deleteSuccess: "Supprimé avec succès",
+                    deleteError: "Échec de la suppression",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Numéro de téléphone",
+                        reason: "Motif",
+                        createdAt: "Créé le",
+                        createdBy: "Créé par",
+                    },
+                    emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
+                    phoneRequired: "Le numéro de téléphone est obligatoire",
+                },
+            },
             stats: {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
@@ -539,6 +562,7 @@ const frenchTranslation: TranslationType = {
                 dashboard: "Tableau de Bord",
                 monitoring: "Surveillance",
                 data: "Données",
+                ivr: "IVR",
                 localization: "Localisation",
                 voters: "Électeurs",
                 areas: "Zones",
@@ -703,6 +727,7 @@ const frenchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Confirmation de sécurité HTML",
+                ivrPrompt: "Message IVR",
                 externalId: "ID externe",
             },
             securityConfirmationPolicy: {

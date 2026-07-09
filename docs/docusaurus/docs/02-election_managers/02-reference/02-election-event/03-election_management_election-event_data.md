@@ -66,7 +66,7 @@ Manage how the ballot appears in the Voting Portal.
 - **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
-- **Custom CSS**: Apply custom styles to the ballot design.
+- **Custom CSS**: Apply custom styles to the ballot design. Ballot error and warning messages expose stable CSS classes that can be targeted here — see [Styling Ballot Errors and Warnings with Custom CSS](../08-ballot-errors-custom-css.md).
 
 ## Voting Channels Allowed
 

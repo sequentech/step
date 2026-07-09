@@ -20,7 +20,11 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown, EVoterCertificatePolicy} from "@sequentech/ui-core"
+import {
+    EElectionEventLockedDown,
+    EVoterCertificatePolicy,
+    IVotingChannelsConfig,
+} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
@@ -47,6 +51,9 @@ const EditElectionEventKeys = lazy(() =>
 )
 const EditElectionEventCAs = lazy(() =>
     import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
+)
+const EditElectionEventIvr = lazy(() =>
+    import("./EditElectionEventIvr").then((m) => ({default: m.EditElectionEventIvr}))
 )
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
@@ -132,6 +139,15 @@ const CAsTab: React.FC = () => {
     return (
         <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
             <EditElectionEventCAs />
+        </Suspense>
+    )
+}
+
+const IvrTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventIvr />
         </Suspense>
     )
 }
@@ -339,6 +355,11 @@ export const ElectionEventTabs: React.FC = () => {
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
         record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
+    const isTelephoneChannelEnabled =
+        (record?.voting_channels as IVotingChannelsConfig | undefined)?.telephone ?? false
+    const showIvr =
+        isTelephoneChannelEnabled &&
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_IVR_TAB)
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
@@ -364,6 +385,11 @@ export const ElectionEventTabs: React.FC = () => {
         // Data
         if (showData) {
             result.push({label: t("electionEventScreen.tabs.data"), component: DataTab})
+        }
+
+        // IVR
+        if (showIvr) {
+            result.push({label: t("electionEventScreen.tabs.ivr"), component: IvrTab})
         }
 
         // Localization
@@ -492,6 +518,7 @@ export const ElectionEventTabs: React.FC = () => {
         showReports,
         showApprovalsExecution,
         showCAs,
+        showIvr,
         t,
         showKeysList,
         showPublishList,

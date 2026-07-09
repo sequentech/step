@@ -502,6 +502,29 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento Electoral creado",
             createElectionEventError: "Error creando Evento Electoral",
+            ivr: {
+                tabs: {
+                    config: "Configuración",
+                    blacklist: "Lista de bloqueo",
+                    prompts: "Locuciones",
+                },
+                common: {
+                    saveSuccess: "Guardado correctamente",
+                    saveError: "No se pudo guardar",
+                    deleteSuccess: "Eliminado correctamente",
+                    deleteError: "No se pudo eliminar",
+                },
+                blacklist: {
+                    columns: {
+                        phone: "Número de teléfono",
+                        reason: "Motivo",
+                        createdAt: "Creado el",
+                        createdBy: "Creado por",
+                    },
+                    emptyMsg: "No hay entradas en la lista de bloqueo",
+                    phoneRequired: "El número de teléfono es obligatorio",
+                },
+            },
             stats: {
                 elegibleVoters: "Electores",
                 voters: "Votantes",
@@ -540,6 +563,7 @@ const spanishTranslation: TranslationType = {
                 dashboard: "Panel de Control",
                 monitoring: "Monitoreo",
                 data: "Datos",
+                ivr: "IVR",
                 localization: "Localización",
                 voters: "Votantes",
                 areas: "Áreas",
@@ -702,6 +726,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descripción",
                 securityConfirmationHtml: "Confirmación de seguridad HTML",
+                ivrPrompt: "Mensaje IVR",
                 externalId: "ID externo",
             },
             securityConfirmationPolicy: {

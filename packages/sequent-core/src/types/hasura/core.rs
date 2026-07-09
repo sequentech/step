@@ -309,6 +309,18 @@ pub struct AreaContest {
     pub contest_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+pub struct PhoneBlacklistEntry {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub phone_e164: String,
+    pub reason: Option<String>,
+    pub created_at: DateTime<Local>,
+    pub created_by: String,
+    pub updated_at: DateTime<Local>,
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySheet {
     pub id: String,
