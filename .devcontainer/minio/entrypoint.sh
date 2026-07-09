@@ -3,6 +3,26 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+: "${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY:?KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY must be set}"
+: "${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY:?KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY must be set}"
+
+upload_realm_config() {
+  local source_path="$1"
+  local s3_key="$2"
+  local destination="myminio/${MINIO_BUCKET}/${s3_key}"
+
+  if [[ "$s3_key" == /* ]]; then
+    echo "S3 realm config key must not start with '/': ${s3_key}" >&2
+    return 1
+  fi
+
+  echo "Uploading ${source_path} to ${destination}..."
+  if ! mc cp "$source_path" "$destination"; then
+    echo "Failed to upload ${source_path} to ${destination}" >&2
+    return 1
+  fi
+}
+
 mc alias set myminio "$MINIO_PRIVATE_URI" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
 mc mb -p myminio/$MINIO_PUBLIC_BUCKET
 mc mb -p myminio/$MINIO_BUCKET
@@ -11,6 +31,13 @@ mc anonymous set download myminio/$MINIO_PUBLIC_BUCKET
 mc admin accesskey create myminio/ "$MINIO_ROOT_USER" \
   --access-key "$MINIO_ACCESS_KEY" \
   --secret-key "$MINIO_ACCESS_SECRET"
+
+upload_realm_config \
+  "/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json" \
+  "$KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY" || exit 1
+upload_realm_config \
+  "/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json" \
+  "$KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY" || exit 1
 
 echo "Uploading public-assets folder..."
 mc cp --recursive /scripts/public-assets/ myminio/public/public-assets/

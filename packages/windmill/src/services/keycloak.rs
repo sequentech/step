@@ -7,12 +7,62 @@ use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::Status;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::RoleAction;
+use sequent_core::services::s3::{get_file_from_s3, get_private_bucket};
 use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
+use std::env;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
+
+#[instrument(err, skip_all)]
+pub async fn read_realm_config_from_s3(
+    s3_key_env_var: &str,
+) -> anyhow::Result<RealmRepresentation> {
+    let s3_key =
+        env::var(s3_key_env_var).with_context(|| format!("{s3_key_env_var} must be set"))?;
+    if s3_key.trim().is_empty() {
+        return Err(anyhow!("{s3_key_env_var} must not be empty"));
+    }
+    if s3_key.starts_with('/') {
+        return Err(anyhow!("{s3_key_env_var} must not start with `/`"));
+    }
+
+    let s3_bucket = get_private_bucket()?;
+    if s3_bucket.trim().is_empty() {
+        return Err(anyhow!("AWS_S3_BUCKET must not be empty"));
+    }
+
+    let realm_config = get_file_from_s3(s3_bucket.clone(), s3_key.clone())
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to read default Keycloak realm config configured by {s3_key_env_var} from S3 bucket `{s3_bucket}` at key `{s3_key}`"
+            )
+        })?;
+
+    parse_realm_config(&realm_config, &s3_bucket, &s3_key)
+}
+
+fn parse_realm_config(
+    realm_config: &[u8],
+    s3_bucket: &str,
+    s3_key: &str,
+) -> anyhow::Result<RealmRepresentation> {
+    let realm_config = std::str::from_utf8(realm_config).with_context(|| {
+        format!(
+            "Default Keycloak realm config in S3 bucket `{s3_bucket}` at key `{s3_key}` is not valid UTF-8"
+        )
+    })?;
+
+    deserialize_str(realm_config).with_context(|| {
+        format!(
+            "Error parsing default Keycloak realm config from S3 bucket `{s3_bucket}` at key `{s3_key}` into RealmRepresentation"
+        )
+    })
+}
 
 pub fn map_realm_data(
     realm: &RealmRepresentation,
@@ -262,4 +312,40 @@ pub async fn read_roles_config_file(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_realm_config;
+
+    const S3_BUCKET: &str = "private";
+    const S3_KEY: &str = "defaults/keycloak/tenant.json";
+
+    #[test]
+    fn parses_realm_config() {
+        let realm = parse_realm_config(br#"{"realm":"tenant-test"}"#, S3_BUCKET, S3_KEY)
+            .expect("realm config should parse");
+
+        assert_eq!(realm.realm.as_deref(), Some("tenant-test"));
+    }
+
+    #[test]
+    fn invalid_utf8_error_names_bucket_and_key() {
+        let error =
+            parse_realm_config(&[0xff], S3_BUCKET, S3_KEY).expect_err("invalid UTF-8 should fail");
+        let error = format!("{error:#}");
+
+        assert!(error.contains(S3_BUCKET));
+        assert!(error.contains(S3_KEY));
+    }
+
+    #[test]
+    fn invalid_json_error_names_bucket_and_key() {
+        let error =
+            parse_realm_config(b"{", S3_BUCKET, S3_KEY).expect_err("invalid JSON should fail");
+        let error = format!("{error:#}");
+
+        assert!(error.contains(S3_BUCKET));
+        assert!(error.contains(S3_KEY));
+    }
 }

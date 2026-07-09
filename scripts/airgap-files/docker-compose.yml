@@ -91,6 +91,8 @@ services:
     container_name: configure-minio
     image: sequentech.local/configure-minio
     pull_policy: never
+    volumes:
+      - ./keycloak/import:/keycloak/import:ro,z
     depends_on:
       minio:
         condition: service_healthy
@@ -102,6 +104,8 @@ services:
       - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
       - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
       - MINIO_BUCKET=${AWS_S3_BUCKET}
+      - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
+      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
@@ -336,8 +340,6 @@ services:
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
-    volumes:
-      - ./keycloak/import:/opt/keycloak/data/import
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -356,8 +358,6 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -531,9 +531,10 @@ services:
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     pull_policy: never
-    volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
     restart: always
+    depends_on:
+      configure-minio:
+        condition: service_completed_successfully
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -570,8 +571,8 @@ services:
       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
       VAULT_TOKEN: ${VAULT_TOKEN}
 
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
+      KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}

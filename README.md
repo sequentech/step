@@ -143,10 +143,11 @@ Those two realms are automatically imported into Keycloak in the Dev Containers
 from the `.devcontainer/keycloak/import/` directory.
 
 Additionally, each tenant and election event have an associated realm. In the
-Dev Containers, we use the same `.devcontainer/keycloak/import/` files to be the
-templates for the creation of realms associated to a new tenant or a new
-election event. These realms are created if they don't exist when the `keycloak`
-container is started.
+Dev Containers, Windmill uses the same `.devcontainer/keycloak/import/` files as
+templates for new tenant and election-event realms. The `configure-minio`
+service uploads them to the configured `KEYCLOAK_*_REALM_CONFIG_S3_KEY` paths in
+the private MinIO bucket (`defaults/keycloak/` by default) before Windmill
+starts. Keycloak's own startup import continues to read the local files directly.
 
 If you change the configuration of the default tenant realm and want to update
 it in `.devcontainer/keycloak/import/` to be used for the default tenant and as
@@ -162,26 +163,23 @@ docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${RE
 You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"` to export and update the configuration of the default election event:
 
 ```bash
-export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13"
+export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"
 cd /workspaces/step/.devcontainer
 docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
 ```
 
-Whenever a realm is updated, there's a chance that the associated JWK used have
-changed. This JWK is used to verify the JWT that is received from keycloak.
-These keys are configured in S3/minio in the `.devcontainer/minio/certs.json`
-file via the `logs.reset.minio` helper docker service. If the keys changed and we
-don't update the keys serviced by minio/s3, then the admin-portal or the
-voting-booth might show some errors because this JWT verification fails.
+After editing or exporting either template, run the VS Code task
+`logs.reset.minio`. The task reruns `configure-minio`, which always overwrites
+the private-bucket copies with the current tracked files.
 
-To fix this issue, run the VS Code task `logs.reset.minio` which will:
-1. Fetch JWK certificates from Keycloak realms configured in
-   `.devcontainer/keycloak/import/`
-2. Update the `.devcontainer/minio/certs.json` file with the combined
-   certificates
-3. Rebuild and restart the MinIO configuration service
-4. Display the logs for verification
+Whenever a realm is updated, its JWK can also change. The JWKs used to verify
+Keycloak JWTs are stored in `.devcontainer/minio/certs.json`. The
+`logs.reset.minio` task does not fetch JWKs or update that file; it rebuilds and
+restarts MinIO and `configure-minio`, re-uploads the realm templates, and shows
+the service logs. If a JWK changed, update `certs.json` and remove the existing
+`public/certs.json` object from MinIO before running the task so the provisioner
+uploads the replacement.
 
 **NOTE:** that this is a task that is useful only for developers: when you
 execute it, the certificates from other election events will be removed from
