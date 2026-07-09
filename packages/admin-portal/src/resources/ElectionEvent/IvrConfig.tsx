@@ -8,6 +8,7 @@ import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IVR_CONFIG_ANNOTATION} from "@/utils/ivr"
 import {DefaultValueFunction, JsonEditor} from "json-edit-react"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 const RESOURCE = "sequent_backend_election_event"
 
@@ -84,24 +85,26 @@ export const IvrConfig: React.FC = () => {
     }
 
     return (
-        <Box>
-            <Box sx={{display: "flex", flexDirection: "column", gap: 2, mt: 2, maxWidth: 640}}>
-                <JsonEditor
-                    data={editorData}
-                    rootName="ivr:config"
-                    defaultValue={handleDefault}
-                    setData={(nextData) => {
-                        setEditorData(nextData)
-                    }}
-                />
-                <Box sx={{mt: 3, display: "flex", gap: 2}}>
-                    <Button variant="contained" onClick={handleSave} disabled={!dirty || saving}>
-                        {t("common.label.save")}
-                    </Button>
-                    <Button variant="contained" onClick={handleCancel} disabled={!dirty || saving}>
-                        {t("common.label.cancel")}
-                    </Button>
-                </Box>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+            <ElectionHeaderStyles.SubTitle>
+                {t("electionEventScreen.ivr.config.infoMsg")}
+            </ElectionHeaderStyles.SubTitle>
+            <JsonEditor
+                data={editorData}
+                rootName="ivr:config"
+                defaultValue={handleDefault}
+                maxWidth={"100%"}
+                setData={(nextData) => {
+                    setEditorData(nextData)
+                }}
+            />
+            <Box sx={{mt: 3, display: "flex", gap: 2}}>
+                <Button variant="contained" onClick={handleSave} disabled={!dirty || saving}>
+                    {t("common.label.save")}
+                </Button>
+                <Button variant="contained" onClick={handleCancel} disabled={!dirty || saving}>
+                    {t("common.label.cancel")}
+                </Button>
             </Box>
         </Box>
     )
