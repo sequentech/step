@@ -206,6 +206,23 @@ const dutchTranslation: TranslationType = {
             declineToVote: "Afzien van stemmen",
         },
         confirmationScreen: {
+            castVoteStatus: {
+                inProgress: {
+                    title: "Je stem wordt geverifieerd",
+                    description:
+                        "Je stembiljet is ontvangen, maar de verificatie is nog bezig. Je kunt afronden en later opnieuw controleren met stembiljet-ID {{ballotId}}.",
+                },
+                indeterminate: {
+                    title: "Je stem moet handmatig worden gecontroleerd",
+                    description:
+                        "We konden niet bevestigen of de verificatie is voltooid. Je stembiljet wordt pas meegeteld nadat het bij de controle is goedgekeurd. Neem contact op met ondersteuning en geef stembiljet-ID {{ballotId}} door.",
+                },
+                discarded: {
+                    title: "Je stem is niet geaccepteerd",
+                    description:
+                        "Je stembiljet is afgewezen en wordt niet meegeteld. Je kunt teruggaan naar de lijst met stembiljetten en het opnieuw proberen. Stembiljet-ID: {{ballotId}}.",
+                },
+            },
             title: "Uw stem is uitgebracht",
             description:
                 "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",

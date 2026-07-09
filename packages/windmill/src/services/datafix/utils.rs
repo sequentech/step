@@ -9,8 +9,7 @@ use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::users::get_users_by_username;
-use anyhow::anyhow;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
 use rocket::http::Status;
@@ -25,10 +24,19 @@ use tracing::{error, info, instrument, warn};
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
+pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
+
+pub fn datafix_voter_lock_key(
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+) -> String {
+    format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
+}
 
 /// Returns true if the voter has voted via Sequent´s system -
 /// this is if VOTED_CHANNEL attribute is set to VOTED_CHANNEL_INTERNET_VALUE.
-#[instrument()]
+#[instrument(skip_all)]
 pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => {
@@ -40,7 +48,7 @@ pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
 
 /// Returns true if the voter has voted via a secondary channel, PAPER, PHONE, ETC -
 /// this is if VOTED_CHANNEL attribute is set to anything else than Internet.
-#[instrument()]
+#[instrument(skip_all)]
 pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => {
@@ -60,7 +68,7 @@ pub async fn get_event_id_and_datafix_annotations(
         .await
         .map_err(|err| {
             error!("Error getting election events: {err}");
-            DatafixResponse::error(Status::InternalServerError, DatafixErrorCode::InternalError)
+            DatafixResponse::new(Status::InternalServerError)
         })?;
 
     let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
@@ -97,10 +105,7 @@ pub async fn get_event_id_and_datafix_annotations(
     }
 
     warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
-    return Err(DatafixResponse::error(
-        Status::NotFound,
-        DatafixErrorCode::EventNotFound,
-    ));
+    return Err(DatafixResponse::new(Status::NotFound));
 }
 
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
@@ -122,7 +127,7 @@ pub async fn find_user_area_by_name(
         .await
         .map_err(|e| {
             error!("Error getting event areas: {e:?}");
-            DatafixResponse::error(Status::InternalServerError, DatafixErrorCode::InternalError)
+            DatafixResponse::new(Status::InternalServerError)
         })?;
 
     area_concat = area_concat.to_uppercase();
@@ -145,10 +150,7 @@ pub async fn find_user_area_by_name(
         }),
         None => {
             error!("Error. Area not found for {}", area_concat);
-            Err(DatafixResponse::error(
-                Status::UnprocessableEntity,
-                DatafixErrorCode::AreaNotFound,
-            ))
+            Err(DatafixResponse::new(Status::NotFound))
         }
     }
 }
@@ -164,24 +166,18 @@ pub async fn get_user_id(
         .await
         .map_err(|e| {
             error!("Error getting users by username: {e:?}");
-            DatafixResponse::error(Status::InternalServerError, DatafixErrorCode::InternalError)
+            DatafixResponse::new(Status::InternalServerError)
         })?;
 
     match user_ids.len() {
         0 => {
             error!("Error getting users by username: Not Found");
-            return Err(DatafixResponse::error(
-                Status::NotFound,
-                DatafixErrorCode::VoterNotFound,
-            ));
+            return Err(DatafixResponse::new(Status::NotFound));
         }
         1 => Ok(user_ids[0].clone()),
         _ => {
             error!("Error getting users by username: Multiple users Found");
-            return Err(DatafixResponse::error(
-                Status::Conflict,
-                DatafixErrorCode::VoterNotUnique,
-            ));
+            return Err(DatafixResponse::new(Status::NotFound));
         }
     }
 }
@@ -193,68 +189,67 @@ pub async fn is_datafix_election_event_by_id(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<bool> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .map_err(|e| anyhow!("Error getting election event by id: {e:?}"))?;
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
 
-    Ok(is_datafix_election_event(&election_event))
+    Ok(datafix_annotations(&election_event)?.is_some())
 }
 
 /// Check if its a datafix election event (has datafix:id annotations).
 #[instrument(skip(election_event))]
 pub fn is_datafix_election_event(election_event: &ElectionEvent) -> bool {
-    let datafix_event = ElectionEventDatafix(election_event.clone());
-    datafix_event.get_annotations().ok().is_some()
+    datafix_annotations(election_event).ok().flatten().is_some()
 }
 
-#[instrument(skip(hasura_transaction))]
+/// Returns `None` for an ordinary event and validates the full Datafix
+/// configuration whenever the event contains the Datafix marker.
+pub fn datafix_annotations(election_event: &ElectionEvent) -> Result<Option<DatafixAnnotations>> {
+    let is_configured = election_event
+        .annotations
+        .as_ref()
+        .and_then(|annotations| annotations.get(DATAFIX_ID_KEY))
+        .is_some();
+
+    if !is_configured {
+        return Ok(None);
+    }
+
+    ElectionEventDatafix(election_event.clone())
+        .get_annotations()
+        .map(Some)
+        .map_err(|err| anyhow!("Invalid Datafix election event configuration: {err}"))
+}
+
+#[instrument(skip_all, fields(direction = %direction), err)]
 pub async fn post_operation_result_to_electoral_log(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    user_id: &str,
+    user_id: Option<&str>,
     username: &str,
     direction: ExtApiRequestDirection,
     operation: String,
-) {
-    let slug = match std::env::var("ENV_SLUG") {
-        Ok(slug) => slug,
-        Err(err) => {
-            error!("Missing env var ENV_SLUG. Error: {err:?}");
-            return;
-        }
-    };
+) -> Result<()> {
+    let slug = std::env::var("ENV_SLUG").map_err(|err| anyhow!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    let electoral_log_res = ElectoralLog::new(
+    let electoral_log = ElectoralLog::new(
         hasura_transaction,
         tenant_id,
         Some(election_event_id),
-        board_name.as_str(),
+        &board_name,
     )
-    .await;
+    .await?;
 
-    let electoral_log = match electoral_log_res {
-        Ok(electoral_log) => electoral_log,
-        Err(err) => {
-            error!("Error getting the electoral log. Error: {err:?}");
-            return;
-        }
-    };
-
-    let log_result = electoral_log
+    electoral_log
         .post_external_api_request(
             tenant_id.to_string(),
             election_event_id.to_string(),
             None,
-            user_id.to_string(),
+            user_id.map(str::to_string),
             Some(username.to_string()),
             direction,
             ExtApiName::Datafix,
             operation,
         )
-        .await;
-
-    if let Err(log_err) = log_result {
-        error!("Error posting to the electoral log {log_err:?}");
-    }
+        .await
 }

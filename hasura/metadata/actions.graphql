@@ -159,7 +159,7 @@ type Mutation {
 }
 
 type Mutation {
-    edit_user(body: EditUsersInput!): EditUserOutput!
+    edit_user(body: EditUsersInput!): KeycloakUser!
 }
 
 type Mutation {
@@ -1234,11 +1234,6 @@ type GetUsersOutput {
     total: TotalAggregate!
 }
 
-type EditUserOutput {
-    user: KeycloakUser
-    task_execution: tasks_execution_type
-}
-
 type GetPermissionsOutput {
     items: [KeycloakPermission!]!
     total: TotalAggregate!
@@ -1351,6 +1346,7 @@ type InsertCastVoteOutput {
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String
+    status: String
 }
 
 type createBallotReceiptOutput {

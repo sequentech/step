@@ -8,6 +8,8 @@ import {isUndefined} from "@sequentech/ui-core"
 export interface ConfirmationScreenData {
     ballotId: string
     isDemo: boolean
+    isGoldenAuth: boolean
+    castVoteId?: string
 }
 
 export interface ConfirmationScreenDataState {

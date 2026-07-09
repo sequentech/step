@@ -205,6 +205,23 @@ const tagalogTranslation: TranslationType = {
             declineToVote: "Tumangging bumoto",
         },
         confirmationScreen: {
+            castVoteStatus: {
+                inProgress: {
+                    title: "Vine-verify ang iyong boto",
+                    description:
+                        "Natanggap na ang iyong balota, ngunit isinasagawa pa ang pag-verify. Maaari kang magtapos at suriin itong muli sa ibang pagkakataon gamit ang Ballot ID {{ballotId}}.",
+                },
+                indeterminate: {
+                    title: "Kailangan ng manu-manong pagsusuri ang iyong boto",
+                    description:
+                        "Hindi namin makumpirma kung natapos ang pag-verify. Hindi mabibilang ang iyong balota maliban kung maaprubahan ito sa pagsusuri. Makipag-ugnayan sa support at ibigay ang Ballot ID {{ballotId}}.",
+                },
+                discarded: {
+                    title: "Hindi tinanggap ang iyong boto",
+                    description:
+                        "Tinanggihan ang iyong balota at hindi ito mabibilang. Maaari kang bumalik sa listahan ng balota at subukang muli. Ballot ID: {{ballotId}}.",
+                },
+            },
             title: "Ang iyong boto ay nai-submit na",
             description:
                 "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",

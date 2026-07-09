@@ -4,7 +4,7 @@
 
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::get_users_with_vote_info;
+use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -14,7 +14,7 @@ use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use std::cmp::min;
 use std::env;
@@ -227,7 +227,7 @@ pub enum SqlBooleanOperator {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
@@ -392,7 +392,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -1635,9 +1635,12 @@ pub async fn count_have_voted(
     tenant_id: &str,
 ) -> Result<(i32)> {
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
-    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![Box::new(tenant_uuid)];
-    let mut filter_clauses: Vec<String> = vec![];
-    let mut next_param_number = 2;
+    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
+        Box::new(tenant_uuid),
+        Box::new(CastVoteStatus::Valid.to_string()),
+    ];
+    let mut filter_clauses: Vec<String> = vec!["status = $2".to_string()];
+    let mut next_param_number = 3;
 
     if let Some(election_event_id_str) = &filter.election_event_id {
         let election_event_id_uuid = parse_uuid_v4(election_event_id_str)?;
@@ -1653,12 +1656,7 @@ pub async fn count_have_voted(
         params.push(Box::new(election_id_uuid));
         next_param_number += 1;
     }
-    // If there are no filters, the WHERE clause would be empty and cause a SQL error.
-    let filter_clause = if filter_clauses.is_empty() {
-        "TRUE".to_string()
-    } else {
-        filter_clauses.join(" AND\n                    ")
-    };
+    let filter_clause = filter_clauses.join(" AND\n                    ");
 
     let statement_str = format!(
         r#"

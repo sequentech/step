@@ -456,13 +456,13 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(direction = %direction, api_name = %api_name), err)]
     pub async fn post_external_api_request(
         &self,
         tenant_id: String,
         event_id: String,
         election_id: Option<String>,
-        voter_id: String,
+        voter_id: Option<String>,
         voter_username: Option<String>,
         direction: ExtApiRequestDirection,
         api_name: ExtApiName,
@@ -475,7 +475,7 @@ impl ElectoralLog {
             event,
             election,
             &self.sd,
-            Some(voter_id.clone()),
+            voter_id.clone(),
             voter_username.clone(),
             direction,
             api_name,
@@ -488,7 +488,7 @@ impl ElectoralLog {
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
-            user_id: Some(voter_id),
+            user_id: voter_id,
             username: voter_username,
             tenant_id,
             body: LogEventBody::Plain(

@@ -343,6 +343,7 @@ actions:
           kind: synchronous
           handler: http://{{HARVEST_DOMAIN}}/edit-user
           forward_client_headers: true
+          timeout: 120
           request_transform:
               body:
                   action: transform
@@ -1628,7 +1629,6 @@ custom_types:
         - name: VotesInfo
         - name: KeycloakUser
         - name: GetUsersOutput
-        - name: EditUserOutput
         - name: GetPermissionsOutput
         - name: KeycloakPermission
         - name: GetRolesOutput

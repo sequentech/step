@@ -206,6 +206,23 @@ const frenchTranslation: TranslationType = {
             declineToVote: "S’abstenir de voter",
         },
         confirmationScreen: {
+            castVoteStatus: {
+                inProgress: {
+                    title: "Votre vote est en cours de vérification",
+                    description:
+                        "Votre bulletin a été reçu, mais sa vérification est toujours en cours. Vous pouvez terminer et vérifier à nouveau plus tard à l'aide de l'identifiant de bulletin {{ballotId}}.",
+                },
+                indeterminate: {
+                    title: "Votre vote nécessite une vérification manuelle",
+                    description:
+                        "Nous n'avons pas pu confirmer que la vérification était terminée. Votre bulletin ne sera pas comptabilisé tant qu'il n'aura pas été approuvé lors de la vérification. Contactez l'assistance et fournissez l'identifiant de bulletin {{ballotId}}.",
+                },
+                discarded: {
+                    title: "Votre vote n'a pas été accepté",
+                    description:
+                        "Votre bulletin a été rejeté et ne sera pas comptabilisé. Vous pouvez revenir à la liste des bulletins et réessayer. Identifiant de bulletin : {{ballotId}}.",
+                },
+            },
             title: "Votre vote a été émis",
             description:
                 "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",

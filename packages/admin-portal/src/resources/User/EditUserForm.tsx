@@ -32,6 +32,7 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     CreateUserMutation,
     DeleteUserRoleMutation,
+    EditUsersInput,
     ListUserRolesQuery,
     Sequent_Backend_Cast_Vote,
     Sequent_Backend_Election,
@@ -247,16 +248,6 @@ const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
     return user
 }
 
-// Datafix voter edits are deferred to a task; the mutation then returns a
-// task_execution instead of the edited user, which the caller surfaces as a
-// progress widget.
-interface EditUserMutationResult {
-    edit_user: {
-        user?: IUser | null
-        task_execution?: {id: string} | null
-    }
-}
-
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
@@ -266,7 +257,6 @@ interface EditUserFormProps {
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
     record?: RaRecord<Identifier>
-    onTaskLaunched?: (taskExecutionId: string) => void
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -278,7 +268,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     userAttributes,
     createMode = false,
     record,
-    onTaskLaunched,
 }) => {
     const {t} = useTranslation()
 
@@ -301,7 +290,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const notify = useNotify()
     const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
-    const [edit_user] = useMutation<EditUserMutationResult>(EDIT_USER)
+    const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
@@ -451,20 +440,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             onSubmitCreateUser()
         } else {
             try {
-                const result = await handleEditUser()
-                // Datafix edits run as a task: surface it so ListUsers can show
-                // the progress widget, and let the widget report the outcome
-                // instead of a premature success toast. Non-Datafix edits return
-                // no task and are done synchronously here.
-                const taskExecutionId = result?.data?.edit_user?.task_execution?.id
-                if (taskExecutionId) {
-                    onTaskLaunched?.(taskExecutionId)
-                } else {
-                    notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
-                }
+                await handleEditUser()
                 if (authContext.userId === user?.id) {
                     authContext.updateTokenAndPermissionLabels()
                 }
+                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
                 refresh()
                 close?.()
             } catch (error) {

@@ -161,7 +161,6 @@ const basqueTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
                 IMPORT_USERS: "Inportatu Erabiltzaileak",
-                EDIT_USER: "Editatu Hauteslea",
                 IMPORT_CANDIDATES: "Inportatu Hautagaiak",
                 EXPORT_VOTERS: "Esportatu Bozkatzaileak",
                 CREATE_TRANSMISSION_PACKAGE: "Sortu Transmisio Paketea",

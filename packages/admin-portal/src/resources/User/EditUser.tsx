@@ -15,7 +15,6 @@ interface EditUserProps {
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
     record?: RaRecord<Identifier>
-    onTaskLaunched?: (taskExecutionId: string) => void
 }
 
 export const EditUser: React.FC<EditUserProps> = ({
@@ -26,7 +25,6 @@ export const EditUser: React.FC<EditUserProps> = ({
     rolesList,
     userAttributes,
     record,
-    onTaskLaunched,
 }) => {
     const [renderUI, setRenderUI] = useState(true)
 
@@ -46,7 +44,6 @@ export const EditUser: React.FC<EditUserProps> = ({
                 rolesList={rolesList}
                 userAttributes={userAttributes}
                 record={record}
-                onTaskLaunched={onTaskLaunched}
             />
         )
     } else {

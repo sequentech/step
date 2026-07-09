@@ -138,7 +138,6 @@ update_permissions:
               - election_event_id
               - election_id
               - id
-              - status
               - tenant_id
           filter: {}
       role: service-account

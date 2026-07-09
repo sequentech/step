@@ -21,6 +21,11 @@ pub struct PgLock {
 impl PgLock {
     #[instrument(skip(self), err)]
     pub async fn update_expiry(&self) -> Result<()> {
+        self.update_expiry_for(120).await
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn update_expiry_for(&self, seconds: i64) -> Result<()> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
@@ -30,7 +35,7 @@ impl PgLock {
             .transaction()
             .await
             .with_context(|| "Error acquiring hasura transaction")?;
-        let new_expiry_date: DateTime<Local> = ISO8601::now() + Duration::seconds(120);
+        let new_expiry_date: DateTime<Local> = ISO8601::now() + Duration::seconds(seconds);
         lock::upsert_lock(
             &hasura_transaction,
             self.key.as_str(),

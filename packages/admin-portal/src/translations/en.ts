@@ -160,7 +160,6 @@ const englishTranslation = {
                 CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
                 IMPORT_USERS: "Import Users",
-                EDIT_USER: "Edit Voter",
                 IMPORT_CANDIDATES: "Import Candidates",
                 EXPORT_VOTERS: "Export Voters",
                 CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",

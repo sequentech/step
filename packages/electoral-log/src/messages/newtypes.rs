@@ -165,6 +165,14 @@ pub enum ExtApiName {
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
+pub struct ExternalApiSubject {
+    pub user_id: Option<String>,
+    pub username: Option<String>,
+}
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
 pub struct ResolutionIdsString(pub Vec<String>);
 
 #[derive(

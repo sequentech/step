@@ -583,6 +583,7 @@ export type InsertCastVoteOutput = {
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
   tenant_id: Scalars['uuid']['output'];
   voter_id_string?: Maybe<Scalars['String']['output']>;
 };
@@ -24034,10 +24035,20 @@ export type GetCastVoteQueryVariables = Exact<{
 
 export type GetCastVoteQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', ballot_id?: string | null, content?: string | null }> };
 
+export type GetCastVoteStatusQueryVariables = Exact<{
+  tenantId?: InputMaybe<Scalars['uuid']['input']>;
+  electionEventId?: InputMaybe<Scalars['uuid']['input']>;
+  electionId?: InputMaybe<Scalars['uuid']['input']>;
+  ballotId: Scalars['String']['input'];
+}>;
+
+
+export type GetCastVoteStatusQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, status: string }> };
+
 export type GetCastVotesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetCastVotesQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id?: any | null, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature?: any | null, voter_id_string?: string | null, election_event_id: any }> };
+export type GetCastVotesQuery = { __typename?: 'query_root', sequent_backend_cast_vote: Array<{ __typename?: 'sequent_backend_cast_vote', id: any, tenant_id: any, election_id?: any | null, area_id?: any | null, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature?: any | null, voter_id_string?: string | null, election_event_id: any, status: string }> };
 
 export type GetDocumentQueryVariables = Exact<{
   ids?: InputMaybe<Array<Scalars['uuid']['input']> | Scalars['uuid']['input']>;
@@ -24078,7 +24089,7 @@ export type InsertCastVoteMutationVariables = Exact<{
 }>;
 
 
-export type InsertCastVoteMutation = { __typename?: 'mutation_root', insert_cast_vote?: { __typename?: 'InsertCastVoteOutput', id: any, ballot_id?: string | null, election_id: any, election_event_id: any, tenant_id: any, area_id: any, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature: any, voter_id_string?: string | null } | null };
+export type InsertCastVoteMutation = { __typename?: 'mutation_root', insert_cast_vote?: { __typename?: 'InsertCastVoteOutput', id: any, ballot_id?: string | null, election_id: any, election_event_id: any, tenant_id: any, area_id: any, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature: any, voter_id_string?: string | null, status?: string | null } | null };
 
 export type ListCastVoteMessagesQueryVariables = Exact<{
   tenantId: Scalars['String']['input'];

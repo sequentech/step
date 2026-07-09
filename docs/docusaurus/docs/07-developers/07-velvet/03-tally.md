@@ -155,25 +155,22 @@ When in doubt or when configuration is missing, the tally engine will always cho
 
 ## Cast vote status guard
 
-Each cast vote carries a `status` (`in-progress`, `valid`, or `discarded`). Only
-`valid` votes are extracted for tallying — a vote enters as `in-progress` and is
-promoted to `valid` (or `discarded`) by the asynchronous `process_cast_vote`
-pipeline, with the `review_cast_votes` beat retrying any stragglers.
+Each cast vote carries a `status` (`in-progress`, `indeterminate`, `valid`, or
+`discarded`). Ordinary election events store votes as `valid` immediately. A
+Datafix vote enters as `in-progress` and is promoted to `valid` or `discarded`
+by `process_cast_vote`. An ambiguous external outcome becomes `indeterminate`
+and is not retried automatically.
 
-To avoid silently under-counting, a tally session **refuses to proceed while any
-cast vote for the elections being tallied is still `in-progress`**. The check is
-fail-closed and scoped **per election**: before extracting ballots, the engine
-counts the `in-progress` votes for each election in the session and, if any
-remain, aborts the tally with an operator-visible error instead of tallying a
-partial result. A second backstop check runs immediately before ballot
-extraction (`find_area_ballots`) for the same reason.
+Only `valid` votes are extracted. To avoid silently under-counting, a tally
+session refuses to proceed while its election and area contain an `in-progress`
+or `indeterminate` vote. A second check runs immediately before ballot
+extraction.
 
-When this happens, wait for the `process_cast_vote` / `review_cast_votes`
-pipeline to finish draining the `in-progress` votes (normally seconds after
-voting closes), then re-run the tally. For events integrated with an external
-voter registry, see the
+Wait for `in-progress` votes to drain, then re-run the tally. An
+`indeterminate` vote requires the documented operator reconciliation; waiting
+or repeatedly invoking `SetVoted` is not a safe resolution. See the
 [Datafix / VoterView integration](../../integrations/datafix_voterview_integration.md)
-for how statuses are resolved.
+for the state machine and runbook.
 
 ## Location
 

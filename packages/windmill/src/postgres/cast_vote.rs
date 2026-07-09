@@ -3,14 +3,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use serde_json::json;
 use serde_json::value::Value;
-use serde_json::{json, Map};
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, strum_macros::Display)]
+pub enum DatafixPendingOperation {
+    #[strum(serialize = "set-not-voted")]
+    SetNotVoted,
+    #[strum(serialize = "inbound-mark-voted")]
+    InboundMarkVoted,
+    #[strum(serialize = "inbound-unmark-voted")]
+    InboundUnmarkVoted,
+}
 
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
@@ -25,8 +34,9 @@ pub async fn insert_cast_vote(
     cast_ballot_signature: &[u8],
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    initial_status: CastVoteStatus,
 ) -> Result<CastVote> {
-    let status = CastVoteStatus::InProgress.to_string();
+    let status = initial_status.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -60,7 +70,8 @@ pub async fn insert_cast_vote(
                     content,
                     cast_ballot_signature,
                     voter_id_string,
-                    election_event_id;
+                    election_event_id,
+                    status;
             "#,
         )
         .await?;
@@ -102,28 +113,99 @@ pub async fn insert_cast_vote(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn update_cast_vote_status(
+pub async fn compare_and_set_cast_vote_status(
     hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
     cast_vote_id: &Uuid,
-    status: CastVoteStatus,
-) -> Result<()> {
-    let new_status = status.to_string();
+    expected_status: CastVoteStatus,
+    new_status: CastVoteStatus,
+) -> Result<bool> {
+    let expected_status = expected_status.to_string();
+    let new_status = new_status.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
                 UPDATE sequent_backend.cast_vote
-                SET status = $1, last_updated_at = NOW()
-                WHERE id = $2
+                SET
+                    status = $1,
+                    annotations = CASE
+                        WHEN $1 = 'indeterminate' THEN jsonb_set(
+                            COALESCE(annotations, '{}'::jsonb),
+                            '{datafix_pending_operation}',
+                            '"set-voted"'::jsonb,
+                            true
+                        )
+                        ELSE COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation'
+                    END,
+                    last_updated_at = NOW()
+                WHERE
+                    id = $2 AND
+                    status = $3 AND
+                    tenant_id = $4 AND
+                    election_event_id = $5
+            "#,
+        )
+        .await?;
+
+    let updated = hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &new_status,
+                &cast_vote_id,
+                &expected_status,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error updating cast vote: {}", err))?;
+
+    Ok(updated == 1)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_cast_vote_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    cast_vote_id: &Uuid,
+) -> Result<Option<CastVote>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id,
+                    ballot_id,
+                    election_id,
+                    election_event_id,
+                    tenant_id,
+                    area_id,
+                    created_at,
+                    last_updated_at,
+                    content,
+                    cast_ballot_signature,
+                    voter_id_string,
+                    status
+                FROM sequent_backend.cast_vote
+                WHERE id = $1 AND tenant_id = $2 AND election_event_id = $3
             "#,
         )
         .await?;
 
     hasura_transaction
-        .query(&statement, &[&new_status, &cast_vote_id])
-        .await
-        .map_err(|err| anyhow!("Error updating cast vote: {}", err))?;
-
-    Ok(())
+        .query_opt(
+            &statement,
+            &[
+                cast_vote_id,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await?
+        .map(TryInto::try_into)
+        .transpose()
 }
 
 /// Used by the datafix flow to tell a VoterView
@@ -171,18 +253,16 @@ pub async fn has_valid_cast_vote(
     Ok(row.get("found"))
 }
 
-/// Counts the cast votes of an election that have the given status. Used to
-/// guard the tally against extracting ballots while votes are still
-/// `in-progress` (and therefore not yet countable).
+/// Counts votes in a contest area whose Datafix outcome is not resolved.
+/// Tally extraction must wait because neither status is countable.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn count_cast_votes_by_status(
+pub async fn count_unresolved_cast_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
     election_event_id: &Uuid,
     election_id: &Uuid,
-    status: CastVoteStatus,
+    area_id: &Uuid,
 ) -> Result<i64> {
-    let status = status.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -192,7 +272,8 @@ pub async fn count_cast_votes_by_status(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3 AND
-                    status = $4
+                    area_id = $4 AND
+                    status IN ('in-progress', 'indeterminate')
             "#,
         )
         .await?;
@@ -200,12 +281,233 @@ pub async fn count_cast_votes_by_status(
     let row = hasura_transaction
         .query_one(
             &statement,
-            &[tenant_id, election_event_id, election_id, &status],
+            &[tenant_id, election_event_id, election_id, area_id],
         )
         .await
         .map_err(|err| anyhow!("Error counting cast votes by status: {}", err))?;
 
     Ok(row.get("count"))
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn quarantine_valid_cast_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    voter_id_string: &str,
+    pending_operation: DatafixPendingOperation,
+) -> Result<Vec<Uuid>> {
+    let pending_operation = pending_operation.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET
+                    status = 'indeterminate',
+                    annotations = jsonb_set(
+                        COALESCE(annotations, '{}'::jsonb),
+                        '{datafix_pending_operation}',
+                        to_jsonb($4::text),
+                        true
+                    ),
+                    last_updated_at = NOW()
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    voter_id_string = $3 AND
+                    status = 'valid'
+                RETURNING id
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .query(
+            &statement,
+            &[
+                tenant_id,
+                election_event_id,
+                &voter_id_string,
+                &pending_operation,
+            ],
+        )
+        .await
+        .map(|rows| rows.into_iter().map(|row| row.get("id")).collect())
+        .map_err(Into::into)
+}
+
+#[instrument(skip(hasura_transaction, cast_vote_ids), err)]
+pub async fn restore_quarantined_cast_votes(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    cast_vote_ids: &[Uuid],
+    pending_operation: DatafixPendingOperation,
+) -> Result<()> {
+    let pending_operation = pending_operation.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET
+                    status = 'valid',
+                    annotations = COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation',
+                    last_updated_at = NOW()
+                WHERE
+                    id = ANY($1) AND
+                    tenant_id = $2 AND
+                    election_event_id = $3 AND
+                    status = 'indeterminate' AND
+                    annotations ->> 'datafix_pending_operation' = $4
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &cast_vote_ids,
+                tenant_id,
+                election_event_id,
+                &pending_operation,
+            ],
+        )
+        .await?;
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn finalize_voter_release(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    voter_id_string: &str,
+) -> Result<u64> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET
+                    status = 'discarded',
+                    annotations = COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation',
+                    last_updated_at = NOW()
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    voter_id_string = $3 AND
+                    status IN ('valid', 'in-progress', 'indeterminate')
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[tenant_id, election_event_id, &voter_id_string],
+        )
+        .await
+        .map_err(Into::into)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn mark_voter_release_pending(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    voter_id_string: &str,
+) -> Result<u64> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET
+                    annotations = jsonb_set(
+                        COALESCE(annotations, '{}'::jsonb),
+                        '{datafix_pending_operation}',
+                        '"set-not-voted"'::jsonb,
+                        true
+                    ),
+                    last_updated_at = NOW()
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    voter_id_string = $3 AND
+                    status = 'indeterminate'
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[tenant_id, election_event_id, &voter_id_string],
+        )
+        .await
+        .map_err(Into::into)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VoterCastVoteState {
+    pub has_unresolved_vote: bool,
+    pub has_indeterminate_vote: bool,
+    pub has_pending_release: bool,
+    pub has_valid_vote: bool,
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_voter_cast_vote_state(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    voter_id_string: &str,
+) -> Result<VoterCastVoteState> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                WITH voter_votes AS MATERIALIZED (
+                    SELECT status, annotations
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        voter_id_string = $3
+                )
+                SELECT
+                    EXISTS (
+                        SELECT 1 FROM voter_votes
+                        WHERE status IN ('in-progress', 'indeterminate')
+                    ) AS has_unresolved_vote,
+                    EXISTS (
+                        SELECT 1 FROM voter_votes
+                        WHERE status = 'indeterminate'
+                    ) AS has_indeterminate_vote,
+                    EXISTS (
+                        SELECT 1 FROM voter_votes
+                        WHERE
+                            status = 'indeterminate' AND
+                            annotations ->> 'datafix_pending_operation' = 'set-not-voted'
+                    ) AS has_pending_release,
+                    EXISTS (
+                        SELECT 1 FROM voter_votes
+                        WHERE status = 'valid'
+                    ) AS has_valid_vote
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[tenant_id, election_event_id, &voter_id_string],
+        )
+        .await?;
+    Ok(VoterCastVoteState {
+        has_unresolved_vote: row.get("has_unresolved_vote"),
+        has_indeterminate_vote: row.get("has_indeterminate_vote"),
+        has_pending_release: row.get("has_pending_release"),
+        has_valid_vote: row.get("has_valid_vote"),
+    })
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -236,7 +538,8 @@ pub async fn get_cast_votes(
                     content,
                     cast_ballot_signature,
                     voter_id_string,
-                    election_event_id
+                    election_event_id,
+                    status
                 FROM
                     sequent_backend.cast_vote
                 WHERE

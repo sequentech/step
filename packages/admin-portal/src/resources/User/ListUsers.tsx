@@ -879,13 +879,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
-    // Datafix voter edits are handled asynchronously by a task; show a progress
-    // widget for it. Non-Datafix edits return no task, so this is not called.
-    const handleEditUserTask = (taskExecutionId: string) => {
-        const currWidget = addWidget(ETasksExecution.EDIT_USER, undefined)
-        setWidgetTaskId(currWidget.identifier, taskExecutionId)
-    }
-
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
@@ -1210,7 +1203,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
                     record={userRecord}
-                    onTaskLaunched={handleEditUserTask}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openSendTemplate} onClose={handleClose}>

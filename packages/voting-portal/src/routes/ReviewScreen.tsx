@@ -252,8 +252,9 @@ const useTryInsertCastVote = () => {
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
+                return String(newCastVote.id)
             }
-            return true
+            return false
         } catch (error) {
             console.log(error)
             let castError = error as IGraphQLActionError
@@ -335,6 +336,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
+    const dispatch = useAppDispatch()
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -382,6 +384,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     const castBallotAction = async () => {
+        if (isCastingBallot.current) {
+            return
+        }
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         isCastingBallot.current = true
         if (isDemo || globalSettings.DISABLE_AUTH) {
@@ -439,17 +444,27 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotStyle.election_id,
-                ballotId,
-                JSON.stringify(hashableBallot),
-                setErrorMsg
-            ))
-        ) {
+        const castVoteId = await tryInsertCastVote(
+            ballotStyle.election_id,
+            ballotId,
+            JSON.stringify(hashableBallot),
+            setErrorMsg
+        )
+        if (!castVoteId) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
+        dispatch(
+            setConfirmationScreenData({
+                electionId: ballotStyle.election_id,
+                confirmationScreenData: {
+                    ballotId,
+                    isDemo,
+                    isGoldenAuth: false,
+                    castVoteId,
+                },
+            })
+        )
         return submit(null, {method: "post"})
     }
 
@@ -662,6 +677,9 @@ export const ReviewScreen: React.FC = () => {
 
     // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
+        if (isCastingBallot.current) {
+            return
+        }
         isCastingBallot.current = true
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         const ballotData = getBallotDataFromSessionStorage()
@@ -679,14 +697,13 @@ export const ReviewScreen: React.FC = () => {
             return submit(null, {method: "post"})
         }
 
-        if (
-            !(await tryInsertCastVote(
-                ballotData.electionId,
-                ballotData.ballotId,
-                ballotData.ballot,
-                setErrorMsg
-            ))
-        ) {
+        const castVoteId = await tryInsertCastVote(
+            ballotData.electionId,
+            ballotData.ballotId,
+            ballotData.ballot,
+            setErrorMsg
+        )
+        if (!castVoteId) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
@@ -698,6 +715,8 @@ export const ReviewScreen: React.FC = () => {
                 confirmationScreenData: {
                     ballotId: ballotData.ballotId,
                     isDemo: ballotData.isDemo,
+                    isGoldenAuth: true,
+                    castVoteId,
                 },
             })
         )

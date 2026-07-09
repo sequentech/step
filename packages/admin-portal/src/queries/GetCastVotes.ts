@@ -4,9 +4,6 @@
 
 import {gql} from "@apollo/client"
 
-// Only "valid" cast votes count towards dashboards: "in-progress" votes are
-// still being processed and "discarded" ones were rejected (see the backend
-// CastVoteStatus enum in windmill).
 export const GET_CAST_VOTES_BY_DATERANGE = gql`
     query GetCastVotesByDateRange(
         $electionEventId: uuid!

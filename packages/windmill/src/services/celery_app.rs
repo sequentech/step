@@ -15,7 +15,6 @@ use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
-use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
     electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
 };
@@ -78,8 +77,7 @@ pub enum Queue {
     Reports,
     #[strum(serialize = "import_export_queue")]
     ImportExport,
-    #[strum(serialize = "process_cast_vote_queue")]
-    ProcessCastVote,
+
     #[strum(serialize = "electoral_log_beat_queue")]
     ElectoralLogBeat,
     #[strum(serialize = "electoral_log_batch_queue")]
@@ -270,7 +268,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             insert_tenant,
             send_template,
             import_users,
-            edit_user,
             export_users,
             import_election_event,
             scheduled_events,
@@ -325,7 +322,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             insert_tenant::NAME => &Queue::Short.queue_name(&slug),
             send_template::NAME => &Queue::Communication.queue_name(&slug),
             import_users::NAME => &Queue::ImportExport.queue_name(&slug),
-            edit_user::NAME => &Queue::Short.queue_name(&slug),
             export_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
             generate_activity_logs_report::NAME => &Queue::Reports.queue_name(&slug), // Using reports queue because there is more memory allocated for that queue
@@ -361,7 +357,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
             import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
             export_certificate_authority::NAME => &Queue::ImportExport.queue_name(&slug),
-            process_cast_vote::NAME => &Queue::ProcessCastVote.queue_name(&slug),
+            process_cast_vote::NAME => &Queue::Communication.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

@@ -161,7 +161,6 @@ const tagalogTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
-                EDIT_USER: "I-edit ang Botante",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
