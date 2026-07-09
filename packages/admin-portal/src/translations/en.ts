@@ -529,6 +529,8 @@ const englishTranslation = {
                         reason: "Reason",
                         createdAt: "Created at",
                         createdBy: "Created by",
+                        createdBefore: "Created before",
+                        createdAfter: "Created after",
                     },
                     emptyMsg: "There are no entries in the blocklist",
                     infoMsg:

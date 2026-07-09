@@ -250,8 +250,14 @@ export const PhoneBlacklist: React.FC = () => {
                         source="created_by"
                         label={t("electionEventScreen.ivr.blacklist.columns.createdBy")}
                     />,
-                    <DateInput source="created_at@_lte" label="Created Before" />,
-                    <DateInput source="created_at@_gte" label="Created After" />,
+                    <DateInput
+                        source="created_at@_lte"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdBefore")}
+                    />,
+                    <DateInput
+                        source="created_at@_gte"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdAfter")}
+                    />,
                 ]}
                 actions={
                     <ListActions
