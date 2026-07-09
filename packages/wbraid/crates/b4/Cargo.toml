@@ -7,14 +7,12 @@ edition = "2021"
 name = "b4"
 path = "src/main.rs"
 
-[[bin]]
-name = "monitor"
-path = "src/monitor.rs"
-required-features = ["monitor"]
+# NOTE: the `monitor` TUI binary (src/monitor.rs) is retired for v0.6 — it
+# depended on the board/message metadata b4 no longer stores (§8.1). Kept on disk
+# as reference; an operator monitor is a future diagnostics concern (§12).
 
 [features]
 default = ["native"]
-monitor = ["dep:cursive", "dep:clap"]
 wasm-core = ["vsc/wasm", "dep:js-sys"]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
 
@@ -54,10 +52,6 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 chrono = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# Monitor tool dependencies (optional)
-cursive = { version = "0.21", optional = true }
-clap = { version = "4.5", features = ["derive"], optional = true }
 
 # WASM dependencies
 js-sys = { version = "0.3", optional = true }
