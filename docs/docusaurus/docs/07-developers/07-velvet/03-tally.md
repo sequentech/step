@@ -41,15 +41,25 @@ Ballots go through several stages:
 3. **Aggregation** - Combine results from multiple voting areas
 4. **Metric calculation** - Compute percentages and statistics
 
-## Invalid Votes
+## Ballot classifications
 
-The tally engine handles different types of invalid votes:
+The tally engine handles valid, blank, declined, and invalid ballots:
 
 - **Explicit invalid** - Voter intentionally marked ballot as invalid
 - **Implicit invalid** - Ballot is invalid due to errors (e.g., overvoting)
-- **Blank votes** - Ballot has no selections
+- **Explicit blank** - Voter selected the contest's explicit blank candidate
+- **Implicit blank** - Ballot has no selections
+- **Declined** - Ballot is covered by decline-to-vote policy and is not counted
+  as valid, invalid, or blank at contest level
 
 Invalid vote handling can be configured per election.
+
+Blank votes are a subset of valid votes. In result data,
+`total_valid_votes` is every ballot that is not invalid and not declined,
+including explicit and implicit blank votes. Votes for candidates are
+`total_valid_votes - total_blank_votes`. A ballot that selects the explicit
+blank candidate together with a regular candidate is treated as an implicit
+invalid vote, not as a blank vote.
 
 ## Extended Metrics
 
@@ -58,7 +68,7 @@ The tally engine tracks detailed metrics including:
 - Total ballots cast
 - Number of valid ballots
 - Number of invalid ballots (explicit and implicit)
-- Number of blank ballots
+- Number of blank ballots (explicit, implicit, and total)
 - Voter participation rates
 - Per-candidate vote distributions
 
@@ -75,6 +85,8 @@ ContestResult {
     total_valid_votes: u64,
     total_invalid_votes: u64,
     total_blank_votes: u64,
+    blank_votes: BlankVotes,
+    invalid_votes: InvalidVotes,
     candidate_result: Vec<CandidateResult>,
     extended_metrics: ExtendedMetricsContest,
     // ... percentage fields

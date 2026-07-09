@@ -24,6 +24,10 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 import {isString} from "@sequentech/ui-core"
 import {IResultDocuments} from "@/types/results"
+import {normalizeLegacyBlankVotes, type LegacyBlankVoteColumns} from "./normalizeLegacyBlankVotes"
+
+type SQLiteResultsContestRow = Sequent_Backend_Results_Contest & LegacyBlankVoteColumns
+type SQLiteResultsAreaContestRow = Sequent_Backend_Results_Area_Contest & LegacyBlankVoteColumns
 
 export interface ResultsDataLoaderProps {
     resultsEventId: string
@@ -132,7 +136,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_contest} = useSQLQuery(
+    const {data: results_contest} = useSQLQuery<SQLiteResultsContestRow>(
         `SELECT * FROM results_contest WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -150,7 +154,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    const {data: results_area_contest} = useSQLQuery(
+    const {data: results_area_contest} = useSQLQuery<SQLiteResultsAreaContestRow>(
         `SELECT * FROM results_area_contest WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
@@ -181,26 +185,32 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
             sequent_backend_results_contest_candidate:
                 results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
             sequent_backend_results_contest: results_contest.map((contest) => {
-                if (isString(contest.documents)) {
+                const normalizedContest = normalizeLegacyBlankVotes(contest)
+                if (isString(normalizedContest.documents)) {
                     try {
-                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                        normalizedContest.documents = JSON.parse(
+                            normalizedContest.documents
+                        ) as IResultDocuments
                     } catch (e) {
                         console.error("error parsing contest documents" + e)
                     }
                 }
-                return contest
+                return normalizedContest
             }) as Sequent_Backend_Results_Contest[],
             sequent_backend_results_area_contest_candidate:
                 results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
             sequent_backend_results_area_contest: results_area_contest.map((contest) => {
-                if (isString(contest.documents)) {
+                const normalizedContest = normalizeLegacyBlankVotes(contest)
+                if (isString(normalizedContest.documents)) {
                     try {
-                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                        normalizedContest.documents = JSON.parse(
+                            normalizedContest.documents
+                        ) as IResultDocuments
                     } catch (e) {
                         console.error("error parsing contest documents" + e)
                     }
                 }
-                return contest
+                return normalizedContest
             }) as Sequent_Backend_Results_Area_Contest[],
             sequent_backend_results_election_area:
                 results_election_area as Sequent_Backend_Results_Election_Area[],

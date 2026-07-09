@@ -679,6 +679,53 @@ async fn process_results_contest_candidate_file(
     Ok(())
 }
 
+const LEGACY_RESULTS_CONTEST_COLUMNS: usize = 29;
+const RESULTS_CONTEST_COLUMNS: usize = 33;
+const LEGACY_RESULTS_AREA_CONTEST_COLUMNS: usize = 27;
+const RESULTS_AREA_CONTEST_COLUMNS: usize = 31;
+
+fn normalize_results_contest_record(record: &StringRecord) -> Result<StringRecord> {
+    match record.len() {
+        RESULTS_CONTEST_COLUMNS => Ok(record.clone()),
+        LEGACY_RESULTS_CONTEST_COLUMNS => {
+            let mut normalized = StringRecord::new();
+            normalized.extend(record.iter().take(11));
+            normalized.extend(["null", "null"]);
+            normalized.extend(record.iter().skip(11).take(13));
+            normalized.extend(["null", "null"]);
+            normalized.extend(record.iter().skip(24));
+            Ok(normalized)
+        }
+        columns => Err(anyhow!(
+            "Unexpected results_contest column count: got {columns}, expected {LEGACY_RESULTS_CONTEST_COLUMNS} (legacy) or {RESULTS_CONTEST_COLUMNS} (current)"
+        )),
+    }
+}
+
+fn normalize_results_area_contest_record(record: &StringRecord) -> Result<StringRecord> {
+    match record.len() {
+        RESULTS_AREA_CONTEST_COLUMNS => Ok(record.clone()),
+        LEGACY_RESULTS_AREA_CONTEST_COLUMNS => {
+            let mut normalized = StringRecord::new();
+            normalized.extend(record.iter().take(12));
+            normalized.extend(["null", "null"]);
+            normalized.extend(record.iter().skip(12).take(8));
+
+            // The legacy release exported blank percentage before implicit-invalid
+            // percentage; the current format places implicit-invalid first.
+            normalized.push_field(&record[21]);
+            normalized.push_field(&record[20]);
+
+            normalized.extend(["null", "null"]);
+            normalized.extend(record.iter().skip(22));
+            Ok(normalized)
+        }
+        columns => Err(anyhow!(
+            "Unexpected results_area_contest column count: got {columns}, expected {LEGACY_RESULTS_AREA_CONTEST_COLUMNS} (legacy) or {RESULTS_AREA_CONTEST_COLUMNS} (current)"
+        )),
+    }
+}
+
 #[instrument(err, skip_all)]
 pub async fn process_results_contest_record(
     tenant_id: &str,
@@ -686,6 +733,9 @@ pub async fn process_results_contest_record(
     record: &StringRecord,
     replacement_map: HashMap<String, String>,
 ) -> Result<ResultsContest> {
+    let normalized_record = normalize_results_contest_record(record)?;
+    let record = &normalized_record;
+
     let election_id: String = get_replaced_id(record, 3, &replacement_map).await?;
     let contest_id: String = get_replaced_id(record, 4, &replacement_map).await?;
     let results_event_id: String = get_replaced_id(record, 5, &replacement_map).await?;
@@ -698,41 +748,45 @@ pub async fn process_results_contest_record(
 
     let implicit_invalid_votes = get_opt_i64_item(record, 9).await?;
 
-    let blank_votes = get_opt_i64_item(record, 10).await?;
+    let total_blank_votes = get_opt_i64_item(record, 10).await?;
+    let explicit_blank_votes = get_opt_i64_item(record, 11).await?;
+    let implicit_blank_votes = get_opt_i64_item(record, 12).await?;
 
-    let voting_type: Option<String> = get_string_or_null_item(&record, 11).await?;
-    let counting_algorithm: Option<String> = get_string_or_null_item(&record, 12).await?;
-    let name: Option<String> = get_string_or_null_item(&record, 13).await?;
+    let voting_type: Option<String> = get_string_or_null_item(&record, 13).await?;
+    let counting_algorithm: Option<String> = get_string_or_null_item(&record, 14).await?;
+    let name: Option<String> = get_string_or_null_item(&record, 15).await?;
 
-    let created_at = get_opt_date(&record, 14).await?;
-    let last_updated_at = get_opt_date(&record, 15).await?;
+    let created_at = get_opt_date(&record, 16).await?;
+    let last_updated_at = get_opt_date(&record, 17).await?;
 
-    let labels = get_opt_json_value_item(record, 16).await?;
+    let labels = get_opt_json_value_item(record, 18).await?;
 
-    let annotations = get_opt_json_value_item(record, 17).await?;
+    let annotations = get_opt_json_value_item(record, 19).await?;
 
-    let total_invalid_votes = get_opt_i64_item(record, 18).await?;
+    let total_invalid_votes = get_opt_i64_item(record, 20).await?;
 
-    let total_invalid_votes_percent = get_opt_f64_item(record, 19).await?;
-    let total_valid_votes_percent = get_opt_f64_item(record, 20).await?;
+    let total_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
+    let total_valid_votes_percent = get_opt_f64_item(record, 22).await?;
 
-    let explicit_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
-    let implicit_invalid_votes_percent = get_opt_f64_item(record, 22).await?;
-    let blank_votes_percent = get_opt_f64_item(record, 23).await?;
+    let explicit_invalid_votes_percent = get_opt_f64_item(record, 23).await?;
+    let implicit_invalid_votes_percent = get_opt_f64_item(record, 24).await?;
+    let total_blank_votes_percent = get_opt_f64_item(record, 25).await?;
+    let explicit_blank_votes_percent = get_opt_f64_item(record, 26).await?;
+    let implicit_blank_votes_percent = get_opt_f64_item(record, 27).await?;
 
-    let total_votes = get_opt_i64_item(record, 24).await?;
-    let total_votes_percent = get_opt_f64_item(record, 25).await?;
+    let total_votes = get_opt_i64_item(record, 28).await?;
+    let total_votes_percent = get_opt_f64_item(record, 29).await?;
 
     let documents = record
-        .get(26)
+        .get(30)
         .map(str::trim)
         .filter(|s| *s != "null" && *s != "\"null\"")
         .map(|s| deserialize_str(s))
         .transpose()
         .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
-    let total_auditable_votes = get_opt_i64_item(record, 27).await?;
-    let total_auditable_votes_percent = get_opt_f64_item(record, 28).await?;
+    let total_auditable_votes = get_opt_i64_item(record, 31).await?;
+    let total_auditable_votes_percent = get_opt_f64_item(record, 32).await?;
 
     let results_contest = ResultsContest {
         id: Uuid::new_v4().to_string(),
@@ -745,7 +799,9 @@ pub async fn process_results_contest_record(
         total_valid_votes,
         explicit_invalid_votes,
         implicit_invalid_votes,
-        blank_votes,
+        total_blank_votes,
+        explicit_blank_votes,
+        implicit_blank_votes,
         voting_type,
         counting_algorithm,
         name,
@@ -758,7 +814,9 @@ pub async fn process_results_contest_record(
         total_valid_votes_percent,
         explicit_invalid_votes_percent,
         implicit_invalid_votes_percent,
-        blank_votes_percent,
+        total_blank_votes_percent,
+        explicit_blank_votes_percent,
+        implicit_blank_votes_percent,
         total_votes,
         total_votes_percent,
         documents,
@@ -784,68 +842,14 @@ async fn process_results_area_contest_file(
 
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let election_id = get_replaced_id(&record, 3, &replacement_map).await?;
-        let contest_id = get_replaced_id(&record, 4, &replacement_map).await?;
-        let area_id = get_replaced_id(&record, 5, &replacement_map).await?;
-        let results_event_id = get_replaced_id(&record, 6, &replacement_map).await?;
-        let elegible_census = get_opt_i64_item(&record, 7).await?;
-        let total_valid_votes = get_opt_i64_item(&record, 8).await?;
-        let explicit_invalid_votes = get_opt_i64_item(&record, 9).await?;
-        let implicit_invalid_votes = get_opt_i64_item(&record, 10).await?;
-        let blank_votes = get_opt_i64_item(&record, 11).await?;
-        let created_at = get_opt_date(&record, 12).await?;
-        let last_updated_at = get_opt_date(&record, 13).await?;
-        let labels = get_opt_json_value_item(&record, 14).await?;
-        let annotations = get_opt_json_value_item(&record, 15).await?;
-        let total_valid_votes_percent = get_opt_f64_item(&record, 16).await?;
-        let total_invalid_votes = get_opt_i64_item(&record, 17).await?;
-        let total_invalid_votes_percent = get_opt_f64_item(&record, 18).await?;
-        let explicit_invalid_votes_percent = get_opt_f64_item(&record, 19).await?;
-        let blank_votes_percent = get_opt_f64_item(&record, 20).await?;
-        let implicit_invalid_votes_percent = get_opt_f64_item(&record, 21).await?;
-        let total_votes = get_opt_i64_item(&record, 22).await?;
-        let total_votes_percent = get_opt_f64_item(&record, 23).await?;
-
-        let documents = record
-            .get(24)
-            .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
-            .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
-
-        let total_auditable_votes = get_opt_i64_item(&record, 25).await?;
-        let total_auditable_votes_percent = get_opt_f64_item(&record, 26).await?;
-
-        let results_area_contest = ResultsAreaContest {
-            id: Uuid::new_v4().to_string(),
-            tenant_id: tenant_id.to_string(),
-            election_event_id: election_event_id.to_string(),
-            election_id,
-            contest_id,
-            area_id,
-            results_event_id,
-            elegible_census,
-            total_valid_votes,
-            explicit_invalid_votes,
-            implicit_invalid_votes,
-            blank_votes,
-            created_at,
-            last_updated_at,
-            labels,
-            annotations,
-            total_valid_votes_percent,
-            total_invalid_votes,
-            total_invalid_votes_percent,
-            explicit_invalid_votes_percent,
-            blank_votes_percent,
-            implicit_invalid_votes_percent,
-            total_votes,
-            total_votes_percent,
-            documents,
-            total_auditable_votes,
-            total_auditable_votes_percent,
-        };
+        let results_area_contest = process_results_area_contest_record(
+            tenant_id,
+            election_event_id,
+            &record,
+            replacement_map.clone(),
+        )
+        .await
+        .with_context(|| "Error proccess results_area_contest record")?;
         results_area_contests.push(results_area_contest);
     }
     let _ = insert_many_results_area_contests(hasura_transaction, results_area_contests)
@@ -853,6 +857,88 @@ async fn process_results_area_contest_file(
         .map_err(|err| anyhow!("Error at insert_many_results_area_contests {:?}", err))?;
 
     Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn process_results_area_contest_record(
+    tenant_id: &str,
+    election_event_id: &str,
+    record: &StringRecord,
+    replacement_map: HashMap<String, String>,
+) -> Result<ResultsAreaContest> {
+    let normalized_record = normalize_results_area_contest_record(record)?;
+    let record = &normalized_record;
+
+    let election_id = get_replaced_id(record, 3, &replacement_map).await?;
+    let contest_id = get_replaced_id(record, 4, &replacement_map).await?;
+    let area_id = get_replaced_id(record, 5, &replacement_map).await?;
+    let results_event_id = get_replaced_id(record, 6, &replacement_map).await?;
+    let elegible_census = get_opt_i64_item(record, 7).await?;
+    let total_valid_votes = get_opt_i64_item(record, 8).await?;
+    let explicit_invalid_votes = get_opt_i64_item(record, 9).await?;
+    let implicit_invalid_votes = get_opt_i64_item(record, 10).await?;
+    let total_blank_votes = get_opt_i64_item(record, 11).await?;
+    let explicit_blank_votes = get_opt_i64_item(record, 12).await?;
+    let implicit_blank_votes = get_opt_i64_item(record, 13).await?;
+    let created_at = get_opt_date(record, 14).await?;
+    let last_updated_at = get_opt_date(record, 15).await?;
+    let labels = get_opt_json_value_item(record, 16).await?;
+    let annotations = get_opt_json_value_item(record, 17).await?;
+    let total_valid_votes_percent = get_opt_f64_item(record, 18).await?;
+    let total_invalid_votes = get_opt_i64_item(record, 19).await?;
+    let total_invalid_votes_percent = get_opt_f64_item(record, 20).await?;
+    let explicit_invalid_votes_percent = get_opt_f64_item(record, 21).await?;
+    let implicit_invalid_votes_percent = get_opt_f64_item(record, 22).await?;
+    let total_blank_votes_percent = get_opt_f64_item(record, 23).await?;
+    let explicit_blank_votes_percent = get_opt_f64_item(record, 24).await?;
+    let implicit_blank_votes_percent = get_opt_f64_item(record, 25).await?;
+    let total_votes = get_opt_i64_item(record, 26).await?;
+    let total_votes_percent = get_opt_f64_item(record, 27).await?;
+
+    let documents = record
+        .get(28)
+        .map(str::trim)
+        .filter(|s| *s != "null" && *s != "\"null\"")
+        .map(deserialize_str)
+        .transpose()
+        .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+
+    let total_auditable_votes = get_opt_i64_item(record, 29).await?;
+    let total_auditable_votes_percent = get_opt_f64_item(record, 30).await?;
+
+    Ok(ResultsAreaContest {
+        id: Uuid::new_v4().to_string(),
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        election_id,
+        contest_id,
+        area_id,
+        results_event_id,
+        elegible_census,
+        total_valid_votes,
+        explicit_invalid_votes,
+        implicit_invalid_votes,
+        total_blank_votes,
+        explicit_blank_votes,
+        implicit_blank_votes,
+        created_at,
+        last_updated_at,
+        labels,
+        annotations,
+        total_valid_votes_percent,
+        total_invalid_votes,
+        total_invalid_votes_percent,
+        explicit_invalid_votes_percent,
+        implicit_invalid_votes_percent,
+        total_blank_votes_percent,
+        explicit_blank_votes_percent,
+        implicit_blank_votes_percent,
+        total_votes,
+        total_votes_percent,
+        documents,
+        total_auditable_votes,
+        total_auditable_votes_percent,
+    })
 }
 
 #[instrument(err, skip_all)]
@@ -1055,4 +1141,265 @@ pub async fn process_tally_file(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn replacement_map() -> HashMap<String, String> {
+        HashMap::from([
+            ("old-election".to_string(), "new-election".to_string()),
+            ("old-contest".to_string(), "new-contest".to_string()),
+            ("old-area".to_string(), "new-area".to_string()),
+            (
+                "old-results-event".to_string(),
+                "new-results-event".to_string(),
+            ),
+        ])
+    }
+
+    fn legacy_results_contest_fields() -> Vec<String> {
+        [
+            "ignored-id",
+            "ignored-tenant",
+            "ignored-event",
+            "\"old-election\"",
+            "\"old-contest\"",
+            "\"old-results-event\"",
+            "100",
+            "75",
+            "2",
+            "3",
+            "13",
+            "\"plurality\"",
+            "\"plurality_at_large\"",
+            "\"Contest\"",
+            "",
+            "",
+            "{}",
+            "{}",
+            "5",
+            "0.05",
+            "0.75",
+            "0.02",
+            "0.03",
+            "0.13",
+            "93",
+            "0.93",
+            "{\"json\":\"legacy.json\"}",
+            "90",
+            "0.9",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+    }
+
+    fn current_results_contest_fields() -> Vec<String> {
+        let mut fields = legacy_results_contest_fields();
+        fields.insert(11, "4".to_string());
+        fields.insert(12, "9".to_string());
+        fields.insert(26, "0.04".to_string());
+        fields.insert(27, "0.09".to_string());
+        fields
+    }
+
+    fn legacy_results_area_contest_fields() -> Vec<String> {
+        [
+            "ignored-id",
+            "ignored-tenant",
+            "ignored-event",
+            "\"old-election\"",
+            "\"old-contest\"",
+            "\"old-area\"",
+            "\"old-results-event\"",
+            "100",
+            "75",
+            "2",
+            "3",
+            "13",
+            "",
+            "",
+            "{}",
+            "{}",
+            "0.75",
+            "5",
+            "0.05",
+            "0.02",
+            "0.13",
+            "0.03",
+            "93",
+            "0.93",
+            "{\"json\":\"legacy.json\"}",
+            "90",
+            "0.9",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+    }
+
+    fn current_results_area_contest_fields() -> Vec<String> {
+        let mut fields = legacy_results_area_contest_fields();
+        fields.insert(12, "4".to_string());
+        fields.insert(13, "9".to_string());
+        fields.swap(22, 23);
+        fields.insert(24, "0.04".to_string());
+        fields.insert(25, "0.09".to_string());
+        fields
+    }
+
+    #[tokio::test]
+    async fn imports_legacy_and_current_results_contest_records() {
+        let legacy_record = StringRecord::from(legacy_results_contest_fields());
+        assert_eq!(legacy_record.len(), LEGACY_RESULTS_CONTEST_COLUMNS);
+        let legacy =
+            process_results_contest_record("tenant", "event", &legacy_record, replacement_map())
+                .await
+                .unwrap();
+
+        assert_eq!(legacy.election_id, "new-election");
+        assert_eq!(legacy.contest_id, "new-contest");
+        assert_eq!(legacy.results_event_id, "new-results-event");
+        assert_eq!(legacy.total_blank_votes, Some(13));
+        assert_eq!(legacy.explicit_blank_votes, None);
+        assert_eq!(legacy.implicit_blank_votes, None);
+        assert_eq!(
+            legacy.total_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.13)
+        );
+        assert_eq!(legacy.explicit_blank_votes_percent, None);
+        assert_eq!(legacy.implicit_blank_votes_percent, None);
+        assert_eq!(legacy.total_votes, Some(93));
+        assert_eq!(legacy.total_auditable_votes, Some(90));
+        assert_eq!(legacy.voting_type.as_deref(), Some("plurality"));
+        assert_eq!(
+            legacy
+                .documents
+                .as_ref()
+                .and_then(|value| value.json.as_deref()),
+            Some("legacy.json")
+        );
+
+        let current_record = StringRecord::from(current_results_contest_fields());
+        assert_eq!(current_record.len(), RESULTS_CONTEST_COLUMNS);
+        let current =
+            process_results_contest_record("tenant", "event", &current_record, replacement_map())
+                .await
+                .unwrap();
+
+        assert_eq!(current.total_blank_votes, Some(13));
+        assert_eq!(current.explicit_blank_votes, Some(4));
+        assert_eq!(current.implicit_blank_votes, Some(9));
+        assert_eq!(
+            current.total_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.13)
+        );
+        assert_eq!(
+            current.explicit_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.04)
+        );
+        assert_eq!(
+            current.implicit_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.09)
+        );
+        assert_eq!(current.total_votes, Some(93));
+        assert_eq!(current.total_auditable_votes, Some(90));
+    }
+
+    #[tokio::test]
+    async fn imports_legacy_and_current_results_area_contest_records() {
+        let legacy_record = StringRecord::from(legacy_results_area_contest_fields());
+        assert_eq!(legacy_record.len(), LEGACY_RESULTS_AREA_CONTEST_COLUMNS);
+        let legacy = process_results_area_contest_record(
+            "tenant",
+            "event",
+            &legacy_record,
+            replacement_map(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(legacy.election_id, "new-election");
+        assert_eq!(legacy.contest_id, "new-contest");
+        assert_eq!(legacy.area_id, "new-area");
+        assert_eq!(legacy.results_event_id, "new-results-event");
+        assert_eq!(legacy.total_blank_votes, Some(13));
+        assert_eq!(legacy.explicit_blank_votes, None);
+        assert_eq!(legacy.implicit_blank_votes, None);
+        assert_eq!(
+            legacy
+                .explicit_invalid_votes_percent
+                .map(NotNan::into_inner),
+            Some(0.02)
+        );
+        assert_eq!(
+            legacy
+                .implicit_invalid_votes_percent
+                .map(NotNan::into_inner),
+            Some(0.03)
+        );
+        assert_eq!(
+            legacy.total_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.13)
+        );
+        assert_eq!(legacy.explicit_blank_votes_percent, None);
+        assert_eq!(legacy.implicit_blank_votes_percent, None);
+        assert_eq!(legacy.total_votes, Some(93));
+        assert_eq!(legacy.total_auditable_votes, Some(90));
+        assert_eq!(
+            legacy
+                .documents
+                .as_ref()
+                .and_then(|value| value.json.as_deref()),
+            Some("legacy.json")
+        );
+
+        let current_record = StringRecord::from(current_results_area_contest_fields());
+        assert_eq!(current_record.len(), RESULTS_AREA_CONTEST_COLUMNS);
+        let current = process_results_area_contest_record(
+            "tenant",
+            "event",
+            &current_record,
+            replacement_map(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(current.total_blank_votes, Some(13));
+        assert_eq!(current.explicit_blank_votes, Some(4));
+        assert_eq!(current.implicit_blank_votes, Some(9));
+        assert_eq!(
+            current
+                .implicit_invalid_votes_percent
+                .map(NotNan::into_inner),
+            Some(0.03)
+        );
+        assert_eq!(
+            current.total_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.13)
+        );
+        assert_eq!(
+            current.explicit_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.04)
+        );
+        assert_eq!(
+            current.implicit_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.09)
+        );
+        assert_eq!(current.total_votes, Some(93));
+        assert_eq!(current.total_auditable_votes, Some(90));
+    }
+
+    #[test]
+    fn rejects_unknown_results_record_shapes() {
+        let record = StringRecord::from(vec!["field"; 28]);
+        let error = normalize_results_contest_record(&record).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "Unexpected results_contest column count: got 28, expected 29 (legacy) or 33 (current)"
+        );
+    }
 }

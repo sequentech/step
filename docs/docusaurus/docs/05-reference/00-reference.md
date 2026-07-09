@@ -13,4 +13,6 @@ This is a placeholder page for the section: reference.
 
 Content will be added here soon.
 
-[Product lifecycle and release cadence](./03-product_lifecycle_and_release_cadence.md)
+- [Product lifecycle and release cadence](./03-product_lifecycle_and_release_cadence.md)
+
+- [Ballot encoding reference](./07-ballot_encoding.md)

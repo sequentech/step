@@ -465,7 +465,8 @@ impl GenerateReports {
 
         let file = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
 
-        let contest_result: ContestResult = parse_file(file)?;
+        let contest_result: ContestResult =
+            parse_file::<ContestResult>(file)?.calculate_percentages();
 
         Ok(contest_result)
     }
@@ -680,7 +681,8 @@ impl GenerateReports {
             let contest_results_file_path = subfolder.join(OUTPUT_CONTEST_RESULT_FILE);
             let contest_results_file = fs::File::open(&contest_results_file_path)
                 .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
-            let contest_result: ContestResult = parse_file(contest_results_file)?;
+            let contest_result: ContestResult =
+                parse_file::<ContestResult>(contest_results_file)?.calculate_percentages();
 
             let subfolder_name = subfolder.file_name().unwrap();
             let winners_subfolder = winners_base_breakdown_path.join(subfolder_name);

@@ -1874,6 +1874,8 @@ const galegoTranslation: TranslationType = {
                 implicit_invalid_votes: "Votos Nulos Implícitos",
                 implicit_invalid_votes_percent: "Porcentaxe de Votos Nulos Implícitos",
                 blank_votes: "Votos en Branco",
+                explicit_blank_votes: "Votos en Branco Explícitos",
+                implicit_blank_votes: "Votos en Branco Implícitos",
                 blank_votes_percent: "Porcentaxe de Votos en Branco",
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",

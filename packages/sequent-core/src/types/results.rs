@@ -102,10 +102,16 @@ pub struct ResultsContest {
     pub contest_id: String,
     pub results_event_id: String,
     pub elegible_census: Option<i64>,
+    /// Ballots that are not invalid and not declined. Explicit and implicit
+    /// blank ballots are included; selecting explicit blank with a regular
+    /// candidate is an implicit invalid ballot.
     pub total_valid_votes: Option<i64>,
     pub explicit_invalid_votes: Option<i64>,
     pub implicit_invalid_votes: Option<i64>,
-    pub blank_votes: Option<i64>,
+    #[serde(alias = "blank_votes")]
+    pub total_blank_votes: Option<i64>,
+    pub explicit_blank_votes: Option<i64>,
+    pub implicit_blank_votes: Option<i64>,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>,
     pub name: Option<String>,
@@ -118,7 +124,10 @@ pub struct ResultsContest {
     pub total_valid_votes_percent: Option<NotNan<f64>>,
     pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
     pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
-    pub blank_votes_percent: Option<NotNan<f64>>,
+    #[serde(alias = "blank_votes_percent")]
+    pub total_blank_votes_percent: Option<NotNan<f64>>,
+    pub explicit_blank_votes_percent: Option<NotNan<f64>>,
+    pub implicit_blank_votes_percent: Option<NotNan<f64>>,
     pub total_votes: Option<i64>,
     pub total_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
@@ -156,10 +165,16 @@ pub struct ResultsAreaContest {
     pub area_id: String,
     pub results_event_id: String,
     pub elegible_census: Option<i64>,
+    /// Ballots that are not invalid and not declined. Explicit and implicit
+    /// blank ballots are included; selecting explicit blank with a regular
+    /// candidate is an implicit invalid ballot.
     pub total_valid_votes: Option<i64>,
     pub explicit_invalid_votes: Option<i64>,
     pub implicit_invalid_votes: Option<i64>,
-    pub blank_votes: Option<i64>,
+    #[serde(alias = "blank_votes")]
+    pub total_blank_votes: Option<i64>,
+    pub explicit_blank_votes: Option<i64>,
+    pub implicit_blank_votes: Option<i64>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
@@ -168,8 +183,11 @@ pub struct ResultsAreaContest {
     pub total_invalid_votes: Option<i64>,
     pub total_invalid_votes_percent: Option<NotNan<f64>>,
     pub explicit_invalid_votes_percent: Option<NotNan<f64>>,
-    pub blank_votes_percent: Option<NotNan<f64>>,
     pub implicit_invalid_votes_percent: Option<NotNan<f64>>,
+    #[serde(alias = "blank_votes_percent")]
+    pub total_blank_votes_percent: Option<NotNan<f64>>,
+    pub explicit_blank_votes_percent: Option<NotNan<f64>>,
+    pub implicit_blank_votes_percent: Option<NotNan<f64>>,
     pub total_votes: Option<i64>,
     pub total_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
@@ -196,4 +214,55 @@ pub struct ResultsAreaContestCandidate {
     pub annotations: Option<Value>,
     pub cast_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_blank_vote_fields_deserialize_into_renamed_totals() {
+        let contest: ResultsContest =
+            serde_json::from_value(serde_json::json!({
+                "id": "result",
+                "tenant_id": "tenant",
+                "election_event_id": "event",
+                "election_id": "election",
+                "contest_id": "contest",
+                "results_event_id": "results",
+                "blank_votes": 7,
+                "blank_votes_percent": 0.25
+            }))
+            .unwrap();
+        assert_eq!(contest.total_blank_votes, Some(7));
+        assert_eq!(
+            contest.total_blank_votes_percent.map(NotNan::into_inner),
+            Some(0.25)
+        );
+        assert_eq!(contest.explicit_blank_votes, None);
+        assert_eq!(contest.implicit_blank_votes, None);
+
+        let area_contest: ResultsAreaContest =
+            serde_json::from_value(serde_json::json!({
+                "id": "result",
+                "tenant_id": "tenant",
+                "election_event_id": "event",
+                "election_id": "election",
+                "contest_id": "contest",
+                "area_id": "area",
+                "results_event_id": "results",
+                "blank_votes": 3,
+                "blank_votes_percent": 0.5
+            }))
+            .unwrap();
+        assert_eq!(area_contest.total_blank_votes, Some(3));
+        assert_eq!(
+            area_contest
+                .total_blank_votes_percent
+                .map(NotNan::into_inner),
+            Some(0.5)
+        );
+        assert_eq!(area_contest.explicit_blank_votes, None);
+        assert_eq!(area_contest.implicit_blank_votes, None);
+    }
 }

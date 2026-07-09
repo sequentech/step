@@ -15,7 +15,7 @@ import {
     ExpandableText,
 } from "@sequentech/ui-essentials"
 import {stringToHtml, EShowCastVoteLogsPolicy} from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button, Stack} from "@mui/material"
+import {Alert, Box, TextField, Typography, Button, Stack} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
@@ -31,7 +31,10 @@ import {
 import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {
+    BallotStyleConfigurationError,
+    updateBallotStyleAndSelection,
+} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -666,6 +669,8 @@ const BallotLocatorLogic = () => {
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
     const {globalSettings} = useContext(SettingsContext)
+    const [ballotStyleConfigurationError, setBallotStyleConfigurationError] =
+        useState<BallotStyleConfigurationError>()
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -685,7 +690,16 @@ const BallotLocatorLogic = () => {
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+            try {
+                updateBallotStyleAndSelection(dataBallotStyles, dispatch)
+                setBallotStyleConfigurationError(undefined)
+            } catch (error: unknown) {
+                if (error instanceof BallotStyleConfigurationError) {
+                    setBallotStyleConfigurationError(error)
+                } else {
+                    throw error
+                }
+            }
         }
     }, [dataBallotStyles, dispatch])
 
@@ -709,6 +723,17 @@ const BallotLocatorLogic = () => {
         if ("Enter" === event.key) {
             locate(true)
         }
+    }
+
+    if (ballotStyleConfigurationError) {
+        return (
+            <Alert severity="warning">
+                {t(
+                    ballotStyleConfigurationError.translationKey,
+                    ballotStyleConfigurationError.translationParams
+                )}
+            </Alert>
+        )
     }
 
     return (

@@ -174,16 +174,34 @@ if *max_wins > act_ballots / 2 {
 The final `ContestResult` includes:
 
 - **Vote counts** - Total votes for each candidate in the final/winning round
-- **Percentages** - Calculated based on valid votes (excluding blanks)
+- **Percentages** - Regular candidate rows use valid votes excluding blanks
 - **Invalid votes** - Separated into explicit and implicit
-- **Blank votes** - Counted separately
+- **Blank votes** - Separated into explicit and implicit counts, summed in
+  `total_blank_votes`, and included in `total_valid_votes`
 - **Extended metrics** - Total ballots, participation rates, etc.
 
-Percentages are calculated as:
+Candidate-row percentages are calculated as:
 
 - **For regular candidates**: `(total_count / (count_valid - count_blank)) * 100`
-- **For explicit blank**: `(count_blank / total_ballots) * 100`
-- **For explicit invalid**: `(explicit_invalid / total_ballots) * 100`
+- **For the explicit blank candidate row**:
+  `(blank_votes.explicit / extended_metrics.total_ballots) * 100`
+
+`count_blank` is the sum of explicit and implicit blank ballots, and
+`count_valid` includes both. The `count_valid - count_blank`
+denominator is the number of valid non-blank ballots that can contribute
+candidate preferences.
+
+Contest-summary percentages are calculated as:
+
+- **For total blank**: `(count_blank / total_votes) * 100`
+- **For explicit blank**: `(blank_votes.explicit / total_votes) * 100`
+- **For implicit blank**: `(blank_votes.implicit / total_votes) * 100`
+- **For explicit invalid**: `(invalid_votes.explicit / total_votes) * 100`
+
+Here, `total_votes = count_valid + count_invalid`; declined ballots are
+excluded. `extended_metrics.total_ballots` includes all submitted contest
+ballots and is used for the explicit blank candidate row, not for the blank
+summary percentages.
 
 ### Results for each round
 

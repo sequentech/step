@@ -11,12 +11,8 @@ import {
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
-export interface IDecodedVoteContestState extends IDecodedVoteContest {
-    is_explicit_blank: boolean
-}
-
 export interface BallotSelectionsState {
-    [electionId: string]: IDecodedVoteContestState[] | undefined
+    [electionId: string]: BallotSelection | undefined
 }
 
 const initialState: BallotSelectionsState = {}
@@ -38,9 +34,7 @@ export const ballotSelectionsSlice = createSlice({
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (currentElection) {
-                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection.map(
-                    (contest) => ({...contest, is_explicit_blank: false})
-                )
+                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection
             }
 
             return state
@@ -57,7 +51,7 @@ export const ballotSelectionsSlice = createSlice({
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
                     action.payload.ballotStyle.ballot_eml.contests.map(
-                        (question): IDecodedVoteContestState => {
+                        (question): IDecodedVoteContest => {
                             let currentContestValue = state[
                                 action.payload.ballotStyle.election_id
                             ]?.find((contest) => contest.contest_id === question.id)
@@ -70,7 +64,6 @@ export const ballotSelectionsSlice = createSlice({
                                 return {
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
-                                    is_explicit_blank: currentContestValue.is_explicit_blank,
                                     is_decline_to_vote: currentContestValue.is_decline_to_vote,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
@@ -81,7 +74,6 @@ export const ballotSelectionsSlice = createSlice({
                             return {
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
-                                is_explicit_blank: false,
                                 is_decline_to_vote: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
@@ -127,6 +119,7 @@ export const ballotSelectionsSlice = createSlice({
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
                 contestId: string
+                candidateId: string
             }>
         ): BallotSelectionsState => {
             const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
@@ -144,12 +137,11 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = false
-                currentQuestion.is_explicit_blank = true
                 currentQuestion.choices = currentQuestion.choices.map((choice) => {
-                    if (choice.selected > -1) {
-                        choice.selected = -1
+                    return {
+                        ...choice,
+                        selected: choice.id === action.payload.candidateId ? 0 : -1,
                     }
-                    return choice
                 })
             }
             return state
@@ -190,8 +182,24 @@ export const ballotSelectionsSlice = createSlice({
 
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
-                currentQuestion.is_explicit_blank = false
                 currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
+
+                const explicitBlankCandidateIds = new Set(
+                    ballotEmlContest.candidates
+                        .filter((candidate) => candidate.presentation?.is_explicit_blank)
+                        .map((candidate) => candidate.id)
+                )
+                const isSelectingExplicitBlank =
+                    explicitBlankCandidateIds.has(action.payload.voteChoice.id) &&
+                    action.payload.voteChoice.selected > -1
+
+                if (action.payload.voteChoice.selected > -1 && !isSelectingExplicitBlank) {
+                    currentQuestion.choices = currentQuestion.choices.map((choice) =>
+                        explicitBlankCandidateIds.has(choice.id)
+                            ? {...choice, selected: -1}
+                            : choice
+                    )
+                }
             }
 
             return state

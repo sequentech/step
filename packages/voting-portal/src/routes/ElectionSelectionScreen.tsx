@@ -62,6 +62,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
@@ -292,6 +293,13 @@ const ElectionSelectionScreen: React.FC = () => {
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<ElectionScreenErrorType>()
     const [errorMsgElectionIds, setErrorMsgElectionIds] = useState<string | undefined>(undefined)
+    const [ballotStyleConfigurationError, setBallotStyleConfigurationError] = useState<
+        | {
+              translationKey: string
+              translationParams: Record<string, string>
+          }
+        | undefined
+    >(undefined)
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
 
     const {
@@ -410,8 +418,18 @@ const ElectionSelectionScreen: React.FC = () => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
             try {
                 updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-            } catch {
-                setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
+                setBallotStyleConfigurationError(undefined)
+            } catch (error: unknown) {
+                if (error instanceof BallotStyleConfigurationError) {
+                    setBallotStyleConfigurationError({
+                        translationKey: error.translationKey,
+                        translationParams: error.translationParams,
+                    })
+                    setErrorMsg(undefined)
+                } else {
+                    setBallotStyleConfigurationError(undefined)
+                    setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
+                }
             }
         } else if (globalSettings.DISABLE_AUTH) {
             //fakeUpdateBallotStyleAndSelection(dispatch)
@@ -503,6 +521,19 @@ const ElectionSelectionScreen: React.FC = () => {
         oneBallotStyle,
     ])
 
+    const warningMsg = errorMsg
+        ? t(`electionSelectionScreen.errors.${errorMsg}`, {
+              electionIds: errorMsgElectionIds,
+          })
+        : ballotStyleConfigurationError
+          ? t(
+                ballotStyleConfigurationError.translationKey,
+                ballotStyleConfigurationError.translationParams
+            )
+          : alertMsg
+            ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+            : undefined
+
     if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
 
     return (
@@ -540,16 +571,8 @@ const ElectionSelectionScreen: React.FC = () => {
                             {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
                         </Dialog>
                     </StyledTitle>
-                    {errorMsg || alertMsg ? (
-                        <Alert severity="warning">
-                            {errorMsg
-                                ? t(`electionSelectionScreen.errors.${errorMsg}`, {
-                                      electionIds: errorMsgElectionIds,
-                                  })
-                                : alertMsg
-                                  ? t(`electionSelectionScreen.alerts.${alertMsg}`)
-                                  : ""}
-                        </Alert>
+                    {warningMsg ? (
+                        <Alert severity="warning">{warningMsg}</Alert>
                     ) : (
                         <Typography
                             variant="body1"

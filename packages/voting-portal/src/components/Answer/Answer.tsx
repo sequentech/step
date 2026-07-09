@@ -51,6 +51,8 @@ export interface IAnswerProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
+    explicitBlank: boolean
+    setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
     showWhenListSelected?: boolean
 }
@@ -71,6 +73,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
+    explicitBlank,
+    setExplicitBlank,
     setIsTouched,
     showWhenListSelected,
 }) => {
@@ -92,7 +96,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
-    const ballotService = provideBallotService()
     const isInvalidVote = useMemo(
         () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
         [isInvalidVoteInput, answer]
@@ -107,15 +110,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     const isChecked = (): boolean => {
         if (isInvalidVote) {
             return !isUndefined(questionState) && questionState.is_explicit_invalid
-        } else if (isExplicitBlankVote) {
-            return (
-                !isUndefined(questionState) &&
-                !!ballotService.checkIsBlank(questionState) &&
-                (questionState.is_explicit_blank ?? false)
-            )
-        } else {
-            return !isUndefined(selectionState) && selectionState.selected > -1
         }
+        return !isUndefined(selectionState) && selectionState.selected > -1
     }
     const setInvalidVote = (value: boolean) => {
         dispatch(
@@ -128,10 +124,12 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const setBlankVote = () => {
+        setExplicitBlank(true)
         dispatch(
             setBallotSelectionBlankVote({
                 ballotStyle,
                 contestId,
+                candidateId: answer.id,
             })
         )
     }
@@ -170,9 +168,22 @@ export const Answer: React.FC<IAnswerProps> = ({
             if (value) {
                 setBlankVote()
             } else {
-                dispatch(resetBallotSelection({ballotStyle, force: true, contestId}))
+                setExplicitBlank(false)
+                dispatch(
+                    setBallotSelectionVoteChoice({
+                        ballotStyle,
+                        contestId,
+                        voteChoice: {
+                            id: answer.id,
+                            selected: -1,
+                            write_in_text: selectionState?.write_in_text,
+                        },
+                    })
+                )
             }
             return
+        } else if (value && explicitBlank) {
+            setExplicitBlank(false)
         }
 
         let cleanedText =
@@ -226,10 +237,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     if (isReview && !isChecked() && !showWhenListSelected) {
-        return null
-    }
-
-    if (isReview && !!isExplicitBlankVote) {
         return null
     }
 

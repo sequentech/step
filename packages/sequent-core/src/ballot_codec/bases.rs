@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{ballot::*, types::ceremonies::CountingAlgType};
+use crate::{
+    ballot::*, ballot_codec::validate_contest_configuration,
+    types::ceremonies::CountingAlgType,
+};
 use anyhow::Result;
 use std::convert::TryInto;
 
@@ -12,6 +15,8 @@ pub trait BasesCodec {
 
 impl BasesCodec for Contest {
     fn get_bases(&self) -> Result<Vec<u64>> {
+        validate_contest_configuration(self).map_err(anyhow::Error::msg)?;
+
         // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)
@@ -57,9 +62,12 @@ impl BasesCodec for Contest {
 
 #[cfg(test)]
 mod tests {
+    use crate::ballot::CandidatePresentation;
     use crate::ballot_codec::*;
-    use crate::fixtures::ballot_codec::bases_fixture;
-    use crate::fixtures::ballot_codec::get_fixtures;
+    use crate::fixtures::ballot_codec::{
+        bases_fixture, get_configurable_contest, get_fixtures,
+    };
+    use crate::types::ceremonies::CountingAlgType;
 
     #[test]
     fn test_contest_bases() {
@@ -93,5 +101,49 @@ mod tests {
             let bases = fixture.contest.get_bases().unwrap();
             assert_eq!(bases, fixture.bases);
         }
+    }
+
+    #[test]
+    fn test_explicit_blank_preserves_preferential_and_cumulative_bases() {
+        let mut preferential = get_configurable_contest(
+            3,
+            3,
+            CountingAlgType::Borda,
+            false,
+            None,
+            false,
+        );
+        preferential.candidates[1]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+
+        assert_eq!(
+            preferential.get_bases().expect("preferential bases"),
+            vec![2, 4, 4, 4]
+        );
+
+        let mut cumulative = get_configurable_contest(
+            3,
+            3,
+            CountingAlgType::Cumulative,
+            false,
+            None,
+            false,
+        );
+        cumulative
+            .presentation
+            .as_mut()
+            .expect("contest presentation")
+            .cumulative_number_of_checkboxes = Some(5);
+        cumulative.candidates[1]
+            .presentation
+            .get_or_insert_with(CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+
+        assert_eq!(
+            cumulative.get_bases().expect("cumulative bases"),
+            vec![2, 6, 6, 6]
+        );
     }
 }

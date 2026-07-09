@@ -180,6 +180,7 @@ impl RawBallotCodec for Contest {
         // valid information (and a comprehensive error list) as possible at
         // the end of the function
 
+        validate_contest_configuration(self)?;
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
 
@@ -420,6 +421,7 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::mixed_radix::encode;
+    use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use crate::types::ceremonies::CountingAlgType;
     use std::cmp;
 
@@ -646,5 +648,168 @@ mod tests {
                 idx
             );
         }
+    }
+
+    fn explicit_blank_fixture(
+    ) -> (ballot::Contest, DecodedVoteContest, DecodedVoteContest) {
+        let mut contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+
+        // Keep the explicit blank away from both the configured and
+        // id-sorted first position. Its legacy position must remain the
+        // second candidate digit, after the explicit-invalid flag.
+        contest.candidates[0].id = "z-normal".to_string();
+        contest.candidates[1].id = "a-normal".to_string();
+        contest.candidates[2].id = "m-blank".to_string();
+        contest.candidates[2]
+            .presentation
+            .get_or_insert_with(ballot::CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+
+        let implicit_blank = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let mut explicit_blank = implicit_blank.clone();
+        explicit_blank
+            .choices
+            .iter_mut()
+            .find(|choice| choice.id == "m-blank")
+            .expect("explicit blank choice")
+            .selected = 0;
+
+        (contest, implicit_blank, explicit_blank)
+    }
+
+    #[test]
+    fn test_explicit_blank_uses_legacy_candidate_slot() {
+        let (contest, implicit_blank, explicit_blank) =
+            explicit_blank_fixture();
+
+        let implicit_raw = contest
+            .encode_to_raw_ballot(&implicit_blank)
+            .expect("implicit blank raw ballot");
+        let explicit_raw = contest
+            .encode_to_raw_ballot(&explicit_blank)
+            .expect("explicit blank raw ballot");
+
+        assert_eq!(implicit_raw.bases, vec![2, 2, 2, 2]);
+        assert_eq!(implicit_raw.choices, vec![0, 0, 0, 0]);
+        assert_eq!(explicit_raw.bases, vec![2, 2, 2, 2]);
+        assert_eq!(explicit_raw.choices, vec![0, 0, 1, 0]);
+    }
+
+    #[test]
+    fn test_explicit_and_implicit_blank_round_trip_distinctly() {
+        let (contest, implicit_blank, explicit_blank) =
+            explicit_blank_fixture();
+
+        let implicit_decoded = contest
+            .decode_from_raw_ballot(
+                &contest
+                    .encode_to_raw_ballot(&implicit_blank)
+                    .expect("implicit blank raw ballot"),
+            )
+            .expect("implicit blank decoded ballot");
+        let explicit_decoded = contest
+            .decode_from_raw_ballot(
+                &contest
+                    .encode_to_raw_ballot(&explicit_blank)
+                    .expect("explicit blank raw ballot"),
+            )
+            .expect("explicit blank decoded ballot");
+
+        let implicit_blank_choice = implicit_decoded
+            .choices
+            .iter()
+            .find(|choice| choice.id == "m-blank")
+            .expect("implicit blank candidate");
+        let explicit_blank_choice = explicit_decoded
+            .choices
+            .iter()
+            .find(|choice| choice.id == "m-blank")
+            .expect("explicit blank candidate");
+
+        assert_eq!(implicit_blank_choice.selected, -1);
+        assert_eq!(explicit_blank_choice.selected, 0);
+    }
+
+    #[test]
+    fn test_normal_ballot_encoding_and_bases_remain_unchanged() {
+        let contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+        let plaintext = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .enumerate()
+                .map(|(index, candidate)| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if index == 1 { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+
+        let raw = contest
+            .encode_to_raw_ballot(&plaintext)
+            .expect("normal raw ballot");
+
+        assert_eq!(raw.bases, vec![2, 2, 2, 2]);
+        assert_eq!(raw.choices, vec![0, 0, 1, 0]);
+    }
+
+    #[test]
+    fn test_dense_codec_rejects_duplicate_explicit_blank_candidates() {
+        let (mut contest, implicit_blank, _) = explicit_blank_fixture();
+        contest.candidates[1]
+            .presentation
+            .get_or_insert_with(ballot::CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+
+        assert_eq!(
+            contest
+                .encode_to_raw_ballot(&implicit_blank)
+                .expect_err("duplicate explicit blank must fail encoding"),
+            "errors.configuration.multipleExplicitBlankCandidates"
+        );
+        assert_eq!(
+            contest
+                .decode_from_raw_ballot(&RawBallotContest::new(
+                    vec![2, 2, 2, 2],
+                    vec![0, 0, 0, 0],
+                ))
+                .expect_err("duplicate explicit blank must fail decoding"),
+            "errors.configuration.multipleExplicitBlankCandidates"
+        );
     }
 }

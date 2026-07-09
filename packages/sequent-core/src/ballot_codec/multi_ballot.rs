@@ -13,7 +13,7 @@ use crate::ballot::{
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
     check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
-    check_under_vote_policy,
+    check_under_vote_policy, validate_contest_configuration,
 };
 use crate::error::BallotError;
 use crate::mixed_radix;
@@ -585,6 +585,8 @@ impl BallotChoices {
         let mut choice_index = usize::from(include_decline_to_vote);
 
         for contest in sorted_contests {
+            validate_contest_configuration(&contest)?;
+
             let contest_is_explicit_invalid: bool = choices
                 .get(choice_index)
                 .map(|value| *value > 0)
@@ -812,6 +814,8 @@ impl BallotChoices {
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         for contest in sorted_contests {
+            validate_contest_configuration(&contest)?;
+
             // Compact encoding only supports plurality
             if contest.get_counting_algorithm()
                 != CountingAlgType::PluralityAtLarge
@@ -1669,6 +1673,103 @@ mod tests {
     }
 
     #[test]
+    fn test_explicit_blank_keeps_legacy_multi_ballot_base_slot_and_round_trip()
+    {
+        let mut contest = test_contest("1", 3, 1);
+        contest.candidates[0].id = "z-normal".to_string();
+        contest.candidates[1].id = "a-normal".to_string();
+        contest.candidates[2].id = "m-blank".to_string();
+        contest.candidates[2]
+            .presentation
+            .get_or_insert_with(Default::default)
+            .is_explicit_blank = Some(true);
+        let style = test_ballot_style(vec![contest.clone()]);
+
+        let explicit = BallotChoices::new(
+            false,
+            vec![ContestChoices::new(
+                contest.id.clone(),
+                vec![ContestChoice::new("m-blank".to_string(), 0)],
+                false,
+            )],
+            CountingAlgType::PluralityAtLarge,
+        );
+        let implicit = BallotChoices::new(
+            false,
+            vec![ContestChoices::new(contest.id.clone(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let explicit_raw = explicit
+            .encode_to_raw_ballot(&style)
+            .expect("explicit blank multi-ballot");
+        let implicit_raw = implicit
+            .encode_to_raw_ballot(&style)
+            .expect("implicit blank multi-ballot");
+
+        // One contest-invalid flag and one sparse candidate slot. With all
+        // three candidates retained, the slot base remains 3 + 1. The blank
+        // candidate sorts second and therefore keeps legacy mark value 2.
+        assert_eq!(explicit_raw.bases, vec![2, 4]);
+        assert_eq!(explicit_raw.choices, vec![0, 2]);
+        assert_eq!(implicit_raw.bases, vec![2, 4]);
+        assert_eq!(implicit_raw.choices, vec![0, 0]);
+
+        let explicit_bytes = explicit
+            .encode_to_30_bytes(&style)
+            .expect("encoded explicit blank");
+        let implicit_bytes = implicit
+            .encode_to_30_bytes(&style)
+            .expect("encoded implicit blank");
+        let explicit_decoded =
+            BallotChoices::decode_from_30_bytes(&explicit_bytes, &style)
+                .expect("decoded explicit blank");
+        let implicit_decoded =
+            BallotChoices::decode_from_30_bytes(&implicit_bytes, &style)
+                .expect("decoded implicit blank");
+
+        assert_eq!(
+            explicit_decoded.choices[0].choices,
+            vec![DecodedContestChoice("m-blank".to_string())]
+        );
+        assert!(implicit_decoded.choices[0].choices.is_empty());
+    }
+
+    #[test]
+    fn test_multi_ballot_codec_rejects_duplicate_explicit_blank_candidates() {
+        let mut contest = test_contest("1", 3, 1);
+        for candidate in contest.candidates.iter_mut().take(2) {
+            candidate
+                .presentation
+                .get_or_insert_with(Default::default)
+                .is_explicit_blank = Some(true);
+        }
+        let style = test_ballot_style(vec![contest.clone()]);
+        let ballot = BallotChoices::new(
+            false,
+            vec![ContestChoices::new(contest.id.clone(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        assert_eq!(
+            ballot
+                .encode_to_30_bytes(&style)
+                .expect_err("duplicate explicit blank must fail encoding"),
+            "errors.configuration.multipleExplicitBlankCandidates"
+        );
+        assert_eq!(
+            BallotChoices::decode(
+                &RawBallotContest::new(vec![2, 4], vec![0, 0]),
+                &style.contests,
+                false,
+                None,
+            )
+            .expect_err("duplicate explicit blank must fail decoding"),
+            "errors.configuration.multipleExplicitBlankCandidates"
+        );
+    }
+
+    #[test]
     fn test_encode_to_raw_ballot_choices_layout() {
         let style = test_ballot_style(vec![
             test_contest("1", 2, 2),
@@ -1815,6 +1916,12 @@ mod tests {
                 contest.candidates.iter().map(|c| c.id.clone()).collect();
             candidate_ids.sort();
 
+            let contest_slots_start = index;
+            let contest_max_votes: usize = contest
+                .max_votes
+                .try_into()
+                .expect("max_votes should fit in usize");
+
             for choice in choices.choices.iter() {
                 if choice.selected < -1 {
                     assert_eq!(mixed_radix.choices[index], 0);
@@ -1837,6 +1944,8 @@ mod tests {
 
                 index += 1;
             }
+
+            index = contest_slots_start + contest_max_votes;
         }
     }
 

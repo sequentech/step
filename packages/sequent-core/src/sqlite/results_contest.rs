@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::utils::{opt_f64, opt_json};
+use super::utils::{ensure_blank_vote_columns, opt_f64, opt_json};
 use crate::types::results::{ResultDocuments, ResultsContest};
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
@@ -27,7 +27,9 @@ pub async fn create_results_contest_sqlite(
             total_valid_votes INTEGER,
             explicit_invalid_votes INTEGER,
             implicit_invalid_votes INTEGER,
-            blank_votes INTEGER,
+            total_blank_votes INTEGER,
+            explicit_blank_votes INTEGER,
+            implicit_blank_votes INTEGER,
             voting_type TEXT,
             counting_algorithm TEXT,
             name TEXT,
@@ -40,7 +42,9 @@ pub async fn create_results_contest_sqlite(
             total_valid_votes_percent REAL,
             explicit_invalid_votes_percent REAL,
             implicit_invalid_votes_percent REAL,
-            blank_votes_percent REAL,
+            total_blank_votes_percent REAL,
+            explicit_blank_votes_percent REAL,
+            implicit_blank_votes_percent REAL,
             total_votes INTEGER,
             total_votes_percent REAL,
             documents TEXT,
@@ -49,25 +53,29 @@ pub async fn create_results_contest_sqlite(
         );",
     )?;
 
+    ensure_blank_vote_columns(sqlite_transaction, "results_contest")?;
+
     let mut insert = sqlite_transaction.prepare(
         "
         INSERT OR REPLACE INTO results_contest (
             id, tenant_id, election_event_id, election_id, contest_id,
             results_event_id, elegible_census, total_valid_votes,
-            explicit_invalid_votes, implicit_invalid_votes, blank_votes,
+            explicit_invalid_votes, implicit_invalid_votes, total_blank_votes,
+            explicit_blank_votes, implicit_blank_votes,
             voting_type, counting_algorithm, name, labels, annotations, total_invalid_votes,
             total_invalid_votes_percent, total_valid_votes_percent,
             explicit_invalid_votes_percent, implicit_invalid_votes_percent,
-            blank_votes_percent, total_votes, total_votes_percent,
+            total_blank_votes_percent, explicit_blank_votes_percent,
+            implicit_blank_votes_percent, total_votes, total_votes_percent,
             total_auditable_votes, total_auditable_votes_percent
         ) VALUES (
             ?1,?2,?3,?4,?5,
             ?6,?7,?8,
-            ?9,?10,?11,
-            ?12,?13,?14,?15,
-            ?16,?17,?18,?19,
-            ?20,?21,?22,
-            ?23,?24,?25,?26
+            ?9,?10,?11,?12,?13,
+            ?14,?15,?16,?17,
+            ?18,?19,?20,?21,
+            ?22,?23,?24,?25,
+            ?26,?27,?28,?29,?30
         );",
     )?;
 
@@ -83,7 +91,9 @@ pub async fn create_results_contest_sqlite(
             c.total_valid_votes,
             c.explicit_invalid_votes,
             c.implicit_invalid_votes,
-            c.blank_votes,
+            c.total_blank_votes,
+            c.explicit_blank_votes,
+            c.implicit_blank_votes,
             c.voting_type,
             c.counting_algorithm,
             c.name,
@@ -94,7 +104,9 @@ pub async fn create_results_contest_sqlite(
             opt_f64(&c.total_valid_votes_percent),
             opt_f64(&c.explicit_invalid_votes_percent),
             opt_f64(&c.implicit_invalid_votes_percent),
-            opt_f64(&c.blank_votes_percent),
+            opt_f64(&c.total_blank_votes_percent),
+            opt_f64(&c.explicit_blank_votes_percent),
+            opt_f64(&c.implicit_blank_votes_percent),
             c.total_votes,
             opt_f64(&c.total_votes_percent),
             c.total_auditable_votes,

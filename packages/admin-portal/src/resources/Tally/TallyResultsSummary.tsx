@@ -197,11 +197,47 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                             {t("tally.table.blank_votes")}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {general?.[0].blank_votes ?? "-"}
+                                            {general?.[0].total_blank_votes ?? "-"}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {isNumber(general?.[0].blank_votes_percent)
-                                                ? formatPercentOne(general[0].blank_votes_percent)
+                                            {isNumber(general?.[0].total_blank_votes_percent)
+                                                ? formatPercentOne(
+                                                      general[0].total_blank_votes_percent
+                                                  )
+                                                : "-"}
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow
+                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                    >
+                                        <TableCell component="th" scope="row">
+                                            {t("tally.table.explicit_blank_votes")}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {general?.[0].explicit_blank_votes ?? "-"}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {isNumber(general?.[0].explicit_blank_votes_percent)
+                                                ? formatPercentOne(
+                                                      general[0].explicit_blank_votes_percent
+                                                  )
+                                                : "-"}
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow
+                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                    >
+                                        <TableCell component="th" scope="row">
+                                            {t("tally.table.implicit_blank_votes")}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {general?.[0].implicit_blank_votes ?? "-"}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {isNumber(general?.[0].implicit_blank_votes_percent)
+                                                ? formatPercentOne(
+                                                      general[0].implicit_blank_votes_percent
+                                                  )
                                                 : "-"}
                                         </TableCell>
                                     </TableRow>
