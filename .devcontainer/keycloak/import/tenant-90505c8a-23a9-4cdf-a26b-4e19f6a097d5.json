@@ -1500,6 +1500,42 @@
         "attributes": {}
       },
       {
+        "id": "8bc561d0-16cd-4124-bcab-a4bcf194f507",
+        "name": "tally-sheet-import-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2c79a478-d35a-4748-9aa6-56f11033719f",
+        "name": "tally-sheet-import-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "86b944b0-b53b-48f8-8ee2-a140ffd01410",
+        "name": "tally-sheet-import-review",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee8a4f92-1174-489f-af73-32f835987daa",
+        "name": "tally-recount-execute",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "aad9400d-7f3e-49a5-a8d3-d2cf60bba5ae",
         "name": "tally-sheet-view",
         "description": "",
@@ -2354,6 +2390,10 @@
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "contest-read",
         "document-upload",
         "notification-write",
@@ -2526,6 +2566,10 @@
         "role-assign",
         "voting-channel-read",
         "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "document-upload",
         "user-permission-read",
         "election-event-create",

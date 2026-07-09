@@ -37,6 +37,7 @@ import {
     ICandidatePresentation,
     IContestPresentation,
 } from "@sequentech/ui-core"
+import {validate_area_contest_results_js} from "sequent-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
@@ -81,6 +82,15 @@ interface IContest {
     label?: Maybe<string> | undefined
 }
 
+interface SharedValidationError {
+    code: string
+    message: string
+    field: string
+}
+
+const validateAreaContestResults = (content: IAreaContestResults): SharedValidationError[] =>
+    validate_area_contest_results_js(content)
+
 const numbersRegExp = /^[0-9]+$/
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
@@ -117,6 +127,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [areaIds, setAreaIds] = useState<Array<string>>([])
     const [totalValidError, setTotalValidError] = useState<boolean>(false)
     const [censusError, setCensusError] = useState<boolean>(false)
+    const [sharedValidationMessages, setSharedValidationMessages] = useState<string[]>([])
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
         {
@@ -351,34 +362,38 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const recalculateTotals = () => {
         let newResults = {...results}
         let totalValidVotes = newResults.total_valid_votes ?? 0
-        let totalBlankVotes = newResults.total_blank_votes ?? 0
         let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
 
         newResults.total_valid_votes = totalValidVotes
         newResults.total_votes = totalVotes
 
-        // Census must be entered manually, we do not recalculate it.
-        // Notify error if census is too small.
-        let disableNextButton = false
-        if (newResults.census !== undefined && newResults.census < newResults.total_votes) {
-            disableNextButton = true
-            setCensusError(true)
-        } else {
-            setCensusError(false)
-        }
-
-        let canditatesVotesSum = 0
+        const candidateResultsForValidation: {[id: string]: ICandidateResults} = {}
         for (const candidateResult of candidatesResults) {
-            canditatesVotesSum += candidateResult.total_votes ?? 0
-        }
-        if (canditatesVotesSum + totalBlankVotes !== totalValidVotes) {
-            disableNextButton = true
-            setTotalValidError(true)
-        } else {
-            setTotalValidError(false)
+            candidateResultsForValidation[candidateResult.candidate_id] = {
+                candidate_id: candidateResult.candidate_id,
+                total_votes: candidateResult.total_votes,
+            }
         }
 
-        setIsButtonDisabled(disableNextButton)
+        const sharedValidationErrors = validateAreaContestResults({
+            ...newResults,
+            invalid_votes: invalids,
+            candidate_results: candidateResultsForValidation,
+        })
+
+        const codes = new Set(sharedValidationErrors.map((error) => error.code))
+        setTotalValidError(codes.has("invalid_total_valid_votes"))
+        setCensusError(codes.has("total_votes_exceeds_census"))
+        setSharedValidationMessages(
+            sharedValidationErrors
+                .filter(
+                    (error) =>
+                        error.code !== "invalid_total_valid_votes" &&
+                        error.code !== "total_votes_exceeds_census"
+                )
+                .map((error) => error.message)
+        )
+        setIsButtonDisabled(sharedValidationErrors.length > 0)
 
         if (JSON.stringify(newResults) !== JSON.stringify(results)) {
             setResults(newResults)
@@ -683,6 +698,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                             {t("tallysheet.inputError.totalValidDoesNotMatch")}
                         </StyledError>
                     )}
+                    {sharedValidationMessages.map((message) => (
+                        <StyledError key={message}>{message}</StyledError>
+                    ))}
                 </>
                 <Box
                     sx={{

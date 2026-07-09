@@ -1,0 +1,8 @@
+mutation RecountTallySession($election_event_id: uuid!, $tally_session_id: uuid!) {
+    recount_tally_session(
+        election_event_id: $election_event_id
+        tally_session_id: $tally_session_id
+    ) {
+        tally_session_id
+    }
+}

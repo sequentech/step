@@ -1,0 +1,17 @@
+mutation CreateTallySheetImport(
+    $election_event_id: String!
+    $document_id: String!
+    $sha256: String
+    $source_format: String!
+    $selected_channel: String!
+) {
+    create_tally_sheet_import(
+        election_event_id: $election_event_id
+        document_id: $document_id
+        sha256: $sha256
+        source_format: $source_format
+        selected_channel: $selected_channel
+    ) {
+        tally_sheet_import: import
+    }
+}

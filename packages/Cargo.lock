@@ -11470,6 +11470,7 @@ dependencies = [
  "reqwest",
  "ring",
  "rocket",
+ "roxmltree 0.20.0",
  "rusqlite",
  "rust-s3",
  "rust_decimal",

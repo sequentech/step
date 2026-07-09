@@ -671,6 +671,10 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("contestScreen.edit.externalId"))}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>

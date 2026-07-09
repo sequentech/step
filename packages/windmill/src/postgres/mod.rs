@@ -36,6 +36,7 @@ pub mod tally_session_contest;
 pub mod tally_session_execution;
 pub mod tally_session_resolution;
 pub mod tally_sheet;
+pub mod tally_sheet_import;
 pub mod tasks_execution;
 pub mod template;
 pub mod tenant;

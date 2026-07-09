@@ -24,6 +24,7 @@ pub mod s3;
 pub mod error_checker;
 pub mod generate_urls;
 
+pub mod tally_sheet_validation;
 pub mod translations;
 
 #[cfg(feature = "keycloak")]
