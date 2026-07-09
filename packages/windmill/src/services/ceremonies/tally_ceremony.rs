@@ -22,13 +22,14 @@ use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
 };
+use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::newtypes::BatchNumber;
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
@@ -844,5 +845,40 @@ pub async fn set_tally_session_completed(
             .with_context(|| "error posting to the electoral log")?;
     }
 
+    Ok(())
+}
+
+/// Resets a tally session back to a completed `SUCCESS` state after a recount
+/// (manual or automatic) failed to enqueue its celery task, so the session
+/// isn't left stuck `IN_PROGRESS`.
+pub async fn reset_tally_session_status_after_failed_recount_task(
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    task_error: &str,
+) -> Result<()> {
+    let mut reset_db_client: DbClient = get_hasura_pool().await.get().await.with_context(|| {
+        format!(
+            "failed to send recount task ({task_error}) and failed to get hasura db pool for reset"
+        )
+    })?;
+    let reset_transaction = reset_db_client.transaction().await.with_context(|| {
+        format!("failed to send recount task ({task_error}) and failed to start reset transaction")
+    })?;
+    update_tally_session_status(
+        &reset_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        TallyExecutionStatus::SUCCESS,
+        true,
+    )
+    .await
+    .with_context(|| {
+        format!("failed to send recount task ({task_error}) and failed to reset tally status")
+    })?;
+    reset_transaction.commit().await.with_context(|| {
+        format!("failed to send recount task ({task_error}) and failed to commit reset")
+    })?;
     Ok(())
 }

@@ -41,7 +41,7 @@ use crate::services::pg_lock::PgLock;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use chrono::Duration;
 
-use crate::postgres::results_event::update_results_event_documents;
+use crate::postgres::results_event::{get_results_event_by_id, update_results_event_documents};
 use crate::postgres::tally_session::set_post_tally_task_completed;
 use crate::services::documents::get_document_as_temp_file;
 use tokio::time::Duration as ChronoDuration;
@@ -183,6 +183,20 @@ pub async fn post_tally_task_impl(
     )
     .await?;
 
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .clone()
+        .ok_or(anyhow!(
+            "No results event id set in tally session execution"
+        ))?;
+    let persisted_results_event = get_results_event_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &results_event_id,
+    )
+    .await?;
+
     let database_path_clone = sqlite_file.path().to_path_buf();
 
     let election_event_id_clone = election_event_id.clone();
@@ -206,9 +220,19 @@ pub async fn post_tally_task_impl(
     .map_err(|e| anyhow!("{e}"))?
     .map_err(|e| anyhow!("{e}"))?;
 
+    if results_event.id != results_event_id {
+        return Err(anyhow!(
+            "SQLite results event id {} does not match tally execution results event id {}",
+            results_event.id,
+            results_event_id
+        )
+        .into());
+    }
+
     let results_event_documents = results_event
         .documents
-        .ok_or(anyhow!("Could not find results event id"))?;
+        .or(persisted_results_event.documents)
+        .ok_or(anyhow!("Could not find results event documents"))?;
     let tar_gz_document_id = results_event_documents
         .tar_gz
         .clone()
@@ -260,10 +284,6 @@ pub async fn post_tally_task_impl(
         false,
     )
     .await?;
-
-    let results_event_id = tally_session_execution.results_event_id.ok_or(anyhow!(
-        "No results event id set in tally session execution"
-    ))?;
 
     let election_event_id_clone = election_event_id.clone();
     let tenant_id_clone = tenant_id.clone();

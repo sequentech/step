@@ -238,6 +238,61 @@ pub async fn get_contest_by_id(
     Ok(elements.first().cloned())
 }
 
+#[instrument(err, skip_all)]
+pub async fn get_contest_by_external_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    external_id: &str,
+) -> Result<Option<Contest>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    external_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &external_id,
+            ],
+        )
+        .await?;
+
+    let elements: Vec<Contest> = rows
+        .into_iter()
+        .map(|row| -> Result<Contest> {
+            row.try_into()
+                .map(|res: ContestWrapper| -> Contest { res.0 })
+        })
+        .collect::<Result<Vec<Contest>>>()?;
+
+    match elements.len() {
+        0 => Ok(None),
+        1 => Ok(elements.first().cloned()),
+        count => Err(anyhow!(
+            "Contest external id '{}' matched {} contests in election event {}. \
+            Contest external_id must be unique within an election event for tally \
+            sheet import to work — rename the duplicate(s) before importing.",
+            external_id,
+            count,
+            election_event_id
+        )),
+    }
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_contest_by_election_id(
     hasura_transaction: &Transaction<'_>,
