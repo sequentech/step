@@ -18,8 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::str::FromStr;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strum_macros::Display;
+use strum_macros::{Display, EnumString};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
@@ -27,16 +28,19 @@ use tokio_util::io::StreamReader;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Display, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Display, EnumString, PartialEq, Eq)]
 pub enum CastVoteStatus {
     #[serde(rename = "in-progress")]
-    #[strum(to_string = "in-progress")]
+    #[strum(serialize = "in-progress")]
     InProgress,
+    #[serde(rename = "indeterminate")]
+    #[strum(serialize = "indeterminate")]
+    Indeterminate,
     #[serde(rename = "valid")]
-    #[strum(to_string = "valid")]
+    #[strum(serialize = "valid")]
     Valid,
     #[serde(rename = "discarded")]
-    #[strum(to_string = "discarded")]
+    #[strum(serialize = "discarded")]
     Discarded,
 }
 
@@ -53,6 +57,7 @@ pub struct CastVote {
     pub election_event_id: String,
     pub ballot_id: Option<String>,
     pub cast_ballot_signature: Option<Vec<u8>>,
+    pub status: CastVoteStatus,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -74,8 +79,21 @@ impl TryFrom<Row> for CastVote {
             voter_id_string: item.try_get("voter_id_string")?,
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
             ballot_id: item.try_get("ballot_id")?,
+            status: CastVoteStatus::from_str(&item.try_get::<_, String>("status")?)
+                .map_err(|err| anyhow!("Invalid cast vote status: {err}"))?,
         })
     }
+}
+
+/// Minimal identity of an `in-progress` cast vote, used to enqueue Datafix
+/// processing without loading full ballot content just to schedule the work.
+#[derive(Debug)]
+pub struct InProgressCastVote {
+    pub id: String,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub election_id: Uuid,
+    pub voter_id: String,
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -148,7 +166,8 @@ pub async fn find_area_ballots(
 const IN_PROGRESS_ENQUEUE_GRACE_SECS: f64 = 90.0;
 
 /// Returns a batch of `in-progress` cast votes using keyset pagination on
-/// `(election_id, voter_id_string)`: pass the last returned pair as `after` to
+/// `(tenant_id, election_event_id, election_id, voter_id_string)`: pass the
+/// last returned identity as `after` to
 /// fetch the next batch (offset pagination is unsafe while workers update
 /// statuses). `status` is inlined as a literal so the planner can match the
 /// partial index `idx_cast_vote_in_progress`. `DISTINCT ON` keeps only the
@@ -157,36 +176,46 @@ const IN_PROGRESS_ENQUEUE_GRACE_SECS: f64 = 90.0;
 pub async fn get_in_progress_cast_votes_batch(
     hasura_transaction: &Transaction<'_>,
     limit: i64,
-    after: Option<(Uuid, String)>,
-) -> Result<Option<Vec<CastVote>>> {
-    let (after_election_id, after_voter_id) = match after {
-        Some((election_id, voter_id)) => (Some(election_id), Some(voter_id)),
-        None => (None, None),
+    after: Option<(Uuid, Uuid, Uuid, String)>,
+) -> Result<Option<Vec<InProgressCastVote>>> {
+    let (after_tenant_id, after_event_id, after_election_id, after_voter_id) = match after {
+        Some((tenant_id, event_id, election_id, voter_id)) => (
+            Some(tenant_id),
+            Some(event_id),
+            Some(election_id),
+            Some(voter_id),
+        ),
+        None => (None, None, None, None),
     };
     let statement = hasura_transaction
         .prepare(
             r#"
-                    SELECT DISTINCT ON (election_id, voter_id_string)
+                    SELECT DISTINCT ON (tenant_id, election_event_id, election_id, voter_id_string)
                         id,
                         tenant_id,
-                        election_id,
-                        area_id,
-                        created_at,
-                        last_updated_at,
-                        content,
-                        cast_ballot_signature,
-                        voter_id_string,
                         election_event_id,
-                        ballot_id
-                    FROM "sequent_backend".cast_vote
+                        election_id,
+                        voter_id_string
+                    FROM "sequent_backend".cast_vote cv
                     WHERE
-                        status = 'in-progress' AND
-                        election_id IS NOT NULL AND
-                        voter_id_string IS NOT NULL AND
-                        created_at < NOW() - make_interval(secs => $4) AND
-                        ($1::UUID IS NULL OR (election_id, voter_id_string) > ($1::UUID, $2::VARCHAR))
-                    ORDER BY election_id, voter_id_string, created_at DESC
-                    LIMIT $3
+                        cv.status = 'in-progress' AND
+                        cv.election_id IS NOT NULL AND
+                        cv.voter_id_string IS NOT NULL AND
+                        cv.created_at < NOW() - make_interval(secs => $6) AND
+                        NOT EXISTS (
+                            SELECT 1
+                            FROM "sequent_backend".cast_vote unresolved
+                            WHERE
+                                unresolved.tenant_id = cv.tenant_id AND
+                                unresolved.election_event_id = cv.election_event_id AND
+                                unresolved.voter_id_string = cv.voter_id_string AND
+                                unresolved.status = 'indeterminate'
+                        ) AND
+                        ($1::UUID IS NULL OR
+                            (cv.tenant_id, cv.election_event_id, cv.election_id, cv.voter_id_string) >
+                            ($1::UUID, $2::UUID, $3::UUID, $4::VARCHAR))
+                    ORDER BY cv.tenant_id, cv.election_event_id, cv.election_id, cv.voter_id_string, cv.created_at DESC
+                    LIMIT $5
                 "#,
         )
         .await?;
@@ -194,6 +223,8 @@ pub async fn get_in_progress_cast_votes_batch(
         .query(
             &statement,
             &[
+                &after_tenant_id,
+                &after_event_id,
                 &after_election_id,
                 &after_voter_id,
                 &limit,
@@ -205,8 +236,16 @@ pub async fn get_in_progress_cast_votes_batch(
 
     let cast_votes = rows
         .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
+        .map(|row| {
+            Ok(InProgressCastVote {
+                id: row.try_get::<_, Uuid>("id")?.to_string(),
+                tenant_id: row.try_get("tenant_id")?,
+                election_event_id: row.try_get("election_event_id")?,
+                election_id: row.try_get("election_id")?,
+                voter_id: row.try_get("voter_id_string")?,
+            })
+        })
+        .collect::<Result<Vec<InProgressCastVote>>>()?;
     match cast_votes.is_empty() {
         true => Ok(None),
         false => Ok(Some(cast_votes)),
