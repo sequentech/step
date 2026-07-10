@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Datafix / VoterView vote synchronization | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Datafix / VoterView vote synchronization | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-1741/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Datafix / VoterView vote synchronization","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-1741/docs/integrations/datafix_voterview_integration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-1741/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-1741/assets/js/runtime~main.eceaf26d.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-1741/assets/js/runtime~main.747c25fe.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-1741/assets/js/main.5c1f1b7f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -27,11 +27,16 @@ to retry. The beat does not republish a row while another vote for that voter
 is <code>indeterminate</code>.</p>
 <p>The cast-vote states are:</p>
 <ul>
-<li class=""><code>valid</code>: accepted and eligible for receipts, statistics, and tallying.</li>
-<li class=""><code>discarded</code>: rejected or released; never included in those outputs.</li>
+<li class=""><code>valid</code>: accepted and eligible for statistics and tallying.</li>
+<li class=""><code>discarded</code>: rejected or released; excluded from statistics and tallying.</li>
 <li class=""><code>in-progress</code>: safely stored but not yet claimed by the Datafix worker.</li>
 <li class=""><code>indeterminate</code>: claimed, but the external outcome cannot yet be proven.</li>
 </ul>
+<p>The voter portal confirms the ballot immediately after Harvest stores it. It
+does not wait for or display the VoterView result; these states support
+back-office reconciliation, revote eligibility, reporting, and tally safety.
+The voter-facing locator and receipt prove that Sequent stored the submitted
+ballot and therefore remain available regardless of its later Datafix status.</p>
 <p><code>SetVoted</code> is not retried after an ambiguous response. A retry that receives
 &quot;already voted&quot; cannot distinguish another channel from a successful first
 request, so guessing could silently discard a legitimate ballot. Both

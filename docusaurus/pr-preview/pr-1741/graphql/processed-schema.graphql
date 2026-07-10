@@ -516,7 +516,6 @@ type InsertCastVoteOutput {
   id: uuid!
   labels: jsonb
   last_updated_at: timestamptz
-  status: String
   tenant_id: uuid!
   voter_id_string: String
 }
