@@ -26,11 +26,7 @@ pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 
-pub fn datafix_voter_lock_key(
-    tenant_id: &str,
-    election_event_id: &str,
-    voter_id: &str,
-) -> String {
+pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &str) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 

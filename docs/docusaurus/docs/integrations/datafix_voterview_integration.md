@@ -42,10 +42,12 @@ Disabling an enabled Datafix voter is synchronous. Valid ballots are first
 quarantined as `indeterminate`; after VoterView confirms `SetNotVoted` (including
 the idempotent "has not voted" response), the Internet marker is cleared and
 all of that voter's event ballots are discarded. If the Keycloak edit fails,
-its outcome may be ambiguous, so the ballots remain quarantined instead of
-being guessed back to `valid`. If VoterView is ambiguous, the voter also remains
-disabled and the ballots remain indeterminate. A repeat save retries the
-durably recorded pending release.
+its outcome may be ambiguous, so the pre-dispatch quarantine is restored to
+`valid` to avoid silently losing the ballots. If Keycloak did apply the update,
+the pending release marker makes a repeated disabled-voter save retry the
+release. If VoterView is ambiguous, the voter remains disabled and the ballots
+remain indeterminate. A repeat save retries the durably recorded pending
+release.
 
 The SOAP templates remain public assets in MinIO:
 
@@ -80,6 +82,8 @@ BEGIN;
 SELECT id, status, annotations ->> 'datafix_pending_operation' AS operation
 FROM sequent_backend.cast_vote
 WHERE id = '<cast-vote-uuid>'
+  AND tenant_id = '<tenant-uuid>'
+  AND election_event_id = '<election-event-uuid>'
 FOR UPDATE;
 
 UPDATE sequent_backend.cast_vote
@@ -87,12 +91,15 @@ SET status = '<valid-or-discarded>',
     annotations = COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation',
     last_updated_at = NOW()
 WHERE id = '<cast-vote-uuid>'
+  AND tenant_id = '<tenant-uuid>'
+  AND election_event_id = '<election-event-uuid>'
   AND status = 'indeterminate'
   AND annotations ->> 'datafix_pending_operation' = 'set-voted';
 
 COMMIT;
 ```
 
-The update must affect exactly one row. Zero rows means the state changed and
-must be investigated again. Use the normal application retry for
-`set-not-voted`; do not resolve only one of a voter's release rows manually.
+The composite key must identify exactly one row, and the update must affect that
+row. Zero rows means the state changed and must be investigated again. Use the
+normal application retry for `set-not-voted`; do not resolve only one of a
+voter's release rows manually.

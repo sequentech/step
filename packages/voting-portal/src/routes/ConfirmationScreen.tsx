@@ -206,10 +206,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     (castVote) =>
                         castVote.election_id === electionId &&
                         castVote.status !== CastVoteStatus.DISCARDED &&
-                        !(
-                            castVoteStatus === CastVoteStatus.DISCARDED &&
-                            castVote.id === castVoteId
-                        )
+                        !(castVoteStatus === CastVoteStatus.DISCARDED && castVote.id === castVoteId)
                 ) ?? []
             console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
             if (numAllowedRevotes === 0) {
@@ -631,12 +628,7 @@ const ConfirmationScreen: React.FC = () => {
                     </Dialog>
                 </BallotIdBorder>
             </BallotIdContainer>
-            <Typography
-                variant="h5"
-                fontSize="18px"
-                fontWeight="bold"
-                hidden={!isCastVoteValid}
-            >
+            <Typography variant="h5" fontSize="18px" fontWeight="bold" hidden={!isCastVoteValid}>
                 {t("confirmationScreen.verifyCastTitle")}
             </Typography>
             <Typography
@@ -656,11 +648,7 @@ const ConfirmationScreen: React.FC = () => {
             {!isCastVoteValid ? (
                 <Alert
                     severity={
-                        isCastVoteDiscarded
-                            ? "error"
-                            : isCastVoteManualReview
-                              ? "warning"
-                              : "info"
+                        isCastVoteDiscarded ? "error" : isCastVoteManualReview ? "warning" : "info"
                     }
                     icon={
                         !isCastVoteDiscarded && !isCastVoteManualReview ? (

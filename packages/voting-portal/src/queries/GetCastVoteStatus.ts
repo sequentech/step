@@ -5,11 +5,7 @@
 import {gql} from "@apollo/client"
 
 export const GET_CAST_VOTE_STATUS = gql`
-    query GetCastVoteStatus(
-        $tenantId: uuid!
-        $electionEventId: uuid!
-        $castVoteId: uuid!
-    ) {
+    query GetCastVoteStatus($tenantId: uuid!, $electionEventId: uuid!, $castVoteId: uuid!) {
         sequent_backend_cast_vote(
             where: {
                 id: {_eq: $castVoteId}

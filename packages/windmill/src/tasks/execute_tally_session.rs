@@ -814,10 +814,9 @@ async fn map_plaintext_data(
     let election_event_uuid =
         parse_uuid_v4(&election_event_id).with_context(|| "Error parsing election_event_id")?;
     for contest in &tally_session_contest {
-        let election_uuid = parse_uuid_v4(&contest.election_id)
-            .with_context(|| "Error parsing election_id")?;
-        let area_uuid =
-            parse_uuid_v4(&contest.area_id).with_context(|| "Error parsing area_id")?;
+        let election_uuid =
+            parse_uuid_v4(&contest.election_id).with_context(|| "Error parsing election_id")?;
+        let area_uuid = parse_uuid_v4(&contest.area_id).with_context(|| "Error parsing area_id")?;
         let unresolved_count = count_unresolved_cast_votes(
             hasura_transaction,
             &tenant_uuid,

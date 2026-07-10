@@ -236,12 +236,6 @@ export enum EarlyVotingPolicy {
     NoEarlyVoting = "no_early_voting",
 }
 
-export type EditUserOutput = {
-    __typename?: "EditUserOutput"
-    task_execution?: Maybe<Tasks_Execution_Type>
-    user?: Maybe<KeycloakUser>
-}
-
 export type EditUsersInput = {
     attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
@@ -584,6 +578,7 @@ export type InsertCastVoteOutput = {
     id: Scalars["uuid"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
     voter_id_string?: Maybe<Scalars["String"]["output"]>
 }
@@ -1353,7 +1348,7 @@ export type Mutation_Root = {
     delete_user_role?: Maybe<SetUserRoleOutput>
     /** delete users */
     delete_users?: Maybe<DeleteUsersOutput>
-    edit_user: EditUserOutput
+    edit_user: KeycloakUser
     encrypt_report?: Maybe<EncryptReportOutput>
     exportTrustees?: Maybe<ExportTrusteesOutput>
     export_application?: Maybe<ExportApplicationOutput>
@@ -12426,7 +12421,7 @@ export type Sequent_Backend_Phone_Blacklist = {
     __typename?: "sequent_backend_phone_blacklist"
     created_at: Scalars["timestamptz"]["output"]
     created_by: Scalars["uuid"]["output"]
-    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    election_event_id: Scalars["uuid"]["output"]
     id: Scalars["uuid"]["output"]
     phone_e164: Scalars["String"]["output"]
     reason?: Maybe<Scalars["String"]["output"]>
