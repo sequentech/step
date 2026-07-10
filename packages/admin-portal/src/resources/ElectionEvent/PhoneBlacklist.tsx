@@ -4,9 +4,11 @@
 import React, {useContext, useState} from "react"
 import {
     DatagridConfigurable,
+    DateInput,
     List,
     RaRecord,
     TextField,
+    TextInput,
     useNotify,
     useRecordContext,
     useRefresh,
@@ -28,15 +30,28 @@ import {CREATE_PHONE_BLACKLIST_ENTRY} from "@/queries/CreatePhoneBlacklistEntry"
 import {UPDATE_PHONE_BLACKLIST_ENTRY} from "@/queries/UpdatePhoneBlacklistEntry"
 import {DELETE_PHONE_BLACKLIST_ENTRY} from "@/queries/DeletePhoneBlacklistEntry"
 import {Dialog} from "@sequentech/ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
+import {Add} from "@mui/icons-material"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 const RESOURCE = "sequent_backend_phone_blacklist"
 
-const Empty: React.FC = () => {
+interface EmptyProps {
+    onAdd: () => void
+}
+const Empty: React.FC<EmptyProps> = ({onAdd}) => {
     const {t} = useTranslation()
     return (
         <ResourceListStyles.EmptyBox>
-            <Typography variant="subtitle1">
+            <Typography variant="h4" component="p">
                 {t("electionEventScreen.ivr.blacklist.emptyMsg")}
+            </Typography>
+            <Button onClick={onAdd}>
+                <Add />
+                {t("common.label.add")}
+            </Button>
+            <Typography variant="body1" component="p">
+                {t("common.resources.noResult.askCreate")}
             </Typography>
         </ResourceListStyles.EmptyBox>
     )
@@ -207,25 +222,65 @@ export const PhoneBlacklist: React.FC = () => {
     }
 
     return (
-        <Box>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+            <ElectionHeaderStyles.SubTitle>
+                {t("electionEventScreen.ivr.blacklist.infoMsg")}
+            </ElectionHeaderStyles.SubTitle>
             <List
                 resource={RESOURCE}
                 filter={{tenant_id: tenantId, election_event_id: record.id}}
                 sort={{field: "phone_e164", order: "ASC"}}
                 storeKey={false}
-                empty={false}
+                empty={<Empty onAdd={() => setDrawerOpen(true)} />}
+                filters={[
+                    <TextInput
+                        source="phone_e164"
+                        label={t("electionEventScreen.ivr.blacklist.columns.phone")}
+                    />,
+                    <TextInput
+                        source="reason"
+                        label={t("electionEventScreen.ivr.blacklist.columns.reason")}
+                    />,
+                    <TextInput
+                        source="created_by"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdBy")}
+                    />,
+                    <DateInput
+                        source="created_at@_lte"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdBefore")}
+                    />,
+                    <DateInput
+                        source="created_at@_gte"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdAfter")}
+                    />,
+                ]}
                 actions={
                     <ListActions
                         withImport={false}
                         withExport={false}
-                        withFilter={false}
+                        withFilter={true}
                         withAction={canCreate}
                         doAction={() => setDrawerOpen(true)}
                         actionLabel={t("common.label.add")}
                     />
                 }
             >
-                <DatagridConfigurable empty={<Empty />} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    empty={
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                padding: theme.spacing(2),
+                            }}
+                        >
+                            <Typography variant="subtitle1">
+                                {t("electionEventScreen.ivr.blacklist.noFilterMatch")}
+                            </Typography>
+                        </Box>
+                    }
+                    bulkActionButtons={false}
+                >
                     <TextField
                         source="phone_e164"
                         label={t("electionEventScreen.ivr.blacklist.columns.phone")}
@@ -235,12 +290,12 @@ export const PhoneBlacklist: React.FC = () => {
                         label={t("electionEventScreen.ivr.blacklist.columns.reason")}
                     />
                     <TextField
-                        source="created_at"
-                        label={t("electionEventScreen.ivr.blacklist.columns.createdAt")}
-                    />
-                    <TextField
                         source="created_by"
                         label={t("electionEventScreen.ivr.blacklist.columns.createdBy")}
+                    />
+                    <TextField
+                        source="created_at"
+                        label={t("electionEventScreen.ivr.blacklist.columns.createdAt")}
                     />
                     {(canEdit || canDelete) && (
                         <RowActions

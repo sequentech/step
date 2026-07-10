@@ -513,14 +513,31 @@ const basqueTranslation: TranslationType = {
                     deleteSuccess: "Behar bezala ezabatu da",
                     deleteError: "Ezin izan da ezabatu",
                 },
+                config: {
+                    infoMsg:
+                        "Konfiguratu IVRaren fluxua eta haren propietateak behean. Xehetasun gehiagorako, jarri harremanetan Sequent-ekin.",
+                },
+                prompts: {
+                    emptyMsg: "Oraindik ez da promptik sortu",
+                    infoMsg:
+                        "Konfiguratu IVRak erabiltzen dituen promptak. Iragarpen-promptak nahitaezkoak dira, eta sistema-promptak nahi diren hizkuntzetarako gainidatz daitezke. SSML onartzen da, hizkuntzak nahasteko ere bai.",
+                    editorTitle: "Prompta",
+                    editorSubtitle: "Promptaren konfigurazioa",
+                },
                 blacklist: {
                     columns: {
                         phone: "Telefono-zenbakia",
                         reason: "Arrazoia",
                         createdAt: "Sortze-data",
                         createdBy: "Nork sortua",
+                        createdBefore: "Noiz baino lehen sortua",
+                        createdAfter: "Noiz baino ondoren sortua",
                     },
                     emptyMsg: "Ez dago sarrerarik blokeatze-zerrendan",
+                    infoMsg:
+                        "Konfiguratu IVRaren blokeo-zerrenda. Zenbaki hauetatik datozen deiak automatikoki deskonektatuko ditu sistemak.",
+
+                    noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
                 },
             },
