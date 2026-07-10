@@ -70,6 +70,16 @@ const invalidVoteCandidate: ICandidate = {
     presentation: {is_explicit_invalid: true},
 }
 
+const explicitBlankCandidate: ICandidate = {
+    id: "blank-1",
+    tenant_id: TENANT_ID,
+    election_event_id: ELECTION_EVENT_ID,
+    election_id: ELECTION_ID,
+    contest_id: CONTEST_ID,
+    name: "Cast Explicit Blank Vote",
+    presentation: {is_explicit_blank: true},
+}
+
 const makeContest = (overrides: Partial<IContest> = {}): IContest => ({
     id: CONTEST_ID,
     tenant_id: TENANT_ID,
@@ -218,6 +228,30 @@ export const ExplicitInvalidVote: Story = {
                     {id: "2", selected: -1},
                     {id: "3", selected: -1},
                     {id: "invalid-1", selected: -1},
+                ],
+            })}
+            publicBucketUrl=""
+            contestNotFoundLabel="Contest not found"
+            markedInvalidLabel="Marked as invalid"
+            pointsLabel={pointsLabel}
+            isDeclineToVotePolicyEnabled={false}
+        />
+    ),
+    parameters: commonParameters,
+}
+
+export const ExplicitBlankVote: Story = {
+    render: () => (
+        <PlaintextVoteContest
+            question={makeContest({
+                candidates: [...baseCandidates, explicitBlankCandidate],
+            })}
+            questionPlaintext={makePlaintext({
+                choices: [
+                    {id: "1", selected: -1},
+                    {id: "2", selected: -1},
+                    {id: "3", selected: -1},
+                    {id: "blank-1", selected: 0},
                 ],
             })}
             publicBucketUrl=""

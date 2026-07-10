@@ -1869,6 +1869,8 @@ const dutchTranslation: TranslationType = {
                 implicit_invalid_votes: "Impliciet Ongeldige Stemmen",
                 implicit_invalid_votes_percent: "Percentage Impliciet Ongeldige Stemmen",
                 blank_votes: "Blanco Stemmen",
+                explicit_blank_votes: "Expliciete Blanco Stemmen",
+                implicit_blank_votes: "Impliciete Blanco Stemmen",
                 blank_votes_percent: "Percentage Blanco Stemmen",
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",

@@ -1877,6 +1877,8 @@ const tagalogTranslation: TranslationType = {
                 implicit_invalid_votes: "Mga nakatagong di-balidong boto",
                 implicit_invalid_votes_percent: "Porsyento ng mga nakatagong di-balidong boto",
                 blank_votes: "Mga botong walang laman",
+                explicit_blank_votes: "Mga hayag na blankong boto",
+                implicit_blank_votes: "Mga nakatagong blankong boto",
                 blank_votes_percent: "Porsyento ng mga botong walang laman",
                 number_of_votes: "Bilang ng mga boto",
                 winning_position: "Panalong posisyon",

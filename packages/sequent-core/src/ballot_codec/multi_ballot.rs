@@ -13,7 +13,8 @@ use crate::ballot::{
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
     check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
-    check_under_vote_policy,
+    check_under_vote_policy, validate_contest_configuration,
+    ContestCodecContext,
 };
 use crate::error::BallotError;
 use crate::mixed_radix;
@@ -30,6 +31,100 @@ use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
+
+fn is_candidate_selected(
+    candidate: &Candidate,
+    choices: &[ContestChoice],
+) -> bool {
+    choices.iter().any(|choice| {
+        choice.candidate_id == candidate.id && choice.selected > -1
+    })
+}
+
+fn is_marker_candidate_selected(
+    candidate: Option<&Candidate>,
+    choices: &[ContestChoice],
+) -> bool {
+    candidate
+        .map(|candidate| is_candidate_selected(candidate, choices))
+        .unwrap_or(false)
+}
+
+/// Precomputed constants for encoding and decoding multi-contest ballots.
+///
+/// Holds one [`ContestCodecContext`] per contest, sorted by contest id (the
+/// encoding order), together with the mixed radix bases of the whole ballot.
+/// Batch paths that process many ballots for the same contests should build
+/// this context once and use the `*_with_context` methods of
+/// [`BallotChoices`].
+pub struct MultiBallotCodecContext<'a> {
+    /// Per-contest codec contexts, sorted by contest id.
+    pub contest_contexts: Vec<ContestCodecContext<'a>>,
+    /// Whether the ballot-level decline-to-vote flag is encoded.
+    pub include_decline_to_vote: bool,
+    /// The mixed radix bases for the whole ballot.
+    pub bases: Vec<u64>,
+}
+
+impl<'a> MultiBallotCodecContext<'a> {
+    /// Validates the contest configurations and precomputes the constants
+    /// used to encode and decode multi-contest ballots.
+    pub fn new(
+        contests: &'a [Contest],
+        include_decline_to_vote: bool,
+    ) -> Result<Self, String> {
+        // The order of the contests is computed sorting by id.
+        // The selections must be encoded to and decoded from a ballot
+        // following this order, given by contest.id.
+        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
+        sorted_contests.sort_by(|a, b| a.id.cmp(&b.id));
+
+        // the base for explicit invalid ballot slot is 2:
+        // 0: not invalid, 1: explicit invalid
+        let mut bases: Vec<u64> = vec![];
+        if include_decline_to_vote {
+            bases.push(2);
+        }
+
+        let mut contest_contexts = Vec::with_capacity(sorted_contests.len());
+        for contest in sorted_contests {
+            let context = ContestCodecContext::new(contest)?;
+
+            // Compact encoding only supports plurality
+            if contest.get_counting_algorithm()
+                != CountingAlgType::PluralityAtLarge
+            {
+                return Err(format!("get_bases: multi ballot encoding only supports plurality at large, received {}", contest.get_counting_algorithm()));
+            }
+
+            let num_valid_candidates: Result<u64, TryFromIntError> =
+                context.sorted_normal_candidates.len().try_into();
+
+            let num_valid_candidates =
+                num_valid_candidates.map_err(|e| e.to_string())?;
+
+            // Per-contest explicit invalid flag
+            bases.push(2);
+            if context.explicit_blank_candidate.is_some() {
+                bases.push(2);
+            }
+
+            let max_selections = contest.max_votes;
+            for _ in 1..=max_selections {
+                // + 1: include the unset value.
+                bases.push(num_valid_candidates + 1);
+            }
+
+            contest_contexts.push(context);
+        }
+
+        Ok(MultiBallotCodecContext {
+            contest_contexts,
+            include_decline_to_vote,
+            bases,
+        })
+    }
+}
 
 /// A multi contest ballot.
 ///
@@ -243,11 +338,7 @@ impl BallotChoices {
     /// * The plaintexts for a given contest were not found.
     /// * The length of a contest choice vector was greater than
     ///   contest.max_votes.
-    /// * The length of a contest choice vector was smaller than
-    ///   contest.min_votes.
     /// * The set choices (!=0) for a contest had duplicates.
-    /// * The number of set choices (!= 0) for a given contest choice vector was
-    ///   smaller than contest.min_votes.
     /// * A choice id in a given contest choice vector was invalid.
     ///
     /// The resulting encoded choice vector is a
@@ -257,12 +348,14 @@ impl BallotChoices {
     /// groups.
     ///
     /// Returns the encoded ballot, with n sets of contest choices
-    /// each of size contest.max_votes, plus one invalid flag per contest.
+    /// each of size contest.max_votes, plus one invalid flag and, when the
+    /// contest has an explicit blank candidate, one blank flag per contest.
     /// When decline-to-vote is enabled, a ballot-level invalid flag is also
     /// included.
-    /// The total number of choices is given by the following:
-    /// contests.iter().fold(0, |a, b| a + b.max_votes) + contests.len()
-    /// + (1 if decline-to-vote enabled else 0)
+    /// The total number of choices is:
+    /// sum(contest.max_votes) + contests.len()
+    /// + contests_with_explicit_blank.len()
+    /// + (1 if decline-to-vote is enabled else 0).
     fn encode_to_raw_ballot(
         &self,
         config: &BallotStyle,
@@ -276,8 +369,9 @@ impl BallotChoices {
             );
         }
 
-        let bases = Self::get_bases(&contests, include_decline_to_vote)
-            .map_err(|e| e.to_string())?;
+        let context =
+            MultiBallotCodecContext::new(&contests, include_decline_to_vote)?;
+        let bases = context.bases.clone();
         let mut choices: Vec<u64> = vec![];
 
         // Construct a map of plaintexts, this will allow us to
@@ -290,30 +384,37 @@ impl BallotChoices {
             .map(|plaintext| (plaintext.contest_id.clone(), plaintext))
             .collect::<HashMap<String, &ContestChoices>>();
 
-        // The order of the contests is computed sorting by id.
-        // The selections must be encoded to and decoded from a ballot
-        // following this order, given by contest.id.
-        let mut sorted_contests = contests.clone();
-        sorted_contests.sort_by_key(|c| c.id.clone());
-
         if include_decline_to_vote {
             let invalid_vote: u64 =
                 if self.is_explicit_invalid { 1 } else { 0 };
             choices.push(invalid_vote);
         }
 
-        // Iterate in contest order
-        for contest in sorted_contests {
+        // Iterate in contest order (contest contexts are sorted by id, the
+        // order in which selections must be encoded and decoded)
+        for contest_context in &context.contest_contexts {
+            let contest = contest_context.contest;
             let plaintext = plaintexts_map.get(&contest.id).ok_or(format!(
                 "Could not find plaintexts for contest {:?}",
                 contest
             ))?;
 
-            let contest_invalid_vote: u64 =
-                if plaintext.is_explicit_invalid { 1 } else { 0 };
-            choices.push(contest_invalid_vote);
+            let contest_invalid_vote = plaintext.is_explicit_invalid
+                || is_marker_candidate_selected(
+                    contest_context.explicit_invalid_candidate,
+                    &plaintext.choices,
+                );
+            choices.push(u64::from(contest_invalid_vote));
 
-            let contest_choices = self.encode_contest(&contest, &plaintext)?;
+            if contest_context.explicit_blank_candidate.is_some() {
+                choices.push(u64::from(is_marker_candidate_selected(
+                    contest_context.explicit_blank_candidate,
+                    &plaintext.choices,
+                )));
+            }
+
+            let contest_choices =
+                self.encode_contest(contest_context, plaintext)?;
 
             // Accumulate the choices for each contest
             choices.extend(contest_choices);
@@ -328,59 +429,20 @@ impl BallotChoices {
     /// which the caller will append to the overall ballot choice vector.
     fn encode_contest(
         &self,
-        contest: &Contest,
+        context: &ContestCodecContext,
         plaintext: &ContestChoices,
     ) -> Result<Vec<u64>, String> {
-        // A choice of a candidate is represented as that candidate's
-        // position in the candidate list, sorted by id. The
-        // same sorting order must be used to interpret
-        // choices when decoding.
-        let mut sorted_candidates: Vec<Candidate> = contest
-            .candidates
-            .clone()
-            .into_iter()
-            .filter(|candidate| !candidate.is_explicit_invalid())
-            .collect();
-        sorted_candidates.sort_by_key(|c| c.id.clone());
-
-        // Note how the position for the candidate is mapped to the first
-        // element in the tuple. This position will be used below when
-        // marking choices.
-        let candidates_map = sorted_candidates
-            .iter()
-            .enumerate()
-            .map(|c| (c.1.id.clone(), (c.0, c.1)))
-            .collect::<HashMap<String, (usize, &Candidate)>>();
-
-        let max_votes: usize = contest
+        let max_votes: usize = context
+            .contest
             .max_votes
             .try_into()
             .map_err(|_| format!("u64 conversion on contest max_votes"))?;
-        let min_votes: usize = contest
-            .min_votes
-            .try_into()
-            .map_err(|_| format!("u64 conversion on contest min_votes"))?;
-
-        if plaintext.choices.len() < min_votes {
-            return Err(format!(
-                "Plaintext vector contained fewer than min_votes elements ({} > {})", plaintext.choices.len(), min_votes
-            ));
-        }
-        if plaintext.choices.len() > max_votes {
-            return Err(format!(
-                "Plaintext vector contained more than max_votes elements ({} > {})", plaintext.choices.len(), max_votes
-            ));
-        }
 
         let choices_order = match self.counting_algorithm.is_preferential() {
             true => {
                 // Setting the choices in order of preference to support
-                // preferencial multiballot. When decoding, we
-                // will take the order of the
-                // vector to determine the order of preference of each choice.
-                // The invalid ones with seected = -1 will be at the beginning
-                // but will be ignored when decoding anyway
-                // because are marked to 0.
+                // preferencial multiballot. When decoding, we will take the
+                // vector order to determine the order of preference.
                 let mut pref_choices: Vec<ContestChoice> =
                     plaintext.choices.clone();
                 pref_choices.sort_by_key(|c| c.selected);
@@ -389,12 +451,35 @@ impl BallotChoices {
             false => plaintext.choices.clone(),
         };
 
+        let mut normal_choices = vec![];
+        for choice in choices_order {
+            let candidate = context
+                .candidates_by_id
+                .get(choice.candidate_id.as_str())
+                .ok_or_else(|| {
+                    "choice id is not a valid candidate".to_string()
+                })?;
+            if candidate.is_explicit_invalid() || candidate.is_explicit_blank()
+            {
+                continue;
+            }
+            normal_choices.push(choice);
+        }
+
+        if normal_choices.len() > max_votes {
+            return Err(format!(
+                "Plaintext vector contained more than max_votes elements ({} > {})", normal_choices.len(), max_votes
+            ));
+        }
+
         // We set all values as unset (0) by default
         let mut contest_choices = vec![0u64; max_votes];
         let mut marked = 0;
-        for p in &choices_order {
-            let (position, _candidate) =
-                candidates_map.get(&p.candidate_id).ok_or_else(|| {
+        for p in &normal_choices {
+            let position = context
+                .normal_candidate_positions
+                .get(p.candidate_id.as_str())
+                .ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
                 })?;
 
@@ -438,12 +523,6 @@ impl BallotChoices {
             return Err(format!("Plaintext vector contained duplicate values"));
         }
 
-        if marked < min_votes {
-            return Err(format!(
-                "Plaintext vector contained fewer than min_votes marks"
-            ));
-        }
-
         Ok(contest_choices)
     }
 
@@ -456,42 +535,15 @@ impl BallotChoices {
     /// 3) BigUint -> RawBallotContest (this is a mixed-radix structure)
     /// 4) RawBallotContest -> DecodedBallotChoices
     ///
-    /// The following conditions will return an error.
+    /// Structural codec errors still short-circuit decoding:
     ///
-    /// =================================
-    /// FIXME
-    /// In the current implementation these errors short
-    /// circuit the operation.
+    /// * The number of overall choices does not match the expected layout.
+    /// * A contest choice is out of range for the contest's candidate set.
+    /// * There is an integer conversion error in a layout-defining value.
     ///
-    /// * choices.len() != expected_choices + 1
-    /// * let Some(candidate) = candidate else {
-    /// return Err(format!(
-    ///    "Candidate selection out of range {} (length: {})",
-    ///    next,
-    ///    sorted_candidates.len()
-    /// ));};
-    /// * let next = usize::try_from(next).map_err(|_| { format!("u64 -> usize
-    ///   conversion on plaintext choice") })?;
-    /// * is_explicit_invalid && !self.allow_explicit_invalid() {
-    /// * max_votes: Option<usize> = match usize::try_from(self.max_votes)
-    /// * min_votes: Option<usize> = match usize::try_from(self.min_votes)
-    /// * decoded_contest = handle_over_vote_policy(
-    /// * num_selected_candidates < min_votes
-    /// * under_vote_policy != EUnderVotePolicy::ALLOWED &&
-    ///   num_selected_candidates < max_votes && num_selected_candidates >=
-    ///   min_votes
-    /// * if let Some(blank_vote_policy) = presentation.blank_vote_policy { if
-    ///   num_selected_candidates == 0
-    /// =================================
-    ///
-    /// * The number of overall choices does not match the expected value
-    /// * A contest choice is out of range (larger than the number of
-    ///   candidates)
-    /// * There are fewer contest choices than contest.min_votes
-    /// * There is an i64 -> u64 conversion error on
-    /// * contest.min_votes
-    /// * contest.max_votes
-    /// * There is a u64 -> usize conversion error on a choice
+    /// Ballot policy checks, including min/max/under/blank/invalid vote
+    /// policies, are reported in the decoded contest's invalid errors or
+    /// alerts.
     ///
     /// The decoding processes the choices vector as a
     /// contiguous list of contest choices groups, each of
@@ -526,18 +578,30 @@ impl BallotChoices {
         include_decline_to_vote: bool,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
-        let raw_ballot = Self::bigint_to_raw_ballot(
-            &bigint,
-            contests,
-            include_decline_to_vote,
-        )?;
+        let context =
+            MultiBallotCodecContext::new(contests, include_decline_to_vote)?;
 
-        Self::decode(
-            &raw_ballot,
-            contests,
-            include_decline_to_vote,
+        Self::decode_from_bigint_with_context(
+            &context,
+            bigint,
             serial_number_counter,
         )
+    }
+
+    /// Returns a decoded ballot from a BigUint, using a precomputed codec
+    /// context.
+    ///
+    /// Batch decode paths should build the [`MultiBallotCodecContext`] once
+    /// per contest set and call this method for every ballot.
+    pub fn decode_from_bigint_with_context(
+        context: &MultiBallotCodecContext,
+        bigint: &BigUint,
+        serial_number_counter: Option<&mut u32>,
+    ) -> Result<DecodedBallotChoices, String> {
+        let raw_ballot =
+            Self::bigint_to_raw_ballot_with_context(context, bigint)?;
+
+        Self::decode_with_context(context, &raw_ballot, serial_number_counter)
     }
 
     /// Decode a mixed radix representation of the ballot.
@@ -547,21 +611,82 @@ impl BallotChoices {
         include_decline_to_vote: bool,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
-        let mut contest_choices: Vec<DecodedContestChoices> = vec![];
-        let choices = raw_ballot.choices.clone();
+        // The contest configurations are validated inside the decode loop
+        // (see decode_sorted_contexts) so that errors are reported in the
+        // same order in which decoding progresses.
+        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
+        sorted_contests.sort_by(|a, b| a.id.cmp(&b.id));
+        let contest_contexts: Vec<ContestCodecContext> = sorted_contests
+            .into_iter()
+            .map(ContestCodecContext::new_unchecked)
+            .collect();
 
-        // Each contest contributes max_votes slots plus one invalid flag
-        let expected_vote_slots =
-            contests.iter().fold(0, |a, b| a + b.max_votes);
+        Self::decode_sorted_contexts(
+            &contest_contexts,
+            include_decline_to_vote,
+            true,
+            raw_ballot,
+            serial_number_counter,
+        )
+    }
+
+    /// Decode a mixed radix representation of the ballot using a
+    /// precomputed codec context.
+    pub fn decode_with_context(
+        context: &MultiBallotCodecContext,
+        raw_ballot: &RawBallotContest,
+        serial_number_counter: Option<&mut u32>,
+    ) -> Result<DecodedBallotChoices, String> {
+        // The contest configurations were already validated when the
+        // context was built.
+        Self::decode_sorted_contexts(
+            &context.contest_contexts,
+            context.include_decline_to_vote,
+            false,
+            raw_ballot,
+            serial_number_counter,
+        )
+    }
+
+    /// Decode a mixed radix representation of the ballot given the
+    /// per-contest codec contexts, sorted by contest id.
+    ///
+    /// When `validate_contest_configurations` is true, each contest
+    /// configuration is validated right before the contest is decoded,
+    /// preserving the order in which errors are reported.
+    fn decode_sorted_contexts(
+        contest_contexts: &[ContestCodecContext],
+        include_decline_to_vote: bool,
+        validate_contest_configurations: bool,
+        raw_ballot: &RawBallotContest,
+        serial_number_counter: Option<&mut u32>,
+    ) -> Result<DecodedBallotChoices, String> {
+        let mut contest_choices: Vec<DecodedContestChoices> = vec![];
+        let choices = &raw_ballot.choices;
+
+        // Each contest contributes max_votes slots plus one invalid flag and,
+        // when configured, one explicit blank flag.
+        let expected_vote_slots = contest_contexts
+            .iter()
+            .fold(0, |a, b| a + b.contest.max_votes);
         let expected_vote_slots: usize =
             expected_vote_slots.try_into().map_err(|_| {
                 format!("i64 -> usize conversion on contest max_votes")
             })?;
 
-        // One per-contest invalid flag per contest and max_votes slots per contest.
+        let expected_blank_slots = contest_contexts
+            .iter()
+            .filter(|contest_context| {
+                contest_context.explicit_blank_candidate.is_some()
+            })
+            .count();
+
+        // One per-contest invalid flag per contest, optional per-contest blank
+        // flags, and max_votes slots per contest.
         // When decline-to-vote is enabled, a ballot-level invalid flag is also present.
         let expected_choices = expected_vote_slots
-            + contests.len()
+            + contest_contexts.len()
+            + expected_blank_slots
             + usize::from(include_decline_to_vote);
         if choices.len() != expected_choices {
             return Err(format!(
@@ -571,12 +696,6 @@ impl BallotChoices {
             ));
         }
 
-        // The order of the contests is computed sorting by id.
-        // The selections must be encoded to and decoded from a ballot
-        // following this order, given by contest.id.
-        let mut sorted_contests = contests.clone();
-        sorted_contests.sort_by_key(|c| c.id.clone());
-
         let is_explicit_invalid = if include_decline_to_vote {
             !choices.is_empty() && (choices[0] > 0)
         } else {
@@ -584,21 +703,40 @@ impl BallotChoices {
         };
         let mut choice_index = usize::from(include_decline_to_vote);
 
-        for contest in sorted_contests {
+        // Contest contexts are sorted by contest id, the order in which
+        // selections are encoded and decoded.
+        for contest_context in contest_contexts {
             let contest_is_explicit_invalid: bool = choices
                 .get(choice_index)
                 .map(|value| *value > 0)
                 .unwrap_or(false);
             choice_index += 1;
 
+            let contest_is_explicit_blank =
+                if contest_context.explicit_blank_candidate.is_some() {
+                    let value = choices
+                        .get(choice_index)
+                        .map(|value| *value > 0)
+                        .unwrap_or(false);
+                    choice_index += 1;
+                    value
+                } else {
+                    false
+                };
+
             let max_votes: usize =
-                contest.max_votes.try_into().map_err(|_| {
+                contest_context.contest.max_votes.try_into().map_err(|_| {
                     format!("i64 -> usize conversion on contest max_votes")
                 })?;
+            if validate_contest_configurations {
+                validate_contest_configuration(contest_context.contest)?;
+            }
             let next = Self::decode_contest(
-                &contest,
+                contest_context,
                 &choices[choice_index..],
                 contest_is_explicit_invalid,
+                contest_is_explicit_blank,
+                is_explicit_invalid,
             )?;
             choice_index += max_votes;
             contest_choices.push(next);
@@ -630,11 +768,21 @@ impl BallotChoices {
     /// Values set to 0 (unset) will not return a ContestChoice.
     /// It is the responsibility of the caller to advance the choice slice
     /// as choices are decoded.
+    ///
+    /// `is_ballot_declined` is the ballot-level decline-to-vote flag. A
+    /// declined ballot is intentionally empty in every contest, so the
+    /// per-contest selection policy checks (over/min/under/blank vote) are
+    /// skipped for it; structural checks and the explicit-invalid policy
+    /// check still apply.
     fn decode_contest(
-        contest: &Contest,
+        context: &ContestCodecContext,
         choices: &[u64],
         is_explicit_invalid: bool,
+        is_explicit_blank: bool,
+        is_ballot_declined: bool,
     ) -> Result<DecodedContestChoices, String> {
+        let contest = context.contest;
+
         let mut decoded_contest = DecodedContestChoices::new(
             contest.id.clone(),
             vec![],
@@ -643,21 +791,11 @@ impl BallotChoices {
             vec![],
         );
         // A choice of a candidate is represented as that candidate's
-        // position in the candidate list, sorted by id.
-        let mut sorted_candidates: Vec<Candidate> = contest
-            .candidates
-            .clone()
-            .into_iter()
-            .filter(|candidate| !candidate.is_explicit_invalid())
-            .collect();
-
-        sorted_candidates.sort_by_key(|c| c.id.clone());
+        // position in the non-marker candidate list, sorted by id.
+        let sorted_candidates = &context.sorted_normal_candidates;
 
         let max_votes: usize = contest.max_votes.try_into().map_err(|_| {
             format!("i64 -> usize conversion on contest max_votes")
-        })?;
-        let min_votes: usize = contest.min_votes.try_into().map_err(|_| {
-            format!("i64 -> usize conversion on contest min_votes")
         })?;
 
         let mut next_choices = vec![];
@@ -695,22 +833,32 @@ impl BallotChoices {
         let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
         decoded_contest.choices = unique.clone().into_iter().collect();
+        if is_explicit_invalid {
+            if let Some(candidate) = context.explicit_invalid_candidate {
+                decoded_contest
+                    .choices
+                    .push(DecodedContestChoice(candidate.id.clone()));
+            }
+        }
+        if is_explicit_blank {
+            if let Some(candidate) = context.explicit_blank_candidate {
+                decoded_contest
+                    .choices
+                    .push(DecodedContestChoice(candidate.id.clone()));
+            }
+        }
 
         let num_selected_candidates = next_choices.len();
+        // Explicit invalid and explicit blank flags count as selections
+        // for the min_votes, max_votes, undervote and blank-vote rules.
+        let num_selected_with_markers = num_selected_candidates
+            + usize::from(is_explicit_invalid)
+            + usize::from(is_explicit_blank);
 
         if unique.len() != num_selected_candidates {
             // FIXME decide if we do something here
             // currently duplicates will be silently ignored, unless
             // they lead to fewer than min_votes values
-        }
-
-        // This can happen with unset (= 0) values
-        // The opposite is impossible due to the above
-        // loop's range 0..max_votes
-        if unique.len() < min_votes {
-            return Err(format!(
-                "Raw ballot vector contained fewer than min_votes choices"
-            ));
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();
@@ -723,35 +871,46 @@ impl BallotChoices {
             check_max_min_votes_policy(contest.max_votes, contest.min_votes);
         decoded_contest.update(maxmin_errors);
 
-        if let Some(max_votes_val) = max_votes_opt.clone() {
-            let overvote_check = check_over_vote_policy(
+        // A declined ballot is intentionally empty in every contest, so the
+        // per-contest selection policies (over/min/under/blank vote) do not
+        // apply to it. Without this, a declined ballot in a contest with
+        // min_votes >= 1 or a NOT_ALLOWED blank vote policy would collect
+        // implicit invalid errors and be tallied as invalid instead of
+        // declined.
+        if !is_ballot_declined {
+            if let Some(max_votes_val) = max_votes_opt.clone() {
+                let overvote_check = check_over_vote_policy(
+                    &presentation,
+                    num_selected_with_markers,
+                    max_votes_val,
+                );
+                decoded_contest.update(overvote_check);
+            }
+            if let Some(min_votes_val) = min_votes_opt.clone() {
+                let min_check = check_min_vote_policy(
+                    num_selected_with_markers,
+                    min_votes_val,
+                );
+                decoded_contest.update(min_check);
+            }
+
+            let under_vote_check = check_under_vote_policy(
                 &presentation,
-                num_selected_candidates,
-                max_votes_val,
+                num_selected_with_markers,
+                max_votes_opt.clone(),
+                min_votes_opt.clone(),
             );
-            decoded_contest.update(overvote_check);
-        }
-        if let Some(min_votes_val) = min_votes_opt.clone() {
-            let min_check =
-                check_min_vote_policy(num_selected_candidates, min_votes_val);
-            decoded_contest.update(min_check);
-        }
+            decoded_contest.update(under_vote_check);
 
-        let under_vote_check = check_under_vote_policy(
-            &presentation,
-            num_selected_candidates,
-            max_votes_opt.clone(),
-            min_votes_opt.clone(),
-        );
-        decoded_contest.update(under_vote_check);
-
-        // handle blank vote policy
-        let blank_vote_check = check_blank_vote_policy(
-            &presentation,
-            num_selected_candidates,
-            is_explicit_invalid,
-        );
-        decoded_contest.update(blank_vote_check);
+            // handle blank vote policy. A selected explicit blank or explicit
+            // invalid marker counts as a selection, so it is not a blank vote.
+            let blank_vote_check = check_blank_vote_policy(
+                &presentation,
+                num_selected_with_markers,
+                is_explicit_invalid,
+            );
+            decoded_contest.update(blank_vote_check);
+        }
 
         Ok(decoded_contest)
     }
@@ -785,61 +944,16 @@ impl BallotChoices {
     //
     // Returns the vector of bases for the mixed radix
     // representation of this ballot (one per-contest explicit invalid base = 2,
-    // and optionally a ballot-level explicit invalid base = 2 when
-    // decline-to-vote is enabled).
+    // optionally one per-contest explicit blank base = 2, and optionally a
+    // ballot-level explicit invalid base = 2 when decline-to-vote is enabled).
     pub fn get_bases(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
     ) -> Result<Vec<u64>, String> {
-        // the base for explicit invalid ballot slot is 2:
-        // 0: not invalid, 1: explicit invalid
-        let mut bases: Vec<u64> = vec![];
-        if include_decline_to_vote {
-            bases.push(2);
-        }
+        let context =
+            MultiBallotCodecContext::new(contests, include_decline_to_vote)?;
 
-        // The set of bases for each contest
-        // will be placed in order, for example
-        //
-        //   contest 0    contest 1     contest 2
-        // [a, b, c, d,   e, f, g,     h, i, j, k]
-        //
-        // The order of the contests is computed
-        // sorting by id.
-        // The selections must be encoded to and decoded from a ballot
-        // following this order, given by contest.id.
-        let mut sorted_contests = contests.clone();
-        sorted_contests.sort_by_key(|c| c.id.clone());
-
-        for contest in sorted_contests {
-            // Compact encoding only supports plurality
-            if contest.get_counting_algorithm()
-                != CountingAlgType::PluralityAtLarge
-            {
-                return Err(format!("get_bases: multi ballot encoding only supports plurality at large, received {}", contest.get_counting_algorithm()));
-            }
-
-            let num_valid_candidates: Result<u64, TryFromIntError> = contest
-                .candidates
-                .iter()
-                .filter(|candidate| !candidate.is_explicit_invalid())
-                .count()
-                .try_into();
-
-            let num_valid_candidates =
-                num_valid_candidates.map_err(|e| e.to_string())?;
-
-            // Per-contest explicit invalid flag
-            bases.push(2);
-
-            let max_selections = contest.max_votes;
-            for _ in 1..=max_selections {
-                // + 1: include a per-ballot invalid flag for decline to vote
-                bases.push(u64::from(num_valid_candidates + 1));
-            }
-        }
-
-        Ok(bases)
+        Ok(context.bases)
     }
 
     /// Returns the contests corresponding to the choices in this ballot
@@ -874,8 +988,19 @@ impl BallotChoices {
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
     ) -> Result<RawBallotContest, String> {
-        let bases = Self::get_bases(contests, include_decline_to_vote)
-            .map_err(|e| e.to_string())?;
+        let context =
+            MultiBallotCodecContext::new(contests, include_decline_to_vote)?;
+
+        Self::bigint_to_raw_ballot_with_context(&context, bigint)
+    }
+
+    /// Decodes a bigint into a raw ballot (mixed radix representation),
+    /// using a precomputed codec context.
+    fn bigint_to_raw_ballot_with_context(
+        context: &MultiBallotCodecContext,
+        bigint: &BigUint,
+    ) -> Result<RawBallotContest, String> {
+        let bases = context.bases.clone();
 
         let choices = Self::decode_mixed_radix(&bases, &bigint)?;
 
@@ -1013,6 +1138,7 @@ mod tests {
         BallotStyle, Candidate, Contest, DeclineToVotePolicy,
         ElectionPresentation,
     };
+    use crate::plaintext::DecodedVoteChoice;
     use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
     use serde_json::json;
@@ -1112,6 +1238,313 @@ mod tests {
         let output_contests = result.unwrap();
         assert_eq!(output_contests.len(), 1);
         assert_eq!(output_contests[0].is_explicit_invalid, true);
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_blank_uses_dedicated_flag() {
+        let mut contest = test_contest("1", 3, 2);
+        mark_explicit_blank(&mut contest.candidates[2]);
+        let blank_id = contest.candidates[2].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        let ballot = BallotChoices::new(
+            false,
+            vec![ContestChoices::new(
+                contest.id.clone(),
+                vec![ContestChoice::new(blank_id.clone(), 0)],
+                false,
+            )],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let raw = ballot
+            .encode_to_raw_ballot(&style)
+            .expect("encoding should succeed");
+
+        assert_eq!(raw.bases, vec![2, 2, 3, 3]);
+        assert_eq!(raw.choices, vec![0, 1, 0, 0]);
+
+        let decoded = BallotChoices::decode(&raw, &style.contests, false, None)
+            .expect("decoding should succeed");
+        assert_eq!(decoded.choices.len(), 1);
+        assert_eq!(
+            decoded.choices[0].choices,
+            vec![DecodedContestChoice(blank_id)]
+        );
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_invalid_candidate_uses_dedicated_flag() {
+        let mut contest = test_contest("1", 2, 1);
+        mark_explicit_invalid(&mut contest.candidates[0]);
+        let invalid_id = contest.candidates[0].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        let ballot = BallotChoices::new(
+            false,
+            vec![ContestChoices::new(
+                contest.id.clone(),
+                vec![ContestChoice::new(invalid_id.clone(), 0)],
+                false,
+            )],
+            CountingAlgType::PluralityAtLarge,
+        );
+
+        let raw = ballot
+            .encode_to_raw_ballot(&style)
+            .expect("encoding should succeed");
+
+        assert_eq!(raw.bases, vec![2, 2]);
+        assert_eq!(raw.choices, vec![1, 0]);
+
+        let decoded = BallotChoices::decode(&raw, &style.contests, false, None)
+            .expect("decoding should succeed");
+        assert_eq!(decoded.choices.len(), 1);
+        assert!(decoded.choices[0].is_explicit_invalid);
+        assert_eq!(
+            decoded.choices[0].choices,
+            vec![DecodedContestChoice(invalid_id)]
+        );
+    }
+
+    #[test]
+    fn test_multi_contest_under_min_reports_error_instead_of_throwing() {
+        let contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+            ],
+            1,
+            1,
+        );
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded = decoded_vote_contest(&contest, false, &[]);
+
+        let result = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect("under-min ballots should be encoded and reported");
+
+        assert!(has_invalid_error(&result[0], "errors.implicit.selectedMin"));
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_blank_satisfies_min_vote_policy() {
+        let mut contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("blank".to_string(), "1".to_string()),
+            ],
+            1,
+            1,
+        );
+        mark_explicit_blank(&mut contest.candidates[1]);
+        let blank_id = contest.candidates[1].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded =
+            decoded_vote_contest(&contest, false, &[blank_id.clone()]);
+
+        let result = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect("explicit blank should satisfy min vote policy");
+
+        assert!(!has_invalid_error(
+            &result[0],
+            "errors.implicit.selectedMin"
+        ));
+        let blank_choice = result[0]
+            .choices
+            .iter()
+            .find(|choice| choice.id == blank_id)
+            .expect("explicit blank candidate should be present");
+        assert_eq!(blank_choice.selected, 0);
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_invalid_candidate_satisfies_min() {
+        let mut contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("invalid".to_string(), "1".to_string()),
+                random_candidate("a".to_string(), "1".to_string()),
+            ],
+            1,
+            1,
+        );
+        mark_explicit_invalid(&mut contest.candidates[0]);
+        let invalid_id = contest.candidates[0].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded =
+            decoded_vote_contest(&contest, false, &[invalid_id.clone()]);
+
+        let decoded_contests = vec![decoded];
+        let (plaintext, _ballot_choices) =
+            encode_to_plaintext_decoded_multi_contest(
+                &decoded_contests,
+                &style,
+            )
+            .expect("explicit invalid candidate should encode");
+        let decoded_ballot_choices =
+            BallotChoices::decode_from_30_bytes(&plaintext, &style)
+                .expect("explicit invalid candidate should decode");
+        let result = map_decoded_ballot_choices_to_decoded_contests(
+            decoded_ballot_choices,
+            &style.contests,
+        )
+        .expect("explicit invalid candidate should map");
+
+        assert!(result[0].is_explicit_invalid);
+        assert!(!has_invalid_error(
+            &result[0],
+            "errors.implicit.selectedMin"
+        ));
+        let invalid_choice = result[0]
+            .choices
+            .iter()
+            .find(|choice| choice.id == invalid_id)
+            .expect("explicit invalid candidate should be present");
+        assert_eq!(invalid_choice.selected, 0);
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_invalid_satisfies_min_vote_policy() {
+        let contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+            ],
+            1,
+            1,
+        );
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded = decoded_vote_contest(&contest, true, &[]);
+
+        let result = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect("explicit invalid should satisfy min vote policy");
+
+        assert!(result[0].is_explicit_invalid);
+        assert!(!has_invalid_error(
+            &result[0],
+            "errors.implicit.selectedMin"
+        ));
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_blank_counts_towards_under_vote_alert() {
+        let mut contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+                random_candidate("blank".to_string(), "1".to_string()),
+            ],
+            1,
+            2,
+        );
+        mark_explicit_blank(&mut contest.candidates[2]);
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .under_vote_policy = Some(EUnderVotePolicy::WARN);
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .blank_vote_policy = Some(crate::ballot::EBlankVotePolicy::WARN);
+        let blank_id = contest.candidates[2].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded =
+            decoded_vote_contest(&contest, false, &[blank_id.clone()]);
+
+        let result = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect("explicit blank should encode and decode");
+
+        assert!(has_invalid_alert(&result[0], "errors.implicit.underVote"));
+        assert!(!has_invalid_error(
+            &result[0],
+            "errors.implicit.selectedMin"
+        ));
+        assert!(
+            !has_invalid_alert(&result[0], "errors.implicit.blankVote")
+                && !has_invalid_error(&result[0], "errors.implicit.blankVote"),
+            "Explicit blank should not be reported as a blank vote"
+        );
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_blank_counts_towards_max_votes() {
+        let mut contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+                random_candidate("blank".to_string(), "1".to_string()),
+            ],
+            0,
+            1,
+        );
+        mark_explicit_blank(&mut contest.candidates[2]);
+        let blank_id = contest.candidates[2].id.clone();
+        let normal_id = contest.candidates[0].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        // A normal candidate plus the explicit blank marker exceed
+        // max_votes = 1.
+        let decoded = decoded_vote_contest(
+            &contest,
+            false,
+            &[normal_id.clone(), blank_id.clone()],
+        );
+
+        let result = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect("ballot should encode and decode");
+
+        assert!(
+            has_invalid_error(&result[0], "errors.implicit.selectedMax"),
+            "Explicit blank should count towards max_votes"
+        );
+    }
+
+    #[test]
+    fn test_multi_contest_explicit_invalid_counts_towards_under_vote_alert() {
+        let mut contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("invalid".to_string(), "1".to_string()),
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+            ],
+            1,
+            2,
+        );
+        mark_explicit_invalid(&mut contest.candidates[0]);
+        contest
+            .presentation
+            .get_or_insert_with(Default::default)
+            .under_vote_policy = Some(EUnderVotePolicy::WARN);
+        let invalid_id = contest.candidates[0].id.clone();
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded =
+            decoded_vote_contest(&contest, false, &[invalid_id.clone()]);
+
+        let decoded_contests = vec![decoded];
+        let (plaintext, _ballot_choices) =
+            encode_to_plaintext_decoded_multi_contest(
+                &decoded_contests,
+                &style,
+            )
+            .expect("explicit invalid candidate should encode");
+        let decoded_ballot_choices =
+            BallotChoices::decode_from_30_bytes(&plaintext, &style)
+                .expect("explicit invalid candidate should decode");
+        let result = map_decoded_ballot_choices_to_decoded_contests(
+            decoded_ballot_choices,
+            &style.contests,
+        )
+        .expect("explicit invalid candidate should map");
+
+        assert!(result[0].is_explicit_invalid);
+        assert!(has_invalid_alert(&result[0], "errors.implicit.underVote"));
+        assert!(!has_invalid_error(
+            &result[0],
+            "errors.implicit.selectedMin"
+        ));
     }
 
     #[test]
@@ -1640,6 +2073,77 @@ mod tests {
     }
 
     #[test]
+    fn test_declined_ballot_skips_selection_policy_checks() {
+        // A contest with min_votes = 1: an empty non-declined ballot
+        // collects errors.implicit.selectedMin, but a declined ballot is
+        // intentionally empty and must not collect selection policy errors,
+        // otherwise the tally classifies it as implicit invalid instead of
+        // declined.
+        let candidates: Vec<Candidate> = (0..3)
+            .map(|i| random_candidate(i.to_string(), "1".to_string()))
+            .collect();
+        let contest = random_contest("1".to_string(), candidates, 1, 2);
+        let mut style = test_ballot_style(vec![contest]);
+        style.election_presentation = Some(ElectionPresentation {
+            decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
+            ..Default::default()
+        });
+
+        // Control: an empty ballot without the decline flag collects the
+        // min-votes policy error.
+        let empty_ballot = BallotChoices::new(
+            false,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+        let plaintext = empty_ballot
+            .encode_to_30_bytes(&style)
+            .expect("empty ballot should encode");
+        let decoded = BallotChoices::decode_from_30_bytes(&plaintext, &style)
+            .expect("empty ballot should decode");
+        assert!(!decoded.is_explicit_invalid);
+        assert!(
+            decoded.choices[0].invalid_errors.iter().any(|error| {
+                error.message.as_deref() == Some("errors.implicit.selectedMin")
+            }),
+            "empty non-declined ballot should collect the min-votes error"
+        );
+
+        // Declined ballot: no selection policy errors must be collected.
+        let declined_ballot = BallotChoices::new(
+            true,
+            vec![ContestChoices::new("1".to_string(), vec![], false)],
+            CountingAlgType::PluralityAtLarge,
+        );
+        let plaintext = declined_ballot
+            .encode_to_30_bytes(&style)
+            .expect("declined ballot should encode");
+        let decoded = BallotChoices::decode_from_30_bytes(&plaintext, &style)
+            .expect("declined ballot should decode");
+        assert!(decoded.is_explicit_invalid);
+        assert!(
+            decoded.choices[0].invalid_errors.is_empty(),
+            "declined ballot must not collect selection policy errors: {:?}",
+            decoded.choices[0].invalid_errors
+        );
+        assert!(
+            decoded.choices[0].invalid_alerts.is_empty(),
+            "declined ballot must not collect selection policy alerts: {:?}",
+            decoded.choices[0].invalid_alerts
+        );
+
+        // The mapped contests classify as declined and blank, not invalid.
+        let mapped = map_decoded_ballot_choices_to_decoded_contests(
+            decoded,
+            &style.contests,
+        )
+        .expect("mapping decoded ballot choices should succeed");
+        assert!(mapped[0].is_decline_to_vote);
+        assert!(!mapped[0].is_invalid());
+        assert!(mapped[0].is_blank());
+    }
+
+    #[test]
     fn test_get_bases_output_shape() {
         let contest_a = test_contest("a", 3, 2);
         let contest_b = test_contest("b", 5, 1);
@@ -1815,6 +2319,12 @@ mod tests {
                 contest.candidates.iter().map(|c| c.id.clone()).collect();
             candidate_ids.sort();
 
+            // Each contest occupies exactly max_votes slots after its
+            // flag(s); remember where they start so we can skip any
+            // trailing unset slots once all choices are verified.
+            let contest_slots_start = index;
+            let contest_max_votes = usize::try_from(contest.max_votes).unwrap();
+
             for choice in choices.choices.iter() {
                 if choice.selected < -1 {
                     assert_eq!(mixed_radix.choices[index], 0);
@@ -1837,6 +2347,10 @@ mod tests {
 
                 index += 1;
             }
+
+            // Skip past any remaining unset slots of this contest so the
+            // next contest's flags are read from the correct position.
+            index = contest_slots_start + contest_max_votes;
         }
     }
 
@@ -1971,9 +2485,9 @@ mod tests {
             is_encrypted: true,
             candidates,
             presentation: None,
+            tie_breaking_policy: None,
             created_at: None,
             annotations: None,
-            tie_breaking_policy: None,
         }
     }
 
@@ -1994,6 +2508,61 @@ mod tests {
             presentation: None,
             annotations: None,
         }
+    }
+
+    fn mark_explicit_blank(candidate: &mut Candidate) {
+        candidate
+            .presentation
+            .get_or_insert_with(Default::default)
+            .is_explicit_blank = Some(true);
+    }
+
+    fn mark_explicit_invalid(candidate: &mut Candidate) {
+        candidate
+            .presentation
+            .get_or_insert_with(Default::default)
+            .is_explicit_invalid = Some(true);
+    }
+
+    fn decoded_vote_contest(
+        contest: &Contest,
+        is_explicit_invalid: bool,
+        selected_ids: &[String],
+    ) -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid,
+            is_decline_to_vote: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if selected_ids.contains(&candidate.id) {
+                        0
+                    } else {
+                        -1
+                    },
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn has_invalid_error(contest: &DecodedVoteContest, message: &str) -> bool {
+        contest
+            .invalid_errors
+            .iter()
+            .any(|error| error.message.as_deref() == Some(message))
+    }
+
+    fn has_invalid_alert(contest: &DecodedVoteContest, message: &str) -> bool {
+        contest
+            .invalid_alerts
+            .iter()
+            .any(|alert| alert.message.as_deref() == Some(message))
     }
 
     fn random_ballot_style(contests: Vec<Contest>) -> BallotStyle {
