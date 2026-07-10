@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tally Engine | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/velvet/velvet_tally"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tally Engine | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/velvet/velvet_tally"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/velvet/velvet_tally" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/velvet/velvet_tally" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tally Engine","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/developers/velvet/velvet_tally"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.f061645e.js" defer="defer"></script>
-<script src="/docusaurus/release-preview/release/10.0/assets/js/main.ecb61065.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.364e3724.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/main.4f19d668.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -39,13 +39,22 @@
 <li class=""><strong>Metric calculation</strong> - Compute percentages and statistics</li>
 </ol>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="invalid-votes">Invalid Votes<a href="#invalid-votes" class="hash-link" aria-label="Direct link to Invalid Votes" title="Direct link to Invalid Votes" translate="no">​</a></h2>
-<p>The tally engine handles different types of invalid votes:</p>
+<p>The tally engine handles valid, blank, declined, and invalid ballots:</p>
 <ul>
 <li class=""><strong>Explicit invalid</strong> - Voter intentionally marked ballot as invalid</li>
 <li class=""><strong>Implicit invalid</strong> - Ballot is invalid due to errors (e.g., overvoting)</li>
-<li class=""><strong>Blank votes</strong> - Ballot has no selections</li>
+<li class=""><strong>Explicit blank</strong> - Voter selected the contest&#x27;s explicit blank candidate</li>
+<li class=""><strong>Implicit blank</strong> - Ballot has no selections</li>
+<li class=""><strong>Declined</strong> - Ballot is covered by decline-to-vote policy and is not counted
+as valid, invalid, or blank at contest level</li>
 </ul>
 <p>Invalid vote handling can be configured per election.</p>
+<p>Blank votes are a subset of valid votes. In result data,
+<code>total_valid_votes</code> is every ballot that is not invalid and not declined,
+including explicit and implicit blank votes. Votes for candidates are
+<code>total_valid_votes - total_blank_votes</code>. A ballot that selects the explicit
+blank candidate together with a regular candidate is treated as an implicit
+invalid vote, not as a blank vote.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="extended-metrics">Extended Metrics<a href="#extended-metrics" class="hash-link" aria-label="Direct link to Extended Metrics" title="Direct link to Extended Metrics" translate="no">​</a></h2>
 <p>The tally engine tracks detailed metrics including:</p>
 <ul>
