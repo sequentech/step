@@ -252,9 +252,8 @@ const useTryInsertCastVote = () => {
             let newCastVote = result.data?.insert_cast_vote
             if (newCastVote) {
                 dispatch(addCastVotes([newCastVote]))
-                return String(newCastVote.id)
             }
-            return false
+            return true
         } catch (error) {
             console.log(error)
             let castError = error as IGraphQLActionError
@@ -336,7 +335,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const {isGoldUser, reauthWithGold} = authContext
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
     const tryInsertCastVote = useTryInsertCastVote()
-    const dispatch = useAppDispatch()
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -444,27 +442,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        const castVoteId = await tryInsertCastVote(
-            ballotStyle.election_id,
-            ballotId,
-            JSON.stringify(hashableBallot),
-            setErrorMsg
-        )
-        if (!castVoteId) {
+        if (
+            !(await tryInsertCastVote(
+                ballotStyle.election_id,
+                ballotId,
+                JSON.stringify(hashableBallot),
+                setErrorMsg
+            ))
+        ) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
-        dispatch(
-            setConfirmationScreenData({
-                electionId: ballotStyle.election_id,
-                confirmationScreenData: {
-                    ballotId,
-                    isDemo,
-                    isGoldenAuth: false,
-                    castVoteId,
-                },
-            })
-        )
         return submit(null, {method: "post"})
     }
 
@@ -697,13 +685,14 @@ export const ReviewScreen: React.FC = () => {
             return submit(null, {method: "post"})
         }
 
-        const castVoteId = await tryInsertCastVote(
-            ballotData.electionId,
-            ballotData.ballotId,
-            ballotData.ballot,
-            setErrorMsg
-        )
-        if (!castVoteId) {
+        if (
+            !(await tryInsertCastVote(
+                ballotData.electionId,
+                ballotData.ballotId,
+                ballotData.ballot,
+                setErrorMsg
+            ))
+        ) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
@@ -715,8 +704,6 @@ export const ReviewScreen: React.FC = () => {
                 confirmationScreenData: {
                     ballotId: ballotData.ballotId,
                     isDemo: ballotData.isDemo,
-                    isGoldenAuth: true,
-                    castVoteId,
                 },
             })
         )

@@ -18,7 +18,6 @@ export const GET_CAST_VOTE = gql`
                     election_event_id: {_eq: $electionEventId}
                     election_id: {_eq: $electionId}
                     ballot_id: {_eq: $ballotId}
-                    status: {_eq: "valid"}
                 }
             }
         ) {

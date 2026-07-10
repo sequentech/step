@@ -207,23 +207,6 @@ const spanishTranslation: TranslationType = {
             declineToVote: "Declinar votar",
         },
         confirmationScreen: {
-            castVoteStatus: {
-                inProgress: {
-                    title: "Tu voto se está verificando",
-                    description:
-                        "Hemos recibido tu papeleta, pero la verificación sigue en curso. Puedes finalizar y volver a comprobarlo más tarde con el ID de papeleta {{ballotId}}.",
-                },
-                indeterminate: {
-                    title: "Tu voto requiere una revisión manual",
-                    description:
-                        "No hemos podido confirmar si la verificación se completó. La papeleta no se contabilizará salvo que se apruebe durante la revisión. Contacta con soporte e indica el ID de papeleta {{ballotId}}.",
-                },
-                discarded: {
-                    title: "Tu voto no ha sido aceptado",
-                    description:
-                        "La papeleta ha sido rechazada y no se contabilizará. Puedes volver a la lista de papeletas e intentarlo de nuevo. ID de papeleta: {{ballotId}}.",
-                },
-            },
             title: "Su voto ha sido emitido",
             description:
                 "Su papeleta fue emitida correctamente. Use el código a continuación para verificar que fue contabilizada",

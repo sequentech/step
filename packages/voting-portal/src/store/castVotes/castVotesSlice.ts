@@ -61,30 +61,10 @@ export const castVotesSlice = createSlice({
             }
             return state
         },
-        updateCastVoteStatus: (
-            state: CastVoteState,
-            action: PayloadAction<{
-                electionId: string
-                castVoteId: string
-                status: string
-            }>
-        ): CastVoteState => {
-            const {electionId, castVoteId, status} = action.payload
-            const castVotes = state[electionId] || []
-
-            state[electionId] =
-                status === CastVoteStatus.DISCARDED
-                    ? castVotes.filter((castVote) => castVote.id !== castVoteId)
-                    : castVotes.map((castVote) =>
-                          castVote.id === castVoteId ? {...castVote, status} : castVote
-                      )
-
-            return state
-        },
     },
 })
 
-export const {addCastVotes, updateCastVoteStatus} = castVotesSlice.actions
+export const {addCastVotes} = castVotesSlice.actions
 
 export const selectCastVotesByElectionId = (electionId: string) => (state: RootState) =>
     state.castVotes[electionId] || []

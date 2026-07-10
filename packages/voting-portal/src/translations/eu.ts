@@ -206,23 +206,6 @@ const basqueTranslation: TranslationType = {
             declineToVote: "Bozkatzeari uko egin",
         },
         confirmationScreen: {
-            castVoteStatus: {
-                inProgress: {
-                    title: "Zure botoa egiaztatzen ari da",
-                    description:
-                        "Zure boto-papera jaso dugu, baina egiaztapena oraindik martxan dago. Amaitu eta geroago berriro egiazta dezakezu boto-paperaren ID hau erabiliz: {{ballotId}}.",
-                },
-                indeterminate: {
-                    title: "Zure botoak eskuzko berrikuspena behar du",
-                    description:
-                        "Ezin izan dugu egiaztapena amaitu den baieztatu. Boto-papera ez da zenbatuko berrikuspenean onartu ezean. Jarri laguntza-zerbitzuarekin harremanetan eta eman boto-paperaren ID hau: {{ballotId}}.",
-                },
-                discarded: {
-                    title: "Zure botoa ez da onartu",
-                    description:
-                        "Boto-papera baztertu da eta ez da zenbatuko. Boto-paperen zerrendara itzul zaitezke berriro saiatzeko. Boto-paperaren IDa: {{ballotId}}.",
-                },
-            },
             title: "Zure botoa eman da",
             description:
                 "Beheko berrespen kodeak egiaztatzen du <b>zure bozketa arrakastaz eman dela</b>. Kode hau erabil dezakezu zure bozketa kontatu dela egiaztatzeko.",

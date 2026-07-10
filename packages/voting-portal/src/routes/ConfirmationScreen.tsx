@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Alert, Box, CircularProgress, Typography} from "@mui/material"
+import {Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -29,11 +29,7 @@ import {useLocation, useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {
-    canVoteSomeElection,
-    CastVoteStatus,
-    updateCastVoteStatus,
-} from "../store/castVotes/castVotesSlice"
+import {canVoteSomeElection, CastVoteStatus} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
@@ -51,12 +47,7 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {
-    GetCastVoteStatusQuery,
-    GetCastVotesQuery,
-    GetDocumentQuery,
-    GetElectionsQuery,
-} from "../gql/graphql"
+import {GetCastVotesQuery, GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {
@@ -65,7 +56,6 @@ import {
 } from "../store/castVotes/confirmationScreenDataSlice"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
-import {GET_CAST_VOTE_STATUS} from "../queries/GetCastVoteStatus"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -73,9 +63,6 @@ const StyledTitle = styled(Typography)`
     flex-direction: row;
     gap: 16px;
 `
-
-const CAST_VOTE_VERIFICATION_TIMEOUT_MS = 60_000
-const CAST_VOTE_MANUAL_REVIEW_POLL_INTERVAL_MS = 10_000
 
 const BallotIdContainer = styled(Box)`
     display: flex;
@@ -130,9 +117,6 @@ interface ActionButtonsProps {
     ballotTrackerUrl?: string
     ballotId: string
     isGoldenAuth: boolean
-    canPrintReceipt: boolean
-    castVoteStatus?: string
-    castVoteId?: string
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -140,9 +124,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     electionId,
     ballotId,
     isGoldenAuth,
-    canPrintReceipt,
-    castVoteStatus,
-    castVoteId,
 }) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
@@ -191,7 +172,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
     const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
         skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
-        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 
     function isAllowedToCastVote() {
@@ -205,8 +185,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                 castVotes?.sequent_backend_cast_vote.filter(
                     (castVote) =>
                         castVote.election_id === electionId &&
-                        castVote.status !== CastVoteStatus.DISCARDED &&
-                        !(castVoteStatus === CastVoteStatus.DISCARDED && castVote.id === castVoteId)
+                        castVote.status !== CastVoteStatus.DISCARDED
                 ) ?? []
             console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
             if (numAllowedRevotes === 0) {
@@ -233,7 +212,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         } else {
             logout(presentation?.redirect_finish_url ?? undefined)
         }
-    }, [isAnyVotingStatusOpen, canVote, castVoteStatus, castVoteId, castVotes])
+    }, [isAnyVotingStatusOpen, canVote])
 
     useEffect(() => {
         if (ballotStyle) {
@@ -307,21 +286,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     return (
         <>
             <ActionsContainer>
-                {canPrintReceipt ? (
-                    <StyledButton
-                        onClick={printBallotReceiptReport}
-                        disabled={isHitPrint}
-                        variant="secondary"
-                        sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    >
-                        {isHitPrint ? (
-                            <StyledCircularProgress color="inherit" />
-                        ) : (
-                            <StyledIcon icon={faPrint} size="sm" />
-                        )}
-                        <Box>{t("confirmationScreen.printButton")}</Box>
-                    </StyledButton>
-                ) : null}
+                <StyledButton
+                    onClick={printBallotReceiptReport}
+                    disabled={isHitPrint}
+                    variant="secondary"
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                >
+                    {isHitPrint ? (
+                        <StyledCircularProgress color="inherit" />
+                    ) : (
+                        <StyledIcon icon={faPrint} size="sm" />
+                    )}
+                    <Box>{t("confirmationScreen.printButton")}</Box>
+                </StyledButton>
                 <StyledButton
                     className="finish-button"
                     onClick={onClickFinishButton}
@@ -399,90 +376,6 @@ const ConfirmationScreen: React.FC = () => {
     const [demoBallotIdHelp, setDemoBallotIdHelp] = useState<boolean>(false)
     const [isDemo, setIsDemo] = useState<boolean>(false)
     const [ballotTrackerUrl, setBallotTrackerUrl] = useState<string | undefined>(undefined)
-    const [manualReviewRequired, setManualReviewRequired] = useState(false)
-    const {globalSettings} = useContext(SettingsContext)
-    const dispatch = useAppDispatch()
-    const submittedCastVoteId = confirmationScreenData?.castVoteId
-
-    const {
-        data: castVoteStatusData,
-        error: castVoteStatusError,
-        loading: castVoteStatusLoading,
-        stopPolling: stopCastVoteStatusPolling,
-    } = useQuery<GetCastVoteStatusQuery>(GET_CAST_VOTE_STATUS, {
-        variables: {
-            tenantId: tenantId ?? "",
-            electionEventId: eventId ?? "",
-            castVoteId: submittedCastVoteId ?? "",
-        },
-        skip: globalSettings.DISABLE_AUTH || isDemo || !submittedCastVoteId,
-        pollInterval: manualReviewRequired
-            ? CAST_VOTE_MANUAL_REVIEW_POLL_INTERVAL_MS
-            : globalSettings.QUERY_POLL_INTERVAL_MS,
-    })
-
-    const castVoteStatusEntry = castVoteStatusData?.sequent_backend_cast_vote[0]
-    const castVoteStatus = castVoteStatusEntry?.status
-    const castVoteId = castVoteStatusEntry?.id ? String(castVoteStatusEntry.id) : undefined
-    const isCastVoteValid =
-        globalSettings.DISABLE_AUTH || isDemo || castVoteStatus === CastVoteStatus.VALID
-    const isCastVoteDiscarded = castVoteStatus === CastVoteStatus.DISCARDED
-    const isKnownCastVoteStatus =
-        castVoteStatus === CastVoteStatus.IN_PROGRESS ||
-        castVoteStatus === CastVoteStatus.VALID ||
-        castVoteStatus === CastVoteStatus.DISCARDED ||
-        castVoteStatus === CastVoteStatus.INDETERMINATE
-    const isCastVoteManualReview =
-        manualReviewRequired ||
-        (!!castVoteStatus && !isKnownCastVoteStatus) ||
-        (!!submittedCastVoteId &&
-            !globalSettings.DISABLE_AUTH &&
-            !isDemo &&
-            !castVoteStatusLoading &&
-            !castVoteStatusError &&
-            !castVoteStatus)
-    const castVoteStatusTranslationKey = isCastVoteDiscarded
-        ? "discarded"
-        : isCastVoteManualReview
-          ? "indeterminate"
-          : "inProgress"
-
-    useEffect(() => {
-        if (!electionId || !castVoteId || !castVoteStatus) {
-            return
-        }
-
-        dispatch(
-            updateCastVoteStatus({
-                electionId,
-                castVoteId,
-                status: castVoteStatus,
-            })
-        )
-
-        if (
-            castVoteStatus === CastVoteStatus.VALID ||
-            castVoteStatus === CastVoteStatus.DISCARDED
-        ) {
-            stopCastVoteStatusPolling()
-        }
-    }, [castVoteId, castVoteStatus, dispatch, electionId, stopCastVoteStatusPolling])
-
-    useEffect(() => {
-        if (
-            !submittedCastVoteId ||
-            castVoteStatus === CastVoteStatus.VALID ||
-            castVoteStatus === CastVoteStatus.DISCARDED
-        ) {
-            setManualReviewRequired(false)
-            return
-        }
-
-        const timeout = window.setTimeout(() => {
-            setManualReviewRequired(true)
-        }, CAST_VOTE_VERIFICATION_TIMEOUT_MS)
-        return () => window.clearTimeout(timeout)
-    }, [castVoteStatus, submittedCastVoteId])
 
     if (
         gotData.current &&
@@ -523,13 +416,7 @@ const ConfirmationScreen: React.FC = () => {
             <Box marginTop="24px">
                 <Stepper selected={3} />
             </Box>
-            <StyledTitle
-                variant="h4"
-                fontSize="24px"
-                fontWeight="bold"
-                sx={{marginTop: "40px"}}
-                hidden={!isCastVoteValid}
-            >
+            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{marginTop: "40px"}}>
                 <Box>{t("confirmationScreen.title")}</Box>
                 <IconButton
                     icon={faCircleQuestion}
@@ -548,14 +435,10 @@ const ConfirmationScreen: React.FC = () => {
                     {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography
-                variant="body2"
-                sx={{color: theme.palette.customGrey.main}}
-                hidden={!isCastVoteValid}
-            >
+            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
-            <BallotIdContainer hidden={!isCastVoteValid}>
+            <BallotIdContainer>
                 <Typography
                     variant="h5"
                     fontSize="18px"
@@ -628,56 +511,27 @@ const ConfirmationScreen: React.FC = () => {
                     </Dialog>
                 </BallotIdBorder>
             </BallotIdContainer>
-            <Typography variant="h5" fontSize="18px" fontWeight="bold" hidden={!isCastVoteValid}>
+            <Typography variant="h5" fontSize="18px" fontWeight="bold">
                 {t("confirmationScreen.verifyCastTitle")}
             </Typography>
             <Typography
                 variant="body2"
                 sx={{color: theme.palette.customGrey.main}}
                 id="qr-code-description"
-                hidden={!isCastVoteValid}
             >
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
-            <QRContainer className="qr-container" hidden={!isCastVoteValid}>
+            <QRContainer className="qr-container">
                 <QRCode
                     ariaLabelledby="qr-code-description"
                     value={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
                 />
             </QRContainer>
-            {!isCastVoteValid ? (
-                <Alert
-                    severity={
-                        isCastVoteDiscarded ? "error" : isCastVoteManualReview ? "warning" : "info"
-                    }
-                    icon={
-                        !isCastVoteDiscarded && !isCastVoteManualReview ? (
-                            <CircularProgress size={20} />
-                        ) : undefined
-                    }
-                    sx={{marginTop: "40px"}}
-                >
-                    <Typography fontWeight="bold">
-                        {t(
-                            `confirmationScreen.castVoteStatus.${castVoteStatusTranslationKey}.title`
-                        )}
-                    </Typography>
-                    <Typography variant="body2">
-                        {t(
-                            `confirmationScreen.castVoteStatus.${castVoteStatusTranslationKey}.description`,
-                            {ballotId: ballotId.current}
-                        )}
-                    </Typography>
-                </Alert>
-            ) : null}
             <ActionButtons
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
                 ballotId={ballotId.current ?? ""}
-                isGoldenAuth={confirmationScreenData?.isGoldenAuth ?? false}
-                canPrintReceipt={isCastVoteValid}
-                castVoteStatus={castVoteStatus}
-                castVoteId={castVoteId}
+                isGoldenAuth={confirmationScreenData ? true : false}
             />
         </PageLimit>
     )

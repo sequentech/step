@@ -1346,7 +1346,6 @@ type InsertCastVoteOutput {
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String
-    status: String
 }
 
 type createBallotReceiptOutput {

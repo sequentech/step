@@ -27,10 +27,16 @@ is `indeterminate`.
 
 The cast-vote states are:
 
-- `valid`: accepted and eligible for receipts, statistics, and tallying.
-- `discarded`: rejected or released; never included in those outputs.
+- `valid`: accepted and eligible for statistics and tallying.
+- `discarded`: rejected or released; excluded from statistics and tallying.
 - `in-progress`: safely stored but not yet claimed by the Datafix worker.
 - `indeterminate`: claimed, but the external outcome cannot yet be proven.
+
+The voter portal confirms the ballot immediately after Harvest stores it. It
+does not wait for or display the VoterView result; these states support
+back-office reconciliation, revote eligibility, reporting, and tally safety.
+The voter-facing locator and receipt prove that Sequent stored the submitted
+ballot and therefore remain available regardless of its later Datafix status.
 
 `SetVoted` is not retried after an ambiguous response. A retry that receives
 "already voted" cannot distinguish another channel from a successful first

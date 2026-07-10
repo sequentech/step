@@ -206,23 +206,6 @@ const galegoTranslation: TranslationType = {
             declineToVote: "Absterse de votar",
         },
         confirmationScreen: {
-            castVoteStatus: {
-                inProgress: {
-                    title: "O teu voto estase a verificar",
-                    description:
-                        "Recibimos a túa papeleta, pero a verificación aínda está en curso. Podes rematar e volver comprobala máis tarde co ID de papeleta {{ballotId}}.",
-                },
-                indeterminate: {
-                    title: "O teu voto require unha revisión manual",
-                    description:
-                        "Non puidemos confirmar se a verificación rematou. A papeleta non se contabilizará a menos que se aprobe durante a revisión. Contacta co servizo de asistencia e indica o ID de papeleta {{ballotId}}.",
-                },
-                discarded: {
-                    title: "O teu voto non foi aceptado",
-                    description:
-                        "A papeleta foi rexeitada e non se contabilizará. Podes volver á lista de papeletas e intentalo de novo. ID de papeleta: {{ballotId}}.",
-                },
-            },
             title: "O teu voto foi emitido",
             description:
                 "O código de confirmación abaixo verifica que <b>o teu voto foi emitido correctamente</b>. Podes usar este código para verificar que a túa papeleta foi contada.",

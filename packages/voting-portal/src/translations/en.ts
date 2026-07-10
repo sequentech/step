@@ -198,23 +198,6 @@ const englishTranslation = {
             declineToVote: "Decline to vote",
         },
         confirmationScreen: {
-            castVoteStatus: {
-                inProgress: {
-                    title: "Your vote is being verified",
-                    description:
-                        "Your ballot has been received, but verification is still in progress. You can finish and check again later using Ballot ID {{ballotId}}.",
-                },
-                indeterminate: {
-                    title: "Your vote needs manual review",
-                    description:
-                        "We could not confirm whether verification completed. Your ballot will not be counted unless it is approved during review. Contact support and provide Ballot ID {{ballotId}}.",
-                },
-                discarded: {
-                    title: "Your vote was not accepted",
-                    description:
-                        "Your ballot was rejected and will not be counted. You can return to the ballot list and try again. Ballot ID: {{ballotId}}.",
-                },
-            },
             title: "Your vote has been cast",
             description:
                 "Your ballot was cast successfully. Use the code below to verify that it was counted",

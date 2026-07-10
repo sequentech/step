@@ -208,23 +208,6 @@ const catalanTranslation: TranslationType = {
             declineToVote: "Declinar votar",
         },
         confirmationScreen: {
-            castVoteStatus: {
-                inProgress: {
-                    title: "El teu vot s'està verificant",
-                    description:
-                        "Hem rebut la teva papereta, però la verificació encara està en curs. Pots finalitzar i tornar-ho a comprovar més tard amb l'ID de papereta {{ballotId}}.",
-                },
-                indeterminate: {
-                    title: "El teu vot necessita una revisió manual",
-                    description:
-                        "No hem pogut confirmar si la verificació s'ha completat. La papereta no es comptabilitzarà tret que s'aprovi durant la revisió. Contacta amb suport i indica l'ID de papereta {{ballotId}}.",
-                },
-                discarded: {
-                    title: "El teu vot no s'ha acceptat",
-                    description:
-                        "La papereta s'ha rebutjat i no es comptabilitzarà. Pots tornar a la llista de paperetes i tornar-ho a provar. ID de papereta: {{ballotId}}.",
-                },
-            },
             title: "El seu vot ha estat emès",
             description:
                 "La seva papereta va ser emesa correctament. Usi el codi a continuació per verificar que va ser comptabilitzada",

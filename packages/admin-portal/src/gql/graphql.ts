@@ -577,7 +577,6 @@ export type InsertCastVoteOutput = {
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  status?: Maybe<Scalars['String']['output']>;
   tenant_id: Scalars['uuid']['output'];
   voter_id_string?: Maybe<Scalars['String']['output']>;
 };

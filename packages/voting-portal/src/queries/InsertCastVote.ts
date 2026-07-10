@@ -21,7 +21,6 @@ export const INSERT_CAST_VOTE = gql`
             cast_ballot_signature
             voter_id_string
             election_event_id
-            status
         }
     }
 `
