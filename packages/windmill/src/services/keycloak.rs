@@ -17,18 +17,25 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::Result<String> {
+    let s3_key = s3_key.trim();
+    if s3_key.is_empty() {
+        return Err(anyhow!("{s3_key_env_var} must not be empty"));
+    }
+    if s3_key.starts_with('/') || s3_key.ends_with('/') {
+        return Err(anyhow!("{s3_key_env_var} must not start or end with `/`"));
+    }
+
+    Ok(s3_key.to_string())
+}
+
 #[instrument(err, skip_all)]
 pub async fn read_realm_config_from_s3(
     s3_key_env_var: &str,
 ) -> anyhow::Result<RealmRepresentation> {
-    let s3_key =
+    let configured_s3_key =
         env::var(s3_key_env_var).with_context(|| format!("{s3_key_env_var} must be set"))?;
-    if s3_key.trim().is_empty() {
-        return Err(anyhow!("{s3_key_env_var} must not be empty"));
-    }
-    if s3_key.starts_with('/') {
-        return Err(anyhow!("{s3_key_env_var} must not start with `/`"));
-    }
+    let s3_key = normalize_realm_config_s3_key(s3_key_env_var, &configured_s3_key)?;
 
     let s3_bucket = get_public_bucket()?;
     if s3_bucket.trim().is_empty() {
@@ -316,10 +323,38 @@ pub async fn read_roles_config_file(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_realm_config;
+    use super::{normalize_realm_config_s3_key, parse_realm_config};
 
     const S3_BUCKET: &str = "public";
     const S3_KEY: &str = "public-assets/defaults/keycloak/tenant.json";
+
+    #[test]
+    fn normalizes_realm_config_s3_key_whitespace() {
+        let key = normalize_realm_config_s3_key("TEST_S3_KEY", &format!("  {S3_KEY}\t"))
+            .expect("surrounding whitespace should be trimmed");
+
+        assert_eq!(key, S3_KEY);
+    }
+
+    #[test]
+    fn rejects_empty_realm_config_s3_key() {
+        for key in ["", " \t "] {
+            let error = normalize_realm_config_s3_key("TEST_S3_KEY", key)
+                .expect_err("empty key should fail");
+
+            assert!(format!("{error:#}").contains("TEST_S3_KEY must not be empty"));
+        }
+    }
+
+    #[test]
+    fn rejects_realm_config_s3_key_starting_or_ending_with_slash() {
+        for key in ["/public-assets/tenant.json", "public-assets/tenant.json/"] {
+            let error = normalize_realm_config_s3_key("TEST_S3_KEY", key)
+                .expect_err("slash-delimited key should fail");
+
+            assert!(format!("{error:#}").contains("TEST_S3_KEY must not start or end with `/`"));
+        }
+    }
 
     #[test]
     fn parses_realm_config() {

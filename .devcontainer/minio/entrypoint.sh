@@ -3,18 +3,32 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-: "${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY:?KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY must be set}"
-: "${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY:?KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY must be set}"
+normalize_s3_key() {
+  local variable_name="$1"
+  local value="${!variable_name}"
+
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+
+  if [[ -z "$value" ]]; then
+    echo "${variable_name} must be set and not empty" >&2
+    return 1
+  fi
+  if [[ "$value" == /* || "$value" == */ ]]; then
+    echo "${variable_name} must not start or end with '/': ${value}" >&2
+    return 1
+  fi
+
+  printf -v "$variable_name" '%s' "$value"
+}
+
+normalize_s3_key KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY || exit 1
+normalize_s3_key KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY || exit 1
 
 upload_realm_config() {
   local source_path="$1"
   local s3_key="$2"
   local destination="myminio/${MINIO_PUBLIC_BUCKET}/${s3_key}"
-
-  if [[ "$s3_key" == /* || "$s3_key" == */ ]]; then
-    echo "S3 realm config key must not start or end with '/': ${s3_key}" >&2
-    return 1
-  fi
 
   echo "Uploading ${source_path} to ${destination}..."
   if ! mc cp "$source_path" "$destination"; then
