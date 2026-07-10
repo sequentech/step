@@ -18,6 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
     <modules>
         <module>aws-ses-email-sender-provider</module>
+        <module>oauth2-client</module>
         <module>conditional-authenticators</module>
         <module>ivr-config-provider</module>
         <module>dummy-email-sender-provider</module>
@@ -129,6 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 									<include>software.amazon.awssdk:*</include>
 									<include>org.reactivestreams:reactive-streams</include>
 									<include>com.rabbitmq:*</include>
+									<include>sequent:oauth2-client</include>
 								</includes>
 							</artifactSet>
 						</configuration>
