@@ -478,11 +478,11 @@ pub async fn update_voter(
                 return Err(DatafixResponse::new(Status::InternalServerError));
             }
         };
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            error!("Error starting hasura transaction {err}");
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        error!("Error starting hasura transaction {err}");
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -492,8 +492,9 @@ pub async fn update_voter(
             .await;
             release_inbound_voter_lock(lock).await;
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
 
     if input.enabled == Some(true) {
         if let Err(err) = ensure_inbound_reenable_is_safe(
@@ -614,11 +615,11 @@ pub async fn delete_voter(
                 return Err(DatafixResponse::new(Status::InternalServerError));
             }
         };
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            error!("Error starting hasura transaction {err}");
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        error!("Error starting hasura transaction {err}");
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -628,8 +629,9 @@ pub async fn delete_voter(
             .await;
             release_inbound_voter_lock(lock).await;
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
 
     let result = services::datafix::api_datafix::disable_datafix_voter(
         &hasura_transaction,
@@ -721,11 +723,11 @@ pub async fn unmark_voted(
                 return Err(DatafixResponse::new(Status::InternalServerError));
             }
         };
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            error!("Error starting hasura transaction {err}");
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        error!("Error starting hasura transaction {err}");
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -735,8 +737,9 @@ pub async fn unmark_voted(
             .await;
             release_inbound_voter_lock(lock).await;
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
 
     let _quarantined_cast_vote_ids = match quarantine_inbound_voter_cast_votes(
         &hasura_transaction,
@@ -777,10 +780,10 @@ pub async fn unmark_voted(
         error!("Error committing inbound Datafix cast-vote quarantine: {err}");
         return Err(DatafixResponse::new(Status::InternalServerError));
     }
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -793,8 +796,9 @@ pub async fn unmark_voted(
                 "Error starting the inbound Datafix service transaction: {err}"
             );
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
     let result = services::datafix::api_datafix::unmark_voter_as_voted(
         &hasura_transaction,
         &keycloak_transaction,
@@ -894,11 +898,11 @@ pub async fn mark_voted(
                 return Err(DatafixResponse::new(Status::InternalServerError));
             }
         };
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            error!("Error starting hasura transaction {err}");
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        error!("Error starting hasura transaction {err}");
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -908,8 +912,9 @@ pub async fn mark_voted(
             .await;
             release_inbound_voter_lock(lock).await;
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
 
     let _quarantined_cast_vote_ids = match quarantine_inbound_voter_cast_votes(
         &hasura_transaction,
@@ -950,10 +955,10 @@ pub async fn mark_voted(
         error!("Error committing inbound Datafix cast-vote quarantine: {err}");
         return Err(DatafixResponse::new(Status::InternalServerError));
     }
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -966,8 +971,9 @@ pub async fn mark_voted(
                 "Error starting the inbound Datafix service transaction: {err}"
             );
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
     let result = services::datafix::api_datafix::mark_as_voted_via_channel(
         &hasura_transaction,
         &keycloak_transaction,
@@ -1060,11 +1066,11 @@ pub async fn replace_pin(
                 return Err(DatafixResponse::new(Status::InternalServerError));
             }
         };
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            error!("Error starting hasura transaction {err}");
-            drop(hasura_db_client);
+    let transaction_result = hasura_db_client.transaction().await;
+    if let Some(err) = transaction_result.as_ref().err().map(ToString::to_string) {
+        error!("Error starting hasura transaction {err}");
+        drop(transaction_result);
+        drop(hasura_db_client);
             audit_inbound_operation_standalone(
                 &claims,
                 &input.voter_id,
@@ -1074,8 +1080,9 @@ pub async fn replace_pin(
             .await;
             release_inbound_voter_lock(lock).await;
             return Err(DatafixResponse::new(Status::InternalServerError));
-        }
-    };
+    }
+    let hasura_transaction =
+        transaction_result.expect("transaction result was checked above");
 
     let result = services::datafix::api_datafix::replace_voter_pin(
         &hasura_transaction,
