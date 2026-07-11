@@ -81,7 +81,7 @@ MASTER_SECRET=$(generate_hex 32)
 sed -i.bak "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
-KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/minio/public-assets/defaults/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
 
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)

@@ -65,7 +65,7 @@ services:
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
     volumes:
-      - ./minio/public-assets/defaults/keycloak:/opt/keycloak/data/import:ro,z
+      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
@@ -208,6 +208,8 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
+    volumes:
+      - ./keycloak/import:/realm-configs:ro,z
     depends_on:
       minio:
         condition: service_healthy

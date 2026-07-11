@@ -148,6 +148,8 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
+    volumes:
+      - ./keycloak/import:/realm-configs:ro,z
     depends_on:
       minio:
         condition: service_healthy

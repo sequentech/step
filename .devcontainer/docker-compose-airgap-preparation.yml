@@ -79,6 +79,8 @@ services:
     image: sequentech.local/configure-minio
     platform: linux/amd64
     build: ./minio
+    volumes:
+      - ./keycloak/import:/realm-configs:ro,z
     depends_on:
       minio:
         condition: service_healthy

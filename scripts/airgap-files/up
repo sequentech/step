@@ -4,7 +4,7 @@
 
 cd janitor && source setup.sh; cd ..
 if [ "$3" ]; then
-    TENANT_CONFIG=./minio/public-assets/defaults/keycloak/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+    TENANT_CONFIG=./keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
     echo "Patching Tenant config with $3"
     python3 ./janitor/patch.py $TENANT_CONFIG $3 admin --overwrite
 fi
