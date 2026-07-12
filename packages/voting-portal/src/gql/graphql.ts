@@ -24010,7 +24010,7 @@ export type GetCastVoteQueryVariables = Exact<{
   tenantId?: InputMaybe<Scalars['uuid']['input']>;
   electionEventId?: InputMaybe<Scalars['uuid']['input']>;
   electionId?: InputMaybe<Scalars['uuid']['input']>;
-  ballotId: Scalars['String']['input'];
+  ballotIdPattern: Scalars['String']['input'];
 }>;
 
 
@@ -24043,7 +24043,7 @@ export type GetElectionsQueryVariables = Exact<{
 }>;
 
 
-export type GetElectionsQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, eml?: string | null, id: any, is_consolidated_ballot_encoding?: boolean | null, labels?: any | null, last_updated_at?: any | null, num_allowed_revotes?: number | null, presentation?: any | null, spoil_ballot_option?: boolean | null, status?: any | null, tenant_id: any }> };
+export type GetElectionsQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, eml?: string | null, id: any, is_consolidated_ballot_encoding?: boolean | null, labels?: any | null, last_updated_at?: any | null, num_allowed_revotes?: number | null, presentation?: any | null, spoil_ballot_option?: boolean | null, status?: any | null, tenant_id: any, voting_channels?: any | null }> };
 
 export type GetSupportMaterialsQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];

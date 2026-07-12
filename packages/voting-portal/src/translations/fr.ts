@@ -367,6 +367,8 @@ const frenchTranslation: TranslationType = {
             locateAgain: "Trouvez un autre Bulletin",
             found: "Votre ID de Bulletin {{ballotId}} a été trouvé",
             notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été trouvé",
+            ambiguous:
+                "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez l'ID complet du bulletin.",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
             ballotIdNotFoundAtFilter:
