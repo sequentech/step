@@ -609,7 +609,8 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     volumes:
       - ../packages/:/app:z
     restart: always
@@ -828,8 +829,12 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - devcontainer
-      - harvest
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      harvest:
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
