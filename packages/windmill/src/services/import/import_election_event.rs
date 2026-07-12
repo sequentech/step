@@ -12,6 +12,7 @@ use crate::services::import::import_publications::{
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
+use crate::services::keycloak::read_realm_config_from_s3;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -69,6 +70,9 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
+
+const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
+    "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
 
 use super::import_users::import_users_file;
 use crate::postgres;
@@ -219,13 +223,8 @@ pub async fn upsert_b3_and_elog(
 }
 
 #[instrument(err)]
-pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
-        .with_context(|| "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set")?;
-    let realm_config = fs::read_to_string(&realm_config_path)
-        .with_context(|| "Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}")?;
-    deserialize_str(&realm_config)
-        .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
+pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> {
+    read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await
 }
 
 #[instrument(skip(realm))]
@@ -358,7 +357,7 @@ pub async fn upsert_keycloak_realm(
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
-        let realm = read_default_election_event_realm()?;
+        let realm = read_default_election_event_realm().await?;
         realm
     };
 
