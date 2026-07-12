@@ -330,13 +330,15 @@ const englishTranslation = {
             },
         },
         ballotLocator: {
-            title: "Locate your Ballot",
-            titleResult: "Result of your Ballot Lookup",
-            description: "Verify that your Ballot has been correctly submitted",
-            locate: "Locate your Ballot",
-            locateAgain: "Locate another Ballot",
-            found: "Your ballot ID {{ballotId}} has been located",
-            notFound: "Your ballot ID {{ballotId}} has not been located",
+            title: "Find your Ballot",
+            titleResult: "Your Ballot Lookup Results",
+            description: "Confirm your ballot was cast correctly",
+            locate: "Find your Ballot",
+            locateAgain: "Find another Ballot",
+            found: "Your ballot ID {{ballotId}} has been found",
+            notFound: "Your ballot ID {{ballotId}} was not found",
+            ambiguous:
+                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Wrong format for Ballot ID",
             ballotIdNotFoundAtFilter:

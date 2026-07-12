@@ -335,13 +335,15 @@ const catalanTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Localitza la teva Papereta",
-            titleResult: "Resultat de la cerca de la teva Papereta",
-            description: "Verifica que la teva Papereta ha estat emesa correctament",
-            locate: "Localitza la teva Papereta",
-            locateAgain: "Localitza una altra Papereta",
-            found: "El teu ID de Papereta {{ballotId}} ha estat localitzat",
-            notFound: "El teu ID de Papereta {{ballotId}} no ha estat localitzat",
+            title: "Troba la teva Papereta",
+            titleResult: "Resultats de la cerca de la teva Papereta",
+            description: "Confirma que la teva papereta va ser emesa correctament",
+            locate: "Troba la teva Papereta",
+            locateAgain: "Troba una altra Papereta",
+            found: "El teu ID de Papereta {{ballotId}} ha estat trobat",
+            notFound: "El teu ID de Papereta {{ballotId}} no ha estat trobat",
+            ambiguous:
+                "Més d'una de les teves paperetes coincideix amb {{ballotId}}. Utilitza l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:

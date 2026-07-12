@@ -336,10 +336,12 @@ const dutchTranslation: TranslationType = {
             title: "Lokaliseer uw Stembiljet",
             titleResult: "Resultaat van uw Stembiljet Zoekopdracht",
             description: "Verifieer dat uw stembiljet correct is ingediend",
-            locate: "Lokaliseer uw Stembiljet",
-            locateAgain: "Lokaliseer een ander Stembiljet",
-            found: "Uw stembiljet ID {{ballotId}} is gelokaliseerd",
-            notFound: "Uw stembiljet ID {{ballotId}} is niet gelokaliseerd",
+            locate: "Zoek uw Stembiljet",
+            locateAgain: "Zoek een ander Stembiljet",
+            found: "Uw stembiljet ID {{ballotId}} is gevonden",
+            notFound: "Uw stembiljet ID {{ballotId}} is niet gevonden",
+            ambiguous:
+                "Meer dan één van uw stembiljetten komt overeen met {{ballotId}}. Gebruik de volledige stembiljet-ID.",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
             ballotIdNotFoundAtFilter:
