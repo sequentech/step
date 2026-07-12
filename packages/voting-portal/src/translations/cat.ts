@@ -370,6 +370,8 @@ const catalanTranslation: TranslationType = {
             locateAgain: "Troba una altra Papereta",
             found: "El teu ID de Papereta {{ballotId}} ha estat trobat",
             notFound: "El teu ID de Papereta {{ballotId}} no ha estat trobat",
+            ambiguous:
+                "Més d'una de les teves paperetes coincideix amb {{ballotId}}. Utilitza l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:

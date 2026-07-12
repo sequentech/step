@@ -9,7 +9,7 @@ export const GET_CAST_VOTE = gql`
         $tenantId: uuid
         $electionEventId: uuid
         $electionId: uuid
-        $ballotId: String!
+        $ballotIdPattern: String!
     ) {
         sequent_backend_cast_vote(
             where: {
@@ -17,7 +17,7 @@ export const GET_CAST_VOTE = gql`
                     tenant_id: {_eq: $tenantId}
                     election_event_id: {_eq: $electionEventId}
                     election_id: {_eq: $electionId}
-                    ballot_id: {_eq: $ballotId}
+                    ballot_id: {_like: $ballotIdPattern}
                 }
             }
         ) {

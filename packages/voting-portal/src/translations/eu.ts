@@ -367,6 +367,8 @@ const basqueTranslation: TranslationType = {
             locateAgain: "Bilatu beste Bozketa bat",
             found: "Zure bozketa IDa {{ballotId}} aurkitu da",
             notFound: "Zure bozketa IDa {{ballotId}} ez da aurkitu",
+            ambiguous:
+                "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
