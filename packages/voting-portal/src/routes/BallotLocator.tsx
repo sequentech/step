@@ -25,6 +25,7 @@ import {useQuery} from "@apollo/client/react"
 import {
     GetBallotStylesQuery,
     GetCastVoteQuery,
+    GetElectionsQuery,
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
@@ -37,6 +38,7 @@ import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {GET_ELECTIONS} from "../queries/GetElections"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import Table from "@mui/material/Table"
 import TableSortLabel from "@mui/material/TableSortLabel"
@@ -669,6 +671,24 @@ const BallotLocatorLogic = () => {
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {data: dataElections, loading: loadingElections} = useQuery<GetElectionsQuery>(
+        GET_ELECTIONS,
+        {
+            variables: {
+                electionIds: electionId ? [electionId] : [],
+            },
+            skip: globalSettings.DISABLE_AUTH || !electionId,
+        }
+    )
+
+    const election = dataElections?.sequent_backend_election.find((item) => item.id === electionId)
+    const telephoneVotingEnabled = election?.voting_channels?.telephone === true
+    const normalizedBallotId = ballotId?.toLowerCase() ?? ""
+    const ballotIdPattern = /^[0-9a-f]+$/.test(normalizedBallotId)
+        ? telephoneVotingEnabled && normalizedBallotId.length === 4
+            ? `${normalizedBallotId}%`
+            : normalizedBallotId
+        : ""
 
     const dispatch = useAppDispatch()
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
@@ -678,9 +698,9 @@ const BallotLocatorLogic = () => {
             tenantId,
             electionEventId: eventId,
             electionId,
-            ballotId,
+            ballotIdPattern,
         },
-        skip: globalSettings.DISABLE_AUTH || !hasBallotId, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH || !hasBallotId || loadingElections,
     })
 
     useEffect(() => {
@@ -691,9 +711,10 @@ const BallotLocatorLogic = () => {
 
     const validatedBallotId = isHex(inputBallotId ?? "")
 
-    const ballotContent =
-        data?.["sequent_backend_cast_vote"]?.find((item) => item.ballot_id === ballotId)?.content ??
-        null
+    const matchingBallots = data?.["sequent_backend_cast_vote"] ?? []
+    const ambiguousBallotId = matchingBallots.length > 1
+    const ballotContent = matchingBallots.length === 1 ? matchingBallots[0].content : null
+    const lookupLoading = loadingElections || loading
 
     const locate = (withBallotId = false) => {
         let id = withBallotId ? inputBallotId : ""
@@ -762,9 +783,11 @@ const BallotLocatorLogic = () => {
                 </Box>
             </Box>
 
-            {hasBallotId && !loading && (
+            {hasBallotId && !lookupLoading && (
                 <Box>
-                    {hasBallotId && !!ballotContent ? (
+                    {ambiguousBallotId ? (
+                        <MessageFailed>{t("ballotLocator.ambiguous", {ballotId})}</MessageFailed>
+                    ) : hasBallotId && !!ballotContent ? (
                         <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
                     ) : (
                         <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>

@@ -335,13 +335,15 @@ const spanishTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Localiza tu Papeleta",
-            titleResult: "Resultado de la búsqueda de tu Papeleta",
-            description: "Verifique que su Papeleta ha sido emitida correctamente",
-            locate: "Localiza tu Papeleta",
-            locateAgain: "Localiza otra Papeleta",
-            found: "Tu ID de Papeleta {{ballotId}} ha sido localizada",
-            notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
+            title: "Encuentra tu Papeleta",
+            titleResult: "Resultados de tu búsqueda de Papeleta",
+            description: "Confirme que su papeleta fue emitida correctamente",
+            locate: "Encuentra tu Papeleta",
+            locateAgain: "Encuentra otra Papeleta",
+            found: "Tu ID de Papeleta {{ballotId}} ha sido encontrada",
+            notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrada",
+            ambiguous:
+                "Más de una de tus papeletas coincide con {{ballotId}}. Usa el ID de papeleta completo.",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:

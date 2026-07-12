@@ -336,10 +336,12 @@ const frenchTranslation: TranslationType = {
             title: "Localisez votre Bulletin",
             titleResult: "Résultat de la recherche de votre Bulletin",
             description: "Vérifiez que votre bulletin a été émis correctement",
-            locate: "Localisez votre Bulletin",
-            locateAgain: "Localisez un autre Bulletin",
-            found: "Votre ID de Bulletin {{ballotId}} a été localisé",
-            notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
+            locate: "Trouvez votre Bulletin",
+            locateAgain: "Trouvez un autre Bulletin",
+            found: "Votre ID de Bulletin {{ballotId}} a été trouvé",
+            notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été trouvé",
+            ambiguous:
+                "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez l'ID complet du bulletin.",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
             ballotIdNotFoundAtFilter:
