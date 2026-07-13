@@ -109,7 +109,25 @@ pub async fn get_event_id_and_datafix_annotations(
     return Err(DatafixResponse::new(Status::NotFound));
 }
 
+/// Composes the area name from the voter information, following the naming contract:
+/// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
+/// rendered as an empty string (e.g. `WARD--POLL` when there is no SchoolSupportCode,
+/// `WARD-SCHOOL-` when there is no Poll). All values are uppercased.
+fn compose_area_name(voter_info: &VoterInformationBody) -> String {
+    format!(
+        "{}-{}-{}",
+        voter_info.ward,
+        voter_info.schoolboard.as_deref().unwrap_or_default(),
+        voter_info.poll.as_deref().unwrap_or_default(),
+    )
+    .to_uppercase()
+}
+
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
+/// Area names are a concatenation of Ward-SchoolSupportCode-Poll. The contract: <br>
+/// If any of the values is empty or None, it is included as an empty string in the concatenation:
+/// i.e. Ward--Poll (no SchoolSupportCode), Ward-SchoolSupportCode- (no Poll) <br>
+/// All values are set to uppercase
 #[instrument(skip_all)]
 pub async fn find_user_area_by_name(
     hasura_transaction: &Transaction<'_>,
@@ -118,12 +136,7 @@ pub async fn find_user_area_by_name(
     voter_info: &VoterInformationBody,
 ) -> Result<UserArea, JsonErrorResponse> {
     // Compose the full area name from the voter information
-    let mut area_concat: String = voter_info.ward.clone();
-    let area_childs = [voter_info.schoolboard.clone(), voter_info.poll.clone()];
-    for subarea in area_childs.iter().flatten() {
-        area_concat.push_str(format!("-{subarea}").as_str());
-    }
-    // Get the areas for this election_event_id
+    let area_concat = compose_area_name(voter_info);
     let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
         .await
         .map_err(|e| {
@@ -131,7 +144,6 @@ pub async fn find_user_area_by_name(
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
-    area_concat = area_concat.to_uppercase();
     // Find the id that matches the full name.
     let area_id = event_areas
         .iter()
@@ -253,4 +265,58 @@ pub async fn post_operation_result_to_electoral_log(
             operation,
         )
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn voter_info(ward: &str, schoolboard: Option<&str>, poll: Option<&str>) -> VoterInformationBody {
+        VoterInformationBody {
+            voter_id: "voter-1".to_string(),
+            ward: ward.to_string(),
+            schoolboard: schoolboard.map(str::to_string),
+            poll: poll.map(str::to_string),
+            birthdate: None,
+            enabled: None,
+        }
+    }
+
+    #[test]
+    fn composes_all_parts_when_present() {
+        let info = voter_info("ward", Some("school"), Some("poll"));
+        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-POLL");
+    }
+
+    #[test]
+    fn renders_missing_schoolboard_as_empty_string() {
+        let info = voter_info("ward", None, Some("poll"));
+        assert_eq!(compose_area_name(&info), "WARD--POLL");
+    }
+
+    #[test]
+    fn renders_missing_poll_with_single_trailing_dash() {
+        let info = voter_info("ward", Some("school"), None);
+        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-");
+    }
+
+    #[test]
+    fn renders_both_optionals_missing_as_empty_strings() {
+        let info = voter_info("ward", None, None);
+        assert_eq!(compose_area_name(&info), "WARD--");
+    }
+
+    #[test]
+    fn treats_empty_string_the_same_as_none() {
+        let info = voter_info("ward", Some(""), Some("poll"));
+        assert_eq!(compose_area_name(&info), "WARD--POLL");
+    }
+
+    #[test]
+    fn uppercases_all_values() {
+        let info = voter_info("ward", Some("school"), Some("poll"));
+        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-POLL");
+        let mixed = voter_info("Ward-A", Some("Sb_2"), Some("p3"));
+        assert_eq!(compose_area_name(&mixed), "WARD-A-SB_2-P3");
+    }
 }
