@@ -2,288 +2,458 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::types::*;
+use super::types::{
+    DatafixAnnotations, SoapRequest, SoapRequestData, SoapRequestResponse, SoapRequestResult,
+};
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
-use anyhow::{anyhow, Result};
-use reqwest;
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use anyhow::{anyhow, Context, Result};
+use reqwest::{Response, StatusCode};
+use roxmltree::{Document, Node};
 use sequent_core::services::reports::render_template_text;
 use sequent_core::services::s3::{download_s3_file_to_string, get_public_asset_file_path};
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::generate_timestamp;
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 use std::time::Duration;
-use tracing::{error, info, instrument, warn};
+use tracing::instrument;
 
 pub const PUBLIC_ASSETS_VOTERVIEW_SETVOTED_TEMPLATE: &str = "voterview_setvoted.hbs";
 pub const PUBLIC_ASSETS_VOTERVIEW_SETNOTVOTED_TEMPLATE: &str = "voterview_setnotvoted.hbs";
-
-/// Whole-request timeout for the VoterView SOAP calls. Must stay well below
-/// the 120s process_cast_vote PgLock expiry: a hung request outliving the
-/// lock would let a re-enqueued task process the same vote concurrently.
 pub const VOTERVIEW_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-impl SoapRequestData {
-    pub fn new(county_mun: &str, usr: &str, psw: &str, voter_id: &str, timestamp: &str) -> Self {
-        SoapRequestData {
-            county_mun: county_mun.to_string(),
-            usr: usr.to_string(),
-            psw: psw.to_string(),
-            voter_id: voter_id.to_string(),
-            timestamp: timestamp.to_string(),
-        }
+const VOTERVIEW_NAMESPACE: &str = "https://www.voterview.ca/MVVServices";
+const SOAP_11_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
+const SOAP_12_NAMESPACE: &str = "http://www.w3.org/2003/05/soap-envelope";
+const ALREADY_VOTED_MESSAGE: &str = "the voter has already voted";
+const ALREADY_NOT_VOTED_MESSAGE: &str = "the voter has not voted";
+
+/// A fully rendered, validated and hashed SOAP request that has not yet been
+/// dispatched. Producing one is fallible and side-effect-free, so the worker can
+/// [`prepare`] it *before* claiming a vote and leave the row recoverable if the
+/// template or config is wrong; [`send_prepared`] then consumes it.
+pub struct PreparedSoapRequest {
+    request: SoapRequest,
+    client: reqwest::Client,
+    url: String,
+    body: String,
+    template_sha256: String,
+}
+
+impl PreparedSoapRequest {
+    /// SHA-256 of the template that produced this request, for the audit trail.
+    pub fn template_sha256(&self) -> &str {
+        &self.template_sha256
     }
 }
 
 impl SoapRequest {
-    pub async fn get_body(
-        &self,
-        annotations: &DatafixAnnotations,
-        voter_id: &str,
-        timestamp: &str,
-    ) -> Result<String> {
-        let data = SoapRequestData::new(
-            &annotations.voterview_request.county_mun,
-            &annotations.voterview_request.usr,
-            &annotations.voterview_request.psw,
-            voter_id,
-            timestamp,
-        );
-
-        let variables_map: Map<String, Value> = deserialize_value(serde_json::to_value(data)?)
-            .map_err(|e| anyhow!("Error deserializing data: {e:?}"))?;
-
-        let template_path = match self {
-            SoapRequest::SetVoted => PUBLIC_ASSETS_VOTERVIEW_SETVOTED_TEMPLATE,
-            SoapRequest::SetNotVoted => PUBLIC_ASSETS_VOTERVIEW_SETNOTVOTED_TEMPLATE,
-        };
-        let s3_template_url = get_public_asset_file_path(template_path)
-            .map_err(|e| anyhow!("Error fetching get_minio_url: {e:?}"))?;
-        let template_string = download_s3_file_to_string(&s3_template_url).await?;
-        // render handlebars template
-        render_template_text(&template_string, variables_map).map_err(|err| anyhow!("{}", err))
-    }
-
-    /// Electoral-log operation string for a failed request. VoterView's
-    /// message, when there is one, goes after the ':' so it reaches the log
-    /// message body while the log description keeps only the short outcome.
-    pub fn failed_operation(&self, error_message: Option<String>) -> String {
-        match error_message {
-            Some(msg) => format!("{self} Failed: {msg}"),
-            None => format!("{self} Failed"),
-        }
-    }
-}
-
-impl SoapRequestResponse {
-    pub async fn new(
-        response: reqwest::Response,
-        req_type: SoapRequest,
-    ) -> Result<SoapRequestResponse> {
-        let status = response.status();
-        let response_txt = response
-            .text()
-            .await
-            .map_err(|err| anyhow!("Failed to get the full response text: {err}"))?;
-
-        info!("Response: {response_txt}");
-
-        Self::from_parts(status, &response_txt, &req_type)
-    }
-
-    fn from_parts(
-        status: reqwest::StatusCode,
-        response_txt: &str,
-        req_type: &SoapRequest,
-    ) -> Result<SoapRequestResponse> {
-        if !status.is_success() {
-            let faultcode: String =
-                parse_tag("<faultcode>", "</faultcode>", &response_txt).unwrap_or_default();
-            let faultstring: String =
-                parse_tag("<faultstring>", "</faultstring>", &response_txt).unwrap_or_default();
-            error!("Request to VoterView {req_type} failed with response status: {status}. Faultcode: {faultcode}, Faultstring: {faultstring}");
-            // An HTTP error may carry no SOAP fault at all (e.g. an HTML
-            // gateway error page); fall back to the HTTP status so the
-            // electoral log still records the reason.
-            let faultstring = if faultstring.is_empty() {
-                format!("HTTP {status}")
-            } else {
-                faultstring
-            };
-            return Ok(SoapRequestResponse::Faultstring(faultstring));
-        }
-
-        let success_element =
-            parse_tag("<Success>", "</Success>", &response_txt).unwrap_or_default();
-        match success_element.as_str() {
-            "true" => {
-                info!("Request to VoterView {req_type} succeeded");
-                Ok(SoapRequestResponse::Ok)
-            }
-            "false" => {
-                let error_message = parse_tag("<ErrorMessage>", "</ErrorMessage>", &response_txt)
-                    .unwrap_or_default();
-                if error_message.eq(&SoapRequestResponse::HasVotedErrorMsg.to_string()) {
-                    Ok(SoapRequestResponse::HasVotedErrorMsg)
-                } else {
-                    warn!("VoterView responded with ErrorMessage: {error_message} to the {req_type} action.");
-                    Ok(SoapRequestResponse::OtherErrorMsg(error_message))
-                }
-            }
-            _ => Err(anyhow!("Failed to parse the response text: {response_txt}")),
-        }
-    }
-
-    /// VoterView's message for a failed response, if any.
-    pub fn error_message(&self) -> Option<String> {
+    fn template_name(self) -> &'static str {
         match self {
-            SoapRequestResponse::Ok => None,
-            SoapRequestResponse::HasVotedErrorMsg => Some(self.to_string()),
-            SoapRequestResponse::Faultstring(msg) | SoapRequestResponse::OtherErrorMsg(msg) => {
-                (!msg.is_empty()).then(|| msg.clone())
-            }
+            Self::SetVoted => PUBLIC_ASSETS_VOTERVIEW_SETVOTED_TEMPLATE,
+            Self::SetNotVoted => PUBLIC_ASSETS_VOTERVIEW_SETNOTVOTED_TEMPLATE,
+        }
+    }
+
+    fn operation_name(self) -> &'static str {
+        match self {
+            Self::SetVoted => "SetVoted",
+            Self::SetNotVoted => "SetNotVoted",
+        }
+    }
+
+    fn result_name(self) -> &'static str {
+        match self {
+            Self::SetVoted => "SetVotedResult",
+            Self::SetNotVoted => "SetNotVotedResult",
         }
     }
 }
 
-#[instrument(skip(election_event), err)]
-pub async fn send(
-    req_type: SoapRequest,
+/// Renders the request's Handlebars template with the annotation values and
+/// returns `(rendered_body, template_sha256)`. The rendered output is checked
+/// for the invariants a correct template can never violate (see
+/// [`validate_rendered_xml`]); its structure is left to the template.
+async fn render_request(
+    request: SoapRequest,
+    annotations: &DatafixAnnotations,
+    voter_id: &str,
+    timestamp: &str,
+) -> Result<(String, String)> {
+    let template_path = get_public_asset_file_path(request.template_name())
+        .context("Error resolving the VoterView template path")?;
+    let template = download_s3_file_to_string(&template_path)
+        .await
+        .context("Error downloading the VoterView template")?;
+    let template_sha256 = hex::encode(Sha256::digest(template.as_bytes()));
+
+    let data = SoapRequestData {
+        county_mun: &annotations.voterview_request.county_mun,
+        usr: &annotations.voterview_request.usr,
+        psw: &annotations.voterview_request.psw,
+        voter_id,
+        timestamp,
+    };
+    let variables: Map<String, Value> = serde_json::to_value(&data)?
+        .as_object()
+        .cloned()
+        .ok_or_else(|| anyhow!("VoterView template data must be an object"))?;
+    let body = render_template_text(&template, variables)
+        .map_err(|err| anyhow!("Error rendering the VoterView template: {err}"))?;
+    validate_rendered_xml(&body, &data)?;
+
+    Ok((body, template_sha256))
+}
+
+/// Validates only the invariants a correct template can never violate: the
+/// rendered body is well-formed XML, and every injected value survived rendering
+/// as escaped text (not markup) rather than being dropped or turned into an
+/// element. This is a near-zero-flexibility-cost check by design: it deliberately
+/// asserts nothing about element names, the operation, or the namespace, because
+/// those are owned by the hot-swappable S3 template — a VoterView-side change
+/// stays a template edit, not a code change. Well-formedness catches template
+/// typos; the value check catches a mistyped Handlebars variable (renders empty)
+/// and an escaping bug that would let voter-supplied data inject XML.
+fn validate_rendered_xml(body: &str, expected: &SoapRequestData<'_>) -> Result<()> {
+    let document = Document::parse(body).context("Rendered VoterView template is not valid XML")?;
+    let texts: Vec<&str> = document
+        .descendants()
+        .filter_map(|node| node.text())
+        .map(str::trim)
+        .collect();
+    let injected = [
+        expected.county_mun,
+        expected.usr,
+        expected.psw,
+        expected.voter_id,
+        expected.timestamp,
+    ];
+    for value in injected {
+        if value.is_empty() || !texts.contains(&value) {
+            return Err(anyhow!(
+                "Injected value missing from rendered XML; check template variables and escaping"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Returns the SOAP `Body`, rejecting anything that is not a SOAP 1.1/1.2
+/// `Envelope`, so a stray HTML error page never reaches the response parser.
+fn soap_body<'a, 'input>(document: &'a Document<'input>) -> Result<Node<'a, 'input>> {
+    let envelope = document.root_element();
+    let namespace = envelope.tag_name().namespace();
+    if envelope.tag_name().name() != "Envelope"
+        || (namespace != Some(SOAP_11_NAMESPACE) && namespace != Some(SOAP_12_NAMESPACE))
+    {
+        return Err(anyhow!("Unexpected SOAP Envelope namespace"));
+    }
+    exactly_one_child(envelope, "Body", namespace.unwrap_or_default())
+}
+
+/// Returns the single child element with `name` in `namespace`. Both "missing"
+/// and "more than one" are errors: an ambiguous `Success` element must never be
+/// read as a definitive outcome.
+fn exactly_one_child<'a, 'input>(
+    parent: Node<'a, 'input>,
+    name: &str,
+    namespace: &str,
+) -> Result<Node<'a, 'input>> {
+    let mut elements = parent.children().filter(|node| {
+        node.is_element()
+            && node.tag_name().name() == name
+            && node.tag_name().namespace() == Some(namespace)
+    });
+    let element = elements
+        .next()
+        .ok_or_else(|| anyhow!("Missing XML element {name} in namespace {namespace}"))?;
+    if elements.next().is_some() {
+        return Err(anyhow!("Multiple XML elements named {name}"));
+    }
+    Ok(element)
+}
+
+/// Trimmed text of the single `name` child; errors when the element is missing,
+/// duplicated, or empty.
+fn child_text(parent: Node<'_, '_>, name: &str, namespace: &str) -> Result<String> {
+    let element = exactly_one_child(parent, name, namespace)?;
+    element
+        .text()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| anyhow!("Missing or empty XML element {name}"))
+}
+
+/// Collapses whitespace, strips trailing punctuation and lowercases, so a known
+/// message ("the voter has already voted") is matched despite formatting drift.
+fn normalize_message(message: &str) -> String {
+    message
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim_end_matches(['.', '!', '?'])
+        .to_lowercase()
+}
+
+/// Classifies a VoterView response into a [`SoapRequestResponse`]. A non-success
+/// HTTP status becomes a `Fault`; a `Success=false` with a recognized message
+/// becomes the idempotent `AlreadyVoted`/`AlreadyNotVoted`, otherwise `Rejected`.
+/// Any unparseable body or unexpected `Success` value is an error, never a
+/// silent success.
+fn parse_response(
+    status: StatusCode,
+    response_text: &str,
+    request: SoapRequest,
+) -> Result<SoapRequestResponse> {
+    let document = Document::parse(response_text).context("VoterView returned malformed XML")?;
+    let soap_body = soap_body(&document)?;
+
+    if !status.is_success() {
+        let fault = soap_body
+            .descendants()
+            .filter(|node| {
+                node.is_element()
+                    && matches!(node.tag_name().name(), "faultstring" | "Text" | "Reason")
+            })
+            .find_map(|node| node.text().map(str::trim).filter(|text| !text.is_empty()))
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("HTTP {status}"));
+        return Ok(SoapRequestResponse::Fault(fault));
+    }
+
+    let response_name = format!("{}Response", request.operation_name());
+    let response = exactly_one_child(soap_body, &response_name, VOTERVIEW_NAMESPACE)?;
+    let result = exactly_one_child(response, request.result_name(), VOTERVIEW_NAMESPACE)?;
+    let success = child_text(result, "Success", VOTERVIEW_NAMESPACE)?;
+    match success.to_lowercase().as_str() {
+        "true" => Ok(SoapRequestResponse::Ok),
+        "false" => {
+            let message = child_text(result, "ErrorMessage", VOTERVIEW_NAMESPACE)?;
+            match (request, normalize_message(&message).as_str()) {
+                (SoapRequest::SetVoted, ALREADY_VOTED_MESSAGE) => {
+                    Ok(SoapRequestResponse::AlreadyVoted)
+                }
+                (SoapRequest::SetNotVoted, ALREADY_NOT_VOTED_MESSAGE) => {
+                    Ok(SoapRequestResponse::AlreadyNotVoted)
+                }
+                _ => Ok(SoapRequestResponse::Rejected(message)),
+            }
+        }
+        value => Err(anyhow!("Unexpected VoterView Success value: {value}")),
+    }
+}
+
+/// Reads the response body and hands it to [`parse_response`] with its status.
+async fn read_response(response: Response, request: SoapRequest) -> Result<SoapRequestResponse> {
+    let status = response.status();
+    let response_text = response
+        .text()
+        .await
+        .context("Failed to read the VoterView response")?;
+    parse_response(status, &response_text, request)
+}
+
+/// Renders, validates and hashes the request without contacting VoterView.
+/// Every failure mode here (missing username, invalid annotations, template or
+/// XML error) happens before a vote is claimed, so the caller can retry later.
+#[instrument(skip(election_event, username), fields(request = %request), err)]
+pub async fn prepare(
+    request: SoapRequest,
     election_event: ElectionEventDatafix,
     username: &Option<String>,
-) -> Result<SoapRequestResponse> {
+) -> Result<PreparedSoapRequest> {
     let timestamp = generate_timestamp(
         Some(TimeZone::UTC),
         Some(DateFormat::Custom("%Y-%m-%dT%H:%M:%S.%3fZ".to_string())),
         None,
     );
-    // Datafix voter_id is the username!
-    let voter_id = username.as_deref().ok_or(anyhow!("Username is None"))?;
-    let annotations: DatafixAnnotations = election_event
+    let voter_id = username
+        .as_deref()
+        .ok_or_else(|| anyhow!("Username is None"))?;
+    let annotations = election_event
         .get_annotations()
-        .map_err(|err| anyhow!("Error getting election event annotations: {err}"))?;
+        .context("Invalid Datafix election event annotations")?;
+    let (body, template_sha256) =
+        render_request(request, &annotations, voter_id, &timestamp).await?;
 
-    let soap_body = req_type
-        .get_body(&annotations, voter_id, &timestamp)
-        .await?;
-    let url = &annotations.voterview_request.url;
-    info!("Soap body: {soap_body}");
-    info!("URL: {url}");
-    let http = reqwest::Client::builder()
+    let client = reqwest::Client::builder()
         .timeout(VOTERVIEW_REQUEST_TIMEOUT)
         .build()
-        .map_err(|err| anyhow!("Failed to build the HTTP client: {err}"))?;
-    let response = http
+        .context("Failed to build the VoterView HTTP client")?;
+
+    Ok(PreparedSoapRequest {
+        request,
+        client,
+        url: annotations.voterview_request.url,
+        body,
+        template_sha256,
+    })
+}
+
+/// Dispatches an already-prepared request and classifies the response, carrying
+/// the template hash into the [`SoapRequestResult`] for the audit trail.
+#[instrument(skip(prepared), fields(request = %prepared.request), err)]
+pub async fn send_prepared(prepared: PreparedSoapRequest) -> Result<SoapRequestResult> {
+    let PreparedSoapRequest {
+        request,
+        client,
+        url,
+        body,
+        template_sha256,
+    } = prepared;
+    let response = client
         .post(url)
         .header("Content-Type", "text/xml; charset=UTF-8")
         .header(
             "SOAPAction",
-            format!("https://www.voterview.ca/MVVServices/{req_type}"),
+            format!("https://www.voterview.ca/MVVServices/{request}"),
         )
-        .body(soap_body)
+        .body(body)
         .send()
         .await
-        .map_err(|err| anyhow!("Failed to get SOAP response: {err}"))?;
-    SoapRequestResponse::new(response, req_type).await
+        .with_context(|| format!("VoterView request failed (template_sha256={template_sha256})"))?;
+    let response = read_response(response, request).await.with_context(|| {
+        format!("Invalid VoterView response (template_sha256={template_sha256})")
+    })?;
+
+    Ok(SoapRequestResult {
+        response,
+        template_sha256,
+    })
 }
 
-pub fn parse_tag(open_tag: &str, close_tag: &str, response_txt: &str) -> Option<String> {
-    match response_txt.split(open_tag).collect::<Vec<&str>>() {
-        after if after.len() > 1 => match after[1].split(close_tag).collect::<Vec<&str>>() {
-            before if before.len() > 1 => Some(before[0].to_string()),
-            _ => None,
-        },
-        _ => None,
-    }
+/// Convenience [`prepare`] + [`send_prepared`] for callers that do not need to
+/// separate preparation from dispatch across a vote claim.
+#[instrument(skip(election_event, username), fields(request = %request), err)]
+pub async fn send(
+    request: SoapRequest,
+    election_event: ElectionEventDatafix,
+    username: &Option<String>,
+) -> Result<SoapRequestResult> {
+    let prepared = prepare(request, election_event, username).await?;
+    send_prepared(prepared).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn error_message_per_response_variant() {
-        assert_eq!(SoapRequestResponse::Ok.error_message(), None);
-        assert_eq!(
-            SoapRequestResponse::HasVotedErrorMsg.error_message(),
-            Some("The voter has already voted.".to_string())
-        );
-        assert_eq!(
-            SoapRequestResponse::OtherErrorMsg("The voter has not voted.".to_string())
-                .error_message(),
-            Some("The voter has not voted.".to_string())
-        );
-        assert_eq!(
-            SoapRequestResponse::Faultstring("Server was unable to process request.".to_string())
-                .error_message(),
-            Some("Server was unable to process request.".to_string())
-        );
-        // Fault strings can be missing from the response and default to "".
-        assert_eq!(
-            SoapRequestResponse::Faultstring(String::new()).error_message(),
-            None
-        );
-    }
-
-    #[test]
-    fn http_error_without_soap_fault_falls_back_to_status() {
-        let response = SoapRequestResponse::from_parts(
-            reqwest::StatusCode::GATEWAY_TIMEOUT,
-            "<html><body>Gateway Timeout</body></html>",
-            &SoapRequest::SetNotVoted,
+    fn response(result: &str, prefix: &str) -> String {
+        format!(
+            r#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                xmlns:v="https://www.voterview.ca/MVVServices">
+                <soap:Body><v:{prefix}Response><v:{prefix}Result>{result}</v:{prefix}Result>
+                </v:{prefix}Response></soap:Body></soap:Envelope>"#
         )
-        .unwrap();
+    }
+
+    #[test]
+    fn parses_namespaced_success() {
+        let xml = response("<v:Success> true </v:Success>", "SetVoted");
         assert_eq!(
-            response.error_message(),
-            Some("HTTP 504 Gateway Timeout".to_string())
+            parse_response(StatusCode::OK, &xml, SoapRequest::SetVoted).unwrap(),
+            SoapRequestResponse::Ok
         );
     }
 
     #[test]
-    fn http_error_with_soap_fault_keeps_faultstring() {
-        let response = SoapRequestResponse::from_parts(
-            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-            "<soap:Fault><faultcode>soap:Server</faultcode>\
-             <faultstring>Server was unable to process request.</faultstring></soap:Fault>",
-            &SoapRequest::SetVoted,
-        )
-        .unwrap();
+    fn classifies_known_responses_after_normalizing_whitespace() {
+        let already_voted = response(
+            "<v:Success>false</v:Success><v:ErrorMessage> The voter  has already voted. </v:ErrorMessage>",
+            "SetVoted",
+        );
         assert_eq!(
-            response.error_message(),
-            Some("Server was unable to process request.".to_string())
+            parse_response(StatusCode::OK, &already_voted, SoapRequest::SetVoted).unwrap(),
+            SoapRequestResponse::AlreadyVoted
+        );
+
+        let already_not_voted = response(
+            "<v:Success>false</v:Success><v:ErrorMessage>The voter has not voted.</v:ErrorMessage>",
+            "SetNotVoted",
+        );
+        assert_eq!(
+            parse_response(StatusCode::OK, &already_not_voted, SoapRequest::SetNotVoted).unwrap(),
+            SoapRequestResponse::AlreadyNotVoted
         );
     }
 
     #[test]
-    fn success_false_returns_voterview_error_message() {
-        let response_txt = r#"<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><soap:Body><SetNotVotedResponse xmlns="https://www.voterview.ca/MVVServices"><SetNotVotedResult><Success>false</Success><ErrorMessage>The voter has not voted.</ErrorMessage></SetNotVotedResult></SetNotVotedResponse></soap:Body></soap:Envelope>"#;
-        let response = SoapRequestResponse::from_parts(
-            reqwest::StatusCode::OK,
-            response_txt,
-            &SoapRequest::SetNotVoted,
-        )
-        .unwrap();
-        assert_eq!(
-            response.error_message(),
-            Some("The voter has not voted.".to_string())
+    fn rejects_malformed_or_ambiguous_success_elements() {
+        assert!(parse_response(StatusCode::OK, "not xml", SoapRequest::SetVoted).is_err());
+        let duplicate = response(
+            "<v:Success>true</v:Success><v:Success>true</v:Success>",
+            "SetVoted",
         );
-        assert_eq!(
-            SoapRequest::SetNotVoted.failed_operation(response.error_message()),
-            "SetNotVoted Failed: The voter has not voted."
-        );
+        assert!(parse_response(StatusCode::OK, &duplicate, SoapRequest::SetVoted).is_err());
     }
 
     #[test]
-    fn failed_operation_includes_detail_after_colon() {
+    fn rejects_success_from_an_unexpected_namespace() {
+        let xml = response("<v:Success>true</v:Success>", "SetVoted")
+            .replace(VOTERVIEW_NAMESPACE, "https://unexpected.example.test");
+        assert!(parse_response(StatusCode::OK, &xml, SoapRequest::SetVoted).is_err());
+    }
+
+    fn sample_data() -> SoapRequestData<'static> {
+        SoapRequestData {
+            county_mun: "county",
+            usr: "user",
+            psw: "password",
+            voter_id: "voter",
+            timestamp: "timestamp",
+        }
+    }
+
+    #[test]
+    fn accepts_a_restructured_template_when_injected_values_survive() {
+        // Renamed elements, a different channel and an extra field are all
+        // template-owned, so a hot-swapped template must still validate as long
+        // as the injected values are present.
+        let xml = r#"<Envelope><Body><DoIt xmlns="urn:voterview:v2">
+            <Muni>county</Muni><Login>user</Login><Secret>password</Secret>
+            <Voter>voter</Voter><Channel>PHONE</Channel><Extra>new</Extra>
+            <When>timestamp</When></DoIt></Body></Envelope>"#;
+        assert!(validate_rendered_xml(xml, &sample_data()).is_ok());
+    }
+
+    #[test]
+    fn rejects_a_template_that_drops_an_injected_value() {
+        // The voter id never made it into the output (e.g. a mistyped variable).
+        let xml = r#"<Envelope><Body><DoIt>
+            <Muni>county</Muni><Login>user</Login><Secret>password</Secret>
+            <When>timestamp</When></DoIt></Body></Envelope>"#;
+        assert!(validate_rendered_xml(xml, &sample_data()).is_err());
+    }
+
+    #[test]
+    fn rejects_an_injected_value_rendered_as_markup_instead_of_text() {
+        // A non-escaping template emitted a value containing markup raw: it
+        // parses, but the voter id is now an element, not the text we injected.
+        let data = SoapRequestData {
+            voter_id: "<x/>",
+            ..sample_data()
+        };
+        let xml = r#"<Envelope><Body><DoIt>
+            <Muni>county</Muni><Login>user</Login><Secret>password</Secret>
+            <Voter><x/></Voter><When>timestamp</When></DoIt></Body></Envelope>"#;
+        assert!(validate_rendered_xml(xml, &data).is_err());
+    }
+
+    #[test]
+    fn rejects_malformed_rendered_xml() {
+        assert!(validate_rendered_xml("<Body><unclosed>", &sample_data()).is_err());
+    }
+
+    #[test]
+    fn parses_namespaced_soap_fault() {
+        let xml = r#"<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+            <s:Body><s:Fault><s:Reason><s:Text>Service unavailable</s:Text></s:Reason>
+            </s:Fault></s:Body></s:Envelope>"#;
         assert_eq!(
-            SoapRequest::SetNotVoted.failed_operation(Some("The voter has not voted.".to_string())),
-            "SetNotVoted Failed: The voter has not voted."
-        );
-        assert_eq!(
-            SoapRequest::SetVoted.failed_operation(None),
-            "SetVoted Failed"
+            parse_response(StatusCode::SERVICE_UNAVAILABLE, xml, SoapRequest::SetVoted).unwrap(),
+            SoapRequestResponse::Fault("Service unavailable".to_string())
         );
     }
 }

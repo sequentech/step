@@ -63,6 +63,16 @@ The SOAP templates remain public assets in MinIO:
 They must be uploaded with the environment's other public assets. Template and
 response bodies contain sensitive data and must not be copied into logs.
 
+Because the templates live in MinIO, their SOAP structure can be updated without
+redeploying Harvest. To keep that flexibility, a rendered request is checked only
+for the invariants a correct template cannot violate—that it is well-formed XML
+and that every injected value (voter id, credentials, timestamp) survives
+rendering as escaped text—never for specific element names, so a VoterView-side
+change stays a template edit. For provenance, the SHA-256 of the template file
+that produced each outbound request is recorded in that request's electoral-log
+entry, so the exact template version behind any request can be audited after the
+fact. The hash is recorded only; it is never used to gate a request.
+
 ## End-to-end walkthrough: releasing a voter who already voted online
 
 This example follows one voter, Nadia, through the whole lifecycle and names the
