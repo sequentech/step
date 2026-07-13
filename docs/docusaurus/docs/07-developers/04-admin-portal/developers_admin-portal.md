@@ -11,6 +11,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 
 
-This is a placeholder page for the section: Developing the Admin Portal.
+## Overview
 
-Content will be added here soon.
+This section documents implementation details and extension points for the Admin Portal.
+
+## Pages
+
+- [Tally Results](./01-tally-results.md)
+- [Load Testing the Admin Portal](./load-test_admin-portal.md)

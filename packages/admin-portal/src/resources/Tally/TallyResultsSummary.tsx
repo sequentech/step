@@ -38,6 +38,9 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
     weight = null,
 }) => {
     const {t} = useTranslation()
+    const summaryRowClassName = (rowClassName: string) =>
+        `participation-summary-row ${rowClassName}`
+    const summaryRowSx = {"&:last-child td, &:last-child th": {border: 0}}
 
     return (
         <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
@@ -66,7 +69,11 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                         }}
                     >
                         <TableContainer component={Paper}>
-                            <Table sx={{minWidth: {xs: 300, sm: 650}}} aria-label="simple table">
+                            <Table
+                                className="participation-summary-table"
+                                sx={{minWidth: {xs: 300, sm: 650}}}
+                                aria-label="simple table"
+                            >
                                 <TableHead>
                                     <TableRow>
                                         <TableCell></TableCell>
@@ -80,7 +87,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                 </TableHead>
                                 <TableBody>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("eligible-voters")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.elegible_census")}
@@ -91,7 +99,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         <TableCell align="right"></TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("total-auditable-votes")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.total_auditable_votes")}
@@ -108,7 +117,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("total-votes-counted")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.total_votes_counted")}
@@ -123,7 +133,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("total-valid-votes")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.total_valid_votes")}
@@ -140,7 +151,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("total-invalid-votes")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.total_invalid_votes")}
@@ -157,7 +169,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("explicitly-invalid-votes")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.explicit_invalid_votes")}
@@ -174,7 +187,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("implicitly-invalid-votes")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.implicit_invalid_votes")}
@@ -191,7 +205,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                     <TableRow
-                                        sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        className={summaryRowClassName("blank-votes")}
+                                        sx={summaryRowSx}
                                     >
                                         <TableCell component="th" scope="row">
                                             {t("tally.table.blank_votes")}
@@ -243,9 +258,8 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                                     </TableRow>
                                     {showWeight && (
                                         <TableRow
-                                            sx={{
-                                                "&:last-child td, &:last-child th": {border: 0},
-                                            }}
+                                            className={summaryRowClassName("weight")}
+                                            sx={summaryRowSx}
                                         >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.weight")}
