@@ -53,10 +53,10 @@ export const IvrConfig: React.FC = () => {
             return {phase: "", name: ""}
         }
     }
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         setEditorData(parsedConfig)
     }
-    const handleSave = () => {
+    const handleSave = (): void => {
         setSaving(true)
         update(
             RESOURCE,
