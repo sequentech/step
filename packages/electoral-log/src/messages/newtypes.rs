@@ -162,6 +162,17 @@ pub enum ExtApiName {
     Other,
 }
 
+/// Subject of an external API request, bound into the signed statement. Both
+/// fields are optional because some operations (e.g. adding a voter) act before
+/// a Keycloak user id exists or without a resolvable username.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ExternalApiSubject {
+    pub user_id: Option<String>,
+    pub username: Option<String>,
+}
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]

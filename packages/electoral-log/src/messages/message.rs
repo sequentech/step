@@ -62,8 +62,17 @@ impl Message {
         api_name: ExtApiName,
         operation: String,
     ) -> Result<Self> {
-        let body =
-            StatementBody::ExternalApiRequest(event_id.clone(), direction, api_name, operation);
+        let subject = ExternalApiSubject {
+            user_id: voter_id.clone(),
+            username: voter_username.clone(),
+        };
+        let body = StatementBody::ExternalApiRequest(
+            event_id.clone(),
+            subject,
+            direction,
+            api_name,
+            operation,
+        );
         Self::from_body(
             event_id,
             body,

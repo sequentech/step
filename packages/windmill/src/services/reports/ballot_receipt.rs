@@ -140,7 +140,12 @@ impl TemplateRenderer for BallotTemplate {
             &election_event_uuid,
             &ballot_uui,
             voter_id,
-            &[CastVoteStatus::Valid],
+            &[
+                CastVoteStatus::InProgress,
+                CastVoteStatus::Indeterminate,
+                CastVoteStatus::Valid,
+                CastVoteStatus::Discarded,
+            ],
         )
         .await?;
 

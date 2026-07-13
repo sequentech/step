@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
-use crate::postgres::cast_vote::count_cast_votes_by_status;
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote, CastVoteStatus};
+use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
@@ -172,26 +172,27 @@ pub async fn insert_ballots_messages(
                     );
 
                     // Backstop for the tally-session guard: never extract
-                    // ballots for an election that still has `in-progress`
-                    // cast votes, which are not yet countable.
+                    // ballots while this contest area has an unresolved vote.
                     let tenant_uuid = parse_uuid_v4(&tenant_id_clone)
                         .with_context(|| "Error parsing tenant_id")?;
                     let election_event_uuid = parse_uuid_v4(&election_event_id_clone)
                         .with_context(|| "Error parsing election_event_id")?;
                     let election_uuid = parse_uuid_v4(&tally_session_contest.election_id)
                         .with_context(|| "Error parsing election_id")?;
-                    let in_progress_count = count_cast_votes_by_status(
+                    let area_uuid = parse_uuid_v4(&tally_session_contest.area_id)
+                        .with_context(|| "Error parsing area_id")?;
+                    let unresolved_count = count_unresolved_cast_votes(
                         &hasura_transaction_clone,
                         &tenant_uuid,
                         &election_event_uuid,
                         &election_uuid,
-                        CastVoteStatus::InProgress,
+                        &area_uuid,
                     )
                     .await?;
-                    if in_progress_count > 0 {
+                    if unresolved_count > 0 {
                         return Err(anyhow!(
                             "Refusing to extract ballots for election {} area {}: \
-                             {in_progress_count} cast vote(s) still in-progress",
+                             {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
                             tally_session_contest.election_id,
                             tally_session_contest.area_id,
                         ));

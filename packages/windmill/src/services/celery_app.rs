@@ -15,6 +15,7 @@ use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
+use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
     electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
 };
@@ -298,6 +299,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
             process_cast_vote,
+            edit_user,
             render_document_pdf,
             execute_plugin_task,
             prepare_publication_preview,
@@ -357,6 +359,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
             export_certificate_authority::NAME => &Queue::ImportExport.queue_name(&slug),
             process_cast_vote::NAME => &Queue::Communication.queue_name(&slug),
+            edit_user::NAME => &Queue::Short.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

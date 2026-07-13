@@ -1127,7 +1127,7 @@ pub(crate) mod tests {
         let ret = b
             .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match.clone()),
+                Some(cols_match),
                 Some(556i64),
                 Some(666i64),
                 None,

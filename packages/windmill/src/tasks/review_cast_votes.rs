@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::{
-    cast_votes::{get_in_progress_cast_votes_batch, CastVote},
+    cast_votes::get_in_progress_cast_votes_batch,
     celery_app::get_celery_app,
     database::{get_hasura_pool, PgConfig},
 };
@@ -33,7 +33,7 @@ pub async fn review_cast_votes() -> Result<()> {
         .map_err(|e| anyhow!("Error creating a hasura transaction {e:?}"))?;
     let celery_app = get_celery_app().await;
 
-    let mut after: Option<(Uuid, String)> = None;
+    let mut after: Option<(Uuid, Uuid, Uuid, String)> = None;
     let batch_size = PgConfig::from_env()?.default_sql_batch_size.into();
 
     info!("review_cast_votes: Checking cast_votes in progress");
@@ -47,26 +47,23 @@ pub async fn review_cast_votes() -> Result<()> {
         // For this Celery has to be properly configured with acks_late=true and a realistic value for prefetch_count, which establishes the number of tasks executed in parallel.
         for ballot in &ballots_list {
             celery_app
-                .send_task(process_cast_vote::new(ballot.clone()))
+                .send_task(process_cast_vote::new(
+                    ballot.tenant_id.to_string(),
+                    ballot.election_event_id.to_string(),
+                    ballot.id.clone(),
+                ))
                 .await
                 .map_err(|e| anyhow!("Error sending cast_vote_actions task: {e:?}"))?;
         }
         // Move to next batch
-        after = match ballots_list.last() {
-            Some(CastVote {
-                election_id: Some(election_id),
-                voter_id_string: Some(voter_id),
-                ..
-            }) => Some((
-                Uuid::parse_str(election_id)
-                    .map_err(|e| anyhow!("Error parsing election_id as UUID: {e:?}"))?,
-                voter_id.clone(),
-            )),
-            // The query guarantees non-null election_id and voter_id_string
-            _ => {
-                return Err(anyhow!("Unexpected cast vote without election_id or voter_id").into())
-            }
-        };
+        after = ballots_list.last().map(|ballot| {
+            (
+                ballot.tenant_id,
+                ballot.election_event_id,
+                ballot.election_id,
+                ballot.voter_id.clone(),
+            )
+        });
     }
     Ok(())
 }
