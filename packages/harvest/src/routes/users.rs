@@ -1095,4 +1095,3 @@ pub async fn get_user_profile_attributes(
 
     Ok(Json(attributes_res))
 }
-

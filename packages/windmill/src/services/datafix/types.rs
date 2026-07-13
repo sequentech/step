@@ -100,7 +100,7 @@ pub struct PasswordPolicy {
 
 impl PasswordPolicy {
     #[instrument]
-    pub fn generate_password(self, voter_id: &str) -> String {
+    pub fn generate_password(&self, voter_id: &str) -> String {
         let pin = match self.characters {
             CharactersPolicy::Numeric => {
                 let mut pass = String::new();

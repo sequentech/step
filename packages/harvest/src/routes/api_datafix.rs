@@ -16,10 +16,10 @@ use windmill::postgres::cast_vote::DatafixPendingOperation;
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::api_datafix::{
-    acquire_inbound_voter_lock, audit_inbound_operation, audit_inbound_operation_standalone,
-    complete_inbound_voter_vote_change, ensure_inbound_reenable_is_safe,
-    quarantine_inbound_voter_cast_votes, release_inbound_voter_lock, valid_inbound_voting_channel,
-    InboundVoterLock,
+    acquire_inbound_voter_lock, audit_inbound_operation,
+    audit_inbound_operation_standalone, complete_inbound_voter_vote_change,
+    ensure_inbound_reenable_is_safe, quarantine_inbound_voter_cast_votes,
+    release_inbound_voter_lock, valid_inbound_voting_channel, InboundVoterLock,
 };
 use windmill::services::datafix::types::*;
 use windmill::services::datafix::utils::get_event_id_and_datafix_annotations;

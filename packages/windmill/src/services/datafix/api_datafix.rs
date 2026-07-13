@@ -23,8 +23,9 @@ use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
     User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
-    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, DISABLE_REASON_SET_NOT_VOTED_PENDING,
-    TENANT_ID_ATTR_NAME, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
+    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL,
+    DISABLE_REASON_SET_NOT_VOTED_PENDING, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
+    VOTED_CHANNEL_INTERNET_VALUE,
 };
 use sequent_core::util::date_time::verify_date_format_ymd;
 use std::collections::HashMap;
@@ -592,7 +593,9 @@ pub async fn audit_inbound_operation(
     {
         Ok((election_event_id, _)) => election_event_id,
         Err(err) => {
-            error!("Unable to resolve the election event for the inbound Datafix audit entry: {err:?}");
+            error!(
+                "Unable to resolve the election event for the inbound Datafix audit entry: {err:?}"
+            );
             return;
         }
     };
@@ -642,7 +645,15 @@ pub async fn audit_inbound_operation_standalone(
             return;
         }
     };
-    audit_inbound_operation(&transaction, None, claims, username, operation_name, succeeded).await;
+    audit_inbound_operation(
+        &transaction,
+        None,
+        claims,
+        username,
+        operation_name,
+        succeeded,
+    )
+    .await;
 }
 
 /// Finalizes an inbound vote-state change (mark/unmark): on a failed request it

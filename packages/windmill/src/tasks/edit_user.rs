@@ -10,7 +10,7 @@ use crate::postgres::cast_vote::{
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::database::get_hasura_pool;
 use crate::services::datafix;
-use crate::services::datafix::types::{SoapRequest, SoapRequestResponse};
+use crate::services::datafix::types::{SoapRequest, SoapRequestResponse, SoapRequestResult};
 use crate::services::datafix::utils::{
     datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
@@ -102,6 +102,12 @@ fn is_reenable_transition(current: Option<bool>, requested: Option<bool>) -> boo
     current == Some(false) && requested == Some(true)
 }
 
+/// A save that keeps a disabled voter disabled; may need to resume an
+/// interrupted release.
+fn is_repeated_disable(current: Option<bool>, requested: Option<bool>) -> bool {
+    current == Some(false) && requested == Some(false)
+}
+
 /// Whether a `SetNotVoted` response means the external system now agrees the
 /// voter has not voted, so the quarantined ballots can be discarded.
 fn set_not_voted_converged(response: &SoapRequestResponse) -> bool {
@@ -120,6 +126,100 @@ fn has_pending_voter_release(attributes: &HashMap<String, Vec<String>>) -> bool 
             .and_then(|values| values.last()),
         Some(value) if value == DISABLE_REASON_SET_NOT_VOTED_PENDING
     )
+}
+
+/// Context shared by every phase of a Datafix voter edit: the request body plus
+/// the realm and per-voter lock the whole flow operates under.
+struct DatafixEditCtx<'a> {
+    body: &'a EditUserTaskBody,
+    realm: String,
+    lock: &'a PgLock,
+}
+
+/// The release actions a Datafix voter edit must take, derived from the
+/// enabled-flag transition, the voter's cast-vote state and its current
+/// Keycloak attributes.
+struct VoterReleasePlan {
+    /// The edit disables the voter (or repeats a disable that still owes a
+    /// release), so its valid ballots must be quarantined for `SetNotVoted`.
+    release_attempt: bool,
+    /// The release targets a voter who voted online, so the edit must keep the
+    /// Internet voted-channel marker.
+    stamp_internet_channel: bool,
+    /// The voter's state owes a `SetNotVoted` even if the quarantine finds no
+    /// ballots: indeterminate or pending votes, or the durable voter markers.
+    owes_set_not_voted: bool,
+}
+
+/// Derives the [`VoterReleasePlan`] for an edit and enforces the state guards:
+/// a re-enable is refused while the voting state is unresolved, and a release
+/// is refused for a voter who voted through another channel.
+fn plan_voter_release(
+    current_enabled: Option<bool>,
+    requested_enabled: Option<bool>,
+    cast_vote_state: &VoterCastVoteState,
+    current_attributes: &HashMap<String, Vec<String>>,
+) -> std::result::Result<VoterReleasePlan, String> {
+    let disable_transition = is_disable_transition(current_enabled, requested_enabled);
+    let reenable_transition = is_reenable_transition(current_enabled, requested_enabled);
+    let repeated_disable = is_repeated_disable(current_enabled, requested_enabled);
+    let retry_release = repeated_disable
+        && (cast_vote_state.has_unresolved_vote
+            || cast_vote_state.has_valid_vote
+            || cast_vote_state.has_pending_release
+            || voted_via_internet(current_attributes)
+            || has_pending_voter_release(current_attributes));
+    let release_attempt = disable_transition || retry_release;
+
+    if reenable_transition
+        && (cast_vote_state.has_unresolved_vote
+            || cast_vote_state.has_valid_vote
+            || voted_via_internet(current_attributes)
+            || voted_via_not_internet_channel(current_attributes)
+            || has_pending_voter_release(current_attributes))
+    {
+        return Err(
+            "Cannot re-enable a voter while its Datafix voting state is unresolved".to_string(),
+        );
+    }
+    if release_attempt && voted_via_not_internet_channel(current_attributes) {
+        return Err(
+            "Cannot release a voter recorded as having voted through another channel".to_string(),
+        );
+    }
+
+    Ok(VoterReleasePlan {
+        release_attempt,
+        stamp_internet_channel: release_attempt && voted_via_internet(current_attributes),
+        owes_set_not_voted: cast_vote_state.has_indeterminate_vote
+            || cast_vote_state.has_pending_release
+            || voted_via_internet(current_attributes)
+            || has_pending_voter_release(current_attributes),
+    })
+}
+
+/// Rejects edits to the fields an admin may not change on a Datafix voter: the
+/// username (the VoterView identifier), the voted channel and the disable
+/// reason.
+fn validate_datafix_immutable_fields(
+    body: &EditUserTaskBody,
+    current_user: &User,
+    current_attributes: &HashMap<String, Vec<String>>,
+) -> std::result::Result<(), String> {
+    if body.username.is_some() && body.username.as_ref() != current_user.username.as_ref() {
+        return Err("A Datafix voter identifier cannot be changed in the admin portal".to_string());
+    }
+    if let Some(requested_channel) = body.attributes.get(VOTED_CHANNEL) {
+        if current_attributes.get(VOTED_CHANNEL) != Some(requested_channel) {
+            return Err("The Datafix voting channel cannot be edited directly".to_string());
+        }
+    }
+    if let Some(requested_comment) = body.attributes.get(DISABLE_COMMENT) {
+        if current_attributes.get(DISABLE_COMMENT) != Some(requested_comment) {
+            return Err("The Datafix disable reason cannot be edited directly".to_string());
+        }
+    }
+    Ok(())
 }
 
 /// Loads the election event the edit targets, needed for its Datafix
@@ -201,17 +301,20 @@ async fn restore_voter_cast_votes(
 /// human-readable reason on failure. Used to unwind a release that could not be
 /// dispatched, so the lock is confirmed still held before touching the votes.
 async fn restore_pre_dispatch_cast_votes(
-    lock: &PgLock,
-    tenant_id: &str,
-    election_event_id: &str,
+    ctx: &DatafixEditCtx<'_>,
     cast_vote_ids: &[Uuid],
 ) -> std::result::Result<(), String> {
-    lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
+    ctx.lock
+        .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
         .await
         .map_err(|err| format!("The Datafix voter lock was lost before vote restoration: {err}"))?;
-    restore_voter_cast_votes(tenant_id, election_event_id, cast_vote_ids)
-        .await
-        .map_err(|err| format!("Unable to restore pre-dispatch cast votes: {err:?}"))
+    restore_voter_cast_votes(
+        &ctx.body.tenant_id,
+        &ctx.body.election_event_id,
+        cast_vote_ids,
+    )
+    .await
+    .map_err(|err| format!("Unable to restore pre-dispatch cast votes: {err:?}"))
 }
 
 /// Durably records that the voter's quarantined ballots are awaiting a
@@ -260,7 +363,10 @@ async fn clear_voter_release_markers(
     }
 
     let attributes = HashMap::from([
-        (VOTED_CHANNEL.to_string(), vec![ATTR_RESET_VALUE.to_string()]),
+        (
+            VOTED_CHANNEL.to_string(),
+            vec![ATTR_RESET_VALUE.to_string()],
+        ),
         (
             DISABLE_COMMENT.to_string(),
             vec![ATTR_RESET_VALUE.to_string()],
@@ -285,13 +391,7 @@ async fn clear_voter_release_markers(
 
 /// Records the outcome of a disabled-voter release in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the user edit.
-async fn audit_datafix_user_operation(
-    tenant_id: &str,
-    election_event_id: &str,
-    user_id: &str,
-    username: &str,
-    operation: String,
-) {
+async fn audit_datafix_user_operation(ctx: &DatafixEditCtx<'_>, username: &str, operation: String) {
     let Ok(mut client) = get_hasura_pool().await.get().await else {
         error!("Unable to get a DB connection for the Datafix audit entry");
         return;
@@ -302,9 +402,9 @@ async fn audit_datafix_user_operation(
     };
     if let Err(err) = post_operation_result_to_electoral_log(
         &transaction,
-        tenant_id,
-        election_event_id,
-        Some(user_id),
+        &ctx.body.tenant_id,
+        &ctx.body.election_event_id,
+        Some(ctx.body.user_id.as_str()),
         username,
         ExtApiRequestDirection::Outbound,
         operation,
@@ -315,6 +415,290 @@ async fn audit_datafix_user_operation(
     }
 }
 
+/// Applies the edit in Keycloak; on failure the outcome is indeterminate, so
+/// the quarantined ballots are restored before reporting the error.
+async fn edit_keycloak_user_with_rollback(
+    ctx: &DatafixEditCtx<'_>,
+    client: KeycloakAdminClient,
+    new_attributes: HashMap<String, Vec<String>>,
+    quarantined_cast_vote_ids: &[Uuid],
+) -> std::result::Result<User, String> {
+    let body = ctx.body;
+    match client
+        .edit_user(
+            &ctx.realm,
+            &body.user_id,
+            body.enabled,
+            Some(new_attributes),
+            body.email.clone(),
+            body.first_name.clone(),
+            body.last_name.clone(),
+            body.username.clone(),
+            body.password.clone(),
+            body.temporary,
+        )
+        .await
+    {
+        Ok(user) => Ok(user),
+        Err(err) => {
+            restore_pre_dispatch_cast_votes(ctx, quarantined_cast_vote_ids).await?;
+            Err(format!(
+                "The Keycloak update outcome is indeterminate: {err:?}"
+            ))
+        }
+    }
+}
+
+/// Durably marks the release as pending, renews the per-voter lock and sends
+/// `SetNotVoted` to VoterView, returning the voter's username along with the
+/// response. The quarantine is unwound while the request has not been
+/// dispatched; once sent, an error means the VoterView state is indeterminate
+/// and is audited instead.
+async fn dispatch_set_not_voted(
+    ctx: &DatafixEditCtx<'_>,
+    election_event: ElectionEvent,
+    current_username: Option<String>,
+    quarantined_cast_vote_ids: &[Uuid],
+) -> std::result::Result<(String, SoapRequestResult), String> {
+    let body = ctx.body;
+    if let Err(err) = mark_voter_cast_votes_release_pending(
+        &body.tenant_id,
+        &body.election_event_id,
+        &body.user_id,
+    )
+    .await
+    {
+        restore_pre_dispatch_cast_votes(ctx, quarantined_cast_vote_ids).await?;
+        return Err(format!(
+            "Error recording the pending voter release: {err:?}"
+        ));
+    }
+
+    ctx.lock
+        .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
+        .await
+        .map_err(|err| format!("The Datafix voter lock was lost before SetNotVoted: {err}"))?;
+
+    let username = match current_username {
+        Some(username) => username,
+        None => {
+            restore_pre_dispatch_cast_votes(ctx, quarantined_cast_vote_ids).await?;
+            return Err("Datafix voter has no username".to_string());
+        }
+    };
+    let prepared = match datafix::voterview_requests::prepare(
+        SoapRequest::SetNotVoted,
+        ElectionEventDatafix(election_event),
+        &Some(username.clone()),
+    )
+    .await
+    {
+        Ok(response) => response,
+        Err(err) => {
+            error!("Unable to prepare SetNotVoted: {err}");
+            restore_pre_dispatch_cast_votes(ctx, quarantined_cast_vote_ids).await?;
+            audit_datafix_user_operation(
+                ctx,
+                &username,
+                "SetNotVoted NotDispatched: pre-dispatch-error".to_string(),
+            )
+            .await;
+            return Err(
+                "Voter was disabled, but SetNotVoted could not be prepared and requires a safe retry"
+                    .to_string(),
+            );
+        }
+    };
+    let template_sha256 = prepared.template_sha256().to_string();
+    match datafix::voterview_requests::send_prepared(prepared).await {
+        Ok(response) => Ok((username, response)),
+        Err(err) => {
+            error!("SetNotVoted transport or response error: {err}");
+            audit_datafix_user_operation(
+                ctx,
+                &username,
+                format!(
+                    "SetNotVoted Indeterminate: transport-or-response-error (template_sha256={template_sha256})"
+                ),
+            )
+            .await;
+            Err(
+                "Voter was disabled, but its VoterView state is indeterminate and requires reconciliation"
+                    .to_string(),
+            )
+        }
+    }
+}
+
+/// Settles a dispatched `SetNotVoted`: restores the ballots on an explicit
+/// rejection, audits the outcome, and on convergence clears the voter's
+/// release markers and discards the released ballots.
+async fn settle_set_not_voted_outcome(
+    ctx: &DatafixEditCtx<'_>,
+    user: User,
+    username: &str,
+    response: SoapRequestResult,
+    quarantined_cast_vote_ids: &[Uuid],
+) -> std::result::Result<(), String> {
+    let body = ctx.body;
+    if matches!(&response.response, SoapRequestResponse::Rejected(_)) {
+        ctx.lock
+            .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
+            .await
+            .map_err(|err| {
+                format!("The Datafix voter lock was lost after SetNotVoted rejection: {err}")
+            })?;
+        restore_voter_cast_votes(
+            &body.tenant_id,
+            &body.election_event_id,
+            quarantined_cast_vote_ids,
+        )
+        .await
+        .map_err(|err| format!("Unable to restore votes after SetNotVoted rejection: {err:?}"))?;
+    }
+
+    let operation = if set_not_voted_converged(&response.response) {
+        format!(
+            "SetNotVoted Succeeded (template_sha256={})",
+            response.template_sha256
+        )
+    } else {
+        format!(
+            "SetNotVoted Indeterminate: {} (template_sha256={})",
+            response.response.classification(),
+            response.template_sha256
+        )
+    };
+    audit_datafix_user_operation(ctx, username, operation).await;
+
+    if !set_not_voted_converged(&response.response) {
+        return Err(format!(
+            "Voter was disabled, but VoterView did not accept SetNotVoted ({}) and reconciliation is required",
+            response.response.classification()
+        ));
+    }
+
+    ctx.lock
+        .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
+        .await
+        .map_err(|err| format!("The Datafix voter lock was lost after SetNotVoted: {err}"))?;
+
+    let _user = clear_voter_release_markers(&ctx.realm, &body.user_id, user)
+        .await
+        .map_err(|err| {
+            format!("VoterView accepted SetNotVoted, but the Internet voting marker could not be cleared: {err:?}")
+        })?;
+    ctx.lock
+        .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
+        .await
+        .map_err(|err| {
+            format!("The Datafix voter lock was lost before finalizing SetNotVoted: {err}")
+        })?;
+    discard_released_voter_cast_votes(&body.tenant_id, &body.election_event_id, &body.user_id)
+        .await
+        .map_err(|err| {
+            format!(
+                "VoterView accepted SetNotVoted, but cast votes could not be discarded: {err:?}"
+            )
+        })?;
+
+    Ok(())
+}
+
+/// Runs the voter edit while the per-voter lock is held: validates the edit,
+/// plans the release, quarantines the ballots, applies the Keycloak edit and,
+/// when a `SetNotVoted` is owed, dispatches it and settles its outcome.
+async fn run_datafix_voter_edit(
+    ctx: &DatafixEditCtx<'_>,
+    election_event: ElectionEvent,
+) -> std::result::Result<(), String> {
+    let body = ctx.body;
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|err| format!("{err:?}"))?;
+    let current_user = client
+        .get_user(&ctx.realm, &body.user_id)
+        .await
+        .map_err(|err| format!("{err:?}"))?;
+    let current_attributes = current_user.attributes.clone().unwrap_or_default();
+    validate_datafix_immutable_fields(body, &current_user, &current_attributes)?;
+
+    let needs_cast_vote_state = is_disable_transition(current_user.enabled, body.enabled)
+        || is_reenable_transition(current_user.enabled, body.enabled)
+        || is_repeated_disable(current_user.enabled, body.enabled);
+    let cast_vote_state = if needs_cast_vote_state {
+        voter_cast_vote_state(&body.tenant_id, &body.election_event_id, &body.user_id)
+            .await
+            .map_err(|err| format!("Error checking unresolved cast votes: {err:?}"))?
+    } else {
+        VoterCastVoteState {
+            has_unresolved_vote: false,
+            has_indeterminate_vote: false,
+            has_pending_release: false,
+            has_valid_vote: false,
+        }
+    };
+    let plan = plan_voter_release(
+        current_user.enabled,
+        body.enabled,
+        &cast_vote_state,
+        &current_attributes,
+    )?;
+
+    let mut new_attributes = body.attributes.clone();
+    if plan.stamp_internet_channel {
+        new_attributes.insert(
+            VOTED_CHANNEL.to_string(),
+            vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+        );
+    }
+
+    let quarantined_cast_vote_ids = if plan.release_attempt {
+        quarantine_voter_cast_votes(&body.tenant_id, &body.election_event_id, &body.user_id)
+            .await
+            .map_err(|err| format!("Error quarantining cast votes: {err:?}"))?
+    } else {
+        Vec::new()
+    };
+    let should_send_set_not_voted =
+        plan.release_attempt && (!quarantined_cast_vote_ids.is_empty() || plan.owes_set_not_voted);
+    if should_send_set_not_voted {
+        new_attributes.insert(
+            DISABLE_COMMENT.to_string(),
+            vec![DISABLE_REASON_SET_NOT_VOTED_PENDING.to_string()],
+        );
+    }
+
+    let user =
+        edit_keycloak_user_with_rollback(ctx, client, new_attributes, &quarantined_cast_vote_ids)
+            .await?;
+
+    if !should_send_set_not_voted {
+        if plan.release_attempt && cast_vote_state.has_unresolved_vote {
+            ctx.lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS).await.map_err(|err| {
+                format!("The Datafix voter lock was lost before discarding undispatched votes: {err}")
+            })?;
+            discard_released_voter_cast_votes(
+                &body.tenant_id,
+                &body.election_event_id,
+                &body.user_id,
+            )
+            .await
+            .map_err(|err| format!("Error discarding undispatched Datafix votes: {err:?}"))?;
+        }
+        return Ok(());
+    }
+
+    let (username, response) = dispatch_set_not_voted(
+        ctx,
+        election_event,
+        current_user.username.clone(),
+        &quarantined_cast_vote_ids,
+    )
+    .await?;
+    settle_set_not_voted_outcome(ctx, user, &username, response, &quarantined_cast_vote_ids).await
+}
+
 /// Applies an admin edit to a Datafix voter under the per-voter lock. On a
 /// disable of a voter who already voted online it quarantines the ballots, sends
 /// `SetNotVoted`, and either discards them on convergence or restores them
@@ -323,310 +707,24 @@ async fn audit_datafix_user_operation(
 /// human-readable failure reason recorded on the task widget.
 async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Result<(), String> {
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
-    let election_event_id = body.election_event_id.as_str();
-    let election_event = load_election_event(&body.tenant_id, election_event_id)
+    let election_event = load_election_event(&body.tenant_id, &body.election_event_id)
         .await
         .map_err(|err| format!("Error loading election event: {err:?}"))?;
-    let mut new_attributes = body.attributes.clone();
 
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(&body.tenant_id, election_event_id, &body.user_id),
+        datafix_voter_lock_key(&body.tenant_id, &body.election_event_id, &body.user_id),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
     .await
     .map_err(|err| format!("Another operation is updating this voter: {err}"))?;
 
-    let result = async {
-        let client = KeycloakAdminClient::new()
-            .await
-            .map_err(|err| format!("{err:?}"))?;
-        let current_user = client
-            .get_user(&realm, &body.user_id)
-            .await
-            .map_err(|err| format!("{err:?}"))?;
-        let current_attributes = current_user.attributes.clone().unwrap_or_default();
-        let disable_transition = is_disable_transition(current_user.enabled, body.enabled);
-        let reenable_transition = is_reenable_transition(current_user.enabled, body.enabled);
-        let repeated_disable = current_user.enabled == Some(false) && body.enabled == Some(false);
-        if body.username.is_some() && body.username.as_ref() != current_user.username.as_ref() {
-            return Err(
-                "A Datafix voter identifier cannot be changed in the admin portal".to_string(),
-            );
-        }
-        if let Some(requested_channel) = new_attributes.get(VOTED_CHANNEL) {
-            if current_attributes.get(VOTED_CHANNEL) != Some(requested_channel) {
-                return Err("The Datafix voting channel cannot be edited directly".to_string());
-            }
-        }
-        if let Some(requested_comment) = new_attributes.get(DISABLE_COMMENT) {
-            if current_attributes.get(DISABLE_COMMENT) != Some(requested_comment) {
-                return Err("The Datafix disable reason cannot be edited directly".to_string());
-            }
-        }
-        let cast_vote_state = if disable_transition || reenable_transition || repeated_disable {
-            voter_cast_vote_state(&body.tenant_id, election_event_id, &body.user_id)
-                .await
-                .map_err(|err| format!("Error checking unresolved cast votes: {err:?}"))?
-        } else {
-            VoterCastVoteState {
-                has_unresolved_vote: false,
-                has_indeterminate_vote: false,
-                has_pending_release: false,
-                has_valid_vote: false,
-            }
-        };
-        let retry_release = repeated_disable
-            && (cast_vote_state.has_unresolved_vote
-                || cast_vote_state.has_valid_vote
-                || cast_vote_state.has_pending_release
-                || voted_via_internet(&current_attributes)
-                || has_pending_voter_release(&current_attributes));
-        let release_attempt = disable_transition || retry_release;
-
-        if release_attempt && voted_via_internet(&current_attributes) {
-            new_attributes.insert(
-                VOTED_CHANNEL.to_string(),
-                vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
-            );
-        }
-
-        if reenable_transition
-            && (cast_vote_state.has_unresolved_vote
-                || cast_vote_state.has_valid_vote
-                || voted_via_internet(&current_attributes)
-                || voted_via_not_internet_channel(&current_attributes)
-                || has_pending_voter_release(&current_attributes))
-        {
-            return Err(
-                "Cannot re-enable a voter while its Datafix voting state is unresolved".to_string(),
-            );
-        }
-        if repeated_disable
-            && !retry_release
-            && (cast_vote_state.has_unresolved_vote
-                || voted_via_internet(&current_attributes)
-                || has_pending_voter_release(&current_attributes))
-        {
-            return Err(
-                "The voter is disabled, but its Datafix voting state still requires reconciliation"
-                    .to_string(),
-            );
-        }
-        if release_attempt && voted_via_not_internet_channel(&current_attributes) {
-            return Err(
-                "Cannot release a voter recorded as having voted through another channel"
-                    .to_string(),
-            );
-        }
-
-        let quarantined_cast_vote_ids = if release_attempt {
-            quarantine_voter_cast_votes(&body.tenant_id, election_event_id, &body.user_id)
-                .await
-                .map_err(|err| format!("Error quarantining cast votes: {err:?}"))?
-        } else {
-            Vec::new()
-        };
-        let should_send_set_not_voted = release_attempt
-            && (!quarantined_cast_vote_ids.is_empty()
-                || cast_vote_state.has_indeterminate_vote
-                || cast_vote_state.has_pending_release
-                || voted_via_internet(&current_attributes)
-                || has_pending_voter_release(&current_attributes));
-        if should_send_set_not_voted {
-            new_attributes.insert(
-                DISABLE_COMMENT.to_string(),
-                vec![DISABLE_REASON_SET_NOT_VOTED_PENDING.to_string()],
-            );
-        }
-
-        let user = match client
-            .edit_user(
-                &realm,
-                &body.user_id,
-                body.enabled,
-                Some(new_attributes),
-                body.email.clone(),
-                body.first_name.clone(),
-                body.last_name.clone(),
-                body.username.clone(),
-                body.password.clone(),
-                body.temporary,
-            )
-            .await
-        {
-            Ok(user) => user,
-            Err(err) => {
-                restore_pre_dispatch_cast_votes(
-                    &lock,
-                    &body.tenant_id,
-                    election_event_id,
-                    &quarantined_cast_vote_ids,
-                )
-                .await?;
-                return Err(format!("The Keycloak update outcome is indeterminate: {err:?}"));
-            }
-        };
-
-        if !should_send_set_not_voted {
-            if release_attempt && cast_vote_state.has_unresolved_vote {
-                lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS).await.map_err(|err| {
-                    format!("The Datafix voter lock was lost before discarding undispatched votes: {err}")
-                })?;
-                discard_released_voter_cast_votes(&body.tenant_id, election_event_id, &body.user_id)
-                    .await
-                    .map_err(|err| format!("Error discarding undispatched Datafix votes: {err:?}"))?;
-            }
-            return Ok(());
-        }
-
-        if let Err(err) = mark_voter_cast_votes_release_pending(
-            &body.tenant_id,
-            election_event_id,
-            &body.user_id,
-        )
-        .await
-        {
-            restore_pre_dispatch_cast_votes(
-                &lock,
-                &body.tenant_id,
-                election_event_id,
-                &quarantined_cast_vote_ids,
-            )
-            .await?;
-            return Err(format!("Error recording the pending voter release: {err:?}"));
-        }
-
-        lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
-            .await
-            .map_err(|err| format!("The Datafix voter lock was lost before SetNotVoted: {err}"))?;
-
-        let username = match current_user.username.clone() {
-            Some(username) => username,
-            None => {
-                restore_pre_dispatch_cast_votes(
-                    &lock,
-                    &body.tenant_id,
-                    election_event_id,
-                    &quarantined_cast_vote_ids,
-                )
-                .await?;
-                return Err("Datafix voter has no username".to_string());
-            }
-        };
-        let prepared = match datafix::voterview_requests::prepare(
-            SoapRequest::SetNotVoted,
-            ElectionEventDatafix(election_event),
-            &Some(username.clone()),
-        )
-        .await
-        {
-            Ok(response) => response,
-            Err(err) => {
-                error!("Unable to prepare SetNotVoted: {err}");
-                restore_pre_dispatch_cast_votes(
-                    &lock,
-                    &body.tenant_id,
-                    election_event_id,
-                    &quarantined_cast_vote_ids,
-                )
-                .await?;
-                audit_datafix_user_operation(
-                    &body.tenant_id,
-                    election_event_id,
-                    &body.user_id,
-                    &username,
-                    "SetNotVoted NotDispatched: pre-dispatch-error".to_string(),
-                )
-                .await;
-                return Err(
-                    "Voter was disabled, but SetNotVoted could not be prepared and requires a safe retry"
-                        .to_string(),
-                );
-            }
-        };
-        let template_sha256 = prepared.template_sha256().to_string();
-        let response = match datafix::voterview_requests::send_prepared(prepared).await {
-            Ok(response) => response,
-            Err(err) => {
-                error!("SetNotVoted transport or response error: {err}");
-                audit_datafix_user_operation(
-                    &body.tenant_id,
-                    election_event_id,
-                    &body.user_id,
-                    &username,
-                    format!(
-                        "SetNotVoted Indeterminate: transport-or-response-error (template_sha256={template_sha256})"
-                    ),
-                )
-                .await;
-                return Err(
-                    "Voter was disabled, but its VoterView state is indeterminate and requires reconciliation"
-                        .to_string(),
-                );
-            }
-        };
-
-        if matches!(&response.response, SoapRequestResponse::Rejected(_)) {
-            lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS).await.map_err(|err| {
-                format!("The Datafix voter lock was lost after SetNotVoted rejection: {err}")
-            })?;
-            restore_voter_cast_votes(&body.tenant_id, election_event_id, &quarantined_cast_vote_ids)
-                .await
-                .map_err(|err| {
-                    format!("Unable to restore votes after SetNotVoted rejection: {err:?}")
-                })?;
-        }
-
-        let operation = if set_not_voted_converged(&response.response) {
-            format!(
-                "SetNotVoted Succeeded (template_sha256={})",
-                response.template_sha256
-            )
-        } else {
-            format!(
-                "SetNotVoted Indeterminate: {} (template_sha256={})",
-                response.response.classification(),
-                response.template_sha256
-            )
-        };
-        audit_datafix_user_operation(
-            &body.tenant_id,
-            election_event_id,
-            &body.user_id,
-            &username,
-            operation,
-        )
-        .await;
-
-        if !set_not_voted_converged(&response.response) {
-            return Err(format!(
-                "Voter was disabled, but VoterView did not accept SetNotVoted ({}) and reconciliation is required",
-                response.response.classification()
-            ));
-        }
-
-        lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
-            .await
-            .map_err(|err| format!("The Datafix voter lock was lost after SetNotVoted: {err}"))?;
-
-        let _user = clear_voter_release_markers(&realm, &body.user_id, user)
-            .await
-            .map_err(|err| {
-                format!("VoterView accepted SetNotVoted, but the Internet voting marker could not be cleared: {err:?}")
-            })?;
-        lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS).await.map_err(|err| {
-            format!("The Datafix voter lock was lost before finalizing SetNotVoted: {err}")
-        })?;
-        discard_released_voter_cast_votes(&body.tenant_id, election_event_id, &body.user_id)
-            .await
-            .map_err(|err| {
-                format!("VoterView accepted SetNotVoted, but cast votes could not be discarded: {err:?}")
-            })?;
-
-        Ok(())
-    }
-    .await;
+    let ctx = DatafixEditCtx {
+        body,
+        realm,
+        lock: &lock,
+    };
+    let result = run_datafix_voter_edit(&ctx, election_event).await;
 
     if let Err(err) = lock.release().await {
         if result.is_ok() {
@@ -682,5 +780,163 @@ mod tests {
             vec![ATTR_RESET_VALUE.to_string()],
         )]);
         assert!(!has_pending_voter_release(&reset));
+    }
+
+    #[test]
+    fn repeated_disable_keeps_a_disabled_voter_disabled() {
+        assert!(is_repeated_disable(Some(false), Some(false)));
+        assert!(!is_repeated_disable(Some(true), Some(false)));
+        assert!(!is_repeated_disable(Some(false), None));
+        assert!(!is_repeated_disable(None, Some(false)));
+    }
+
+    fn no_cast_votes() -> VoterCastVoteState {
+        VoterCastVoteState {
+            has_unresolved_vote: false,
+            has_indeterminate_vote: false,
+            has_pending_release: false,
+            has_valid_vote: false,
+        }
+    }
+
+    fn internet_voter() -> HashMap<String, Vec<String>> {
+        HashMap::from([(
+            VOTED_CHANNEL.to_string(),
+            vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+        )])
+    }
+
+    fn pending_release_voter() -> HashMap<String, Vec<String>> {
+        HashMap::from([(
+            DISABLE_COMMENT.to_string(),
+            vec![DISABLE_REASON_SET_NOT_VOTED_PENDING.to_string()],
+        )])
+    }
+
+    #[test]
+    fn disabling_a_clean_voter_releases_without_owing_set_not_voted() {
+        let plan =
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &HashMap::new()).unwrap();
+        assert!(plan.release_attempt);
+        assert!(!plan.stamp_internet_channel);
+        assert!(!plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn disabling_an_internet_voter_stamps_the_channel_and_owes_set_not_voted() {
+        let plan = plan_voter_release(Some(true), Some(false), &no_cast_votes(), &internet_voter())
+            .unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.stamp_internet_channel);
+        assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn a_repeated_disable_with_a_pending_marker_retries_the_release() {
+        let plan = plan_voter_release(
+            Some(false),
+            Some(false),
+            &no_cast_votes(),
+            &pending_release_voter(),
+        )
+        .unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn a_repeated_disable_of_a_clean_voter_plans_no_release() {
+        let plan = plan_voter_release(Some(false), Some(false), &no_cast_votes(), &HashMap::new())
+            .unwrap();
+        assert!(!plan.release_attempt);
+    }
+
+    #[test]
+    fn reenabling_is_refused_while_a_release_is_pending() {
+        assert!(plan_voter_release(
+            Some(false),
+            Some(true),
+            &no_cast_votes(),
+            &pending_release_voter()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn reenabling_is_refused_while_valid_votes_exist() {
+        let state = VoterCastVoteState {
+            has_valid_vote: true,
+            ..no_cast_votes()
+        };
+        assert!(plan_voter_release(Some(false), Some(true), &state, &HashMap::new()).is_err());
+    }
+
+    #[test]
+    fn reenabling_a_clean_voter_plans_no_release() {
+        let plan =
+            plan_voter_release(Some(false), Some(true), &no_cast_votes(), &HashMap::new()).unwrap();
+        assert!(!plan.release_attempt);
+    }
+
+    #[test]
+    fn releasing_an_other_channel_voter_is_refused() {
+        let attributes = HashMap::from([(VOTED_CHANNEL.to_string(), vec!["PAPER".to_string()])]);
+        assert!(
+            plan_voter_release(Some(true), Some(false), &no_cast_votes(), &attributes).is_err()
+        );
+    }
+
+    fn edit_body(
+        username: Option<&str>,
+        attributes: HashMap<String, Vec<String>>,
+    ) -> EditUserTaskBody {
+        EditUserTaskBody {
+            tenant_id: String::new(),
+            user_id: String::new(),
+            election_event_id: String::new(),
+            enabled: None,
+            attributes,
+            email: None,
+            first_name: None,
+            last_name: None,
+            username: username.map(str::to_string),
+            password: None,
+            temporary: None,
+        }
+    }
+
+    #[test]
+    fn the_voter_identifier_is_immutable() {
+        let current_user = User {
+            username: Some("voter1".to_string()),
+            ..User::default()
+        };
+        let renamed = edit_body(Some("voter2"), HashMap::new());
+        assert!(
+            validate_datafix_immutable_fields(&renamed, &current_user, &HashMap::new()).is_err()
+        );
+        let unchanged = edit_body(Some("voter1"), HashMap::new());
+        assert!(
+            validate_datafix_immutable_fields(&unchanged, &current_user, &HashMap::new()).is_ok()
+        );
+    }
+
+    #[test]
+    fn the_voted_channel_and_disable_reason_are_immutable() {
+        let current_user = User::default();
+        let channel_edit = edit_body(None, internet_voter());
+        assert!(
+            validate_datafix_immutable_fields(&channel_edit, &current_user, &HashMap::new())
+                .is_err()
+        );
+        let reason_edit = edit_body(None, pending_release_voter());
+        assert!(
+            validate_datafix_immutable_fields(&reason_edit, &current_user, &HashMap::new())
+                .is_err()
+        );
+        let echoed = edit_body(None, internet_voter());
+        assert!(
+            validate_datafix_immutable_fields(&echoed, &current_user, &internet_voter()).is_ok()
+        );
     }
 }
