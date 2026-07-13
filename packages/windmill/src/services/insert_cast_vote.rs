@@ -147,10 +147,10 @@ fn classify_inserted_cast_vote(
 fn initial_cast_vote_status(
     election_event: &ElectionEvent,
 ) -> Result<CastVoteStatus, CastVoteError> {
-    if is_datafix_election_event(election_event) {
-        Ok(CastVoteStatus::InProgress)
-    } else {
-        Ok(CastVoteStatus::Valid)
+    match datafix_annotations(election_event) {
+        Ok(Some(_)) => Ok(CastVoteStatus::InProgress),
+        Ok(None) => Ok(CastVoteStatus::Valid),
+        Err(err) => Err(CastVoteError::InvalidDatafixConfiguration(err.to_string())),
     }
 }
 
