@@ -13941,12 +13941,6 @@ type results_area_contest {
     path: String
   ): jsonb
   area_id: uuid!
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid!
   created_at: timestamptz
   documents(
@@ -13956,9 +13950,13 @@ type results_area_contest {
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid!
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels(
@@ -13970,6 +13968,8 @@ type results_area_contest {
   tenant_id: uuid!
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14012,19 +14012,19 @@ input results_area_contest_append_input {
 
 """aggregate avg on columns"""
 type results_area_contest_avg_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14042,21 +14042,19 @@ input results_area_contest_bool_exp {
   _or: [results_area_contest_bool_exp!]
   annotations: jsonb_comparison_exp
   area_id: uuid_comparison_exp
-  total_blank_votes: Int_comparison_exp
-  explicit_blank_votes: Int_comparison_exp
-  implicit_blank_votes: Int_comparison_exp
-  total_blank_votes_percent: numeric_comparison_exp
-  explicit_blank_votes_percent: numeric_comparison_exp
-  implicit_blank_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
+  explicit_blank_votes: Int_comparison_exp
+  explicit_blank_votes_percent: numeric_comparison_exp
   explicit_invalid_votes: Int_comparison_exp
   explicit_invalid_votes_percent: numeric_comparison_exp
   id: uuid_comparison_exp
+  implicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes_percent: numeric_comparison_exp
   implicit_invalid_votes: Int_comparison_exp
   implicit_invalid_votes_percent: numeric_comparison_exp
   labels: jsonb_comparison_exp
@@ -14065,6 +14063,8 @@ input results_area_contest_bool_exp {
   tenant_id: uuid_comparison_exp
   total_auditable_votes: Int_comparison_exp
   total_auditable_votes_percent: numeric_comparison_exp
+  total_blank_votes: Int_comparison_exp
+  total_blank_votes_percent: numeric_comparison_exp
   total_invalid_votes: Int_comparison_exp
   total_invalid_votes_percent: numeric_comparison_exp
   total_valid_votes: Int_comparison_exp
@@ -14592,19 +14592,19 @@ input results_area_contest_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_area_contest"
 """
 input results_area_contest_inc_input {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14619,21 +14619,19 @@ input type for inserting data into table "sequent_backend.results_area_contest"
 input results_area_contest_insert_input {
   annotations: jsonb
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -14642,6 +14640,8 @@ input results_area_contest_insert_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14653,20 +14653,18 @@ input results_area_contest_insert_input {
 """aggregate max on columns"""
 type results_area_contest_max_fields {
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -14674,6 +14672,8 @@ type results_area_contest_max_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14685,20 +14685,18 @@ type results_area_contest_max_fields {
 """aggregate min on columns"""
 type results_area_contest_min_fields {
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -14706,6 +14704,8 @@ type results_area_contest_min_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14739,21 +14739,19 @@ Ordering options when selecting data from "sequent_backend.results_area_contest"
 input results_area_contest_order_by {
   annotations: order_by
   area_id: order_by
-  total_blank_votes: order_by
-  explicit_blank_votes: order_by
-  implicit_blank_votes: order_by
-  total_blank_votes_percent: order_by
-  explicit_blank_votes_percent: order_by
-  implicit_blank_votes_percent: order_by
   contest_id: order_by
   created_at: order_by
   documents: order_by
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
+  explicit_blank_votes: order_by
+  explicit_blank_votes_percent: order_by
   explicit_invalid_votes: order_by
   explicit_invalid_votes_percent: order_by
   id: order_by
+  implicit_blank_votes: order_by
+  implicit_blank_votes_percent: order_by
   implicit_invalid_votes: order_by
   implicit_invalid_votes_percent: order_by
   labels: order_by
@@ -14762,6 +14760,8 @@ input results_area_contest_order_by {
   tenant_id: order_by
   total_auditable_votes: order_by
   total_auditable_votes_percent: order_by
+  total_blank_votes: order_by
+  total_blank_votes_percent: order_by
   total_invalid_votes: order_by
   total_invalid_votes_percent: order_by
   total_valid_votes: order_by
@@ -14796,18 +14796,6 @@ enum results_area_contest_select_column {
   """column name"""
   area_id
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   created_at
@@ -14820,11 +14808,19 @@ enum results_area_contest_select_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -14841,6 +14837,10 @@ enum results_area_contest_select_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -14861,21 +14861,19 @@ input type for updating data in table "sequent_backend.results_area_contest"
 input results_area_contest_set_input {
   annotations: jsonb
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -14884,6 +14882,8 @@ input results_area_contest_set_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14894,19 +14894,19 @@ input results_area_contest_set_input {
 
 """aggregate stddev on columns"""
 type results_area_contest_stddev_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14917,19 +14917,19 @@ type results_area_contest_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_area_contest_stddev_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14940,19 +14940,19 @@ type results_area_contest_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_area_contest_stddev_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14975,21 +14975,19 @@ input results_area_contest_stream_cursor_input {
 input results_area_contest_stream_cursor_value_input {
   annotations: jsonb
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -14998,6 +14996,8 @@ input results_area_contest_stream_cursor_value_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15008,19 +15008,19 @@ input results_area_contest_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_area_contest_sum_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15038,18 +15038,6 @@ enum results_area_contest_update_column {
   """column name"""
   area_id
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   created_at
@@ -15062,11 +15050,19 @@ enum results_area_contest_update_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -15083,6 +15079,10 @@ enum results_area_contest_update_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -15124,19 +15124,19 @@ input results_area_contest_updates {
 
 """aggregate var_pop on columns"""
 type results_area_contest_var_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15147,19 +15147,19 @@ type results_area_contest_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_area_contest_var_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15170,19 +15170,19 @@ type results_area_contest_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_area_contest_variance_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15199,12 +15199,6 @@ type results_contest {
     """JSON select path"""
     path: String
   ): jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid!
   counting_algorithm: String
   created_at: timestamptz
@@ -15215,9 +15209,13 @@ type results_contest {
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid!
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels(
@@ -15230,6 +15228,8 @@ type results_contest {
   tenant_id: uuid!
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15273,19 +15273,19 @@ input results_contest_append_input {
 
 """aggregate avg on columns"""
 type results_contest_avg_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15302,12 +15302,6 @@ input results_contest_bool_exp {
   _not: results_contest_bool_exp
   _or: [results_contest_bool_exp!]
   annotations: jsonb_comparison_exp
-  total_blank_votes: Int_comparison_exp
-  explicit_blank_votes: Int_comparison_exp
-  implicit_blank_votes: Int_comparison_exp
-  total_blank_votes_percent: numeric_comparison_exp
-  explicit_blank_votes_percent: numeric_comparison_exp
-  implicit_blank_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   counting_algorithm: String_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -15315,9 +15309,13 @@ input results_contest_bool_exp {
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
+  explicit_blank_votes: Int_comparison_exp
+  explicit_blank_votes_percent: numeric_comparison_exp
   explicit_invalid_votes: Int_comparison_exp
   explicit_invalid_votes_percent: numeric_comparison_exp
   id: uuid_comparison_exp
+  implicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes_percent: numeric_comparison_exp
   implicit_invalid_votes: Int_comparison_exp
   implicit_invalid_votes_percent: numeric_comparison_exp
   labels: jsonb_comparison_exp
@@ -15327,6 +15325,8 @@ input results_contest_bool_exp {
   tenant_id: uuid_comparison_exp
   total_auditable_votes: Int_comparison_exp
   total_auditable_votes_percent: numeric_comparison_exp
+  total_blank_votes: Int_comparison_exp
+  total_blank_votes_percent: numeric_comparison_exp
   total_invalid_votes: Int_comparison_exp
   total_invalid_votes_percent: numeric_comparison_exp
   total_valid_votes: Int_comparison_exp
@@ -15843,19 +15843,19 @@ input results_contest_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_contest"
 """
 input results_contest_inc_input {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15869,12 +15869,6 @@ input type for inserting data into table "sequent_backend.results_contest"
 """
 input results_contest_insert_input {
   annotations: jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15882,9 +15876,13 @@ input results_contest_insert_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -15894,6 +15892,8 @@ input results_contest_insert_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15905,21 +15905,19 @@ input results_contest_insert_input {
 
 """aggregate max on columns"""
 type results_contest_max_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -15928,6 +15926,8 @@ type results_contest_max_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15939,21 +15939,19 @@ type results_contest_max_fields {
 
 """aggregate min on columns"""
 type results_contest_min_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -15962,6 +15960,8 @@ type results_contest_min_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15995,12 +15995,6 @@ Ordering options when selecting data from "sequent_backend.results_contest".
 """
 input results_contest_order_by {
   annotations: order_by
-  total_blank_votes: order_by
-  explicit_blank_votes: order_by
-  implicit_blank_votes: order_by
-  total_blank_votes_percent: order_by
-  explicit_blank_votes_percent: order_by
-  implicit_blank_votes_percent: order_by
   contest_id: order_by
   counting_algorithm: order_by
   created_at: order_by
@@ -16008,9 +16002,13 @@ input results_contest_order_by {
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
+  explicit_blank_votes: order_by
+  explicit_blank_votes_percent: order_by
   explicit_invalid_votes: order_by
   explicit_invalid_votes_percent: order_by
   id: order_by
+  implicit_blank_votes: order_by
+  implicit_blank_votes_percent: order_by
   implicit_invalid_votes: order_by
   implicit_invalid_votes_percent: order_by
   labels: order_by
@@ -16020,6 +16018,8 @@ input results_contest_order_by {
   tenant_id: order_by
   total_auditable_votes: order_by
   total_auditable_votes_percent: order_by
+  total_blank_votes: order_by
+  total_blank_votes_percent: order_by
   total_invalid_votes: order_by
   total_invalid_votes_percent: order_by
   total_valid_votes: order_by
@@ -16051,18 +16051,6 @@ enum results_contest_select_column {
   """column name"""
   annotations
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   counting_algorithm
@@ -16077,11 +16065,19 @@ enum results_contest_select_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -16100,6 +16096,10 @@ enum results_contest_select_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -16121,12 +16121,6 @@ input type for updating data in table "sequent_backend.results_contest"
 """
 input results_contest_set_input {
   annotations: jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -16134,9 +16128,13 @@ input results_contest_set_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -16146,6 +16144,8 @@ input results_contest_set_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -16157,19 +16157,19 @@ input results_contest_set_input {
 
 """aggregate stddev on columns"""
 type results_contest_stddev_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16180,19 +16180,19 @@ type results_contest_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_contest_stddev_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16203,19 +16203,19 @@ type results_contest_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_contest_stddev_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16237,12 +16237,6 @@ input results_contest_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_contest_stream_cursor_value_input {
   annotations: jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -16250,9 +16244,13 @@ input results_contest_stream_cursor_value_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -16262,6 +16260,8 @@ input results_contest_stream_cursor_value_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -16273,19 +16273,19 @@ input results_contest_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_contest_sum_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -16301,18 +16301,6 @@ enum results_contest_update_column {
   """column name"""
   annotations
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   counting_algorithm
@@ -16327,11 +16315,19 @@ enum results_contest_update_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -16350,6 +16346,10 @@ enum results_contest_update_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -16393,19 +16393,19 @@ input results_contest_updates {
 
 """aggregate var_pop on columns"""
 type results_contest_var_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16416,19 +16416,19 @@ type results_contest_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_contest_var_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16439,19 +16439,19 @@ type results_contest_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_contest_variance_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
