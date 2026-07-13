@@ -94,15 +94,19 @@ On success her ballot moves `in-progress → valid` and becomes countable.
 **She shows up to vote in person.** She cannot, while the system believes she
 already voted online, so a back-office operator disables her in the Admin
 Portal. That calls the Hasura `edit_user` action and reaches **Harvest
-`/edit-user`**, which is synchronous—the operator needs the outcome before
-letting her vote in person. Harvest recognizes a *disable* transition on a
-Datafix voter who holds a `valid` vote and runs a reversible sequence:
+`/edit-user`**. Because this is a Datafix voter, Harvest does not edit inline: it
+records a task, hands the work to the `edit_user` Windmill task, and returns
+immediately so the operator's Save is not blocked by the (retried) external call.
+The operator follows the outcome—success, or a reason to retry—in the Admin
+Portal's task-execution widget. Under the per-voter lock the worker recognizes a
+*disable* transition on a Datafix voter who holds a `valid` vote and runs a
+reversible sequence:
 
 1. **`quarantine_valid_cast_votes`** flips her `valid` ballots to
    `indeterminate` (tagged `set-not-voted`) and returns their IDs. They stop
    counting immediately—before any external call—and the saved IDs make the step
    undoable.
-2. > **Harvest → VoterView (SOAP) `SetNotVoted`** — "Nadia has not voted online;
+2. > **Windmill → VoterView (SOAP) `SetNotVoted`** — "Nadia has not voted online;
    > release her." The idempotent "has not voted" reply also counts as success.
 3. Branch on the results:
    - **Converged** → clear her Internet marker, disable the account in Keycloak,
