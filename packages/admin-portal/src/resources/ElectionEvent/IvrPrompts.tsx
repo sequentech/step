@@ -473,11 +473,11 @@ export const IvrPrompts: React.FC = () => {
                                 {({formData}) => (
                                     <SaveButton
                                         disabled={
-                                            !formData?.value ||
-                                            !formData?.key ||
+                                            !formData?.value?.trim() ||
+                                            !formData?.key?.trim() ||
                                             Object.keys(
                                                 editorData[selectedLanguage] || {}
-                                            ).includes(formData?.key)
+                                            ).includes(formData?.key?.trim())
                                         }
                                         sx={{marginInline: "1rem"}}
                                     />
