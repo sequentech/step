@@ -7,6 +7,43 @@ import {AppDispatch} from "../store/store"
 import {isString, IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {checkIsExplicitBlankVote, checkIsInvalidVote} from "./ElectionConfigService"
+
+export class BallotStyleConfigurationError extends Error {
+    translationKey: string
+    translationParams: Record<string, string>
+
+    constructor(translationKey: string, translationParams: Record<string, string>) {
+        super(translationKey)
+        this.name = "BallotStyleConfigurationError"
+        this.translationKey = translationKey
+        this.translationParams = translationParams
+    }
+}
+
+export const getBallotStyleConfigurationError = (
+    ballotStyle: IElectionDTO
+): BallotStyleConfigurationError | undefined => {
+    for (let contest of ballotStyle.contests) {
+        const explicitInvalidCount = contest.candidates.filter(checkIsInvalidVote).length
+        if (explicitInvalidCount > 1) {
+            return new BallotStyleConfigurationError(
+                "errors.configuration.multipleExplicitInvalidCandidates",
+                {count: explicitInvalidCount.toString()}
+            )
+        }
+
+        const explicitBlankCount = contest.candidates.filter(checkIsExplicitBlankVote).length
+        if (explicitBlankCount > 1) {
+            return new BallotStyleConfigurationError(
+                "errors.configuration.multipleExplicitBlankCandidates",
+                {count: explicitBlankCount.toString()}
+            )
+        }
+    }
+
+    return undefined
+}
 
 export const updateBallotStyleAndSelection = (
     data: GetBallotStylesQuery,
@@ -19,6 +56,10 @@ export const updateBallotStyleAndSelection = (
         }
         try {
             const electionData: IElectionDTO = JSON.parse(ballotEml)
+            const configurationError = getBallotStyleConfigurationError(electionData)
+            if (configurationError) {
+                throw configurationError
+            }
             const formattedBallotStyle: IBallotStyle = {
                 id: ballotStyle.id,
                 election_id: ballotStyle.election_id,

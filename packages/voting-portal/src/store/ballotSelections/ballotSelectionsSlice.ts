@@ -119,6 +119,7 @@ export const ballotSelectionsSlice = createSlice({
             action: PayloadAction<{
                 ballotStyle: IBallotStyle
                 contestId: string
+                candidateId: string
             }>
         ): BallotSelectionsState => {
             const ballotEmlContest = action.payload.ballotStyle.ballot_eml.contests.find(
@@ -137,10 +138,10 @@ export const ballotSelectionsSlice = createSlice({
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = false
                 currentQuestion.choices = currentQuestion.choices.map((choice) => {
-                    if (choice.selected > -1) {
-                        choice.selected = -1
+                    return {
+                        ...choice,
+                        selected: choice.id === action.payload.candidateId ? 0 : -1,
                     }
-                    return choice
                 })
             }
             return state
@@ -182,6 +183,23 @@ export const ballotSelectionsSlice = createSlice({
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
                 currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
+
+                const explicitBlankCandidateIds = new Set(
+                    ballotEmlContest.candidates
+                        .filter((candidate) => candidate.presentation?.is_explicit_blank)
+                        .map((candidate) => candidate.id)
+                )
+                const isSelectingExplicitBlank =
+                    explicitBlankCandidateIds.has(action.payload.voteChoice.id) &&
+                    action.payload.voteChoice.selected > -1
+
+                if (action.payload.voteChoice.selected > -1 && !isSelectingExplicitBlank) {
+                    currentQuestion.choices = currentQuestion.choices.map((choice) =>
+                        explicitBlankCandidateIds.has(choice.id)
+                            ? {...choice, selected: -1}
+                            : choice
+                    )
+                }
             }
 
             return state
@@ -197,6 +215,10 @@ export const ballotSelectionsSlice = createSlice({
             if (!isUndefined(currentElection)) {
                 currentElection.forEach((currentQuestion) => {
                     currentQuestion.is_decline_to_vote = true
+                    // A declined ballot must not carry per-contest explicit
+                    // invalid markers, otherwise it would be tallied as
+                    // invalid instead of declined.
+                    currentQuestion.is_explicit_invalid = false
                     currentQuestion.choices = currentQuestion.choices.map((choice) => {
                         if (choice.selected > -1) {
                             choice.selected = -1

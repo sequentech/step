@@ -369,6 +369,8 @@ const spanishTranslation: TranslationType = {
             locateAgain: "Encuentra otra Papeleta",
             found: "Tu ID de Papeleta {{ballotId}} ha sido encontrada",
             notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrada",
+            ambiguous:
+                "Más de una de tus papeletas coincide con {{ballotId}}. Usa el ID de papeleta completo.",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:

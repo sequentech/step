@@ -23,11 +23,10 @@ import {
     Sequent_Backend_Election,
     Sequent_Backend_Tally_Sheet,
 } from "../../gql/graphql"
-import {Dialog, IconButton} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
@@ -179,7 +178,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             {canCreate && (
                 <>
                     <Button onClick={createAction}>
-                        <IconButton icon={faPlus as any} fontSize="24px" />
+                        <Add />
                         {t("tallysheet.empty.action")}
                     </Button>
                     <Typography variant="body1" paragraph>

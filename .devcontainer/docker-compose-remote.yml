@@ -65,7 +65,7 @@ services:
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
     volumes:
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
@@ -208,6 +208,8 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
+    volumes:
+      - ./keycloak/import:/realm-configs:ro,z
     depends_on:
       minio:
         condition: service_healthy
@@ -219,6 +221,8 @@ services:
       - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
       - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
       - MINIO_BUCKET=${AWS_S3_BUCKET}
+      - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
+      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
   loadtest:
@@ -410,8 +414,6 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -517,7 +519,6 @@ services:
       harvest:
         condition: service_started
     volumes:
-      - ./keycloak/import:/import:z
       - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
@@ -624,7 +625,10 @@ services:
     volumes:
       - ..:/workspaces/step:z
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_started
+      configure-minio:
+        condition: service_completed_successfully
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -653,8 +657,8 @@ services:
       SECRETS_BACKEND: ${SECRETS_BACKEND}
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
+      KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}

@@ -366,6 +366,8 @@ const tagalogTranslation: TranslationType = {
             locateAgain: "Hanapin ang Isa Pang Balota",
             found: "Ang iyong ballot ID {{ballotId}} ay natagpuan",
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
+            ambiguous:
+                "Higit sa isa sa iyong mga balota ang tumutugma sa {{ballotId}}. Gamitin ang buong Ballot ID.",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",

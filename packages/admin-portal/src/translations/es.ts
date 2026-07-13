@@ -515,14 +515,31 @@ const spanishTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "No se pudo eliminar",
                 },
+                config: {
+                    infoMsg:
+                        "Configure el flujo del IVR y sus propiedades a continuación. Para más detalles, póngase en contacto con Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aún no se ha creado ningún mensaje",
+                    infoMsg:
+                        "Configure los mensajes utilizados por el IVR. Los mensajes de anuncio son obligatorios, y los mensajes del sistema se pueden sobrescribir para los idiomas deseados. Se admite SSML, incluso para mezclar idiomas.",
+                    editorTitle: "Mensaje",
+                    editorSubtitle: "Configuración del mensaje",
+                },
                 blacklist: {
                     columns: {
                         phone: "Número de teléfono",
                         reason: "Motivo",
                         createdAt: "Creado el",
                         createdBy: "Creado por",
+                        createdBefore: "Creado antes",
+                        createdAfter: "Creado después",
                     },
                     emptyMsg: "No hay entradas en la lista de bloqueo",
+                    infoMsg:
+                        "Configure la lista de bloqueo del IVR. Las llamadas de estos números serán desconectadas automáticamente por el sistema.",
+
+                    noFilterMatch: "Ninguna entrada coincide con los filtros indicados",
                     phoneRequired: "El número de teléfono es obligatorio",
                 },
             },
@@ -1877,6 +1894,8 @@ const spanishTranslation: TranslationType = {
                 implicit_invalid_votes: "Votos implícitamente inválidos",
                 implicit_invalid_votes_percent: "Porcentaje de votos implícitamente inválidos",
                 blank_votes: "Votos en blanco",
+                explicit_blank_votes: "Votos en blanco explícitos",
+                implicit_blank_votes: "Votos en blanco implícitos",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
                 winning_position: "Posición ganadora",

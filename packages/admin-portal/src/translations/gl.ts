@@ -514,14 +514,31 @@ const galegoTranslation: TranslationType = {
                     deleteSuccess: "Eliminado correctamente",
                     deleteError: "Non se puido eliminar",
                 },
+                config: {
+                    infoMsg:
+                        "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aínda non se creou ningunha mensaxe",
+                    infoMsg:
+                        "Configure as mensaxes utilizadas polo IVR. As mensaxes de anuncio son obrigatorias, e as mensaxes do sistema pódense sobrescribir para os idiomas desexados. Admítese SSML, tamén para mesturar idiomas.",
+                    editorTitle: "Mensaxe",
+                    editorSubtitle: "Configuración da mensaxe",
+                },
                 blacklist: {
                     columns: {
                         phone: "Número de teléfono",
                         reason: "Motivo",
                         createdAt: "Creado o",
                         createdBy: "Creado por",
+                        createdBefore: "Creado antes",
+                        createdAfter: "Creado despois",
                     },
                     emptyMsg: "Non hai entradas na lista de bloqueo",
+                    infoMsg:
+                        "Configure a lista de bloqueo do IVR. As chamadas destes números serán desconectadas automaticamente polo sistema.",
+
+                    noFilterMatch: "Ningunha entrada coincide cos filtros indicados",
                     phoneRequired: "O número de teléfono é obrigatorio",
                 },
             },
@@ -1875,6 +1892,8 @@ const galegoTranslation: TranslationType = {
                 implicit_invalid_votes: "Votos Nulos Implícitos",
                 implicit_invalid_votes_percent: "Porcentaxe de Votos Nulos Implícitos",
                 blank_votes: "Votos en Branco",
+                explicit_blank_votes: "Votos en Branco Explícitos",
+                implicit_blank_votes: "Votos en Branco Implícitos",
                 blank_votes_percent: "Porcentaxe de Votos en Branco",
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",

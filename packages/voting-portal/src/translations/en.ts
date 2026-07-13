@@ -359,6 +359,8 @@ const englishTranslation = {
             locateAgain: "Find another Ballot",
             found: "Your ballot ID {{ballotId}} has been found",
             notFound: "Your ballot ID {{ballotId}} was not found",
+            ambiguous:
+                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Ballot ID format",
             ballotIdNotFoundAtFilter:

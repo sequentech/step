@@ -513,14 +513,31 @@ const tagalogTranslation: TranslationType = {
                     deleteSuccess: "Matagumpay na natanggal",
                     deleteError: "Nabigong tanggalin",
                 },
+                config: {
+                    infoMsg:
+                        "I-configure ang IVR flow at ang mga property nito sa ibaba. Para sa higit pang detalye, makipag-ugnayan sa Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Wala pang nagagawang prompt",
+                    infoMsg:
+                        "I-configure ang mga prompt na ginagamit ng IVR. Kinakailangan ang mga announcement prompt, at maaaring i-override ang mga system prompt para sa mga gustong wika. Sinusuportahan ang SSML, kabilang ang paghahalo ng mga wika.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Configuration ng prompt",
+                },
                 blacklist: {
                     columns: {
                         phone: "Numero ng telepono",
                         reason: "Dahilan",
                         createdAt: "Ginawa noong",
                         createdBy: "Ginawa ni",
+                        createdBefore: "Ginawa bago ang",
+                        createdAfter: "Ginawa pagkatapos ng",
                     },
                     emptyMsg: "Walang entry sa listahan ng pag-block",
+                    infoMsg:
+                        "I-configure ang blocklist para sa IVR. Ang mga tawag mula sa mga numerong ito ay awtomatikong idi-disconnect ng system.",
+
+                    noFilterMatch: "Walang entry na tumutugma sa ibinigay na mga filter",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
                 },
             },
@@ -1878,6 +1895,8 @@ const tagalogTranslation: TranslationType = {
                 implicit_invalid_votes: "Mga nakatagong di-balidong boto",
                 implicit_invalid_votes_percent: "Porsyento ng mga nakatagong di-balidong boto",
                 blank_votes: "Mga botong walang laman",
+                explicit_blank_votes: "Mga hayag na blankong boto",
+                implicit_blank_votes: "Mga nakatagong blankong boto",
                 blank_votes_percent: "Porsyento ng mga botong walang laman",
                 number_of_votes: "Bilang ng mga boto",
                 winning_position: "Panalong posisyon",

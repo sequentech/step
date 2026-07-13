@@ -514,14 +514,31 @@ const frenchTranslation: TranslationType = {
                     deleteSuccess: "Supprimé avec succès",
                     deleteError: "Échec de la suppression",
                 },
+                config: {
+                    infoMsg:
+                        "Configurez le flux du SVI et ses propriétés ci-dessous. Pour plus de détails, veuillez contacter Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "Aucun message n’a encore été créé",
+                    infoMsg:
+                        "Configurez les messages utilisés par le SVI. Les messages d’annonce sont obligatoires, et les messages système peuvent être remplacés pour les langues souhaitées. SSML est pris en charge, y compris pour mélanger les langues.",
+                    editorTitle: "Message",
+                    editorSubtitle: "Configuration du message",
+                },
                 blacklist: {
                     columns: {
                         phone: "Numéro de téléphone",
                         reason: "Motif",
                         createdAt: "Créé le",
                         createdBy: "Créé par",
+                        createdBefore: "Créé avant",
+                        createdAfter: "Créé après",
                     },
                     emptyMsg: "Il n’y a aucune entrée dans la liste de blocage",
+                    infoMsg:
+                        "Configurez la liste de blocage du SVI. Les appels provenant de ces numéros seront automatiquement déconnectés par le système.",
+
+                    noFilterMatch: "Aucune entrée ne correspond aux filtres indiqués",
                     phoneRequired: "Le numéro de téléphone est obligatoire",
                 },
             },
@@ -1888,6 +1905,8 @@ const frenchTranslation: TranslationType = {
                 implicit_invalid_votes: "Votes implicitement invalides",
                 implicit_invalid_votes_percent: "Pourcentage de votes implicitement invalides",
                 blank_votes: "Votes blancs",
+                explicit_blank_votes: "Votes blancs explicites",
+                implicit_blank_votes: "Votes blancs implicites",
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",

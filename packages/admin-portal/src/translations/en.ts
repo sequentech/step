@@ -513,14 +513,30 @@ const englishTranslation = {
                     deleteSuccess: "Deleted successfully",
                     deleteError: "Failed to delete",
                 },
+                config: {
+                    infoMsg:
+                        "Configure the IVR flow and its properties below. For more details, please contact Sequent.",
+                },
+                prompts: {
+                    emptyMsg: "No prompts created yet",
+                    infoMsg:
+                        "Configure the prompts used by the IVR. Announcement prompts are required, and system prompts can be overridden for desired languages. SSML is supported, including for mixing languages.",
+                    editorTitle: "Prompt",
+                    editorSubtitle: "Prompt configuration",
+                },
                 blacklist: {
                     columns: {
                         phone: "Phone number",
                         reason: "Reason",
                         createdAt: "Created at",
                         createdBy: "Created by",
+                        createdBefore: "Created before",
+                        createdAfter: "Created after",
                     },
                     emptyMsg: "There are no entries in the blocklist",
+                    infoMsg:
+                        "Configure the blocklist for the IVR. Calls from these numbers will be disconnected automatically by the system.",
+                    noFilterMatch: "No entries match the given filters",
                     phoneRequired: "Phone number is required",
                 },
             },
@@ -1861,6 +1877,8 @@ const englishTranslation = {
                 implicit_invalid_votes: "Implicitly Invalid Votes",
                 implicit_invalid_votes_percent: "Implicitly Invalid Votes Percent",
                 blank_votes: "Blank Votes",
+                explicit_blank_votes: "Explicit Blank Votes",
+                implicit_blank_votes: "Implicit Blank Votes",
                 blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
