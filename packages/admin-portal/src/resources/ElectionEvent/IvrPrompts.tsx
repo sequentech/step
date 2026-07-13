@@ -273,7 +273,7 @@ export const IvrPrompts: React.FC = () => {
         let key = rawKey.trim()
         let value = rawValue.trim()
         if (key && value) {
-            let newData = cloneDeep(editorData)
+            let newData: Prompts = cloneDeep(editorData)
             let langs = [...Object.keys(newData), ...languages, selectedLanguage]
             langs.forEach((lang) => {
                 if (!(lang in newData)) {
@@ -289,7 +289,7 @@ export const IvrPrompts: React.FC = () => {
     const updatePromptKey = (rawValue: string): void => {
         let value = rawValue.trim()
         if (editId) {
-            let newData = cloneDeep(editorData)
+            let newData: Prompts = cloneDeep(editorData)
             newData[selectedLanguage][editId] = value
             setEditorData(newData)
         }
@@ -427,8 +427,9 @@ export const IvrPrompts: React.FC = () => {
                                 {({formData}) => (
                                     <SaveButton
                                         disabled={
-                                            !formData?.value ||
-                                            formData?.value === editorData[selectedLanguage][editId]
+                                            !formData?.value?.trim() ||
+                                            formData?.value?.trim() ===
+                                                editorData[selectedLanguage][editId]
                                         }
                                         sx={{marginInline: "1rem"}}
                                     />
