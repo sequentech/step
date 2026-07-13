@@ -24,11 +24,13 @@ pub async fn review_cast_votes() -> Result<()> {
         .get()
         .await
         .map_err(|e| anyhow!("Error getting hasura client {e:?}"))?;
-    // Read-only transaction: intentionally dropped without commit (rollback)
-    // at the end of the task, it only provides a consistent snapshot for the
-    // paginated reads below.
+    // Read-only transaction: PostgreSQL rejects any write inside it, and it is
+    // dropped without commit (rollback) at the end of the task. It only serves
+    // as the read context for the keyset-paginated scan below.
     let hasura_transaction = hasura_db_client
-        .transaction()
+        .build_transaction()
+        .read_only(true)
+        .start()
         .await
         .map_err(|e| anyhow!("Error creating a hasura transaction {e:?}"))?;
     let celery_app = get_celery_app().await;
