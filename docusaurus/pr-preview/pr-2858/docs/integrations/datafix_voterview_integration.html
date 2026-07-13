@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Datafix / VoterView vote synchronization | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2858/docs/integrations/datafix_voterview_integration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Datafix / VoterView vote synchronization | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2858/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2858/docs/integrations/datafix_voterview_integration"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2858/docs/integrations/datafix_voterview_integration" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2858/docs/integrations/datafix_voterview_integration" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Datafix / VoterView vote synchronization","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2858/docs/integrations/datafix_voterview_integration"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2858/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2858/assets/js/runtime~main.54376959.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2858/assets/js/runtime~main.636dfaf1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2858/assets/js/main.e27899e8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -85,9 +85,13 @@ voter, validates the template, claims the vote, and calls out:</p>
 <p><strong>She shows up to vote in person.</strong> She cannot, while the system believes she
 already voted online, so a back-office operator disables her in the Admin
 Portal. That calls the Hasura <code>edit_user</code> action and reaches <strong>Harvest
-<code>/edit-user</code></strong>, which is synchronous—the operator needs the outcome before
-letting her vote in person. Harvest recognizes a <em>disable</em> transition on a
-Datafix voter who holds a <code>valid</code> vote and runs a reversible sequence:</p>
+<code>/edit-user</code></strong>. Because this is a Datafix voter, Harvest does not edit inline: it
+records a task, hands the work to the <code>edit_user</code> Windmill task, and returns
+immediately so the operator&#x27;s Save is not blocked by the (retried) external call.
+The operator follows the outcome—success, or a reason to retry—in the Admin
+Portal&#x27;s task-execution widget. Under the per-voter lock the worker recognizes a
+<em>disable</em> transition on a Datafix voter who holds a <code>valid</code> vote and runs a
+reversible sequence:</p>
 <ol>
 <li class=""><strong><code>quarantine_valid_cast_votes</code></strong> flips her <code>valid</code> ballots to
 <code>indeterminate</code> (tagged <code>set-not-voted</code>) and returns their IDs. They stop
@@ -95,7 +99,7 @@ counting immediately—before any external call—and the saved IDs make the ste
 undoable.</li>
 <li class="">
 <blockquote>
-<p><strong>Harvest → VoterView (SOAP) <code>SetNotVoted</code></strong> — &quot;Nadia has not voted online;
+<p><strong>Windmill → VoterView (SOAP) <code>SetNotVoted</code></strong> — &quot;Nadia has not voted online;
 release her.&quot; The idempotent &quot;has not voted&quot; reply also counts as success.</p>
 </blockquote>
 </li>
