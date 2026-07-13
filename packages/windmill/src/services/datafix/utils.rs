@@ -271,7 +271,11 @@ pub async fn post_operation_result_to_electoral_log(
 mod tests {
     use super::*;
 
-    fn voter_info(ward: &str, schoolboard: Option<&str>, poll: Option<&str>) -> VoterInformationBody {
+    fn voter_info(
+        ward: &str,
+        schoolboard: Option<&str>,
+        poll: Option<&str>,
+    ) -> VoterInformationBody {
         VoterInformationBody {
             voter_id: "voter-1".to_string(),
             ward: ward.to_string(),

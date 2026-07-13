@@ -3,14 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::cast_vote::get_voter_cast_vote_state;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::datafix::utils::{
+    datafix_annotations, datafix_voter_lock_key, is_datafix_election_event, DATAFIX_VOTER_LOCK_SECS,
+};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::get_username_by_id;
 use anyhow::{anyhow, Context, Result};
@@ -111,9 +116,174 @@ impl InsertCastVoteInput {
 
 pub type InsertCastVoteOutput = CastVote;
 
+/// Outcome of a cast-vote insert, distinguishing the follow-up each needs:
+/// `Success` is a final `valid` vote, `PendingDatafix` is an `in-progress` vote
+/// the caller must enqueue for the async Datafix pipeline, and
+/// `SkipRetryFailure` is a terminal error the caller should surface as-is.
 pub enum InsertCastVoteResult {
     Success(InsertCastVoteOutput),
+    PendingDatafix(InsertCastVoteOutput),
     SkipRetryFailure(CastVoteError),
+}
+
+/// Maps a freshly inserted row to its `InsertCastVoteResult` from the persisted
+/// status: `in-progress` still needs Datafix processing, `valid` is final. Any
+/// other status is unreachable for a new insert and surfaces as an error.
+fn classify_inserted_cast_vote(
+    cast_vote: InsertCastVoteOutput,
+) -> Result<InsertCastVoteResult, CastVoteError> {
+    match cast_vote.status {
+        CastVoteStatus::InProgress => Ok(InsertCastVoteResult::PendingDatafix(cast_vote)),
+        CastVoteStatus::Valid => Ok(InsertCastVoteResult::Success(cast_vote)),
+        status => Err(CastVoteError::UnknownError(format!(
+            "Unexpected initial cast vote status: {status}"
+        ))),
+    }
+}
+
+/// Decides the status a new vote is inserted with: Datafix events start
+/// `in-progress` so the async pipeline can confirm eligibility, ordinary events
+/// start `valid`. Fails closed if the Datafix configuration is malformed.
+fn initial_cast_vote_status(
+    election_event: &ElectionEvent,
+) -> Result<CastVoteStatus, CastVoteError> {
+    if is_datafix_election_event(election_event) {
+        Ok(CastVoteStatus::InProgress)
+    } else {
+        Ok(CastVoteStatus::Valid)
+    }
+}
+
+/// Releases a Datafix voter lock, logging on failure. Lock cleanup is
+/// best-effort — a failed release only delays reacquisition until the lock
+/// expires, so it must never mask the caller's own error.
+async fn release_datafix_voter_lock(lock: PgLock) {
+    if let Err(err) = lock.release().await {
+        error!("Error releasing the Datafix voter lock: {err}");
+    }
+}
+
+/// Rejects a Datafix insert when the voter still has an `indeterminate` ballot
+/// awaiting reconciliation, so a fresh vote can't race an in-flight release.
+/// Runs inside the caller's already-locked transaction.
+async fn reject_if_voter_unresolved(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+) -> Result<(), CastVoteError> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| CastVoteError::UuidParseFailed(err.to_string(), "tenant_id".into()))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id).map_err(|err| {
+        CastVoteError::UuidParseFailed(err.to_string(), "election_event_id".into())
+    })?;
+    let state = get_voter_cast_vote_state(
+        hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        voter_id,
+    )
+    .await
+    .map_err(|err| CastVoteError::CheckPreviousVotesFailed(err.to_string()))?;
+    if state.has_indeterminate_vote {
+        return Err(CastVoteError::VoterStateLocked(
+            "A previous Datafix vote requires reconciliation".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Inserts a Datafix vote under the per-voter lease, owning the whole lock and
+/// connection lifecycle so `try_insert_cast_vote` stays free of it.
+///
+/// The caller must already have released its read transaction and connection (a
+/// `Transaction` borrows its `Client`, so the commit/drop can't move in here) —
+/// this is also required for pool safety: no connection is held while blocking on
+/// the lease. This acquires the `(tenant, event, voter)` lease on a fresh
+/// connection, rejects a voter with an unresolved `indeterminate` vote, inserts +
+/// commits, and always releases the lease before returning.
+#[allow(clippy::too_many_arguments)]
+async fn insert_datafix_cast_vote_locked<'a>(
+    input: InsertCastVoteInput,
+    election_event: ElectionEvent,
+    voting_channel: VotingStatusChannel,
+    ids: CastVoteIds<'a>,
+    signing_key: StrandSignatureSk,
+    auth_time: &Option<i64>,
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
+    voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
+    is_early_voting_area: bool,
+    initial_status: CastVoteStatus,
+) -> Result<CastVote, CastVoteError> {
+    let lock = PgLock::acquire(
+        datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
+        Uuid::new_v4().to_string(),
+        ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
+    )
+    .await
+    .map_err(|err| CastVoteError::VoterStateLocked(err.to_string()))?;
+
+    let mut hasura_db_client = match get_hasura_pool().await.get().await {
+        Ok(client) => client,
+        Err(err) => {
+            release_datafix_voter_lock(lock).await;
+            return Err(CastVoteError::GetDbClientFailed(err.to_string()));
+        }
+    };
+    let hasura_transaction = match hasura_db_client.transaction().await {
+        Ok(transaction) => transaction,
+        Err(err) => {
+            release_datafix_voter_lock(lock).await;
+            return Err(CastVoteError::GetTransactionFailed(err.to_string()));
+        }
+    };
+
+    if let Err(err) = reject_if_voter_unresolved(
+        &hasura_transaction,
+        ids.tenant_id,
+        ids.election_event_id,
+        ids.voter_id,
+    )
+    .await
+    {
+        drop(hasura_transaction);
+        drop(hasura_db_client);
+        release_datafix_voter_lock(lock).await;
+        return Err(err);
+    }
+
+    let result = insert_cast_vote_and_commit(
+        input,
+        hasura_transaction,
+        election_event,
+        voting_channel,
+        ids,
+        signing_key,
+        auth_time,
+        voter_ip,
+        voter_country,
+        voter_signature_data,
+        is_early_voting_area,
+        initial_status,
+    )
+    .await;
+
+    drop(hasura_db_client);
+    release_datafix_voter_lock(lock).await;
+    result
+}
+
+/// Maps a post-insert error to the caller's retry contract: an exceeded revote
+/// limit is terminal and surfaced as `SkipRetryFailure`, every other error
+/// propagates for the normal retry path.
+fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
+    match cast_vote_err {
+        CastVoteError::InsertFailedExceedsAllowedRevotes => {
+            Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
+        }
+        _ => Err(cast_vote_err),
+    }
 }
 
 #[derive(Debug)]
@@ -132,12 +302,16 @@ pub enum CastVoteError {
     AreaNotFound,
     #[serde(rename = "election_event_not_found")]
     ElectionEventNotFound(String),
+    #[serde(rename = "invalid_datafix_configuration")]
+    InvalidDatafixConfiguration(String),
     #[serde(rename = "electoral_log_not_found")]
     ElectoralLogNotFound(String),
     #[serde(rename = "check_status_failed")]
     CheckStatusFailed(String),
     #[serde(rename = "check_status_internal_failed")]
     CheckStatusInternalFailed(String),
+    #[serde(rename = "voter_state_locked")]
+    VoterStateLocked(String),
     #[serde(rename = "check_previous_votes_failed")]
     CheckPreviousVotesFailed(String),
     #[serde(rename = "check_revotes_failed")]
@@ -214,16 +388,6 @@ pub async fn try_insert_cast_vote(
         .await
         .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool().await.get().await.map_err(|e| {
-        error!("Error getting keycloak db client {}", e);
-        CastVoteError::GetDbClientFailed(e.to_string())
-    })?;
-
-    let keycloak_transaction = keycloak_db_client.transaction().await.map_err(|e| {
-        error!("Error getting keycloak transaction {}", e);
-        CastVoteError::GetDbClientFailed(e.to_string())
-    })?;
-
     let area_opt = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
         .map_err(|e| CastVoteError::GetAreaIdFailed(e.to_string()))?;
@@ -238,6 +402,8 @@ pub async fn try_insert_cast_vote(
         get_election_event_by_id(&hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
+
+    let initial_status = initial_cast_vote_status(&election_event)?;
 
     let presentation_opt = election_event
         .get_presentation()
@@ -293,34 +459,100 @@ pub async fn try_insert_cast_vote(
     };
     let is_early_voting_area = area_presentation.is_early_voting();
 
-    let result = insert_cast_vote_and_commit(
-        input,
-        hasura_transaction,
-        election_event.clone(),
-        voting_channel,
-        ids,
-        signing_key,
-        auth_time,
-        voter_ip,
-        voter_country,
-        &voter_signature_data,
-        is_early_voting_area,
-    )
-    .await;
+    // Datafix votes are inserted under a per-voter lease that owns its own
+    // connection/lock lifecycle (see `insert_datafix_cast_vote_locked`); ordinary
+    // votes reuse this read transaction directly. Either way the connection is
+    // released before the audit below, which re-acquires its own.
+    let result = match initial_status {
+        CastVoteStatus::InProgress => {
+            // Release the read transaction and its connection before locking: the
+            // txn borrows the client, and a voter blocked on the lease must not
+            // pin a pool connection.
+            hasura_transaction
+                .commit()
+                .await
+                .map_err(|err| CastVoteError::CommitFailed(err.to_string()))?;
+            drop(hasura_db_client);
+            insert_datafix_cast_vote_locked(
+                input,
+                election_event.clone(),
+                voting_channel,
+                ids,
+                signing_key,
+                auth_time,
+                voter_ip,
+                voter_country,
+                &voter_signature_data,
+                is_early_voting_area,
+                initial_status,
+            )
+            .await
+        }
+        _ => {
+            let result = insert_cast_vote_and_commit(
+                input,
+                hasura_transaction,
+                election_event.clone(),
+                voting_channel,
+                ids,
+                signing_key,
+                auth_time,
+                voter_ip,
+                voter_country,
+                &voter_signature_data,
+                is_early_voting_area,
+                initial_status,
+            )
+            .await;
+            drop(hasura_db_client);
+            result
+        }
+    };
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let realm = get_event_realm(tenant_id, election_event_id);
-    let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)
-        .await
-        .map_err(|e| CastVoteError::UnknownError(format!("Error get_username_by_id {e:?}")))?;
+    let username = async {
+        let mut client = get_keycloak_pool()
+            .await
+            .get()
+            .await
+            .map_err(|err| format!("Error getting Keycloak client: {err}"))?;
+        let transaction = client
+            .transaction()
+            .await
+            .map_err(|err| format!("Error starting Keycloak transaction: {err}"))?;
+        get_username_by_id(&transaction, &realm, voter_id)
+            .await
+            .map_err(|err| format!("Error getting username: {err:?}"))
+    }
+    .await;
 
     match result {
         Ok(inserted_cast_vote) => {
-            let after_result_hasura_transaction = hasura_db_client
-                .transaction()
-                .await
-                .map_err(|e| CastVoteError::GetTransactionFailed(e.to_string()))?;
+            let username = match username {
+                Ok(username) => username,
+                Err(err) => {
+                    error!("Error getting the username after cast-vote commit: {err}");
+                    return classify_inserted_cast_vote(inserted_cast_vote);
+                }
+            };
+            let mut hasura_db_client = match get_hasura_pool().await.get().await {
+                Ok(client) => client,
+                Err(err) => {
+                    error!("Error getting a Hasura client for cast-vote audit: {err}");
+                    return classify_inserted_cast_vote(inserted_cast_vote);
+                }
+            };
+            let after_result_hasura_transaction =
+                hasura_db_client.transaction().await.map_err(|err| {
+                    error!("Error starting the cast-vote audit transaction: {err}");
+                    err
+                });
+            let after_result_hasura_transaction = match after_result_hasura_transaction {
+                Ok(transaction) => transaction,
+                Err(_) => return classify_inserted_cast_vote(inserted_cast_vote),
+            };
 
             let voter_signing_key = voter_signature_data.clone().map(|val| val.0);
             let electoral_log_res = ElectoralLog::for_voter(
@@ -337,7 +569,7 @@ pub async fn try_insert_cast_vote(
                 Ok(electoral_log) => electoral_log,
                 Err(err) => {
                     error!("Error getting the electoral log for voter. Error: {err:?}");
-                    return Ok(InsertCastVoteResult::Success(inserted_cast_vote));
+                    return classify_inserted_cast_vote(inserted_cast_vote);
                 }
             };
 
@@ -358,10 +590,18 @@ pub async fn try_insert_cast_vote(
             if let Err(log_err) = log_result {
                 error!("Error posting to the electoral log {:?}", log_err);
             }
-            Ok(InsertCastVoteResult::Success(inserted_cast_vote))
+            classify_inserted_cast_vote(inserted_cast_vote)
         }
         Err(cast_vote_err) => {
             error!(err=?cast_vote_err);
+
+            let username = match username {
+                Ok(username) => username,
+                Err(err) => {
+                    error!("Error getting the username for cast-vote error audit: {err}");
+                    return skip_or_propagate(cast_vote_err);
+                }
+            };
 
             let log_result = electoral_log
                 .post_cast_vote_error(
@@ -382,12 +622,7 @@ pub async fn try_insert_cast_vote(
                 error!("Error posting error to the electoral log {:?}", log_err);
             }
 
-            match cast_vote_err {
-                CastVoteError::InsertFailedExceedsAllowedRevotes => {
-                    Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
-                }
-                _ => Err(cast_vote_err),
-            }
+            skip_or_propagate(cast_vote_err)
         }
     }
 }
@@ -548,6 +783,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_country: &Option<String>,
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
+    initial_status: CastVoteStatus,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
@@ -605,6 +841,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
         voter_ip,
         voter_country,
+        initial_status,
     );
 
     let cast_vote = insert.await.map_err(|e| {
@@ -911,7 +1148,11 @@ async fn check_previous_votes(
             election_event_uuid,
             election_uuid,
             voter_id_string,
-            &[CastVoteStatus::Valid, CastVoteStatus::InProgress],
+            &[
+                CastVoteStatus::Valid,
+                CastVoteStatus::InProgress,
+                CastVoteStatus::Indeterminate,
+            ],
         )
     )
     .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;
@@ -978,4 +1219,60 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn election_event(annotations: Option<serde_json::Value>) -> ElectionEvent {
+        ElectionEvent {
+            id: "event".to_string(),
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations,
+            tenant_id: "tenant".to_string(),
+            description: None,
+            presentation: None,
+            bulletin_board_reference: None,
+            is_archived: false,
+            voting_channels: None,
+            status: None,
+            user_boards: None,
+            encryption_protocol: "protocol".to_string(),
+            is_audit: None,
+            audit_election_event_id: None,
+            public_key: None,
+            statistics: None,
+            external_id: None,
+        }
+    }
+
+    #[test]
+    fn ordinary_events_insert_valid_votes_without_async_processing() {
+        let status = initial_cast_vote_status(&election_event(None)).unwrap();
+        assert_eq!(status, CastVoteStatus::Valid);
+    }
+
+    #[test]
+    fn configured_datafix_events_insert_pending_votes() {
+        let annotations = json!({
+            "datafix:id": "external-event",
+            "datafix:password_policy": r#"{"base":"password-only","size":6,"characters":"numeric"}"#,
+            "datafix:voterview_request": r#"{"url":"https://example.invalid","usr":"user","psw":"secret","county_mun":"county"}"#
+        });
+        let status = initial_cast_vote_status(&election_event(Some(annotations))).unwrap();
+        assert_eq!(status, CastVoteStatus::InProgress);
+    }
+
+    #[test]
+    fn malformed_datafix_configuration_fails_closed() {
+        let annotations = json!({"datafix:id": "external-event"});
+        assert!(matches!(
+            initial_cast_vote_status(&election_event(Some(annotations))),
+            Err(CastVoteError::InvalidDatafixConfiguration(_))
+        ));
+    }
 }

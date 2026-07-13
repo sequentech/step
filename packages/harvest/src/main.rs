@@ -84,7 +84,7 @@ async fn rocket() -> _ {
                 routes::users::get_users,
                 routes::users::count_users,
                 routes::users::get_user,
-                routes::users::edit_user_f,
+                routes::users::edit_user,
                 routes::users::get_user_profile_attributes,
                 routes::roles::list_user_roles,
                 routes::roles::set_user_role,
