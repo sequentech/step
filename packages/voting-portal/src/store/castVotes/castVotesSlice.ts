@@ -25,7 +25,7 @@ export interface ICastVote {
     cast_ballot_signature?: string | null
     voter_id_string?: string | null
     election_event_id: string
-    status?: string | null
+    status?: CastVoteStatus | null
 }
 
 export interface CastVoteState {
