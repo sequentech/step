@@ -43,12 +43,14 @@ pub struct PreparedSoapRequest {
 
 impl PreparedSoapRequest {
     /// SHA-256 of the template that produced this request, for the audit trail.
+    #[instrument(skip_all)]
     pub fn template_sha256(&self) -> &str {
         &self.template_sha256
     }
 }
 
 impl SoapRequest {
+    #[instrument]
     fn template_name(self) -> &'static str {
         match self {
             Self::SetVoted => PUBLIC_ASSETS_VOTERVIEW_SETVOTED_TEMPLATE,
@@ -56,6 +58,7 @@ impl SoapRequest {
         }
     }
 
+    #[instrument]
     fn operation_name(self) -> &'static str {
         match self {
             Self::SetVoted => "SetVoted",
@@ -63,6 +66,7 @@ impl SoapRequest {
         }
     }
 
+    #[instrument]
     fn result_name(self) -> &'static str {
         match self {
             Self::SetVoted => "SetVotedResult",
@@ -75,6 +79,7 @@ impl SoapRequest {
 /// returns `(rendered_body, template_sha256)`. The rendered output is checked
 /// for the invariants a correct template can never violate (see
 /// [`validate_rendered_xml`]); its structure is left to the template.
+#[instrument(skip(annotations), err)]
 async fn render_request(
     request: SoapRequest,
     annotations: &DatafixAnnotations,
@@ -115,6 +120,7 @@ async fn render_request(
 /// stays a template edit, not a code change. Well-formedness catches template
 /// typos; the value check catches a mistyped Handlebars variable (renders empty)
 /// and an escaping bug that would let voter-supplied data inject XML.
+#[instrument(skip_all, err)]
 fn validate_rendered_xml(body: &str, expected: &SoapRequestData<'_>) -> Result<()> {
     let document = Document::parse(body).context("Rendered VoterView template is not valid XML")?;
     let texts: Vec<&str> = document
@@ -141,6 +147,7 @@ fn validate_rendered_xml(body: &str, expected: &SoapRequestData<'_>) -> Result<(
 
 /// Returns the SOAP `Body`, rejecting anything that is not a SOAP 1.1/1.2
 /// `Envelope`, so a stray HTML error page never reaches the response parser.
+#[instrument(skip_all, err)]
 fn soap_body<'a, 'input>(document: &'a Document<'input>) -> Result<Node<'a, 'input>> {
     let envelope = document.root_element();
     let namespace = envelope.tag_name().namespace();
@@ -155,6 +162,7 @@ fn soap_body<'a, 'input>(document: &'a Document<'input>) -> Result<Node<'a, 'inp
 /// Returns the single child element with `name` in `namespace`. Both "missing"
 /// and "more than one" are errors: an ambiguous `Success` element must never be
 /// read as a definitive outcome.
+#[instrument(skip(parent), err)]
 fn exactly_one_child<'a, 'input>(
     parent: Node<'a, 'input>,
     name: &str,
@@ -176,6 +184,7 @@ fn exactly_one_child<'a, 'input>(
 
 /// Trimmed text of the single `name` child; errors when the element is missing,
 /// duplicated, or empty.
+#[instrument(skip(parent), err)]
 fn child_text(parent: Node<'_, '_>, name: &str, namespace: &str) -> Result<String> {
     let element = exactly_one_child(parent, name, namespace)?;
     element
@@ -188,6 +197,7 @@ fn child_text(parent: Node<'_, '_>, name: &str, namespace: &str) -> Result<Strin
 
 /// Collapses whitespace, strips trailing punctuation and lowercases, so a known
 /// message ("the voter has already voted") is matched despite formatting drift.
+#[instrument]
 fn normalize_message(message: &str) -> String {
     message
         .split_whitespace()
@@ -202,6 +212,7 @@ fn normalize_message(message: &str) -> String {
 /// becomes the idempotent `AlreadyVoted`/`AlreadyNotVoted`, otherwise `Rejected`.
 /// Any unparseable body or unexpected `Success` value is an error, never a
 /// silent success.
+#[instrument(skip(response_text), err)]
 fn parse_response(
     status: StatusCode,
     response_text: &str,
@@ -246,6 +257,7 @@ fn parse_response(
 }
 
 /// Reads the response body and hands it to [`parse_response`] with its status.
+#[instrument(skip(response), err)]
 async fn read_response(response: Response, request: SoapRequest) -> Result<SoapRequestResponse> {
     let status = response.status();
     let response_text = response

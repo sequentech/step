@@ -66,6 +66,7 @@ pub enum DatafixErrorCode {
 
 impl DatafixErrorCode {
     /// The HTTP status the Datafix API contract pairs with this error code.
+    #[instrument]
     pub fn status(self) -> Status {
         match self {
             Self::VoterAlreadyExists
@@ -249,6 +250,7 @@ pub enum SoapRequestResponse {
 impl SoapRequestResponse {
     /// Stable, low-cardinality tag for the electoral log—never the raw VoterView
     /// message, which may contain sensitive data.
+    #[instrument(skip_all)]
     pub fn classification(&self) -> &'static str {
         match self {
             Self::Ok => "ok",

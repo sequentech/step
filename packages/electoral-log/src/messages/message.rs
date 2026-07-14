@@ -12,6 +12,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
+use tracing::instrument;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
@@ -52,6 +53,7 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    #[instrument(skip_all, err)]
     pub fn external_api_request_message(
         event_id: EventIdString,
         election_id: ElectionIdString,

@@ -136,6 +136,7 @@ pub async fn add_datafix_voter(
 /// Maps a failed Keycloak user creation to the Datafix API error contract: a
 /// 409 from Keycloak means the username is already taken, so the caller gets
 /// `voter-already-exists`; anything else stays an internal error.
+#[instrument(skip_all)]
 fn create_user_error_response(e: &anyhow::Error) -> JsonErrorResponse {
     match e.downcast_ref::<KeycloakError>() {
         Some(KeycloakError::HttpFailure { status: 409, .. }) => {

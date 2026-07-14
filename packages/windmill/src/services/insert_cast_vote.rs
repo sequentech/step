@@ -129,6 +129,7 @@ pub enum InsertCastVoteResult {
 /// Maps a freshly inserted row to its `InsertCastVoteResult` from the persisted
 /// status: `in-progress` still needs Datafix processing, `valid` is final. Any
 /// other status is unreachable for a new insert and surfaces as an error.
+#[instrument(skip_all, err)]
 fn classify_inserted_cast_vote(
     cast_vote: InsertCastVoteOutput,
 ) -> Result<InsertCastVoteResult, CastVoteError> {
@@ -144,6 +145,7 @@ fn classify_inserted_cast_vote(
 /// Decides the status a new vote is inserted with: Datafix events start
 /// `in-progress` so the async pipeline can confirm eligibility, ordinary events
 /// start `valid`. Fails closed if the Datafix configuration is malformed.
+#[instrument(skip_all, err)]
 fn initial_cast_vote_status(
     election_event: &ElectionEvent,
 ) -> Result<CastVoteStatus, CastVoteError> {
@@ -157,6 +159,7 @@ fn initial_cast_vote_status(
 /// Releases a Datafix voter lock, logging on failure. Lock cleanup is
 /// best-effort — a failed release only delays reacquisition until the lock
 /// expires, so it must never mask the caller's own error.
+#[instrument(skip_all)]
 async fn release_datafix_voter_lock(lock: PgLock) {
     if let Err(err) = lock.release().await {
         error!("Error releasing the Datafix voter lock: {err}");
@@ -166,6 +169,7 @@ async fn release_datafix_voter_lock(lock: PgLock) {
 /// Rejects a Datafix insert when the voter still has an `indeterminate` ballot
 /// awaiting reconciliation, so a fresh vote can't race an in-flight release.
 /// Runs inside the caller's already-locked transaction.
+#[instrument(skip(hasura_transaction), err)]
 async fn reject_if_voter_unresolved(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -202,6 +206,7 @@ async fn reject_if_voter_unresolved(
 /// the lease. This acquires the `(tenant, event, voter)` lease on a fresh
 /// connection, rejects a voter with an unresolved `indeterminate` vote, inserts +
 /// commits, and always releases the lease before returning.
+#[instrument(skip_all, err)]
 #[allow(clippy::too_many_arguments)]
 async fn insert_datafix_cast_vote_locked<'a>(
     input: InsertCastVoteInput,
@@ -277,6 +282,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
 /// Maps a post-insert error to the caller's retry contract: an exceeded revote
 /// limit is terminal and surfaced as `SkipRetryFailure`, every other error
 /// propagates for the normal retry path.
+#[instrument]
 fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes => {

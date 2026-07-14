@@ -72,7 +72,15 @@ pub struct EditUserOutput {
 /// widget. `max_retries = 0`: a retry would re-issue the non-idempotent
 /// `SetNotVoted` request, so a failure is terminal and left for the operator to
 /// resolve (a repeated save resumes the release via the pending marker).
-#[instrument(err)]
+#[instrument(
+    skip_all,
+    fields(
+        tenant_id = %body.tenant_id,
+        election_event_id = %body.election_event_id,
+        user_id = %body.user_id
+    ),
+    err
+)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn edit_user(body: EditUserTaskBody, task_execution: TasksExecution) -> Result<()> {
@@ -92,24 +100,28 @@ pub async fn edit_user(body: EditUserTaskBody, task_execution: TasksExecution) -
 
 /// A save that flips an enabled voter to disabled, which triggers the
 /// quarantine → `SetNotVoted` → discard release path.
+#[instrument]
 fn is_disable_transition(current: Option<bool>, requested: Option<bool>) -> bool {
     current == Some(true) && requested == Some(false)
 }
 
 /// A save that flips a disabled voter back to enabled; only allowed once any
 /// pending release has cleared.
+#[instrument]
 fn is_reenable_transition(current: Option<bool>, requested: Option<bool>) -> bool {
     current == Some(false) && requested == Some(true)
 }
 
 /// A save that keeps a disabled voter disabled; may need to resume an
 /// interrupted release.
+#[instrument]
 fn is_repeated_disable(current: Option<bool>, requested: Option<bool>) -> bool {
     current == Some(false) && requested == Some(false)
 }
 
 /// Whether a `SetNotVoted` response means the external system now agrees the
 /// voter has not voted, so the quarantined ballots can be discarded.
+#[instrument]
 fn set_not_voted_converged(response: &SoapRequestResponse) -> bool {
     matches!(
         response,
@@ -119,6 +131,7 @@ fn set_not_voted_converged(response: &SoapRequestResponse) -> bool {
 
 /// Whether the voter carries the durable marker left by an interrupted release,
 /// meaning a `SetNotVoted` is still owed before the voter may be re-enabled.
+#[instrument(skip_all)]
 fn has_pending_voter_release(attributes: &HashMap<String, Vec<String>>) -> bool {
     matches!(
         attributes
@@ -154,6 +167,7 @@ struct VoterReleasePlan {
 /// Derives the [`VoterReleasePlan`] for an edit and enforces the state guards:
 /// a re-enable is refused while the voting state is unresolved, and a release
 /// is refused for a voter who voted through another channel.
+#[instrument(skip(current_attributes), err)]
 fn plan_voter_release(
     current_enabled: Option<bool>,
     requested_enabled: Option<bool>,
@@ -201,6 +215,7 @@ fn plan_voter_release(
 /// Rejects edits to the fields an admin may not change on a Datafix voter: the
 /// username (the VoterView identifier), the voted channel and the disable
 /// reason.
+#[instrument(skip_all, err)]
 fn validate_datafix_immutable_fields(
     body: &EditUserTaskBody,
     current_user: &User,
@@ -224,6 +239,7 @@ fn validate_datafix_immutable_fields(
 
 /// Loads the election event the edit targets, needed for its Datafix
 /// configuration when rendering `SetNotVoted`.
+#[instrument(err)]
 async fn load_election_event(
     tenant_id: &str,
     election_event_id: &str,
@@ -235,6 +251,7 @@ async fn load_election_event(
 
 /// Single-round snapshot of the voter's cast-vote states, used to decide whether
 /// a disable needs a release and whether a re-enable is safe.
+#[instrument(err)]
 async fn voter_cast_vote_state(
     tenant_id: &str,
     election_event_id: &str,
@@ -250,6 +267,7 @@ async fn voter_cast_vote_state(
 /// Moves the voter's `valid` ballots to `indeterminate` (tagged `set-not-voted`)
 /// and commits, returning the affected ids so they can be restored if the
 /// release is later abandoned.
+#[instrument(err)]
 async fn quarantine_voter_cast_votes(
     tenant_id: &str,
     election_event_id: &str,
@@ -273,6 +291,7 @@ async fn quarantine_voter_cast_votes(
 
 /// Reverses a quarantine by moving the given ballots back to `valid`, used when
 /// the release is ambiguous and must be undone. A no-op for an empty id list.
+#[instrument(err)]
 async fn restore_voter_cast_votes(
     tenant_id: &str,
     election_event_id: &str,
@@ -300,6 +319,7 @@ async fn restore_voter_cast_votes(
 /// Renews the per-voter lock and restores the quarantined ballots, returning a
 /// human-readable reason on failure. Used to unwind a release that could not be
 /// dispatched, so the lock is confirmed still held before touching the votes.
+#[instrument(skip(ctx), err)]
 async fn restore_pre_dispatch_cast_votes(
     ctx: &DatafixEditCtx<'_>,
     cast_vote_ids: &[Uuid],
@@ -320,6 +340,7 @@ async fn restore_pre_dispatch_cast_votes(
 /// Durably records that the voter's quarantined ballots are awaiting a
 /// `SetNotVoted`, so a repeated save resumes the release instead of restarting
 /// it.
+#[instrument(err)]
 async fn mark_voter_cast_votes_release_pending(
     tenant_id: &str,
     election_event_id: &str,
@@ -336,6 +357,7 @@ async fn mark_voter_cast_votes_release_pending(
 
 /// Discards the voter's ballots and clears the pending marker once `SetNotVoted`
 /// has converged, completing the release.
+#[instrument(err)]
 async fn discard_released_voter_cast_votes(
     tenant_id: &str,
     election_event_id: &str,
@@ -352,6 +374,7 @@ async fn discard_released_voter_cast_votes(
 
 /// Resets the voted-channel and disable-comment attributes on re-enable so a
 /// previously released voter starts clean; a no-op when neither marker is set.
+#[instrument(skip(user), err)]
 async fn clear_voter_release_markers(
     realm: &str,
     voter_id: &str,
@@ -391,6 +414,7 @@ async fn clear_voter_release_markers(
 
 /// Records the outcome of a disabled-voter release in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the user edit.
+#[instrument(skip(ctx))]
 async fn audit_datafix_user_operation(ctx: &DatafixEditCtx<'_>, username: &str, operation: String) {
     let Ok(mut client) = get_hasura_pool().await.get().await else {
         error!("Unable to get a DB connection for the Datafix audit entry");
@@ -417,6 +441,7 @@ async fn audit_datafix_user_operation(ctx: &DatafixEditCtx<'_>, username: &str, 
 
 /// Applies the edit in Keycloak; on failure the outcome is indeterminate, so
 /// the quarantined ballots are restored before reporting the error.
+#[instrument(skip_all, err)]
 async fn edit_keycloak_user_with_rollback(
     ctx: &DatafixEditCtx<'_>,
     client: KeycloakAdminClient,
@@ -454,6 +479,7 @@ async fn edit_keycloak_user_with_rollback(
 /// response. The quarantine is unwound while the request has not been
 /// dispatched; once sent, an error means the VoterView state is indeterminate
 /// and is audited instead.
+#[instrument(skip(ctx, election_event), err)]
 async fn dispatch_set_not_voted(
     ctx: &DatafixEditCtx<'_>,
     election_event: ElectionEvent,
@@ -533,6 +559,7 @@ async fn dispatch_set_not_voted(
 /// Settles a dispatched `SetNotVoted`: restores the ballots on an explicit
 /// rejection, audits the outcome, and on convergence clears the voter's
 /// release markers and discards the released ballots.
+#[instrument(skip(ctx, user, response), err)]
 async fn settle_set_not_voted_outcome(
     ctx: &DatafixEditCtx<'_>,
     user: User,
@@ -608,6 +635,7 @@ async fn settle_set_not_voted_outcome(
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
 /// plans the release, quarantines the ballots, applies the Keycloak edit and,
 /// when a `SetNotVoted` is owed, dispatches it and settles its outcome.
+#[instrument(skip(ctx, election_event), err)]
 async fn run_datafix_voter_edit(
     ctx: &DatafixEditCtx<'_>,
     election_event: ElectionEvent,
@@ -705,6 +733,7 @@ async fn run_datafix_voter_edit(
 /// (leaving a durable pending marker) on an ambiguous outcome; a re-enable is
 /// refused while a release is still pending. Returns `Ok(())` on success or a
 /// human-readable failure reason recorded on the task widget.
+#[instrument(skip(body), err)]
 async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Result<(), String> {
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
     let election_event = load_election_event(&body.tenant_id, &body.election_event_id)

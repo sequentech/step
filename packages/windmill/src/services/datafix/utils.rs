@@ -30,6 +30,7 @@ pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 /// Advisory-lock key that serializes all Datafix work for one voter within an
 /// event, so outbound `SetVoted`, disable-release and inbound mark/unmark cannot
 /// interleave for the same voter.
+#[instrument]
 pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &str) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
@@ -112,6 +113,7 @@ pub async fn get_event_id_and_datafix_annotations(
 /// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
 /// ignored (e.g. `WARD-POLL` when there is no SchoolSupportCode,
 /// `WARD-SCHOOL` when there is no Poll). All values are uppercased.
+#[instrument(skip_all)]
 fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     let mut parts = vec![voter_info.ward.clone()];
 
@@ -223,6 +225,7 @@ pub fn is_datafix_election_event(election_event: &ElectionEvent) -> bool {
 
 /// Returns `None` for an ordinary event and validates the full Datafix
 /// configuration whenever the event contains the Datafix marker.
+#[instrument(skip(election_event), err)]
 pub fn datafix_annotations(election_event: &ElectionEvent) -> Result<Option<DatafixAnnotations>> {
     let is_configured = election_event
         .annotations
