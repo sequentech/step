@@ -30,12 +30,24 @@ pub struct MarkVotedBody {
     pub channel: String,
 }
 
+/// Stable, machine-readable `error_code` values of the Datafix API error
+/// contract: new codes may be added, but existing ones never change meaning.
+#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DatafixErrorCode {
+    #[strum(serialize = "voter-already-exists")]
+    #[serde(rename = "voter-already-exists")]
+    VoterAlreadyExists,
+}
+
 /// JSON body of every Datafix API reply, carrying the HTTP status code and its
 /// reason phrase so a client that only reads the body still sees the outcome.
+/// Errors may additionally carry a [`DatafixErrorCode`].
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DatafixResponse {
     pub code: u16,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<DatafixErrorCode>,
 }
 
 /// Error half of the Datafix route `Result`. Structurally identical to the
@@ -50,6 +62,21 @@ impl DatafixResponse {
         Json(DatafixResponse {
             code: status.code,
             message: status.reason().unwrap_or_default().to_string(),
+            error_code: None,
+        })
+    }
+
+    /// Builds an error body that also carries one of the stable
+    /// machine-readable [`DatafixErrorCode`] values.
+    #[instrument]
+    pub fn with_error_code(
+        status: Status,
+        error_code: DatafixErrorCode,
+    ) -> JsonErrorResponse {
+        Json(DatafixResponse {
+            code: status.code,
+            message: status.reason().unwrap_or_default().to_string(),
+            error_code: Some(error_code),
         })
     }
 }
@@ -208,4 +235,35 @@ pub struct SoapRequestData<'a> {
     pub psw: &'a str,
     pub voter_id: &'a str,
     pub timestamp: &'a str,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DatafixErrorCode, DatafixResponse};
+    use rocket::http::Status;
+
+    #[test]
+    fn error_body_carries_the_stable_error_code() {
+        let response = DatafixResponse::with_error_code(
+            Status::Conflict,
+            DatafixErrorCode::VoterAlreadyExists,
+        );
+        assert_eq!(
+            serde_json::to_value(&*response).unwrap(),
+            serde_json::json!({
+                "code": 409,
+                "message": "Conflict",
+                "error_code": "voter-already-exists"
+            })
+        );
+    }
+
+    #[test]
+    fn body_without_error_code_omits_the_field() {
+        let response = DatafixResponse::new(Status::Ok);
+        assert_eq!(
+            serde_json::to_value(&*response).unwrap(),
+            serde_json::json!({"code": 200, "message": "OK"})
+        );
+    }
 }

@@ -15,6 +15,7 @@ use anyhow::Result;
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
+use keycloak::KeycloakError;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
@@ -128,9 +129,24 @@ pub async fn add_datafix_voter(
         .await
         .map_err(|e| {
             error!("Error creating user: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            create_user_error_response(&e)
         })?;
     Ok(DatafixResponse::new(Status::Ok))
+}
+
+/// Maps a failed Keycloak user creation to the Datafix API error contract: a
+/// 409 from Keycloak means the username is already taken, so the caller gets
+/// `voter-already-exists`; anything else stays an internal error.
+fn create_user_error_response(e: &anyhow::Error) -> JsonErrorResponse {
+    match e.downcast_ref::<KeycloakError>() {
+        Some(KeycloakError::HttpFailure { status: 409, .. }) => {
+            DatafixResponse::with_error_code(
+                Status::Conflict,
+                DatafixErrorCode::VoterAlreadyExists,
+            )
+        }
+        _ => DatafixResponse::new(Status::InternalServerError),
+    }
 }
 
 /// There are 2 things that can be updated, the area and the birthdate.
@@ -714,7 +730,44 @@ pub fn valid_inbound_voting_channel(channel: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::valid_inbound_voting_channel;
+    use super::{create_user_error_response, valid_inbound_voting_channel};
+    use crate::services::datafix::types::DatafixErrorCode;
+    use keycloak::KeycloakError;
+    use rocket::http::Status;
+
+    /// Builds the error `create_user` returns when Keycloak answers with the
+    /// given HTTP status.
+    fn keycloak_http_failure(status: u16) -> anyhow::Error {
+        let err = KeycloakError::HttpFailure {
+            status,
+            body: None,
+            text: String::new(),
+        };
+        let message = format!("Failed to create user in keycloak: {err:?}");
+        anyhow::Error::new(err).context(message)
+    }
+
+    #[test]
+    fn create_user_conflict_maps_to_voter_already_exists() {
+        let response = create_user_error_response(&keycloak_http_failure(409));
+        assert_eq!(response.code, Status::Conflict.code);
+        assert_eq!(
+            response.error_code,
+            Some(DatafixErrorCode::VoterAlreadyExists)
+        );
+    }
+
+    #[test]
+    fn other_create_user_failures_stay_internal_errors() {
+        let response = create_user_error_response(&keycloak_http_failure(504));
+        assert_eq!(response.code, Status::InternalServerError.code);
+        assert_eq!(response.error_code, None);
+
+        let stringified = anyhow::anyhow!("Failed to create user in keycloak");
+        let response = create_user_error_response(&stringified);
+        assert_eq!(response.code, Status::InternalServerError.code);
+        assert_eq!(response.error_code, None);
+    }
 
     #[test]
     fn inbound_voting_channel_rejects_reserved_values() {
