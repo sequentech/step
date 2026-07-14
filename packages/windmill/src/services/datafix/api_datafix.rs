@@ -583,7 +583,9 @@ pub async fn ensure_inbound_reenable_is_safe(
         || voted_via_internet(&attributes)
         || voted_via_not_internet_channel(&attributes)
     {
-        return Err(DatafixResponse::error(DatafixErrorCode::VoterStateUnresolved));
+        return Err(DatafixResponse::error(
+            DatafixErrorCode::VoterStateUnresolved,
+        ));
     }
     Ok(())
 }
@@ -761,18 +763,12 @@ mod tests {
     fn other_create_user_failures_stay_internal_errors() {
         let response = create_user_error_response(&keycloak_http_failure(504));
         assert_eq!(response.0, Status::InternalServerError);
-        assert_eq!(
-            response.1.error_code,
-            Some(DatafixErrorCode::InternalError)
-        );
+        assert_eq!(response.1.error_code, Some(DatafixErrorCode::InternalError));
 
         let stringified = anyhow::anyhow!("Failed to create user in keycloak");
         let response = create_user_error_response(&stringified);
         assert_eq!(response.0, Status::InternalServerError);
-        assert_eq!(
-            response.1.error_code,
-            Some(DatafixErrorCode::InternalError)
-        );
+        assert_eq!(response.1.error_code, Some(DatafixErrorCode::InternalError));
     }
 
     #[test]

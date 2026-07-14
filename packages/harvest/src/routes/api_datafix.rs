@@ -152,7 +152,9 @@ pub async fn update_voter(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+                return Err(DatafixResponse::error(
+                    DatafixErrorCode::InternalError,
+                ));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -293,7 +295,9 @@ pub async fn delete_voter(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+                return Err(DatafixResponse::error(
+                    DatafixErrorCode::InternalError,
+                ));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -404,7 +408,9 @@ pub async fn unmark_voted(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+                return Err(DatafixResponse::error(
+                    DatafixErrorCode::InternalError,
+                ));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -582,7 +588,9 @@ pub async fn mark_voted(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+                return Err(DatafixResponse::error(
+                    DatafixErrorCode::InternalError,
+                ));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -758,7 +766,9 @@ pub async fn replace_pin(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+                return Err(DatafixResponse::error(
+                    DatafixErrorCode::InternalError,
+                ));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;

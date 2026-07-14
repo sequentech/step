@@ -287,8 +287,7 @@ mod tests {
 
     #[test]
     fn error_reply_carries_the_documented_status_and_error_code() {
-        let response =
-            DatafixResponse::error(DatafixErrorCode::VoterAlreadyExists);
+        let response = DatafixResponse::error(DatafixErrorCode::VoterAlreadyExists);
         assert_eq!(response.0, Status::Conflict);
         assert_eq!(
             serde_json::to_value(&*response.1).unwrap(),
@@ -303,15 +302,47 @@ mod tests {
     #[test]
     fn error_codes_keep_their_documented_wire_names_and_statuses() {
         let contract = [
-            (DatafixErrorCode::VoterAlreadyExists, "voter-already-exists", Status::Conflict),
-            (DatafixErrorCode::VoterOperationInProgress, "voter-operation-in-progress", Status::Conflict),
-            (DatafixErrorCode::VoterStateUnresolved, "voter-state-unresolved", Status::Conflict),
-            (DatafixErrorCode::VoterNotFound, "voter-not-found", Status::NotFound),
-            (DatafixErrorCode::AreaNotFound, "area-not-found", Status::UnprocessableEntity),
-            (DatafixErrorCode::EventNotFound, "event-not-found", Status::NotFound),
-            (DatafixErrorCode::InvalidRequest, "invalid-request", Status::BadRequest),
+            (
+                DatafixErrorCode::VoterAlreadyExists,
+                "voter-already-exists",
+                Status::Conflict,
+            ),
+            (
+                DatafixErrorCode::VoterOperationInProgress,
+                "voter-operation-in-progress",
+                Status::Conflict,
+            ),
+            (
+                DatafixErrorCode::VoterStateUnresolved,
+                "voter-state-unresolved",
+                Status::Conflict,
+            ),
+            (
+                DatafixErrorCode::VoterNotFound,
+                "voter-not-found",
+                Status::NotFound,
+            ),
+            (
+                DatafixErrorCode::AreaNotFound,
+                "area-not-found",
+                Status::UnprocessableEntity,
+            ),
+            (
+                DatafixErrorCode::EventNotFound,
+                "event-not-found",
+                Status::NotFound,
+            ),
+            (
+                DatafixErrorCode::InvalidRequest,
+                "invalid-request",
+                Status::BadRequest,
+            ),
             (DatafixErrorCode::Forbidden, "forbidden", Status::Forbidden),
-            (DatafixErrorCode::InternalError, "internal-error", Status::InternalServerError),
+            (
+                DatafixErrorCode::InternalError,
+                "internal-error",
+                Status::InternalServerError,
+            ),
         ];
         for (code, wire_name, status) in contract {
             assert_eq!(

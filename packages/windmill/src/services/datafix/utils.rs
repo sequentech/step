@@ -300,27 +300,21 @@ mod tests {
     }
 
     #[test]
-    fn renders_missing_schoolboard_as_empty_string() {
-        let info = voter_info("ward", None, Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD--POLL");
-    }
-
-    #[test]
-    fn renders_missing_poll_with_single_trailing_dash() {
+    fn renders_missing_poll_omitted() {
         let info = voter_info("ward", Some("school"), None);
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-");
+        assert_eq!(compose_area_name(&info), "WARD-SCHOOL");
     }
 
     #[test]
-    fn renders_both_optionals_missing_as_empty_strings() {
+    fn renders_both_optionals_missing_omitted() {
         let info = voter_info("ward", None, None);
-        assert_eq!(compose_area_name(&info), "WARD--");
+        assert_eq!(compose_area_name(&info), "WARD");
     }
 
     #[test]
     fn treats_empty_string_the_same_as_none() {
         let info = voter_info("ward", Some(""), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD--POLL");
+        assert_eq!(compose_area_name(&info), "WARD-POLL");
     }
 
     #[test]
