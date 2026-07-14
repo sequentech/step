@@ -514,6 +514,7 @@ const catalanTranslation: TranslationType = {
                     deleteError: "No s'ha pogut eliminar",
                 },
                 config: {
+                    configuredPhone: "Número de telèfon configurat",
                     infoMsg:
                         "Configureu el flux de l’IVR i les seves propietats a continuació. Per a més informació, poseu-vos en contacte amb Sequent.",
                 },
