@@ -512,6 +512,7 @@ const dutchTranslation: TranslationType = {
                     deleteError: "Verwijderen mislukt",
                 },
                 config: {
+                    configuredPhone: "Geconfigureerd telefoonnummer",
                     infoMsg:
                         "Configureer hieronder de IVR-flow en de bijbehorende eigenschappen. Neem voor meer informatie contact op met Sequent.",
                 },

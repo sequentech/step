@@ -513,6 +513,7 @@ const tagalogTranslation: TranslationType = {
                     deleteError: "Nabigong tanggalin",
                 },
                 config: {
+                    configuredPhone: "Na-configure na numero ng telepono",
                     infoMsg:
                         "I-configure ang IVR flow at ang mga property nito sa ibaba. Para sa higit pang detalye, makipag-ugnayan sa Sequent.",
                 },

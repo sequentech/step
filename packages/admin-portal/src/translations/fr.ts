@@ -514,6 +514,7 @@ const frenchTranslation: TranslationType = {
                     deleteError: "Échec de la suppression",
                 },
                 config: {
+                    configuredPhone: "Numéro de téléphone configuré",
                     infoMsg:
                         "Configurez le flux du SVI et ses propriétés ci-dessous. Pour plus de détails, veuillez contacter Sequent.",
                 },

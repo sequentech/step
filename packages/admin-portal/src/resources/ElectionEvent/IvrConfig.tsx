@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
 import {useNotify, useRecordContext, useRefresh, useUpdate} from "react-admin"
-import {Box, Button} from "@mui/material"
+import {Box, Button, TextField} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {IVR_CONFIG_ANNOTATION} from "@/utils/ivr"
+import {IVR_CONFIG_ANNOTATION, IVR_PHONE_NUMBER_ANNOTATION} from "@/utils/ivr"
 import {DefaultValueFunction, JsonEditor} from "json-edit-react"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
@@ -20,6 +20,10 @@ export const IvrConfig: React.FC = () => {
     const [update] = useUpdate()
 
     const annotations = (record?.annotations ?? {}) as Record<string, unknown>
+    const initialPhone =
+        typeof annotations[IVR_PHONE_NUMBER_ANNOTATION] === "string"
+            ? (annotations[IVR_PHONE_NUMBER_ANNOTATION] as string)
+            : ""
     const stringConfig =
         typeof annotations[IVR_CONFIG_ANNOTATION] === "string"
             ? (annotations[IVR_CONFIG_ANNOTATION] as string)
@@ -35,11 +39,12 @@ export const IvrConfig: React.FC = () => {
 
     const [saving, setSaving] = useState(false)
     const [editorData, setEditorData] = useState(parsedConfig)
-    const pendingConfigPayload = useMemo(() => {
+    const [phoneNumber, setPhoneNumber] = useState<string>(initialPhone)
+    const pendingConfigPayload = useMemo<string>(() => {
         return JSON.stringify(editorData)
     }, [editorData])
 
-    const dirty = pendingConfigPayload !== stringConfig
+    const dirty = pendingConfigPayload !== stringConfig || phoneNumber != initialPhone
     useEffect(() => {
         setEditorData(parsedConfig)
     }, [parsedConfig])
@@ -66,6 +71,7 @@ export const IvrConfig: React.FC = () => {
                     annotations: {
                         ...annotations,
                         [IVR_CONFIG_ANNOTATION]: pendingConfigPayload,
+                        [IVR_PHONE_NUMBER_ANNOTATION]: phoneNumber,
                     },
                 },
                 previousData: record,
@@ -89,6 +95,11 @@ export const IvrConfig: React.FC = () => {
             <ElectionHeaderStyles.SubTitle>
                 {t("electionEventScreen.ivr.config.infoMsg")}
             </ElectionHeaderStyles.SubTitle>
+            <TextField
+                label={t("electionEventScreen.ivr.config.configuredPhone")}
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.trim())}
+            />
             <JsonEditor
                 data={editorData}
                 rootName="ivr:config"
