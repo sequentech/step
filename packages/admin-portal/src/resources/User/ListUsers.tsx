@@ -883,7 +883,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     // widget for it. Non-Datafix edits return no task, so this is not called.
     const handleEditUserTask = (taskExecutionId: string) => {
         const currWidget = addWidget(ETasksExecution.EDIT_USER, undefined)
-        setWidgetTaskId(currWidget.identifier, taskExecutionId)
+        setWidgetTaskId(currWidget.identifier, taskExecutionId, refresh)
     }
 
     const listFields = useMemo(() => {
