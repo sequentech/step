@@ -44,7 +44,7 @@ export const IvrConfig: React.FC = () => {
         return JSON.stringify(editorData)
     }, [editorData])
 
-    const dirty = pendingConfigPayload !== stringConfig || phoneNumber != initialPhone
+    const dirty = pendingConfigPayload !== stringConfig || phoneNumber !== initialPhone
     useEffect(() => {
         setEditorData(parsedConfig)
     }, [parsedConfig])
