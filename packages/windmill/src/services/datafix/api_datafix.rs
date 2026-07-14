@@ -16,7 +16,6 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use keycloak::KeycloakError;
-use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
 use sequent_core::services::date::ISO8601;
@@ -46,7 +45,7 @@ pub async fn disable_datafix_voter(
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let user_id = get_user_id(keycloak_transaction, realm, username).await?;
@@ -73,9 +72,9 @@ pub async fn disable_datafix_voter(
         .await
         .map_err(|e| {
             error!("Error editing user: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
-    Ok(DatafixResponse::new(Status::Ok))
+    Ok(DatafixResponse::ok())
 }
 
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
@@ -91,7 +90,7 @@ pub async fn add_datafix_voter(
     let username = &voter_info.voter_id;
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let area = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
@@ -108,7 +107,7 @@ pub async fn add_datafix_voter(
     if let Some(birthdate) = voter_info.birthdate.clone() {
         verify_date_format_ymd(&birthdate).map_err(|e| {
             error!("Birthdate format is not correct: {e:?}");
-            DatafixResponse::new(Status::BadRequest)
+            DatafixResponse::error(DatafixErrorCode::InvalidRequest)
         })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
@@ -122,7 +121,7 @@ pub async fn add_datafix_voter(
     };
     let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|e| {
         error!("Error getting env var KEYCLOAK_VOTER_GROUP_NAME: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let _user = client
         .create_user(realm, &user, attributes, Some(vec![voter_group_name]))
@@ -131,7 +130,7 @@ pub async fn add_datafix_voter(
             error!("Error creating user: {e:?}");
             create_user_error_response(&e)
         })?;
-    Ok(DatafixResponse::new(Status::Ok))
+    Ok(DatafixResponse::ok())
 }
 
 /// Maps a failed Keycloak user creation to the Datafix API error contract: a
@@ -140,12 +139,9 @@ pub async fn add_datafix_voter(
 fn create_user_error_response(e: &anyhow::Error) -> JsonErrorResponse {
     match e.downcast_ref::<KeycloakError>() {
         Some(KeycloakError::HttpFailure { status: 409, .. }) => {
-            DatafixResponse::with_error_code(
-                Status::Conflict,
-                DatafixErrorCode::VoterAlreadyExists,
-            )
+            DatafixResponse::error(DatafixErrorCode::VoterAlreadyExists)
         }
-        _ => DatafixResponse::new(Status::InternalServerError),
+        _ => DatafixResponse::error(DatafixErrorCode::InternalError),
     }
 }
 
@@ -164,7 +160,7 @@ pub async fn update_datafix_voter(
     let username = voter_info.voter_id.clone();
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let area = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
@@ -179,7 +175,7 @@ pub async fn update_datafix_voter(
     if let Some(birthdate) = voter_info.birthdate.clone() {
         verify_date_format_ymd(&birthdate).map_err(|e| {
             error!("Birthdate format is not correct: {e:?}");
-            DatafixResponse::new(Status::BadRequest)
+            DatafixResponse::error(DatafixErrorCode::InvalidRequest)
         })?;
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate]);
     }
@@ -202,9 +198,9 @@ pub async fn update_datafix_voter(
         .await
         .map_err(|e| {
             error!("Error editing user: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
-    Ok(DatafixResponse::new(Status::Ok))
+    Ok(DatafixResponse::ok())
 }
 
 /// Mark a voter as having voted via a given channel
@@ -221,7 +217,7 @@ pub async fn mark_as_voted_via_channel(
     let username = voter_body.voter_id.clone();
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let mut hash_map = HashMap::new();
@@ -249,9 +245,9 @@ pub async fn mark_as_voted_via_channel(
         .await
         .map_err(|e| {
             error!("Error editing user: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
-    Ok(DatafixResponse::new(Status::Ok))
+    Ok(DatafixResponse::ok())
 }
 
 /// Unmark a voter as having voted, set the attribute to None
@@ -268,7 +264,7 @@ pub async fn unmark_voter_as_voted(
     let username = voter_id.to_string();
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let mut hash_map = HashMap::new();
@@ -298,9 +294,9 @@ pub async fn unmark_voter_as_voted(
         .await
         .map_err(|e| {
             error!("Error editing user: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
-    Ok(DatafixResponse::new(Status::Ok))
+    Ok(DatafixResponse::ok())
 }
 
 /// Generate a new password.
@@ -332,17 +328,21 @@ pub async fn replace_voter_pin(
                 .unwrap_or_default();
             if !user.enabled.unwrap_or(true) {
                 warn!("Cannot replace pin because the user is disabled.");
-                return Err(DatafixResponse::new(Status::BadRequest));
+                return Err(DatafixResponse::error(DatafixErrorCode::InvalidRequest));
             }
             user.id.unwrap_or_default()
         }
+        Ok((_, 0)) => {
+            warn!("Error getting users by username: Not Found");
+            return Err(DatafixResponse::error(DatafixErrorCode::VoterNotFound));
+        }
         Ok(_) => {
             warn!("Error getting users by username: Must be only one user per username");
-            return Err(DatafixResponse::new(Status::NotFound));
+            return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
         }
         Err(e) => {
             error!("Error looking up user: {e:?}");
-            return Err(DatafixResponse::new(Status::InternalServerError));
+            return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
         }
     };
 
@@ -353,7 +353,7 @@ pub async fn replace_voter_pin(
 
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let _user = client
@@ -365,7 +365,7 @@ pub async fn replace_voter_pin(
         .await
         .map_err(|e| {
             error!("Error editing user: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     Ok(pin)
@@ -395,11 +395,11 @@ pub async fn acquire_inbound_voter_lock(
 ) -> Result<InboundVoterLock, JsonErrorResponse> {
     let mut hasura_client: DbClient = get_hasura_pool().await.get().await.map_err(|err| {
         error!("Error getting Hasura client for the inbound Datafix lock: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let hasura_transaction = hasura_client.transaction().await.map_err(|err| {
         error!("Error starting Hasura transaction for the inbound Datafix lock: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let (election_event_id, datafix_annotations) = get_event_id_and_datafix_annotations(
         &hasura_transaction,
@@ -420,7 +420,7 @@ pub async fn acquire_inbound_voter_lock(
     .await
     .map_err(|err| {
         error!("Another operation is updating this Datafix voter: {err}");
-        DatafixResponse::new(Status::Conflict)
+        DatafixResponse::error(DatafixErrorCode::VoterOperationInProgress)
     })?;
     Ok(InboundVoterLock {
         lock,
@@ -447,7 +447,7 @@ async fn renew_inbound_voter_lock(lock: &PgLock) -> Result<(), JsonErrorResponse
         .await
         .map_err(|err| {
             error!("The inbound Datafix voter lock was lost: {err}");
-            DatafixResponse::new(Status::Conflict)
+            DatafixResponse::error(DatafixErrorCode::VoterOperationInProgress)
         })
 }
 
@@ -470,18 +470,18 @@ async fn discard_inbound_voter_cast_votes(
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
     let tenant_id = parse_uuid_v4(&claims.tenant_id).map_err(|err| {
         error!("Invalid tenant ID while discarding Datafix cast votes: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let election_event_id = parse_uuid_v4(&election_event_id).map_err(|err| {
         error!("Invalid election event ID while discarding Datafix cast votes: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     finalize_voter_release(hasura_transaction, &tenant_id, &election_event_id, &user_id)
         .await
         .map_err(|err| {
             error!("Error discarding cast votes for an inbound Datafix operation: {err}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     Ok(())
 }
@@ -507,11 +507,11 @@ pub async fn quarantine_inbound_voter_cast_votes(
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
     let tenant_id = parse_uuid_v4(&claims.tenant_id).map_err(|err| {
         error!("Invalid tenant ID while quarantining Datafix cast votes: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let election_event_id = parse_uuid_v4(&election_event_id).map_err(|err| {
         error!("Invalid election event ID while quarantining Datafix cast votes: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
 
     let cast_vote_ids = quarantine_valid_cast_votes(
@@ -524,7 +524,7 @@ pub async fn quarantine_inbound_voter_cast_votes(
     .await
     .map_err(|err| {
         error!("Error quarantining cast votes for an inbound Datafix operation: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     Ok(cast_vote_ids)
 }
@@ -548,9 +548,9 @@ pub async fn ensure_inbound_reenable_is_safe(
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
     let tenant_id = parse_uuid_v4(&claims.tenant_id)
-        .map_err(|_| DatafixResponse::new(Status::InternalServerError))?;
+        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
     let election_event_uuid = parse_uuid_v4(&election_event_id)
-        .map_err(|_| DatafixResponse::new(Status::InternalServerError))?;
+        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
     let state = get_voter_cast_vote_state(
         hasura_transaction,
         &tenant_id,
@@ -560,15 +560,15 @@ pub async fn ensure_inbound_reenable_is_safe(
     .await
     .map_err(|err| {
         error!("Error checking unresolved votes before enabling a Datafix voter: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let client = KeycloakAdminClient::new().await.map_err(|err| {
         error!("Error creating a Keycloak client before enabling a Datafix voter: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let user = client.get_user(&realm, &user_id).await.map_err(|err| {
         error!("Error loading a Datafix voter before enabling it: {err}");
-        DatafixResponse::new(Status::InternalServerError)
+        DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let attributes = user.attributes.unwrap_or_default();
     let pending_release = matches!(
@@ -583,7 +583,7 @@ pub async fn ensure_inbound_reenable_is_safe(
         || voted_via_internet(&attributes)
         || voted_via_not_internet_channel(&attributes)
     {
-        return Err(DatafixResponse::new(Status::Conflict));
+        return Err(DatafixResponse::error(DatafixErrorCode::VoterStateUnresolved));
     }
     Ok(())
 }
@@ -695,17 +695,17 @@ pub async fn complete_inbound_voter_vote_change(
         renew_inbound_voter_lock(&lock).await?;
         let mut client: DbClient = get_hasura_pool().await.get().await.map_err(|err| {
             error!("Error getting Hasura client to finalize inbound Datafix votes: {err}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
         let transaction = client.transaction().await.map_err(|err| {
             error!("Error starting transaction to finalize inbound Datafix votes: {err}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
         discard_inbound_voter_cast_votes(&transaction, keycloak_transaction, claims, username)
             .await?;
         transaction.commit().await.map_err(|err| {
             error!("Error committing inbound Datafix cast-vote finalization: {err}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
         Ok(())
     }
@@ -750,9 +750,9 @@ mod tests {
     #[test]
     fn create_user_conflict_maps_to_voter_already_exists() {
         let response = create_user_error_response(&keycloak_http_failure(409));
-        assert_eq!(response.code, Status::Conflict.code);
+        assert_eq!(response.0, Status::Conflict);
         assert_eq!(
-            response.error_code,
+            response.1.error_code,
             Some(DatafixErrorCode::VoterAlreadyExists)
         );
     }
@@ -760,13 +760,19 @@ mod tests {
     #[test]
     fn other_create_user_failures_stay_internal_errors() {
         let response = create_user_error_response(&keycloak_http_failure(504));
-        assert_eq!(response.code, Status::InternalServerError.code);
-        assert_eq!(response.error_code, None);
+        assert_eq!(response.0, Status::InternalServerError);
+        assert_eq!(
+            response.1.error_code,
+            Some(DatafixErrorCode::InternalError)
+        );
 
         let stringified = anyhow::anyhow!("Failed to create user in keycloak");
         let response = create_user_error_response(&stringified);
-        assert_eq!(response.code, Status::InternalServerError.code);
-        assert_eq!(response.error_code, None);
+        assert_eq!(response.0, Status::InternalServerError);
+        assert_eq!(
+            response.1.error_code,
+            Some(DatafixErrorCode::InternalError)
+        );
     }
 
     #[test]

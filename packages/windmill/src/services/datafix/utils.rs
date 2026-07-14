@@ -12,7 +12,6 @@ use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
-use rocket::http::Status;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::UserArea;
 use sequent_core::types::keycloak::{
@@ -69,7 +68,7 @@ pub async fn get_event_id_and_datafix_annotations(
         .await
         .map_err(|err| {
             error!("Error getting election events: {err}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
@@ -106,7 +105,7 @@ pub async fn get_event_id_and_datafix_annotations(
     }
 
     warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
-    return Err(DatafixResponse::new(Status::NotFound));
+    return Err(DatafixResponse::error(DatafixErrorCode::EventNotFound));
 }
 
 /// Composes the area name from the voter information, following the naming contract:
@@ -149,7 +148,7 @@ pub async fn find_user_area_by_name(
         .await
         .map_err(|e| {
             error!("Error getting event areas: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     // Find the id that matches the full name.
@@ -171,7 +170,7 @@ pub async fn find_user_area_by_name(
         }),
         None => {
             error!("Error. Area not found for {}", area_concat);
-            Err(DatafixResponse::new(Status::NotFound))
+            Err(DatafixResponse::error(DatafixErrorCode::AreaNotFound))
         }
     }
 }
@@ -187,18 +186,18 @@ pub async fn get_user_id(
         .await
         .map_err(|e| {
             error!("Error getting users by username: {e:?}");
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     match user_ids.len() {
         0 => {
             error!("Error getting users by username: Not Found");
-            return Err(DatafixResponse::new(Status::NotFound));
+            return Err(DatafixResponse::error(DatafixErrorCode::VoterNotFound));
         }
         1 => Ok(user_ids[0].clone()),
         _ => {
             error!("Error getting users by username: Multiple users Found");
-            return Err(DatafixResponse::new(Status::NotFound));
+            return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
         }
     }
 }

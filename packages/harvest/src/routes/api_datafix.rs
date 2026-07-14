@@ -4,7 +4,6 @@
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
-use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::connection::DatafixClaims;
 use sequent_core::services::keycloak::get_event_realm;
@@ -41,18 +40,18 @@ pub async fn add_voter(
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             error!("Error getting hasura client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             error!("Error starting hasura transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let (election_event_id, _) = get_event_id_and_datafix_annotations(
@@ -101,18 +100,18 @@ pub async fn update_voter(
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let InboundVoterLock {
@@ -153,7 +152,7 @@ pub async fn update_voter(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::new(Status::InternalServerError));
+                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -171,7 +170,7 @@ pub async fn update_voter(
         )
         .await;
         release_inbound_voter_lock(lock).await;
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
@@ -247,18 +246,18 @@ pub async fn delete_voter(
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let InboundVoterLock { lock, realm, .. } = match acquire_inbound_voter_lock(
@@ -294,7 +293,7 @@ pub async fn delete_voter(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::new(Status::InternalServerError));
+                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -312,7 +311,7 @@ pub async fn delete_voter(
         )
         .await;
         release_inbound_voter_lock(lock).await;
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
@@ -358,18 +357,18 @@ pub async fn unmark_voted(
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let InboundVoterLock { lock, realm, .. } = match acquire_inbound_voter_lock(
@@ -405,7 +404,7 @@ pub async fn unmark_voted(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::new(Status::InternalServerError));
+                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -423,7 +422,7 @@ pub async fn unmark_voted(
         )
         .await;
         release_inbound_voter_lock(lock).await;
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
@@ -465,7 +464,7 @@ pub async fn unmark_voted(
         .await;
         release_inbound_voter_lock(lock).await;
         error!("Error committing inbound Datafix cast-vote quarantine: {err}");
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let transaction_result = hasura_db_client.transaction().await;
     if let Some(err) =
@@ -482,7 +481,7 @@ pub async fn unmark_voted(
         .await;
         release_inbound_voter_lock(lock).await;
         error!("Error starting the inbound Datafix service transaction: {err}");
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
@@ -525,7 +524,7 @@ pub async fn mark_voted(
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
 
     if !valid_inbound_voting_channel(&input.channel) {
@@ -536,18 +535,18 @@ pub async fn mark_voted(
             false,
         )
         .await;
-        return Err(DatafixResponse::new(Status::BadRequest));
+        return Err(DatafixResponse::error(DatafixErrorCode::InvalidRequest));
     }
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let InboundVoterLock { lock, realm, .. } = match acquire_inbound_voter_lock(
@@ -583,7 +582,7 @@ pub async fn mark_voted(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::new(Status::InternalServerError));
+                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -601,7 +600,7 @@ pub async fn mark_voted(
         )
         .await;
         release_inbound_voter_lock(lock).await;
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
@@ -643,7 +642,7 @@ pub async fn mark_voted(
         .await;
         release_inbound_voter_lock(lock).await;
         error!("Error committing inbound Datafix cast-vote quarantine: {err}");
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let transaction_result = hasura_db_client.transaction().await;
     if let Some(err) =
@@ -660,7 +659,7 @@ pub async fn mark_voted(
         .await;
         release_inbound_voter_lock(lock).await;
         error!("Error starting the inbound Datafix service transaction: {err}");
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
@@ -707,18 +706,18 @@ pub async fn replace_pin(
     )
     .map_err(|e| {
         error!("Error authorizing {e:?}");
-        DatafixResponse::new(Status::Unauthorized)
+        DatafixResponse::error(DatafixErrorCode::Forbidden)
     })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
             error!("Error getting keycloak client {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             error!("Error starting keycloak transaction {}", e);
-            DatafixResponse::new(Status::InternalServerError)
+            DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
     let InboundVoterLock {
@@ -759,7 +758,7 @@ pub async fn replace_pin(
                 )
                 .await;
                 release_inbound_voter_lock(lock).await;
-                return Err(DatafixResponse::new(Status::InternalServerError));
+                return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
             }
         };
     let transaction_result = hasura_db_client.transaction().await;
@@ -777,7 +776,7 @@ pub async fn replace_pin(
         )
         .await;
         release_inbound_voter_lock(lock).await;
-        return Err(DatafixResponse::new(Status::InternalServerError));
+        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
     }
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");

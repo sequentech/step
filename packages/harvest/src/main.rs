@@ -36,6 +36,14 @@ async fn rocket() -> _ {
                 routes::error_catchers::default
             ],
         )
+        .register(
+            "/api/datafix",
+            catchers![
+                routes::error_catchers::datafix_invalid_request,
+                routes::error_catchers::datafix_malformed_body,
+                routes::error_catchers::datafix_forbidden
+            ],
+        )
         .mount(
             "/api/datafix",
             routes![
