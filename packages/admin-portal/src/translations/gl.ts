@@ -858,6 +858,7 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "voted-channel": "Canle de voto",
                     "username": "Nome de Usuario",
                     "first_name": "Nome",
                     "last_name": "Apelidos",

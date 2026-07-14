@@ -858,6 +858,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "voted-channel": "Channel ng pagboto",
                     "username": "Username",
                     "first_name": "Unang Pangalan",
                     "last_name": "Huling Pangalan",

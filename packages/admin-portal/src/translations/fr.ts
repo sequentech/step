@@ -860,6 +860,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "voted-channel": "Canal de vote",
                     "username": "Nom d'Utilisateur",
                     "first_name": "Prénom",
                     "last_name": "Nom",

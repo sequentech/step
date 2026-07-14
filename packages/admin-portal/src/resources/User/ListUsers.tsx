@@ -93,6 +93,8 @@ import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
+export const VOTED_CHANNEL = "voted-channel"
+const VOTED_CHANNEL_RESET_VALUE = "NONE"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -219,6 +221,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         key="has_voted"
                         source={"has_voted"}
                         label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
+                    />
+                )
+                filters.push(
+                    <TextInput
+                        key={VOTED_CHANNEL}
+                        source={`attributes.${VOTED_CHANNEL}`}
+                        label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
                     />
                 )
             }
@@ -1097,6 +1106,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         )}
 
                         {renderFields(listFields.attributesFields)}
+                        {electionEventId && (
+                            <FunctionField<IUser>
+                                source={`attributes['${VOTED_CHANNEL}']`}
+                                label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
+                                render={(record) => {
+                                    const values = record?.attributes?.[VOTED_CHANNEL]
+                                    const channel = Array.isArray(values)
+                                        ? values[values.length - 1]
+                                        : values
+                                    return channel && channel !== VOTED_CHANNEL_RESET_VALUE
+                                        ? channel
+                                        : "-"
+                                }}
+                            />
+                        )}
                         {electionEventId && (
                             <FunctionField<IUser>
                                 source="has_voted"

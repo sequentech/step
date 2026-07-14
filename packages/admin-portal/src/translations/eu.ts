@@ -859,6 +859,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "voted-channel": "Boto-kanala",
                     "username": "Erabiltzaile izena",
                     "first_name": "Izena",
                     "last_name": "Abizena",
