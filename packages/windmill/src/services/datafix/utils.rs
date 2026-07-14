@@ -111,22 +111,30 @@ pub async fn get_event_id_and_datafix_annotations(
 
 /// Composes the area name from the voter information, following the naming contract:
 /// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
-/// rendered as an empty string (e.g. `WARD--POLL` when there is no SchoolSupportCode,
-/// `WARD-SCHOOL-` when there is no Poll). All values are uppercased.
+/// ignored (e.g. `WARD-POLL` when there is no SchoolSupportCode,
+/// `WARD-SCHOOL` when there is no Poll). All values are uppercased.
 fn compose_area_name(voter_info: &VoterInformationBody) -> String {
-    format!(
-        "{}-{}-{}",
-        voter_info.ward,
-        voter_info.schoolboard.as_deref().unwrap_or_default(),
-        voter_info.poll.as_deref().unwrap_or_default(),
-    )
-    .to_uppercase()
+    let mut parts = vec![voter_info.ward.clone()];
+
+    if let Some(schoolboard) = &voter_info.schoolboard {
+        if !schoolboard.is_empty() {
+            parts.push(schoolboard.clone());
+        }
+    }
+
+    if let Some(poll) = &voter_info.poll {
+        if !poll.is_empty() {
+            parts.push(poll.clone());
+        }
+    }
+
+    parts.join("-").to_uppercase()
 }
 
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
 /// Area names are a concatenation of Ward-SchoolSupportCode-Poll. The contract: <br>
-/// If any of the values is empty or None, it is included as an empty string in the concatenation:
-/// i.e. Ward--Poll (no SchoolSupportCode), Ward-SchoolSupportCode- (no Poll) <br>
+/// If any of the values is empty or None, it is omitted. <br>
+/// i.e. Ward-Poll (no SchoolSupportCode), Ward-SchoolSupportCode (no Poll) <br>
 /// All values are set to uppercase
 #[instrument(skip_all)]
 pub async fn find_user_area_by_name(
