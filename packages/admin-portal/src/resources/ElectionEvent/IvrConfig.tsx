@@ -59,6 +59,7 @@ export const IvrConfig: React.FC = () => {
         }
     }
     const handleCancel = () => {
+        setPhoneNumber(initialPhone)
         setEditorData(parsedConfig)
     }
     const handleSave = () => {
