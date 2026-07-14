@@ -20,10 +20,11 @@ export const IvrConfig: React.FC = () => {
     const [update] = useUpdate()
 
     const annotations = (record?.annotations ?? {}) as Record<string, unknown>
-    const initialPhone =
-        typeof annotations[IVR_PHONE_NUMBER_ANNOTATION] === "string"
+    const recordPhone = useMemo<string>(() => {
+        return typeof annotations[IVR_PHONE_NUMBER_ANNOTATION] === "string"
             ? (annotations[IVR_PHONE_NUMBER_ANNOTATION] as string)
             : ""
+    }, [annotations[IVR_PHONE_NUMBER_ANNOTATION]])
     const stringConfig =
         typeof annotations[IVR_CONFIG_ANNOTATION] === "string"
             ? (annotations[IVR_CONFIG_ANNOTATION] as string)
@@ -39,15 +40,18 @@ export const IvrConfig: React.FC = () => {
 
     const [saving, setSaving] = useState(false)
     const [editorData, setEditorData] = useState(parsedConfig)
-    const [phoneNumber, setPhoneNumber] = useState<string>(initialPhone)
+    const [phoneNumber, setPhoneNumber] = useState<string>(recordPhone)
     const pendingConfigPayload = useMemo<string>(() => {
         return JSON.stringify(editorData)
     }, [editorData])
 
-    const dirty = pendingConfigPayload !== stringConfig || phoneNumber !== initialPhone
+    const dirty = pendingConfigPayload !== stringConfig || phoneNumber !== recordPhone
     useEffect(() => {
         setEditorData(parsedConfig)
     }, [parsedConfig])
+    useEffect(() => {
+        setPhoneNumber(recordPhone)
+    }, [recordPhone])
 
     if (!record?.id) {
         return null
@@ -59,7 +63,7 @@ export const IvrConfig: React.FC = () => {
         }
     }
     const handleCancel = () => {
-        setPhoneNumber(initialPhone)
+        setPhoneNumber(recordPhone)
         setEditorData(parsedConfig)
     }
     const handleSave = () => {
