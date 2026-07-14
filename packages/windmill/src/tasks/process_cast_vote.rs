@@ -88,6 +88,7 @@ pub async fn process_cast_vote(
 /// earlier `indeterminate` vote (leaving this one for the beat if found),
 /// validates the event's Datafix configuration, resolves the voter, claims the
 /// vote and sends `SetVoted`, transitioning the row to its terminal status.
+#[instrument(skip(lock), fields(cast_vote_id = %cast_vote_id), err)]
 async fn process_locked_cast_vote(
     tenant_id: &str,
     election_event_id: &str,
@@ -181,6 +182,17 @@ async fn process_locked_cast_vote(
     };
     let template_sha256 = prepared.template_sha256().to_string();
     let result = datafix::voterview_requests::send_prepared(prepared).await;
+    match &result {
+        Ok(result) => info!(
+            template_sha256 = %result.template_sha256,
+            response = result.response.classification(),
+            "Datafix API response received"
+        ),
+        Err(err) => info!(
+            template_sha256 = %template_sha256,
+            "Datafix API request failed: {err}"
+        ),
+    }
 
     match result {
         Ok(result) => {
@@ -269,6 +281,7 @@ async fn process_locked_cast_vote(
 
 /// Returns whether the voter has any other `indeterminate` ballot in the event,
 /// so processing of this vote is deferred until the earlier one is reconciled.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
 async fn has_indeterminate_vote(cast_vote: &CastVote) -> Result<bool> {
     let voter_id = cast_vote
         .voter_id_string
@@ -293,6 +306,7 @@ async fn has_indeterminate_vote(cast_vote: &CastVote) -> Result<bool> {
 
 /// Loads the cast vote by id in its own short transaction, or `None` if it no
 /// longer exists.
+#[instrument(fields(cast_vote_id = %cast_vote_id), err)]
 async fn load_cast_vote(
     tenant_id: &str,
     election_event_id: &str,
@@ -316,6 +330,7 @@ async fn load_cast_vote(
 /// returning the claimed row only if this worker won the compare-and-set. `None`
 /// means the row is gone or was already claimed/advanced by another worker, so
 /// the caller must not process it.
+#[instrument(fields(cast_vote_id = %cast_vote_id), err)]
 async fn claim_cast_vote(
     tenant_id: &str,
     election_event_id: &str,
@@ -359,6 +374,7 @@ async fn claim_cast_vote(
 
 /// Loads the election event that owns the cast vote, needed for its Datafix
 /// configuration and realm.
+#[instrument(skip(cast_vote), fields(election_event_id = %cast_vote.election_event_id), err)]
 async fn load_election_event(cast_vote: &CastVote) -> Result<ElectionEvent> {
     let mut client: DbClient = get_hasura_pool()
         .await
@@ -380,6 +396,7 @@ async fn load_election_event(cast_vote: &CastVote) -> Result<ElectionEvent> {
 
 /// Returns whether the voter already has a `valid` vote for the event; a prior
 /// valid vote means this ballot must not be counted a second time.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
 async fn has_prior_valid_vote(cast_vote: &CastVote, voter_id: &str) -> Result<bool> {
     let mut client: DbClient = get_hasura_pool()
         .await
@@ -403,6 +420,7 @@ async fn has_prior_valid_vote(cast_vote: &CastVote, voter_id: &str) -> Result<bo
 /// Compare-and-sets the vote from `expected` to `next` in its own transaction,
 /// returning whether the row moved. A `false` result is logged (not an error):
 /// it means another worker already advanced the row past `expected`.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
 async fn transition_cast_vote(
     cast_vote: &CastVote,
     expected: CastVoteStatus,
@@ -441,6 +459,7 @@ async fn transition_cast_vote(
 
 /// Records the outcome of an outbound Datafix operation in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the vote itself.
+#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id))]
 async fn audit_operation(cast_vote: &CastVote, voter_id: &str, username: &str, operation: String) {
     let operation = format!("cast_vote_id={}; {operation}", cast_vote.id);
     let Ok(mut client) = get_hasura_pool().await.get().await else {
