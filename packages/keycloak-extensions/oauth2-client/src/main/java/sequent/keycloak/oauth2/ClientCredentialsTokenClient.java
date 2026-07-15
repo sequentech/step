@@ -19,7 +19,7 @@ import org.keycloak.util.JsonSerialization;
 /**
  * Shared client for the OAuth2 client_credentials grant against a Keycloak realm's token
  * endpoint. Extracted so the request-encoding and response-parsing logic exists in exactly one
- * place; see meta#1252 for the incident (an unencoded client secret containing '%' broke
+ * place; see meta#12526 for the incident (an unencoded client secret containing '%' broke
  * application/x-www-form-urlencoded decoding) that motivated pulling this out of two separately
  * copy-pasted implementations.
  */
@@ -43,9 +43,13 @@ public final class ClientCredentialsTokenClient {
             .POST(HttpRequest.BodyPublishers.ofString(formUrlEncode(data)))
             .build();
 
-    String responseBody =
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString()).join().body();
-    return extractAccessToken(responseBody);
+    try {
+      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      return extractAccessToken(response.body());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while requesting Keycloak access token", e);
+    }
   }
 
   // Percent-encodes each key/value pair so that secrets containing reserved

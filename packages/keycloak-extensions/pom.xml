@@ -148,6 +148,7 @@ SPDX-License-Identifier: AGPL-3.0-only
               <projectsDirectory>${basedir}</projectsDirectory>
               <includes>
                 <include>aws-ses-email-sender-provider/pom.xml</include>
+                <include>oauth2-client/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
                 <include>ivr-config-provider/pom.xml</include>
 				<include>dummy-email-sender-provider/pom.xml</include>
@@ -165,6 +166,7 @@ SPDX-License-Identifier: AGPL-3.0-only
               <projectsDirectory>${basedir}</projectsDirectory>
               <includes>
                 <include>aws-ses-email-sender-provider/pom.xml</include>
+                <include>oauth2-client/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
                 <include>ivr-config-provider/pom.xml</include>
 				<include>dummy-email-sender-provider/pom.xml</include>

@@ -319,8 +319,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     try {
       return ClientCredentialsTokenClient.requestAccessToken(
           client, url, this.clientId, this.clientSecret);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to parse Keycloak token response", e);
+    } catch (IOException | IllegalStateException e) {
+      throw new RuntimeException("Failed to retrieve Keycloak access token", e);
     }
   }
 

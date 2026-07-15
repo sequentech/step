@@ -5,6 +5,7 @@
 package sequent.keycloak.oauth2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
@@ -18,7 +19,7 @@ class ClientCredentialsTokenClientTest {
 
   @Test
   void formUrlEncodeSurvivesReservedFormCharacters() {
-    // Regression test for meta#1252: a secret containing '%' broke
+    // Regression test for meta#12526: a secret containing '%' broke
     // application/x-www-form-urlencoded decoding on the token request.
     Map<Object, Object> data = new HashMap<>();
     data.put("client_id", "service-account");
@@ -60,7 +61,7 @@ class ClientCredentialsTokenClientTest {
         assertThrows(
             IllegalStateException.class,
             () -> ClientCredentialsTokenClient.extractAccessToken(responseBody));
-    assertEquals(true, ex.getMessage().contains("invalid_client"));
+    assertTrue(ex.getMessage().contains("invalid_client"));
   }
 
   @Test
