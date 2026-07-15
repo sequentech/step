@@ -860,6 +860,7 @@ const catalanTranslation: TranslationType = {
                 fields: {
                     "has_voted": "Ha votat",
                     "voted-channel": "Canal de vot",
+                    "disable-comment": "Comentari de desactivació",
                     "username": "Nom d'Usuari",
                     "first_name": "Nom",
                     "last_name": "Cognom",

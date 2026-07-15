@@ -857,6 +857,7 @@ const dutchTranslation: TranslationType = {
                 fields: {
                     "has_voted": "Gestemd",
                     "voted-channel": "Stemkanaal",
+                    "disable-comment": "Deactiveringsopmerking",
                     "username": "Gebruikersnaam",
                     "first_name": "Voornaam",
                     "last_name": "Achternaam",

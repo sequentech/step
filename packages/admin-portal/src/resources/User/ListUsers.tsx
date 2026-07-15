@@ -94,7 +94,8 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
-const VOTED_CHANNEL_RESET_VALUE = "NONE"
+export const DISABLE_COMMENT = "disable-comment"
+const ATTR_RESET_VALUE = "NONE"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -1115,9 +1116,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     const channel = Array.isArray(values)
                                         ? values[values.length - 1]
                                         : values
-                                    return channel && channel !== VOTED_CHANNEL_RESET_VALUE
-                                        ? channel
-                                        : "-"
+                                    return channel && channel !== ATTR_RESET_VALUE ? channel : "-"
+                                }}
+                            />
+                        )}
+                        {electionEventId && (
+                            <FunctionField<IUser>
+                                source={`attributes['${DISABLE_COMMENT}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.disable-comment")
+                                )}
+                                render={(record) => {
+                                    const values = record?.attributes?.[DISABLE_COMMENT]
+                                    const comment = Array.isArray(values)
+                                        ? values[values.length - 1]
+                                        : values
+                                    return comment && comment !== ATTR_RESET_VALUE ? comment : "-"
                                 }}
                             />
                         )}

@@ -856,6 +856,7 @@ const englishTranslation = {
                 fields: {
                     "has_voted": "Voted",
                     "voted-channel": "Voted Channel",
+                    "disable-comment": "Disable Comment",
                     "username": "Username",
                     "first_name": "First Name",
                     "last_name": "Last Name",

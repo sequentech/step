@@ -860,6 +860,7 @@ const spanishTranslation: TranslationType = {
                 fields: {
                     "has_voted": "Voted",
                     "voted-channel": "Canal de voto",
+                    "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",
                     "first_name": "Nombre",
                     "last_name": "Apellido",

@@ -861,6 +861,7 @@ const frenchTranslation: TranslationType = {
                 fields: {
                     "has_voted": "A voté",
                     "voted-channel": "Canal de vote",
+                    "disable-comment": "Commentaire de désactivation",
                     "username": "Nom d'Utilisateur",
                     "first_name": "Prénom",
                     "last_name": "Nom",
