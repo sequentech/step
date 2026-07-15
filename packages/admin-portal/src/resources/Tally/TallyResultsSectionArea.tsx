@@ -145,8 +145,8 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             explicitInvalidVotesPercent: result.explicit_invalid_votes_percent,
             implicitInvalidVotes: result.implicit_invalid_votes,
             implicitInvalidVotesPercent: result.implicit_invalid_votes_percent,
-            blankVotes: result.blank_votes,
-            blankVotesPercent: result.blank_votes_percent,
+            blankVotes: result.total_blank_votes,
+            blankVotesPercent: result.total_blank_votes_percent,
             weight,
         }
     }, [general, weight])

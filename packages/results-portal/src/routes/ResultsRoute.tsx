@@ -279,6 +279,7 @@ export const ResultsRoute: React.FC = () => {
         if (auth.error) {
             return (
                 <StateMessage
+                    className="seq-results-state-message--sign-in-error"
                     title={t("resultsPortal.state.unexpectedErrorTitle")}
                     message={t("resultsPortal.state.signInErrorMessage")}
                 />
@@ -288,6 +289,7 @@ export const ResultsRoute: React.FC = () => {
         if (state.error) {
             return (
                 <StateMessage
+                    className="seq-results-state-message--load-error"
                     title={t("resultsPortal.state.unexpectedErrorTitle")}
                     message={t("resultsPortal.state.loadErrorMessage")}
                 />
@@ -297,6 +299,7 @@ export const ResultsRoute: React.FC = () => {
         if (state.requiresAuth) {
             return (
                 <StateMessage
+                    className="seq-results-state-message--sign-in-required"
                     title={t("resultsPortal.state.signInRequiredTitle")}
                     message={t("resultsPortal.state.signInRequiredMessage")}
                 />
@@ -306,6 +309,7 @@ export const ResultsRoute: React.FC = () => {
         if (!state.discovery) {
             return (
                 <StateMessage
+                    className="seq-results-state-message--not-published"
                     title={t("resultsPortal.state.notPublishedTitle")}
                     message={t("resultsPortal.state.notPublishedMessage")}
                 />
@@ -315,6 +319,7 @@ export const ResultsRoute: React.FC = () => {
         if (!state.manifest || !state.dataset) {
             return (
                 <StateMessage
+                    className="seq-results-state-message--missing-artifacts"
                     title={t("resultsPortal.state.notPublishedTitle")}
                     message={t("resultsPortal.state.notPublishedMessage")}
                 />
@@ -324,6 +329,7 @@ export const ResultsRoute: React.FC = () => {
         if (state.manifest.contests.length === 0) {
             return (
                 <StateMessage
+                    className="seq-results-state-message--empty-publication"
                     title={t("resultsPortal.state.notPublishedTitle")}
                     message={t("resultsPortal.state.notPublishedMessage")}
                 />

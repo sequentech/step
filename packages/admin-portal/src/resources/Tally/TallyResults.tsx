@@ -126,7 +126,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                 )
             })
             return map
-        }, [elections, tallyData?.sequent_backend_election_event])
+        }, [elections, tallyData?.sequent_backend_election])
 
         const getElectionAlias = useCallback(
             (election: Sequent_Backend_Election) =>

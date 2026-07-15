@@ -23,6 +23,7 @@ const UnexpectedResultsError: React.FC = () => {
 
     return (
         <StateMessage
+            className="seq-results-state-message--unexpected-error"
             title={t("resultsPortal.state.unexpectedErrorTitle")}
             message={t("resultsPortal.state.loadErrorMessage")}
         />
@@ -34,6 +35,7 @@ const ResultsNotPublished: React.FC = () => {
 
     return (
         <StateMessage
+            className="seq-results-state-message--not-published-route"
             title={t("resultsPortal.state.notPublishedTitle")}
             message={t("resultsPortal.state.notPublishedMessage")}
         />

@@ -28,7 +28,7 @@ const sameId = (left: unknown, right: unknown): boolean =>
     right !== undefined &&
     String(left) === String(right)
 
-const unique = (values: Array<string | null | undefined>): string[] => {
+const unique = (values: unknown[]): string[] => {
     const seen = new Set<string>()
     const output: string[] = []
 
@@ -116,28 +116,38 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
                     .map((result) => result.area_id),
             ])
 
+            const areaOptions = areaIds.map((areaId) => ({
+                id: areaId,
+                label: translatedLabel(findRow(dataset.area, areaId), locale, areaId),
+            }))
+
+            if (manifest.visibility_scope === "area_based") {
+                return areaOptions
+            }
+
             return [
                 {
                     id: null,
                     label: t("resultsPortal.globalArea"),
                 },
-                ...areaIds.map((areaId) => ({
-                    id: areaId,
-                    label: translatedLabel(findRow(dataset.area, areaId), locale, areaId),
-                })),
+                ...areaOptions,
             ]
         },
-        [dataset.area, dataset.results_area_contest, locale, manifest.contests, t]
+        [dataset.area, dataset.results_area_contest, locale, manifest, t]
     )
 
     const selectedManifestContest = useCallback(
-        (selection: PortalSelection) => {
+        (selection: PortalSelection): ResultsManifest["contests"][number] | null => {
             const selectedElectionId = selection.election?.id ?? null
             const selectedContestId = selection.contest?.id ?? null
             const selectedAreaId = selection.area?.id ?? null
             const contestManifests = manifest.contests.filter((contest) =>
                 sameId(contest.election_id, selectedElectionId)
             )
+            if (manifest.visibility_scope === "area_based" && !selectedAreaId) {
+                return null
+            }
+
             const selectedGlobalManifestContest =
                 contestManifests.find(
                     (contest) => sameId(contest.contest_id, selectedContestId) && !contest.area_id

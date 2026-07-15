@@ -17,7 +17,7 @@ export const parseMaybeJson = (value: unknown): unknown => {
 }
 
 export const translatedLabel = (
-    row: Record<string, any> | undefined,
+    row: Record<string, unknown> | undefined,
     locale: string,
     fallback = "-"
 ): string => {

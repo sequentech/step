@@ -69,7 +69,13 @@ export const SettingsWrapper: React.FC<React.PropsWithChildren> = ({children}) =
 
     return (
         <SettingsContext.Provider value={{loaded, globalSettings}}>
-            {loaded ? children : <Loader />}
+            {loaded ? (
+                children
+            ) : (
+                <div className="seq-results-settings__loader">
+                    <Loader />
+                </div>
+            )}
         </SettingsContext.Provider>
     )
 }

@@ -49,13 +49,16 @@ const buildParticipationChartData = (
     labels: ResultsAndParticipationLabels
 ) => {
     const eligibleCensus = toFiniteNumber(result.eligibleCensus)
-    if (!eligibleCensus) return []
-
     const validVotes = toFiniteNumber(result.totalValidVotes)
     const invalidVotes = toFiniteNumber(result.totalInvalidVotes)
     const blankVotes = toFiniteNumber(result.blankVotes)
     const totalVotes = toFiniteNumber(result.totalVotes)
     const totalAuditableVotes = toFiniteNumber(result.totalAuditableVotes)
+
+    if (!eligibleCensus) {
+        return [{label: labels.nonVoters, value: 100}]
+    }
+
     const countedVotes =
         totalVotes ??
         (validVotes !== null || invalidVotes !== null
@@ -174,10 +177,6 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
         [chartData]
     )
 
-    if (chartData.length === 0) {
-        return null
-    }
-
     return (
         <ChartPanel title={chartName} className="seq-tally-results-participation-chart">
             <Chart
@@ -262,8 +261,8 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                 className="seq-tally-results-participation-summary__table"
                                 sx={{minWidth: {xs: 300, sm: 500}, tableLayout: "fixed"}}
                             >
-                                <TableHead>
-                                    <TableRow>
+                                <TableHead className="seq-tally-results-participation-summary__table-head">
+                                    <TableRow className="seq-tally-results-participation-summary__heading-row">
                                         <TableCell
                                             className="seq-tally-results-participation-summary__label-heading"
                                             sx={{
@@ -287,9 +286,12 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                         </TableCell>
                                     </TableRow>
                                 </TableHead>
-                                <TableBody>
+                                <TableBody className="seq-tally-results-participation-summary__table-body">
                                     {summaryRows.map((row) => (
-                                        <TableRow key={row.label}>
+                                        <TableRow
+                                            className="seq-tally-results-participation-summary__row"
+                                            key={row.label}
+                                        >
                                             <TableCell
                                                 className="seq-tally-results-participation-summary__label-cell"
                                                 component="th"

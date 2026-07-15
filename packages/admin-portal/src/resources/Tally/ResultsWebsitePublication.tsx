@@ -28,7 +28,7 @@ import {
     Typography,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
-import {useGetList, useNotify} from "react-admin"
+import {RaRecord, useGetList, useNotify} from "react-admin"
 import {useAtomValue} from "jotai"
 import {useTranslation} from "react-i18next"
 import {
@@ -70,6 +70,17 @@ interface ResultsWebsitePublicationProps {
 type RouteScope = "event" | "election"
 type ResultsAccess = "public" | "authenticated"
 type VisibilityScope = "full_event" | "area_based"
+
+interface ResultsPublicationRecord extends RaRecord {
+    id: string
+    version: number
+    publication_status: string
+    route_scope: RouteScope
+    route_election_id?: string | null
+    access: ResultsAccess
+    published_contest_ids?: unknown
+    published_at?: string | null
+}
 
 const statusColor = (
     status?: string
@@ -194,7 +205,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         resultsWebsitePolicy?.visibility_scope,
     ])
 
-    const {data: publications, refetch: refetchPublications} = useGetList<any>(
+    const {data: publications, refetch: refetchPublications} = useGetList<ResultsPublicationRecord>(
         "sequent_backend_tally_results_publication",
         {
             pagination: {page: 1, perPage: 50},
@@ -270,7 +281,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         scopedElectionIds.length > 0 &&
         (routeScope === "event" || !!routeElectionId)
 
-    const routeUrl = (publication?: any) => {
+    const routeUrl = (publication?: ResultsPublicationRecord) => {
         const base = globalSettings.RESULTS_PORTAL_URL?.replace(/\/+$/, "")
         if (!base) return undefined
         const scope = publication?.route_scope ?? routeScope
@@ -283,17 +294,17 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         return publication?.publication_status === "Published" ? routePath : undefined
     }
 
-    const publishedContestCount = (publication: any) =>
+    const publishedContestCount = (publication: ResultsPublicationRecord) =>
         Array.isArray(publication.published_contest_ids)
             ? publication.published_contest_ids.length
             : "-"
 
     const contestLabel = (contest: Sequent_Backend_Contest) =>
-        translateFromPresentation(contest, "name", "en") ?? contest.name ?? contest.id
+        translateFromPresentation(contest, "name", "en") ?? contest.id
 
     const electionLabel = (electionId: string) => {
         const election = elections.find((item) => item.id === electionId)
-        return translateFromPresentation(election, "name", "en") ?? election?.name ?? electionId
+        return translateFromPresentation(election, "name", "en") ?? electionId
     }
 
     const handleToggleContest = (contestId: string) => {
@@ -526,7 +537,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {(publications ?? []).map((publication: any) => (
+                                {(publications ?? []).map((publication) => (
                                     <TableRow key={publication.id}>
                                         <TableCell>{publication.version}</TableCell>
                                         <TableCell>

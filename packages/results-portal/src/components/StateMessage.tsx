@@ -6,6 +6,7 @@ import React from "react"
 import {Box, Button, Stack, Typography} from "@mui/material"
 
 interface StateMessageProps {
+    className?: string
     title: string
     message: string
     actionLabel?: string
@@ -13,13 +14,14 @@ interface StateMessageProps {
 }
 
 export const StateMessage: React.FC<StateMessageProps> = ({
+    className,
     title,
     message,
     actionLabel,
     onAction,
 }) => (
     <Box
-        className="seq-results-state-message"
+        className={["seq-results-state-message", className].filter(Boolean).join(" ")}
         sx={{
             width: "100%",
             maxWidth: 760,

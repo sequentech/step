@@ -131,7 +131,7 @@ export const discoverPublication = async (
 
         return {
             source: "public-index",
-            index,
+            index: index ?? undefined,
             indexEntry,
             manifestUrl:
                 requestedManifestUrl === activeManifestUrl
@@ -143,7 +143,7 @@ export const discoverPublication = async (
     if (indexEntry?.access === "authenticated" && !token) {
         return {
             source: "public-index",
-            index,
+            index: index ?? undefined,
             indexEntry,
         }
     }
@@ -163,7 +163,7 @@ export const discoverPublication = async (
 
         return {
             source: "resolver",
-            index,
+            index: index ?? undefined,
             resolverEntry,
             manifest: resolverEntry.manifest,
             manifestUrl:
@@ -175,7 +175,7 @@ export const discoverPublication = async (
     return indexEntry
         ? {
               source: "public-index",
-              index,
+              index: index ?? undefined,
               indexEntry,
           }
         : null

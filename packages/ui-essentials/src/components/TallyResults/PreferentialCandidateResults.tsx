@@ -293,8 +293,8 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
                 }}
             >
                 <Table className="seq-tally-results-preferential-results__table">
-                    <TableHead>
-                        <TableRow>
+                    <TableHead className="seq-tally-results-preferential-results__table-head">
+                        <TableRow className="seq-tally-results-preferential-results__heading-row">
                             <TableCell
                                 className="seq-tally-results-preferential-results__candidate-heading"
                                 sx={candidateHeadingSx}
@@ -307,7 +307,12 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
                                 const isLastVisible = visibleIndex === visibleRounds.length - 1
 
                                 return (
-                                    <TableCell key={roundIndex} align="center" sx={roundHeaderSx}>
+                                    <TableCell
+                                        className="seq-tally-results-preferential-results__round-heading"
+                                        key={roundIndex}
+                                        align="center"
+                                        sx={roundHeaderSx}
+                                    >
                                         {isFirstVisible && representedRounds.start > 0 && (
                                             <RoundNavigationButton
                                                 direction="left"
@@ -331,7 +336,7 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
                             })}
                         </TableRow>
                     </TableHead>
-                    <TableBody>
+                    <TableBody className="seq-tally-results-preferential-results__table-body">
                         {name_references.map((candidate) => {
                             const candidateName = getCandidateName(candidate, candidateById)
 
@@ -360,6 +365,7 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
 
                                         return (
                                             <TableCell
+                                                className="seq-tally-results-preferential-results__round-cell"
                                                 key={roundIndex}
                                                 align="center"
                                                 sx={roundOutcomeCellSx(Boolean(outcome))}

@@ -35,6 +35,9 @@ const getNumber = (value: unknown): number | null => {
     return null
 }
 
+const getId = (value: unknown): string | number | undefined =>
+    typeof value === "string" || typeof value === "number" ? value : undefined
+
 const sameId = (left: unknown, right: unknown): boolean =>
     left !== null &&
     left !== undefined &&
@@ -42,16 +45,26 @@ const sameId = (left: unknown, right: unknown): boolean =>
     right !== undefined &&
     String(left) === String(right)
 
-const parseAnnotations = (annotations: unknown): Record<string, any> | null => {
-    if (!annotations) return null
-    if (typeof annotations === "object") return annotations as Record<string, any>
-    if (typeof annotations !== "string") return null
+interface ResultAnnotations {
+    extended_metrics?: {weight?: unknown}
+    process_results?: PreferentialProcessResults
+}
 
-    try {
-        return JSON.parse(annotations) as Record<string, any>
-    } catch {
-        return null
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+const parseAnnotations = (annotations: unknown): ResultAnnotations | null => {
+    let parsed = annotations
+
+    if (typeof annotations === "string") {
+        try {
+            parsed = JSON.parse(annotations) as unknown
+        } catch {
+            return null
+        }
     }
+
+    return isRecord(parsed) ? (parsed as ResultAnnotations) : null
 }
 
 export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
@@ -105,7 +118,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
         if (!resultContest) return null
 
         return {
-            id: resultContest.id,
+            id: getId(resultContest.id),
             eligibleCensus: getNumber(resultContest.elegible_census),
             totalAuditableVotes: getNumber(resultContest.total_auditable_votes),
             totalAuditableVotesPercent: getNumber(resultContest.total_auditable_votes_percent),
@@ -119,8 +132,10 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             explicitInvalidVotesPercent: getNumber(resultContest.explicit_invalid_votes_percent),
             implicitInvalidVotes: getNumber(resultContest.implicit_invalid_votes),
             implicitInvalidVotesPercent: getNumber(resultContest.implicit_invalid_votes_percent),
-            blankVotes: getNumber(resultContest.blank_votes),
-            blankVotesPercent: getNumber(resultContest.blank_votes_percent),
+            blankVotes: getNumber(resultContest.total_blank_votes ?? resultContest.blank_votes),
+            blankVotesPercent: getNumber(
+                resultContest.total_blank_votes_percent ?? resultContest.blank_votes_percent
+            ),
             weight: getNumber(
                 parseAnnotations(resultContest.annotations)?.extended_metrics?.weight
             ),
@@ -132,15 +147,13 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             return null
         }
 
-        return (
-            (parseAnnotations(resultContest?.annotations)?.process_results as
-                | PreferentialProcessResults
-                | undefined) ?? null
-        )
+        return parseAnnotations(resultContest?.annotations)?.process_results ?? null
     }, [contest?.counting_algorithm, resultContest?.annotations])
 
     const title =
-        resultContest?.name ??
+        (typeof resultContest?.name === "string" && resultContest.name.length > 0
+            ? resultContest.name
+            : undefined) ??
         translatedLabel(
             contest,
             locale,

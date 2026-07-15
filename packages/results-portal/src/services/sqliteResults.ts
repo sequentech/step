@@ -22,10 +22,12 @@ export const loadSqliteDatabase = async (url: string): Promise<Database> => {
     return new sql.Database(bytes)
 }
 
+type SqlValue = number | string | Uint8Array | null
+
 export const queryRows = <T extends ResultsRow = ResultsRow>(
     db: Database,
     sql: string,
-    params: any[] = []
+    params: SqlValue[] = []
 ): T[] => {
     const statement = db.prepare(sql, params)
     const rows: T[] = []

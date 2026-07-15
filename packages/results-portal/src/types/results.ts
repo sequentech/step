@@ -83,7 +83,7 @@ export interface ResultsResolverResponse {
     manifest?: ResultsManifest
 }
 
-export type ResultsRow = Record<string, any>
+export type ResultsRow = Record<string, unknown>
 
 export interface ResultsSqliteDataset {
     election_event: ResultsRow[]

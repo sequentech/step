@@ -13,15 +13,10 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useCustomCss} from "@/providers/CustomCssContextProvider"
 import {useResultsManifest} from "@/providers/ResultsManifestContextProvider"
 import {useResultsAuth} from "@/providers/ResultsAuthContextProvider"
+import {CustomCssStylesheet} from "@/components/CustomCssStylesheet"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
-`
-
-const StyledAppWrapper = styled(Stack, {
-    shouldForwardProp: (prop) => prop !== "customCss",
-})<{customCss: string}>`
-    ${({customCss}) => customCss}
 `
 
 const StyledMain = styled(PageBanner)`
@@ -82,16 +77,12 @@ export const App: React.FC = () => {
     const {customCss} = useCustomCss()
 
     return (
-        <StyledAppWrapper className="seq-results-portal-css-wrapper" customCss={customCss}>
+        <>
+            <CustomCssStylesheet css={customCss} />
             <StyledApp className="seq-results-portal-app app-root">
                 <ScrollRestoration />
                 <AppHeader />
-                <StyledMain
-                    className="seq-results-portal-main"
-                    component="main"
-                    id="main-content"
-                    role="main"
-                >
+                <StyledMain className="seq-results-portal-main" id="main-content" role="main">
                     <Box className="seq-results-portal-main__content" sx={{width: "100%"}}>
                         <Outlet />
                     </Box>
@@ -100,6 +91,6 @@ export const App: React.FC = () => {
                     <Footer />
                 </Box>
             </StyledApp>
-        </StyledAppWrapper>
+        </>
     )
 }

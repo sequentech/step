@@ -25,7 +25,10 @@ interface ResultsSummaryProps {
 }
 
 const percent = (value: unknown): string => (isNumber(value) ? formatPercentOne(value) : "-")
-const valueOrDash = (value: unknown): string | number => value ?? "-"
+const valueOrDash = (value: unknown): string | number =>
+    typeof value === "string" || typeof value === "number" ? value : "-"
+const stringOrUndefined = (value: unknown): string | undefined =>
+    typeof value === "string" && value.length > 0 ? value : undefined
 const sameId = (left: unknown, right: unknown): boolean =>
     left !== null &&
     left !== undefined &&
@@ -65,7 +68,7 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                     aria-label={t("resultsPortal.summary.ariaLabel")}
                     sx={{minWidth: 680}}
                 >
-                    <TableHead>
+                    <TableHead className="seq-results-summary__table-head">
                         <TableRow className="seq-results-summary__heading-row">
                             <TableCell className="seq-results-summary__election-heading">
                                 {t("resultsPortal.summary.election")}
@@ -82,9 +85,6 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                             >
                                 {t("resultsPortal.summary.totalVotesCounted")}
                             </TableCell>
-                            <TableCell className="seq-results-summary__valid-heading" align="right">
-                                {t("resultsPortal.summary.validVotes")}
-                            </TableCell>
                             <TableCell
                                 className="seq-results-summary__participation-heading"
                                 align="right"
@@ -93,7 +93,7 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                             </TableCell>
                         </TableRow>
                     </TableHead>
-                    <TableBody>
+                    <TableBody className="seq-results-summary__table-body">
                         {resultsElections.map((result) => {
                             const election = elections.find((row) =>
                                 sameId(row.id, result.election_id)
@@ -104,7 +104,7 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                     key={`${result.election_id}-${result.id}`}
                                 >
                                     <TableCell className="seq-results-summary__election-cell">
-                                        {result.name ??
+                                        {stringOrUndefined(result.name) ??
                                             translatedLabel(
                                                 election,
                                                 locale,
@@ -121,25 +121,13 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                         className="seq-results-summary__counted-cell"
                                         align="right"
                                     >
-                                        {valueOrDash(
-                                            result.total_votes ?? result.total_valid_votes
-                                        )}
-                                    </TableCell>
-                                    <TableCell
-                                        className="seq-results-summary__valid-cell"
-                                        align="right"
-                                    >
-                                        {valueOrDash(result.total_valid_votes)}
+                                        {valueOrDash(result.total_voters)}
                                     </TableCell>
                                     <TableCell
                                         className="seq-results-summary__participation-cell"
                                         align="right"
                                     >
-                                        {percent(
-                                            result.total_votes_percent ??
-                                                result.total_valid_votes_percent ??
-                                                null
-                                        )}
+                                        {percent(result.total_voters_percent)}
                                     </TableCell>
                                 </TableRow>
                             )

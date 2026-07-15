@@ -111,6 +111,16 @@ fn filter_result_tables(
     }
 
     if let Some(area_id) = area_id {
+        for table in [
+            "results_contest_candidate",
+            "results_contest",
+            "results_election",
+        ] {
+            if table_exists(conn, table) {
+                conn.execute(&format!("DELETE FROM {table}"), [])?;
+            }
+        }
+
         for table in ["results_area_contest_candidate", "results_area_contest"] {
             if table_exists(conn, table) {
                 conn.execute(
@@ -812,4 +822,74 @@ pub async fn publish_results_website_artifacts(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row_count(conn: &Connection, table: &str) -> Result<i64> {
+        Ok(conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+            row.get(0)
+        })?)
+    }
+
+    #[test]
+    fn area_filter_excludes_global_and_other_area_results() -> Result<()> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(
+            r#"
+                CREATE TABLE results_contest_candidate (contest_id TEXT, candidate_id TEXT);
+                CREATE TABLE results_contest (contest_id TEXT);
+                CREATE TABLE results_election (election_id TEXT);
+                CREATE TABLE results_area_contest_candidate (
+                    contest_id TEXT,
+                    candidate_id TEXT,
+                    area_id TEXT
+                );
+                CREATE TABLE results_area_contest (contest_id TEXT, area_id TEXT);
+                CREATE TABLE results_election_area (election_id TEXT, area_id TEXT);
+
+                INSERT INTO results_contest_candidate VALUES ('contest-1', 'candidate-1');
+                INSERT INTO results_contest VALUES ('contest-1');
+                INSERT INTO results_election VALUES ('election-1');
+                INSERT INTO results_area_contest_candidate VALUES
+                    ('contest-1', 'candidate-1', 'area-1'),
+                    ('contest-1', 'candidate-1', 'area-2'),
+                    ('contest-2', 'candidate-2', 'area-1');
+                INSERT INTO results_area_contest VALUES
+                    ('contest-1', 'area-1'),
+                    ('contest-1', 'area-2'),
+                    ('contest-2', 'area-1');
+                INSERT INTO results_election_area VALUES
+                    ('election-1', 'area-1'),
+                    ('election-1', 'area-2');
+            "#,
+        )?;
+
+        filter_result_tables(&conn, &["contest-1".to_string()], Some("area-1"))?;
+
+        assert_eq!(row_count(&conn, "results_contest_candidate")?, 0);
+        assert_eq!(row_count(&conn, "results_contest")?, 0);
+        assert_eq!(row_count(&conn, "results_election")?, 0);
+        assert_eq!(row_count(&conn, "results_area_contest_candidate")?, 1);
+        assert_eq!(row_count(&conn, "results_area_contest")?, 1);
+        assert_eq!(row_count(&conn, "results_election_area")?, 1);
+
+        let retained_area: String = conn.query_row(
+            "SELECT area_id FROM results_area_contest LIMIT 1",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(retained_area, "area-1");
+
+        let retained_contest: String = conn.query_row(
+            "SELECT contest_id FROM results_area_contest LIMIT 1",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(retained_contest, "contest-1");
+
+        Ok(())
+    }
 }

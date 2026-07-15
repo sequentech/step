@@ -177,7 +177,7 @@ export const useAuthenticatedResults = (
             return
         }
 
-        if (!realm) {
+        if (!realm || !sessionKey) {
             setState({loading: true})
             return
         }

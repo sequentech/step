@@ -73,7 +73,7 @@ export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({manifest,
                 </Stack>
             </Stack>
 
-            {dataset.results_election.length > 0 && (
+            {manifest.visibility_scope !== "area_based" && dataset.results_election.length > 0 && (
                 <ResultsSummary
                     elections={dataset.election}
                     resultsElections={dataset.results_election}
