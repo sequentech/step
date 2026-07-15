@@ -36,6 +36,11 @@ jobs:
             file: packages/Dockerfile.prod
             spa_name: "admin-portal"
 
+          - service: results-portal
+            context: packages
+            file: packages/Dockerfile.prod
+            spa_name: "results-portal"
+
           - service: ballot-verifier
             context: packages
             file: packages/Dockerfile.prod
