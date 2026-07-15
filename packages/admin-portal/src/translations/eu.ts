@@ -514,6 +514,7 @@ const basqueTranslation: TranslationType = {
                     deleteError: "Ezin izan da ezabatu",
                 },
                 config: {
+                    configuredPhone: "Konfiguratutako telefono-zenbakia",
                     infoMsg:
                         "Konfiguratu IVRaren fluxua eta haren propietateak behean. Xehetasun gehiagorako, jarri harremanetan Sequent-ekin.",
                 },

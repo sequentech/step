@@ -513,6 +513,7 @@ const englishTranslation = {
                     deleteError: "Failed to delete",
                 },
                 config: {
+                    configuredPhone: "Configured phone number",
                     infoMsg:
                         "Configure the IVR flow and its properties below. For more details, please contact Sequent.",
                 },

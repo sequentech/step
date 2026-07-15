@@ -514,6 +514,7 @@ const galegoTranslation: TranslationType = {
                     deleteError: "Non se puido eliminar",
                 },
                 config: {
+                    configuredPhone: "Número de teléfono configurado",
                     infoMsg:
                         "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
                 },
