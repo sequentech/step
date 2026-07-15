@@ -17,9 +17,9 @@ import java.util.stream.Collectors;
 import org.keycloak.util.JsonSerialization;
 
 /**
- * Shared client for the OAuth2 client_credentials grant against a Keycloak realm's token
- * endpoint. Extracted so the request-encoding and response-parsing logic exists in exactly one
- * place; see meta#12526 for the incident (an unencoded client secret containing '%' broke
+ * Shared client for the OAuth2 client_credentials grant against a Keycloak realm's token endpoint.
+ * Extracted so the request-encoding and response-parsing logic exists in exactly one place; see
+ * meta#12526 for the incident (an unencoded client secret containing '%' broke
  * application/x-www-form-urlencoded decoding) that motivated pulling this out of two separately
  * copy-pasted implementations.
  */
@@ -44,7 +44,8 @@ public final class ClientCredentialsTokenClient {
             .build();
 
     try {
-      HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
       return extractAccessToken(response.body());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -71,8 +72,7 @@ public final class ClientCredentialsTokenClient {
     Object accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
     if (accessToken == null) {
       throw new IllegalStateException(
-          "Keycloak client_credentials response did not include an access_token: "
-              + responseBody);
+          "Keycloak client_credentials response did not include an access_token: " + responseBody);
     }
     return accessToken.toString();
   }
