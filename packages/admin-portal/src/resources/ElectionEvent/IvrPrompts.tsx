@@ -47,7 +47,7 @@ const RESOURCE = "sequent_backend_election_event"
 
 type Prompts = Record<string, Record<string, string>>
 
-const collectRequiredPromptKeys = (configAnnotation: string) => {
+const collectRequiredPromptKeys = (configAnnotation: string): Set<string> => {
     let config: any = {}
     try {
         config = JSON.parse(configAnnotation)
@@ -166,18 +166,18 @@ export const IvrPrompts: React.FC = () => {
     const [update] = useUpdate()
 
     // Editor drawers
-    const [openCreate, setOpenCreate] = useState(false)
-    const [openEdit, setOpenEdit] = useState(false)
-    const [openDeleteModal, setOpenDelete] = useState(false)
+    const [openCreate, setOpenCreate] = useState<boolean>(false)
+    const [openEdit, setOpenEdit] = useState<boolean>(false)
+    const [openDeleteModal, setOpenDelete] = useState<boolean>(false)
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [editId, setEditId] = useState<string | null>(null)
-    const [saving, setSaving] = useState(false)
+    const [saving, setSaving] = useState<boolean>(false)
 
     // Languages
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code ?? "en"
     )
-    const languages = useMemo(() => {
+    const languages = useMemo<string[]>(() => {
         return (record?.presentation?.language_conf?.enabled_language_codes ?? []) as string[]
     }, [record?.presentation?.language_conf?.enabled_language_codes])
 
@@ -187,11 +187,11 @@ export const IvrPrompts: React.FC = () => {
         typeof annotations[IVR_PROMPTS_ANNOTATION] === "string"
             ? (annotations[IVR_PROMPTS_ANNOTATION] as string)
             : "{}"
-    const requiredPromptKeys = useMemo(
+    const requiredPromptKeys = useMemo<Set<string>>(
         () => collectRequiredPromptKeys(annotations[IVR_CONFIG_ANNOTATION]),
         [annotations[IVR_CONFIG_ANNOTATION]]
     )
-    const parsedPrompts: Prompts = useMemo(() => {
+    const parsedPrompts = useMemo<Prompts>(() => {
         try {
             let obj = JSON.parse(recordPrompts)
             let langs = [...Object.keys(obj), ...languages, selectedLanguage]
@@ -212,19 +212,19 @@ export const IvrPrompts: React.FC = () => {
         }
     }, [recordPrompts, requiredPromptKeys, languages])
 
-    const [editorData, setEditorData] = useState(parsedPrompts)
+    const [editorData, setEditorData] = useState<Prompts>(parsedPrompts)
     useEffect(() => {
         setEditorData(parsedPrompts)
     }, [parsedPrompts])
-    const pendingPayload = useMemo(() => {
+    const pendingPayload = useMemo<string>(() => {
         return JSON.stringify(editorData)
     }, [editorData])
-    const dirty: boolean = useMemo(() => {
+    const dirty: boolean = useMemo<boolean>(() => {
         return pendingPayload !== recordPrompts
     }, [pendingPayload, recordPrompts])
 
     // Data / editor validation
-    const promptsValid = (prompts: Prompts) => {
+    const promptsValid = (prompts: Prompts): boolean => {
         return Object.entries(prompts).every(([_lang, entries]) => {
             return Object.entries(entries).every(([key, value]) => {
                 // Required prompts must be given for all languages, no exceptions.
@@ -235,7 +235,7 @@ export const IvrPrompts: React.FC = () => {
             })
         })
     }
-    const editorValid: boolean = useMemo(
+    const editorValid = useMemo<boolean>(
         () => promptsValid(editorData),
         [editorData, requiredPromptKeys]
     )
@@ -269,11 +269,11 @@ export const IvrPrompts: React.FC = () => {
     ]
 
     // Editor operations
-    const createPromptKey = (rawKey: any, rawValue: any) => {
-        let key = (typeof rawKey === "string" ? rawKey : "").trim()
-        let value = (typeof rawValue === "string" ? rawValue : "").trim()
+    const createPromptKey = (rawKey: string, rawValue: string): void => {
+        let key = rawKey.trim()
+        let value = rawValue.trim()
         if (key && value) {
-            let newData = cloneDeep(editorData)
+            let newData: Prompts = cloneDeep(editorData)
             let langs = [...Object.keys(newData), ...languages, selectedLanguage]
             langs.forEach((lang) => {
                 if (!(lang in newData)) {
@@ -286,15 +286,15 @@ export const IvrPrompts: React.FC = () => {
             setEditorData(newData)
         }
     }
-    const updatePromptKey = (rawValue: any) => {
-        let value = (typeof rawValue === "string" ? rawValue : "").trim()
+    const updatePromptKey = (rawValue: string): void => {
+        let value = rawValue.trim()
         if (editId) {
-            let newData = cloneDeep(editorData)
+            let newData: Prompts = cloneDeep(editorData)
             newData[selectedLanguage][editId] = value
             setEditorData(newData)
         }
     }
-    const deletePromptKey = () => {
+    const deletePromptKey = (): void => {
         if (deleteId && !requiredPromptKeys.has(deleteId)) {
             let newData = cloneDeep(editorData)
             let langs = [...Object.keys(newData), ...languages, selectedLanguage]
@@ -308,10 +308,10 @@ export const IvrPrompts: React.FC = () => {
     }
 
     // Record persistence
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         setEditorData(parsedPrompts)
     }
-    const handleSave = () => {
+    const handleSave = (): void => {
         setSaving(true)
         update(
             RESOURCE,
@@ -427,8 +427,9 @@ export const IvrPrompts: React.FC = () => {
                                 {({formData}) => (
                                     <SaveButton
                                         disabled={
-                                            !formData?.value ||
-                                            formData?.value === editorData[selectedLanguage][editId]
+                                            !formData?.value?.trim() ||
+                                            formData?.value?.trim() ===
+                                                editorData[selectedLanguage][editId]
                                         }
                                         sx={{marginInline: "1rem"}}
                                     />
@@ -436,9 +437,11 @@ export const IvrPrompts: React.FC = () => {
                             </FormDataConsumer>
                         }
                         onSubmit={(e: any) => {
-                            updatePromptKey(e?.value)
-                            setOpenEdit(false)
-                            setEditId(null)
+                            if (typeof e?.value === "string") {
+                                updatePromptKey(e.value)
+                                setOpenEdit(false)
+                                setEditId(null)
+                            }
                         }}
                     >
                         <>
@@ -471,11 +474,11 @@ export const IvrPrompts: React.FC = () => {
                                 {({formData}) => (
                                     <SaveButton
                                         disabled={
-                                            !formData?.value ||
-                                            !formData?.key ||
+                                            !formData?.value?.trim() ||
+                                            !formData?.key?.trim() ||
                                             Object.keys(
                                                 editorData[selectedLanguage] || {}
-                                            ).includes(formData?.key)
+                                            ).includes(formData?.key?.trim())
                                         }
                                         sx={{marginInline: "1rem"}}
                                     />
@@ -483,8 +486,10 @@ export const IvrPrompts: React.FC = () => {
                             </FormDataConsumer>
                         }
                         onSubmit={(e: any) => {
-                            createPromptKey(e?.key, e?.value)
-                            setOpenCreate(false)
+                            if (typeof e?.key === "string" && typeof e?.value === "string") {
+                                createPromptKey(e.key, e.value)
+                                setOpenCreate(false)
+                            }
                         }}
                     >
                         <>
