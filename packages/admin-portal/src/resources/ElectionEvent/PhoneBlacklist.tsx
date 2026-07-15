@@ -170,7 +170,7 @@ export const PhoneBlacklist: React.FC = () => {
         },
     })
 
-    const handleAdd = () => {
+    const handleAdd = (): void => {
         if (!phoneE164.trim()) {
             setPhoneError(t("electionEventScreen.ivr.blacklist.phoneRequired"))
             return
@@ -185,14 +185,14 @@ export const PhoneBlacklist: React.FC = () => {
         })
     }
 
-    const handleOpenEdit = (row: RaRecord) => {
+    const handleOpenEdit = (row: RaRecord): void => {
         setEditId(String(row.id))
         setEditPhoneE164(String(row.phone_e164 ?? ""))
         setEditReason(typeof row.reason === "string" ? row.reason : "")
         setEditDrawerOpen(true)
     }
 
-    const handleUpdate = () => {
+    const handleUpdate = (): void => {
         if (!editId) {
             return
         }
@@ -204,7 +204,7 @@ export const PhoneBlacklist: React.FC = () => {
         })
     }
 
-    const confirmDeleteAction = () => {
+    const confirmDeleteAction = (): void => {
         if (pendingDeleteId) {
             deletePhoneBlacklist({variables: {id: pendingDeleteId, election_event_id: record?.id}})
             setPendingDeleteId(null)
@@ -212,7 +212,7 @@ export const PhoneBlacklist: React.FC = () => {
         setOpenDeleteModal(false)
     }
 
-    const handleOpenDelete = (id: string) => {
+    const handleOpenDelete = (id: string): void => {
         setPendingDeleteId(id)
         setOpenDeleteModal(true)
     }
@@ -234,22 +234,27 @@ export const PhoneBlacklist: React.FC = () => {
                 empty={<Empty onAdd={() => setDrawerOpen(true)} />}
                 filters={[
                     <TextInput
+                        key="phone_e164"
                         source="phone_e164"
                         label={t("electionEventScreen.ivr.blacklist.columns.phone")}
                     />,
                     <TextInput
+                        key="reason"
                         source="reason"
                         label={t("electionEventScreen.ivr.blacklist.columns.reason")}
                     />,
                     <TextInput
+                        key="created_by"
                         source="created_by"
                         label={t("electionEventScreen.ivr.blacklist.columns.createdBy")}
                     />,
                     <DateInput
+                        key="created_at_lte"
                         source="created_at@_lte"
                         label={t("electionEventScreen.ivr.blacklist.columns.createdBefore")}
                     />,
                     <DateInput
+                        key="created_at_gte"
                         source="created_at@_gte"
                         label={t("electionEventScreen.ivr.blacklist.columns.createdAfter")}
                     />,
