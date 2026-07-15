@@ -4,6 +4,7 @@
 export const IVR_ENTITY_I18N_ANNOTATION = "ivr:i18n" as const
 export const IVR_CONFIG_ANNOTATION = "ivr:config" as const
 export const IVR_PROMPTS_ANNOTATION = "ivr:prompts" as const
+export const IVR_PHONE_NUMBER_ANNOTATION = "ivr:phone-number" as const
 
 type EntityAnnotations = Record<string, unknown> | null | undefined
 type IvrEntityI18nAnnotation = Record<string, IvrEntityI18nAnnotationContent>
