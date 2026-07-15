@@ -894,6 +894,15 @@ const dutchTranslation: TranslationType = {
             voters: {
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                review: {
+                    title: "Wijzigingen controleren",
+                    subtitle: "Bevestig deze updates voordat u ze indient.",
+                    confirm: "Wijzigingen bevestigen",
+                    noChanges: "Geen wijzigingen om te controleren",
+                    field: "Veld",
+                    currentValue: "Huidige waarde",
+                    newValue: "Nieuwe waarde",
+                },
                 logs: {
                     label: "Logs van kiezer",
                 },
@@ -1330,6 +1339,8 @@ const dutchTranslation: TranslationType = {
                 unarchive: "Dearchiveren",
                 cancel: "Annuleren",
                 edit: "Bewerken",
+                yes: "Ja",
+                no: "Nee",
                 save: "Opslaan",
                 close: "Sluiten",
                 back: "Terug",

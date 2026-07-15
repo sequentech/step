@@ -897,6 +897,15 @@ const tagalogTranslation: TranslationType = {
             voters: {
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
+                review: {
+                    title: "Suriin ang mga Pagbabago",
+                    subtitle: "Kumpirmahin ang mga update na ito bago isumite.",
+                    confirm: "Kumpirmahin ang mga Pagbabago",
+                    noChanges: "Walang pagbabagong susuriin",
+                    field: "Field",
+                    currentValue: "Kasalukuyang Halaga",
+                    newValue: "Bagong Halaga",
+                },
                 logs: {
                     label: "Mga Log ng Gumagamit",
                 },
@@ -1335,6 +1344,8 @@ const tagalogTranslation: TranslationType = {
                 unarchive: "I-unarchive",
                 cancel: "I-cancel",
                 edit: "I-edit",
+                yes: "Oo",
+                no: "Hindi",
                 save: "I-save",
                 close: "Isara",
                 back: "Bumalik",

@@ -41,3 +41,8 @@ export {default as ExpandableText} from "./components/ExpandableText/ExpandableT
 export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export {default as ReviewChangesTable} from "./components/ReviewChangesTable/ReviewChangesTable"
+export type {
+    ReviewChangesRow,
+    ReviewChangesTableProps,
+} from "./components/ReviewChangesTable/ReviewChangesTable"

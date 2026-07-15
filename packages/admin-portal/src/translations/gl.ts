@@ -896,6 +896,15 @@ const galegoTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 logs: {
                     label: "Rexistros do Usuario",
                 },
@@ -1335,6 +1344,8 @@ const galegoTranslation: TranslationType = {
                 unarchive: "Desarquivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Si",
+                no: "Non",
                 save: "Gardar",
                 close: "Pechar",
                 back: "Atrás",

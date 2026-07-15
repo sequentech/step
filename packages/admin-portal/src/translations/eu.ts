@@ -895,6 +895,15 @@ const basqueTranslation: TranslationType = {
             voters: {
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
+                review: {
+                    title: "Aldaketak berrikusi",
+                    subtitle: "Berretsi eguneratze hauek bidali aurretik.",
+                    confirm: "Aldaketak berretsi",
+                    noChanges: "Ez dago berrikusteko aldaketarik",
+                    field: "Eremua",
+                    currentValue: "Uneko balioa",
+                    newValue: "Balio berria",
+                },
                 logs: {
                     label: "Erabiltzailearen Egunkariak",
                 },
@@ -1330,6 +1339,8 @@ const basqueTranslation: TranslationType = {
                 unarchive: "Desartxibatu",
                 cancel: "Ezeztatu",
                 edit: "Editatu",
+                yes: "Bai",
+                no: "Ez",
                 save: "Gorde",
                 close: "Itxi",
                 back: "Atzera",
