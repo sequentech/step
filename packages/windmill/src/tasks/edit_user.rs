@@ -33,7 +33,7 @@ use sequent_core::types::keycloak::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{error, instrument};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 /// Input for the `edit_user` task. Mirrors the fields the `/edit-user` route
@@ -152,6 +152,7 @@ struct DatafixEditCtx<'a> {
 /// The release actions a Datafix voter edit must take, derived from the
 /// enabled-flag transition, the voter's cast-vote state and its current
 /// Keycloak attributes.
+#[derive(Debug)]
 struct VoterReleasePlan {
     /// The edit disables the voter (or repeats a disable that still owes a
     /// release), so its valid ballots must be quarantined for `SetNotVoted`.
@@ -167,7 +168,7 @@ struct VoterReleasePlan {
 /// Derives the [`VoterReleasePlan`] for an edit and enforces the state guards:
 /// a re-enable is refused while the voting state is unresolved, and a release
 /// is refused for a voter who voted through another channel.
-#[instrument(skip(current_attributes), err)]
+#[instrument(skip(current_attributes), err, ret)]
 fn plan_voter_release(
     current_enabled: Option<bool>,
     requested_enabled: Option<bool>,
@@ -251,7 +252,7 @@ async fn load_election_event(
 
 /// Single-round snapshot of the voter's cast-vote states, used to decide whether
 /// a disable needs a release and whether a re-enable is safe.
-#[instrument(err)]
+#[instrument(err, ret)]
 async fn voter_cast_vote_state(
     tenant_id: &str,
     election_event_id: &str,
@@ -680,7 +681,7 @@ async fn run_datafix_voter_edit(
             vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
         );
     }
-
+    info!("Voter edit plan: {plan:?}, cast-vote state: {cast_vote_state:?}");
     let quarantined_cast_vote_ids = if plan.release_attempt {
         quarantine_voter_cast_votes(&body.tenant_id, &body.election_event_id, &body.user_id)
             .await
