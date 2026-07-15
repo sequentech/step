@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useMemo} from "react"
 import {
     Box,
+    Paper,
     Table,
     TableBody,
     TableCell,
@@ -13,6 +14,7 @@ import {
     TableRow,
     Typography,
 } from "@mui/material"
+import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {ResultsRow} from "@/types/results"
@@ -36,6 +38,115 @@ const sameId = (left: unknown, right: unknown): boolean =>
     right !== undefined &&
     String(left) === String(right)
 
+const Chart = ((ReactApexChart as unknown as {default?: React.ComponentType<ApexChartProps>})
+    .default ?? ReactApexChart) as React.ComponentType<ApexChartProps>
+
+const finiteNumber = (value: unknown): number | null => {
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : null
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+        const parsed = Number(value)
+        return Number.isFinite(parsed) ? parsed : null
+    }
+
+    return null
+}
+
+interface GeneralInformationChartProps {
+    electionName: string
+    result: ResultsRow
+}
+
+const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
+    electionName,
+    result,
+}) => {
+    const {t} = useTranslation()
+    const chartData = useMemo(() => {
+        const eligibleCensus = finiteNumber(result.elegible_census)
+        const totalVoters = finiteNumber(result.total_voters)
+
+        if (eligibleCensus === null || totalVoters === null) {
+            return []
+        }
+
+        const representedData = [
+            {
+                label: t("resultsPortal.summary.totalVotesCounted"),
+                value: totalVoters,
+            },
+            {
+                label: t("resultsPortal.resultsAndParticipation.nonVoters"),
+                value: Math.max(eligibleCensus - totalVoters, 0),
+            },
+        ].filter((item) => item.value > 0)
+
+        return representedData.length > 0
+            ? representedData
+            : [
+                  {
+                      label: t("resultsPortal.resultsAndParticipation.nonVoters"),
+                      value: 100,
+                  },
+              ]
+    }, [result.elegible_census, result.total_voters, t])
+    const chartOptions = useMemo<ApexChartProps>(
+        () => ({
+            options: {
+                labels: chartData.map((item) => item.label),
+                legend: {position: "right"},
+                responsive: [
+                    {
+                        breakpoint: 480,
+                        options: {
+                            chart: {width: 200},
+                            legend: {position: "bottom"},
+                        },
+                    },
+                ],
+            },
+            series: chartData.map((item) => item.value),
+        }),
+        [chartData]
+    )
+
+    if (chartData.length === 0) {
+        return null
+    }
+
+    return (
+        <Paper
+            className="seq-results-summary__chart"
+            data-election-id={String(result.election_id)}
+            variant="outlined"
+            sx={{p: 2, width: "100%", maxWidth: 450}}
+        >
+            <Typography
+                className="seq-results-summary__chart-title"
+                variant="subtitle1"
+                sx={{fontWeight: 600}}
+            >
+                {electionName}
+            </Typography>
+            <Box
+                className="seq-results-summary__chart-body"
+                sx={{borderTop: "1px solid", borderColor: "divider", mt: 2, pt: 2}}
+            >
+                <Chart
+                    className="seq-results-summary__pie"
+                    options={chartOptions.options}
+                    series={chartOptions.series}
+                    type="pie"
+                    width="100%"
+                    height={300}
+                />
+            </Box>
+        </Paper>
+    )
+}
+
 export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
     elections,
     resultsElections,
@@ -53,88 +164,129 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
             >
                 {t("resultsPortal.summary.title")}
             </Typography>
-            <TableContainer
-                className="seq-results-summary__table-container"
+            <Box
+                className="seq-results-summary__content"
                 sx={{
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    overflowX: "auto",
-                    bgcolor: "background.paper",
+                    display: "flex",
+                    flexDirection: {xs: "column", lg: "row"},
+                    gap: 4,
+                    alignItems: "flex-start",
                 }}
             >
-                <Table
-                    className="seq-results-summary__table"
-                    aria-label={t("resultsPortal.summary.ariaLabel")}
-                    sx={{minWidth: 680}}
+                <Box
+                    className="seq-results-summary__charts"
+                    sx={{
+                        display: "flex",
+                        flex: {xs: "1 1 auto", lg: "0 0 450px"},
+                        flexDirection: "column",
+                        gap: 2,
+                        width: {xs: "100%", lg: 450},
+                        maxWidth: "100%",
+                    }}
                 >
-                    <TableHead className="seq-results-summary__table-head">
-                        <TableRow className="seq-results-summary__heading-row">
-                            <TableCell className="seq-results-summary__election-heading">
-                                {t("resultsPortal.summary.election")}
-                            </TableCell>
-                            <TableCell
-                                className="seq-results-summary__eligible-heading"
-                                align="right"
-                            >
-                                {t("resultsPortal.summary.eligibleVoters")}
-                            </TableCell>
-                            <TableCell
-                                className="seq-results-summary__counted-heading"
-                                align="right"
-                            >
-                                {t("resultsPortal.summary.totalVotesCounted")}
-                            </TableCell>
-                            <TableCell
-                                className="seq-results-summary__participation-heading"
-                                align="right"
-                            >
-                                {t("resultsPortal.summary.participation")}
-                            </TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody className="seq-results-summary__table-body">
-                        {resultsElections.map((result) => {
-                            const election = elections.find((row) =>
-                                sameId(row.id, result.election_id)
-                            )
-                            return (
-                                <TableRow
-                                    className="seq-results-summary__row"
-                                    key={`${result.election_id}-${result.id}`}
-                                >
-                                    <TableCell className="seq-results-summary__election-cell">
-                                        {stringOrUndefined(result.name) ??
-                                            translatedLabel(
-                                                election,
-                                                locale,
-                                                t("resultsPortal.summary.election")
-                                            )}
+                    {resultsElections.map((result) => {
+                        const election = elections.find((row) => sameId(row.id, result.election_id))
+                        const electionName =
+                            stringOrUndefined(result.name) ??
+                            translatedLabel(election, locale, t("resultsPortal.summary.election"))
+
+                        return (
+                            <GeneralInformationChart
+                                key={`${result.election_id}-${result.id}`}
+                                electionName={electionName}
+                                result={result}
+                            />
+                        )
+                    })}
+                </Box>
+                <Box
+                    className="seq-results-summary__table-column"
+                    sx={{flex: "1 1 auto", minWidth: 0, width: "100%"}}
+                >
+                    <TableContainer
+                        className="seq-results-summary__table-container"
+                        sx={{
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            overflowX: "auto",
+                            bgcolor: "background.paper",
+                        }}
+                    >
+                        <Table
+                            className="seq-results-summary__table"
+                            aria-label={t("resultsPortal.summary.ariaLabel")}
+                            sx={{minWidth: 680}}
+                        >
+                            <TableHead className="seq-results-summary__table-head">
+                                <TableRow className="seq-results-summary__heading-row">
+                                    <TableCell className="seq-results-summary__election-heading">
+                                        {t("resultsPortal.summary.election")}
                                     </TableCell>
                                     <TableCell
-                                        className="seq-results-summary__eligible-cell"
+                                        className="seq-results-summary__eligible-heading"
                                         align="right"
                                     >
-                                        {valueOrDash(result.elegible_census)}
+                                        {t("resultsPortal.summary.eligibleVoters")}
                                     </TableCell>
                                     <TableCell
-                                        className="seq-results-summary__counted-cell"
+                                        className="seq-results-summary__counted-heading"
                                         align="right"
                                     >
-                                        {valueOrDash(result.total_voters)}
+                                        {t("resultsPortal.summary.totalVotesCounted")}
                                     </TableCell>
                                     <TableCell
-                                        className="seq-results-summary__participation-cell"
+                                        className="seq-results-summary__participation-heading"
                                         align="right"
                                     >
-                                        {percent(result.total_voters_percent)}
+                                        {t("resultsPortal.summary.participation")}
                                     </TableCell>
                                 </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                            </TableHead>
+                            <TableBody className="seq-results-summary__table-body">
+                                {resultsElections.map((result) => {
+                                    const election = elections.find((row) =>
+                                        sameId(row.id, result.election_id)
+                                    )
+                                    return (
+                                        <TableRow
+                                            className="seq-results-summary__row"
+                                            key={`${result.election_id}-${result.id}`}
+                                        >
+                                            <TableCell className="seq-results-summary__election-cell">
+                                                {stringOrUndefined(result.name) ??
+                                                    translatedLabel(
+                                                        election,
+                                                        locale,
+                                                        t("resultsPortal.summary.election")
+                                                    )}
+                                            </TableCell>
+                                            <TableCell
+                                                className="seq-results-summary__eligible-cell"
+                                                align="right"
+                                            >
+                                                {valueOrDash(result.elegible_census)}
+                                            </TableCell>
+                                            <TableCell
+                                                className="seq-results-summary__counted-cell"
+                                                align="right"
+                                            >
+                                                {valueOrDash(result.total_voters)}
+                                            </TableCell>
+                                            <TableCell
+                                                className="seq-results-summary__participation-cell"
+                                                align="right"
+                                            >
+                                                {percent(result.total_voters_percent)}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
+            </Box>
         </Box>
     )
 }
