@@ -63,11 +63,7 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
-import {
-    CustomAutocompleteArrayInput,
-    ReviewChangesRow,
-    ReviewChangesTable,
-} from "@sequentech/ui-essentials"
+import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
@@ -310,15 +306,28 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [errorText, setErrorText] = useState("")
 
     const [step, setStep] = useState<"edit" | "review">("edit")
-    const [reviewRows, setReviewRows] = useState<ReviewChangesRow[]>([])
     const baselineRef = useRef<UserBaseline>({
         user: createMode
             ? {enabled: true, attributes: {}}
             : (record && convertRecordToUser(record)) || {attributes: {}},
         phoneInputs: {},
-        selectedActedTrustee: "",
     })
     const reviewHeadingRef = useRef<HTMLDivElement>(null)
+
+    // Derived (not snapshotted) so the review table always reflects the live
+    // user/phoneInputs/selectedActedTrustee state that handleConfirmChanges
+    // actually submits, even if a debounced field update lands after Save.
+    const reviewRows = useMemo(() => {
+        if (step !== "review") {
+            return []
+        }
+        return computeUserDiff(
+            baselineRef.current,
+            {user, phoneInputs, selectedActedTrustee},
+            userAttributes,
+            t
+        )
+    }, [step, user, phoneInputs, selectedActedTrustee, userAttributes, t])
 
     useEffect(() => {
         setStep("edit")
@@ -477,7 +486,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             notify(t("usersAndRolesScreen.voters.review.noChanges"), {type: "info"})
             return
         }
-        setReviewRows(diff)
         setStep("review")
     }
 
@@ -1140,12 +1148,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <WizardStyles.FooterContainer>
                             <WizardStyles.StyledFooter>
                                 <WizardStyles.BackButton
+                                    type="button"
                                     onClick={handleBackToEdit}
                                     className="edit-voter-review-edit-button"
                                 >
                                     {t("common.label.edit")}
                                 </WizardStyles.BackButton>
                                 <WizardStyles.NextButton
+                                    type="button"
                                     onClick={handleConfirmChanges}
                                     className="edit-voter-review-confirm-button"
                                 >

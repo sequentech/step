@@ -34,11 +34,10 @@ const buildBaseline = (): UserBaseline => ({
         },
     },
     phoneInputs: {},
-    selectedActedTrustee: "",
 })
 
 describe("computeUserDiff", () => {
-    // AC-C: no field differs from baseline -> review is not shown, no mutation runs
+    // An empty diff is what EditUserForm uses to decide review should not be shown.
     it("returns no rows when nothing changed", () => {
         const baseline = buildBaseline()
         const diff = computeUserDiff(
@@ -65,7 +64,6 @@ describe("computeUserDiff", () => {
         expect(diff.find((row) => row.field === "trustee")).toBeUndefined()
     })
 
-    // AC-A: multiple changed fields -> one row per changed field
     it("reports one row per changed field with correct labels and values", () => {
         const baseline = buildBaseline()
         const current = {
@@ -81,7 +79,13 @@ describe("computeUserDiff", () => {
         const diff = computeUserDiff(baseline, current, userAttributes, t)
         const fields = diff.map((row) => row.field).sort()
         expect(fields).toEqual(
-            ["area", "enabled", "first_name", "sequent.read-only.mobile-number", "trustee"].sort()
+            [
+                "area-id",
+                "enabled",
+                "first_name",
+                "sequent.read-only.mobile-number",
+                "trustee",
+            ].sort()
         )
 
         const firstName = diff.find((row) => row.field === "first_name")
@@ -96,7 +100,6 @@ describe("computeUserDiff", () => {
         expect(enabled?.newValue).toBe("common.label.no")
     })
 
-    // AC-D: untouched fields are not included / overwritten in the diff
     it("omits unchanged fields even when other fields change", () => {
         const baseline = buildBaseline()
         const current = {

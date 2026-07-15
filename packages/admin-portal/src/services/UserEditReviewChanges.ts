@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import isEqual from "lodash/isEqual"
 import {IUser} from "@sequentech/ui-core"
 import {ReviewChangesRow} from "@sequentech/ui-essentials"
 import {UserProfileAttribute} from "@/gql/graphql"
@@ -10,7 +11,6 @@ import {getTranslationLabel, userBasicInfo} from "@/services/UserService"
 export interface UserBaseline {
     user: IUser
     phoneInputs: {[key: string]: string[]}
-    selectedActedTrustee: string
 }
 
 export interface UserDraft {
@@ -34,14 +34,9 @@ export const formatFieldValue = (value: unknown, t: (key: string) => string): st
 
 const valuesEqual = (a: unknown, b: unknown): boolean => {
     if (Array.isArray(a) || Array.isArray(b)) {
-        const arrayA = Array.isArray(a) ? a : []
-        const arrayB = Array.isArray(b) ? b : []
-        if (arrayA.length !== arrayB.length) {
-            return false
-        }
-        const sortedA = [...arrayA].map(String).sort()
-        const sortedB = [...arrayB].map(String).sort()
-        return sortedA.every((value, index) => value === sortedB[index])
+        const arrayA = Array.isArray(a) ? [...a].sort() : []
+        const arrayB = Array.isArray(b) ? [...b].sort() : []
+        return isEqual(arrayA, arrayB)
     }
     return (a ?? "") === (b ?? "")
 }
@@ -89,14 +84,11 @@ export const computeUserDiff = (
         const label = getTranslationLabel(name, attr.display_name, t)
 
         // These substring checks intentionally mirror renderFormField's own attr.name
-        // matching (EditUserForm.tsx) so a field is categorized here exactly the way the
-        // edit form actually renders/treats it - e.g. renderFormField hides any "area"-
-        // matching attribute from the generic field list and shows it only via the
-        // dedicated SelectArea widget, so a stricter/exact match here would diverge from
-        // what's actually editable in the form.
-        // Area is rendered via a dedicated selector outside the loop (see renderFormField).
+        // matching (EditUserForm.tsx), so a field is categorized here exactly the way
+        // the edit form treats it. Area is rendered via a dedicated selector outside
+        // the loop, so it's diffed against `user.area.id` rather than `user.attributes`.
         if (lowerName.includes("area")) {
-            pushIfChanged("area", label, baseline.user.area?.id, current.user?.area?.id)
+            pushIfChanged(name, label, baseline.user.area?.id, current.user?.area?.id)
             return
         }
 
