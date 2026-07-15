@@ -961,6 +961,109 @@ pub struct ElectionEventLanguageConf {
     Eq,
     Debug,
     Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResultsWebsiteStatus {
+    Enabled,
+    #[default]
+    Disabled,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResultsWebsiteAccess {
+    #[default]
+    Public,
+    Authenticated,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResultsWebsiteVisibilityScope {
+    #[default]
+    FullEvent,
+    AreaBased,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ResultsWebsitePolicy {
+    pub status: ResultsWebsiteStatus,
+    pub access: ResultsWebsiteAccess,
+    pub visibility_scope: ResultsWebsiteVisibilityScope,
+}
+
+fn deserialize_optional_json_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(value)) => Ok(Some(value)),
+        Some(value) => serde_json::to_string(&value)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
     Default,
 )]
 pub struct ElectionEventPresentation {
@@ -988,6 +1091,8 @@ pub struct ElectionEventPresentation {
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
+    #[serde(default, deserialize_with = "deserialize_optional_json_string")]
+    pub results_website: Option<String>,
 }
 
 impl ElectionEvent {
@@ -1273,6 +1378,7 @@ pub enum EPreferenceGapsPolicy {
 )]
 pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
+    pub css: Option<String>,
     pub dates: Option<VotingPeriodDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub contests_order: Option<ContestsOrder>,
@@ -1319,6 +1425,7 @@ impl Default for ElectionPresentation {
             voting_period_end: Some(VotingPeriodEnd::DISALLOWED),
             tally: Some(Tally::ALWAYS_ALLOW),
             i18n: None,
+            css: None,
             dates: None,
             language_conf: None,
             contests_order: None,

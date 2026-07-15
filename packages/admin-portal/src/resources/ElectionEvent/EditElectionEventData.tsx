@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useRef} from "react"
 import {useMutation} from "@apollo/client"
-import {EditBase, Identifier, RaRecord, useUpdate, useRefresh} from "react-admin"
+import {EditBase, Identifier, RaRecord, useUpdate, useRefresh, useNotify} from "react-admin"
 import {
     EditElectionEventDataForm,
     Sequent_Backend_Election_Event_Extended,
@@ -14,14 +14,24 @@ import {
     ElectionsOrder,
     IElectionEventPresentation,
     IElectionPresentation,
+    IResultsWebsitePolicy,
 } from "@sequentech/ui-core"
-import {REFRESH_RESULTS_PUBLICATION_INDEX} from "@/queries/ResultsWebsitePublication"
+import {
+    CONFIGURE_RESULTS_WEBSITE_POLICY,
+    ConfigureResultsWebsitePolicyData,
+    ConfigureResultsWebsitePolicyVariables,
+} from "@/queries/ResultsWebsitePublication"
 import {IPermissions} from "@/types/keycloak"
 
 export const EditElectionEventData: React.FC = () => {
     const [update] = useUpdate()
     const refresh = useRefresh()
-    const [refreshResultsPublicationIndex] = useMutation(REFRESH_RESULTS_PUBLICATION_INDEX, {
+    const notify = useNotify()
+    const resultsWebsitePolicy = useRef<IResultsWebsitePolicy | undefined>(undefined)
+    const [configureResultsWebsitePolicy] = useMutation<
+        ConfigureResultsWebsitePolicyData,
+        ConfigureResultsWebsitePolicyVariables
+    >(CONFIGURE_RESULTS_WEBSITE_POLICY, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
@@ -52,6 +62,9 @@ export const EditElectionEventData: React.FC = () => {
     }
 
     const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {
+        resultsWebsitePolicy.current = data.resultsWebsitePolicy
+        delete data.resultsWebsitePolicy
+
         //update elections
         updateElectionsOrder(data)
 
@@ -107,13 +120,21 @@ export const EditElectionEventData: React.FC = () => {
 
         if (electionEventId) {
             try {
-                await refreshResultsPublicationIndex({
+                const policy = resultsWebsitePolicy.current
+                if (!policy) {
+                    throw new Error("Results website policy is missing")
+                }
+                await configureResultsWebsitePolicy({
                     variables: {
                         election_event_id: electionEventId,
+                        status: policy.status,
+                        access: policy.access,
+                        visibility_scope: policy.visibility_scope,
                     },
                 })
             } catch (error) {
-                console.warn("Failed to refresh results publication index", error)
+                console.error(error)
+                notify("Failed to update the results website policy", {type: "error"})
             }
         }
 

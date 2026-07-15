@@ -25,16 +25,15 @@ type Query {
         election_event_id: String!
         election_id: String
         publication_id: String!
-        area_ids: [String!]
     ): FetchResultsArtifactOutput!
 }
 
 type Mutation {
     configureResultsWebsitePolicy(
         election_event_id: String!
-        status: String!
-        access: String!
-        visibility_scope: String!
+        status: ResultsWebsiteStatus!
+        access: ResultsWebsiteAccess!
+        visibility_scope: ResultsWebsiteVisibilityScope!
     ): ConfigureResultsWebsitePolicyOutput!
 }
 
@@ -247,12 +246,12 @@ type Mutation {
         tally_session_id: String!
         tally_session_execution_id: String!
         results_event_id: String!
-        route_scope: String!
+        route_scope: ResultsRouteScope!
         route_election_id: String
         election_ids: [String!]!
         contest_ids: [String!]!
-        access: String!
-        visibility_scope: String!
+        access: ResultsWebsiteAccess!
+        visibility_scope: ResultsWebsiteVisibilityScope!
     ): PublishResultsWebsiteOutput!
 }
 
@@ -1836,26 +1835,54 @@ type IdOutput {
     id: String!
 }
 
+enum ResultsWebsiteStatus {
+    enabled
+    disabled
+}
+
+enum ResultsWebsiteAccess {
+    public
+    authenticated
+}
+
+enum ResultsWebsiteVisibilityScope {
+    full_event
+    area_based
+}
+
+enum ResultsRouteScope {
+    event
+    election
+}
+
+enum ResultsPublicationStatus {
+    Publishing
+    Published
+    Failed
+    Revoked
+    Superseded
+}
+
 type PublishResultsWebsiteOutput {
     publication_id: String!
     task_execution_id: String!
-    publication_status: String!
+    publication_status: ResultsPublicationStatus!
     task_execution: tasks_execution_type!
     error_msg: String
 }
 
 type ConfigureResultsWebsitePolicyOutput {
     election_event_id: String!
-    status: String!
-    access: String!
-    visibility_scope: String!
+    status: ResultsWebsiteStatus!
+    access: ResultsWebsiteAccess!
+    visibility_scope: ResultsWebsiteVisibilityScope!
 }
 
 type ResolveResultsPublicationOutput {
     tenant_id: String!
     election_event_id: String!
-    access: String!
-    route_scope: String!
+    access: ResultsWebsiteAccess!
+    route_scope: ResultsRouteScope!
     election_ids: [String!]!
     publication_id: String!
     manifest_public_path: String
@@ -1864,14 +1891,12 @@ type ResolveResultsPublicationOutput {
 }
 
 type FetchResultsArtifactOutput {
-    url: String
     urls: [String!]!
-    artifacts: jsonb!
 }
 
 type RevokeResultsPublicationOutput {
     publication_id: String!
-    publication_status: String!
+    publication_status: ResultsPublicationStatus!
 }
 
 type RefreshResultsPublicationIndexOutput {

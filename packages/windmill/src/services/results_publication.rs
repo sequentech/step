@@ -3,20 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::document::get_document;
-use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::{
+    get_election_event_by_id, update_election_event_presentation,
+};
 use crate::postgres::tally_results_publication::{
     get_publication_by_id, list_active_public_publications, mark_publication_published,
     mark_publication_superseded, TallyResultsPublication,
 };
+use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
 use crate::services::documents::{
     get_document_as_temp_file, upload_and_return_document, upload_and_return_public_event_document,
 };
-use anyhow::{anyhow, Result};
+use crate::types::results_publication::{
+    ConfigureResultsWebsitePolicyInput, ConfigureResultsWebsitePolicyOutput, ResultsRouteScope,
+};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::{params_from_iter, Connection, OptionalExtension, ToSql};
+use sequent_core::ballot::{
+    ElectionEventPresentation, ElectionPresentation, ResultsWebsiteAccess, ResultsWebsitePolicy,
+    ResultsWebsiteStatus, ResultsWebsiteVisibilityScope,
+};
 use sequent_core::services::s3;
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
-use sequent_core::types::ceremonies::TallySessionDocuments;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::fs;
@@ -28,45 +37,89 @@ fn placeholders(count: usize) -> String {
 }
 
 fn selected_contest_ids(publication: &TallyResultsPublication) -> Result<Vec<String>> {
-    serde_json::from_value(publication.published_contest_ids.clone())
-        .map_err(|err| anyhow!("Invalid published_contest_ids: {err:?}"))
+    Ok(publication.published_contest_ids.clone())
 }
 
-pub fn results_website_policy_value<'a>(
-    presentation: Option<&'a Value>,
-    key: &str,
-) -> Option<&'a str> {
+pub fn results_website_policy(
+    presentation: &ElectionEventPresentation,
+) -> Result<Option<ResultsWebsitePolicy>> {
     presentation
-        .and_then(|value| value.get("results_website"))
-        .and_then(|value| value.get(key))
-        .and_then(Value::as_str)
+        .results_website
+        .as_deref()
+        .map(serde_json::from_str)
+        .transpose()
+        .context("Invalid results website policy")
 }
 
-pub fn is_results_website_enabled(presentation: Option<&Value>) -> bool {
-    results_website_policy_value(presentation, "status") == Some("enabled")
+pub fn is_results_website_enabled(presentation: &ElectionEventPresentation) -> Result<bool> {
+    Ok(results_website_policy(presentation)?
+        .is_some_and(|policy| policy.status == ResultsWebsiteStatus::Enabled))
 }
 
 pub fn publication_matches_results_website_policy(
-    presentation: Option<&Value>,
+    presentation: &ElectionEventPresentation,
     publication: &TallyResultsPublication,
-) -> bool {
-    if !is_results_website_enabled(presentation) {
-        return false;
+) -> Result<bool> {
+    let Some(policy) = results_website_policy(presentation)? else {
+        return Ok(false);
+    };
+
+    Ok(policy.status == ResultsWebsiteStatus::Enabled
+        && policy.access == publication.access
+        && policy.visibility_scope == publication.visibility_scope)
+}
+
+pub fn validate_results_website_policy(
+    presentation: &ElectionEventPresentation,
+    access: ResultsWebsiteAccess,
+    visibility_scope: ResultsWebsiteVisibilityScope,
+) -> Result<()> {
+    let policy = results_website_policy(presentation)?
+        .ok_or_else(|| anyhow!("Results website policy is not configured"))?;
+
+    if policy.status != ResultsWebsiteStatus::Enabled {
+        return Err(anyhow!(
+            "Results website publishing is disabled for this election event"
+        ));
+    }
+    if policy.access != access {
+        return Err(anyhow!(
+            "Results access does not match the election event results website policy"
+        ));
+    }
+    if policy.visibility_scope != visibility_scope {
+        return Err(anyhow!(
+            "Results visibility does not match the election event results website policy"
+        ));
     }
 
-    if let Some(access) = results_website_policy_value(presentation, "access") {
-        if access != publication.access {
-            return false;
-        }
-    }
+    Ok(())
+}
 
-    if let Some(visibility_scope) = results_website_policy_value(presentation, "visibility_scope") {
-        if visibility_scope != publication.visibility_scope {
-            return false;
-        }
-    }
+pub async fn configure_results_website_policy(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    input: &ConfigureResultsWebsitePolicyInput,
+) -> Result<ConfigureResultsWebsitePolicyOutput> {
+    input.validate()?;
+    let election_event = get_election_event_by_id(tx, tenant_id, &input.election_event_id).await?;
+    let mut presentation = election_event.get_presentation()?.unwrap_or_default();
+    presentation.results_website = Some(serde_json::to_string(&input.policy())?);
+    update_election_event_presentation(
+        tx,
+        tenant_id,
+        &input.election_event_id,
+        serde_json::to_value(presentation)?,
+    )
+    .await?;
+    refresh_public_results_index(tx, tenant_id, &input.election_event_id).await?;
 
-    true
+    Ok(ConfigureResultsWebsitePolicyOutput {
+        election_event_id: input.election_event_id.clone(),
+        status: input.status,
+        access: input.access,
+        visibility_scope: input.visibility_scope,
+    })
 }
 
 fn table_exists(conn: &Connection, table: &str) -> bool {
@@ -226,16 +279,25 @@ fn query_manifest_contests(
     Ok(contests)
 }
 
-fn css_from_presentation(presentation: Option<String>) -> Option<String> {
-    let presentation = presentation?;
-    let parsed: Value = serde_json::from_str(&presentation).ok()?;
-    let css = parsed.get("css")?.as_str()?.trim();
+fn normalize_css(css: Option<String>) -> Option<String> {
+    css.map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
 
-    if css.is_empty() {
-        None
-    } else {
-        Some(css.to_string())
-    }
+fn election_event_css_from_presentation(presentation: Option<String>) -> Result<Option<String>> {
+    presentation
+        .map(|value| serde_json::from_str::<ElectionEventPresentation>(&value))
+        .transpose()
+        .context("Invalid election event presentation in results database")
+        .map(|presentation| presentation.and_then(|presentation| normalize_css(presentation.css)))
+}
+
+fn election_css_from_presentation(presentation: Option<String>) -> Result<Option<String>> {
+    presentation
+        .map(|value| serde_json::from_str::<ElectionPresentation>(&value))
+        .transpose()
+        .context("Invalid election presentation in results database")
+        .map(|presentation| presentation.and_then(|presentation| normalize_css(presentation.css)))
 }
 
 fn query_manifest_custom_css(
@@ -254,7 +316,7 @@ fn query_manifest_custom_css(
             .optional()?
             .flatten();
 
-        css_from_presentation(presentation)
+        election_event_css_from_presentation(presentation)?
     } else {
         None
     };
@@ -273,7 +335,7 @@ fn query_manifest_custom_css(
             let election_id: String = row.get("id")?;
             let presentation: Option<String> = row.get("presentation")?;
 
-            if let Some(css) = css_from_presentation(presentation) {
+            if let Some(css) = election_css_from_presentation(presentation)? {
                 election_css.insert(election_id, Value::String(css));
             }
         }
@@ -293,7 +355,7 @@ struct ManifestLanguageConfig {
 
 fn normalize_language_config(
     default_locale: Option<&str>,
-    available_languages: Option<&Vec<Value>>,
+    available_languages: Option<&Vec<String>>,
 ) -> ManifestLanguageConfig {
     let default_locale = default_locale
         .map(str::trim)
@@ -304,13 +366,10 @@ fn normalize_language_config(
     let mut languages = Vec::new();
     if let Some(values) = available_languages {
         for value in values {
-            let Some(language) = value
-                .as_str()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-            else {
+            let language = value.trim();
+            if language.is_empty() {
                 continue;
-            };
+            }
             if !languages.iter().any(|existing| existing == language) {
                 languages.push(language.to_string());
             }
@@ -327,22 +386,27 @@ fn normalize_language_config(
     }
 }
 
-fn language_config_from_presentation(presentation: Option<String>) -> ManifestLanguageConfig {
+fn language_config_from_presentation(
+    presentation: Option<String>,
+) -> Result<ManifestLanguageConfig> {
     let Some(presentation) = presentation else {
-        return normalize_language_config(None, None);
+        return Ok(normalize_language_config(None, None));
     };
-    let Ok(parsed) = serde_json::from_str::<Value>(&presentation) else {
-        return normalize_language_config(None, None);
-    };
-    let language_conf = parsed.get("language_conf");
-    let default_locale = language_conf
-        .and_then(|value| value.get("default_language_code"))
-        .and_then(Value::as_str);
-    let available_languages = language_conf
-        .and_then(|value| value.get("enabled_language_codes"))
-        .and_then(Value::as_array);
+    let parsed = serde_json::from_str::<ElectionEventPresentation>(&presentation)
+        .context("Invalid election event presentation in results database")?;
+    let default_locale = parsed
+        .language_conf
+        .as_ref()
+        .and_then(|config| config.default_language_code.as_deref());
+    let available_languages = parsed
+        .language_conf
+        .as_ref()
+        .and_then(|config| config.enabled_language_codes.as_ref());
 
-    normalize_language_config(default_locale, available_languages)
+    Ok(normalize_language_config(
+        default_locale,
+        available_languages,
+    ))
 }
 
 fn query_manifest_language_config(
@@ -364,7 +428,7 @@ fn query_manifest_language_config(
         .optional()?
         .flatten();
 
-    Ok(language_config_from_presentation(presentation))
+    language_config_from_presentation(presentation)
 }
 
 fn query_area_ids(source_path: &Path, selected_contests: &[String]) -> Result<Vec<String>> {
@@ -428,8 +492,8 @@ async fn delete_public_results_artifacts(tenant_id: &str, election_event_id: &st
 pub async fn delete_public_publication_route_artifacts(
     publication: &TallyResultsPublication,
 ) -> Result<()> {
-    match publication.route_scope.as_str() {
-        "election" => {
+    match publication.route_scope {
+        ResultsRouteScope::Election => {
             let prefix = event_public_path(
                 &publication.tenant_id,
                 &publication.election_event_id,
@@ -437,7 +501,7 @@ pub async fn delete_public_publication_route_artifacts(
             );
             s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, true).await
         }
-        _ => {
+        ResultsRouteScope::Event => {
             let full_prefix = event_public_path(
                 &publication.tenant_id,
                 &publication.election_event_id,
@@ -458,31 +522,14 @@ async fn source_sqlite_file(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
 ) -> Result<NamedTempFile> {
-    let statement = tx
-        .prepare(
-            r#"
-                SELECT documents
-                FROM sequent_backend.tally_session_execution
-                WHERE tenant_id = $1
-                  AND election_event_id = $2
-                  AND id = $3;
-            "#,
-        )
-        .await?;
-    let row = tx
-        .query_one(
-            &statement,
-            &[
-                &uuid::Uuid::parse_str(&publication.tenant_id)?,
-                &uuid::Uuid::parse_str(&publication.election_event_id)?,
-                &uuid::Uuid::parse_str(&publication.tally_session_execution_id)?,
-            ],
-        )
-        .await?;
-    let documents_value: Value = row
-        .try_get::<_, Option<Value>>("documents")?
-        .ok_or_else(|| anyhow!("No tally execution documents found"))?;
-    let documents: TallySessionDocuments = serde_json::from_value(documents_value)?;
+    let documents = get_tally_session_execution_documents(
+        tx,
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_execution_id,
+    )
+    .await?
+    .ok_or_else(|| anyhow!("No tally execution documents found"))?;
     let sqlite_document_id = documents
         .sqlite
         .ok_or_else(|| anyhow!("No SQLite document found on tally execution"))?;
@@ -499,12 +546,12 @@ async fn source_sqlite_file(
 }
 
 fn publication_base_path(publication: &TallyResultsPublication) -> String {
-    match publication.route_scope.as_str() {
-        "election" => format!(
+    match publication.route_scope {
+        ResultsRouteScope::Election => format!(
             "results/elections/{}",
             publication.route_election_id.clone().unwrap_or_default()
         ),
-        _ => "results".to_string(),
+        ResultsRouteScope::Event => "results".to_string(),
     }
 }
 
@@ -638,7 +685,7 @@ async fn publish_private_artifacts(
     custom_css: Value,
     language_config: &ManifestLanguageConfig,
 ) -> Result<(Value, Value)> {
-    if publication.visibility_scope == "area_based" {
+    if publication.visibility_scope == ResultsWebsiteVisibilityScope::AreaBased {
         let mut area_documents = serde_json::Map::new();
         for area_id in query_area_ids(source_path, selected_contests)? {
             let sqlite = copy_filtered_sqlite(source_path, selected_contests, Some(&area_id))?;
@@ -703,16 +750,14 @@ pub async fn refresh_public_results_index(
     election_event_id: &str,
 ) -> Result<()> {
     let election_event = get_election_event_by_id(tx, tenant_id, election_event_id).await?;
+    let presentation = election_event.get_presentation()?.unwrap_or_default();
     let active_publications =
         list_active_public_publications(tx, tenant_id, election_event_id).await?;
-    let active_publications = if is_results_website_enabled(election_event.presentation.as_ref()) {
+    let active_publications = if is_results_website_enabled(&presentation)? {
         let mut policy_matching_publications = Vec::new();
 
         for publication in active_publications {
-            if publication_matches_results_website_policy(
-                election_event.presentation.as_ref(),
-                &publication,
-            ) {
+            if publication_matches_results_website_policy(&presentation, &publication)? {
                 policy_matching_publications.push(publication);
             } else {
                 delete_public_publication_route_artifacts(&publication).await?;
@@ -732,9 +777,9 @@ pub async fn refresh_public_results_index(
         .into_iter()
         .map(|active| {
             let base = publication_base_path(&active);
-            let route_scope = active.route_scope.clone();
+            let route_scope = active.route_scope;
             let route_election_id = active.route_election_id.clone();
-            let route = if route_scope == "election" {
+            let route = if route_scope == ResultsRouteScope::Election {
                 format!(
                     "/{}/elections/{}",
                     active.election_event_id,
@@ -756,7 +801,7 @@ pub async fn refresh_public_results_index(
                 "election_ids": active.election_ids,
                 "access": active.access,
                 "visibility_scope": active.visibility_scope,
-                "manifest_public_path": if active.access == "public" {
+                "manifest_public_path": if active.access == ResultsWebsiteAccess::Public {
                     Some(manifest_public_path)
                 } else {
                     None
@@ -790,7 +835,7 @@ pub async fn publish_results_website_artifacts(
     let custom_css = query_manifest_custom_css(&source_path, &publication)?;
     let language_config = query_manifest_language_config(&source_path, &publication)?;
 
-    let (documents, manifest) = if publication.access == "public" {
+    let (documents, manifest) = if publication.access == ResultsWebsiteAccess::Public {
         publish_public_artifacts(
             tx,
             &publication,
@@ -815,7 +860,7 @@ pub async fn publish_results_website_artifacts(
     };
 
     mark_publication_published(tx, &publication, documents, manifest).await?;
-    if publication.access != "public" {
+    if publication.access != ResultsWebsiteAccess::Public {
         delete_public_publication_route_artifacts(&publication).await?;
     }
     refresh_public_results_index(tx, &publication.tenant_id, &publication.election_event_id)
@@ -829,9 +874,46 @@ mod tests {
     use super::*;
 
     fn row_count(conn: &Connection, table: &str) -> Result<i64> {
-        Ok(conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
-            row.get(0)
-        })?)
+        Ok(
+            conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })?,
+        )
+    }
+
+    #[test]
+    fn results_website_policy_is_read_from_the_typed_presentation() -> Result<()> {
+        let policy = ResultsWebsitePolicy {
+            status: ResultsWebsiteStatus::Enabled,
+            access: ResultsWebsiteAccess::Authenticated,
+            visibility_scope: ResultsWebsiteVisibilityScope::AreaBased,
+        };
+        let presentation = ElectionEventPresentation {
+            results_website: Some(serde_json::to_string(&policy)?),
+            ..Default::default()
+        };
+
+        assert_eq!(results_website_policy(&presentation)?, Some(policy));
+        assert!(is_results_website_enabled(&presentation)?);
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_object_policy_is_migrated_to_a_string_when_deserialized() -> Result<()> {
+        let presentation: ElectionEventPresentation = serde_json::from_value(json!({
+            "results_website": {
+                "status": "enabled",
+                "access": "public",
+                "visibility_scope": "full_event"
+            }
+        }))?;
+
+        assert!(presentation
+            .results_website
+            .as_deref()
+            .is_some_and(|value| value.starts_with('{')));
+        assert!(serde_json::to_value(&presentation)?["results_website"].is_string());
+        Ok(())
     }
 
     #[test]

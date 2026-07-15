@@ -18,6 +18,7 @@ import {
     InputLabel,
     MenuItem,
     Select,
+    SelectChangeEvent,
     Stack,
     Table,
     TableBody,
@@ -33,6 +34,8 @@ import {useAtomValue} from "jotai"
 import {useTranslation} from "react-i18next"
 import {
     EResultsWebsiteAccess,
+    EResultsPublicationStatus,
+    EResultsRouteScope,
     EResultsWebsiteStatus,
     EResultsWebsiteVisibilityScope,
     IResultsWebsitePolicy,
@@ -44,7 +47,11 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {
     PUBLISH_RESULTS_WEBSITE,
+    PublishResultsWebsiteData,
+    PublishResultsWebsiteVariables,
     REVOKE_RESULTS_PUBLICATION,
+    RevokeResultsPublicationData,
+    RevokeResultsPublicationVariables,
 } from "@/queries/ResultsWebsitePublication"
 import {IPermissions} from "@/types/keycloak"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -67,49 +74,48 @@ interface ResultsWebsitePublicationProps {
     resultsWebsitePolicy?: IResultsWebsitePolicy | null
 }
 
-type RouteScope = "event" | "election"
-type ResultsAccess = "public" | "authenticated"
-type VisibilityScope = "full_event" | "area_based"
-
 interface ResultsPublicationRecord extends RaRecord {
     id: string
     version: number
-    publication_status: string
-    route_scope: RouteScope
+    publication_status: EResultsPublicationStatus
+    route_scope: EResultsRouteScope
     route_election_id?: string | null
-    access: ResultsAccess
-    published_contest_ids?: unknown
+    access: EResultsWebsiteAccess
+    published_contest_ids?: string[]
     published_at?: string | null
 }
 
 const statusColor = (
-    status?: string
+    status?: EResultsPublicationStatus
 ): "default" | "success" | "warning" | "error" | "primary" | "secondary" | "info" => {
     switch (status) {
-        case "Published":
+        case EResultsPublicationStatus.PUBLISHED:
             return "success"
-        case "Publishing":
+        case EResultsPublicationStatus.PUBLISHING:
             return "warning"
-        case "Failed":
+        case EResultsPublicationStatus.FAILED:
             return "error"
-        case "Revoked":
-        case "Superseded":
+        case EResultsPublicationStatus.REVOKED:
+        case EResultsPublicationStatus.SUPERSEDED:
             return "default"
         default:
             return "default"
     }
 }
 
-const normalizeAccess = (value?: string): ResultsAccess =>
-    value === EResultsWebsiteAccess.AUTHENTICATED ? "authenticated" : "public"
+const normalizeAccess = (value?: EResultsWebsiteAccess): EResultsWebsiteAccess =>
+    value === EResultsWebsiteAccess.AUTHENTICATED
+        ? EResultsWebsiteAccess.AUTHENTICATED
+        : EResultsWebsiteAccess.PUBLIC
 
 const normalizeVisibilityScope = (
-    value?: string,
-    access: ResultsAccess = "public"
-): VisibilityScope =>
-    value === EResultsWebsiteVisibilityScope.AREA_BASED && access === "authenticated"
-        ? "area_based"
-        : "full_event"
+    value?: EResultsWebsiteVisibilityScope,
+    access: EResultsWebsiteAccess = EResultsWebsiteAccess.PUBLIC
+): EResultsWebsiteVisibilityScope =>
+    value === EResultsWebsiteVisibilityScope.AREA_BASED &&
+    access === EResultsWebsiteAccess.AUTHENTICATED
+        ? EResultsWebsiteVisibilityScope.AREA_BASED
+        : EResultsWebsiteVisibilityScope.FULL_EVENT
 
 export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps> = ({
     tenantId,
@@ -127,16 +133,18 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
     const authContext = useContext(AuthContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const tallyData = useAtomValue(tallyQueryData)
-    const [routeScope, setRouteScope] = useState<RouteScope>(
-        (tallySession?.election_ids?.length ?? 0) > 1 ? "event" : "election"
+    const [routeScope, setRouteScope] = useState<EResultsRouteScope>(
+        (tallySession?.election_ids?.length ?? 0) > 1
+            ? EResultsRouteScope.EVENT
+            : EResultsRouteScope.ELECTION
     )
     const [routeElectionId, setRouteElectionId] = useState<string>(
         tallySession?.election_ids?.[0] ?? ""
     )
-    const [access, setAccess] = useState<ResultsAccess>(
+    const [access, setAccess] = useState<EResultsWebsiteAccess>(
         normalizeAccess(resultsWebsitePolicy?.access)
     )
-    const [visibilityScope, setVisibilityScope] = useState<VisibilityScope>(
+    const [visibilityScope, setVisibilityScope] = useState<EResultsWebsiteVisibilityScope>(
         normalizeVisibilityScope(resultsWebsitePolicy?.visibility_scope, access)
     )
     const [selectedContestIds, setSelectedContestIds] = useState<string[]>([])
@@ -160,23 +168,26 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
     const accessLockedByPolicy = !!resultsWebsitePolicy?.access
     const visibilityLockedByPolicy = !!resultsWebsitePolicy?.visibility_scope
 
-    const [publishResultsWebsite, {loading: publishing}] = useMutation(PUBLISH_RESULTS_WEBSITE, {
+    const [publishResultsWebsite, {loading: publishing}] = useMutation<
+        PublishResultsWebsiteData,
+        PublishResultsWebsiteVariables
+    >(PUBLISH_RESULTS_WEBSITE, {
         context: {
             headers: {
                 "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
             },
         },
     })
-    const [revokeResultsPublication, {loading: revoking}] = useMutation(
-        REVOKE_RESULTS_PUBLICATION,
-        {
-            context: {
-                headers: {
-                    "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
-                },
+    const [revokeResultsPublication, {loading: revoking}] = useMutation<
+        RevokeResultsPublicationData,
+        RevokeResultsPublicationVariables
+    >(REVOKE_RESULTS_PUBLICATION, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
             },
-        }
-    )
+        },
+    })
 
     useEffect(() => {
         const electionIds = tallySession?.election_ids ?? []
@@ -185,8 +196,12 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
             setRouteElectionId(electionIds[0])
         }
 
-        if (!routeElectionId && electionIds.length > 1 && routeScope === "election") {
-            setRouteScope("event")
+        if (
+            !routeElectionId &&
+            electionIds.length > 1 &&
+            routeScope === EResultsRouteScope.ELECTION
+        ) {
+            setRouteScope(EResultsRouteScope.EVENT)
         }
     }, [routeElectionId, routeScope, tallySession?.election_ids])
 
@@ -228,7 +243,9 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
 
     const scopedElectionIds = useMemo(() => {
         const tallyElectionIds = tallySession?.election_ids ?? []
-        return routeScope === "election" && routeElectionId ? [routeElectionId] : tallyElectionIds
+        return routeScope === EResultsRouteScope.ELECTION && routeElectionId
+            ? [routeElectionId]
+            : tallyElectionIds
     }, [routeElectionId, routeScope, tallySession?.election_ids])
 
     const eligibleContests = useMemo(() => {
@@ -261,8 +278,8 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
     }, [eligibleContestIds])
 
     useEffect(() => {
-        if (access === "public") {
-            setVisibilityScope("full_event")
+        if (access === EResultsWebsiteAccess.PUBLIC) {
+            setVisibilityScope(EResultsWebsiteVisibilityScope.FULL_EVENT)
         }
     }, [access])
 
@@ -279,7 +296,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         !!resultsEventId &&
         selectedEligibleContestIds.length > 0 &&
         scopedElectionIds.length > 0 &&
-        (routeScope === "event" || !!routeElectionId)
+        (routeScope === EResultsRouteScope.EVENT || !!routeElectionId)
 
     const routeUrl = (publication?: ResultsPublicationRecord) => {
         const base = globalSettings.RESULTS_PORTAL_URL?.replace(/\/+$/, "")
@@ -287,11 +304,13 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
         const scope = publication?.route_scope ?? routeScope
         const electionId = publication?.route_election_id ?? routeElectionId
         const routePath =
-            scope === "election"
+            scope === EResultsRouteScope.ELECTION
                 ? `${base}/${electionEventId}/elections/${electionId}`
                 : `${base}/${electionEventId}`
 
-        return publication?.publication_status === "Published" ? routePath : undefined
+        return publication?.publication_status === EResultsPublicationStatus.PUBLISHED
+            ? routePath
+            : undefined
     }
 
     const publishedContestCount = (publication: ResultsPublicationRecord) =>
@@ -331,7 +350,8 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                     tally_session_execution_id: tallySessionExecution.id,
                     results_event_id: resultsEventId,
                     route_scope: routeScope,
-                    route_election_id: routeScope === "election" ? routeElectionId : null,
+                    route_election_id:
+                        routeScope === EResultsRouteScope.ELECTION ? routeElectionId : null,
                     election_ids: scopedElectionIds,
                     contest_ids: selectedEligibleContestIds,
                     access,
@@ -404,17 +424,19 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                         labelId="results-route-scope-label"
                         label={t("tally.resultsPublication.route")}
                         value={routeScope}
-                        onChange={(event) => setRouteScope(event.target.value as RouteScope)}
+                        onChange={(event: SelectChangeEvent<EResultsRouteScope>) =>
+                            setRouteScope(event.target.value)
+                        }
                     >
-                        <MenuItem value="event">
+                        <MenuItem value={EResultsRouteScope.EVENT}>
                             {t("tally.resultsPublication.eventResults")}
                         </MenuItem>
-                        <MenuItem value="election">
+                        <MenuItem value={EResultsRouteScope.ELECTION}>
                             {t("tally.resultsPublication.electionResults")}
                         </MenuItem>
                     </Select>
                 </FormControl>
-                {routeScope === "election" && (
+                {routeScope === EResultsRouteScope.ELECTION && (
                     <FormControl fullWidth>
                         <InputLabel id="results-route-election-label">
                             {t("tally.resultsPublication.election")}
@@ -444,17 +466,22 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                         labelId="results-access-label"
                         label={t("tally.resultsPublication.access")}
                         value={access}
-                        onChange={(event) => setAccess(event.target.value as ResultsAccess)}
+                        onChange={(event: SelectChangeEvent<EResultsWebsiteAccess>) =>
+                            setAccess(event.target.value)
+                        }
                     >
-                        <MenuItem value="public">
+                        <MenuItem value={EResultsWebsiteAccess.PUBLIC}>
                             {t("tally.resultsPublication.publicAccess")}
                         </MenuItem>
-                        <MenuItem value="authenticated">
+                        <MenuItem value={EResultsWebsiteAccess.AUTHENTICATED}>
                             {t("tally.resultsPublication.authenticatedAccess")}
                         </MenuItem>
                     </Select>
                 </FormControl>
-                <FormControl fullWidth disabled={access === "public" || visibilityLockedByPolicy}>
+                <FormControl
+                    fullWidth
+                    disabled={access === EResultsWebsiteAccess.PUBLIC || visibilityLockedByPolicy}
+                >
                     <InputLabel id="results-visibility-label">
                         {t("tally.resultsPublication.visibility")}
                     </InputLabel>
@@ -462,14 +489,14 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                         labelId="results-visibility-label"
                         label={t("tally.resultsPublication.visibility")}
                         value={visibilityScope}
-                        onChange={(event) =>
-                            setVisibilityScope(event.target.value as VisibilityScope)
+                        onChange={(event: SelectChangeEvent<EResultsWebsiteVisibilityScope>) =>
+                            setVisibilityScope(event.target.value)
                         }
                     >
-                        <MenuItem value="full_event">
+                        <MenuItem value={EResultsWebsiteVisibilityScope.FULL_EVENT}>
                             {t("tally.resultsPublication.fullPublishedScope")}
                         </MenuItem>
-                        <MenuItem value="area_based">
+                        <MenuItem value={EResultsWebsiteVisibilityScope.AREA_BASED}>
                             {t("tally.resultsPublication.personalVisibility")}
                         </MenuItem>
                     </Select>
@@ -548,7 +575,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            {publication.route_scope === "election"
+                                            {publication.route_scope === EResultsRouteScope.ELECTION
                                                 ? `/${electionEventId}/elections/${publication.route_election_id}`
                                                 : `/${electionEventId}`}
                                         </TableCell>
@@ -572,7 +599,8 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                                         {t("tally.resultsPublication.open")}
                                                     </Button>
                                                 )}
-                                                {publication.publication_status === "Published" && (
+                                                {publication.publication_status ===
+                                                    EResultsPublicationStatus.PUBLISHED && (
                                                     <Button
                                                         size="small"
                                                         color="error"

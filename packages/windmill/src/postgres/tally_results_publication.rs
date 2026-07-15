@@ -2,11 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use crate::types::results_publication::{
+    ContestPublicationState, ResultsPublicationStatus, ResultsRouteScope,
+};
+use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::{ResultsWebsiteAccess, ResultsWebsiteVisibilityScope};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use uuid::Uuid;
 
@@ -19,16 +24,16 @@ pub struct TallyResultsPublication {
     pub tally_session_execution_id: String,
     pub results_event_id: String,
     pub task_execution_id: Option<String>,
-    pub route_scope: String,
+    pub route_scope: ResultsRouteScope,
     pub route_election_id: Option<String>,
     pub election_ids: Vec<String>,
-    pub access: String,
-    pub visibility_scope: String,
-    pub published_contest_ids: Value,
-    pub contest_publication_state: Value,
+    pub access: ResultsWebsiteAccess,
+    pub visibility_scope: ResultsWebsiteVisibilityScope,
+    pub published_contest_ids: Vec<String>,
+    pub contest_publication_state: HashMap<String, ContestPublicationState>,
     pub documents: Value,
     pub manifest: Option<Value>,
-    pub publication_status: String,
+    pub publication_status: ResultsPublicationStatus,
     pub version: i32,
     pub error_message: Option<String>,
     pub published_by_user_id: Option<String>,
@@ -50,7 +55,10 @@ impl TryFrom<Row> for TallyResultsPublication {
             task_execution_id: row
                 .try_get::<_, Option<Uuid>>("task_execution_id")?
                 .map(|id| id.to_string()),
-            route_scope: row.try_get("route_scope")?,
+            route_scope: row
+                .try_get::<_, String>("route_scope")?
+                .parse()
+                .context("Invalid tally results publication route_scope")?,
             route_election_id: row
                 .try_get::<_, Option<Uuid>>("route_election_id")?
                 .map(|id| id.to_string()),
@@ -59,13 +67,24 @@ impl TryFrom<Row> for TallyResultsPublication {
                 .iter()
                 .map(|id| id.to_string())
                 .collect(),
-            access: row.try_get("access")?,
-            visibility_scope: row.try_get("visibility_scope")?,
-            published_contest_ids: row.try_get("published_contest_ids")?,
-            contest_publication_state: row.try_get("contest_publication_state")?,
+            access: row
+                .try_get::<_, String>("access")?
+                .parse()
+                .context("Invalid tally results publication access")?,
+            visibility_scope: row
+                .try_get::<_, String>("visibility_scope")?
+                .parse()
+                .context("Invalid tally results publication visibility_scope")?,
+            published_contest_ids: serde_json::from_value(row.try_get("published_contest_ids")?)?,
+            contest_publication_state: serde_json::from_value(
+                row.try_get("contest_publication_state")?,
+            )?,
             documents: row.try_get("documents")?,
             manifest: row.try_get("manifest")?,
-            publication_status: row.try_get("publication_status")?,
+            publication_status: row
+                .try_get::<_, String>("publication_status")?
+                .parse()
+                .context("Invalid tally results publication status")?,
             version: row.try_get("version")?,
             error_message: row.try_get("error_message")?,
             published_by_user_id: row
@@ -79,7 +98,7 @@ pub async fn next_publication_version(
     tx: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    route_scope: &str,
+    route_scope: ResultsRouteScope,
     route_election_id: Option<&str>,
 ) -> Result<i32> {
     let route_election_uuid = route_election_id.map(parse_uuid_v4).transpose()?;
@@ -104,7 +123,7 @@ pub async fn next_publication_version(
             &[
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
-                &route_scope,
+                &route_scope.as_ref(),
                 &route_election_uuid,
             ],
         )
@@ -113,43 +132,54 @@ pub async fn next_publication_version(
     Ok(row.try_get("version")?)
 }
 
-#[allow(clippy::too_many_arguments)]
+pub struct NewTallyResultsPublication<'a> {
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+    pub tally_session_id: &'a str,
+    pub tally_session_execution_id: &'a str,
+    pub results_event_id: &'a str,
+    pub task_execution_id: &'a str,
+    pub route_scope: ResultsRouteScope,
+    pub route_election_id: Option<&'a str>,
+    pub election_ids: &'a [String],
+    pub access: ResultsWebsiteAccess,
+    pub visibility_scope: ResultsWebsiteVisibilityScope,
+    pub contest_ids: &'a [String],
+    pub published_by_user_id: Option<&'a str>,
+}
+
 pub async fn insert_publishing_publication(
     tx: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    tally_session_id: &str,
-    tally_session_execution_id: &str,
-    results_event_id: &str,
-    task_execution_id: &str,
-    route_scope: &str,
-    route_election_id: Option<&str>,
-    election_ids: &[String],
-    access: &str,
-    visibility_scope: &str,
-    contest_ids: &[String],
-    published_by_user_id: Option<&str>,
+    publication: NewTallyResultsPublication<'_>,
 ) -> Result<TallyResultsPublication> {
     let version = next_publication_version(
         tx,
-        tenant_id,
-        election_event_id,
-        route_scope,
-        route_election_id,
+        publication.tenant_id,
+        publication.election_event_id,
+        publication.route_scope,
+        publication.route_election_id,
     )
     .await?;
-    let election_uuids = election_ids
+    let election_uuids = publication
+        .election_ids
         .iter()
         .map(|id| parse_uuid_v4(id))
         .collect::<std::result::Result<Vec<Uuid>, _>>()?;
-    let contest_state = contest_ids
+    let contest_state = publication
+        .contest_ids
         .iter()
-        .map(|id| (id.clone(), Value::String("published".to_string())))
-        .collect::<serde_json::Map<String, Value>>();
-    let route_election_uuid = route_election_id.map(parse_uuid_v4).transpose()?;
-    let published_by_uuid = published_by_user_id.map(parse_uuid_v4).transpose()?;
-    let contest_ids_value = serde_json::to_value(contest_ids)?;
-    let contest_state_value = Value::Object(contest_state);
+        .map(|id| (id.clone(), ContestPublicationState::Published))
+        .collect::<HashMap<_, _>>();
+    let route_election_uuid = publication
+        .route_election_id
+        .map(parse_uuid_v4)
+        .transpose()?;
+    let published_by_uuid = publication
+        .published_by_user_id
+        .map(parse_uuid_v4)
+        .transpose()?;
+    let contest_ids_value = serde_json::to_value(publication.contest_ids)?;
+    let contest_state_value = serde_json::to_value(contest_state)?;
 
     let statement = tx
         .prepare(
@@ -185,17 +215,17 @@ pub async fn insert_publishing_publication(
         .query(
             &statement,
             &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-                &parse_uuid_v4(tally_session_id)?,
-                &parse_uuid_v4(tally_session_execution_id)?,
-                &parse_uuid_v4(results_event_id)?,
-                &parse_uuid_v4(task_execution_id)?,
-                &route_scope,
+                &parse_uuid_v4(publication.tenant_id)?,
+                &parse_uuid_v4(publication.election_event_id)?,
+                &parse_uuid_v4(publication.tally_session_id)?,
+                &parse_uuid_v4(publication.tally_session_execution_id)?,
+                &parse_uuid_v4(publication.results_event_id)?,
+                &parse_uuid_v4(publication.task_execution_id)?,
+                &publication.route_scope.as_ref(),
                 &route_election_uuid,
                 &election_uuids,
-                &access,
-                &visibility_scope,
+                &publication.access.to_string(),
+                &publication.visibility_scope.to_string(),
                 &contest_ids_value,
                 &contest_state_value,
                 &version,
@@ -248,7 +278,7 @@ pub async fn get_active_publication_for_route(
     tx: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    route_scope: &str,
+    route_scope: ResultsRouteScope,
     route_election_id: Option<&str>,
 ) -> Result<Option<TallyResultsPublication>> {
     let route_election_uuid = route_election_id.map(parse_uuid_v4).transpose()?;
@@ -277,7 +307,7 @@ pub async fn get_active_publication_for_route(
             &[
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
-                &route_scope,
+                &route_scope.as_ref(),
                 &route_election_uuid,
             ],
         )
@@ -354,7 +384,7 @@ pub async fn mark_publication_published(
             &parse_uuid_v4(&publication.tenant_id)?,
             &parse_uuid_v4(&publication.election_event_id)?,
             &parse_uuid_v4(&publication.id)?,
-            &publication.route_scope,
+            &publication.route_scope.as_ref(),
             &route_election_uuid,
         ],
     )

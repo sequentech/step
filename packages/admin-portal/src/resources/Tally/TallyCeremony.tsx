@@ -54,6 +54,7 @@ import {
     EInitReport,
     EVotingStatus,
     isArray,
+    parseResultsWebsitePolicy,
 } from "@sequentech/ui-core"
 
 import {
@@ -1206,7 +1207,9 @@ export const TallyCeremony: React.FC = () => {
                                             contests={contests ?? []}
                                             elections={elections ?? []}
                                             resultsWebsitePolicy={
-                                                record.presentation?.results_website ?? null
+                                                parseResultsWebsitePolicy(
+                                                    record.presentation?.results_website
+                                                ) ?? null
                                             }
                                         />
                                     ) : (

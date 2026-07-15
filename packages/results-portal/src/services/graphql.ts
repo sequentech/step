@@ -7,10 +7,10 @@ export interface GraphqlResponse<T> {
     errors?: Array<{message: string}>
 }
 
-export const graphqlFetch = async <T>(
+export const graphqlFetch = async <T, TVariables extends object>(
     hasuraUrl: string,
     query: string,
-    variables: Record<string, unknown>,
+    variables: TVariables,
     token?: string
 ): Promise<T> => {
     const response = await fetch(hasuraUrl, {

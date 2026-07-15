@@ -26,6 +26,17 @@ use uuid::Uuid;
 
 use super::PubKeycloakAdmin;
 
+fn portal_redirect_uris(
+    ballot_verifier_url: &str,
+    results_portal_url: &str,
+) -> Vec<String> {
+    vec![
+        "/*".to_string(),
+        format!("{}/*", ballot_verifier_url.trim_end_matches('/')),
+        format!("{}/*", results_portal_url.trim_end_matches('/')),
+    ]
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum RoleAction {
     Add,
@@ -624,6 +635,8 @@ impl KeycloakAdminClient {
         };
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
+        let results_portal_url = env::var("RESULTS_PORTAL_URL")
+            .with_context(|| "Error fetching RESULTS_PORTAL_URL env var")?;
 
         // set the voting portal and voting portal kiosk urls
         realm.clients = Some(
@@ -638,10 +651,10 @@ impl KeycloakAdminClient {
                     {
                         client.root_url = Some(voting_portal_url_env.clone());
                         client.base_url = login_url.clone();
-                        client.redirect_uris = Some(vec![
-                            "/*".to_string(),
-                            format!("{}/*", ballot_verifier_url),
-                        ]);
+                        client.redirect_uris = Some(portal_redirect_uris(
+                            &ballot_verifier_url,
+                            &results_portal_url,
+                        ));
                     }
 
                     // When an Action Token expires, for example a Manual
@@ -698,5 +711,25 @@ impl KeycloakAdminClient {
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::portal_redirect_uris;
+
+    #[test]
+    fn portal_redirect_uris_include_the_results_portal() {
+        assert_eq!(
+            portal_redirect_uris(
+                "https://verifier.example.test/",
+                "https://results.example.test/",
+            ),
+            vec![
+                "/*",
+                "https://verifier.example.test/*",
+                "https://results.example.test/*",
+            ]
+        );
     }
 }

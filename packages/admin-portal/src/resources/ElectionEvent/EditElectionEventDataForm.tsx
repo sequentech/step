@@ -62,6 +62,9 @@ import {
     EResultsWebsiteAccess,
     EResultsWebsiteStatus,
     EResultsWebsiteVisibilityScope,
+    IResultsWebsitePolicy,
+    defaultResultsWebsitePolicy,
+    parseResultsWebsitePolicy,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
@@ -107,6 +110,7 @@ export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
     electionsOrder?: Array<Sequent_Backend_Election>
+    resultsWebsitePolicy?: IResultsWebsitePolicy
 } & Sequent_Backend_Election_Event
 
 const ElectionRows = styled("div")`
@@ -295,6 +299,9 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
 
             temp.presentation.custom_urls ??= {}
+            temp.resultsWebsitePolicy =
+                parseResultsWebsitePolicy(temp.presentation.results_website) ??
+                defaultResultsWebsitePolicy()
 
             return temp
         },
@@ -1271,7 +1278,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             {t("tally.resultsPublication.policyTitle")}
                         </Typography>
                         <SelectInput
-                            source={"presentation.results_website.status"}
+                            source={"resultsWebsitePolicy.status"}
                             choices={resultsWebsiteStatusOptions()}
                             label={t("tally.resultsPublication.policyTitle")}
                             defaultValue={EResultsWebsiteStatus.DISABLED}
@@ -1279,7 +1286,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             validate={required()}
                         />
                         <SelectInput
-                            source={"presentation.results_website.access"}
+                            source={"resultsWebsitePolicy.access"}
                             choices={resultsWebsiteAccessOptions()}
                             label={t("tally.resultsPublication.policyAccess")}
                             defaultValue={EResultsWebsiteAccess.PUBLIC}
@@ -1287,7 +1294,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             validate={required()}
                         />
                         <SelectInput
-                            source={"presentation.results_website.visibility_scope"}
+                            source={"resultsWebsitePolicy.visibility_scope"}
                             choices={resultsWebsiteVisibilityOptions()}
                             label={t("tally.resultsPublication.policyVisibility")}
                             defaultValue={EResultsWebsiteVisibilityScope.FULL_EVENT}

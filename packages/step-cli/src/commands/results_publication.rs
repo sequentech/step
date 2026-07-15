@@ -5,15 +5,20 @@
 use crate::utils::read_config::read_config;
 use clap::Args;
 use colored::Colorize;
+use sequent_core::ballot::{
+    ResultsWebsiteAccess, ResultsWebsiteStatus, ResultsWebsiteVisibilityScope,
+};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use windmill::types::results_publication::{
+    validate_access_visibility, ResultsPublicationStatus, ResultsRouteScope,
+};
 
 const CONFIGURE_RESULTS_WEBSITE_MUTATION: &str = r#"
 mutation ConfigureResultsWebsite(
   $election_event_id: String!
-  $status: String!
-  $access: String!
-  $visibility_scope: String!
+  $status: ResultsWebsiteStatus!
+  $access: ResultsWebsiteAccess!
+  $visibility_scope: ResultsWebsiteVisibilityScope!
 ) {
   configureResultsWebsitePolicy(
     election_event_id: $election_event_id
@@ -35,12 +40,12 @@ mutation PublishResultsWebsite(
   $tally_session_id: String!
   $tally_session_execution_id: String!
   $results_event_id: String!
-  $route_scope: String!
+  $route_scope: ResultsRouteScope!
   $route_election_id: String
   $election_ids: [String!]!
   $contest_ids: [String!]!
-  $access: String!
-  $visibility_scope: String!
+  $access: ResultsWebsiteAccess!
+  $visibility_scope: ResultsWebsiteVisibilityScope!
 ) {
   publishResultsWebsite(
     election_event_id: $election_event_id
@@ -74,15 +79,6 @@ mutation RevokeResultsPublication($election_event_id: String!, $publication_id: 
 }
 "#;
 
-const REFRESH_RESULTS_PUBLICATION_INDEX_MUTATION: &str = r#"
-mutation RefreshResultsPublicationIndex($election_event_id: String!) {
-  refreshResultsPublicationIndex(election_event_id: $election_event_id) {
-    election_event_id
-    results_enabled
-  }
-}
-"#;
-
 #[derive(Args)]
 #[command(
     about = "Publish configured tally results to the results website",
@@ -103,7 +99,7 @@ pub struct PublishResults {
 
     /// Results route scope: event or election
     #[arg(long, default_value = "event")]
-    route_scope: String,
+    route_scope: ResultsRouteScope,
 
     /// Required when route-scope is election
     #[arg(long)]
@@ -119,11 +115,11 @@ pub struct PublishResults {
 
     /// Access mode: public or authenticated
     #[arg(long, default_value = "public")]
-    access: String,
+    access: ResultsWebsiteAccess,
 
     /// Visibility scope: full_event or area_based
     #[arg(long, default_value = "full_event")]
-    visibility_scope: String,
+    visibility_scope: ResultsWebsiteVisibilityScope,
 }
 
 #[derive(Args)]
@@ -137,15 +133,15 @@ pub struct ConfigureResultsWebsite {
 
     /// Results website status: enabled or disabled
     #[arg(long, default_value = "enabled")]
-    status: String,
+    status: ResultsWebsiteStatus,
 
     /// Access mode: public or authenticated
     #[arg(long, default_value = "public")]
-    access: String,
+    access: ResultsWebsiteAccess,
 
     /// Visibility scope: full_event or area_based
     #[arg(long, default_value = "full_event")]
-    visibility_scope: String,
+    visibility_scope: ResultsWebsiteVisibilityScope,
 }
 
 #[derive(Args)]
@@ -162,22 +158,22 @@ pub struct RevokeResultsPublication {
 pub struct PublishResultsWebsitePayload {
     publication_id: String,
     task_execution_id: String,
-    publication_status: String,
+    publication_status: ResultsPublicationStatus,
     error_msg: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RevokeResultsPublicationPayload {
     publication_id: String,
-    publication_status: String,
+    publication_status: ResultsPublicationStatus,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ConfigureResultsWebsitePayload {
     election_event_id: String,
-    status: String,
-    access: String,
-    visibility_scope: String,
+    status: ResultsWebsiteStatus,
+    access: ResultsWebsiteAccess,
+    visibility_scope: ResultsWebsiteVisibilityScope,
 }
 
 #[derive(Serialize)]
@@ -200,9 +196,9 @@ struct GraphqlError {
 #[derive(Serialize)]
 struct ConfigureResultsWebsiteVariables {
     election_event_id: String,
-    status: String,
-    access: String,
-    visibility_scope: String,
+    status: ResultsWebsiteStatus,
+    access: ResultsWebsiteAccess,
+    visibility_scope: ResultsWebsiteVisibilityScope,
 }
 
 #[derive(Deserialize)]
@@ -217,12 +213,12 @@ struct PublishResultsVariables {
     tally_session_id: String,
     tally_session_execution_id: String,
     results_event_id: String,
-    route_scope: String,
+    route_scope: ResultsRouteScope,
     route_election_id: Option<String>,
     election_ids: Vec<String>,
     contest_ids: Vec<String>,
-    access: String,
-    visibility_scope: String,
+    access: ResultsWebsiteAccess,
+    visibility_scope: ResultsWebsiteVisibilityScope,
 }
 
 #[derive(Deserialize)]
@@ -243,17 +239,6 @@ struct RevokeResultsData {
     revoke_results_publication: Option<RevokeResultsPublicationPayload>,
 }
 
-#[derive(Serialize)]
-struct RefreshResultsPublicationIndexVariables {
-    election_event_id: String,
-}
-
-#[derive(Deserialize)]
-struct RefreshResultsPublicationIndexData {
-    #[serde(rename = "refreshResultsPublicationIndex")]
-    refresh_results_publication_index: Option<Value>,
-}
-
 impl PublishResults {
     pub fn run(&self) {
         match publish_results(self) {
@@ -271,7 +256,7 @@ impl PublishResults {
                 println!(
                     "{} {}",
                     "Publication status:".green(),
-                    result.publication_status.cyan()
+                    result.publication_status.to_string().cyan()
                 );
                 if let Some(error_msg) = result.error_msg {
                     eprintln!("{} {}", "Warning:".yellow(), error_msg);
@@ -293,12 +278,12 @@ impl ConfigureResultsWebsite {
                     "Success! Configured results website for election event:".green(),
                     result.election_event_id.cyan()
                 );
-                println!("{} {}", "Status:".green(), result.status.cyan());
-                println!("{} {}", "Access:".green(), result.access.cyan());
+                println!("{} {}", "Status:".green(), result.status.to_string().cyan());
+                println!("{} {}", "Access:".green(), result.access.to_string().cyan());
                 println!(
                     "{} {}",
                     "Visibility scope:".green(),
-                    result.visibility_scope.cyan()
+                    result.visibility_scope.to_string().cyan()
                 );
             }
             Err(err) => {
@@ -320,7 +305,7 @@ impl RevokeResultsPublication {
                 println!(
                     "{} {}",
                     "Publication status:".green(),
-                    result.publication_status.cyan()
+                    result.publication_status.to_string().cyan()
                 );
             }
             Err(err) => {
@@ -333,13 +318,13 @@ impl RevokeResultsPublication {
 pub fn configure_results_website(
     command: &ConfigureResultsWebsite,
 ) -> Result<ConfigureResultsWebsitePayload, Box<dyn std::error::Error>> {
-    validate_results_website_policy(&command.status, &command.access, &command.visibility_scope)?;
+    validate_access_visibility(command.access, command.visibility_scope)?;
 
     let variables = ConfigureResultsWebsiteVariables {
         election_event_id: command.election_event_id.clone(),
-        status: command.status.clone(),
-        access: command.access.clone(),
-        visibility_scope: command.visibility_scope.clone(),
+        status: command.status,
+        access: command.access,
+        visibility_scope: command.visibility_scope,
     };
     let request_body = GraphqlRequest {
         query: CONFIGURE_RESULTS_WEBSITE_MUTATION,
@@ -361,7 +346,7 @@ pub fn publish_results(
 ) -> Result<PublishResultsWebsitePayload, Box<dyn std::error::Error>> {
     validate_publish_config(command)?;
 
-    let route_election_id = if command.route_scope == "election" {
+    let route_election_id = if command.route_scope == ResultsRouteScope::Election {
         command.route_election_id.clone()
     } else {
         None
@@ -371,12 +356,12 @@ pub fn publish_results(
         tally_session_id: command.tally_session_id.clone(),
         tally_session_execution_id: command.tally_session_execution_id.clone(),
         results_event_id: command.results_event_id.clone(),
-        route_scope: command.route_scope.clone(),
+        route_scope: command.route_scope,
         route_election_id,
         election_ids: command.election_ids.clone(),
         contest_ids: command.contest_ids.clone(),
-        access: command.access.clone(),
-        visibility_scope: command.visibility_scope.clone(),
+        access: command.access,
+        visibility_scope: command.visibility_scope,
     };
     let request_body = GraphqlRequest {
         query: PUBLISH_RESULTS_WEBSITE_MUTATION,
@@ -416,31 +401,6 @@ pub fn revoke_results_publication(
     Err(graphql_error_message(response.errors, "failed to revoke results publication").into())
 }
 
-fn refresh_results_publication_index(
-    election_event_id: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let variables = RefreshResultsPublicationIndexVariables {
-        election_event_id: election_event_id.to_string(),
-    };
-    let request_body = GraphqlRequest {
-        query: REFRESH_RESULTS_PUBLICATION_INDEX_MUTATION,
-        variables,
-    };
-    let response: GraphqlResponse<RefreshResultsPublicationIndexData> = post_graphql(request_body)?;
-
-    if let Some(data) = response.data {
-        if data.refresh_results_publication_index.is_some() {
-            return Ok(());
-        }
-    }
-
-    Err(graphql_error_message(
-        response.errors,
-        "failed to refresh results publication index",
-    )
-    .into())
-}
-
 fn post_graphql<V: Serialize, T: for<'de> Deserialize<'de>>(
     request_body: GraphqlRequest<V>,
 ) -> Result<GraphqlResponse<T>, Box<dyn std::error::Error>> {
@@ -470,50 +430,13 @@ fn post_graphql_with_role<V: Serialize, T: for<'de> Deserialize<'de>>(
 }
 
 fn validate_publish_config(command: &PublishResults) -> Result<(), Box<dyn std::error::Error>> {
-    validate_value("route-scope", &command.route_scope, &["event", "election"])?;
-    validate_results_website_policy("enabled", &command.access, &command.visibility_scope)?;
+    validate_access_visibility(command.access, command.visibility_scope)?;
 
-    if command.route_scope == "election" && command.route_election_id.is_none() {
+    if command.route_scope == ResultsRouteScope::Election && command.route_election_id.is_none() {
         return Err("route-election-id is required when route-scope is election".into());
     }
 
     Ok(())
-}
-
-fn validate_results_website_policy(
-    status: &str,
-    access: &str,
-    visibility_scope: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    validate_value("status", status, &["enabled", "disabled"])?;
-    validate_value("access", access, &["public", "authenticated"])?;
-    validate_value(
-        "visibility-scope",
-        visibility_scope,
-        &["full_event", "area_based"],
-    )?;
-
-    if access == "public" && visibility_scope != "full_event" {
-        return Err("public results must use full_event visibility".into());
-    }
-
-    Ok(())
-}
-
-fn validate_value(
-    name: &str,
-    value: &str,
-    accepted_values: &[&str],
-) -> Result<(), Box<dyn std::error::Error>> {
-    if accepted_values.contains(&value) {
-        Ok(())
-    } else {
-        Err(format!(
-            "invalid {name}: {value}. Expected one of: {}",
-            accepted_values.join(", ")
-        )
-        .into())
-    }
 }
 
 fn graphql_error_message(errors: Option<Vec<GraphqlError>>, fallback: &str) -> String {

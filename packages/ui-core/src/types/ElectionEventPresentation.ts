@@ -110,10 +110,60 @@ export enum EResultsWebsiteVisibilityScope {
     AREA_BASED = "area_based",
 }
 
+export enum EResultsRouteScope {
+    EVENT = "event",
+    ELECTION = "election",
+}
+
+export enum EResultsPublicationStatus {
+    PUBLISHING = "Publishing",
+    PUBLISHED = "Published",
+    FAILED = "Failed",
+    REVOKED = "Revoked",
+    SUPERSEDED = "Superseded",
+}
+
 export interface IResultsWebsitePolicy {
-    status?: EResultsWebsiteStatus
-    access?: EResultsWebsiteAccess
-    visibility_scope?: EResultsWebsiteVisibilityScope
+    status: EResultsWebsiteStatus
+    access: EResultsWebsiteAccess
+    visibility_scope: EResultsWebsiteVisibilityScope
+}
+
+export const defaultResultsWebsitePolicy = (): IResultsWebsitePolicy => ({
+    status: EResultsWebsiteStatus.DISABLED,
+    access: EResultsWebsiteAccess.PUBLIC,
+    visibility_scope: EResultsWebsiteVisibilityScope.FULL_EVENT,
+})
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+export const parseResultsWebsitePolicy = (value: unknown): IResultsWebsitePolicy | undefined => {
+    try {
+        const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value
+        if (!isRecord(parsed)) return undefined
+
+        const {status, access, visibility_scope: visibilityScope} = parsed
+        if (status !== EResultsWebsiteStatus.ENABLED && status !== EResultsWebsiteStatus.DISABLED) {
+            return undefined
+        }
+        if (
+            access !== EResultsWebsiteAccess.PUBLIC &&
+            access !== EResultsWebsiteAccess.AUTHENTICATED
+        ) {
+            return undefined
+        }
+        if (
+            visibilityScope !== EResultsWebsiteVisibilityScope.FULL_EVENT &&
+            visibilityScope !== EResultsWebsiteVisibilityScope.AREA_BASED
+        ) {
+            return undefined
+        }
+
+        return {status, access, visibility_scope: visibilityScope}
+    } catch {
+        return undefined
+    }
 }
 
 export interface IElectionEventPresentation {
@@ -139,6 +189,6 @@ export interface IElectionEventPresentation {
     weighted_voting_policy?: EElectionEventWeightedVotingPolicy
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy
-    results_website?: IResultsWebsitePolicy
+    results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
 }

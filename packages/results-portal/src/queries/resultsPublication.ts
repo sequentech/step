@@ -18,21 +18,29 @@ export const RESOLVE_RESULTS_PUBLICATION = `
     }
 `
 
+export interface ResolveResultsPublicationVariables {
+    eeId: string
+    electionId?: string
+}
+
 export const FETCH_RESULTS_ARTIFACT = `
     query FetchResultsArtifact(
         $electionEventId: String!
         $electionId: String
         $publicationId: String!
-        $areaIds: [String!]
     ) {
         fetchResultsArtifact(
             election_event_id: $electionEventId
             election_id: $electionId
             publication_id: $publicationId
-            area_ids: $areaIds
         ) {
             urls
-            artifacts
         }
     }
 `
+
+export interface FetchResultsArtifactVariables {
+    electionEventId: string
+    electionId?: string
+    publicationId: string
+}

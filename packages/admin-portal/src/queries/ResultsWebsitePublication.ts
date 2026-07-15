@@ -3,6 +3,58 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {gql} from "@apollo/client"
+import {
+    EResultsPublicationStatus,
+    EResultsRouteScope,
+    EResultsWebsiteAccess,
+    EResultsWebsiteStatus,
+    EResultsWebsiteVisibilityScope,
+} from "@sequentech/ui-core"
+
+export interface PublishResultsWebsiteVariables {
+    election_event_id: string
+    tally_session_id: string
+    tally_session_execution_id: string
+    results_event_id: string
+    route_scope: EResultsRouteScope
+    route_election_id?: string | null
+    election_ids: string[]
+    contest_ids: string[]
+    access: EResultsWebsiteAccess
+    visibility_scope: EResultsWebsiteVisibilityScope
+}
+
+export interface PublishResultsWebsiteData {
+    publishResultsWebsite: {
+        publication_id: string
+        task_execution_id: string
+        publication_status: EResultsPublicationStatus
+        error_msg?: string | null
+    }
+}
+
+export interface RevokeResultsPublicationVariables {
+    election_event_id: string
+    publication_id: string
+}
+
+export interface RevokeResultsPublicationData {
+    revokeResultsPublication: {
+        publication_id: string
+        publication_status: EResultsPublicationStatus
+    }
+}
+
+export interface ConfigureResultsWebsitePolicyVariables {
+    election_event_id: string
+    status: EResultsWebsiteStatus
+    access: EResultsWebsiteAccess
+    visibility_scope: EResultsWebsiteVisibilityScope
+}
+
+export interface ConfigureResultsWebsitePolicyData {
+    configureResultsWebsitePolicy: ConfigureResultsWebsitePolicyVariables
+}
 
 export const PUBLISH_RESULTS_WEBSITE = gql`
     mutation PublishResultsWebsite(
@@ -10,12 +62,12 @@ export const PUBLISH_RESULTS_WEBSITE = gql`
         $tally_session_id: String!
         $tally_session_execution_id: String!
         $results_event_id: String!
-        $route_scope: String!
+        $route_scope: ResultsRouteScope!
         $route_election_id: String
         $election_ids: [String!]!
         $contest_ids: [String!]!
-        $access: String!
-        $visibility_scope: String!
+        $access: ResultsWebsiteAccess!
+        $visibility_scope: ResultsWebsiteVisibilityScope!
     ) {
         publishResultsWebsite(
             election_event_id: $election_event_id
@@ -37,6 +89,27 @@ export const PUBLISH_RESULTS_WEBSITE = gql`
     }
 `
 
+export const CONFIGURE_RESULTS_WEBSITE_POLICY = gql`
+    mutation ConfigureResultsWebsitePolicy(
+        $election_event_id: String!
+        $status: ResultsWebsiteStatus!
+        $access: ResultsWebsiteAccess!
+        $visibility_scope: ResultsWebsiteVisibilityScope!
+    ) {
+        configureResultsWebsitePolicy(
+            election_event_id: $election_event_id
+            status: $status
+            access: $access
+            visibility_scope: $visibility_scope
+        ) {
+            election_event_id
+            status
+            access
+            visibility_scope
+        }
+    }
+`
+
 export const REVOKE_RESULTS_PUBLICATION = gql`
     mutation RevokeResultsPublication($election_event_id: String!, $publication_id: String!) {
         revokeResultsPublication(
@@ -45,15 +118,6 @@ export const REVOKE_RESULTS_PUBLICATION = gql`
         ) {
             publication_id
             publication_status
-        }
-    }
-`
-
-export const REFRESH_RESULTS_PUBLICATION_INDEX = gql`
-    mutation RefreshResultsPublicationIndex($election_event_id: String!) {
-        refreshResultsPublicationIndex(election_event_id: $election_event_id) {
-            election_event_id
-            results_enabled
         }
     }
 `

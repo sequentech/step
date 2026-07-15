@@ -10,7 +10,10 @@ import {
 } from "@/types/results"
 import {GlobalSettings} from "@/providers/SettingsContextProvider"
 import {graphqlFetch} from "./graphql"
-import {RESOLVE_RESULTS_PUBLICATION} from "@/queries/resultsPublication"
+import {
+    RESOLVE_RESULTS_PUBLICATION,
+    ResolveResultsPublicationVariables,
+} from "@/queries/resultsPublication"
 import {publicBucketUrl} from "./urls"
 
 interface ResolveData {
@@ -149,7 +152,7 @@ export const discoverPublication = async (
     }
 
     if (token) {
-        const data = await graphqlFetch<ResolveData>(
+        const data = await graphqlFetch<ResolveData, ResolveResultsPublicationVariables>(
             settings.HASURA_URL,
             RESOLVE_RESULTS_PUBLICATION,
             {eeId, electionId},
