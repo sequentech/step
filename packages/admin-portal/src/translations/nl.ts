@@ -845,6 +845,15 @@ const dutchTranslation: TranslationType = {
             users: {
                 title: "Gebruikers",
                 subtitle: "Gebruikersgegevens bekijken en bewerken",
+                review: {
+                    title: "Wijzigingen controleren",
+                    subtitle: "Bevestig deze updates voordat u ze indient.",
+                    confirm: "Wijzigingen bevestigen",
+                    noChanges: "Geen wijzigingen om te controleren",
+                    field: "Veld",
+                    currentValue: "Huidige waarde",
+                    newValue: "Nieuwe waarde",
+                },
                 edit: {
                     title: "Gebruikersgegevens",
                     subtitle: "Gebruiker bekijken en bewerken",

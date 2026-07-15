@@ -848,6 +848,15 @@ const basqueTranslation: TranslationType = {
             users: {
                 title: "Erabiltzaileak",
                 subtitle: "Ikusi eta editatu erabiltzaile datuak",
+                review: {
+                    title: "Aldaketak berrikusi",
+                    subtitle: "Berretsi eguneratze hauek bidali aurretik.",
+                    confirm: "Aldaketak berretsi",
+                    noChanges: "Ez dago berrikusteko aldaketarik",
+                    field: "Eremua",
+                    currentValue: "Uneko balioa",
+                    newValue: "Balio berria",
+                },
                 edit: {
                     title: "Erabiltzaile Datuak",
                     subtitle: "Ikusi eta editatu erabiltzailea",

@@ -847,6 +847,15 @@ const tagalogTranslation: TranslationType = {
             users: {
                 title: "Mga Tagagamit",
                 subtitle: "Tingnan at i-edit ang data ng tagagamit",
+                review: {
+                    title: "Suriin ang mga Pagbabago",
+                    subtitle: "Kumpirmahin ang mga update na ito bago isumite.",
+                    confirm: "Kumpirmahin ang mga Pagbabago",
+                    noChanges: "Walang pagbabagong susuriin",
+                    field: "Field",
+                    currentValue: "Kasalukuyang Halaga",
+                    newValue: "Bagong Halaga",
+                },
                 edit: {
                     title: "Data ng Tagagamit",
                     subtitle: "Tingnan at i-edit ang tagagamit",

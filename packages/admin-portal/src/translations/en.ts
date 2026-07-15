@@ -844,6 +844,15 @@ const englishTranslation = {
             users: {
                 title: "Users",
                 subtitle: "View and edit user data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",

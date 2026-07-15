@@ -25,7 +25,7 @@ export interface ReviewChangesTableProps {
     currentValueLabel: string
     newValueLabel: string
     rows: ReviewChangesRow[]
-    headingRef?: React.RefObject<HTMLDivElement | null>
+    headingRef?: React.RefObject<HTMLHeadingElement | null>
     className?: string
 }
 

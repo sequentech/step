@@ -272,6 +272,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     record,
 }) => {
     const {t} = useTranslation()
+    const reviewI18nContext = electionEventId ? "voters" : "users"
 
     const [user, setUser] = useState<IUser | undefined>(
         createMode
@@ -312,7 +313,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             : (record && convertRecordToUser(record)) || {attributes: {}},
         phoneInputs: {},
     })
-    const reviewHeadingRef = useRef<HTMLDivElement>(null)
+    const reviewHeadingRef = useRef<HTMLHeadingElement>(null)
 
     // Derived (not snapshotted) so the review table always reflects the live
     // user/phoneInputs/selectedActedTrustee state that handleConfirmChanges
@@ -483,7 +484,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             t
         )
         if (diff.length === 0) {
-            notify(t("usersAndRolesScreen.voters.review.noChanges"), {type: "info"})
+            notify(t(`usersAndRolesScreen.${reviewI18nContext}.review.noChanges`), {
+                type: "info",
+            })
             return
         }
         setStep("review")
@@ -997,10 +1000,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 sanitizeEmptyValues
             >
                 <PageHeaderStyles.Title>
-                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
+                    {t(`usersAndRolesScreen.${reviewI18nContext}.title`)}
                 </PageHeaderStyles.Title>
                 <PageHeaderStyles.SubTitle>
-                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
+                    {t(`usersAndRolesScreen.${reviewI18nContext}.subtitle`)}
                 </PageHeaderStyles.SubTitle>
                 <Box sx={{display: step === "review" ? "none" : undefined}}>
                     {formFields}
@@ -1137,11 +1140,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 {!createMode && step === "review" && (
                     <Box sx={{width: "100%"}}>
                         <ReviewChangesTable
-                            title={t("usersAndRolesScreen.voters.review.title")}
-                            subtitle={t("usersAndRolesScreen.voters.review.subtitle")}
-                            fieldLabel={t("usersAndRolesScreen.voters.review.field")}
-                            currentValueLabel={t("usersAndRolesScreen.voters.review.currentValue")}
-                            newValueLabel={t("usersAndRolesScreen.voters.review.newValue")}
+                            title={t(`usersAndRolesScreen.${reviewI18nContext}.review.title`)}
+                            subtitle={t(`usersAndRolesScreen.${reviewI18nContext}.review.subtitle`)}
+                            fieldLabel={t(`usersAndRolesScreen.${reviewI18nContext}.review.field`)}
+                            currentValueLabel={t(
+                                `usersAndRolesScreen.${reviewI18nContext}.review.currentValue`
+                            )}
+                            newValueLabel={t(
+                                `usersAndRolesScreen.${reviewI18nContext}.review.newValue`
+                            )}
                             rows={reviewRows}
                             headingRef={reviewHeadingRef}
                         />
@@ -1159,7 +1166,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     onClick={handleConfirmChanges}
                                     className="edit-voter-review-confirm-button"
                                 >
-                                    {t("usersAndRolesScreen.voters.review.confirm")}
+                                    {t(`usersAndRolesScreen.${reviewI18nContext}.review.confirm`)}
                                 </WizardStyles.NextButton>
                             </WizardStyles.StyledFooter>
                         </WizardStyles.FooterContainer>

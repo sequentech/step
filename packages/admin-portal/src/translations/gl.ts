@@ -847,6 +847,15 @@ const galegoTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver e editar datos de usuarios",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 edit: {
                     title: "Datos do Usuario",
                     subtitle: "Ver e editar usuario",

@@ -848,6 +848,15 @@ const catalanTranslation: TranslationType = {
             users: {
                 title: "Usuaris",
                 subtitle: "Veure i editar dades de l'usuari",
+                review: {
+                    title: "Revisar canvis",
+                    subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
+                    confirm: "Confirmar canvis",
+                    noChanges: "No hi ha canvis per revisar",
+                    field: "Camp",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nou",
+                },
                 edit: {
                     title: "Informació de l'Usuari",
                     subtitle: "Veure i editar Usuari",
