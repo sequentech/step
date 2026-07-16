@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Dialog} from "@sequentech/ui-essentials"
-import {isString} from "@sequentech/ui-core"
+import {
+    isString,
+    isValidVotingPortalDateTimePattern,
+    VOTING_PORTAL_DATETIME_FORMAT_KEY,
+} from "@sequentech/ui-core"
 import React, {useMemo, useState} from "react"
 import {
     Button,
@@ -111,6 +115,12 @@ const EditElectionEventTextDataTable = () => {
     const {t} = useTranslation()
     const notify = useNotify()
 
+    // The Voting Portal date/time override is a free string typed by an operator. It is
+    // validated by the same parser the voter-facing helper uses, so an invalid pattern is
+    // rejected at save time instead of silently falling back to the preset at render time.
+    const isInvalidDateTimeOverride = (key: string, value: string): boolean =>
+        key === VOTING_PORTAL_DATETIME_FORMAT_KEY && !isValidVotingPortalDateTimePattern(value)
+
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code ?? "en"
     )
@@ -155,6 +165,12 @@ const EditElectionEventTextDataTable = () => {
         const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
         const newValue: string = e?.presentation?.i18n?.[selectedLanguage]?.newVal ?? ""
         if (!newValue || !newKey) return
+        if (isInvalidDateTimeOverride(newKey, newValue)) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+            return
+        }
         update(
             "sequent_backend_election_event",
             {
@@ -190,6 +206,12 @@ const EditElectionEventTextDataTable = () => {
         if (!e || !recordId) return
         const editVal: string = e?.editableVal ?? ""
         if (!editVal) return
+        if (isInvalidDateTimeOverride(recordId as string, editVal)) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+            return
+        }
         update(
             "sequent_backend_election_event",
             {

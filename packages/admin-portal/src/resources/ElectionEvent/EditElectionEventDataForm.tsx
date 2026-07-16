@@ -33,7 +33,8 @@ import {
 import {styled} from "@mui/material/styles"
 import DownloadIcon from "@mui/icons-material/Download"
 import VideoCallIcon from "@mui/icons-material/VideoCall"
-import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
+import {useFormContext} from "react-hook-form"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
@@ -59,6 +60,10 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EVotingPortalDateTimeFormat,
+    VotingPortalDateTimeFormat,
+    isCustomVotingPortalDateTimeFormat,
+    isValidVotingPortalDateTimePattern,
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
@@ -115,6 +120,37 @@ const ElectionRows = styled("div")`
     padding: 1rem;
 `
 
+// Mirrors the Localization tab's notify.invalidDateTimeFormat feedback for the
+// main custom date/time format field. Reads live form values via getValues()
+// at click time (like the Localization tab's own save handlers do) instead of
+// watching react-hook-form state: submitCount/errors get reset whenever
+// react-admin's SimpleForm receives a new `record` reference (e.g. an Apollo
+// refetch), which happens far more often than actual submit attempts here.
+const CustomDateTimeFormatInvalidNotifier: React.FC<{
+    checkRef: React.MutableRefObject<() => void>
+}> = ({checkRef}) => {
+    const {t} = useTranslation()
+    const notify = useNotify()
+    const {getValues} = useFormContext()
+
+    checkRef.current = () => {
+        const configured = getValues(
+            "presentation.voting_portal_datetime_format"
+        ) as VotingPortalDateTimeFormat
+
+        if (
+            isCustomVotingPortalDateTimeFormat(configured) &&
+            !isValidVotingPortalDateTimePattern(configured.custom)
+        ) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+        }
+    }
+
+    return null
+}
+
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -123,6 +159,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
+    const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
 
     const canEdit = authContext.isAuthorized(
         true,
@@ -316,8 +353,30 @@ export const EditElectionEventDataForm: React.FC = () => {
         setValueMaterials(newValue)
     }
 
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
+    // This form uses form-level validation: react-admin turns this `validate`
+    // prop into a react-hook-form resolver, and react-hook-form ignores all
+    // input-level `validate` props when a resolver is present. Any field
+    // validation for this form must therefore live here, keyed by the field's
+    // source path so the error reaches the input's helper text.
+    const formValidator = (values: {
+        presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}
+    }): Record<string, unknown> => {
+        const errors: Record<string, unknown> = {}
+        const dateTimeFormat = values?.presentation?.voting_portal_datetime_format
+        if (
+            isCustomVotingPortalDateTimeFormat(dateTimeFormat) &&
+            !isValidVotingPortalDateTimePattern(dateTimeFormat.custom)
+        ) {
+            errors.presentation = {
+                voting_portal_datetime_format: {
+                    custom: String(
+                        t(
+                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"
+                        )
+                    ),
+                },
+            }
+        }
         return errors
     }
 
@@ -525,6 +584,27 @@ export const EditElectionEventDataForm: React.FC = () => {
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
         }))
     }
+
+    const votingPortalDateTimeFormatChoices = () => {
+        return Object.values(EVotingPortalDateTimeFormat).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.votingPortalDateTimeFormat.options.${value}`),
+        }))
+    }
+
+    // The policy dropdown edits a scalar discriminant, but the CUSTOM policy stores its
+    // pattern inline as `{custom: "..."}`. These map between the two representations so the
+    // preset and custom variants share the single `voting_portal_datetime_format` field.
+    const dateTimePolicyToSelectValue = (
+        value: VotingPortalDateTimeFormat | undefined
+    ): EVotingPortalDateTimeFormat | "" =>
+        isCustomVotingPortalDateTimeFormat(value)
+            ? EVotingPortalDateTimeFormat.CUSTOM
+            : (value ?? "")
+
+    const selectValueToDateTimePolicy = (
+        id: EVotingPortalDateTimeFormat
+    ): VotingPortalDateTimeFormat => (id === EVotingPortalDateTimeFormat.CUSTOM ? {custom: ""} : id)
 
     const voterSigningPolicyChoices = () => {
         return Object.values(EVoterSigningPolicy).map((value) => ({
@@ -737,6 +817,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const onSave = async () => {
+        checkCustomDateTimeFormatRef.current()
         await handleUpdateCustomUrls(
             parsedValue.presentation as IElectionEventPresentation,
             record?.id
@@ -1243,6 +1324,54 @@ export const EditElectionEventDataForm: React.FC = () => {
                         >
                             {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
                         </Typography>
+                        <SelectInput
+                            source={"presentation.voting_portal_datetime_format"}
+                            choices={votingPortalDateTimeFormatChoices()}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
+                                )
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.votingPortalDateTimeFormat.helperText")
+                            )}
+                            defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
+                            format={dateTimePolicyToSelectValue}
+                            parse={selectValueToDateTimePolicy}
+                            emptyText={undefined}
+                            validate={required()}
+                            slotProps={{
+                                input: {error: false},
+                                inputLabel: {error: false},
+                                formHelperText: {error: false},
+                            }}
+                            sx={{marginBottom: "1.5em"}}
+                        />
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                isCustomVotingPortalDateTimeFormat(
+                                    formData?.presentation?.voting_portal_datetime_format
+                                ) ? (
+                                    <TextInput
+                                        source={"presentation.voting_portal_datetime_format.custom"}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
+                                            )
+                                        )}
+                                        helperText={String(
+                                            t(
+                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
+                                            )
+                                        )}
+                                        sx={{marginBottom: "1.5em"}}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
+                        <CustomDateTimeFormatInvalidNotifier
+                            checkRef={checkCustomDateTimeFormatRef}
+                        />
                         <SelectInput
                             source={`presentation.voting_portal_countdown_policy.policy`}
                             choices={votingPortalCountDownPolicies()}

@@ -364,6 +364,8 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    invalidDateTimeFormat:
+                        "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localization",
@@ -419,6 +421,26 @@ const englishTranslation = {
                         "multiple-contests": "Multiple Contests",
                     },
                     policyLabel: "Contest encryption policy",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Voting Portal date & time format",
+                    helperText:
+                        'Applies event-wide. To override per language, add the key "votingPortalDateTimeFormat" in the Localization tab using tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). See the docs for details.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (medium date, short time)",
+                        "date-only": "Date Only (no time)",
+                        "custom": "Custom format",
+                    },
+                    customFormat: {
+                        label: "Custom date & time format",
+                        helperText:
+                            "Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). Any other characters are shown literally.",
+                        invalid:
+                            "Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
