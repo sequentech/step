@@ -473,12 +473,17 @@ input GetUsersInput {
   show_votes_info: Boolean
   sort: jsonb
   tenant_id: uuid!
+  user_ids: [String!]
   username: jsonb
 }
 
 type GetUsersOutput {
   items: [KeycloakUser!]!
   total: TotalAggregate!
+}
+
+type IdOutput {
+  id: String!
 }
 
 type ImportCertificateAuthorityOutput {
@@ -717,6 +722,17 @@ enum PgAuditTable {
   pgaudit_keycloak
 }
 
+type PhoneBlacklistEntry {
+  created_at: String
+  created_by: String
+  election_event_id: uuid
+  id: uuid
+  phone_e164: String!
+  reason: String
+  tenant_id: uuid
+  updated_at: String
+}
+
 type PluginsRouteOutput {
   data: jsonb
 }
@@ -850,6 +866,14 @@ input TallyResolutionInput {
   selected_candidate_id: uuid!
 }
 
+type TallySheetImportActionOutput {
+  import: jsonb!
+}
+
+type TallySheetImportPreviewActionOutput {
+  preview: jsonb!
+}
+
 type TallySheetOutput {
   annotations: jsonb
   area_id: String!
@@ -862,6 +886,7 @@ type TallySheetOutput {
   election_event_id: String!
   election_id: String!
   id: String!
+  import_id: String
   labels: jsonb
   last_updated_at: String
   reviewed_at: String
@@ -1065,14 +1090,18 @@ type mutation_root {
   """create_new_tally_sheet"""
   create_new_tally_sheet(area_id: String!, channel: String!, content: jsonb!, contest_id: String!, election_event_id: String!): TallySheetOutput
   create_permission(body: CreatePermissionInput!): KeycloakPermission
+  create_phone_blacklist_entry(election_event_id: uuid!, phone_e164: String!, reason: String): PhoneBlacklistEntry
   create_role(role: KeycloakRole2!, tenant_id: String!): KeycloakRole!
   create_tally_ceremony(configuration: jsonb, election_event_id: uuid!, election_ids: [uuid!]!, tally_type: String): CreateTallyOutput
+  """create_tally_sheet_import"""
+  create_tally_sheet_import(document_id: String!, election_event_id: String!, selected_channel: String!, sha256: String, source_format: String!): TallySheetImportActionOutput
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
   create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
   """Delete a certificate authority by id"""
   delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
+  delete_phone_blacklist_entry(election_event_id: uuid!, id: uuid!): IdOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
   delete_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
   """
@@ -1471,6 +1500,28 @@ type mutation_root {
   delete single row from the table: "sequent_backend.tally_sheet"
   """
   delete_sequent_backend_tally_sheet_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_sheet
+  """
+  delete data from the table: "sequent_backend.tally_sheet_import"
+  """
+  delete_sequent_backend_tally_sheet_import(
+    """filter the rows which have to be deleted"""
+    where: tally_sheet_import_bool_exp!
+  ): tally_sheet_import_mutation_response
+  """
+  delete single row from the table: "sequent_backend.tally_sheet_import"
+  """
+  delete_sequent_backend_tally_sheet_import_by_pk(id: uuid!): tally_sheet_import
+  """
+  delete data from the table: "sequent_backend.tally_sheet_import_item"
+  """
+  delete_sequent_backend_tally_sheet_import_item(
+    """filter the rows which have to be deleted"""
+    where: tally_sheet_import_item_bool_exp!
+  ): tally_sheet_import_item_mutation_response
+  """
+  delete single row from the table: "sequent_backend.tally_sheet_import_item"
+  """
+  delete_sequent_backend_tally_sheet_import_item_by_pk(id: uuid!): tally_sheet_import_item
   """
   delete data from the table: "sequent_backend.tasks_execution"
   """
@@ -2204,6 +2255,42 @@ type mutation_root {
     on_conflict: tally_sheet_on_conflict
   ): tally_sheet_mutation_response
   """
+  insert data into the table: "sequent_backend.tally_sheet_import"
+  """
+  insert_sequent_backend_tally_sheet_import(
+    """the rows to be inserted"""
+    objects: [tally_sheet_import_insert_input!]!
+    """upsert condition"""
+    on_conflict: tally_sheet_import_on_conflict
+  ): tally_sheet_import_mutation_response
+  """
+  insert data into the table: "sequent_backend.tally_sheet_import_item"
+  """
+  insert_sequent_backend_tally_sheet_import_item(
+    """the rows to be inserted"""
+    objects: [tally_sheet_import_item_insert_input!]!
+    """upsert condition"""
+    on_conflict: tally_sheet_import_item_on_conflict
+  ): tally_sheet_import_item_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.tally_sheet_import_item"
+  """
+  insert_sequent_backend_tally_sheet_import_item_one(
+    """the row to be inserted"""
+    object: tally_sheet_import_item_insert_input!
+    """upsert condition"""
+    on_conflict: tally_sheet_import_item_on_conflict
+  ): tally_sheet_import_item
+  """
+  insert a single row into the table: "sequent_backend.tally_sheet_import"
+  """
+  insert_sequent_backend_tally_sheet_import_one(
+    """the row to be inserted"""
+    object: tally_sheet_import_insert_input!
+    """upsert condition"""
+    on_conflict: tally_sheet_import_on_conflict
+  ): tally_sheet_import
+  """
   insert a single row into the table: "sequent_backend.tally_sheet"
   """
   insert_sequent_backend_tally_sheet_one(
@@ -2287,11 +2374,17 @@ type mutation_root {
   limit_access_by_countries(enroll_countries: [String!]!, voting_countries: [String!]!): LimitAccessByCountriesOutput
   manage_election_dates(election_event_id: String!, election_id: String, event_processor: String!, scheduled_date: String): ManageElectionDatesOutput
   prepare_ballot_publication_preview(ballot_publication_id: String!, election_event_id: String!): PrepareBallotPublicationPreviewOutput
+  """preview_tally_sheet_import"""
+  preview_tally_sheet_import(document_id: String!, election_event_id: String!, selected_channel: String!, sha256: String, source_format: String!): TallySheetImportPreviewActionOutput
   publish_ballot(ballot_publication_id: uuid!, election_event_id: uuid!): PublishBallotOutput
+  """Recount a completed tally session with fresh result ids"""
+  recount_tally_session(election_event_id: uuid!, tally_session_id: uuid!): StartTallyOutput
   render_document_pdf(document_id: uuid!, election_event_id: uuid, tally_session_id: uuid): RenderDocumentPDFOutput
   restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
   """review_tally_sheet"""
   review_tally_sheet(election_event_id: String!, new_status: String!, tally_sheet_id: String!): TallySheetOutput
+  """review_tally_sheet_import"""
+  review_tally_sheet_import(decision: String!, election_event_id: String!, import_id: String!): TallySheetImportActionOutput
   send_transmission_package(area_id: uuid!, election_id: uuid!, tally_session_id: uuid!): OptionalId
   set_custom_urls(dns_prefix: String!, election_id: String!, key: String!, origin: String!, redirect_to: String!): SetCustomUrlsOutput
   set_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
@@ -4268,6 +4361,122 @@ type mutation_root {
     pk_columns: tally_sheet_pk_columns_input!
   ): tally_sheet
   """
+  update data of the table: "sequent_backend.tally_sheet_import"
+  """
+  update_sequent_backend_tally_sheet_import(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_sheet_import_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_sheet_import_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_sheet_import_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_sheet_import_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_sheet_import_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_sheet_import_set_input
+    """filter the rows which have to be updated"""
+    where: tally_sheet_import_bool_exp!
+  ): tally_sheet_import_mutation_response
+  """
+  update single row of the table: "sequent_backend.tally_sheet_import"
+  """
+  update_sequent_backend_tally_sheet_import_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_sheet_import_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_sheet_import_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_sheet_import_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_sheet_import_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_sheet_import_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_sheet_import_set_input
+    pk_columns: tally_sheet_import_pk_columns_input!
+  ): tally_sheet_import
+  """
+  update data of the table: "sequent_backend.tally_sheet_import_item"
+  """
+  update_sequent_backend_tally_sheet_import_item(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_sheet_import_item_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_sheet_import_item_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_sheet_import_item_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_sheet_import_item_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: tally_sheet_import_item_inc_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_sheet_import_item_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_sheet_import_item_set_input
+    """filter the rows which have to be updated"""
+    where: tally_sheet_import_item_bool_exp!
+  ): tally_sheet_import_item_mutation_response
+  """
+  update single row of the table: "sequent_backend.tally_sheet_import_item"
+  """
+  update_sequent_backend_tally_sheet_import_item_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_sheet_import_item_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_sheet_import_item_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_sheet_import_item_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_sheet_import_item_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: tally_sheet_import_item_inc_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_sheet_import_item_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_sheet_import_item_set_input
+    pk_columns: tally_sheet_import_item_pk_columns_input!
+  ): tally_sheet_import_item
+  """
+  update multiples rows of table: "sequent_backend.tally_sheet_import_item"
+  """
+  update_sequent_backend_tally_sheet_import_item_many(
+    """updates to execute, in order"""
+    updates: [tally_sheet_import_item_updates!]!
+  ): [tally_sheet_import_item_mutation_response]
+  """
+  update multiples rows of table: "sequent_backend.tally_sheet_import"
+  """
+  update_sequent_backend_tally_sheet_import_many(
+    """updates to execute, in order"""
+    updates: [tally_sheet_import_updates!]!
+  ): [tally_sheet_import_mutation_response]
+  """
   update multiples rows of table: "sequent_backend.tally_sheet"
   """
   update_sequent_backend_tally_sheet_many(
@@ -5790,6 +5999,74 @@ type query_root {
   fetch data from the table: "sequent_backend.tally_sheet" using primary key columns
   """
   sequent_backend_tally_sheet_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_sheet
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import"
+  """
+  sequent_backend_tally_sheet_import(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_bool_exp
+  ): [tally_sheet_import!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_sheet_import"
+  """
+  sequent_backend_tally_sheet_import_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_bool_exp
+  ): tally_sheet_import_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import" using primary key columns
+  """
+  sequent_backend_tally_sheet_import_by_pk(id: uuid!): tally_sheet_import
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import_item"
+  """
+  sequent_backend_tally_sheet_import_item(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_item_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_item_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): [tally_sheet_import_item!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_sheet_import_item"
+  """
+  sequent_backend_tally_sheet_import_item_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_item_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_item_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): tally_sheet_import_item_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import_item" using primary key columns
+  """
+  sequent_backend_tally_sheet_import_item_by_pk(id: uuid!): tally_sheet_import_item
   """
   fetch data from the table: "sequent_backend.tasks_execution"
   """
@@ -9572,6 +9849,15 @@ type document_mutation_response {
 }
 
 """
+input type for inserting object relation for remote table "sequent_backend.document"
+"""
+input document_obj_rel_insert_input {
+  data: document_insert_input!
+  """upsert condition"""
+  on_conflict: document_on_conflict
+}
+
+"""
 on_conflict condition type for table "sequent_backend.document"
 """
 input document_on_conflict {
@@ -12852,7 +13138,7 @@ columns and relationships of "sequent_backend.phone_blacklist"
 type phone_blacklist {
   created_at: timestamptz!
   created_by: uuid!
-  election_event_id: uuid
+  election_event_id: uuid!
   id: uuid!
   phone_e164: String!
   reason: String
@@ -13638,8 +13924,12 @@ type results_area_contest {
     path: String
   ): jsonb
   area_id: uuid!
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid!
   created_at: timestamptz
   documents(
@@ -13705,8 +13995,12 @@ input results_area_contest_append_input {
 
 """aggregate avg on columns"""
 type results_area_contest_avg_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -13731,8 +14025,12 @@ input results_area_contest_bool_exp {
   _or: [results_area_contest_bool_exp!]
   annotations: jsonb_comparison_exp
   area_id: uuid_comparison_exp
-  blank_votes: Int_comparison_exp
-  blank_votes_percent: numeric_comparison_exp
+  total_blank_votes: Int_comparison_exp
+  explicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes: Int_comparison_exp
+  total_blank_votes_percent: numeric_comparison_exp
+  explicit_blank_votes_percent: numeric_comparison_exp
+  implicit_blank_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
@@ -14277,8 +14575,12 @@ input results_area_contest_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_area_contest"
 """
 input results_area_contest_inc_input {
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   elegible_census: Int
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
@@ -14300,8 +14602,12 @@ input type for inserting data into table "sequent_backend.results_area_contest"
 input results_area_contest_insert_input {
   annotations: jsonb
   area_id: uuid
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
@@ -14330,8 +14636,12 @@ input results_area_contest_insert_input {
 """aggregate max on columns"""
 type results_area_contest_max_fields {
   area_id: uuid
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
@@ -14358,8 +14668,12 @@ type results_area_contest_max_fields {
 """aggregate min on columns"""
 type results_area_contest_min_fields {
   area_id: uuid
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
@@ -14408,8 +14722,12 @@ Ordering options when selecting data from "sequent_backend.results_area_contest"
 input results_area_contest_order_by {
   annotations: order_by
   area_id: order_by
-  blank_votes: order_by
-  blank_votes_percent: order_by
+  total_blank_votes: order_by
+  explicit_blank_votes: order_by
+  implicit_blank_votes: order_by
+  total_blank_votes_percent: order_by
+  explicit_blank_votes_percent: order_by
+  implicit_blank_votes_percent: order_by
   contest_id: order_by
   created_at: order_by
   documents: order_by
@@ -14461,9 +14779,17 @@ enum results_area_contest_select_column {
   """column name"""
   area_id
   """column name"""
-  blank_votes
+  total_blank_votes
   """column name"""
-  blank_votes_percent
+  explicit_blank_votes
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  total_blank_votes_percent
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   contest_id
   """column name"""
@@ -14518,8 +14844,12 @@ input type for updating data in table "sequent_backend.results_area_contest"
 input results_area_contest_set_input {
   annotations: jsonb
   area_id: uuid
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
@@ -14547,8 +14877,12 @@ input results_area_contest_set_input {
 
 """aggregate stddev on columns"""
 type results_area_contest_stddev_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14566,8 +14900,12 @@ type results_area_contest_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_area_contest_stddev_pop_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14585,8 +14923,12 @@ type results_area_contest_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_area_contest_stddev_samp_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14616,8 +14958,12 @@ input results_area_contest_stream_cursor_input {
 input results_area_contest_stream_cursor_value_input {
   annotations: jsonb
   area_id: uuid
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
@@ -14645,8 +14991,12 @@ input results_area_contest_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_area_contest_sum_fields {
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   elegible_census: Int
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
@@ -14671,9 +15021,17 @@ enum results_area_contest_update_column {
   """column name"""
   area_id
   """column name"""
-  blank_votes
+  total_blank_votes
   """column name"""
-  blank_votes_percent
+  explicit_blank_votes
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  total_blank_votes_percent
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   contest_id
   """column name"""
@@ -14749,8 +15107,12 @@ input results_area_contest_updates {
 
 """aggregate var_pop on columns"""
 type results_area_contest_var_pop_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14768,8 +15130,12 @@ type results_area_contest_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_area_contest_var_samp_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14787,8 +15153,12 @@ type results_area_contest_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_area_contest_variance_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14812,8 +15182,12 @@ type results_contest {
     """JSON select path"""
     path: String
   ): jsonb
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid!
   counting_algorithm: String
   created_at: timestamptz
@@ -14882,8 +15256,12 @@ input results_contest_append_input {
 
 """aggregate avg on columns"""
 type results_contest_avg_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -14907,8 +15285,12 @@ input results_contest_bool_exp {
   _not: results_contest_bool_exp
   _or: [results_contest_bool_exp!]
   annotations: jsonb_comparison_exp
-  blank_votes: Int_comparison_exp
-  blank_votes_percent: numeric_comparison_exp
+  total_blank_votes: Int_comparison_exp
+  explicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes: Int_comparison_exp
+  total_blank_votes_percent: numeric_comparison_exp
+  explicit_blank_votes_percent: numeric_comparison_exp
+  implicit_blank_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   counting_algorithm: String_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -15444,8 +15826,12 @@ input results_contest_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_contest"
 """
 input results_contest_inc_input {
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   elegible_census: Int
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
@@ -15466,8 +15852,12 @@ input type for inserting data into table "sequent_backend.results_contest"
 """
 input results_contest_insert_input {
   annotations: jsonb
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15498,8 +15888,12 @@ input results_contest_insert_input {
 
 """aggregate max on columns"""
 type results_contest_max_fields {
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15528,8 +15922,12 @@ type results_contest_max_fields {
 
 """aggregate min on columns"""
 type results_contest_min_fields {
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15580,8 +15978,12 @@ Ordering options when selecting data from "sequent_backend.results_contest".
 """
 input results_contest_order_by {
   annotations: order_by
-  blank_votes: order_by
-  blank_votes_percent: order_by
+  total_blank_votes: order_by
+  explicit_blank_votes: order_by
+  implicit_blank_votes: order_by
+  total_blank_votes_percent: order_by
+  explicit_blank_votes_percent: order_by
+  implicit_blank_votes_percent: order_by
   contest_id: order_by
   counting_algorithm: order_by
   created_at: order_by
@@ -15632,9 +16034,17 @@ enum results_contest_select_column {
   """column name"""
   annotations
   """column name"""
-  blank_votes
+  total_blank_votes
   """column name"""
-  blank_votes_percent
+  explicit_blank_votes
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  total_blank_votes_percent
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   contest_id
   """column name"""
@@ -15694,8 +16104,12 @@ input type for updating data in table "sequent_backend.results_contest"
 """
 input results_contest_set_input {
   annotations: jsonb
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15726,8 +16140,12 @@ input results_contest_set_input {
 
 """aggregate stddev on columns"""
 type results_contest_stddev_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -15745,8 +16163,12 @@ type results_contest_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_contest_stddev_pop_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -15764,8 +16186,12 @@ type results_contest_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_contest_stddev_samp_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -15794,8 +16220,12 @@ input results_contest_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_contest_stream_cursor_value_input {
   annotations: jsonb
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15826,8 +16256,12 @@ input results_contest_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_contest_sum_fields {
-  blank_votes: Int
-  blank_votes_percent: numeric
+  total_blank_votes: Int
+  explicit_blank_votes: Int
+  implicit_blank_votes: Int
+  total_blank_votes_percent: numeric
+  explicit_blank_votes_percent: numeric
+  implicit_blank_votes_percent: numeric
   elegible_census: Int
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
@@ -15850,9 +16284,17 @@ enum results_contest_update_column {
   """column name"""
   annotations
   """column name"""
-  blank_votes
+  total_blank_votes
   """column name"""
-  blank_votes_percent
+  explicit_blank_votes
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  total_blank_votes_percent
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   contest_id
   """column name"""
@@ -15934,8 +16376,12 @@ input results_contest_updates {
 
 """aggregate var_pop on columns"""
 type results_contest_var_pop_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -15953,8 +16399,12 @@ type results_contest_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_contest_var_samp_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -15972,8 +16422,12 @@ type results_contest_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_contest_variance_fields {
-  blank_votes: Float
-  blank_votes_percent: Float
+  total_blank_votes: Float
+  explicit_blank_votes: Float
+  implicit_blank_votes: Float
+  total_blank_votes_percent: Float
+  explicit_blank_votes_percent: Float
+  implicit_blank_votes_percent: Float
   elegible_census: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
@@ -19672,6 +20126,7 @@ type tally_sheet {
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
+  import_id: uuid
   labels(
     """JSON select path"""
     path: String
@@ -19679,6 +20134,8 @@ type tally_sheet {
   last_updated_at: timestamptz!
   reviewed_at: timestamptz
   reviewed_by_user_id: String
+  """An object relationship"""
+  source_import: tally_sheet_import
   status: String!
   tenant_id: uuid!
   version: Int!
@@ -19739,10 +20196,12 @@ input tally_sheet_bool_exp {
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
+  import_id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
   reviewed_at: timestamptz_comparison_exp
   reviewed_by_user_id: String_comparison_exp
+  source_import: tally_sheet_import_bool_exp
   status: String_comparison_exp
   tenant_id: uuid_comparison_exp
   version: Int_comparison_exp
@@ -19790,6 +20249,1130 @@ input tally_sheet_delete_key_input {
 }
 
 """
+columns and relationships of "sequent_backend.tally_sheet_import"
+"""
+type tally_sheet_import {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  canonical_csv_sha256: String
+  created_at: timestamptz!
+  created_by_user_id: String!
+  election_event_id: uuid!
+  id: uuid!
+  """An array relationship"""
+  items(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_item_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_item_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): [tally_sheet_import_item!]!
+  """An aggregate relationship"""
+  items_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_item_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_item_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): tally_sheet_import_item_aggregate!
+  labels(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  last_updated_at: timestamptz!
+  selected_channel: String!
+  """An object relationship"""
+  source_document: document!
+  source_document_id: uuid!
+  source_file_name: String
+  source_format: String!
+  source_sha256: String
+  status: String!
+  summary(
+    """JSON select path"""
+    path: String
+  ): jsonb!
+  tenant_id: uuid!
+  validation_report(
+    """JSON select path"""
+    path: String
+  ): jsonb
+}
+
+"""
+aggregated selection of "sequent_backend.tally_sheet_import"
+"""
+type tally_sheet_import_aggregate {
+  aggregate: tally_sheet_import_aggregate_fields
+  nodes: [tally_sheet_import!]!
+}
+
+"""
+aggregate fields of "sequent_backend.tally_sheet_import"
+"""
+type tally_sheet_import_aggregate_fields {
+  count(columns: [tally_sheet_import_select_column!], distinct: Boolean): Int!
+  max: tally_sheet_import_max_fields
+  min: tally_sheet_import_min_fields
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input tally_sheet_import_append_input {
+  annotations: jsonb
+  labels: jsonb
+  summary: jsonb
+  validation_report: jsonb
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.tally_sheet_import". All fields are combined with a logical 'AND'.
+"""
+input tally_sheet_import_bool_exp {
+  _and: [tally_sheet_import_bool_exp!]
+  _not: tally_sheet_import_bool_exp
+  _or: [tally_sheet_import_bool_exp!]
+  annotations: jsonb_comparison_exp
+  canonical_csv_sha256: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  created_by_user_id: String_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  items: tally_sheet_import_item_bool_exp
+  items_aggregate: tally_sheet_import_item_aggregate_bool_exp
+  labels: jsonb_comparison_exp
+  last_updated_at: timestamptz_comparison_exp
+  selected_channel: String_comparison_exp
+  source_document: document_bool_exp
+  source_document_id: uuid_comparison_exp
+  source_file_name: String_comparison_exp
+  source_format: String_comparison_exp
+  source_sha256: String_comparison_exp
+  status: String_comparison_exp
+  summary: jsonb_comparison_exp
+  tenant_id: uuid_comparison_exp
+  validation_report: jsonb_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.tally_sheet_import"
+"""
+enum tally_sheet_import_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  tally_sheet_import_pkey
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input tally_sheet_import_delete_at_path_input {
+  annotations: [String!]
+  labels: [String!]
+  summary: [String!]
+  validation_report: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input tally_sheet_import_delete_elem_input {
+  annotations: Int
+  labels: Int
+  summary: Int
+  validation_report: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input tally_sheet_import_delete_key_input {
+  annotations: String
+  labels: String
+  summary: String
+  validation_report: String
+}
+
+"""
+input type for inserting data into table "sequent_backend.tally_sheet_import"
+"""
+input tally_sheet_import_insert_input {
+  annotations: jsonb
+  canonical_csv_sha256: String
+  created_at: timestamptz
+  created_by_user_id: String
+  election_event_id: uuid
+  id: uuid
+  items: tally_sheet_import_item_arr_rel_insert_input
+  labels: jsonb
+  last_updated_at: timestamptz
+  selected_channel: String
+  source_document: document_obj_rel_insert_input
+  source_document_id: uuid
+  source_file_name: String
+  source_format: String
+  source_sha256: String
+  status: String
+  summary: jsonb
+  tenant_id: uuid
+  validation_report: jsonb
+}
+
+"""
+columns and relationships of "sequent_backend.tally_sheet_import_item"
+"""
+type tally_sheet_import_item {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  area_id: uuid!
+  baseline_approved_tally_sheet_id: uuid
+  baseline_approved_version: Int
+  baseline_content_hash: String
+  change_type: String!
+  channel: String!
+  contest_id: uuid!
+  created_at: timestamptz!
+  election_event_id: uuid!
+  election_id: uuid!
+  """An object relationship"""
+  generated_tally_sheet: tally_sheet
+  generated_tally_sheet_id: uuid
+  id: uuid!
+  """An object relationship"""
+  import: tally_sheet_import!
+  import_id: uuid!
+  incoming_content_hash: String!
+  incoming_csv: String!
+  labels(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  last_updated_at: timestamptz!
+  previous_csv: String
+  source_refs(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  status: String!
+  tenant_id: uuid!
+  validation_warnings(
+    """JSON select path"""
+    path: String
+  ): jsonb
+}
+
+"""
+aggregated selection of "sequent_backend.tally_sheet_import_item"
+"""
+type tally_sheet_import_item_aggregate {
+  aggregate: tally_sheet_import_item_aggregate_fields
+  nodes: [tally_sheet_import_item!]!
+}
+
+input tally_sheet_import_item_aggregate_bool_exp {
+  count: tally_sheet_import_item_aggregate_bool_exp_count
+}
+
+input tally_sheet_import_item_aggregate_bool_exp_count {
+  arguments: [tally_sheet_import_item_select_column!]
+  distinct: Boolean
+  filter: tally_sheet_import_item_bool_exp
+  predicate: Int_comparison_exp!
+}
+
+"""
+aggregate fields of "sequent_backend.tally_sheet_import_item"
+"""
+type tally_sheet_import_item_aggregate_fields {
+  avg: tally_sheet_import_item_avg_fields
+  count(columns: [tally_sheet_import_item_select_column!], distinct: Boolean): Int!
+  max: tally_sheet_import_item_max_fields
+  min: tally_sheet_import_item_min_fields
+  stddev: tally_sheet_import_item_stddev_fields
+  stddev_pop: tally_sheet_import_item_stddev_pop_fields
+  stddev_samp: tally_sheet_import_item_stddev_samp_fields
+  sum: tally_sheet_import_item_sum_fields
+  var_pop: tally_sheet_import_item_var_pop_fields
+  var_samp: tally_sheet_import_item_var_samp_fields
+  variance: tally_sheet_import_item_variance_fields
+}
+
+"""
+order by aggregate values of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_aggregate_order_by {
+  avg: tally_sheet_import_item_avg_order_by
+  count: order_by
+  max: tally_sheet_import_item_max_order_by
+  min: tally_sheet_import_item_min_order_by
+  stddev: tally_sheet_import_item_stddev_order_by
+  stddev_pop: tally_sheet_import_item_stddev_pop_order_by
+  stddev_samp: tally_sheet_import_item_stddev_samp_order_by
+  sum: tally_sheet_import_item_sum_order_by
+  var_pop: tally_sheet_import_item_var_pop_order_by
+  var_samp: tally_sheet_import_item_var_samp_order_by
+  variance: tally_sheet_import_item_variance_order_by
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input tally_sheet_import_item_append_input {
+  annotations: jsonb
+  labels: jsonb
+  source_refs: jsonb
+  validation_warnings: jsonb
+}
+
+"""
+input type for inserting array relation for remote table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_arr_rel_insert_input {
+  data: [tally_sheet_import_item_insert_input!]!
+  """upsert condition"""
+  on_conflict: tally_sheet_import_item_on_conflict
+}
+
+"""aggregate avg on columns"""
+type tally_sheet_import_item_avg_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by avg() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_avg_order_by {
+  baseline_approved_version: order_by
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.tally_sheet_import_item". All fields are combined with a logical 'AND'.
+"""
+input tally_sheet_import_item_bool_exp {
+  _and: [tally_sheet_import_item_bool_exp!]
+  _not: tally_sheet_import_item_bool_exp
+  _or: [tally_sheet_import_item_bool_exp!]
+  annotations: jsonb_comparison_exp
+  area_id: uuid_comparison_exp
+  baseline_approved_tally_sheet_id: uuid_comparison_exp
+  baseline_approved_version: Int_comparison_exp
+  baseline_content_hash: String_comparison_exp
+  change_type: String_comparison_exp
+  channel: String_comparison_exp
+  contest_id: uuid_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  election_id: uuid_comparison_exp
+  generated_tally_sheet: tally_sheet_bool_exp
+  generated_tally_sheet_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  import: tally_sheet_import_bool_exp
+  import_id: uuid_comparison_exp
+  incoming_content_hash: String_comparison_exp
+  incoming_csv: String_comparison_exp
+  labels: jsonb_comparison_exp
+  last_updated_at: timestamptz_comparison_exp
+  previous_csv: String_comparison_exp
+  source_refs: jsonb_comparison_exp
+  status: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  validation_warnings: jsonb_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.tally_sheet_import_item"
+"""
+enum tally_sheet_import_item_constraint {
+  """
+  unique or primary key constraint on columns "election_id", "contest_id", "area_id", "import_id", "channel"
+  """
+  tally_sheet_import_item_ballot_box_idx
+  """
+  unique or primary key constraint on columns "id"
+  """
+  tally_sheet_import_item_pkey
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input tally_sheet_import_item_delete_at_path_input {
+  annotations: [String!]
+  labels: [String!]
+  source_refs: [String!]
+  validation_warnings: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input tally_sheet_import_item_delete_elem_input {
+  annotations: Int
+  labels: Int
+  source_refs: Int
+  validation_warnings: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input tally_sheet_import_item_delete_key_input {
+  annotations: String
+  labels: String
+  source_refs: String
+  validation_warnings: String
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_inc_input {
+  baseline_approved_version: Int
+}
+
+"""
+input type for inserting data into table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_insert_input {
+  annotations: jsonb
+  area_id: uuid
+  baseline_approved_tally_sheet_id: uuid
+  baseline_approved_version: Int
+  baseline_content_hash: String
+  change_type: String
+  channel: String
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  election_id: uuid
+  generated_tally_sheet: tally_sheet_obj_rel_insert_input
+  generated_tally_sheet_id: uuid
+  id: uuid
+  import: tally_sheet_import_obj_rel_insert_input
+  import_id: uuid
+  incoming_content_hash: String
+  incoming_csv: String
+  labels: jsonb
+  last_updated_at: timestamptz
+  previous_csv: String
+  source_refs: jsonb
+  status: String
+  tenant_id: uuid
+  validation_warnings: jsonb
+}
+
+"""aggregate max on columns"""
+type tally_sheet_import_item_max_fields {
+  area_id: uuid
+  baseline_approved_tally_sheet_id: uuid
+  baseline_approved_version: Int
+  baseline_content_hash: String
+  change_type: String
+  channel: String
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  election_id: uuid
+  generated_tally_sheet_id: uuid
+  id: uuid
+  import_id: uuid
+  incoming_content_hash: String
+  incoming_csv: String
+  last_updated_at: timestamptz
+  previous_csv: String
+  status: String
+  tenant_id: uuid
+}
+
+"""
+order by max() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_max_order_by {
+  area_id: order_by
+  baseline_approved_tally_sheet_id: order_by
+  baseline_approved_version: order_by
+  baseline_content_hash: order_by
+  change_type: order_by
+  channel: order_by
+  contest_id: order_by
+  created_at: order_by
+  election_event_id: order_by
+  election_id: order_by
+  generated_tally_sheet_id: order_by
+  id: order_by
+  import_id: order_by
+  incoming_content_hash: order_by
+  incoming_csv: order_by
+  last_updated_at: order_by
+  previous_csv: order_by
+  status: order_by
+  tenant_id: order_by
+}
+
+"""aggregate min on columns"""
+type tally_sheet_import_item_min_fields {
+  area_id: uuid
+  baseline_approved_tally_sheet_id: uuid
+  baseline_approved_version: Int
+  baseline_content_hash: String
+  change_type: String
+  channel: String
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  election_id: uuid
+  generated_tally_sheet_id: uuid
+  id: uuid
+  import_id: uuid
+  incoming_content_hash: String
+  incoming_csv: String
+  last_updated_at: timestamptz
+  previous_csv: String
+  status: String
+  tenant_id: uuid
+}
+
+"""
+order by min() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_min_order_by {
+  area_id: order_by
+  baseline_approved_tally_sheet_id: order_by
+  baseline_approved_version: order_by
+  baseline_content_hash: order_by
+  change_type: order_by
+  channel: order_by
+  contest_id: order_by
+  created_at: order_by
+  election_event_id: order_by
+  election_id: order_by
+  generated_tally_sheet_id: order_by
+  id: order_by
+  import_id: order_by
+  incoming_content_hash: order_by
+  incoming_csv: order_by
+  last_updated_at: order_by
+  previous_csv: order_by
+  status: order_by
+  tenant_id: order_by
+}
+
+"""
+response of any mutation on the table "sequent_backend.tally_sheet_import_item"
+"""
+type tally_sheet_import_item_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [tally_sheet_import_item!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_on_conflict {
+  constraint: tally_sheet_import_item_constraint!
+  update_columns: [tally_sheet_import_item_update_column!]! = []
+  where: tally_sheet_import_item_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.tally_sheet_import_item".
+"""
+input tally_sheet_import_item_order_by {
+  annotations: order_by
+  area_id: order_by
+  baseline_approved_tally_sheet_id: order_by
+  baseline_approved_version: order_by
+  baseline_content_hash: order_by
+  change_type: order_by
+  channel: order_by
+  contest_id: order_by
+  created_at: order_by
+  election_event_id: order_by
+  election_id: order_by
+  generated_tally_sheet: tally_sheet_order_by
+  generated_tally_sheet_id: order_by
+  id: order_by
+  import: tally_sheet_import_order_by
+  import_id: order_by
+  incoming_content_hash: order_by
+  incoming_csv: order_by
+  labels: order_by
+  last_updated_at: order_by
+  previous_csv: order_by
+  source_refs: order_by
+  status: order_by
+  tenant_id: order_by
+  validation_warnings: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.tally_sheet_import_item
+"""
+input tally_sheet_import_item_pk_columns_input {
+  id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input tally_sheet_import_item_prepend_input {
+  annotations: jsonb
+  labels: jsonb
+  source_refs: jsonb
+  validation_warnings: jsonb
+}
+
+"""
+select columns of table "sequent_backend.tally_sheet_import_item"
+"""
+enum tally_sheet_import_item_select_column {
+  """column name"""
+  annotations
+  """column name"""
+  area_id
+  """column name"""
+  baseline_approved_tally_sheet_id
+  """column name"""
+  baseline_approved_version
+  """column name"""
+  baseline_content_hash
+  """column name"""
+  change_type
+  """column name"""
+  channel
+  """column name"""
+  contest_id
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  election_id
+  """column name"""
+  generated_tally_sheet_id
+  """column name"""
+  id
+  """column name"""
+  import_id
+  """column name"""
+  incoming_content_hash
+  """column name"""
+  incoming_csv
+  """column name"""
+  labels
+  """column name"""
+  last_updated_at
+  """column name"""
+  previous_csv
+  """column name"""
+  source_refs
+  """column name"""
+  status
+  """column name"""
+  tenant_id
+  """column name"""
+  validation_warnings
+}
+
+"""
+input type for updating data in table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_set_input {
+  annotations: jsonb
+  area_id: uuid
+  baseline_approved_tally_sheet_id: uuid
+  baseline_approved_version: Int
+  baseline_content_hash: String
+  change_type: String
+  channel: String
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  election_id: uuid
+  generated_tally_sheet_id: uuid
+  id: uuid
+  import_id: uuid
+  incoming_content_hash: String
+  incoming_csv: String
+  labels: jsonb
+  last_updated_at: timestamptz
+  previous_csv: String
+  source_refs: jsonb
+  status: String
+  tenant_id: uuid
+  validation_warnings: jsonb
+}
+
+"""aggregate stddev on columns"""
+type tally_sheet_import_item_stddev_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by stddev() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_stddev_order_by {
+  baseline_approved_version: order_by
+}
+
+"""aggregate stddev_pop on columns"""
+type tally_sheet_import_item_stddev_pop_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by stddev_pop() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_stddev_pop_order_by {
+  baseline_approved_version: order_by
+}
+
+"""aggregate stddev_samp on columns"""
+type tally_sheet_import_item_stddev_samp_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by stddev_samp() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_stddev_samp_order_by {
+  baseline_approved_version: order_by
+}
+
+"""
+Streaming cursor of the table "sequent_backend_tally_sheet_import_item"
+"""
+input tally_sheet_import_item_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: tally_sheet_import_item_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input tally_sheet_import_item_stream_cursor_value_input {
+  annotations: jsonb
+  area_id: uuid
+  baseline_approved_tally_sheet_id: uuid
+  baseline_approved_version: Int
+  baseline_content_hash: String
+  change_type: String
+  channel: String
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  election_id: uuid
+  generated_tally_sheet_id: uuid
+  id: uuid
+  import_id: uuid
+  incoming_content_hash: String
+  incoming_csv: String
+  labels: jsonb
+  last_updated_at: timestamptz
+  previous_csv: String
+  source_refs: jsonb
+  status: String
+  tenant_id: uuid
+  validation_warnings: jsonb
+}
+
+"""aggregate sum on columns"""
+type tally_sheet_import_item_sum_fields {
+  baseline_approved_version: Int
+}
+
+"""
+order by sum() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_sum_order_by {
+  baseline_approved_version: order_by
+}
+
+"""
+update columns of table "sequent_backend.tally_sheet_import_item"
+"""
+enum tally_sheet_import_item_update_column {
+  """column name"""
+  annotations
+  """column name"""
+  area_id
+  """column name"""
+  baseline_approved_tally_sheet_id
+  """column name"""
+  baseline_approved_version
+  """column name"""
+  baseline_content_hash
+  """column name"""
+  change_type
+  """column name"""
+  channel
+  """column name"""
+  contest_id
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  election_id
+  """column name"""
+  generated_tally_sheet_id
+  """column name"""
+  id
+  """column name"""
+  import_id
+  """column name"""
+  incoming_content_hash
+  """column name"""
+  incoming_csv
+  """column name"""
+  labels
+  """column name"""
+  last_updated_at
+  """column name"""
+  previous_csv
+  """column name"""
+  source_refs
+  """column name"""
+  status
+  """column name"""
+  tenant_id
+  """column name"""
+  validation_warnings
+}
+
+input tally_sheet_import_item_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: tally_sheet_import_item_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: tally_sheet_import_item_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: tally_sheet_import_item_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: tally_sheet_import_item_delete_key_input
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: tally_sheet_import_item_inc_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: tally_sheet_import_item_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: tally_sheet_import_item_set_input
+  """filter the rows which have to be updated"""
+  where: tally_sheet_import_item_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type tally_sheet_import_item_var_pop_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by var_pop() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_var_pop_order_by {
+  baseline_approved_version: order_by
+}
+
+"""aggregate var_samp on columns"""
+type tally_sheet_import_item_var_samp_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by var_samp() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_var_samp_order_by {
+  baseline_approved_version: order_by
+}
+
+"""aggregate variance on columns"""
+type tally_sheet_import_item_variance_fields {
+  baseline_approved_version: Float
+}
+
+"""
+order by variance() on columns of table "sequent_backend.tally_sheet_import_item"
+"""
+input tally_sheet_import_item_variance_order_by {
+  baseline_approved_version: order_by
+}
+
+"""aggregate max on columns"""
+type tally_sheet_import_max_fields {
+  canonical_csv_sha256: String
+  created_at: timestamptz
+  created_by_user_id: String
+  election_event_id: uuid
+  id: uuid
+  last_updated_at: timestamptz
+  selected_channel: String
+  source_document_id: uuid
+  source_file_name: String
+  source_format: String
+  source_sha256: String
+  status: String
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type tally_sheet_import_min_fields {
+  canonical_csv_sha256: String
+  created_at: timestamptz
+  created_by_user_id: String
+  election_event_id: uuid
+  id: uuid
+  last_updated_at: timestamptz
+  selected_channel: String
+  source_document_id: uuid
+  source_file_name: String
+  source_format: String
+  source_sha256: String
+  status: String
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.tally_sheet_import"
+"""
+type tally_sheet_import_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [tally_sheet_import!]!
+}
+
+"""
+input type for inserting object relation for remote table "sequent_backend.tally_sheet_import"
+"""
+input tally_sheet_import_obj_rel_insert_input {
+  data: tally_sheet_import_insert_input!
+  """upsert condition"""
+  on_conflict: tally_sheet_import_on_conflict
+}
+
+"""
+on_conflict condition type for table "sequent_backend.tally_sheet_import"
+"""
+input tally_sheet_import_on_conflict {
+  constraint: tally_sheet_import_constraint!
+  update_columns: [tally_sheet_import_update_column!]! = []
+  where: tally_sheet_import_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.tally_sheet_import".
+"""
+input tally_sheet_import_order_by {
+  annotations: order_by
+  canonical_csv_sha256: order_by
+  created_at: order_by
+  created_by_user_id: order_by
+  election_event_id: order_by
+  id: order_by
+  items_aggregate: tally_sheet_import_item_aggregate_order_by
+  labels: order_by
+  last_updated_at: order_by
+  selected_channel: order_by
+  source_document: document_order_by
+  source_document_id: order_by
+  source_file_name: order_by
+  source_format: order_by
+  source_sha256: order_by
+  status: order_by
+  summary: order_by
+  tenant_id: order_by
+  validation_report: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.tally_sheet_import
+"""
+input tally_sheet_import_pk_columns_input {
+  id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input tally_sheet_import_prepend_input {
+  annotations: jsonb
+  labels: jsonb
+  summary: jsonb
+  validation_report: jsonb
+}
+
+"""
+select columns of table "sequent_backend.tally_sheet_import"
+"""
+enum tally_sheet_import_select_column {
+  """column name"""
+  annotations
+  """column name"""
+  canonical_csv_sha256
+  """column name"""
+  created_at
+  """column name"""
+  created_by_user_id
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  labels
+  """column name"""
+  last_updated_at
+  """column name"""
+  selected_channel
+  """column name"""
+  source_document_id
+  """column name"""
+  source_file_name
+  """column name"""
+  source_format
+  """column name"""
+  source_sha256
+  """column name"""
+  status
+  """column name"""
+  summary
+  """column name"""
+  tenant_id
+  """column name"""
+  validation_report
+}
+
+"""
+input type for updating data in table "sequent_backend.tally_sheet_import"
+"""
+input tally_sheet_import_set_input {
+  annotations: jsonb
+  canonical_csv_sha256: String
+  created_at: timestamptz
+  created_by_user_id: String
+  election_event_id: uuid
+  id: uuid
+  labels: jsonb
+  last_updated_at: timestamptz
+  selected_channel: String
+  source_document_id: uuid
+  source_file_name: String
+  source_format: String
+  source_sha256: String
+  status: String
+  summary: jsonb
+  tenant_id: uuid
+  validation_report: jsonb
+}
+
+"""
+Streaming cursor of the table "sequent_backend_tally_sheet_import"
+"""
+input tally_sheet_import_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: tally_sheet_import_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input tally_sheet_import_stream_cursor_value_input {
+  annotations: jsonb
+  canonical_csv_sha256: String
+  created_at: timestamptz
+  created_by_user_id: String
+  election_event_id: uuid
+  id: uuid
+  labels: jsonb
+  last_updated_at: timestamptz
+  selected_channel: String
+  source_document_id: uuid
+  source_file_name: String
+  source_format: String
+  source_sha256: String
+  status: String
+  summary: jsonb
+  tenant_id: uuid
+  validation_report: jsonb
+}
+
+"""
+update columns of table "sequent_backend.tally_sheet_import"
+"""
+enum tally_sheet_import_update_column {
+  """column name"""
+  annotations
+  """column name"""
+  canonical_csv_sha256
+  """column name"""
+  created_at
+  """column name"""
+  created_by_user_id
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  labels
+  """column name"""
+  last_updated_at
+  """column name"""
+  selected_channel
+  """column name"""
+  source_document_id
+  """column name"""
+  source_file_name
+  """column name"""
+  source_format
+  """column name"""
+  source_sha256
+  """column name"""
+  status
+  """column name"""
+  summary
+  """column name"""
+  tenant_id
+  """column name"""
+  validation_report
+}
+
+input tally_sheet_import_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: tally_sheet_import_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: tally_sheet_import_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: tally_sheet_import_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: tally_sheet_import_delete_key_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: tally_sheet_import_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: tally_sheet_import_set_input
+  """filter the rows which have to be updated"""
+  where: tally_sheet_import_bool_exp!
+}
+
+"""
 input type for incrementing numeric columns in table "sequent_backend.tally_sheet"
 """
 input tally_sheet_inc_input {
@@ -19811,10 +21394,12 @@ input tally_sheet_insert_input {
   election_event_id: uuid
   election_id: uuid
   id: uuid
+  import_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
   reviewed_at: timestamptz
   reviewed_by_user_id: String
+  source_import: tally_sheet_import_obj_rel_insert_input
   status: String
   tenant_id: uuid
   version: Int
@@ -19831,6 +21416,7 @@ type tally_sheet_max_fields {
   election_event_id: uuid
   election_id: uuid
   id: uuid
+  import_id: uuid
   last_updated_at: timestamptz
   reviewed_at: timestamptz
   reviewed_by_user_id: String
@@ -19850,6 +21436,7 @@ type tally_sheet_min_fields {
   election_event_id: uuid
   election_id: uuid
   id: uuid
+  import_id: uuid
   last_updated_at: timestamptz
   reviewed_at: timestamptz
   reviewed_by_user_id: String
@@ -19866,6 +21453,15 @@ type tally_sheet_mutation_response {
   affected_rows: Int!
   """data from the rows affected by the mutation"""
   returning: [tally_sheet!]!
+}
+
+"""
+input type for inserting object relation for remote table "sequent_backend.tally_sheet"
+"""
+input tally_sheet_obj_rel_insert_input {
+  data: tally_sheet_insert_input!
+  """upsert condition"""
+  on_conflict: tally_sheet_on_conflict
 }
 
 """
@@ -19892,10 +21488,12 @@ input tally_sheet_order_by {
   election_event_id: order_by
   election_id: order_by
   id: order_by
+  import_id: order_by
   labels: order_by
   last_updated_at: order_by
   reviewed_at: order_by
   reviewed_by_user_id: order_by
+  source_import: tally_sheet_import_order_by
   status: order_by
   tenant_id: order_by
   version: order_by
@@ -19942,6 +21540,8 @@ enum tally_sheet_select_column {
   """column name"""
   id
   """column name"""
+  import_id
+  """column name"""
   labels
   """column name"""
   last_updated_at
@@ -19972,6 +21572,7 @@ input tally_sheet_set_input {
   election_event_id: uuid
   election_id: uuid
   id: uuid
+  import_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
   reviewed_at: timestamptz
@@ -20019,6 +21620,7 @@ input tally_sheet_stream_cursor_value_input {
   election_event_id: uuid
   election_id: uuid
   id: uuid
+  import_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
   reviewed_at: timestamptz
@@ -20059,6 +21661,8 @@ enum tally_sheet_update_column {
   election_id
   """column name"""
   id
+  """column name"""
+  import_id
   """column name"""
   labels
   """column name"""
@@ -23086,6 +24690,96 @@ type subscription_root {
   fetch data from the table: "sequent_backend.tally_sheet" using primary key columns
   """
   sequent_backend_tally_sheet_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_sheet
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import"
+  """
+  sequent_backend_tally_sheet_import(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_bool_exp
+  ): [tally_sheet_import!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_sheet_import"
+  """
+  sequent_backend_tally_sheet_import_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_bool_exp
+  ): tally_sheet_import_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import" using primary key columns
+  """
+  sequent_backend_tally_sheet_import_by_pk(id: uuid!): tally_sheet_import
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import_item"
+  """
+  sequent_backend_tally_sheet_import_item(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_item_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_item_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): [tally_sheet_import_item!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_sheet_import_item"
+  """
+  sequent_backend_tally_sheet_import_item_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_sheet_import_item_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_sheet_import_item_order_by!]
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): tally_sheet_import_item_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_sheet_import_item" using primary key columns
+  """
+  sequent_backend_tally_sheet_import_item_by_pk(id: uuid!): tally_sheet_import_item
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.tally_sheet_import_item"
+  """
+  sequent_backend_tally_sheet_import_item_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [tally_sheet_import_item_stream_cursor_input]!
+    """filter the rows returned"""
+    where: tally_sheet_import_item_bool_exp
+  ): [tally_sheet_import_item!]!
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.tally_sheet_import"
+  """
+  sequent_backend_tally_sheet_import_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [tally_sheet_import_stream_cursor_input]!
+    """filter the rows returned"""
+    where: tally_sheet_import_bool_exp
+  ): [tally_sheet_import!]!
   """
   fetch data from the table in a streaming manner: "sequent_backend.tally_sheet"
   """
