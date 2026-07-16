@@ -367,6 +367,8 @@ const tagalogTranslation: TranslationType = {
                 notify: {
                     success: "Matagumpay ang pag-update ng localization",
                     error: "Bigo ang pag-update ng localization",
+                    invalidDateTimeFormat:
+                        "Di-wastong format ng petsa/oras. Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localization",
@@ -419,6 +421,26 @@ const tagalogTranslation: TranslationType = {
                         "multiple-contests": "Maraming Paligsahan",
                     },
                     policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format ng petsa at oras ng Voting Portal",
+                    helperText:
+                        'Nalalapat sa buong kaganapan. Upang i-override bawat wika, idagdag ang key na "votingPortalDateTimeFormat" sa tab na Localization gamit ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Tingnan ang dokumentasyon para sa mga detalye.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (katamtamang petsa, maikling oras)",
+                        "date-only": "Date Only (walang oras)",
+                        "custom": "Pasadyang format",
+                    },
+                    customFormat: {
+                        label: "Pasadyang format ng petsa at oras",
+                        helperText:
+                            "Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Ang iba pang karakter ay ipapakita nang literal.",
+                        invalid:
+                            "Di-wastong format. Gumamit ng hindi bababa sa isa sa mga token na yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
