@@ -160,6 +160,7 @@ export interface SelectElectionProps {
     electionDates?: IElectionDates
     isStarted: boolean
     className?: string | null
+    formatDateTime?: (input: string) => string
 }
 
 /**
@@ -234,12 +235,14 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     electionDates,
     isStarted,
     className,
+    formatDateTime,
 }) => {
     const {t} = useTranslation()
+    const formatElectionDate = formatDateTime ?? formatDate
     const startVotingDate = getStartDate(electionDates) ?? ""
     const endVotingDate = getEndDate(electionDates) ?? ""
-    const openDate = hasDate(startVotingDate) && formatDate(startVotingDate)
-    const closeDate = hasDate(endVotingDate) && formatDate(endVotingDate)
+    const openDate = hasDate(startVotingDate) && formatElectionDate(startVotingDate)
+    const closeDate = hasDate(endVotingDate) && formatElectionDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (

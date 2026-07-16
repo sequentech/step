@@ -145,6 +145,33 @@ export const ClosedNotVoted: Story = {
     },
 }
 
+export const CustomDateTimeFormat: Story = {
+    args: {
+        isActive: true,
+        isOpen: true,
+        title: "Executive Board",
+        electionHomeUrl: "/election/34570007/public/home",
+        hasVoted: false,
+        electionDates: {
+            first_started_at: "2025-10-29T14:00:00.000Z",
+        },
+        formatDateTime: (input: string) =>
+            new Intl.DateTimeFormat("en-US", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+            }).format(new Date(input)),
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
 export const DisplayBallotLocator: Story = {
     args: {
         isActive: true,

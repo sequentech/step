@@ -16,6 +16,7 @@ import {
     IElectionStatus,
     EEarlyVotingPolicy,
     IAreaPresentation,
+    formatVotingPortalDateTime,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -233,6 +234,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             electionDates={ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}
+            formatDateTime={(input) =>
+                formatVotingPortalDateTime(
+                    input,
+                    electionEvent,
+                    i18n.resolvedLanguage || i18n.language
+                )
+            }
         />
     )
 }

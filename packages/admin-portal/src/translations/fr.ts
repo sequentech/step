@@ -365,6 +365,8 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    invalidDateTimeFormat:
+                        "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisation",
@@ -418,6 +420,26 @@ const frenchTranslation: TranslationType = {
                         "multiple-contests": "Plusieurs concours",
                     },
                     policyLabel: "Politique de chiffrement de concours",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format de date et d'heure du portail de vote",
+                    helperText:
+                        "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (date moyenne, heure courte)",
+                        "date-only": "Date Only (sans heure)",
+                        "custom": "Format personnalisé",
+                    },
+                    customFormat: {
+                        label: "Format de date et d'heure personnalisé",
+                        helperText:
+                            "Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Tout autre caractère est affiché tel quel.",
+                        invalid:
+                            "Format invalide. Utilisez au moins un des jetons yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
