@@ -867,6 +867,15 @@ const englishTranslation = {
             users: {
                 title: "Users",
                 subtitle: "View and edit user data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",
@@ -916,6 +925,15 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 logs: {
                     label: "User's Logs",
                 },
@@ -1345,6 +1363,8 @@ const englishTranslation = {
                 unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
+                yes: "Yes",
+                no: "No",
                 save: "Save",
                 close: "Close",
                 back: "Back",

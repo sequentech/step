@@ -63,8 +63,10 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
-import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
+import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
 
 interface ListUserRolesProps {
     userId?: string
@@ -270,6 +272,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     record,
 }) => {
     const {t} = useTranslation()
+    const reviewI18nContext = electionEventId ? "voters" : "users"
 
     const [user, setUser] = useState<IUser | undefined>(
         createMode
@@ -302,6 +305,40 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })) || []
     )
     const [errorText, setErrorText] = useState("")
+
+    const [step, setStep] = useState<"edit" | "review">("edit")
+    const baselineRef = useRef<UserBaseline>({
+        user: createMode
+            ? {enabled: true, attributes: {}}
+            : (record && convertRecordToUser(record)) || {attributes: {}},
+        phoneInputs: {},
+    })
+    const reviewHeadingRef = useRef<HTMLHeadingElement>(null)
+
+    // Derived (not snapshotted) so the review table always reflects the live
+    // user/phoneInputs/selectedActedTrustee state that handleConfirmChanges
+    // actually submits, even if a debounced field update lands after Save.
+    const reviewRows = useMemo(() => {
+        if (step !== "review") {
+            return []
+        }
+        return computeUserDiff(
+            baselineRef.current,
+            {user, phoneInputs, selectedActedTrustee},
+            userAttributes,
+            t
+        )
+    }, [step, user, phoneInputs, selectedActedTrustee, userAttributes, t])
+
+    useEffect(() => {
+        setStep("edit")
+    }, [id])
+
+    useEffect(() => {
+        if (step === "review" && reviewHeadingRef.current) {
+            reviewHeadingRef.current.focus()
+        }
+    }, [step])
 
     const equalToPassword = (allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
@@ -438,20 +475,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const onSubmit = async () => {
         if (createMode) {
             onSubmitCreateUser()
-        } else {
-            try {
-                await handleEditUser()
-                if (authContext.userId === user?.id) {
-                    authContext.updateTokenAndPermissionLabels()
-                }
-                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
-                refresh()
-                close?.()
-            } catch (error) {
-                notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
-                close?.()
-            }
+            return
         }
+        const diff = computeUserDiff(
+            baselineRef.current,
+            {user, phoneInputs, selectedActedTrustee},
+            userAttributes,
+            t
+        )
+        if (diff.length === 0) {
+            notify(t(`usersAndRolesScreen.${reviewI18nContext}.review.noChanges`), {
+                type: "info",
+            })
+            return
+        }
+        setStep("review")
     }
 
     const handleUpdateUserPassword = async (id: string) => {
@@ -492,6 +530,25 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 },
             },
         })
+    }
+
+    const handleConfirmChanges = async () => {
+        try {
+            await handleEditUser()
+            if (authContext.userId === user?.id) {
+                authContext.updateTokenAndPermissionLabels()
+            }
+            notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            refresh()
+            close?.()
+        } catch (error) {
+            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+            close?.()
+        }
+    }
+
+    const handleBackToEdit = () => {
+        setStep("edit")
     }
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -937,18 +994,18 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
-                toolbar={<SaveButton alwaysEnable={!errorText} />}
+                toolbar={step === "edit" ? <SaveButton alwaysEnable={!errorText} /> : false}
                 record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
             >
-                <>
-                    <PageHeaderStyles.Title>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
-                    </PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
-                    </PageHeaderStyles.SubTitle>
+                <PageHeaderStyles.Title>
+                    {t(`usersAndRolesScreen.${reviewI18nContext}.title`)}
+                </PageHeaderStyles.Title>
+                <PageHeaderStyles.SubTitle>
+                    {t(`usersAndRolesScreen.${reviewI18nContext}.subtitle`)}
+                </PageHeaderStyles.SubTitle>
+                <Box sx={{display: step === "review" ? "none" : undefined}}>
                     {formFields}
                     <FormStyles.CheckboxControlLabel
                         label={`${t("usersAndRolesScreen.users.fields.enabled")} *`}
@@ -998,74 +1055,76 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )}
-                    <>
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.password")}:
-                            </ElectionHeaderStyles.Title>
-                            <PasswordInputStyle
-                                label={false}
-                                source="password"
-                                onChange={handleChange}
-                                error={!!errorText}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                            />
-                        </FormControl>
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.repeatPassword")}:
-                            </ElectionHeaderStyles.Title>
-                            <PasswordInputStyle
-                                label={false}
-                                source="confirm_password"
-                                onChange={handleChange}
-                                helperText={errorText}
-                                error={!!errorText}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                            />
-                        </FormControl>
-                        <InputContainerStyle sx={{flexDirection: "row !important"}}>
-                            <InputLabelStyle paddingTop={false}>
-                                <Box sx={{display: "flex", gap: "8px"}}>
-                                    {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
-                                    <IconTooltip
-                                        icon={faInfoCircle as any}
-                                        info={String(
-                                            t(`usersAndRolesScreen.editPassword.temporatyInfo`)
-                                        )}
-                                    />
-                                </Box>
-                            </InputLabelStyle>
-                            <BooleanInput
-                                source=""
-                                label={false}
-                                onChange={(e) => setTemportay(!temporary)}
-                                checked={temporary}
-                                disabled={
-                                    !(
-                                        createMode ||
-                                        !electionEventId ||
-                                        canEditVoters ||
-                                        enabledByVoteNum
-                                    )
-                                }
-                            />
-                        </InputContainerStyle>
-                    </>
+                    {createMode && (
+                        <>
+                            <FormControl fullWidth>
+                                <ElectionHeaderStyles.Title>
+                                    {t("usersAndRolesScreen.users.fields.password")}:
+                                </ElectionHeaderStyles.Title>
+                                <PasswordInputStyle
+                                    label={false}
+                                    source="password"
+                                    onChange={handleChange}
+                                    error={!!errorText}
+                                    disabled={
+                                        !(
+                                            createMode ||
+                                            !electionEventId ||
+                                            canEditVoters ||
+                                            enabledByVoteNum
+                                        )
+                                    }
+                                />
+                            </FormControl>
+                            <FormControl fullWidth>
+                                <ElectionHeaderStyles.Title>
+                                    {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                                </ElectionHeaderStyles.Title>
+                                <PasswordInputStyle
+                                    label={false}
+                                    source="confirm_password"
+                                    onChange={handleChange}
+                                    helperText={errorText}
+                                    error={!!errorText}
+                                    disabled={
+                                        !(
+                                            createMode ||
+                                            !electionEventId ||
+                                            canEditVoters ||
+                                            enabledByVoteNum
+                                        )
+                                    }
+                                />
+                            </FormControl>
+                            <InputContainerStyle sx={{flexDirection: "row !important"}}>
+                                <InputLabelStyle paddingTop={false}>
+                                    <Box sx={{display: "flex", gap: "8px"}}>
+                                        {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
+                                        <IconTooltip
+                                            icon={faInfoCircle as any}
+                                            info={String(
+                                                t(`usersAndRolesScreen.editPassword.temporatyInfo`)
+                                            )}
+                                        />
+                                    </Box>
+                                </InputLabelStyle>
+                                <BooleanInput
+                                    source=""
+                                    label={false}
+                                    onChange={(e) => setTemportay(!temporary)}
+                                    checked={temporary}
+                                    disabled={
+                                        !(
+                                            createMode ||
+                                            !electionEventId ||
+                                            canEditVoters ||
+                                            enabledByVoteNum
+                                        )
+                                    }
+                                />
+                            </InputContainerStyle>
+                        </>
+                    )}
                     {isUndefined(electionEventId) ? (
                         <ListUserRoles
                             userRoles={userRoles}
@@ -1077,7 +1136,42 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             selectedRolesOnCreate={selectedRolesOnCreate}
                         />
                     ) : null}
-                </>
+                </Box>
+                {!createMode && step === "review" && (
+                    <Box sx={{width: "100%"}}>
+                        <ReviewChangesTable
+                            title={t(`usersAndRolesScreen.${reviewI18nContext}.review.title`)}
+                            subtitle={t(`usersAndRolesScreen.${reviewI18nContext}.review.subtitle`)}
+                            fieldLabel={t(`usersAndRolesScreen.${reviewI18nContext}.review.field`)}
+                            currentValueLabel={t(
+                                `usersAndRolesScreen.${reviewI18nContext}.review.currentValue`
+                            )}
+                            newValueLabel={t(
+                                `usersAndRolesScreen.${reviewI18nContext}.review.newValue`
+                            )}
+                            rows={reviewRows}
+                            headingRef={reviewHeadingRef}
+                        />
+                        <WizardStyles.FooterContainer>
+                            <WizardStyles.StyledFooter>
+                                <WizardStyles.BackButton
+                                    type="button"
+                                    onClick={handleBackToEdit}
+                                    className="edit-voter-review-edit-button"
+                                >
+                                    {t("common.label.edit")}
+                                </WizardStyles.BackButton>
+                                <WizardStyles.NextButton
+                                    type="button"
+                                    onClick={handleConfirmChanges}
+                                    className="edit-voter-review-confirm-button"
+                                >
+                                    {t(`usersAndRolesScreen.${reviewI18nContext}.review.confirm`)}
+                                </WizardStyles.NextButton>
+                            </WizardStyles.StyledFooter>
+                        </WizardStyles.FooterContainer>
+                    </Box>
+                )}
             </SimpleForm>
         </PageHeaderStyles.Wrapper>
     )

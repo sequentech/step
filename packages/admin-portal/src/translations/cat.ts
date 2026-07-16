@@ -871,6 +871,15 @@ const catalanTranslation: TranslationType = {
             users: {
                 title: "Usuaris",
                 subtitle: "Veure i editar dades de l'usuari",
+                review: {
+                    title: "Revisar canvis",
+                    subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
+                    confirm: "Confirmar canvis",
+                    noChanges: "No hi ha canvis per revisar",
+                    field: "Camp",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nou",
+                },
                 edit: {
                     title: "Informació de l'Usuari",
                     subtitle: "Veure i editar Usuari",
@@ -920,6 +929,15 @@ const catalanTranslation: TranslationType = {
             voters: {
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
+                review: {
+                    title: "Revisar canvis",
+                    subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
+                    confirm: "Confirmar canvis",
+                    noChanges: "No hi ha canvis per revisar",
+                    field: "Camp",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nou",
+                },
                 logs: {
                     label: "Registres de l'usuari",
                 },
@@ -1367,6 +1385,8 @@ const catalanTranslation: TranslationType = {
                 unarchive: "Desarxivar",
                 cancel: "Cancel·lar",
                 edit: "Editar",
+                yes: "Sí",
+                no: "No",
                 save: "Guardar",
                 close: "Tancar",
                 back: "Enrere",
