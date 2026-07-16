@@ -1739,6 +1739,7 @@ const englishTranslation = {
                 version: "Version",
                 status: "Status",
                 published: "Published",
+                revokedAt: "Revoked",
                 actions: "Actions",
                 open: "Open",
                 revoke: "Revoke",

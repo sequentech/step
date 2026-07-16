@@ -14,11 +14,18 @@ use crate::postgres::tally_session_execution::get_tally_session_execution_docume
 use crate::services::documents::{
     get_document_as_temp_file, upload_and_return_document, upload_and_return_public_event_document,
 };
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log::ElectoralLog;
 use crate::types::results_publication::{
     ConfigureResultsWebsitePolicyInput, ConfigureResultsWebsitePolicyOutput, ResultsRouteScope,
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::{
+    ContestIdString, ElectionIdString, ResultsPublicationAccessString, ResultsPublicationAction,
+    ResultsPublicationDetails, ResultsPublicationIdString, ResultsPublicationRouteScopeString,
+    ResultsPublicationVisibilityScopeString,
+};
 use rusqlite::{params_from_iter, Connection, OptionalExtension, ToSql};
 use sequent_core::ballot::{
     ElectionEventPresentation, ElectionPresentation, ResultsWebsiteAccess, ResultsWebsitePolicy,
@@ -38,6 +45,63 @@ fn placeholders(count: usize) -> String {
 
 fn selected_contest_ids(publication: &TallyResultsPublication) -> Result<Vec<String>> {
     Ok(publication.published_contest_ids.clone())
+}
+
+fn results_publication_log_details(
+    publication: &TallyResultsPublication,
+    action: ResultsPublicationAction,
+) -> ResultsPublicationDetails {
+    ResultsPublicationDetails {
+        publication_id: ResultsPublicationIdString(publication.id.clone()),
+        action,
+        route_scope: ResultsPublicationRouteScopeString(publication.route_scope.to_string()),
+        route_election_id: ElectionIdString(publication.route_election_id.clone()),
+        access: ResultsPublicationAccessString(publication.access.to_string()),
+        visibility_scope: ResultsPublicationVisibilityScopeString(
+            publication.visibility_scope.to_string(),
+        ),
+        contest_ids: publication
+            .published_contest_ids
+            .iter()
+            .cloned()
+            .map(ContestIdString)
+            .collect(),
+    }
+}
+
+pub async fn post_results_publication_action(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+    action: ResultsPublicationAction,
+    user_id: &str,
+    username: Option<String>,
+) -> Result<()> {
+    let election_event =
+        get_election_event_by_id(tx, &publication.tenant_id, &publication.election_event_id)
+            .await?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference)
+        .context("Missing electoral log board for results publication")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        tx,
+        &board_name,
+        &publication.tenant_id,
+        &publication.election_event_id,
+        user_id,
+        username.clone(),
+        Some(publication.election_ids.clone()),
+        None,
+    )
+    .await?;
+
+    electoral_log
+        .post_results_publication_action(
+            publication.election_event_id.clone(),
+            results_publication_log_details(publication, action),
+            Some(user_id.to_string()),
+            username,
+        )
+        .await
+        .context("Failed to post results publication action to the electoral log")
 }
 
 pub fn results_website_policy(
@@ -486,7 +550,7 @@ async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
 
 async fn delete_public_results_artifacts(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let prefix = event_public_path(tenant_id, election_event_id, "results");
-    s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, true).await
+    s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, s3::S3Endpoint::Server).await
 }
 
 pub async fn delete_public_publication_route_artifacts(
@@ -499,7 +563,7 @@ pub async fn delete_public_publication_route_artifacts(
                 &publication.election_event_id,
                 &publication_base_path(publication),
             );
-            s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, true).await
+            s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, s3::S3Endpoint::Server).await
         }
         ResultsRouteScope::Event => {
             let full_prefix = event_public_path(
@@ -512,8 +576,18 @@ pub async fn delete_public_publication_route_artifacts(
                 &publication.election_event_id,
                 "results/manifest-",
             );
-            s3::delete_files_from_s3(s3::get_public_bucket()?, full_prefix, true).await?;
-            s3::delete_files_from_s3(s3::get_public_bucket()?, manifest_prefix, true).await
+            s3::delete_files_from_s3(
+                s3::get_public_bucket()?,
+                full_prefix,
+                s3::S3Endpoint::Server,
+            )
+            .await?;
+            s3::delete_files_from_s3(
+                s3::get_public_bucket()?,
+                manifest_prefix,
+                s3::S3Endpoint::Server,
+            )
+            .await
         }
     }
 }
@@ -825,6 +899,8 @@ pub async fn publish_results_website_artifacts(
     tenant_id: &str,
     election_event_id: &str,
     publication_id: &str,
+    user_id: &str,
+    username: Option<String>,
 ) -> Result<()> {
     let publication =
         get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
@@ -865,6 +941,14 @@ pub async fn publish_results_website_artifacts(
     }
     refresh_public_results_index(tx, &publication.tenant_id, &publication.election_event_id)
         .await?;
+    post_results_publication_action(
+        tx,
+        &publication,
+        ResultsPublicationAction::Publish,
+        user_id,
+        username,
+    )
+    .await?;
 
     Ok(())
 }

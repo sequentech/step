@@ -18,18 +18,24 @@ pub async fn publish_results_website_task(
     tenant_id: String,
     election_event_id: String,
     publication_id: String,
+    user_id: String,
+    username: Option<String>,
     task_execution: TasksExecution,
 ) -> Result<()> {
     let result = provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let publication_id = publication_id.clone();
+        let user_id = user_id.clone();
+        let username = username.clone();
         Box::pin(async move {
             publish_results_website_artifacts(
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,
                 &publication_id,
+                &user_id,
+                username,
             )
             .await
         })

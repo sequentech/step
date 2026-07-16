@@ -305,6 +305,18 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
+    pub fn results_publication_action_message(
+        event: EventIdString,
+        details: ResultsPublicationDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let election_id = details.route_election_id.0.clone();
+        let body = StatementBody::ResultsPublicationAction(details);
+        Self::from_body(event, body, sd, user_id, username, election_id, None, None)
+    }
+
     pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,
@@ -545,5 +557,47 @@ impl SigningData {
             sender_name: sender_name.to_string(),
             system_sk,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen()?,
+            "admin",
+            StrandSignatureSk::r#gen()?,
+        );
+        let details = ResultsPublicationDetails {
+            publication_id: ResultsPublicationIdString("publication-id".to_string()),
+            action: ResultsPublicationAction::Revoke,
+            route_scope: ResultsPublicationRouteScopeString("event".to_string()),
+            route_election_id: ElectionIdString(None),
+            access: ResultsPublicationAccessString("public".to_string()),
+            visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
+            contest_ids: vec![ContestIdString("contest-id".to_string())],
+        };
+
+        let message = Message::results_publication_action_message(
+            EventIdString("event-id".to_string()),
+            details,
+            &signing_data,
+            Some("user-id".to_string()),
+            Some("username".to_string()),
+        )?;
+
+        assert_eq!(message.user_id.as_deref(), Some("user-id"));
+        assert_eq!(message.username.as_deref(), Some("username"));
+        assert!(matches!(
+            message.statement.body,
+            StatementBody::ResultsPublicationAction(ResultsPublicationDetails {
+                action: ResultsPublicationAction::Revoke,
+                ..
+            })
+        ));
+        Ok(())
     }
 }

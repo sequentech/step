@@ -83,6 +83,7 @@ interface ResultsPublicationRecord extends RaRecord {
     access: EResultsWebsiteAccess
     published_contest_ids?: string[]
     published_at?: string | null
+    revoked_at?: string | null
 }
 
 const statusColor = (
@@ -558,6 +559,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                     <TableCell>{t("tally.resultsPublication.access")}</TableCell>
                                     <TableCell>{t("tally.resultsPublication.contests")}</TableCell>
                                     <TableCell>{t("tally.resultsPublication.published")}</TableCell>
+                                    <TableCell>{t("tally.resultsPublication.revokedAt")}</TableCell>
                                     <TableCell align="right">
                                         {t("tally.resultsPublication.actions")}
                                     </TableCell>
@@ -582,6 +584,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                         <TableCell>{publication.access}</TableCell>
                                         <TableCell>{publishedContestCount(publication)}</TableCell>
                                         <TableCell>{publication.published_at ?? "-"}</TableCell>
+                                        <TableCell>{publication.revoked_at ?? "-"}</TableCell>
                                         <TableCell align="right">
                                             <Stack
                                                 direction="row"
@@ -618,7 +621,7 @@ export const ResultsWebsitePublication: React.FC<ResultsWebsitePublicationProps>
                                 ))}
                                 {(publications ?? []).length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={7}>
+                                        <TableCell colSpan={8}>
                                             <Typography color="text.secondary">
                                                 {t("tally.resultsPublication.noPublications")}
                                             </Typography>

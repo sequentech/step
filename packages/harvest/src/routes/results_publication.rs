@@ -5,6 +5,7 @@
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
+use electoral_log::messages::newtypes::ResultsPublicationAction;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ResultsWebsiteVisibilityScope;
@@ -23,6 +24,7 @@ use windmill::services::documents::get_document_url;
 use windmill::services::results_publication::{
     configure_results_website_policy as configure_results_website_policy_service,
     delete_public_publication_route_artifacts, is_results_website_enabled,
+    post_results_publication_action,
     publication_matches_results_website_policy, refresh_public_results_index,
     validate_results_website_policy,
 };
@@ -196,6 +198,8 @@ pub async fn publish_results_website(
                 task_tenant_id.clone(),
                 task_election_event_id.clone(),
                 publication_id.clone(),
+                claims.hasura_claims.user_id.clone(),
+                claims.preferred_username.clone(),
                 task_execution.clone(),
             ),
         )
@@ -558,6 +562,15 @@ pub async fn revoke_results_publication(
         &transaction,
         &tenant_id,
         &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    post_results_publication_action(
+        &transaction,
+        &publication,
+        ResultsPublicationAction::Revoke,
+        &claims.hasura_claims.user_id,
+        claims.preferred_username,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
