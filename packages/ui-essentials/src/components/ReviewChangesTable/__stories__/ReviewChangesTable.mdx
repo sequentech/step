@@ -1,0 +1,25 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as ReviewChangesTableStories from './ReviewChangesTable.stories'
+
+<Meta of={ReviewChangesTableStories} title="components/ReviewChangesTable"/>
+
+# ReviewChangesTable
+
+A generic before/after review table used to confirm a set of pending field
+changes before committing them. It renders only the rows passed in -
+typically a diff of changed fields - showing the current value struck
+through next to the new value. The component is purely presentational:
+callers own translation, diffing, and deciding when to show it, which makes
+it reusable across any review-before-commit flow in the admin portal.
+
+## Primary
+
+<Canvas of={ReviewChangesTableStories.Primary} />
+
+## Single change
+
+<Canvas of={ReviewChangesTableStories.SingleChange} />
+
+## No subtitle
+
+<Canvas of={ReviewChangesTableStories.NoSubtitle} />

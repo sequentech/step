@@ -849,6 +849,15 @@ const spanishTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver y editar datos del usuario",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizaciones antes de enviarlas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "No hay cambios que revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nuevo",
+                },
                 edit: {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",
@@ -898,6 +907,15 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizaciones antes de enviarlas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "No hay cambios que revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nuevo",
+                },
                 logs: {
                     label: "Registros del usuario",
                 },
@@ -1336,6 +1354,8 @@ const spanishTranslation: TranslationType = {
                 unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Sí",
+                no: "No",
                 save: "Guardar",
                 close: "Cerrar",
                 back: "Atrás",
