@@ -847,7 +847,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 defaultValues={defaultValues}
                 validate={formValidator}
                 record={parsedValue}
-                resetOptions={{keepDirtyValues: true, keepErrors: true}}
                 toolbar={
                     <Toolbar>
                         {canEdit && (
