@@ -13,15 +13,18 @@ jest.mock("react-apexcharts", () => {
         __esModule: true,
         default: ({
             className,
+            height,
             options,
             series,
         }: {
             className?: string
+            height?: number | string
             options?: {labels?: string[]}
             series?: number[]
         }) =>
             react.createElement("div", {
                 className,
+                "data-height": height,
                 "data-labels": JSON.stringify(options?.labels ?? []),
                 "data-series": JSON.stringify(series ?? []),
             }),
@@ -46,6 +49,11 @@ jest.mock("react-i18next", () => ({
 jest.mock("@sequentech/ui-core", () => ({
     formatPercentOne: (value: number) => `${value.toFixed(2)}%`,
     isNumber: (value: unknown) => typeof value === "number" && Number.isFinite(value),
+}))
+
+jest.mock("@sequentech/ui-essentials", () => ({
+    TALLY_RESULTS_PIE_HEIGHT: 170,
+    TALLY_RESULTS_PIE_PANEL_WIDTH: 360,
 }))
 
 jest.mock("@/services/resultLabels", () => ({
@@ -75,6 +83,7 @@ describe("ResultsSummary", () => {
 
         expect(markup).toContain("seq-results-summary__chart")
         expect(markup).toContain("seq-results-summary__pie")
+        expect(markup).toContain('data-height="170"')
         expect(markup).toContain("Non voters")
         expect(markup).toContain('data-series="[100]"')
     })

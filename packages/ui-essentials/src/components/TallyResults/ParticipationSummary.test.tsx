@@ -11,15 +11,18 @@ jest.mock("./ChartPanel", () => {
     return {
         Chart: ({
             className,
+            height,
             options,
             series,
         }: {
             className?: string
+            height?: number | string
             options?: {labels?: string[]}
             series?: number[]
         }) =>
             react.createElement("div", {
                 className,
+                "data-height": height,
                 "data-labels": JSON.stringify(options?.labels ?? []),
                 "data-series": JSON.stringify(series ?? []),
             }),
@@ -72,6 +75,7 @@ describe("ParticipationSummaryChart", () => {
 
         expect(markup).toContain("seq-tally-results-participation-chart")
         expect(markup).toContain("seq-tally-results-participation-chart__chart")
+        expect(markup).toContain('data-height="170"')
         expect(markup).toContain("Non voters")
         expect(markup).toContain('data-series="[100]"')
         expect(markup).not.toContain("No results")

@@ -11,6 +11,7 @@ import {
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
+import {TALLY_RESULTS_PIE_HEIGHT, TALLY_RESULTS_PIE_PANEL_WIDTH} from "@sequentech/ui-essentials"
 
 const MAX_CANDIDATES_REPRESENTED = 5
 
@@ -79,7 +80,11 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     return (
         <Box
             key={result.id}
-            sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}
+            sx={{
+                mb: 2,
+                border: "1px solid #cccccc99",
+                maxWidth: {xs: "100%", md: TALLY_RESULTS_PIE_PANEL_WIDTH},
+            }}
         >
             <CardChart title={chartName} collapsible={true}>
                 <Chart
@@ -87,7 +92,7 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
                     series={chartOptions.series}
                     type="pie"
                     width="100%"
-                    height={300}
+                    height={TALLY_RESULTS_PIE_HEIGHT}
                 />
             </CardChart>
         </Box>
@@ -159,7 +164,11 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     return (
         <Box
             key={chartName + "-candidates"}
-            sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}
+            sx={{
+                mb: 2,
+                border: "1px solid #cccccc99",
+                maxWidth: {xs: "100%", md: TALLY_RESULTS_PIE_PANEL_WIDTH},
+            }}
         >
             <CardChart title={chartName} collapsible={true}>
                 <Chart
@@ -167,7 +176,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
                     series={chartOptions.series}
                     type="pie"
                     width="100%"
-                    height={300}
+                    height={TALLY_RESULTS_PIE_HEIGHT}
                 />
             </CardChart>
         </Box>

@@ -16,7 +16,11 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {EDeclineToVotePolicy, formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {Loader} from "@sequentech/ui-essentials"
+import {
+    Loader,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+} from "@sequentech/ui-essentials"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -137,7 +141,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                 alignItems: "center",
                 mb: 2,
                 border: "1px solid #cccccc99",
-                maxWidth: {xs: "100%", lg: 450},
+                maxWidth: {xs: "100%", lg: TALLY_RESULTS_PIE_PANEL_WIDTH},
             }}
         >
             <CardChart title={election_name} collapsible={true}>
@@ -147,7 +151,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                     series={chartOptions.series}
                     type="pie"
                     width="100%"
-                    height={300}
+                    height={TALLY_RESULTS_PIE_HEIGHT}
                 />
             </CardChart>
         </Box>

@@ -15,7 +15,11 @@ import {
     Typography,
 } from "@mui/material"
 import type {Props as ApexChartProps} from "react-apexcharts"
-import {RESPONSIVE_PIE_OPTIONS} from "./constants"
+import {
+    RESPONSIVE_PIE_OPTIONS,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+} from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
 import type {
     NumericValue,
@@ -185,7 +189,7 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
                 series={chartOptions.series}
                 type="pie"
                 width="100%"
-                height={300}
+                height={TALLY_RESULTS_PIE_HEIGHT}
             />
         </ChartPanel>
     )
@@ -230,9 +234,12 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                     <Box
                         className="seq-tally-results-participation-summary__chart-column"
                         sx={{
-                            flex: {xs: "1 1 auto", lg: "0 0 450px"},
+                            flex: {
+                                xs: "1 1 auto",
+                                lg: `0 0 ${TALLY_RESULTS_PIE_PANEL_WIDTH}px`,
+                            },
                             mt: 2,
-                            width: {xs: "100%", lg: 450},
+                            width: {xs: "100%", lg: TALLY_RESULTS_PIE_PANEL_WIDTH},
                             maxWidth: "100%",
                         }}
                     >

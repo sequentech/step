@@ -4,6 +4,9 @@
 
 export const MAX_CANDIDATES_REPRESENTED = 5
 
+export const TALLY_RESULTS_PIE_PANEL_WIDTH = 360
+export const TALLY_RESULTS_PIE_HEIGHT = 170
+
 export const DATA_GRID_INITIAL_STATE = {
     pagination: {
         paginationModel: {

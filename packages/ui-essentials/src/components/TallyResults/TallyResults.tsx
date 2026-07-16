@@ -7,6 +7,7 @@ export {ParticipationSummary, ParticipationSummaryChart} from "./ParticipationSu
 export {PreferentialCandidateResults} from "./PreferentialCandidateResults"
 export {default, ResultsAndParticipation} from "./ResultsAndParticipation"
 export {defaultResultsAndParticipationLabels} from "./types"
+export {TALLY_RESULTS_PIE_HEIGHT, TALLY_RESULTS_PIE_PANEL_WIDTH} from "./constants"
 export type {
     CandidateOutcome,
     CandidateReference,

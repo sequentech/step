@@ -16,6 +16,7 @@ import {
 } from "@mui/material"
 import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
+import {TALLY_RESULTS_PIE_HEIGHT, TALLY_RESULTS_PIE_PANEL_WIDTH} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {ResultsRow} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
@@ -121,12 +122,12 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
             className="seq-results-summary__chart"
             data-election-id={String(result.election_id)}
             variant="outlined"
-            sx={{p: 2, width: "100%", maxWidth: 450}}
+            sx={{p: 2, width: "100%", maxWidth: TALLY_RESULTS_PIE_PANEL_WIDTH}}
         >
             <Typography
                 className="seq-results-summary__chart-title"
-                variant="subtitle1"
-                sx={{fontWeight: 600}}
+                variant="body1"
+                sx={{color: "grey.600", fontSize: "16px", fontWeight: 400}}
             >
                 {electionName}
             </Typography>
@@ -140,7 +141,7 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
                     series={chartOptions.series}
                     type="pie"
                     width="100%"
-                    height={300}
+                    height={TALLY_RESULTS_PIE_HEIGHT}
                 />
             </Box>
         </Paper>
@@ -177,10 +178,13 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                     className="seq-results-summary__charts"
                     sx={{
                         display: "flex",
-                        flex: {xs: "1 1 auto", lg: "0 0 450px"},
+                        flex: {
+                            xs: "1 1 auto",
+                            lg: `0 0 ${TALLY_RESULTS_PIE_PANEL_WIDTH}px`,
+                        },
                         flexDirection: "column",
                         gap: 2,
-                        width: {xs: "100%", lg: 450},
+                        width: {xs: "100%", lg: TALLY_RESULTS_PIE_PANEL_WIDTH},
                         maxWidth: "100%",
                     }}
                 >

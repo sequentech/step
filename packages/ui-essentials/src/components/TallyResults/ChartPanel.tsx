@@ -5,6 +5,7 @@
 import React from "react"
 import {Box, Paper, Typography} from "@mui/material"
 import ReactApexChart, {Props as ApexChartProps} from "react-apexcharts"
+import {TALLY_RESULTS_PIE_PANEL_WIDTH} from "./constants"
 
 export const Chart = ((ReactApexChart as unknown as {default?: React.ComponentType<ApexChartProps>})
     .default ?? ReactApexChart) as React.ComponentType<ApexChartProps>
@@ -20,13 +21,13 @@ export const ChartPanel: React.FC<{
         sx={{
             p: 2,
             width: "100%",
-            maxWidth: {xs: "100%", md: 450},
+            maxWidth: {xs: "100%", md: TALLY_RESULTS_PIE_PANEL_WIDTH},
         }}
     >
         <Typography
             className="seq-tally-results-chart-panel__title"
-            variant="subtitle1"
-            sx={{fontWeight: 600}}
+            variant="body1"
+            sx={{color: "grey.600", fontSize: "16px", fontWeight: 400}}
         >
             {title}
         </Typography>

@@ -50,6 +50,8 @@ export {
     ParticipationSummaryChart,
     PreferentialCandidateResults,
     sortCandidateResults,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./components/TallyResults/TallyResults"
 export {
     default as ResultsSelectorTabs,
