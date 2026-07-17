@@ -38,9 +38,13 @@ jest.mock("./ChartPanel", () => {
     }
 })
 
-jest.mock("@sequentech/ui-core", () => ({
-    formatPercentOne: (value: number) => `${value}%`,
-}))
+jest.mock(
+    "@sequentech/ui-core",
+    () => ({
+        formatPercentOne: (value: number) => `${value}%`,
+    }),
+    {virtual: true}
+)
 
 import {ParticipationSummaryChart} from "./ParticipationSummary"
 import type {ResultsParticipationSummary} from "./types"
