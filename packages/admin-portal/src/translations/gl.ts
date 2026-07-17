@@ -367,6 +367,8 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada correctamente",
                     error: "Fallou a actualización da localización",
+                    invalidDateTimeFormat:
+                        "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -419,6 +421,26 @@ const galegoTranslation: TranslationType = {
                         "multiple-contests": "Varios concursos",
                     },
                     policyLabel: "Política de cifrado de concurso",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Formato de data e hora do portal de votación",
+                    helperText:
+                        'Aplícase a todo o evento. Para substituílo por idioma, engade a clave "votingPortalDateTimeFormat" na pestana Localización usando os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta a documentación para máis detalles.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data media, hora curta)",
+                        "date-only": "Date Only (sen hora)",
+                        "custom": "Formato personalizado",
+                    },
+                    customFormat: {
+                        label: "Formato de data e hora personalizado",
+                        helperText:
+                            "Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Calquera outro carácter móstrase literalmente.",
+                        invalid:
+                            "Formato non válido. Usa polo menos un dos tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sen Conta Atrás",
@@ -515,6 +537,7 @@ const galegoTranslation: TranslationType = {
                     deleteError: "Non se puido eliminar",
                 },
                 config: {
+                    configuredPhone: "Número de teléfono configurado",
                     infoMsg:
                         "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
                 },
@@ -848,6 +871,15 @@ const galegoTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver e editar datos de usuarios",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 edit: {
                     title: "Datos do Usuario",
                     subtitle: "Ver e editar usuario",
@@ -897,6 +929,15 @@ const galegoTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 logs: {
                     label: "Rexistros do Usuario",
                 },
@@ -1338,6 +1379,8 @@ const galegoTranslation: TranslationType = {
                 unarchive: "Desarquivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Si",
+                no: "Non",
                 save: "Gardar",
                 close: "Pechar",
                 back: "Atrás",

@@ -366,6 +366,8 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    invalidDateTimeFormat:
+                        "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisation",
@@ -419,6 +421,26 @@ const frenchTranslation: TranslationType = {
                         "multiple-contests": "Plusieurs concours",
                     },
                     policyLabel: "Politique de chiffrement de concours",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format de date et d'heure du portail de vote",
+                    helperText:
+                        "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (date moyenne, heure courte)",
+                        "date-only": "Date Only (sans heure)",
+                        "custom": "Format personnalisé",
+                    },
+                    customFormat: {
+                        label: "Format de date et d'heure personnalisé",
+                        helperText:
+                            "Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Tout autre caractère est affiché tel quel.",
+                        invalid:
+                            "Format invalide. Utilisez au moins un des jetons yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
@@ -515,6 +537,7 @@ const frenchTranslation: TranslationType = {
                     deleteError: "Échec de la suppression",
                 },
                 config: {
+                    configuredPhone: "Numéro de téléphone configuré",
                     infoMsg:
                         "Configurez le flux du SVI et ses propriétés ci-dessous. Pour plus de détails, veuillez contacter Sequent.",
                 },
@@ -850,6 +873,15 @@ const frenchTranslation: TranslationType = {
             users: {
                 title: "Utilisateurs",
                 subtitle: "Voir et éditer les données de l'utilisateur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 edit: {
                     title: "Informations de l'Utilisateur",
                     subtitle: "Voir et éditer l'Utilisateur",
@@ -899,6 +931,15 @@ const frenchTranslation: TranslationType = {
             voters: {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 logs: {
                     label: "Journaux de l'utilisateur",
                 },
@@ -1344,6 +1385,8 @@ const frenchTranslation: TranslationType = {
                 unarchive: "Désarchiver",
                 cancel: "Annuler",
                 edit: "Éditer",
+                yes: "Oui",
+                no: "Non",
                 save: "Sauvegarder",
                 close: "Fermer",
                 back: "Retour",

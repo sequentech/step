@@ -368,6 +368,8 @@ const tagalogTranslation: TranslationType = {
                 notify: {
                     success: "Matagumpay ang pag-update ng localization",
                     error: "Bigo ang pag-update ng localization",
+                    invalidDateTimeFormat:
+                        "Di-wastong format ng petsa/oras. Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localization",
@@ -420,6 +422,26 @@ const tagalogTranslation: TranslationType = {
                         "multiple-contests": "Maraming Paligsahan",
                     },
                     policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format ng petsa at oras ng Voting Portal",
+                    helperText:
+                        'Nalalapat sa buong kaganapan. Upang i-override bawat wika, idagdag ang key na "votingPortalDateTimeFormat" sa tab na Localization gamit ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Tingnan ang dokumentasyon para sa mga detalye.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (katamtamang petsa, maikling oras)",
+                        "date-only": "Date Only (walang oras)",
+                        "custom": "Pasadyang format",
+                    },
+                    customFormat: {
+                        label: "Pasadyang format ng petsa at oras",
+                        helperText:
+                            "Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm). Ang iba pang karakter ay ipapakita nang literal.",
+                        invalid:
+                            "Di-wastong format. Gumamit ng hindi bababa sa isa sa mga token na yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Walang Countdown",
@@ -514,6 +536,7 @@ const tagalogTranslation: TranslationType = {
                     deleteError: "Nabigong tanggalin",
                 },
                 config: {
+                    configuredPhone: "Na-configure na numero ng telepono",
                     infoMsg:
                         "I-configure ang IVR flow at ang mga property nito sa ibaba. Para sa higit pang detalye, makipag-ugnayan sa Sequent.",
                 },
@@ -848,6 +871,15 @@ const tagalogTranslation: TranslationType = {
             users: {
                 title: "Mga Tagagamit",
                 subtitle: "Tingnan at i-edit ang data ng tagagamit",
+                review: {
+                    title: "Suriin ang mga Pagbabago",
+                    subtitle: "Kumpirmahin ang mga update na ito bago isumite.",
+                    confirm: "Kumpirmahin ang mga Pagbabago",
+                    noChanges: "Walang pagbabagong susuriin",
+                    field: "Field",
+                    currentValue: "Kasalukuyang Halaga",
+                    newValue: "Bagong Halaga",
+                },
                 edit: {
                     title: "Data ng Tagagamit",
                     subtitle: "Tingnan at i-edit ang tagagamit",
@@ -898,6 +930,15 @@ const tagalogTranslation: TranslationType = {
             voters: {
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
+                review: {
+                    title: "Suriin ang mga Pagbabago",
+                    subtitle: "Kumpirmahin ang mga update na ito bago isumite.",
+                    confirm: "Kumpirmahin ang mga Pagbabago",
+                    noChanges: "Walang pagbabagong susuriin",
+                    field: "Field",
+                    currentValue: "Kasalukuyang Halaga",
+                    newValue: "Bagong Halaga",
+                },
                 logs: {
                     label: "Mga Log ng Gumagamit",
                 },
@@ -1338,6 +1379,8 @@ const tagalogTranslation: TranslationType = {
                 unarchive: "I-unarchive",
                 cancel: "I-cancel",
                 edit: "I-edit",
+                yes: "Oo",
+                no: "Hindi",
                 save: "I-save",
                 close: "Isara",
                 back: "Bumalik",

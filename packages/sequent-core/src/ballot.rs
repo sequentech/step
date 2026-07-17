@@ -776,6 +776,45 @@ pub enum ShowCastVoteLogs {
     Display,
     Default,
 )]
+pub enum VotingPortalDateTimeFormat {
+    #[strum(serialize = "legacy-gb-24h")]
+    #[serde(rename = "legacy-gb-24h")]
+    #[default]
+    LegacyGb24h,
+    #[strum(serialize = "iso-local")]
+    #[serde(rename = "iso-local")]
+    IsoLocal,
+    #[strum(serialize = "us-12h")]
+    #[serde(rename = "us-12h")]
+    Us12h,
+    #[strum(serialize = "locale-medium")]
+    #[serde(rename = "locale-medium")]
+    LocaleMedium,
+    #[strum(serialize = "date-only")]
+    #[serde(rename = "date-only")]
+    DateOnly,
+    /// Operator-supplied pattern using the shared date/time tokens
+    /// (`yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`). Serializes as `{"custom": "<pattern>"}`
+    /// so it coexists with the preset variants in the same presentation field.
+    #[strum(default)]
+    #[serde(rename = "custom")]
+    Custom(String),
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
 pub enum ElectionsOrder {
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
@@ -1095,6 +1134,7 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
+    pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
 }
 
 impl ElectionEvent {

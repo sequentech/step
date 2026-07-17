@@ -366,6 +366,8 @@ const catalanTranslation: TranslationType = {
                 notify: {
                     success: "La localització s'ha actualitzat correctament",
                     error: "La actualització de la localització ha fallat",
+                    invalidDateTimeFormat:
+                        "Format de data/hora no vàlid. Utilitza els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localització",
@@ -419,6 +421,26 @@ const catalanTranslation: TranslationType = {
                         "multiple-contests": "Diversos concursos",
                     },
                     policyLabel: "Política de xifrat de concurs",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format de data i hora del portal de votació",
+                    helperText:
+                        "S'aplica a tot l'esdeveniment. Per substituir-ho per idioma, afegeix la clau \"votingPortalDateTimeFormat\" a la pestanya Localització amb els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta la documentació per a més detalls.",
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data mitjana, hora curta)",
+                        "date-only": "Date Only (sense hora)",
+                        "custom": "Format personalitzat",
+                    },
+                    customFormat: {
+                        label: "Format de data i hora personalitzat",
+                        helperText:
+                            "Utilitza els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Qualsevol altre caràcter es mostra literalment.",
+                        invalid:
+                            "Format no vàlid. Utilitza almenys un dels tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
@@ -515,6 +537,7 @@ const catalanTranslation: TranslationType = {
                     deleteError: "No s'ha pogut eliminar",
                 },
                 config: {
+                    configuredPhone: "Número de telèfon configurat",
                     infoMsg:
                         "Configureu el flux de l’IVR i les seves propietats a continuació. Per a més informació, poseu-vos en contacte amb Sequent.",
                 },
@@ -849,6 +872,15 @@ const catalanTranslation: TranslationType = {
             users: {
                 title: "Usuaris",
                 subtitle: "Veure i editar dades de l'usuari",
+                review: {
+                    title: "Revisar canvis",
+                    subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
+                    confirm: "Confirmar canvis",
+                    noChanges: "No hi ha canvis per revisar",
+                    field: "Camp",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nou",
+                },
                 edit: {
                     title: "Informació de l'Usuari",
                     subtitle: "Veure i editar Usuari",
@@ -898,6 +930,15 @@ const catalanTranslation: TranslationType = {
             voters: {
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
+                review: {
+                    title: "Revisar canvis",
+                    subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
+                    confirm: "Confirmar canvis",
+                    noChanges: "No hi ha canvis per revisar",
+                    field: "Camp",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nou",
+                },
                 logs: {
                     label: "Registres de l'usuari",
                 },
@@ -1347,6 +1388,8 @@ const catalanTranslation: TranslationType = {
                 unarchive: "Desarxivar",
                 cancel: "Cancel·lar",
                 edit: "Editar",
+                yes: "Sí",
+                no: "No",
                 save: "Guardar",
                 close: "Tancar",
                 back: "Enrere",

@@ -366,6 +366,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     success: "Localisatie succesvol bijgewerkt",
                     error: "Bijwerken lokalisatie mislukt",
+                    invalidDateTimeFormat:
+                        "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisatie",
@@ -418,6 +420,26 @@ const dutchTranslation: TranslationType = {
                         "multiple-contests": "Meerdere Verkiezingen",
                     },
                     policyLabel: "Encryptiebeleid verkiezingen",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Datum- en tijdnotatie van stemportaal",
+                    helperText:
+                        'Geldt voor het hele evenement. Om per taal te overschrijven, voeg de sleutel "votingPortalDateTimeFormat" toe op het tabblad Localisatie met de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Zie de documentatie voor details.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24u)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (middellange datum, korte tijd)",
+                        "date-only": "Date Only (geen tijd)",
+                        "custom": "Aangepast formaat",
+                    },
+                    customFormat: {
+                        label: "Aangepast datum- en tijdformaat",
+                        helperText:
+                            "Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Andere tekens worden letterlijk weergegeven.",
+                        invalid:
+                            "Ongeldig formaat. Gebruik ten minste een van de tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Geen aftelling",
@@ -513,6 +535,7 @@ const dutchTranslation: TranslationType = {
                     deleteError: "Verwijderen mislukt",
                 },
                 config: {
+                    configuredPhone: "Geconfigureerd telefoonnummer",
                     infoMsg:
                         "Configureer hieronder de IVR-flow en de bijbehorende eigenschappen. Neem voor meer informatie contact op met Sequent.",
                 },
@@ -846,6 +869,15 @@ const dutchTranslation: TranslationType = {
             users: {
                 title: "Gebruikers",
                 subtitle: "Gebruikersgegevens bekijken en bewerken",
+                review: {
+                    title: "Wijzigingen controleren",
+                    subtitle: "Bevestig deze updates voordat u ze indient.",
+                    confirm: "Wijzigingen bevestigen",
+                    noChanges: "Geen wijzigingen om te controleren",
+                    field: "Veld",
+                    currentValue: "Huidige waarde",
+                    newValue: "Nieuwe waarde",
+                },
                 edit: {
                     title: "Gebruikersgegevens",
                     subtitle: "Gebruiker bekijken en bewerken",
@@ -895,6 +927,15 @@ const dutchTranslation: TranslationType = {
             voters: {
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                review: {
+                    title: "Wijzigingen controleren",
+                    subtitle: "Bevestig deze updates voordat u ze indient.",
+                    confirm: "Wijzigingen bevestigen",
+                    noChanges: "Geen wijzigingen om te controleren",
+                    field: "Veld",
+                    currentValue: "Huidige waarde",
+                    newValue: "Nieuwe waarde",
+                },
                 logs: {
                     label: "Logs van kiezer",
                 },
@@ -1333,6 +1374,8 @@ const dutchTranslation: TranslationType = {
                 unarchive: "Dearchiveren",
                 cancel: "Annuleren",
                 edit: "Bewerken",
+                yes: "Ja",
+                no: "Nee",
                 save: "Opslaan",
                 close: "Sluiten",
                 back: "Terug",

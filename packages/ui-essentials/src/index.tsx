@@ -73,3 +73,8 @@ export type {
     ResultsSelectorSelection,
     ResultsSelectorTabsProps,
 } from "./components/TallyResults/ResultsSelectorTabs"
+export {default as ReviewChangesTable} from "./components/ReviewChangesTable/ReviewChangesTable"
+export type {
+    ReviewChangesRow,
+    ReviewChangesTableProps,
+} from "./components/ReviewChangesTable/ReviewChangesTable"

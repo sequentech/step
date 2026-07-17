@@ -367,6 +367,8 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    invalidDateTimeFormat:
+                        "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -420,6 +422,26 @@ const spanishTranslation: TranslationType = {
                         "multiple-contests": "Varios concursos",
                     },
                     policyLabel: "Política de cifrado de concurso",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Formato de fecha y hora del portal de votación",
+                    helperText:
+                        'Se aplica a todo el evento. Para anularlo por idioma, añade la clave "votingPortalDateTimeFormat" en la pestaña Localización usando los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm). Consulta la documentación para más detalles.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (fecha media, hora corta)",
+                        "date-only": "Date Only (sin hora)",
+                        "custom": "Formato personalizado",
+                    },
+                    customFormat: {
+                        label: "Formato de fecha y hora personalizado",
+                        helperText:
+                            "Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm). Cualquier otro carácter se muestra literalmente.",
+                        invalid:
+                            "Formato no válido. Usa al menos uno de los tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
@@ -516,6 +538,7 @@ const spanishTranslation: TranslationType = {
                     deleteError: "No se pudo eliminar",
                 },
                 config: {
+                    configuredPhone: "Número de teléfono configurado",
                     infoMsg:
                         "Configure el flujo del IVR y sus propiedades a continuación. Para más detalles, póngase en contacto con Sequent.",
                 },
@@ -849,6 +872,15 @@ const spanishTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver y editar datos del usuario",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizaciones antes de enviarlas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "No hay cambios que revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nuevo",
+                },
                 edit: {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",
@@ -898,6 +930,15 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizaciones antes de enviarlas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "No hay cambios que revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Valor nuevo",
+                },
                 logs: {
                     label: "Registros del usuario",
                 },
@@ -1338,6 +1379,8 @@ const spanishTranslation: TranslationType = {
                 unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Sí",
+                no: "No",
                 save: "Guardar",
                 close: "Cerrar",
                 back: "Atrás",
