@@ -61,9 +61,9 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
-import debounce from "lodash/debounce"
 import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {VOTED_CHANNEL} from "./ListUsers"
 
 interface ListUserRolesProps {
     userId?: string
@@ -88,40 +88,36 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
     return value ?? ""
 }
 
-interface DateAttributeInputProps {
+interface AttributeTextInputProps {
     disabled: boolean
     label: string
     onCommit: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
+    type?: string
 }
 
-const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
+// Uncontrolled by design: the DOM owns the value while the user types, so a
+// re-render triggered by anything else can never fight the input over its
+// current text. The parent's attribute value is only read on mount (via
+// defaultValue/key) and only written back on blur.
+const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
     label,
     onCommit,
     required,
     value,
+    type,
 }) => {
     const normalizedValue = getAttributeStringValue(value)
-    const [draftValue, setDraftValue] = useState(normalizedValue)
-    const [isFocused, setIsFocused] = useState(false)
-
-    useEffect(() => {
-        if (!isFocused) {
-            setDraftValue(normalizedValue)
-        }
-    }, [isFocused, normalizedValue])
 
     return (
         <FormStyles.TextField
-            type="date"
+            key={normalizedValue}
+            type={type}
             label={label}
-            value={draftValue}
-            onChange={(event) => setDraftValue(event.target.value)}
-            onFocus={() => setIsFocused(true)}
+            defaultValue={normalizedValue}
             onBlur={(event) => {
-                setIsFocused(false)
                 if (event.target.value !== normalizedValue) {
                     onCommit(event.target.value)
                 }
@@ -129,7 +125,7 @@ const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
             disabled={disabled}
             required={required}
             fullWidth
-            InputLabelProps={{shrink: true}}
+            InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
 }
@@ -530,27 +526,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         setUser(updatedUser)
     }
 
-    const handleAttrChange =
-        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
-            debouncedHandleChange(attrName, value)
-        }
-
-    const debouncedHandleChange = useCallback(
-        debounce((name: string, value: string) => {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...(prev?.attributes ?? {}),
-                        [name]: [value],
-                    },
-                }
-            })
-        }, 300),
-        [user, equalToPassword]
-    )
-
     const handleDateChange = (attrName: string) => (value: string) => {
         setUser((prev) => {
             return {
@@ -651,6 +626,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
+            if (attr.name === VOTED_CHANNEL) {
+                return
+            }
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -768,8 +746,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.annotations?.inputType === "html5-date") {
                     return (
-                        <DateAttributeInput
+                        <AttributeTextInput
                             key={attr.name ?? index}
+                            type="date"
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             value={value}
                             onCommit={handleDateChange(attr.name)}
@@ -863,11 +842,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 return (
                     <>
                         {isCustomAttribute ? (
-                            <FormStyles.TextField
+                            <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
-                                onChange={handleAttrChange(attr.name)}
+                                onCommit={(newValue) => {
+                                    const attrName = attr.name as string
+                                    setUser((prev) => ({
+                                        ...prev,
+                                        attributes: {
+                                            ...(prev?.attributes ?? {}),
+                                            [attrName]: [newValue],
+                                        },
+                                    }))
+                                }}
+                                required={isRequired}
                                 disabled={
                                     !(
                                         createMode ||

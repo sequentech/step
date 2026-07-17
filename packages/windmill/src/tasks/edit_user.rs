@@ -214,8 +214,10 @@ fn plan_voter_release(
 }
 
 /// Rejects edits to the fields an admin may not change on a Datafix voter: the
-/// username (the VoterView identifier), the voted channel and the disable
-/// reason.
+/// username (the VoterView identifier) and the voted channel. The disable
+/// reason, unlike the voted channel, is an admin-facing note: the system sets
+/// it automatically on release, but an admin may freely override it at any
+/// time.
 #[instrument(skip_all, err)]
 fn validate_datafix_immutable_fields(
     body: &EditUserTaskBody,
@@ -228,11 +230,6 @@ fn validate_datafix_immutable_fields(
     if let Some(requested_channel) = body.attributes.get(VOTED_CHANNEL) {
         if current_attributes.get(VOTED_CHANNEL) != Some(requested_channel) {
             return Err("The Datafix voting channel cannot be edited directly".to_string());
-        }
-    }
-    if let Some(requested_comment) = body.attributes.get(DISABLE_COMMENT) {
-        if current_attributes.get(DISABLE_COMMENT) != Some(requested_comment) {
-            return Err("The Datafix disable reason cannot be edited directly".to_string());
         }
     }
     Ok(())
@@ -952,21 +949,25 @@ mod tests {
     }
 
     #[test]
-    fn the_voted_channel_and_disable_reason_are_immutable() {
+    fn the_voted_channel_is_immutable() {
         let current_user = User::default();
         let channel_edit = edit_body(None, internet_voter());
         assert!(
             validate_datafix_immutable_fields(&channel_edit, &current_user, &HashMap::new())
                 .is_err()
         );
-        let reason_edit = edit_body(None, pending_release_voter());
-        assert!(
-            validate_datafix_immutable_fields(&reason_edit, &current_user, &HashMap::new())
-                .is_err()
-        );
         let echoed = edit_body(None, internet_voter());
         assert!(
             validate_datafix_immutable_fields(&echoed, &current_user, &internet_voter()).is_ok()
+        );
+    }
+
+    #[test]
+    fn the_disable_reason_can_be_edited_by_an_admin() {
+        let current_user = User::default();
+        let reason_edit = edit_body(None, pending_release_voter());
+        assert!(
+            validate_datafix_immutable_fields(&reason_edit, &current_user, &HashMap::new()).is_ok()
         );
     }
 }

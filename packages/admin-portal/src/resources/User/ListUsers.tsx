@@ -915,6 +915,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
             if (attr.name === AUTHORIZED_ELECTION_IDS) return null
+            if (attr.name === DISABLE_COMMENT) return null
+            if (attr.name === VOTED_CHANNEL) return null
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
