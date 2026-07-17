@@ -304,10 +304,34 @@ pub async fn prepare(
     })
 }
 
+/// Failure of a dispatched VoterView request, split by whether the request may
+/// have reached the server. `NotDispatched` is a connection-level failure that
+/// provably never left this host, so the caller can safely retry later;
+/// `Ambiguous` may have been received and processed, so a non-idempotent
+/// request must not be blindly retried.
+#[derive(Debug)]
+pub enum SoapSendError {
+    NotDispatched(anyhow::Error),
+    Ambiguous(anyhow::Error),
+}
+
+impl std::fmt::Display for SoapSendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotDispatched(err) => write!(f, "not dispatched: {err:#}"),
+            Self::Ambiguous(err) => write!(f, "ambiguous outcome: {err:#}"),
+        }
+    }
+}
+
+impl std::error::Error for SoapSendError {}
+
 /// Dispatches an already-prepared request and classifies the response, carrying
 /// the template hash into the [`SoapRequestResult`] for the audit trail.
 #[instrument(skip(prepared), fields(request = %prepared.request), err)]
-pub async fn send_prepared(prepared: PreparedSoapRequest) -> Result<SoapRequestResult> {
+pub async fn send_prepared(
+    prepared: PreparedSoapRequest,
+) -> Result<SoapRequestResult, SoapSendError> {
     let PreparedSoapRequest {
         request,
         client,
@@ -325,9 +349,21 @@ pub async fn send_prepared(prepared: PreparedSoapRequest) -> Result<SoapRequestR
         .body(body)
         .send()
         .await
-        .with_context(|| format!("VoterView request failed (template_sha256={template_sha256})"))?;
-    let response = read_response(response, request).await.with_context(|| {
-        format!("Invalid VoterView response (template_sha256={template_sha256})")
+        .map_err(|err| {
+            let not_dispatched = err.is_connect();
+            let wrapped = anyhow::Error::new(err).context(format!(
+                "VoterView request failed (template_sha256={template_sha256})"
+            ));
+            if not_dispatched {
+                SoapSendError::NotDispatched(wrapped)
+            } else {
+                SoapSendError::Ambiguous(wrapped)
+            }
+        })?;
+    let response = read_response(response, request).await.map_err(|err| {
+        SoapSendError::Ambiguous(err.context(format!(
+            "Invalid VoterView response (template_sha256={template_sha256})"
+        )))
     })?;
 
     Ok(SoapRequestResult {
@@ -345,12 +381,29 @@ pub async fn send(
     username: &Option<String>,
 ) -> Result<SoapRequestResult> {
     let prepared = prepare(request, election_event, username).await?;
-    send_prepared(prepared).await
+    send_prepared(prepared).await.map_err(Into::into)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A connection refused by the local host proves the request never left,
+    /// so the send error must classify as `NotDispatched` (safe to retry).
+    #[tokio::test]
+    async fn connection_refused_is_classified_as_not_dispatched() {
+        let prepared = PreparedSoapRequest {
+            request: SoapRequest::SetVoted,
+            client: reqwest::Client::new(),
+            url: "http://127.0.0.1:9/mvv".to_string(),
+            body: "<x/>".to_string(),
+            template_sha256: "test".to_string(),
+        };
+        match send_prepared(prepared).await {
+            Err(SoapSendError::NotDispatched(_)) => {}
+            other => panic!("expected NotDispatched, got {other:?}"),
+        }
+    }
 
     fn response(result: &str, prefix: &str) -> String {
         format!(

@@ -15,6 +15,7 @@ use crate::services::datafix::utils::{
     datafix_annotations, datafix_voter_lock_key, post_operation_result_to_electoral_log,
     voted_via_internet, voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
+use crate::services::datafix::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::Result;
 use celery::error::TaskError;
@@ -257,7 +258,8 @@ async fn process_locked_cast_vote(
                         )
                     }
                 }
-                response => {
+                response @ (SoapRequestResponse::AlreadyNotVoted
+                | SoapRequestResponse::Fault(_)) => {
                     format!(
                         "SetVoted Indeterminate: {} (template_sha256={})",
                         response.classification(),
@@ -267,7 +269,29 @@ async fn process_locked_cast_vote(
             };
             audit_operation(&cast_vote, voter_id, &username, operation).await;
         }
-        Err(err) => {
+        Err(SoapSendError::NotDispatched(err)) => {
+            let changed = transition_cast_vote(
+                &cast_vote,
+                CastVoteStatus::Indeterminate,
+                CastVoteStatus::InProgress,
+            )
+            .await?;
+            let operation = if changed {
+                format!(
+                    "SetVoted NotDispatched: connection-error, vote requeued (template_sha256={template_sha256})"
+                )
+            } else {
+                format!(
+                    "SetVoted connection-error ignored after concurrent resolution (template_sha256={template_sha256})"
+                )
+            };
+            audit_operation(&cast_vote, voter_id, &username, operation).await;
+            return Err(format!(
+                "VoterView SetVoted was not dispatched; the vote was requeued: {err}"
+            )
+            .into());
+        }
+        Err(SoapSendError::Ambiguous(err)) => {
             let operation = format!(
                 "SetVoted Indeterminate: transport-or-response-error (template_sha256={template_sha256})"
             );

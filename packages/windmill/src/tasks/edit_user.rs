@@ -15,6 +15,7 @@ use crate::services::datafix::utils::{
     datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
+use crate::services::datafix::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
@@ -536,7 +537,23 @@ async fn dispatch_set_not_voted(
     let template_sha256 = prepared.template_sha256().to_string();
     match datafix::voterview_requests::send_prepared(prepared).await {
         Ok(response) => Ok((username, response)),
-        Err(err) => {
+        Err(SoapSendError::NotDispatched(err)) => {
+            error!("SetNotVoted could not be dispatched: {err}");
+            restore_pre_dispatch_cast_votes(ctx, quarantined_cast_vote_ids).await?;
+            audit_datafix_user_operation(
+                ctx,
+                &username,
+                format!(
+                    "SetNotVoted NotDispatched: connection-error (template_sha256={template_sha256})"
+                ),
+            )
+            .await;
+            Err(
+                "Voter was disabled, but SetNotVoted could not be dispatched and requires a safe retry"
+                    .to_string(),
+            )
+        }
+        Err(SoapSendError::Ambiguous(err)) => {
             error!("SetNotVoted transport or response error: {err}");
             audit_datafix_user_operation(
                 ctx,
