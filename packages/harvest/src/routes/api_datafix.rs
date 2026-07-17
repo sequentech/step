@@ -11,14 +11,13 @@ use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::{error, instrument};
-use windmill::postgres::cast_vote::DatafixPendingOperation;
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::api_datafix::{
     acquire_inbound_voter_lock, audit_inbound_operation,
-    audit_inbound_operation_standalone, complete_inbound_voter_vote_change,
-    ensure_inbound_reenable_is_safe, quarantine_inbound_voter_cast_votes,
-    release_inbound_voter_lock, valid_inbound_voting_channel, InboundVoterLock,
+    audit_inbound_operation_standalone, ensure_inbound_reenable_is_safe,
+    ensure_voter_has_no_valid_vote, release_inbound_voter_lock,
+    valid_inbound_voting_channel, InboundVoterLock,
 };
 use windmill::services::datafix::types::*;
 use windmill::services::datafix::utils::get_event_id_and_datafix_annotations;
@@ -177,29 +176,41 @@ pub async fn update_voter(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    if input.enabled == Some(true) {
-        if let Err(err) = ensure_inbound_reenable_is_safe(
-            &hasura_transaction,
-            &keycloak_transaction,
-            &claims,
-            &input.voter_id,
-        )
-        .await
-        {
-            audit_inbound_operation(
+    let guard_result = match input.enabled {
+        Some(true) => {
+            ensure_inbound_reenable_is_safe(
                 &hasura_transaction,
-                Some(&keycloak_transaction),
+                &keycloak_transaction,
                 &claims,
                 &input.voter_id,
-                "UpdateVoter",
-                false,
             )
-            .await;
-            drop(hasura_transaction);
-            drop(hasura_db_client);
-            release_inbound_voter_lock(lock).await;
-            return Err(err);
+            .await
         }
+        Some(false) => {
+            ensure_voter_has_no_valid_vote(
+                &hasura_transaction,
+                &keycloak_transaction,
+                &claims,
+                &input.voter_id,
+            )
+            .await
+        }
+        None => Ok(()),
+    };
+    if let Err(err) = guard_result {
+        audit_inbound_operation(
+            &hasura_transaction,
+            Some(&keycloak_transaction),
+            &claims,
+            &input.voter_id,
+            "UpdateVoter",
+            false,
+        )
+        .await;
+        drop(hasura_transaction);
+        drop(hasura_db_client);
+        release_inbound_voter_lock(lock).await;
+        return Err(err);
     }
     let result = services::datafix::api_datafix::update_datafix_voter(
         &hasura_transaction,
@@ -320,6 +331,28 @@ pub async fn delete_voter(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
+    if let Err(err) = ensure_voter_has_no_valid_vote(
+        &hasura_transaction,
+        &keycloak_transaction,
+        &claims,
+        &input.voter_id,
+    )
+    .await
+    {
+        audit_inbound_operation(
+            &hasura_transaction,
+            Some(&keycloak_transaction),
+            &claims,
+            &input.voter_id,
+            "DeleteVoter",
+            false,
+        )
+        .await;
+        drop(hasura_transaction);
+        drop(hasura_db_client);
+        release_inbound_voter_lock(lock).await;
+        return Err(err);
+    }
     let result = services::datafix::api_datafix::disable_datafix_voter(
         &hasura_transaction,
         &keycloak_transaction,
@@ -433,64 +466,28 @@ pub async fn unmark_voted(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    let _quarantined_cast_vote_ids = match quarantine_inbound_voter_cast_votes(
+    if let Err(err) = ensure_voter_has_no_valid_vote(
         &hasura_transaction,
         &keycloak_transaction,
         &claims,
         &input.voter_id,
-        DatafixPendingOperation::InboundUnmarkVoted,
     )
     .await
     {
-        Ok(ids) => ids,
-        Err(err) => {
-            audit_inbound_operation(
-                &hasura_transaction,
-                Some(&keycloak_transaction),
-                &claims,
-                &input.voter_id,
-                "UnmarkVoted",
-                false,
-            )
-            .await;
-            drop(hasura_transaction);
-            drop(hasura_db_client);
-            release_inbound_voter_lock(lock).await;
-            return Err(err);
-        }
-    };
-    if let Err(err) = hasura_transaction.commit().await {
-        drop(hasura_db_client);
-        audit_inbound_operation_standalone(
+        audit_inbound_operation(
+            &hasura_transaction,
+            Some(&keycloak_transaction),
             &claims,
             &input.voter_id,
             "UnmarkVoted",
             false,
         )
         .await;
-        release_inbound_voter_lock(lock).await;
-        error!("Error committing inbound Datafix cast-vote quarantine: {err}");
-        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
-    }
-    let transaction_result = hasura_db_client.transaction().await;
-    if let Some(err) =
-        transaction_result.as_ref().err().map(ToString::to_string)
-    {
-        drop(transaction_result);
+        drop(hasura_transaction);
         drop(hasura_db_client);
-        audit_inbound_operation_standalone(
-            &claims,
-            &input.voter_id,
-            "UnmarkVoted",
-            false,
-        )
-        .await;
         release_inbound_voter_lock(lock).await;
-        error!("Error starting the inbound Datafix service transaction: {err}");
-        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+        return Err(err);
     }
-    let hasura_transaction =
-        transaction_result.expect("transaction result was checked above");
     let result = services::datafix::api_datafix::unmark_voter_as_voted(
         &hasura_transaction,
         &keycloak_transaction,
@@ -500,17 +497,19 @@ pub async fn unmark_voted(
         &realm,
     )
     .await;
-    drop(hasura_transaction);
-    drop(hasura_db_client);
-    complete_inbound_voter_vote_change(
-        lock,
-        &keycloak_transaction,
+    audit_inbound_operation(
+        &hasura_transaction,
+        Some(&keycloak_transaction),
         &claims,
         &input.voter_id,
         "UnmarkVoted",
-        result,
+        result.is_ok(),
     )
-    .await
+    .await;
+    drop(hasura_transaction);
+    drop(hasura_db_client);
+    release_inbound_voter_lock(lock).await;
+    result
 }
 
 #[instrument(skip_all)]
@@ -613,64 +612,28 @@ pub async fn mark_voted(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    let _quarantined_cast_vote_ids = match quarantine_inbound_voter_cast_votes(
+    if let Err(err) = ensure_voter_has_no_valid_vote(
         &hasura_transaction,
         &keycloak_transaction,
         &claims,
         &input.voter_id,
-        DatafixPendingOperation::InboundMarkVoted,
     )
     .await
     {
-        Ok(ids) => ids,
-        Err(err) => {
-            audit_inbound_operation(
-                &hasura_transaction,
-                Some(&keycloak_transaction),
-                &claims,
-                &input.voter_id,
-                "MarkVoted",
-                false,
-            )
-            .await;
-            drop(hasura_transaction);
-            drop(hasura_db_client);
-            release_inbound_voter_lock(lock).await;
-            return Err(err);
-        }
-    };
-    if let Err(err) = hasura_transaction.commit().await {
-        drop(hasura_db_client);
-        audit_inbound_operation_standalone(
+        audit_inbound_operation(
+            &hasura_transaction,
+            Some(&keycloak_transaction),
             &claims,
             &input.voter_id,
             "MarkVoted",
             false,
         )
         .await;
-        release_inbound_voter_lock(lock).await;
-        error!("Error committing inbound Datafix cast-vote quarantine: {err}");
-        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
-    }
-    let transaction_result = hasura_db_client.transaction().await;
-    if let Some(err) =
-        transaction_result.as_ref().err().map(ToString::to_string)
-    {
-        drop(transaction_result);
+        drop(hasura_transaction);
         drop(hasura_db_client);
-        audit_inbound_operation_standalone(
-            &claims,
-            &input.voter_id,
-            "MarkVoted",
-            false,
-        )
-        .await;
         release_inbound_voter_lock(lock).await;
-        error!("Error starting the inbound Datafix service transaction: {err}");
-        return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+        return Err(err);
     }
-    let hasura_transaction =
-        transaction_result.expect("transaction result was checked above");
     let result = services::datafix::api_datafix::mark_as_voted_via_channel(
         &hasura_transaction,
         &keycloak_transaction,
@@ -680,17 +643,19 @@ pub async fn mark_voted(
         &realm,
     )
     .await;
-    drop(hasura_transaction);
-    drop(hasura_db_client);
-    complete_inbound_voter_vote_change(
-        lock,
-        &keycloak_transaction,
+    audit_inbound_operation(
+        &hasura_transaction,
+        Some(&keycloak_transaction),
         &claims,
         &input.voter_id,
         "MarkVoted",
-        result,
+        result.is_ok(),
     )
-    .await
+    .await;
+    drop(hasura_transaction);
+    drop(hasura_db_client);
+    release_inbound_voter_lock(lock).await;
+    result
 }
 
 #[derive(Serialize, Debug)]

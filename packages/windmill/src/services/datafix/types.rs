@@ -44,6 +44,9 @@ pub enum DatafixErrorCode {
     #[strum(serialize = "voter-state-unresolved")]
     #[serde(rename = "voter-state-unresolved")]
     VoterStateUnresolved,
+    #[strum(serialize = "voter-voted-online")]
+    #[serde(rename = "voter-voted-online")]
+    VoterVotedOnline,
     #[strum(serialize = "voter-not-found")]
     #[serde(rename = "voter-not-found")]
     VoterNotFound,
@@ -71,7 +74,8 @@ impl DatafixErrorCode {
         match self {
             Self::VoterAlreadyExists
             | Self::VoterOperationInProgress
-            | Self::VoterStateUnresolved => Status::Conflict,
+            | Self::VoterStateUnresolved
+            | Self::VoterVotedOnline => Status::Conflict,
             Self::VoterNotFound | Self::EventNotFound => Status::NotFound,
             Self::AreaNotFound => Status::UnprocessableEntity,
             Self::InvalidRequest => Status::BadRequest,
@@ -317,6 +321,11 @@ mod tests {
             (
                 DatafixErrorCode::VoterStateUnresolved,
                 "voter-state-unresolved",
+                Status::Conflict,
+            ),
+            (
+                DatafixErrorCode::VoterVotedOnline,
+                "voter-voted-online",
                 Status::Conflict,
             ),
             (

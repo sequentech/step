@@ -20,10 +20,6 @@ use uuid::Uuid;
 pub enum DatafixPendingOperation {
     #[strum(serialize = "set-not-voted")]
     SetNotVoted,
-    #[strum(serialize = "inbound-mark-voted")]
-    InboundMarkVoted,
-    #[strum(serialize = "inbound-unmark-voted")]
-    InboundUnmarkVoted,
 }
 
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]

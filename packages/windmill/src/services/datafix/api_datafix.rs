@@ -4,10 +4,7 @@
 use super::types::*;
 use super::utils::*;
 
-use crate::postgres::cast_vote::{
-    finalize_voter_release, get_voter_cast_vote_state, quarantine_valid_cast_votes,
-    DatafixPendingOperation,
-};
+use crate::postgres::cast_vote::{get_voter_cast_vote_state, has_valid_cast_vote};
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::users::{list_users, FilterOption, ListUsersFilter};
@@ -440,22 +437,13 @@ pub async fn release_inbound_voter_lock(lock: PgLock) {
     }
 }
 
-/// Renews the per-voter lock's expiry mid-operation; a lost lock becomes a
-/// `Conflict` so the caller aborts rather than proceeding without exclusivity.
+/// Rejects the inbound operation when the voter already has a `valid` online
+/// vote: a valid Internet vote is immutable through the inbound API, and the
+/// only way to change it is disabling the voter in the admin portal, which runs
+/// the `SetNotVoted` release flow. Callers hold the per-voter lock, so the
+/// check cannot race a vote being promoted to `valid`.
 #[instrument(skip_all)]
-async fn renew_inbound_voter_lock(lock: &PgLock) -> Result<(), JsonErrorResponse> {
-    lock.update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
-        .await
-        .map_err(|err| {
-            error!("The inbound Datafix voter lock was lost: {err}");
-            DatafixResponse::error(DatafixErrorCode::VoterOperationInProgress)
-        })
-}
-
-/// Discards the voter's non-discarded ballots once an inbound mark/unmark has
-/// been accepted, finalizing the vote-state change under the held lock.
-#[instrument(skip_all)]
-async fn discard_inbound_voter_cast_votes(
+pub async fn ensure_voter_has_no_valid_vote(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     claims: &DatafixClaims,
@@ -469,65 +457,21 @@ async fn discard_inbound_voter_cast_votes(
     .await?;
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let tenant_id = parse_uuid_v4(&claims.tenant_id).map_err(|err| {
-        error!("Invalid tenant ID while discarding Datafix cast votes: {err}");
-        DatafixResponse::error(DatafixErrorCode::InternalError)
-    })?;
-    let election_event_id = parse_uuid_v4(&election_event_id).map_err(|err| {
-        error!("Invalid election event ID while discarding Datafix cast votes: {err}");
-        DatafixResponse::error(DatafixErrorCode::InternalError)
-    })?;
-
-    finalize_voter_release(hasura_transaction, &tenant_id, &election_event_id, &user_id)
-        .await
-        .map_err(|err| {
-            error!("Error discarding cast votes for an inbound Datafix operation: {err}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
-        })?;
-    Ok(())
-}
-
-/// Quarantines the voter's `valid` ballots to `indeterminate` (tagged with
-/// `pending_operation`) so an in-flight inbound mark/unmark pulls them out of
-/// tally and statistics until it converges, returning the affected ids.
-#[instrument(skip_all)]
-pub async fn quarantine_inbound_voter_cast_votes(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    claims: &DatafixClaims,
-    username: &str,
-    pending_operation: DatafixPendingOperation,
-) -> Result<Vec<Uuid>, JsonErrorResponse> {
-    let (election_event_id, _) = get_event_id_and_datafix_annotations(
+    let voted_online = has_valid_cast_vote(
         hasura_transaction,
         &claims.tenant_id,
-        &claims.datafix_event_id,
-    )
-    .await?;
-    let realm = get_event_realm(&claims.tenant_id, &election_event_id);
-    let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let tenant_id = parse_uuid_v4(&claims.tenant_id).map_err(|err| {
-        error!("Invalid tenant ID while quarantining Datafix cast votes: {err}");
-        DatafixResponse::error(DatafixErrorCode::InternalError)
-    })?;
-    let election_event_id = parse_uuid_v4(&election_event_id).map_err(|err| {
-        error!("Invalid election event ID while quarantining Datafix cast votes: {err}");
-        DatafixResponse::error(DatafixErrorCode::InternalError)
-    })?;
-
-    let cast_vote_ids = quarantine_valid_cast_votes(
-        hasura_transaction,
-        &tenant_id,
         &election_event_id,
         &user_id,
-        pending_operation,
     )
     .await
     .map_err(|err| {
-        error!("Error quarantining cast votes for an inbound Datafix operation: {err}");
+        error!("Error checking for a valid online vote before an inbound Datafix operation: {err}");
         DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
-    Ok(cast_vote_ids)
+    if voted_online {
+        return Err(DatafixResponse::error(DatafixErrorCode::VoterVotedOnline));
+    }
+    Ok(())
 }
 
 /// Refuses to re-enable a Datafix voter whose voting state is still unresolved —
@@ -673,51 +617,6 @@ pub async fn audit_inbound_operation_standalone(
         succeeded,
     )
     .await;
-}
-
-/// Finalizes an inbound vote-state change (mark/unmark): on a failed request it
-/// audits and releases the lock; on success it renews the lock, discards the
-/// quarantined ballots in a fresh transaction, audits, and always releases the
-/// lock before returning the original result.
-#[instrument(skip_all)]
-pub async fn complete_inbound_voter_vote_change(
-    lock: PgLock,
-    keycloak_transaction: &Transaction<'_>,
-    claims: &DatafixClaims,
-    username: &str,
-    operation_name: &str,
-    result: Result<Json<DatafixResponse>, JsonErrorResponse>,
-) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
-    if result.is_err() {
-        audit_inbound_operation_standalone(claims, username, operation_name, false).await;
-        release_inbound_voter_lock(lock).await;
-        return result;
-    }
-
-    let completion: Result<(), JsonErrorResponse> = async {
-        renew_inbound_voter_lock(&lock).await?;
-        let mut client: DbClient = get_hasura_pool().await.get().await.map_err(|err| {
-            error!("Error getting Hasura client to finalize inbound Datafix votes: {err}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
-        })?;
-        let transaction = client.transaction().await.map_err(|err| {
-            error!("Error starting transaction to finalize inbound Datafix votes: {err}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
-        })?;
-        discard_inbound_voter_cast_votes(&transaction, keycloak_transaction, claims, username)
-            .await?;
-        transaction.commit().await.map_err(|err| {
-            error!("Error committing inbound Datafix cast-vote finalization: {err}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
-        })?;
-        Ok(())
-    }
-    .await;
-
-    audit_inbound_operation_standalone(claims, username, operation_name, completion.is_ok()).await;
-    release_inbound_voter_lock(lock).await;
-    completion?;
-    result
 }
 
 /// Whether an inbound `MarkVoted` channel is a real external channel — rejects a
