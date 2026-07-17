@@ -1,21 +1,30 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-//
-
-import englishTranslation from "@/translations/en"
-
 // SPDX-License-Identifier: AGPL-3.0-only
+
+// Works for both camelCase and snake_case, i.e. in the format of ${attributeName} or ${profile.attributes.attributeName} or
+// in snake case like ${first_name} or ${profile.attributes.first_name} and we want to convert it to a more readable format like 'First Name' or 'Personal Administrative Number'
+// ${firstName} => First Name
+// ${profile.attributes.firstName} => First Name
+// ${profile.attributes.personal_administrative_number} => Personal Administrative Number
 export const getAttributeLabel = (displayName: string) => {
     if (displayName?.includes("$")) {
-        return (
+        const rawName =
             displayName
                 // Step 1: Remove '${' from the start and '}' from the end
                 .replace(/^\${|}$/g, "")
                 // Step 2: Remove any leading or trailing whitespace
                 .trim()
-                // Step 3: Add a space between a lowercase letter followed by an uppercase letter
+                // Step 3: Get the word after the last dot if it exists, otherwise use the whole string
+                .split(".")
+                .pop() ?? ""
+        return (
+            rawName
+                // Step 4 : Replace underscores with spaces
+                .replace(/_/g, " ")
+                // Step 5 : Add a space between a lowercase letter followed by an uppercase letter
                 .replace(/([a-z])([A-Z])/g, "$1 $2")
-                // Step 4: Capitalize the first letter
-                .replace(/^./, (match) => match.toUpperCase()) ?? ""
+                // Step 6: Capitalize the first letter and every letter after a space
+                .replace(/\b\w/g, (match) => match.toUpperCase())
         )
     }
     return displayName ?? ""
@@ -26,8 +35,12 @@ export const getTranslationLabel = (
     displayName: string | undefined | null,
     t: (key: string) => string
 ) => {
-    if (name && name in englishTranslation.translations.usersAndRolesScreen.users.fields) {
-        return t(`usersAndRolesScreen.users.fields.${name}`)
+    if (name) {
+        const key = `usersAndRolesScreen.users.fields.${name}`
+        const translated = t(key)
+        if (translated !== key) {
+            return translated
+        }
     }
     return getAttributeLabel(displayName ?? "")
 }
