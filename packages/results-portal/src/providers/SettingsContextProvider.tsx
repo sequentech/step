@@ -21,7 +21,7 @@ interface SettingsContextValues {
 
 const defaultSettings: GlobalSettings = {
     RESULTS_PORTAL_CLIENT_ID: "results-portal",
-    KEYCLOAK_URL: "http://127.0.0.1:8090/",
+    KEYCLOAK_URL: "http://localhost:8090/",
     HASURA_URL: "http://localhost:8080/v1/graphql",
     APP_VERSION: "dev",
     APP_HASH: "dev",

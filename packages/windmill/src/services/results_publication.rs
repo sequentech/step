@@ -2241,6 +2241,8 @@ mod tests {
         const OTHER_RESULTS_EVENT_SENTINEL: &str = "OTHER-RESULTS-EVENT-MUST-NEVER-BE-PUBLISHED";
         const OTHER_AREA_SENTINEL: &str = "OTHER-AREA-MUST-NEVER-BE-PUBLISHED";
         const INTERNAL_COLUMN_SENTINEL: &str = "INTERNAL-EVENT-STATISTICS-MUST-NEVER-BE-PUBLISHED";
+        const NON_PUBLIC_CANDIDATE_LABEL: &str = "NON-PUBLIC-CANDIDATE-MUST-BE-PUBLISHED";
+        const UNFLAGGED_CANDIDATE_LABEL: &str = "UNFLAGGED-CANDIDATE-MUST-BE-PUBLISHED";
         let source = generate_temp_file("results-publication-source", ".sqlite")?;
         let conn = Connection::open(source.path())?;
         conn.execute_batch(
@@ -2305,7 +2307,8 @@ mod tests {
                     ('contest-1', 'election-1'),
                     ('contest-2', 'election-2');
                 INSERT INTO candidate VALUES
-                    ('candidate-1', 'contest-1', 0, NULL),
+                    ('candidate-1', 'contest-1', 0, 'NON-PUBLIC-CANDIDATE-MUST-BE-PUBLISHED'),
+                    ('candidate-unflagged', 'contest-1', NULL, 'UNFLAGGED-CANDIDATE-MUST-BE-PUBLISHED'),
                     ('candidate-2', 'contest-2', 1, NULL);
                 INSERT INTO area VALUES
                     ('area-1', 'event-1'),
@@ -2325,6 +2328,7 @@ mod tests {
                     ('contest-1', 'election-1', 'results-event-3', 'OTHER-RESULTS-EVENT-MUST-NEVER-BE-PUBLISHED');
                 INSERT INTO results_contest_candidate VALUES
                     ('contest-1', 'candidate-1', 'results-event-1', NULL),
+                    ('contest-1', 'candidate-unflagged', 'results-event-1', NULL),
                     ('contest-2', 'candidate-2', 'results-event-2', NULL),
                     ('contest-1', 'candidate-1', 'results-event-3', 'OTHER-RESULTS-EVENT-MUST-NEVER-BE-PUBLISHED');
                 INSERT INTO results_election_area VALUES
@@ -2334,6 +2338,7 @@ mod tests {
                     ('election-1', 'area-1', 'results-event-3');
                 INSERT INTO results_area_contest_candidate VALUES
                     ('contest-1', 'candidate-1', 'area-1', 'results-event-1', NULL),
+                    ('contest-1', 'candidate-unflagged', 'area-1', 'results-event-1', NULL),
                     ('contest-1', 'candidate-1', 'area-private', 'results-event-1', 'OTHER-AREA-MUST-NEVER-BE-PUBLISHED'),
                     ('contest-2', 'candidate-2', 'area-2', 'results-event-2', NULL),
                     ('contest-1', 'candidate-1', 'area-1', 'results-event-3', 'OTHER-RESULTS-EVENT-MUST-NEVER-BE-PUBLISHED');
@@ -2365,17 +2370,17 @@ mod tests {
         assert_eq!(row_count(&target_conn, "election_event")?, 1);
         assert_eq!(row_count(&target_conn, "election")?, 1);
         assert_eq!(row_count(&target_conn, "contest")?, 1);
-        assert_eq!(row_count(&target_conn, "candidate")?, 1);
+        assert_eq!(row_count(&target_conn, "candidate")?, 2);
         assert_eq!(row_count(&target_conn, "area")?, 2);
         assert_eq!(row_count(&target_conn, "results_event")?, 1);
         assert_eq!(row_count(&target_conn, "results_election")?, 1);
         assert_eq!(row_count(&target_conn, "results_contest")?, 1);
-        assert_eq!(row_count(&target_conn, "results_contest_candidate")?, 1);
+        assert_eq!(row_count(&target_conn, "results_contest_candidate")?, 2);
         assert_eq!(row_count(&target_conn, "results_election_area")?, 2);
         assert_eq!(row_count(&target_conn, "results_area_contest")?, 2);
         assert_eq!(
             row_count(&target_conn, "results_area_contest_candidate")?,
-            2
+            3
         );
 
         drop(target_conn);
@@ -2392,6 +2397,12 @@ mod tests {
         assert!(!target_bytes
             .windows(INTERNAL_COLUMN_SENTINEL.len())
             .any(|bytes| bytes == INTERNAL_COLUMN_SENTINEL.as_bytes()));
+        assert!(target_bytes
+            .windows(NON_PUBLIC_CANDIDATE_LABEL.len())
+            .any(|bytes| bytes == NON_PUBLIC_CANDIDATE_LABEL.as_bytes()));
+        assert!(target_bytes
+            .windows(UNFLAGGED_CANDIDATE_LABEL.len())
+            .any(|bytes| bytes == UNFLAGGED_CANDIDATE_LABEL.as_bytes()));
 
         let area_target = copy_filtered_sqlite(
             source.path(),
@@ -2407,11 +2418,12 @@ mod tests {
             row_count(&area_target_conn, "results_contest_candidate")?,
             0
         );
+        assert_eq!(row_count(&area_target_conn, "candidate")?, 2);
         assert_eq!(row_count(&area_target_conn, "results_election_area")?, 1);
         assert_eq!(row_count(&area_target_conn, "results_area_contest")?, 1);
         assert_eq!(
             row_count(&area_target_conn, "results_area_contest_candidate")?,
-            1
+            2
         );
         drop(area_target_conn);
         let area_target_bytes = fs::read(area_target.path())?;

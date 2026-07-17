@@ -115,7 +115,6 @@ import {
     ConfigureResultsWebsitePolicyData,
     ConfigureResultsWebsitePolicyVariables,
 } from "@/queries/ResultsWebsitePublication"
-import {useFormContext} from "react-hook-form"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -126,19 +125,6 @@ export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
 
 const ResultsWebsitePolicyFields: React.FC = () => {
     const {t} = useTranslation()
-    const notify = useNotify()
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const {getValues, setValue} = useFormContext<Sequent_Backend_Election_Event_Extended>()
-    const [configureResultsWebsitePolicy, {loading}] = useMutation<
-        ConfigureResultsWebsitePolicyData,
-        ConfigureResultsWebsitePolicyVariables
-    >(CONFIGURE_RESULTS_WEBSITE_POLICY, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
-            },
-        },
-    })
     const statusOptions = [
         {id: EResultsWebsiteStatus.DISABLED, name: t("tally.resultsPublication.disabled")},
         {id: EResultsWebsiteStatus.ENABLED, name: t("tally.resultsPublication.enabled")},
@@ -160,47 +146,6 @@ const ResultsWebsitePolicyFields: React.FC = () => {
             name: t("tally.resultsPublication.areaBased"),
         },
     ]
-
-    const savePolicy = useCallback(async () => {
-        const policy = getValues("resultsWebsitePolicy")
-        if (!record?.id || !policy) {
-            notify("Results website policy is missing", {type: "error"})
-            return
-        }
-        if (
-            policy.access === EResultsWebsiteAccess.PUBLIC &&
-            policy.visibility_scope !== EResultsWebsiteVisibilityScope.FULL_EVENT
-        ) {
-            notify("Public results must use full event visibility", {type: "error"})
-            return
-        }
-
-        try {
-            await configureResultsWebsitePolicy({
-                variables: {
-                    election_event_id: record.id.toString(),
-                    status: policy.status,
-                    access: policy.access,
-                    visibility_scope: policy.visibility_scope,
-                },
-            })
-            const presentation = (getValues("presentation") ?? {}) as IElectionEventPresentation
-            setValue(
-                "presentation",
-                {...presentation, results_website: JSON.stringify(policy)},
-                {shouldDirty: false}
-            )
-            notify("ra.notification.updated", {type: "success", messageArgs: {smart_count: 1}})
-        } catch (error) {
-            console.error(error)
-            notify(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to update the results website policy",
-                {type: "error"}
-            )
-        }
-    }, [configureResultsWebsitePolicy, getValues, notify, record?.id, setValue])
 
     return (
         <>
@@ -239,7 +184,6 @@ const ResultsWebsitePolicyFields: React.FC = () => {
                 emptyText={undefined}
                 validate={required()}
             />
-            <Button type="button" label="ra.action.save" onClick={savePolicy} disabled={loading} />
         </>
     )
 }
@@ -359,6 +303,16 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         }
     )
+    const [configureResultsWebsitePolicy] = useMutation<
+        ConfigureResultsWebsitePolicyData,
+        ConfigureResultsWebsitePolicyVariables
+    >(CONFIGURE_RESULTS_WEBSITE_POLICY, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
+            },
+        },
+    })
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -958,21 +912,61 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
-    const onSave = async () => {
+    const handleConfigureResultsWebsitePolicy = async (
+        policy: IResultsWebsitePolicy | undefined,
+        recordId: string
+    ) => {
+        if (!canConfigureResultsWebsite) {
+            return
+        }
+        if (!policy) {
+            throw new Error("Results website policy is missing")
+        }
+        if (
+            policy.access === EResultsWebsiteAccess.PUBLIC &&
+            policy.visibility_scope !== EResultsWebsiteVisibilityScope.FULL_EVENT
+        ) {
+            throw new Error("Public results must use full event visibility")
+        }
+
+        await configureResultsWebsitePolicy({
+            variables: {
+                election_event_id: recordId,
+                status: policy.status,
+                access: policy.access,
+                visibility_scope: policy.visibility_scope,
+            },
+        })
+    }
+
+    const onSave = async (values: Sequent_Backend_Election_Event_Extended) => {
+        const recordId = values.id?.toString() ?? record?.id?.toString()
+        if (!recordId) {
+            throw new Error("Election event ID is missing")
+        }
         checkCustomDateTimeFormatRef.current()
-        await handleUpdateCustomUrls(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
-        )
+
+        await handleUpdateCustomUrls(values.presentation as IElectionEventPresentation, recordId)
         await handleUpdateVoterAuthentication(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
+            values.presentation as IElectionEventPresentation,
+            recordId
         )
         await handleUpdateRealmAttributes(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
+            values.presentation as IElectionEventPresentation,
+            recordId
         )
+        await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
         setActivateSave(false)
+
+        return {
+            ...values,
+            presentation: {
+                ...values.presentation,
+                ...(canConfigureResultsWebsite && values.resultsWebsitePolicy
+                    ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
+                    : {}),
+            },
+        }
     }
     return (
         <>
@@ -1002,8 +996,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <Toolbar>
                         {canEdit && (
                             <SaveButton
-                                onClick={onSave}
                                 type="button"
+                                transform={onSave}
                                 alwaysEnable={activateSave}
                             />
                         )}
