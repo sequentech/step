@@ -17,6 +17,7 @@ import {
     EEarlyVotingPolicy,
     IAreaPresentation,
     EResultsWebsiteStatus,
+    parseResultsWebsitePolicy,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -116,7 +117,10 @@ const isElectionEventEarlyVotingOpen = (electionEvent?: IElectionEvent): boolean
 }
 
 const isResultsWebsiteEnabled = (electionEvent?: IElectionEvent): boolean => {
-    return electionEvent?.presentation?.results_website?.status === EResultsWebsiteStatus.ENABLED
+    return (
+        parseResultsWebsitePolicy(electionEvent?.presentation?.results_website)?.status ===
+        EResultsWebsiteStatus.ENABLED
+    )
 }
 
 const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean => {

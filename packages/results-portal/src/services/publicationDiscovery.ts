@@ -7,6 +7,7 @@ import {
     ResultsPublicationIndex,
     ResultsPublicationIndexEntry,
     ResultsResolverResponse,
+    parseResultsPublicationIndex,
 } from "@/types/results"
 import {GlobalSettings} from "@/providers/SettingsContextProvider"
 import {graphqlFetch} from "./graphql"
@@ -29,22 +30,6 @@ export interface PublicationDiscoveryResult {
     manifestUrl?: string
 }
 
-export interface PublicationDiscoveryOptions {
-    manifestPath?: string
-}
-
-const isAbsoluteUrl = (value: string) => /^https?:\/\//i.test(value)
-
-const resolveManifestOverride = (settings: GlobalSettings, manifestPath?: string) => {
-    if (!manifestPath) {
-        return undefined
-    }
-
-    return isAbsoluteUrl(manifestPath)
-        ? manifestPath
-        : publicBucketUrl(settings.PUBLIC_BUCKET_URL, manifestPath)
-}
-
 const isRouteMatch = (
     publication: ResultsPublicationIndexEntry,
     eeId: string,
@@ -60,24 +45,11 @@ const isRouteMatch = (
 
         return (
             publication.route_scope === "event" &&
-            (publication.election_ids?.includes(electionId) || publication.route === `/${eeId}`)
+            publication.election_ids?.includes(electionId) === true
         )
     }
 
     return publication.route_scope === "event" || publication.route === `/${eeId}`
-}
-
-const normalizeIndex = (value: unknown): ResultsPublicationIndex => {
-    const index = value as ResultsPublicationIndex | ResultsPublicationIndexEntry
-
-    if ("publication_id" in index) {
-        return {
-            schema_version: 1,
-            publications: [index as ResultsPublicationIndexEntry],
-        }
-    }
-
-    return index as ResultsPublicationIndex
 }
 
 export const fetchPublicIndex = async (
@@ -97,7 +69,7 @@ export const fetchPublicIndex = async (
         throw new Error(`Unable to load results index: HTTP ${response.status}`)
     }
 
-    return normalizeIndex(await response.json())
+    return parseResultsPublicationIndex(await response.json())
 }
 
 export const findIndexPublication = (
@@ -105,8 +77,21 @@ export const findIndexPublication = (
     eeId: string,
     electionId?: string
 ): ResultsPublicationIndexEntry | null => {
+    const matches =
+        index?.publications?.filter((publication) => isRouteMatch(publication, eeId, electionId)) ??
+        []
+
+    if (!electionId) {
+        return matches[0] ?? null
+    }
+
     return (
-        index?.publications?.find((publication) => isRouteMatch(publication, eeId, electionId)) ??
+        matches.find(
+            (publication) =>
+                publication.route_scope === "election" &&
+                publication.route_election_id === electionId
+        ) ??
+        matches.find((publication) => publication.route_scope === "event") ??
         null
     )
 }
@@ -116,30 +101,23 @@ export const resolveManifestUrl = (
     publication: Pick<ResultsPublicationIndexEntry, "manifest_public_path" | "manifest_url">
 ) =>
     publication.manifest_url ??
-    publicBucketUrl(settings.PUBLIC_BUCKET_URL, publication.manifest_public_path)
+    publicBucketUrl(settings.PUBLIC_BUCKET_URL, publication.manifest_public_path ?? undefined)
 
 export const discoverPublication = async (
     settings: GlobalSettings,
     eeId: string,
     electionId?: string,
-    token?: string,
-    options: PublicationDiscoveryOptions = {}
+    token?: string
 ): Promise<PublicationDiscoveryResult | null> => {
     const index = await fetchPublicIndex(settings, eeId)
     const indexEntry = findIndexPublication(index, eeId, electionId)
 
     if (indexEntry?.access === "public") {
-        const activeManifestUrl = resolveManifestUrl(settings, indexEntry)
-        const requestedManifestUrl = resolveManifestOverride(settings, options.manifestPath)
-
         return {
             source: "public-index",
             index: index ?? undefined,
             indexEntry,
-            manifestUrl:
-                requestedManifestUrl === activeManifestUrl
-                    ? requestedManifestUrl
-                    : activeManifestUrl,
+            manifestUrl: resolveManifestUrl(settings, indexEntry),
         }
     }
 
@@ -168,10 +146,13 @@ export const discoverPublication = async (
             source: "resolver",
             index: index ?? undefined,
             resolverEntry,
-            manifest: resolverEntry.manifest,
+            manifest: resolverEntry.manifest ?? undefined,
             manifestUrl:
                 resolverEntry.manifest_url ??
-                publicBucketUrl(settings.PUBLIC_BUCKET_URL, resolverEntry.manifest_public_path),
+                publicBucketUrl(
+                    settings.PUBLIC_BUCKET_URL,
+                    resolverEntry.manifest_public_path ?? undefined
+                ),
         }
     }
 

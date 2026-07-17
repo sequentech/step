@@ -66,6 +66,8 @@ const winningPositionComparator = (left: NumericValue, right: NumericValue) => {
     return leftPosition - rightPosition
 }
 
+const classToken = (value: string | number) => String(value).replace(/[^a-zA-Z0-9_-]/g, "-")
+
 const useCandidateResultColumns = (
     labels: ResultsAndParticipationLabels
 ): GridColDef<CandidateResultRow>[] =>
@@ -78,6 +80,8 @@ const useCandidateResultColumns = (
                 minWidth: 180,
                 editable: false,
                 align: "left",
+                headerClassName: "seq-tally-results-candidate-results__name-heading",
+                cellClassName: "seq-tally-results-candidate-results__name-cell",
             },
             {
                 field: "castVotes",
@@ -89,6 +93,8 @@ const useCandidateResultColumns = (
                     valueOrDash(props.value),
                 align: "right",
                 headerAlign: "right",
+                headerClassName: "seq-tally-results-candidate-results__votes-heading",
+                cellClassName: "seq-tally-results-candidate-results__votes-cell",
             },
             {
                 field: "castVotesPercent",
@@ -100,6 +106,8 @@ const useCandidateResultColumns = (
                     percentOrDash(props.value),
                 align: "right",
                 headerAlign: "right",
+                headerClassName: "seq-tally-results-candidate-results__percent-heading",
+                cellClassName: "seq-tally-results-candidate-results__percent-cell",
             },
             {
                 field: "winningPosition",
@@ -112,6 +120,8 @@ const useCandidateResultColumns = (
                 sortComparator: winningPositionComparator,
                 align: "right",
                 headerAlign: "right",
+                headerClassName: "seq-tally-results-candidate-results__position-heading",
+                cellClassName: "seq-tally-results-candidate-results__position-cell",
             },
         ],
         [labels.options, labels.castVotes, labels.castVotesPercent, labels.winningPosition]
@@ -238,6 +248,11 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                             rows={orderedCandidates}
                             columns={columns}
                             getRowId={(row) => row.id}
+                            getRowClassName={({id}) =>
+                                `seq-tally-results-candidate-results__row seq-tally-results-candidate-results__row--${classToken(
+                                    id
+                                )}`
+                            }
                             initialState={DATA_GRID_INITIAL_STATE}
                             pageSizeOptions={DATA_GRID_PAGE_SIZE_OPTIONS}
                             disableRowSelectionOnClick

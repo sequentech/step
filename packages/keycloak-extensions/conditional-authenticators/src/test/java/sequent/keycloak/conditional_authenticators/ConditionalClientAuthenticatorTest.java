@@ -44,6 +44,22 @@ public class ConditionalClientAuthenticatorTest {
   }
 
   @Test
+  public void testMatchConditionSupportsMultipleClientIds() {
+    setupValidAuthConfig("voting-portal, results-portal", false);
+    setupValidClientSession("results-portal");
+
+    assertTrue(conditionalClientAuthenticator.matchCondition(context));
+  }
+
+  @Test
+  public void testMissingConfiguredClientDoesNotMatch() {
+    setupValidAuthConfig(null, false);
+    setupValidClientSession("results-portal");
+
+    assertFalse(conditionalClientAuthenticator.matchCondition(context));
+  }
+
+  @Test
   public void testClientIdMatchNegateOff() {
     setupValidAuthConfig("client", false);
     setupValidClientSession("different-client");

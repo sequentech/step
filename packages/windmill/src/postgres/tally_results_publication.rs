@@ -94,6 +94,139 @@ impl TryFrom<Row> for TallyResultsPublication {
     }
 }
 
+pub async fn validate_new_publication_source(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    tally_session_execution_id: &str,
+    results_event_id: &str,
+    election_ids: &[String],
+    contest_ids: &[String],
+    route_election_id: Option<&str>,
+) -> Result<()> {
+    if election_ids.is_empty() || contest_ids.is_empty() {
+        return Err(anyhow!(
+            "A publication requires at least one election and one contest"
+        ));
+    }
+
+    let tenant_id = parse_uuid_v4(tenant_id)?;
+    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let tally_session_id = parse_uuid_v4(tally_session_id)?;
+    let tally_session_execution_id = parse_uuid_v4(tally_session_execution_id)?;
+    let results_event_id = parse_uuid_v4(results_event_id)?;
+    let election_ids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let contest_ids = contest_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let route_election_id = route_election_id.map(parse_uuid_v4).transpose()?;
+
+    if route_election_id.is_some_and(|route_id| !election_ids.contains(&route_id)) {
+        return Err(anyhow!(
+            "The route election must be included in the publication elections"
+        ));
+    }
+
+    let statement = tx
+        .prepare(
+            r#"
+                SELECT
+                    EXISTS (
+                        SELECT 1
+                        FROM sequent_backend.tally_session_execution execution
+                        JOIN sequent_backend.tally_session session
+                          ON session.id = execution.tally_session_id
+                         AND session.tenant_id = execution.tenant_id
+                         AND session.election_event_id = execution.election_event_id
+                        JOIN sequent_backend.results_event results_event
+                          ON results_event.id = execution.results_event_id
+                         AND results_event.tenant_id = execution.tenant_id
+                         AND results_event.election_event_id = execution.election_event_id
+                        WHERE execution.id = $4
+                          AND execution.tenant_id = $1
+                          AND execution.election_event_id = $2
+                          AND execution.tally_session_id = $3
+                          AND execution.results_event_id = $5
+                          AND $6::uuid[] <@ session.election_ids
+                    ) AS valid_execution,
+                    (
+                        SELECT COUNT(DISTINCT election.id)
+                        FROM sequent_backend.election election
+                        WHERE election.tenant_id = $1
+                          AND election.election_event_id = $2
+                          AND election.id = ANY($6::uuid[])
+                    ) AS election_count,
+                    (
+                        SELECT COUNT(DISTINCT contest.id)
+                        FROM sequent_backend.contest contest
+                        WHERE contest.tenant_id = $1
+                          AND contest.election_event_id = $2
+                          AND contest.election_id = ANY($6::uuid[])
+                          AND contest.id = ANY($7::uuid[])
+                    ) AS contest_count,
+                    (
+                        SELECT COUNT(DISTINCT results.contest_id)
+                        FROM sequent_backend.results_contest results
+                        WHERE results.tenant_id = $1
+                          AND results.election_event_id = $2
+                          AND results.results_event_id = $5
+                          AND results.election_id = ANY($6::uuid[])
+                          AND results.contest_id = ANY($7::uuid[])
+                    ) AS tallied_contest_count;
+            "#,
+        )
+        .await?;
+    let row = tx
+        .query_one(
+            &statement,
+            &[
+                &tenant_id,
+                &election_event_id,
+                &tally_session_id,
+                &tally_session_execution_id,
+                &results_event_id,
+                &election_ids,
+                &contest_ids,
+            ],
+        )
+        .await?;
+
+    let valid_execution: bool = row.try_get("valid_execution")?;
+    let election_count: i64 = row.try_get("election_count")?;
+    let contest_count: i64 = row.try_get("contest_count")?;
+    let tallied_contest_count: i64 = row.try_get("tallied_contest_count")?;
+    let expected_elections = i64::try_from(election_ids.len())?;
+    let expected_contests = i64::try_from(contest_ids.len())?;
+
+    if !valid_execution {
+        return Err(anyhow!(
+            "The tally session, execution, and results event do not belong together"
+        ));
+    }
+    if election_count != expected_elections {
+        return Err(anyhow!(
+            "One or more publication elections are outside the tally event"
+        ));
+    }
+    if contest_count != expected_contests {
+        return Err(anyhow!(
+            "One or more publication contests are outside the selected elections"
+        ));
+    }
+    if tallied_contest_count != expected_contests {
+        return Err(anyhow!(
+            "Every selected contest must have results in the selected tally execution"
+        ));
+    }
+
+    Ok(())
+}
+
 pub async fn next_publication_version(
     tx: &Transaction<'_>,
     tenant_id: &str,
@@ -102,6 +235,16 @@ pub async fn next_publication_version(
     route_election_id: Option<&str>,
 ) -> Result<i32> {
     let route_election_uuid = route_election_id.map(parse_uuid_v4).transpose()?;
+    let lock_key = format!(
+        "tally-results-publication:{tenant_id}:{election_event_id}:{}:{}",
+        route_scope.as_ref(),
+        route_election_id.unwrap_or("event")
+    );
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+        &[&lock_key],
+    )
+    .await?;
     let statement = tx
         .prepare(
             r#"
@@ -347,6 +490,36 @@ pub async fn list_active_public_publications(
     rows.into_iter().map(TryInto::try_into).collect()
 }
 
+pub async fn list_superseded_publications(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<TallyResultsPublication>> {
+    let statement = tx
+        .prepare(
+            r#"
+                SELECT *
+                FROM sequent_backend.tally_results_publication
+                WHERE tenant_id = $1
+                  AND election_event_id = $2
+                  AND publication_status = 'Superseded'
+                ORDER BY updated_at;
+            "#,
+        )
+        .await?;
+    let rows = tx
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    rows.into_iter().map(TryInto::try_into).collect()
+}
+
 pub async fn mark_publication_published(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
@@ -397,25 +570,34 @@ pub async fn mark_publication_published(
                 SET publication_status = 'Published',
                     documents = $4,
                     manifest = $5,
+                    error_message = NULL,
                     published_at = now(),
                     updated_at = now()
                 WHERE tenant_id = $1
                   AND election_event_id = $2
-                  AND id = $3;
+                  AND id = $3
+                  AND publication_status IN ('Publishing', 'Failed');
             "#,
         )
         .await?;
-    tx.execute(
-        &publish_statement,
-        &[
-            &parse_uuid_v4(&publication.tenant_id)?,
-            &parse_uuid_v4(&publication.election_event_id)?,
-            &parse_uuid_v4(&publication.id)?,
-            &documents,
-            &manifest,
-        ],
-    )
-    .await?;
+    let affected_rows = tx
+        .execute(
+            &publish_statement,
+            &[
+                &parse_uuid_v4(&publication.tenant_id)?,
+                &parse_uuid_v4(&publication.election_event_id)?,
+                &parse_uuid_v4(&publication.id)?,
+                &documents,
+                &manifest,
+            ],
+        )
+        .await?;
+
+    if affected_rows != 1 {
+        return Err(anyhow!(
+            "Publication is not in a state that can be activated"
+        ));
+    }
 
     Ok(())
 }
@@ -436,20 +618,69 @@ pub async fn mark_publication_failed(
                     updated_at = now()
                 WHERE tenant_id = $1
                   AND election_event_id = $2
-                  AND id = $3;
+                  AND id = $3
+                  AND publication_status IN ('Publishing', 'Failed');
             "#,
         )
         .await?;
-    tx.execute(
-        &statement,
-        &[
-            &parse_uuid_v4(tenant_id)?,
-            &parse_uuid_v4(election_event_id)?,
-            &parse_uuid_v4(publication_id)?,
-            &error_message,
-        ],
-    )
-    .await?;
+    let affected_rows = tx
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(publication_id)?,
+                &error_message,
+            ],
+        )
+        .await?;
+
+    if affected_rows != 1 {
+        return Err(anyhow!(
+            "Publication is not in a state that can be marked failed"
+        ));
+    }
+
+    Ok(())
+}
+
+pub async fn set_publication_finalization_error(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+    error_message: Option<&str>,
+) -> Result<()> {
+    let statement = tx
+        .prepare(
+            r#"
+                UPDATE sequent_backend.tally_results_publication
+                SET error_message = $4,
+                    updated_at = now()
+                WHERE tenant_id = $1
+                  AND election_event_id = $2
+                  AND id = $3
+                  AND publication_status = 'Published';
+            "#,
+        )
+        .await?;
+    let affected_rows = tx
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(publication_id)?,
+                &error_message,
+            ],
+        )
+        .await?;
+
+    if affected_rows != 1 {
+        return Err(anyhow!(
+            "Published publication was not available to update its finalization error"
+        ));
+    }
 
     Ok(())
 }

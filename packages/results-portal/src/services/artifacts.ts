@@ -22,7 +22,8 @@ export const resolveSqliteArtifactUrl = async (
 ): Promise<string> => {
     const fullSqlite = manifest.artifacts.full_sqlite
     const directUrl =
-        fullSqlite?.url ?? publicBucketUrl(settings.PUBLIC_BUCKET_URL, fullSqlite?.public_path)
+        fullSqlite?.url ??
+        publicBucketUrl(settings.PUBLIC_BUCKET_URL, fullSqlite?.public_path ?? undefined)
 
     if (directUrl) {
         return directUrl

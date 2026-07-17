@@ -42,6 +42,7 @@ interface ParticipationSummaryProps {
 }
 
 interface SummaryRow {
+    key: string
     label: string
     value?: NumericValue
     percent?: NumericValue
@@ -105,49 +106,70 @@ const buildSummaryRows = (
 ): SummaryRow[] => {
     const rows: SummaryRow[] = [
         {
+            key: "eligible-census",
             label: labels.eligibleCensus,
             value: result.eligibleCensus,
             showPercent: false,
         },
         {
+            key: "total-auditable-votes",
             label: labels.totalAuditableVotes,
             value: result.totalAuditableVotes,
             percent: result.totalAuditableVotesPercent,
         },
         {
+            key: "total-votes-counted",
             label: labels.totalVotesCounted,
             value: result.totalVotes,
             percent: result.totalVotesPercent,
         },
         {
+            key: "total-valid-votes",
             label: labels.totalValidVotes,
             value: result.totalValidVotes,
             percent: result.totalValidVotesPercent,
         },
         {
+            key: "total-invalid-votes",
             label: labels.totalInvalidVotes,
             value: result.totalInvalidVotes,
             percent: result.totalInvalidVotesPercent,
         },
         {
+            key: "explicit-invalid-votes",
             label: labels.explicitInvalidVotes,
             value: result.explicitInvalidVotes,
             percent: result.explicitInvalidVotesPercent,
         },
         {
+            key: "implicit-invalid-votes",
             label: labels.implicitInvalidVotes,
             value: result.implicitInvalidVotes,
             percent: result.implicitInvalidVotesPercent,
         },
         {
+            key: "blank-votes",
             label: labels.blankVotes,
             value: result.blankVotes,
             percent: result.blankVotesPercent,
+        },
+        {
+            key: "explicit-blank-votes",
+            label: labels.explicitBlankVotes,
+            value: result.explicitBlankVotes,
+            percent: result.explicitBlankVotesPercent,
+        },
+        {
+            key: "implicit-blank-votes",
+            label: labels.implicitBlankVotes,
+            value: result.implicitBlankVotes,
+            percent: result.implicitBlankVotesPercent,
         },
     ]
 
     if (showWeight) {
         rows.push({
+            key: "weight",
             label: labels.weight,
             value: result.weight,
             showPercent: false,
@@ -296,8 +318,8 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                 <TableBody className="seq-tally-results-participation-summary__table-body">
                                     {summaryRows.map((row) => (
                                         <TableRow
-                                            className="seq-tally-results-participation-summary__row"
-                                            key={row.label}
+                                            className={`seq-tally-results-participation-summary__row seq-tally-results-participation-summary__row--${row.key}`}
+                                            key={row.key}
                                         >
                                             <TableCell
                                                 className="seq-tally-results-participation-summary__label-cell"

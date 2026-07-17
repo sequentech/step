@@ -86,6 +86,8 @@ const englishTranslation = {
                 explicitInvalidVotes: "Explicitly Invalid Votes",
                 implicitInvalidVotes: "Implicitly Invalid Votes",
                 blankVotes: "Blank Votes",
+                explicitBlankVotes: "Explicit Blank Votes",
+                implicitBlankVotes: "Implicit Blank Votes",
                 blankVotesChart: "Blank Votes",
                 weight: "Weight",
                 options: "Options",

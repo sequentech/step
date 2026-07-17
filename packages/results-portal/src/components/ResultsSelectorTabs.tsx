@@ -19,6 +19,8 @@ interface ResultsSelectorTabsProps {
     manifest: ResultsManifest
     dataset: ResultsSqliteDataset
     locale: string
+    initialElectionId?: string
+    onElectionChange?: (electionId?: string) => void
 }
 
 const sameId = (left: unknown, right: unknown): boolean =>
@@ -53,6 +55,8 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
     manifest,
     dataset,
     locale,
+    initialElectionId,
+    onElectionChange,
 }) => {
     const {t} = useTranslation()
     const electionIds = useMemo(
@@ -190,6 +194,10 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
         },
         [dataset.results_area_contest, manifest.contests]
     )
+    const handleSelectionChange = useCallback(
+        (selection: PortalSelection) => onElectionChange?.(selection.electionId ?? undefined),
+        [onElectionChange]
+    )
 
     return (
         <SharedResultsSelectorTabs
@@ -201,8 +209,10 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
                 empty: t("resultsPortal.noResultsForSelection"),
             }}
             elections={electionOptions}
+            initialElectionId={initialElectionId}
             getContests={getContestOptions}
             getAreas={getAreaOptions}
+            onSelectionChange={handleSelectionChange}
             renderResult={(selection) => {
                 const manifestContest = selectedManifestContest(selection)
 

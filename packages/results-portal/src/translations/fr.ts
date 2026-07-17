@@ -88,6 +88,8 @@ const frenchTranslation: TranslationType = {
                 explicitInvalidVotes: "Votes explicitement invalides",
                 implicitInvalidVotes: "Votes implicitement invalides",
                 blankVotes: "Votes blancs",
+                explicitBlankVotes: "Votes blancs explicites",
+                implicitBlankVotes: "Votes blancs implicites",
                 blankVotesChart: "Votes blancs",
                 weight: "Poids",
                 options: "Options",

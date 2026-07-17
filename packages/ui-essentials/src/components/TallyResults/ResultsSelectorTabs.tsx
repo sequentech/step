@@ -45,6 +45,7 @@ export interface ResultsSelectorTabsProps<
     TArea = unknown,
 > {
     className?: string
+    initialElectionId?: string
     labels: ResultsSelectorLabels
     elections: ResultsSelectorOption<TElection>[]
     getContests: (
@@ -68,11 +69,14 @@ export interface ResultsSelectorTabsProps<
     renderAreaActions?: (
         selection: ResultsSelectorSelection<TElection, TContest, TArea>
     ) => React.ReactNode
+    onSelectionChange?: (selection: ResultsSelectorSelection<TElection, TContest, TArea>) => void
 }
 
 const GLOBAL_AREA_KEY = "__global__"
 
 const areaOptionKey = (id: string | null | undefined) => id ?? GLOBAL_AREA_KEY
+const classToken = (id: string | null | undefined) =>
+    (id ?? "global").replace(/[^a-zA-Z0-9_-]/g, "-")
 
 const findOption = <TData,>(
     options: ResultsSelectorOption<TData>[],
@@ -101,7 +105,8 @@ const TabRow: React.FC<{
     selectedKey: string
     onSelect: (index: number) => void
     actions?: React.ReactNode
-}> = ({className, label, options, selectedKey, onSelect, actions}) => (
+    entityName: "election" | "contest" | "area"
+}> = ({className, label, options, selectedKey, onSelect, actions, entityName}) => (
     <Box
         className={className}
         sx={{
@@ -132,7 +137,17 @@ const TabRow: React.FC<{
         >
             {options.map((option) => (
                 <Tab
-                    className={`${className}__tab`}
+                    className={[
+                        `${className}__tab`,
+                        "seq-results-selector__tab",
+                        `seq-results-selector__${entityName}-tab`,
+                        `seq-results-selector__${entityName}-tab--${classToken(option.id)}`,
+                        areaOptionKey(option.id) === selectedKey
+                            ? "seq-results-selector__tab--selected"
+                            : null,
+                    ]
+                        .filter(Boolean)
+                        .join(" ")}
                     key={areaOptionKey(option.id)}
                     label={option.label}
                     disabled={option.disabled}
@@ -149,6 +164,7 @@ const TabRow: React.FC<{
 
 export const ResultsSelectorTabs = <TElection, TContest, TArea>({
     className,
+    initialElectionId,
     labels,
     elections,
     getContests,
@@ -157,10 +173,11 @@ export const ResultsSelectorTabs = <TElection, TContest, TArea>({
     renderElectionActions,
     renderContestActions,
     renderAreaActions,
+    onSelectionChange,
 }: ResultsSelectorTabsProps<TElection, TContest, TArea>): React.JSX.Element => {
     const rootClassName = ["seq-results-selector", className].filter(Boolean).join(" ")
     const [selectedElectionId, setSelectedElectionId] = useState<string | null>(
-        elections[0]?.id ?? null
+        findOption(elections, initialElectionId ?? null)?.id ?? elections[0]?.id ?? null
     )
     const selectedElection = useMemo(
         () => findOption(elections, selectedElectionId),
@@ -208,15 +225,21 @@ export const ResultsSelectorTabs = <TElection, TContest, TArea>({
     )
 
     useEffect(() => {
+        onSelectionChange?.(selection)
+    }, [onSelectionChange, selection])
+
+    useEffect(() => {
         if (!elections.length) {
             setSelectedElectionId(null)
             return
         }
 
         if (!findOption(elections, selectedElectionId)) {
-            setSelectedElectionId(elections[0].id)
+            setSelectedElectionId(
+                findOption(elections, initialElectionId ?? null)?.id ?? elections[0].id
+            )
         }
-    }, [elections, selectedElectionId])
+    }, [elections, initialElectionId, selectedElectionId])
 
     useEffect(() => {
         if (!contestOptions.length) {
@@ -249,9 +272,17 @@ export const ResultsSelectorTabs = <TElection, TContest, TArea>({
     }
 
     return (
-        <Box className={rootClassName}>
+        <Box
+            className={[
+                rootClassName,
+                `seq-results-selector--election-${classToken(selection.electionId)}`,
+                `seq-results-selector--contest-${classToken(selection.contestId)}`,
+                `seq-results-selector--area-${classToken(selection.areaId)}`,
+            ].join(" ")}
+        >
             <TabRow
                 className="seq-results-selector__election-row"
+                entityName="election"
                 label={labels.elections}
                 options={elections}
                 selectedKey={areaOptionKey(selectedElection?.id)}
@@ -260,6 +291,7 @@ export const ResultsSelectorTabs = <TElection, TContest, TArea>({
             />
             <TabRow
                 className="seq-results-selector__contest-row"
+                entityName="contest"
                 label={labels.contests}
                 options={contestOptions}
                 selectedKey={areaOptionKey(selectedContest?.id)}
@@ -268,13 +300,27 @@ export const ResultsSelectorTabs = <TElection, TContest, TArea>({
             />
             <TabRow
                 className="seq-results-selector__area-row"
+                entityName="area"
                 label={labels.areas}
                 options={areaOptions}
                 selectedKey={areaOptionKey(selectedArea?.id)}
                 onSelect={(index) => setSelectedAreaId(areaOptions[index]?.id ?? null)}
                 actions={renderAreaActions?.(selection)}
             />
-            <Box className="seq-results-selector__selected-result">{renderResult(selection)}</Box>
+            <Box
+                className={[
+                    "seq-results-selector__selected-result",
+                    `seq-results-selector__selected-result--election-${classToken(
+                        selection.electionId
+                    )}`,
+                    `seq-results-selector__selected-result--contest-${classToken(
+                        selection.contestId
+                    )}`,
+                    `seq-results-selector__selected-result--area-${classToken(selection.areaId)}`,
+                ].join(" ")}
+            >
+                {renderResult(selection)}
+            </Box>
         </Box>
     )
 }

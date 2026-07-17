@@ -21,6 +21,10 @@ export interface ResultsParticipationSummary {
     implicitInvalidVotesPercent?: NumericValue
     blankVotes?: NumericValue
     blankVotesPercent?: NumericValue
+    explicitBlankVotes?: NumericValue
+    explicitBlankVotesPercent?: NumericValue
+    implicitBlankVotes?: NumericValue
+    implicitBlankVotesPercent?: NumericValue
     weight?: NumericValue
 }
 
@@ -76,6 +80,8 @@ export interface ResultsAndParticipationLabels {
     explicitInvalidVotes: string
     implicitInvalidVotes: string
     blankVotes: string
+    explicitBlankVotes: string
+    implicitBlankVotes: string
     blankVotesChart: string
     weight: string
     options: string
@@ -102,6 +108,7 @@ export interface ResultsAndParticipationProps {
     labels?: Partial<ResultsAndParticipationLabels>
     showWeight?: boolean
     processResults?: PreferentialProcessResults | null
+    preferential?: boolean
 }
 
 export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels = {
@@ -117,6 +124,8 @@ export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels
     explicitInvalidVotes: "Explicitly Invalid Votes",
     implicitInvalidVotes: "Implicitly Invalid Votes",
     blankVotes: "Blank Votes",
+    explicitBlankVotes: "Explicit Blank Votes",
+    implicitBlankVotes: "Implicit Blank Votes",
     blankVotesChart: "Blank Votes",
     weight: "Weight",
     options: "Options",

@@ -87,6 +87,8 @@
     "build:results-portal": "yarn --cwd ./results-portal build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
     "build:ui-core": "yarn --cwd ./ui-core build",
+    "test:results-portal": "yarn --cwd ./results-portal test --runInBand",
+    "test:ui-essentials": "yarn --cwd ./ui-essentials test --runInBand",
     "lint:fix:voting-portal": "yarn --cwd ./voting-portal lint:fix",
     "lint:fix:admin-portal": "yarn --cwd ./admin-portal lint:fix",
     "lint:fix:ballot-verifier": "yarn --cwd ./ballot-verifier lint:fix",

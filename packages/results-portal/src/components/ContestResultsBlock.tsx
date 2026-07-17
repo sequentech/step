@@ -15,6 +15,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {ResultsManifestContest, ResultsRow, ResultsSqliteDataset} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
+import {entityClassName} from "@/services/cssClassNames"
 
 interface ContestResultsBlockProps {
     manifestContest: ResultsManifestContest
@@ -136,6 +137,10 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             blankVotesPercent: getNumber(
                 resultContest.total_blank_votes_percent ?? resultContest.blank_votes_percent
             ),
+            explicitBlankVotes: getNumber(resultContest.explicit_blank_votes),
+            explicitBlankVotesPercent: getNumber(resultContest.explicit_blank_votes_percent),
+            implicitBlankVotes: getNumber(resultContest.implicit_blank_votes),
+            implicitBlankVotesPercent: getNumber(resultContest.implicit_blank_votes_percent),
             weight: getNumber(
                 parseAnnotations(resultContest.annotations)?.extended_metrics?.weight
             ),
@@ -149,6 +154,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
 
         return parseAnnotations(resultContest?.annotations)?.process_results ?? null
     }, [contest?.counting_algorithm, resultContest?.annotations])
+    const preferential = contest?.counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF
 
     const title =
         (typeof resultContest?.name === "string" && resultContest.name.length > 0
@@ -182,6 +188,8 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             explicitInvalidVotes: t("resultsPortal.resultsAndParticipation.explicitInvalidVotes"),
             implicitInvalidVotes: t("resultsPortal.resultsAndParticipation.implicitInvalidVotes"),
             blankVotes: t("resultsPortal.resultsAndParticipation.blankVotes"),
+            explicitBlankVotes: t("resultsPortal.resultsAndParticipation.explicitBlankVotes"),
+            implicitBlankVotes: t("resultsPortal.resultsAndParticipation.implicitBlankVotes"),
             blankVotesChart: t("resultsPortal.resultsAndParticipation.blankVotesChart"),
             weight: t("resultsPortal.resultsAndParticipation.weight"),
             options: t("resultsPortal.resultsAndParticipation.options"),
@@ -205,7 +213,16 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
 
     return (
         <Box
-            className="seq-results-contest"
+            className={[
+                "seq-results-contest",
+                entityClassName("election", manifestContest.election_id),
+                entityClassName("contest", manifestContest.contest_id),
+                entityClassName("area", manifestContest.area_id),
+                `seq-results-contest--${manifestContest.publication_state}`,
+                preferential
+                    ? "seq-results-contest--preferential"
+                    : "seq-results-contest--candidate",
+            ].join(" ")}
             component="section"
             sx={{
                 mt: 3,
@@ -272,6 +289,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                         candidates={candidates}
                         chartName={chartName}
                         processResults={processResults}
+                        preferential={preferential}
                         labels={labels}
                     />
                 </Box>

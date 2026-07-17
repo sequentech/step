@@ -88,6 +88,8 @@ const dutchTranslation: TranslationType = {
                 explicitInvalidVotes: "Expliciet ongeldige stemmen",
                 implicitInvalidVotes: "Impliciet ongeldige stemmen",
                 blankVotes: "Blanco stemmen",
+                explicitBlankVotes: "Expliciete blanco stemmen",
+                implicitBlankVotes: "Impliciete blanco stemmen",
                 blankVotesChart: "Blanco stemmen",
                 weight: "Gewicht",
                 options: "Opties",

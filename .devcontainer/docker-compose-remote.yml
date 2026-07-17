@@ -856,14 +856,12 @@ services:
     ports:
       - 3004:8000
     environment:
-        DISABLE_AUTH: "false"
-        ONLINE_VOTING_CLIENT_ID: voting-portal
+        RESULTS_PORTAL_CLIENT_ID: results-portal
         KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
         HASURA_URL: ${HASURA_ENDPOINT}
         APP_VERSION: ${APP_VERSION}
         APP_HASH: ${APP_HASH}
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
-        RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
 
 volumes:
   db_data:

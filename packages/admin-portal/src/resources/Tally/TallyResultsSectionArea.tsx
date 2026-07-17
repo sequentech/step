@@ -147,6 +147,10 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             implicitInvalidVotesPercent: result.implicit_invalid_votes_percent,
             blankVotes: result.total_blank_votes,
             blankVotesPercent: result.total_blank_votes_percent,
+            explicitBlankVotes: result.explicit_blank_votes,
+            explicitBlankVotesPercent: result.explicit_blank_votes_percent,
+            implicitBlankVotes: result.implicit_blank_votes,
+            implicitBlankVotesPercent: result.implicit_blank_votes_percent,
             weight,
         }
     }, [general, weight])
@@ -177,6 +181,8 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             explicitInvalidVotes: t("tally.table.explicit_invalid_votes"),
             implicitInvalidVotes: t("tally.table.implicit_invalid_votes"),
             blankVotes: t("tally.table.blank_votes"),
+            explicitBlankVotes: t("tally.table.explicit_blank_votes"),
+            implicitBlankVotes: t("tally.table.implicit_blank_votes"),
             blankVotesChart: t("tally.chart.blankVotes"),
             weight: t("tally.table.weight"),
             options: t("tally.table.options"),
@@ -253,6 +259,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                             ? (processResults as PreferentialProcessResults | null)
                             : null
                     }
+                    preferential={counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF}
                 />
             )}
         </>

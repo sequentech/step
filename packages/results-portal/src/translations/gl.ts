@@ -88,6 +88,8 @@ const galegoTranslation: TranslationType = {
                 explicitInvalidVotes: "Votos explicitamente inválidos",
                 implicitInvalidVotes: "Votos implicitamente inválidos",
                 blankVotes: "Votos en branco",
+                explicitBlankVotes: "Votos en branco explícitos",
+                implicitBlankVotes: "Votos en branco implícitos",
                 blankVotesChart: "Votos en branco",
                 weight: "Peso",
                 options: "Opcións",

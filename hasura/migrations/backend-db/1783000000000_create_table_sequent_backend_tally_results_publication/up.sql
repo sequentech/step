@@ -1,4 +1,4 @@
-CREATE TABLE "sequent_backend"."tally_results_publication" (
+CREATE TABLE IF NOT EXISTS "sequent_backend"."tally_results_publication" (
     "id" uuid NOT NULL DEFAULT gen_random_uuid(),
     "tenant_id" uuid NOT NULL,
     "election_event_id" uuid NOT NULL,
@@ -57,7 +57,6 @@ CREATE TABLE "sequent_backend"."tally_results_publication" (
     ),
     CHECK (
         "publication_status" IN (
-            'Draft',
             'Publishing',
             'Published',
             'Superseded',
@@ -67,7 +66,7 @@ CREATE TABLE "sequent_backend"."tally_results_publication" (
     )
 );
 
-CREATE INDEX "tally_results_publication_event_idx"
+CREATE INDEX IF NOT EXISTS "tally_results_publication_event_idx"
     ON "sequent_backend"."tally_results_publication" (
         "tenant_id",
         "election_event_id",
@@ -76,7 +75,7 @@ CREATE INDEX "tally_results_publication_event_idx"
         "publication_status"
     );
 
-CREATE UNIQUE INDEX "tally_results_publication_active_event_idx"
+CREATE UNIQUE INDEX IF NOT EXISTS "tally_results_publication_active_event_idx"
     ON "sequent_backend"."tally_results_publication" (
         "tenant_id",
         "election_event_id",
@@ -86,7 +85,7 @@ CREATE UNIQUE INDEX "tally_results_publication_active_event_idx"
       AND "publication_status" = 'Published'
       AND "revoked_at" IS NULL;
 
-CREATE UNIQUE INDEX "tally_results_publication_active_election_idx"
+CREATE UNIQUE INDEX IF NOT EXISTS "tally_results_publication_active_election_idx"
     ON "sequent_backend"."tally_results_publication" (
         "tenant_id",
         "election_event_id",
@@ -97,7 +96,7 @@ CREATE UNIQUE INDEX "tally_results_publication_active_election_idx"
       AND "publication_status" = 'Published'
       AND "revoked_at" IS NULL;
 
-CREATE UNIQUE INDEX "tally_results_publication_route_version_idx"
+CREATE UNIQUE INDEX IF NOT EXISTS "tally_results_publication_route_version_idx"
     ON "sequent_backend"."tally_results_publication" (
         "tenant_id",
         "election_event_id",

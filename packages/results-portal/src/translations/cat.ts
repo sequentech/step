@@ -88,6 +88,8 @@ const catalanTranslation: TranslationType = {
                 explicitInvalidVotes: "Vots explícitament invàlids",
                 implicitInvalidVotes: "Vots implícitament invàlids",
                 blankVotes: "Vots en blanc",
+                explicitBlankVotes: "Vots en blanc explícits",
+                implicitBlankVotes: "Vots en blanc implícits",
                 blankVotesChart: "Vots en blanc",
                 weight: "Pes",
                 options: "Opcions",

@@ -88,6 +88,8 @@ const tagalogTranslation: TranslationType = {
                 explicitInvalidVotes: "Hayagang Di-wastong Boto",
                 implicitInvalidVotes: "Di-tuwirang Di-wastong Boto",
                 blankVotes: "Blangkong Boto",
+                explicitBlankVotes: "Hayagang Blangkong Boto",
+                implicitBlankVotes: "Di-tuwirang Blangkong Boto",
                 blankVotesChart: "Blangkong Boto",
                 weight: "Timbang",
                 options: "Mga Opsyon",

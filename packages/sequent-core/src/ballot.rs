@@ -14,7 +14,8 @@ use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
     CeremoniesPolicy, CountingAlgType, TallyOperation,
 };
-use crate::types::hasura::core::{self, Area, ElectionEvent};
+use crate::types::hasura::core as hasura_core;
+use crate::types::hasura::core::{Area, ElectionEvent};
 use ::core::convert::TryInto;
 use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1091,6 +1092,7 @@ pub struct ElectionEventPresentation {
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
+    #[borsh(skip)]
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
 }
@@ -1378,7 +1380,6 @@ pub enum EPreferenceGapsPolicy {
 )]
 pub struct ElectionPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
-    pub css: Option<String>,
     pub dates: Option<VotingPeriodDates>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub contests_order: Option<ContestsOrder>,
@@ -1403,9 +1404,11 @@ pub struct ElectionPresentation {
     /// screen navigates to. Defaults to the election selection screen for
     /// backwards compatibility.
     pub voting_screen_back_policy: Option<VotingScreenBackPolicy>,
+    #[borsh(skip)]
+    pub css: Option<String>,
 }
 
-impl core::Election {
+impl hasura_core::Election {
     pub fn get_presentation(&self) -> Option<ElectionPresentation> {
         let election_presentation: Option<ElectionPresentation> = self
             .presentation
@@ -1425,7 +1428,6 @@ impl Default for ElectionPresentation {
             voting_period_end: Some(VotingPeriodEnd::DISALLOWED),
             tally: Some(Tally::ALWAYS_ALLOW),
             i18n: None,
-            css: None,
             dates: None,
             language_conf: None,
             contests_order: None,
@@ -1444,6 +1446,7 @@ impl Default for ElectionPresentation {
             ),
             decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
+            css: None,
         }
     }
 }
@@ -2152,7 +2155,7 @@ pub enum VotingStatusChannel {
 impl VotingStatusChannel {
     pub fn channel_from(
         &self,
-        channels: &core::VotingChannels,
+        channels: &hasura_core::VotingChannels,
     ) -> Option<bool> {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
@@ -2866,5 +2869,29 @@ mod voting_screen_back_policy_tests {
         let presentation: ElectionPresentation =
             serde_json::from_str("{}").unwrap();
         assert_eq!(presentation.voting_screen_back_policy, None);
+    }
+}
+
+#[cfg(test)]
+mod presentation_borsh_compat_tests {
+    use super::*;
+
+    #[test]
+    fn json_only_results_fields_do_not_change_borsh_bytes() {
+        let event_presentation = ElectionEventPresentation::default();
+        let event_bytes = borsh::to_vec(&event_presentation).unwrap();
+        let event_with_results = ElectionEventPresentation {
+            results_website: Some("enabled".to_string()),
+            ..event_presentation
+        };
+        assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+
+        let election_presentation = ElectionPresentation::default();
+        let election_bytes = borsh::to_vec(&election_presentation).unwrap();
+        let election_with_css = ElectionPresentation {
+            css: Some(".results { color: red; }".to_string()),
+            ..election_presentation
+        };
+        assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
     }
 }

@@ -17,7 +17,8 @@ interface AuthState {
 
 interface AuthSession {
     keycloak: Keycloak
-    initPromise?: Promise<AuthState>
+    initPromise?: Promise<void>
+    userProfile?: ResultsUserProfile
 }
 
 const authSessions = new Map<string, AuthSession>()
@@ -36,7 +37,7 @@ const getAuthSession = (
         keycloak: new Keycloak({
             url: settings.KEYCLOAK_URL,
             realm,
-            clientId: settings.ONLINE_VOTING_CLIENT_ID,
+            clientId: settings.RESULTS_PORTAL_CLIENT_ID,
         }),
     }
     authSessions.set(sessionKey, session)
@@ -102,45 +103,46 @@ const authStateFromSession = async (session: AuthSession): Promise<AuthState> =>
     return {
         loading: false,
         token,
-        userProfile: await loadUserProfile(session.keycloak),
+        userProfile:
+            session.userProfile ?? (session.userProfile = await loadUserProfile(session.keycloak)),
         logout: () => logoutSession(session.keycloak),
     }
 }
 
-const authenticateSession = (session: AuthSession): Promise<AuthState> => {
-    if (session.initPromise) {
-        return session.initPromise
-    }
+const authenticateSession = async (
+    sessionKey: string,
+    session: AuthSession
+): Promise<AuthState> => {
+    try {
+        if (!session.initPromise) {
+            session.initPromise = (async () => {
+                const authenticated = await session.keycloak.init({
+                    onLoad: "login-required",
+                    checkLoginIframe: false,
+                    flow: "standard",
+                    responseMode: "fragment",
+                    redirectUri: window.location.href.split("#")[0],
+                })
 
-    session.initPromise = (async () => {
-        try {
-            const authenticated = await session.keycloak.init({
-                onLoad: "login-required",
-                checkLoginIframe: false,
-                flow: "standard",
-                responseMode: "fragment",
-            })
-
-            if (!authenticated || !session.keycloak.token) {
-                return {
-                    loading: false,
-                    error: "Authentication failed",
+                if (!authenticated || !session.keycloak.token) {
+                    throw new Error("Authentication failed")
                 }
-            }
-
-            await session.keycloak.updateToken(30).catch(() => undefined)
-
-            return authStateFromSession(session)
-        } catch (error) {
-            session.initPromise = undefined
-            return {
-                loading: false,
-                error: error instanceof Error ? error.message : "Authentication failed",
-            }
+            })()
         }
-    })()
 
-    return session.initPromise
+        await session.initPromise
+        await session.keycloak.updateToken(30)
+
+        return authStateFromSession(session)
+    } catch (error) {
+        if (authSessions.get(sessionKey) === session) {
+            authSessions.delete(sessionKey)
+        }
+        return {
+            loading: false,
+            error: error instanceof Error ? error.message : "Authentication failed",
+        }
+    }
 }
 
 const sessionTokenState = (sessionKey?: string): AuthState => {
@@ -169,10 +171,10 @@ export const useAuthenticatedResults = (
 
     useEffect(() => {
         const sessionKey = realm
-            ? [settings.KEYCLOAK_URL, realm, settings.ONLINE_VOTING_CLIENT_ID].join("|")
+            ? [settings.KEYCLOAK_URL, realm, settings.RESULTS_PORTAL_CLIENT_ID].join("|")
             : undefined
 
-        if (!required || settings.DISABLE_AUTH) {
+        if (!required) {
             setState(sessionTokenState(sessionKey))
             return
         }
@@ -184,11 +186,41 @@ export const useAuthenticatedResults = (
 
         let mounted = true
         const session = getAuthSession(sessionKey, settings, realm)
+        let refreshInterval: number | undefined
+
+        const updateStateFromSession = async () => {
+            try {
+                await session.keycloak.updateToken(60)
+                const nextState = await authStateFromSession(session)
+                if (mounted) {
+                    setState(nextState)
+                }
+            } catch (error) {
+                if (authSessions.get(sessionKey) === session) {
+                    authSessions.delete(sessionKey)
+                }
+                if (mounted) {
+                    setState({
+                        loading: false,
+                        error: error instanceof Error ? error.message : "Authentication failed",
+                    })
+                }
+            }
+        }
 
         const init = async () => {
-            const nextState = await authenticateSession(session)
+            setState({loading: true})
+            const nextState = await authenticateSession(sessionKey, session)
             if (mounted) {
                 setState(nextState)
+                if (nextState.token) {
+                    session.keycloak.onTokenExpired = () => {
+                        void updateStateFromSession()
+                    }
+                    refreshInterval = window.setInterval(() => {
+                        void updateStateFromSession()
+                    }, 30_000)
+                }
             }
         }
 
@@ -196,14 +228,12 @@ export const useAuthenticatedResults = (
 
         return () => {
             mounted = false
+            if (refreshInterval !== undefined) {
+                window.clearInterval(refreshInterval)
+            }
+            session.keycloak.onTokenExpired = undefined
         }
-    }, [
-        required,
-        realm,
-        settings.DISABLE_AUTH,
-        settings.KEYCLOAK_URL,
-        settings.ONLINE_VOTING_CLIENT_ID,
-    ])
+    }, [required, realm, settings.KEYCLOAK_URL, settings.RESULTS_PORTAL_CLIENT_ID])
 
     return state
 }

@@ -90,6 +90,8 @@ const candidateCellSx = {
     whiteSpace: "nowrap",
 } as const
 
+const classToken = (value: string | number) => String(value).replace(/[^a-zA-Z0-9_-]/g, "-")
+
 const roundOutcomeCellSx = (hasOutcome: boolean) => ({
     width: PREFERENTIAL_ROUND_COLUMN_WIDTH,
     minWidth: PREFERENTIAL_ROUND_COLUMN_WIDTH,
@@ -308,7 +310,9 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
 
                                 return (
                                     <TableCell
-                                        className="seq-tally-results-preferential-results__round-heading"
+                                        className={`seq-tally-results-preferential-results__round-heading seq-tally-results-preferential-results__round-heading--round-${
+                                            roundIndex + 1
+                                        }`}
                                         key={roundIndex}
                                         align="center"
                                         sx={roundHeaderSx}
@@ -342,7 +346,9 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
 
                             return (
                                 <TableRow
-                                    className="seq-tally-results-preferential-results__row"
+                                    className={`seq-tally-results-preferential-results__row seq-tally-results-preferential-results__row--candidate-${classToken(
+                                        candidate.id
+                                    )}`}
                                     key={candidate.id}
                                 >
                                     <TableCell
@@ -365,7 +371,11 @@ export const PreferentialCandidateResults: React.FC<PreferentialCandidateResults
 
                                         return (
                                             <TableCell
-                                                className="seq-tally-results-preferential-results__round-cell"
+                                                className={`seq-tally-results-preferential-results__round-cell seq-tally-results-preferential-results__round-cell--candidate-${classToken(
+                                                    candidate.id
+                                                )} seq-tally-results-preferential-results__round-cell--round-${
+                                                    roundIndex + 1
+                                                }`}
                                                 key={roundIndex}
                                                 align="center"
                                                 sx={roundOutcomeCellSx(Boolean(outcome))}

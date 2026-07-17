@@ -8,6 +8,7 @@ use colored::Colorize;
 use sequent_core::ballot::{
     ResultsWebsiteAccess, ResultsWebsiteStatus, ResultsWebsiteVisibilityScope,
 };
+use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use windmill::types::results_publication::{
     validate_access_visibility, ResultsPublicationStatus, ResultsRouteScope,
@@ -404,7 +405,8 @@ pub fn revoke_results_publication(
 fn post_graphql<V: Serialize, T: for<'de> Deserialize<'de>>(
     request_body: GraphqlRequest<V>,
 ) -> Result<GraphqlResponse<T>, Box<dyn std::error::Error>> {
-    post_graphql_with_role(request_body, "publish-results-write")
+    let hasura_role = Permissions::PUBLISH_RESULTS_WRITE.to_string();
+    post_graphql_with_role(request_body, &hasura_role)
 }
 
 fn post_graphql_with_role<V: Serialize, T: for<'de> Deserialize<'de>>(
@@ -432,8 +434,20 @@ fn post_graphql_with_role<V: Serialize, T: for<'de> Deserialize<'de>>(
 fn validate_publish_config(command: &PublishResults) -> Result<(), Box<dyn std::error::Error>> {
     validate_access_visibility(command.access, command.visibility_scope)?;
 
-    if command.route_scope == ResultsRouteScope::Election && command.route_election_id.is_none() {
-        return Err("route-election-id is required when route-scope is election".into());
+    match (command.route_scope, command.route_election_id.as_deref()) {
+        (ResultsRouteScope::Event, Some(_)) => {
+            return Err("route-election-id cannot be used when route-scope is event".into());
+        }
+        (ResultsRouteScope::Election, None) => {
+            return Err("route-election-id is required when route-scope is election".into());
+        }
+        (ResultsRouteScope::Election, Some(route_election_id))
+            if command.election_ids.len() != 1
+                || command.election_ids.first().map(String::as_str) != Some(route_election_id) =>
+        {
+            return Err("an election route must publish exactly its route election".into());
+        }
+        _ => {}
     }
 
     Ok(())

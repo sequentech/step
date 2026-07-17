@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useState} from "react"
-import {useParams, useSearchParams} from "react-router-dom"
+import React, {useEffect, useMemo, useRef, useState} from "react"
+import {useParams} from "react-router-dom"
 import {Box} from "@mui/material"
 import {Loader} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
@@ -15,11 +15,12 @@ import {useResultsAuth} from "@/providers/ResultsAuthContextProvider"
 import {discoverPublication, PublicationDiscoveryResult} from "@/services/publicationDiscovery"
 import {resolveSqliteArtifactUrl} from "@/services/artifacts"
 import {loadSqliteDatabase, readResultsDataset} from "@/services/sqliteResults"
-import {ResultsManifest, ResultsSqliteDataset} from "@/types/results"
+import {parseResultsManifest, ResultsManifest, ResultsSqliteDataset} from "@/types/results"
 import {publicBucketUrl} from "@/services/urls"
 import {manifestCustomCss} from "@/services/customCss"
 import {StateMessage} from "@/components/StateMessage"
 import {ResultsPageContent} from "@/components/ResultsPageContent"
+import {entityClassName} from "@/services/cssClassNames"
 
 interface ResultsRouteParams {
     eeId: string
@@ -47,14 +48,14 @@ const loadManifest = async (
     discovery: PublicationDiscoveryResult
 ): Promise<ResultsManifest> => {
     if (discovery.manifest) {
-        return discovery.manifest
+        return parseResultsManifest(discovery.manifest)
     }
 
     if (!discovery.manifestUrl) {
         const manifestPath =
             discovery.indexEntry?.manifest_public_path ??
             discovery.resolverEntry?.manifest_public_path
-        const manifestUrl = publicBucketUrl(settingsPublicBucketUrl, manifestPath)
+        const manifestUrl = publicBucketUrl(settingsPublicBucketUrl, manifestPath ?? undefined)
 
         if (!manifestUrl) {
             throw new Error("Publication manifest is not available.")
@@ -64,7 +65,7 @@ const loadManifest = async (
         if (!response.ok) {
             throw new Error(`Unable to load publication manifest: HTTP ${response.status}`)
         }
-        return (await response.json()) as ResultsManifest
+        return parseResultsManifest(await response.json())
     }
 
     const response = await fetch(discovery.manifestUrl, {cache: "no-store"})
@@ -72,19 +73,18 @@ const loadManifest = async (
         throw new Error(`Unable to load publication manifest: HTTP ${response.status}`)
     }
 
-    return (await response.json()) as ResultsManifest
+    return parseResultsManifest(await response.json())
 }
 
 export const ResultsRoute: React.FC = () => {
-    const {eeId, electionId} = useParams() as unknown as ResultsRouteParams
-    const [searchParams] = useSearchParams()
+    const {eeId, electionId} = useParams<keyof ResultsRouteParams>()
     const {globalSettings} = useSettings()
     const {setCustomCss} = useCustomCss()
     const {setManifestLanguageConfig, resetManifestLanguageConfig} = useResultsManifest()
     const {setAuthenticatedSession, clearAuthenticatedSession} = useResultsAuth()
     const {t} = useTranslation()
     const [state, setState] = useState<RouteState>(initialState)
-    const manifestPath = searchParams.get("manifestPath") ?? undefined
+    const [selectedElectionId, setSelectedElectionId] = useState<string>()
 
     const authTenantId =
         state.discovery?.resolverEntry?.tenant_id ?? state.discovery?.index?.tenant_id
@@ -99,22 +99,25 @@ export const ResultsRoute: React.FC = () => {
         state.requiresAuth || state.authenticatedAccess
     )
 
-    const authReady = !state.requiresAuth || !!auth.token || globalSettings.DISABLE_AUTH
-    const authToken = globalSettings.DISABLE_AUTH ? undefined : auth.token
+    const authToken = auth.token
+    const authTokenRef = useRef(authToken)
+    authTokenRef.current = authToken
+    const hasAuthToken = Boolean(authToken)
     const customCss = useMemo(
         () =>
             manifestCustomCss(
                 state.manifest,
-                electionId ?? state.manifest?.route_election_id ?? undefined
+                electionId ?? selectedElectionId ?? state.manifest?.route_election_id ?? undefined
             ),
-        [state.manifest, electionId]
+        [state.manifest, electionId, selectedElectionId]
     )
 
     useEffect(() => {
         clearAuthenticatedSession()
+        setSelectedElectionId(undefined)
 
         return () => clearAuthenticatedSession()
-    }, [clearAuthenticatedSession, eeId, electionId, manifestPath])
+    }, [clearAuthenticatedSession, eeId, electionId])
 
     useEffect(() => {
         if (auth.token && auth.userProfile && auth.logout) {
@@ -168,11 +171,8 @@ export const ResultsRoute: React.FC = () => {
                 return
             }
 
-            if (state.requiresAuth && !authReady) {
-                return
-            }
-
             try {
+                const token = authTokenRef.current
                 setState((current) => ({
                     ...current,
                     loading: true,
@@ -180,13 +180,7 @@ export const ResultsRoute: React.FC = () => {
                     manifest: undefined,
                     dataset: undefined,
                 }))
-                const discovery = await discoverPublication(
-                    globalSettings,
-                    eeId,
-                    electionId,
-                    authToken,
-                    {manifestPath}
-                )
+                const discovery = await discoverPublication(globalSettings, eeId, electionId, token)
 
                 if (!discovery) {
                     if (mounted) {
@@ -203,7 +197,7 @@ export const ResultsRoute: React.FC = () => {
                 const access =
                     discovery.resolverEntry?.access ?? discovery.indexEntry?.access ?? "public"
 
-                if (access === "authenticated" && !authToken && !globalSettings.DISABLE_AUTH) {
+                if (access === "authenticated" && !token) {
                     if (mounted) {
                         setState({
                             loading: false,
@@ -219,7 +213,7 @@ export const ResultsRoute: React.FC = () => {
                 const artifactUrl = await resolveSqliteArtifactUrl(
                     globalSettings,
                     manifest,
-                    authToken,
+                    token,
                     electionId
                 )
                 const db = await loadSqliteDatabase(artifactUrl)
@@ -253,16 +247,7 @@ export const ResultsRoute: React.FC = () => {
         return () => {
             mounted = false
         }
-    }, [
-        eeId,
-        electionId,
-        manifestPath,
-        globalSettings,
-        authReady,
-        authToken,
-        state.authenticatedAccess,
-        state.requiresAuth,
-    ])
+    }, [eeId, electionId, globalSettings, hasAuthToken])
 
     const content = useMemo(() => {
         if (state.loading || auth.loading) {
@@ -336,8 +321,27 @@ export const ResultsRoute: React.FC = () => {
             )
         }
 
-        return <ResultsPageContent manifest={state.manifest} dataset={state.dataset} />
+        return (
+            <ResultsPageContent
+                manifest={state.manifest}
+                dataset={state.dataset}
+                initialElectionId={electionId ?? state.manifest.route_election_id ?? undefined}
+                onElectionChange={setSelectedElectionId}
+            />
+        )
     }, [auth.error, auth.loading, state, t])
 
-    return <Box className="seq-results-route">{content}</Box>
+    return (
+        <Box
+            className={[
+                "seq-results-route",
+                entityClassName("route-event", eeId),
+                electionId ? entityClassName("route-election", electionId) : null,
+            ]
+                .filter(Boolean)
+                .join(" ")}
+        >
+            {content}
+        </Box>
+    )
 }

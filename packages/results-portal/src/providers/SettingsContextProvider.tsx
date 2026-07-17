@@ -6,14 +6,12 @@ import React, {createContext, useContext, useEffect, useState} from "react"
 import {Loader} from "@sequentech/ui-essentials"
 
 export interface GlobalSettings {
-    DISABLE_AUTH: boolean
-    ONLINE_VOTING_CLIENT_ID: string
+    RESULTS_PORTAL_CLIENT_ID: string
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string
     PUBLIC_BUCKET_URL: string
-    RESULTS_PORTAL_URL: string
 }
 
 interface SettingsContextValues {
@@ -22,14 +20,12 @@ interface SettingsContextValues {
 }
 
 const defaultSettings: GlobalSettings = {
-    DISABLE_AUTH: false,
-    ONLINE_VOTING_CLIENT_ID: "voting-portal",
+    RESULTS_PORTAL_CLIENT_ID: "results-portal",
     KEYCLOAK_URL: "http://127.0.0.1:8090/",
     HASURA_URL: "http://localhost:8080/v1/graphql",
     APP_VERSION: "dev",
     APP_HASH: "dev",
     PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
-    RESULTS_PORTAL_URL: "http://127.0.0.1:3004",
 }
 
 export const SettingsContext = createContext<SettingsContextValues>({

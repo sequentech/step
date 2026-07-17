@@ -88,6 +88,8 @@ const spanishTranslation: TranslationType = {
                 explicitInvalidVotes: "Votos explícitamente inválidos",
                 implicitInvalidVotes: "Votos implícitamente inválidos",
                 blankVotes: "Votos en blanco",
+                explicitBlankVotes: "Votos en blanco explícitos",
+                implicitBlankVotes: "Votos en blanco implícitos",
                 blankVotesChart: "Votos en blanco",
                 weight: "Peso",
                 options: "Opciones",

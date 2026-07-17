@@ -3,21 +3,42 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {translateFromPresentation} from "@sequentech/ui-core"
+import {ResultsJson, ResultsRow, ResultsSerializedJson} from "@/types/results"
 
-export const parseMaybeJson = (value: unknown): unknown => {
+const isResultsJson = (value: unknown): value is ResultsJson => {
+    if (
+        value === null ||
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+    ) {
+        return true
+    }
+
+    if (Array.isArray(value)) {
+        return value.every(isResultsJson)
+    }
+
+    return typeof value === "object" && Object.values(value).every(isResultsJson)
+}
+
+export const parseMaybeJson = (
+    value: ResultsSerializedJson | undefined
+): ResultsSerializedJson | undefined => {
     if (typeof value !== "string") {
         return value
     }
 
     try {
-        return JSON.parse(value)
+        const parsed: unknown = JSON.parse(value)
+        return isResultsJson(parsed) ? parsed : value
     } catch {
         return value
     }
 }
 
 export const translatedLabel = (
-    row: Record<string, unknown> | undefined,
+    row: ResultsRow | undefined,
     locale: string,
     fallback = "-"
 ): string => {

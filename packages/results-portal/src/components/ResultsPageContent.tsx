@@ -2,27 +2,54 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useMemo} from "react"
 import {Box, Chip, Stack, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ResultsManifest, ResultsSqliteDataset} from "@/types/results"
 import {manifestTitle} from "@/services/resultLabels"
+import {buildAreaElectionSummaries} from "@/services/areaSummaries"
 import {ResultsSummary} from "./ResultsSummary"
 import {ResultsSelectorTabs} from "./ResultsSelectorTabs"
+import {entityClassName} from "@/services/cssClassNames"
 
 interface ResultsPageContentProps {
     manifest: ResultsManifest
     dataset: ResultsSqliteDataset
+    initialElectionId?: string
+    onElectionChange?: (electionId?: string) => void
 }
 
-export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({manifest, dataset}) => {
+export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({
+    manifest,
+    dataset,
+    initialElectionId,
+    onElectionChange,
+}) => {
     const {i18n, t} = useTranslation()
     const locale = i18n.resolvedLanguage ?? i18n.language ?? manifest.default_locale ?? "en"
     const title = manifestTitle(manifest.title, locale, t("resultsPortal.pageTitle"))
+    const areaElectionSummaries = useMemo(() => buildAreaElectionSummaries(dataset), [dataset])
+    const summaryResults =
+        manifest.visibility_scope === "area_based"
+            ? areaElectionSummaries
+            : dataset.results_election
+    const pageClassName = [
+        "seq-results-page",
+        entityClassName("event", manifest.election_event_id),
+        entityClassName("publication", manifest.publication_id),
+        `seq-results-route-scope--${manifest.route_scope}`,
+        `seq-results-access--${manifest.access}`,
+        `seq-results-visibility--${manifest.visibility_scope}`,
+        manifest.route_election_id
+            ? entityClassName("route-election", manifest.route_election_id)
+            : null,
+    ]
+        .filter(Boolean)
+        .join(" ")
 
     return (
         <Box
-            className="seq-results-page"
+            className={pageClassName}
             sx={{width: "100%", maxWidth: 1180, mx: "auto", px: {xs: 2, sm: 3}, py: {xs: 3, md: 5}}}
         >
             <Stack
@@ -73,10 +100,10 @@ export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({manifest,
                 </Stack>
             </Stack>
 
-            {manifest.visibility_scope !== "area_based" && dataset.results_election.length > 0 && (
+            {summaryResults.length > 0 && (
                 <ResultsSummary
                     elections={dataset.election}
-                    resultsElections={dataset.results_election}
+                    resultsElections={summaryResults}
                     locale={locale}
                 />
             )}
@@ -90,7 +117,13 @@ export const ResultsPageContent: React.FC<ResultsPageContentProps> = ({manifest,
                 >
                     {t("resultsPortal.resultsAndParticipationTitle")}
                 </Typography>
-                <ResultsSelectorTabs manifest={manifest} dataset={dataset} locale={locale} />
+                <ResultsSelectorTabs
+                    manifest={manifest}
+                    dataset={dataset}
+                    locale={locale}
+                    initialElectionId={initialElectionId}
+                    onElectionChange={onElectionChange}
+                />
             </Box>
         </Box>
     )

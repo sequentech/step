@@ -88,6 +88,8 @@ const basqueTranslation: TranslationType = {
                 explicitInvalidVotes: "Berariaz baliogabeko botoak",
                 implicitInvalidVotes: "Inplizituki baliogabeko botoak",
                 blankVotes: "Boto zuriak",
+                explicitBlankVotes: "Boto zuri esplizituak",
+                implicitBlankVotes: "Boto zuri inplizituak",
                 blankVotesChart: "Boto zuriak",
                 weight: "Pisua",
                 options: "Aukerak",

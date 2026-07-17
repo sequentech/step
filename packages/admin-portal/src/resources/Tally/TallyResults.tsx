@@ -35,6 +35,7 @@ import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 import {TallyResultsSectionGlobal} from "./TallyResultsSectionGlobal"
 import {TallyResultsSectionArea} from "./TallyResultsSectionArea"
 import {convertContestsArray} from "./utils"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -435,6 +436,10 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
             },
             [resultsEventId, t]
         )
+
+        if (!tallyData) {
+            return <LoadingResults />
+        }
 
         return (
             <ResultsSelectorTabs

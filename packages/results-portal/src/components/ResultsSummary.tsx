@@ -20,6 +20,7 @@ import {TALLY_RESULTS_PIE_HEIGHT, TALLY_RESULTS_PIE_PANEL_WIDTH} from "@sequente
 import {useTranslation} from "react-i18next"
 import {ResultsRow} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
+import {entityClassName} from "@/services/cssClassNames"
 
 interface ResultsSummaryProps {
     elections: ResultsRow[]
@@ -119,7 +120,13 @@ const GeneralInformationChart: React.FC<GeneralInformationChartProps> = ({
 
     return (
         <Paper
-            className="seq-results-summary__chart"
+            className={[
+                "seq-results-summary__chart",
+                entityClassName("summary-election", String(result.election_id)),
+                result.area_id
+                    ? entityClassName("summary-area", String(result.area_id))
+                    : "seq-results-summary-area--global",
+            ].join(" ")}
             data-election-id={String(result.election_id)}
             variant="outlined"
             sx={{p: 2, width: "100%", maxWidth: TALLY_RESULTS_PIE_PANEL_WIDTH}}
@@ -254,7 +261,19 @@ export const ResultsSummary: React.FC<ResultsSummaryProps> = ({
                                     )
                                     return (
                                         <TableRow
-                                            className="seq-results-summary__row"
+                                            className={[
+                                                "seq-results-summary__row",
+                                                entityClassName(
+                                                    "summary-election-row",
+                                                    String(result.election_id)
+                                                ),
+                                                result.area_id
+                                                    ? entityClassName(
+                                                          "summary-area-row",
+                                                          String(result.area_id)
+                                                      )
+                                                    : "seq-results-summary-area-row--global",
+                                            ].join(" ")}
                                             key={`${result.election_id}-${result.id}`}
                                         >
                                             <TableCell className="seq-results-summary__election-cell">
