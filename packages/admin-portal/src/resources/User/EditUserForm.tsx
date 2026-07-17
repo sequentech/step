@@ -300,7 +300,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             t
         )
         return [...userRows, ...roleRows]
-    }, [step, user, phoneInputs, selectedActedTrustee, userAttributes, selectedRoleIds, rolesList, t])
+    }, [
+        step,
+        user,
+        phoneInputs,
+        selectedActedTrustee,
+        userAttributes,
+        selectedRoleIds,
+        rolesList,
+        t,
+    ])
 
     useEffect(() => {
         setStep("edit")
@@ -541,9 +550,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             const rolesToRemove = baselineRoleIds.filter(
                 (roleId) => !selectedRoleIds.includes(roleId)
             )
-            const rolesToAdd = selectedRoleIds.filter(
-                (roleId) => !baselineRoleIds.includes(roleId)
-            )
+            const rolesToAdd = selectedRoleIds.filter((roleId) => !baselineRoleIds.includes(roleId))
 
             for (const roleId of rolesToRemove) {
                 await deleteUserRole({

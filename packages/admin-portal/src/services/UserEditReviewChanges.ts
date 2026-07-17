@@ -28,10 +28,13 @@ export interface RoleDefinition {
     name?: string
 }
 
-type UserAreaValue = {
-    id?: string
-    name?: string
-} | null | undefined
+type UserAreaValue =
+    | {
+          id?: string
+          name?: string
+      }
+    | null
+    | undefined
 
 export const formatFieldValue = (value: unknown, t: (key: string) => string): string => {
     if (value === null || value === undefined || value === "") {
@@ -173,7 +176,9 @@ export const computeRoleDiff = (
     return roles
         .filter((role) => role.id)
         .filter((role) => baselineIds.has(role.id as string) !== currentIds.has(role.id as string))
-        .sort((left, right) => (left.name ?? left.id ?? "").localeCompare(right.name ?? right.id ?? ""))
+        .sort((left, right) =>
+            (left.name ?? left.id ?? "").localeCompare(right.name ?? right.id ?? "")
+        )
         .map((role) => {
             const roleId = role.id as string
             return {

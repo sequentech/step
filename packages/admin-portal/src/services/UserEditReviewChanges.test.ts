@@ -3,7 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {UserProfileAttribute} from "@/gql/graphql"
-import {computeRoleDiff, computeUserDiff, formatFieldValue, UserBaseline} from "./UserEditReviewChanges"
+import {
+    computeRoleDiff,
+    computeUserDiff,
+    formatFieldValue,
+    UserBaseline,
+} from "./UserEditReviewChanges"
 
 const t = (key: string) => key
 
