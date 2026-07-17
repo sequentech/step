@@ -286,7 +286,8 @@ const galegoTranslation: TranslationType = {
                     "Esta pantalla amosa a lista de papeletas nas que podes votar. Só poderás acceder á papeleta se o período de votación está aberto.",
                 ok: "OK",
             },
-            noResults: "Sen papeletas dispoñibles de momento.",
+            noResults: "Sen papeletas por agora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:

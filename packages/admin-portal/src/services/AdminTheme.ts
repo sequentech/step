@@ -26,7 +26,7 @@ export const fullAdminTheme = {
             ...AdminMuiButton,
         },
         MuiToolbar: {
-            styleOverride: {
+            styleOverrides: {
                 root: {
                     "&:last-child": {
                         borderRight: "1px solid #0F054C",

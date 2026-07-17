@@ -286,7 +286,8 @@ const dutchTranslation: TranslationType = {
                     "Dit scherm toont de lijst met stembiljetten waarvoor u kunt stemmen. U kunt alleen toegang krijgen als de stemperiode open is.",
                 ok: "OK",
             },
-            noResults: "Geen stembiljetten beschikbaar.",
+            noResults: "Momenteel geen stembiljetten.",
+            resultsButton: "Resultaten bekijken",
             demoDialog: {
                 title: "Demo stemhokje",
                 content:

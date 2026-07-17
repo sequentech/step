@@ -1,6 +1,7 @@
 {
   "name": "admin-portal",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "dependencies": {
     "@apollo/client": "3.8.0",

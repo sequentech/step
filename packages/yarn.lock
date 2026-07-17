@@ -13007,6 +13007,11 @@ jiti@^2.0.0, jiti@^2.3.0:
   resolved "https://registry.yarnpkg.com/jiti/-/jiti-2.6.1.tgz#178ef2fc9a1a594248c20627cd820187a4d78d92"
   integrity sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==
 
+jiti@^2.5.1:
+  version "2.7.0"
+  resolved "https://registry.yarnpkg.com/jiti/-/jiti-2.7.0.tgz#974228f2f4ca2bc21885a1797b45fea68e950c64"
+  integrity sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==
+
 joi@^17.11.0:
   version "17.13.3"
   resolved "https://registry.yarnpkg.com/joi/-/joi-17.13.3.tgz#0f5cc1169c999b30d344366d384b12d92558bcec"
@@ -15601,6 +15606,15 @@ postcss-loader@^7.3.3:
     jiti "^1.20.0"
     semver "^7.5.4"
 
+postcss-loader@^8.1.1:
+  version "8.2.1"
+  resolved "https://registry.yarnpkg.com/postcss-loader/-/postcss-loader-8.2.1.tgz#c3d9b35498af906fe6c25eb62583c06f619f92fc"
+  integrity sha512-k98jtRzthjj3f76MYTs9JTpRqV1RaaMhEU0Lpw9OTmQZQdppg4B30VZ74BojuBHt3F4KyubHJoXCMUeM8Bqeow==
+  dependencies:
+    cosmiconfig "^9.0.0"
+    jiti "^2.5.1"
+    semver "^7.6.2"
+
 postcss-logical@^7.0.1:
   version "7.0.1"
   resolved "https://registry.yarnpkg.com/postcss-logical/-/postcss-logical-7.0.1.tgz#a3121f6510591b195321b16e65fbe13b1cfd3115"
@@ -17492,15 +17506,15 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#659ec389c00d31bd2a479c9fa7b3edf80cdcb5aa"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#70901151f4460fa3ab86c4cb7495dae108452e80"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#659ec389c00d31bd2a479c9fa7b3edf80cdcb5aa"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#70901151f4460fa3ab86c4cb7495dae108452e80"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#659ec389c00d31bd2a479c9fa7b3edf80cdcb5aa"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#70901151f4460fa3ab86c4cb7495dae108452e80"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"

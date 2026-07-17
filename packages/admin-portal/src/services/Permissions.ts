@@ -33,6 +33,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_ballot_publications: IPermissions.PUBLISH_WRITE,
     delete_sequent_backend_ballot_publication: IPermissions.PUBLISH_WRITE,
     delete_sequent_backend_ballot_publications: IPermissions.PUBLISH_WRITE,
+    // tally_results_publication
+    sequent_backend_tally_results_publication: IPermissions.PUBLISH_RESULTS_READ,
+    sequent_backend_tally_results_publications: IPermissions.PUBLISH_RESULTS_READ,
     // ballot_style
     sequent_backend_ballot_style: IPermissions.PUBLISH_READ,
     sequent_backend_ballot_styles: IPermissions.PUBLISH_READ,

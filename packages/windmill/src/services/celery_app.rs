@@ -52,6 +52,7 @@ use crate::tasks::plugins_tasks::execute_plugin_task;
 use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
+use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -301,6 +302,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tally_results_to_xlsx_task,
             post_tally_task,
             import_templates_task,
+            publish_results_website_task,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -352,6 +354,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
             import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
             export_certificate_authority::NAME => &Queue::ImportExport.queue_name(&slug),
+            publish_results_website_task::NAME => &Queue::Reports.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

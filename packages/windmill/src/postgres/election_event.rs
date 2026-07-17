@@ -434,6 +434,7 @@ pub async fn delete_election_event(
     election_event_id: &str,
 ) -> Result<()> {
     let related_tables = vec![
+        "tally_results_publication",
         "secret",
         "area_contest",
         "results_election_area",

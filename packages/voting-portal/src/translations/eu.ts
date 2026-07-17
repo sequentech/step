@@ -286,7 +286,8 @@ const basqueTranslation: TranslationType = {
                     "Pantaila honek bozkatu dezakezun Bozketen zerrenda erakusten du. Bozketara sar zaitezke bozketa aldia irekita dagoenean.",
                 ok: "Ados",
             },
-            noResults: "Ez dago bozketarik eskuragarri oraingoz.",
+            noResults: "Ez dago bozketarik oraingoz.",
+            resultsButton: "Ikusi emaitzak",
             demoDialog: {
                 title: "Demo bozketa kabina",
                 content:

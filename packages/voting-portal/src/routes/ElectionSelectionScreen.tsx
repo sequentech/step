@@ -16,6 +16,8 @@ import {
     IElectionStatus,
     EEarlyVotingPolicy,
     IAreaPresentation,
+    EResultsWebsiteStatus,
+    parseResultsWebsitePolicy,
     formatVotingPortalDateTime,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -115,6 +117,21 @@ const isElectionEventEarlyVotingOpen = (electionEvent?: IElectionEvent): boolean
     )
 }
 
+const isResultsWebsiteEnabled = (electionEvent?: IElectionEvent): boolean => {
+    return (
+        parseResultsWebsitePolicy(electionEvent?.presentation?.results_website)?.status ===
+        EResultsWebsiteStatus.ENABLED
+    )
+}
+
+const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean => {
+    return (
+        !isElectionEventOnlineVotingOpen(electionEvent) &&
+        !isElectionEventKioskOpen(electionEvent) &&
+        !isElectionEventEarlyVotingOpen(electionEvent)
+    )
+}
+
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     bypassChooser,
@@ -131,6 +148,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const isKiosk = authContext.isKiosk()
     let [getElectionClassName] = useElectionClassName()
 
@@ -211,6 +229,14 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         navigate(`../election/${electionId}/ballot-locator${location.search}`)
     }
 
+    const resultsUrl =
+        globalSettings.RESULTS_PORTAL_URL &&
+        eventId &&
+        !isVotingOpen() &&
+        isResultsWebsiteEnabled(electionEvent)
+            ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}/elections/${electionId}`
+            : undefined
+
     useEffect(() => {
         if (visitedBypassChooser) {
             console.log("visitedBypassChooser")
@@ -231,6 +257,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
+            resultsUrl={resultsUrl}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}
@@ -309,6 +336,13 @@ const ElectionSelectionScreen: React.FC = () => {
         | undefined
     >(undefined)
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
+    const eventResultsUrl =
+        globalSettings.RESULTS_PORTAL_URL &&
+        eventId &&
+        isResultsWebsiteEnabled(electionEvent) &&
+        isElectionEventVotingClosed(electionEvent)
+            ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
+            : undefined
 
     const {
         error: errorBallotStyles,
@@ -590,9 +624,23 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Typography>
                     )}
                 </Box>
-                {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
-                ) : null}
+                <Box sx={{display: "flex", gap: 2, alignItems: "center"}}>
+                    {eventResultsUrl ? (
+                        <Button
+                            component="a"
+                            href={eventResultsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {t("electionSelectionScreen.resultsButton")}
+                        </Button>
+                    ) : null}
+                    {isMaterialsActivated ? (
+                        <Button onClick={handleNavigateMaterials}>
+                            {t("materials.common.label")}
+                        </Button>
+                    ) : null}
+                </Box>
             </Box>
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (
