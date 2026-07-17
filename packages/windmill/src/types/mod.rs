@@ -8,4 +8,5 @@ pub mod error;
 pub mod hasura_types;
 pub mod miru_plugin;
 pub mod resources;
+pub mod results_publication;
 pub mod tasks;

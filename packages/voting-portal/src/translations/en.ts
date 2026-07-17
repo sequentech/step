@@ -284,6 +284,7 @@ const englishTranslation = {
                 ok: "OK",
             },
             noResults: "No ballots for now.",
+            resultsButton: "View results",
             demoDialog: {
                 title: "Demo voting booth",
                 content:

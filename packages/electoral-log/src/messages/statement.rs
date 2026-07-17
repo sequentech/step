@@ -233,6 +233,26 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::ResultsPublicationAction(details) => {
+                let action = match details.action {
+                    ResultsPublicationAction::Publish => "published",
+                    ResultsPublicationAction::Revoke => "revoked",
+                };
+                let route_election = details.route_election_id.0.as_deref().unwrap_or("event");
+                StatementHead {
+                    kind: StatementType::ResultsPublicationAction,
+                    event_type: StatementEventType::USER,
+                    description: format!(
+                        "Results publication {} {action} for {} route ({route_election}), with {} access, {} visibility, and {} contests.",
+                        details.publication_id.0,
+                        details.route_scope.0,
+                        details.access.0,
+                        details.visibility_scope.0,
+                        details.contest_ids.len(),
+                    ),
+                    ..default_head
+                }
+            }
         }
     }
 }
@@ -322,6 +342,7 @@ pub enum StatementBody {
     /// Carries the action (Import/Delete) and the subject DNs of the affected certificates.
     CertificateAuthEvent(CertificateAuthEventAction, CertificateSubjectDnsString),
     PhoneBlacklistUpdated(PhoneE164String, PhoneBlacklistAction),
+    ResultsPublicationAction(ResultsPublicationDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -353,6 +374,7 @@ pub enum StatementType {
     AdminPublicKey,
     CertificateAuthEvent,
     PhoneBlacklistUpdated,
+    ResultsPublicationAction,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
@@ -365,4 +387,34 @@ pub enum StatementEventType {
 pub enum StatementLogType {
     INFO,
     ERROR,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn results_publication_action_is_a_structured_user_event() {
+        let body = StatementBody::ResultsPublicationAction(ResultsPublicationDetails {
+            publication_id: ResultsPublicationIdString("publication-id".to_string()),
+            action: ResultsPublicationAction::Publish,
+            route_scope: ResultsPublicationRouteScopeString("election".to_string()),
+            route_election_id: ElectionIdString(Some("election-id".to_string())),
+            access: ResultsPublicationAccessString("public".to_string()),
+            visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
+            contest_ids: vec![
+                ContestIdString("contest-1".to_string()),
+                ContestIdString("contest-2".to_string()),
+            ],
+        });
+
+        let head = StatementHead::from_body(EventIdString("event-id".to_string()), &body);
+
+        assert!(matches!(head.kind, StatementType::ResultsPublicationAction));
+        assert!(matches!(head.event_type, StatementEventType::USER));
+        assert_eq!(
+            head.description,
+            "Results publication publication-id published for election route (election-id), with public access, full_event visibility, and 2 contests."
+        );
+    }
 }

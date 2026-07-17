@@ -42,6 +42,8 @@ export const EditElectionEventData: React.FC = () => {
     }
 
     const transform = (data: Sequent_Backend_Election_Event_Extended): RaRecord<Identifier> => {
+        delete data.resultsWebsitePolicy
+
         //update elections
         updateElectionsOrder(data)
 
@@ -92,12 +94,14 @@ export const EditElectionEventData: React.FC = () => {
         }
     }
 
+    const onSuccess = () => refresh()
+
     return (
         <EditBase
             redirect={"."}
             transform={transform}
             mutationMode="pessimistic"
-            mutationOptions={{onSuccess: refresh}}
+            mutationOptions={{onSuccess}}
         >
             <EditElectionEventDataForm />
         </EditBase>

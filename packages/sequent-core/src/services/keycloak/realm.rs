@@ -26,6 +26,41 @@ use uuid::Uuid;
 
 use super::PubKeycloakAdmin;
 
+const VOTING_PORTAL_CLIENT_ID: &str = "voting-portal";
+const ONSITE_VOTING_PORTAL_CLIENT_ID: &str = "onsite-voting-portal";
+const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
+const CONDITIONAL_CLIENT_ID: &str = "conditional-client";
+
+fn voting_portal_redirect_uris(ballot_verifier_url: &str) -> Vec<String> {
+    vec![
+        "/*".to_string(),
+        format!("{}/*", ballot_verifier_url.trim_end_matches('/')),
+    ]
+}
+
+fn results_portal_redirect_uris(results_portal_url: &str) -> Vec<String> {
+    vec![format!("{}/*", results_portal_url.trim_end_matches('/'))]
+}
+
+fn include_results_portal_in_client_condition(value: &str) -> String {
+    let mut client_ids = value
+        .split(',')
+        .map(str::trim)
+        .filter(|client_id| !client_id.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if client_ids
+        .iter()
+        .any(|client_id| client_id == VOTING_PORTAL_CLIENT_ID)
+        && !client_ids
+            .iter()
+            .any(|client_id| client_id == RESULTS_PORTAL_CLIENT_ID)
+    {
+        client_ids.push(RESULTS_PORTAL_CLIENT_ID.to_string());
+    }
+    client_ids.join(",")
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum RoleAction {
     Add,
@@ -624,45 +659,90 @@ impl KeycloakAdminClient {
         };
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
+        let results_portal_url = env::var("RESULTS_PORTAL_URL").ok();
 
-        // set the voting portal and voting portal kiosk urls
-        realm.clients = Some(
-            realm
-                .clients
-                .unwrap_or_default()
-                .into_iter()
-                .map(|mut client| {
-                    if client.client_id == Some(String::from("voting-portal"))
-                        || client.client_id
-                            == Some(String::from("onsite-voting-portal"))
+        let mut clients = realm.clients.take().unwrap_or_default();
+        let voting_portal_template = clients
+            .iter()
+            .find(|client| {
+                client.client_id.as_deref() == Some(VOTING_PORTAL_CLIENT_ID)
+            })
+            .cloned();
+        for client in &mut clients {
+            match client.client_id.as_deref() {
+                Some(VOTING_PORTAL_CLIENT_ID)
+                | Some(ONSITE_VOTING_PORTAL_CLIENT_ID) => {
+                    client.root_url = Some(voting_portal_url_env.clone());
+                    client.base_url = login_url.clone();
+                    client.redirect_uris =
+                        Some(voting_portal_redirect_uris(&ballot_verifier_url));
+                }
+                Some(RESULTS_PORTAL_CLIENT_ID) => {
+                    if let Some(results_portal_url) =
+                        results_portal_url.as_ref()
                     {
-                        client.root_url = Some(voting_portal_url_env.clone());
-                        client.base_url = login_url.clone();
-                        client.redirect_uris = Some(vec![
-                            "/*".to_string(),
-                            format!("{}/*", ballot_verifier_url),
-                        ]);
+                        client.root_url = Some(results_portal_url.clone());
+                        client.base_url = Some(results_portal_url.clone());
+                        client.redirect_uris = Some(
+                            results_portal_redirect_uris(results_portal_url),
+                        );
                     }
+                }
+                // When an Action Token expires, for example a Manual
+                // Verification QR Code, the `Back to Application` link in
+                // the resulting error page will redirect to the `base_url`.
+                // Related: https://github.com/sequentech/meta/issues/5063
+                Some("account") if login_url.is_some() => {
+                    client.base_url = login_url.clone();
+                }
+                _ => {}
+            }
+        }
 
-                    // When an Action Token expires, for example a Manual
-                    // Verification QR Code, the `Back to Application` link in
-                    // the resulting error page will redirect to the `base_url`.
-                    // For this reason, we ensure that base_url is linking to
-                    // the login_url if we have any.
-                    //
-                    // Related: https://github.com/sequentech/meta/issues/5063
-                    if client.client_id == Some(String::from("account"))
-                        && login_url.is_some()
-                    {
-                        client.base_url = login_url.clone();
+        if let Some(results_portal_url) = results_portal_url {
+            if !clients.iter().any(|client| {
+                client.client_id.as_deref() == Some(RESULTS_PORTAL_CLIENT_ID)
+            }) {
+                let mut results_client = voting_portal_template.ok_or_else(|| {
+                    anyhow!(
+                        "Event realm does not contain a voting portal client template"
+                    )
+                })?;
+                results_client.id = None;
+                if let Some(protocol_mappers) =
+                    results_client.protocol_mappers.as_mut()
+                {
+                    for protocol_mapper in protocol_mappers {
+                        protocol_mapper.id = None;
                     }
-                    Ok(client) // Return the modified client
-                })
-                .collect::<Result<Vec<_>>>()
-                .map_err(|err| {
-                    anyhow!("Error setting the voting portal urls: {:?}", err)
-                })?,
-        );
+                }
+                results_client.client_id =
+                    Some(RESULTS_PORTAL_CLIENT_ID.to_string());
+                results_client.name = Some("Results Portal".to_string());
+                results_client.root_url = Some(results_portal_url.clone());
+                results_client.base_url = Some(results_portal_url.clone());
+                results_client.redirect_uris =
+                    Some(results_portal_redirect_uris(&results_portal_url));
+                clients.push(results_client);
+            }
+
+            if let Some(authenticator_configs) =
+                realm.authenticator_config.as_mut()
+            {
+                for authenticator_config in authenticator_configs {
+                    if let Some(config) = authenticator_config.config.as_mut() {
+                        if let Some(value) =
+                            config.get_mut(CONDITIONAL_CLIENT_ID)
+                        {
+                            *value = include_results_portal_in_client_condition(
+                                value,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        realm.clients = Some(clients);
 
         // set tenant id attribute on all users
         realm.users = Some(
@@ -698,5 +778,43 @@ impl KeycloakAdminClient {
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        include_results_portal_in_client_condition,
+        results_portal_redirect_uris, voting_portal_redirect_uris,
+    };
+
+    #[test]
+    fn voting_portal_redirect_uris_exclude_the_results_portal() {
+        assert_eq!(
+            voting_portal_redirect_uris("https://verifier.example.test/"),
+            vec!["/*", "https://verifier.example.test/*"]
+        );
+    }
+
+    #[test]
+    fn results_portal_redirect_uris_are_scoped_to_results() {
+        assert_eq!(
+            results_portal_redirect_uris("https://results.example.test/"),
+            vec!["https://results.example.test/*"]
+        );
+    }
+
+    #[test]
+    fn results_portal_is_added_once_to_client_condition() {
+        assert_eq!(
+            include_results_portal_in_client_condition("voting-portal"),
+            "voting-portal,results-portal"
+        );
+        assert_eq!(
+            include_results_portal_in_client_condition(
+                "voting-portal,results-portal"
+            ),
+            "voting-portal,results-portal"
+        );
     }
 }

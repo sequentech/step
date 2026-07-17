@@ -95,6 +95,76 @@ export enum EVoterCertificatePolicy {
     DISABLED = "disabled",
 }
 
+export enum EResultsWebsiteStatus {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
+export enum EResultsWebsiteAccess {
+    PUBLIC = "public",
+    AUTHENTICATED = "authenticated",
+}
+
+export enum EResultsWebsiteVisibilityScope {
+    FULL_EVENT = "full_event",
+    AREA_BASED = "area_based",
+}
+
+export enum EResultsRouteScope {
+    EVENT = "event",
+    ELECTION = "election",
+}
+
+export enum EResultsPublicationStatus {
+    PUBLISHING = "Publishing",
+    PUBLISHED = "Published",
+    FAILED = "Failed",
+    REVOKED = "Revoked",
+    SUPERSEDED = "Superseded",
+}
+
+export interface IResultsWebsitePolicy {
+    status: EResultsWebsiteStatus
+    access: EResultsWebsiteAccess
+    visibility_scope: EResultsWebsiteVisibilityScope
+}
+
+export const defaultResultsWebsitePolicy = (): IResultsWebsitePolicy => ({
+    status: EResultsWebsiteStatus.DISABLED,
+    access: EResultsWebsiteAccess.PUBLIC,
+    visibility_scope: EResultsWebsiteVisibilityScope.FULL_EVENT,
+})
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+export const parseResultsWebsitePolicy = (value: unknown): IResultsWebsitePolicy | undefined => {
+    try {
+        const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value
+        if (!isRecord(parsed)) return undefined
+
+        const {status, access, visibility_scope: visibilityScope} = parsed
+        if (status !== EResultsWebsiteStatus.ENABLED && status !== EResultsWebsiteStatus.DISABLED) {
+            return undefined
+        }
+        if (
+            access !== EResultsWebsiteAccess.PUBLIC &&
+            access !== EResultsWebsiteAccess.AUTHENTICATED
+        ) {
+            return undefined
+        }
+        if (
+            visibilityScope !== EResultsWebsiteVisibilityScope.FULL_EVENT &&
+            visibilityScope !== EResultsWebsiteVisibilityScope.AREA_BASED
+        ) {
+            return undefined
+        }
+
+        return {status, access, visibility_scope: visibilityScope}
+    } catch {
+        return undefined
+    }
+}
 export enum EVotingPortalDateTimeFormat {
     LEGACY_GB_24H = "legacy-gb-24h",
     ISO_LOCAL = "iso-local",
@@ -141,6 +211,7 @@ export interface IElectionEventPresentation {
     weighted_voting_policy?: EElectionEventWeightedVotingPolicy
     voter_signing_policy?: EVoterSigningPolicy
     voter_certificate_policy?: EVoterCertificatePolicy
+    results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
 }

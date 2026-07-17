@@ -287,6 +287,7 @@ const dutchTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "Momenteel geen stembiljetten.",
+            resultsButton: "Resultaten bekijken",
             demoDialog: {
                 title: "Demo stemhokje",
                 content:

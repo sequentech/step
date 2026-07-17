@@ -127,6 +127,44 @@ pub async fn get_document(
     Ok(documents.get(0).cloned())
 }
 
+#[instrument(err, skip(hasura_transaction, document_ids))]
+pub async fn delete_documents(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    document_ids: &[String],
+) -> Result<u64> {
+    if document_ids.is_empty() {
+        return Ok(0);
+    }
+
+    let document_ids = document_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                DELETE FROM sequent_backend.document
+                WHERE tenant_id = $1
+                  AND election_event_id = $2
+                  AND id = ANY($3::uuid[]);
+            "#,
+        )
+        .await?;
+
+    Ok(hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &document_ids,
+            ],
+        )
+        .await?)
+}
+
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
 /// associated with a given election event.
 #[instrument(err, skip(hasura_transaction))]

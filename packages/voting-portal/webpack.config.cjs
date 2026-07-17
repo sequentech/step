@@ -48,7 +48,10 @@ module.exports = function (env, argv) {
             rules: [
                 {
                     test: /\.css$/i,
-                    include: path.resolve(__dirname, "src"),
+                    include: [
+                        path.resolve(__dirname, "src"),
+                        path.resolve(__dirname, "../node_modules/@mui/x-data-grid"),
+                    ],
                     use: ["style-loader", "css-loader", "postcss-loader"],
                 },
                 {

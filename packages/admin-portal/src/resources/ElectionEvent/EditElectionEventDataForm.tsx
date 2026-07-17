@@ -60,6 +60,12 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EResultsWebsiteAccess,
+    EResultsWebsiteStatus,
+    EResultsWebsiteVisibilityScope,
+    IResultsWebsitePolicy,
+    defaultResultsWebsitePolicy,
+    parseResultsWebsitePolicy,
     EVotingPortalDateTimeFormat,
     VotingPortalDateTimeFormat,
     isCustomVotingPortalDateTimeFormat,
@@ -104,12 +110,83 @@ import {
 } from "@/queries/UpdateRealmAttributes"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {
+    CONFIGURE_RESULTS_WEBSITE_POLICY,
+    ConfigureResultsWebsitePolicyData,
+    ConfigureResultsWebsitePolicyVariables,
+} from "@/queries/ResultsWebsitePublication"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
     electionsOrder?: Array<Sequent_Backend_Election>
+    resultsWebsitePolicy?: IResultsWebsitePolicy
 } & Sequent_Backend_Election_Event
+
+const ResultsWebsitePolicyFields: React.FC = () => {
+    const {t} = useTranslation()
+    const statusOptions = [
+        {id: EResultsWebsiteStatus.DISABLED, name: t("tally.resultsPublication.disabled")},
+        {id: EResultsWebsiteStatus.ENABLED, name: t("tally.resultsPublication.enabled")},
+    ]
+    const accessOptions = [
+        {id: EResultsWebsiteAccess.PUBLIC, name: t("tally.resultsPublication.publicAccess")},
+        {
+            id: EResultsWebsiteAccess.AUTHENTICATED,
+            name: t("tally.resultsPublication.authenticatedAccess"),
+        },
+    ]
+    const visibilityOptions = [
+        {
+            id: EResultsWebsiteVisibilityScope.FULL_EVENT,
+            name: t("tally.resultsPublication.fullEvent"),
+        },
+        {
+            id: EResultsWebsiteVisibilityScope.AREA_BASED,
+            name: t("tally.resultsPublication.areaBased"),
+        },
+    ]
+
+    return (
+        <>
+            <Typography
+                variant="body1"
+                component="span"
+                sx={{
+                    fontWeight: "bold",
+                    margin: 0,
+                    display: {xs: "none", sm: "block"},
+                }}
+            >
+                {t("tally.resultsPublication.policyTitle")}
+            </Typography>
+            <SelectInput
+                source={"resultsWebsitePolicy.status"}
+                choices={statusOptions}
+                label={t("tally.resultsPublication.policyTitle")}
+                defaultValue={EResultsWebsiteStatus.DISABLED}
+                emptyText={undefined}
+                validate={required()}
+            />
+            <SelectInput
+                source={"resultsWebsitePolicy.access"}
+                choices={accessOptions}
+                label={t("tally.resultsPublication.policyAccess")}
+                defaultValue={EResultsWebsiteAccess.PUBLIC}
+                emptyText={undefined}
+                validate={required()}
+            />
+            <SelectInput
+                source={"resultsWebsitePolicy.visibility_scope"}
+                choices={visibilityOptions}
+                label={t("tally.resultsPublication.policyVisibility")}
+                defaultValue={EResultsWebsiteVisibilityScope.FULL_EVENT}
+                emptyText={undefined}
+                validate={required()}
+            />
+        </>
+    )
+}
 
 const ElectionRows = styled("div")`
     display: flex;
@@ -173,6 +250,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         IPermissions.GOOGLE_MEET_LINK
     )
 
+    const canConfigureResultsWebsite = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PUBLISH_RESULTS_WRITE
+    )
+
     const [value, setValue] = useState(0)
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
@@ -220,6 +303,16 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         }
     )
+    const [configureResultsWebsitePolicy] = useMutation<
+        ConfigureResultsWebsitePolicyData,
+        ConfigureResultsWebsitePolicyVariables
+    >(CONFIGURE_RESULTS_WEBSITE_POLICY, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.PUBLISH_RESULTS_WRITE,
+            },
+        },
+    })
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -329,6 +422,9 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
 
             temp.presentation.custom_urls ??= {}
+            temp.resultsWebsitePolicy =
+                parseResultsWebsitePolicy(temp.presentation.results_website) ??
+                defaultResultsWebsitePolicy()
 
             return temp
         },
@@ -816,21 +912,61 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
-    const onSave = async () => {
+    const handleConfigureResultsWebsitePolicy = async (
+        policy: IResultsWebsitePolicy | undefined,
+        recordId: string
+    ) => {
+        if (!canConfigureResultsWebsite) {
+            return
+        }
+        if (!policy) {
+            throw new Error("Results website policy is missing")
+        }
+        if (
+            policy.access === EResultsWebsiteAccess.PUBLIC &&
+            policy.visibility_scope !== EResultsWebsiteVisibilityScope.FULL_EVENT
+        ) {
+            throw new Error("Public results must use full event visibility")
+        }
+
+        await configureResultsWebsitePolicy({
+            variables: {
+                election_event_id: recordId,
+                status: policy.status,
+                access: policy.access,
+                visibility_scope: policy.visibility_scope,
+            },
+        })
+    }
+
+    const onSave = async (values: Sequent_Backend_Election_Event_Extended) => {
+        const recordId = values.id?.toString() ?? record?.id?.toString()
+        if (!recordId) {
+            throw new Error("Election event ID is missing")
+        }
         checkCustomDateTimeFormatRef.current()
-        await handleUpdateCustomUrls(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
-        )
+
+        await handleUpdateCustomUrls(values.presentation as IElectionEventPresentation, recordId)
         await handleUpdateVoterAuthentication(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
+            values.presentation as IElectionEventPresentation,
+            recordId
         )
         await handleUpdateRealmAttributes(
-            parsedValue.presentation as IElectionEventPresentation,
-            record?.id
+            values.presentation as IElectionEventPresentation,
+            recordId
         )
+        await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
         setActivateSave(false)
+
+        return {
+            ...values,
+            presentation: {
+                ...values.presentation,
+                ...(canConfigureResultsWebsite && values.resultsWebsitePolicy
+                    ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
+                    : {}),
+            },
+        }
     }
     return (
         <>
@@ -860,8 +996,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <Toolbar>
                         {canEdit && (
                             <SaveButton
-                                onClick={onSave}
                                 type="button"
+                                transform={onSave}
                                 alwaysEnable={activateSave}
                             />
                         )}
@@ -1313,6 +1449,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                         />
+                        {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
                         <Typography
                             variant="body1"
                             component="span"

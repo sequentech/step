@@ -289,6 +289,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             noResults: "No hay elecciones por ahora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:
