@@ -872,6 +872,15 @@ const frenchTranslation: TranslationType = {
             users: {
                 title: "Utilisateurs",
                 subtitle: "Voir et éditer les données de l'utilisateur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 edit: {
                     title: "Informations de l'Utilisateur",
                     subtitle: "Voir et éditer l'Utilisateur",
@@ -921,6 +930,15 @@ const frenchTranslation: TranslationType = {
             voters: {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 logs: {
                     label: "Journaux de l'utilisateur",
                 },
@@ -1364,6 +1382,8 @@ const frenchTranslation: TranslationType = {
                 unarchive: "Désarchiver",
                 cancel: "Annuler",
                 edit: "Éditer",
+                yes: "Oui",
+                no: "Non",
                 save: "Sauvegarder",
                 close: "Fermer",
                 back: "Retour",
