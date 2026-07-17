@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {UserProfileAttribute} from "@/gql/graphql"
-import {computeUserDiff, formatFieldValue, UserBaseline} from "./UserEditReviewChanges"
+import {computeRoleDiff, computeUserDiff, formatFieldValue, UserBaseline} from "./UserEditReviewChanges"
 
 const t = (key: string) => key
 
@@ -18,6 +18,11 @@ const userAttributes = [
     {name: "permission_labels", display_name: "Permission labels"},
 ] as UserProfileAttribute[]
 
+const roles = [
+    {id: "role-admin", name: "Admin"},
+    {id: "role-auditor", name: "Auditor"},
+] as const
+
 const buildBaseline = (): UserBaseline => ({
     user: {
         id: "voter-1",
@@ -26,7 +31,7 @@ const buildBaseline = (): UserBaseline => ({
         email: "jane@example.com",
         username: "jane.doe",
         enabled: true,
-        area: {id: "area-1"},
+        area: {id: "area-1", name: "North Area"},
         attributes: {
             "sequent.read-only.mobile-number": ["+1000"],
             "trustee": ["Trustee A"],
@@ -71,7 +76,7 @@ describe("computeUserDiff", () => {
                 ...baseline.user,
                 first_name: "Janet",
                 enabled: false,
-                area: {id: "area-2"},
+                area: {id: "area-2", name: "South Area"},
             },
             phoneInputs: {"sequent.read-only.mobile-number": ["+2000"]},
             selectedActedTrustee: "Trustee B",
@@ -98,6 +103,58 @@ describe("computeUserDiff", () => {
         const enabled = diff.find((row) => row.field === "enabled")
         expect(enabled?.currentValue).toBe("common.label.yes")
         expect(enabled?.newValue).toBe("common.label.no")
+
+        const area = diff.find((row) => row.field === "area-id")
+        expect(area?.currentValue).toBe("North Area")
+        expect(area?.newValue).toBe("South Area")
+    })
+
+    it("reports area changes even when no area profile attribute is configured", () => {
+        const baseline = buildBaseline()
+        const current = {
+            user: {
+                ...baseline.user,
+                area: {id: "area-2", name: "South Area"},
+            },
+            phoneInputs: {},
+            selectedActedTrustee: "Trustee A",
+        }
+
+        const diff = computeUserDiff(
+            baseline,
+            current,
+            userAttributes.filter((attr) => attr.name !== "area-id"),
+            t
+        )
+
+        expect(diff).toHaveLength(1)
+        expect(diff[0]).toMatchObject({
+            field: "area",
+            label: "usersAndRolesScreen.users.fields.area",
+            currentValue: "North Area",
+            newValue: "South Area",
+        })
+    })
+
+    it("falls back to the area id when the name is unavailable", () => {
+        const baseline = buildBaseline()
+        const diff = computeUserDiff(
+            baseline,
+            {
+                user: {
+                    ...baseline.user,
+                    area: {id: "area-2"},
+                },
+                phoneInputs: {},
+                selectedActedTrustee: "Trustee A",
+            },
+            userAttributes,
+            t
+        )
+
+        const area = diff.find((row) => row.field === "area-id")
+        expect(area?.currentValue).toBe("North Area")
+        expect(area?.newValue).toBe("area-2")
     })
 
     it("omits unchanged fields even when other fields change", () => {
@@ -166,5 +223,42 @@ describe("formatFieldValue", () => {
 
     it("joins array values with a comma", () => {
         expect(formatFieldValue(["voter", "admin"], t)).toBe("voter, admin")
+    })
+})
+
+describe("computeRoleDiff", () => {
+    it("returns no rows when the active roles did not change", () => {
+        const diff = computeRoleDiff(
+            {activeRoleIds: ["role-admin"]},
+            {activeRoleIds: ["role-admin"]},
+            [...roles],
+            t
+        )
+
+        expect(diff).toEqual([])
+    })
+
+    it("reports role activation and removal changes with yes or no values", () => {
+        const diff = computeRoleDiff(
+            {activeRoleIds: ["role-admin"]},
+            {activeRoleIds: ["role-auditor"]},
+            [...roles],
+            t
+        )
+
+        expect(diff).toEqual([
+            {
+                field: "role:role-admin",
+                label: "Admin",
+                currentValue: "common.label.yes",
+                newValue: "common.label.no",
+            },
+            {
+                field: "role:role-auditor",
+                label: "Auditor",
+                currentValue: "common.label.no",
+                newValue: "common.label.yes",
+            },
+        ])
     })
 })

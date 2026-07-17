@@ -19,6 +19,20 @@ export interface UserDraft {
     selectedActedTrustee: string
 }
 
+export interface RoleDraft {
+    activeRoleIds: string[]
+}
+
+export interface RoleDefinition {
+    id?: string
+    name?: string
+}
+
+type UserAreaValue = {
+    id?: string
+    name?: string
+} | null | undefined
+
 export const formatFieldValue = (value: unknown, t: (key: string) => string): string => {
     if (value === null || value === undefined || value === "") {
         return "-"
@@ -30,6 +44,10 @@ export const formatFieldValue = (value: unknown, t: (key: string) => string): st
         return value.length > 0 ? value.join(", ") : "-"
     }
     return String(value)
+}
+
+const formatAreaValue = (area: UserAreaValue, t: (key: string) => string): string => {
+    return formatFieldValue(area?.name ?? area?.id, t)
 }
 
 const valuesEqual = (a: unknown, b: unknown): boolean => {
@@ -55,6 +73,7 @@ export const computeUserDiff = (
     t: (key: string) => string
 ): ReviewChangesRow[] => {
     const rows: ReviewChangesRow[] = []
+    const areaAttribute = userAttributes.find((attr) => attr.name?.toLowerCase().includes("area"))
 
     const pushIfChanged = (field: string, label: string, oldValue: unknown, newValue: unknown) => {
         if (!valuesEqual(oldValue, newValue)) {
@@ -75,6 +94,17 @@ export const computeUserDiff = (
         current.user?.enabled
     )
 
+    if (!valuesEqual(baseline.user.area?.id, current.user?.area?.id)) {
+        rows.push({
+            field: areaAttribute?.name ?? "area",
+            label: areaAttribute
+                ? getTranslationLabel(areaAttribute.name, areaAttribute.display_name, t)
+                : t("usersAndRolesScreen.users.fields.area"),
+            currentValue: formatAreaValue(baseline.user.area, t),
+            newValue: formatAreaValue(current.user?.area, t),
+        })
+    }
+
     userAttributes.forEach((attr) => {
         const name = attr.name
         if (!name) {
@@ -86,9 +116,8 @@ export const computeUserDiff = (
         // These substring checks intentionally mirror renderFormField's own attr.name
         // matching (EditUserForm.tsx), so a field is categorized here exactly the way
         // the edit form treats it. Area is rendered via a dedicated selector outside
-        // the loop, so it's diffed against `user.area.id` rather than `user.attributes`.
+        // the loop, so it's diffed once above against `user.area.id`.
         if (lowerName.includes("area")) {
-            pushIfChanged(name, label, baseline.user.area?.id, current.user?.area?.id)
             return
         }
 
@@ -130,4 +159,30 @@ export const computeUserDiff = (
     })
 
     return rows
+}
+
+export const computeRoleDiff = (
+    baseline: RoleDraft,
+    current: RoleDraft,
+    roles: RoleDefinition[],
+    t: (key: string) => string
+): ReviewChangesRow[] => {
+    const baselineIds = new Set(baseline.activeRoleIds)
+    const currentIds = new Set(current.activeRoleIds)
+
+    return roles
+        .filter((role) => role.id)
+        .filter((role) => baselineIds.has(role.id as string) !== currentIds.has(role.id as string))
+        .sort((left, right) => (left.name ?? left.id ?? "").localeCompare(right.name ?? right.id ?? ""))
+        .map((role) => {
+            const roleId = role.id as string
+            return {
+                field: `role:${roleId}`,
+                label: role.name ?? roleId,
+                currentValue: baselineIds.has(roleId)
+                    ? t("common.label.yes")
+                    : t("common.label.no"),
+                newValue: currentIds.has(roleId) ? t("common.label.yes") : t("common.label.no"),
+            }
+        })
 }

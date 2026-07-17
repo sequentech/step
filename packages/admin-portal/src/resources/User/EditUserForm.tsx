@@ -66,16 +66,14 @@ import debounce from "lodash/debounce"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import {computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
+import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
 
 interface ListUserRolesProps {
     userId?: string
     userRoles?: ListUserRolesQuery
     rolesList: Array<IRole>
-    refetch: () => void
-    createMode?: boolean
-    setUserRoles?: (id: string) => void
-    selectedRolesOnCreate?: string[]
+    activeRoleIds?: string[]
+    onToggleRole?: (id: string) => void
 }
 
 export interface Trustee {
@@ -140,62 +138,24 @@ const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     userRoles,
     rolesList,
-    userId,
-    refetch,
-    createMode,
-    setUserRoles,
-    selectedRolesOnCreate,
+    activeRoleIds,
+    onToggleRole,
 }) => {
-    const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
-    const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
-    const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
-    const refresh = useRefresh()
-    const notify = useCustomNotify()
-
-    const activeRoleIds = createMode
-        ? selectedRolesOnCreate
-        : userRoles?.list_user_roles.map((role) => role.id || "")
+    const effectiveActiveRoleIds =
+        activeRoleIds ?? userRoles?.list_user_roles.map((role) => role.id || "") ?? []
 
     let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
         ...role,
         id: role.id || "",
-        active: activeRoleIds?.includes(role.id || "") || false,
+        active: effectiveActiveRoleIds.includes(role.id || "") || false,
     }))
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
         const role = (rolesList || []).find((el) => el.id === props.row.id)
-        if (!role?.name) {
+        if (!role?.id) {
             return
         }
-        if (createMode && setUserRoles && role.id) {
-            setUserRoles(role.id)
-        }
-
-        // remove/add permission to role
-        if (!createMode && userId) {
-            const {errors} = await (props.value ? deleteUserRole : setUserRole)({
-                variables: {
-                    tenantId: tenantId,
-                    roleId: role.id,
-                    userId: userId,
-                },
-            })
-            if (errors) {
-                notify(`usersAndRolesScreen.roles.notifications.permissionEditError`, {
-                    type: "error",
-                })
-                console.log(`Error editing permission: ${errors}`)
-                return
-            }
-            notify("usersAndRolesScreen.roles.notifications.permissionEditSuccess", {
-                type: "success",
-            })
-            refresh()
-            if (refetch) {
-                refetch()
-            }
-        }
+        onToggleRole?.(role.id)
     }
 
     const columns: GridColDef[] = [
@@ -286,6 +246,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [selectedArea, setSelectedArea] = useState<string>("")
     const [selectedActedTrustee, setSelectedActedTrustee] = useState<string>("")
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
+    const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
     const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
     const {canEditVoters, canEditVotersWhoVoted, canEditVotersEmailTlf} = useUsersPermissions()
     const [tenantId] = useTenantStore()
@@ -294,6 +255,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
+    const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
         (user?.attributes?.permission_labels as string[]) || []
     )
@@ -313,6 +276,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             : (record && convertRecordToUser(record)) || {attributes: {}},
         phoneInputs: {},
     })
+    const baselineRoleIdsRef = useRef<string[]>([])
+    const rolesInitializedRef = useRef(false)
     const reviewHeadingRef = useRef<HTMLHeadingElement>(null)
 
     // Derived (not snapshotted) so the review table always reflects the live
@@ -322,16 +287,29 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         if (step !== "review") {
             return []
         }
-        return computeUserDiff(
+        const userRows = computeUserDiff(
             baselineRef.current,
             {user, phoneInputs, selectedActedTrustee},
             userAttributes,
             t
         )
-    }, [step, user, phoneInputs, selectedActedTrustee, userAttributes, t])
+        const roleRows = computeRoleDiff(
+            {activeRoleIds: baselineRoleIdsRef.current},
+            {activeRoleIds: selectedRoleIds},
+            rolesList,
+            t
+        )
+        return [...userRows, ...roleRows]
+    }, [step, user, phoneInputs, selectedActedTrustee, userAttributes, selectedRoleIds, rolesList, t])
 
     useEffect(() => {
         setStep("edit")
+    }, [id])
+
+    useEffect(() => {
+        rolesInitializedRef.current = false
+        baselineRoleIdsRef.current = []
+        setSelectedRoleIds([])
     }, [id])
 
     useEffect(() => {
@@ -373,6 +351,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         },
         skip: !id || !tenantId,
     })
+
+    useEffect(() => {
+        if (createMode || rolesInitializedRef.current || !userRoles) {
+            return
+        }
+
+        const initialRoleIds = userRoles.list_user_roles.map((role) => role.id || "")
+        baselineRoleIdsRef.current = initialRoleIds
+        setSelectedRoleIds(initialRoleIds)
+        rolesInitializedRef.current = true
+    }, [createMode, userRoles])
 
     const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
         "sequent_backend_cast_vote",
@@ -429,6 +418,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [setSelectedRolesOnCreate, selectedRolesOnCreate]
     )
 
+    const handleSelectedRoles = useCallback((roleId: string) => {
+        setSelectedRoleIds((prev) =>
+            prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
+        )
+    }, [])
+
     const onSubmitCreateUser = async () => {
         try {
             let {errors, data} = await createUser({
@@ -483,7 +478,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             userAttributes,
             t
         )
-        if (diff.length === 0) {
+        const roleDiff = computeRoleDiff(
+            {activeRoleIds: baselineRoleIdsRef.current},
+            {activeRoleIds: selectedRoleIds},
+            rolesList,
+            t
+        )
+        if (diff.length === 0 && roleDiff.length === 0) {
             notify(t(`usersAndRolesScreen.${reviewI18nContext}.review.noChanges`), {
                 type: "info",
             })
@@ -535,6 +536,36 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const handleConfirmChanges = async () => {
         try {
             await handleEditUser()
+
+            const baselineRoleIds = baselineRoleIdsRef.current
+            const rolesToRemove = baselineRoleIds.filter(
+                (roleId) => !selectedRoleIds.includes(roleId)
+            )
+            const rolesToAdd = selectedRoleIds.filter(
+                (roleId) => !baselineRoleIds.includes(roleId)
+            )
+
+            for (const roleId of rolesToRemove) {
+                await deleteUserRole({
+                    variables: {
+                        tenantId,
+                        roleId,
+                        userId: user?.id,
+                    },
+                })
+            }
+
+            for (const roleId of rolesToAdd) {
+                await setUserRole({
+                    variables: {
+                        tenantId,
+                        roleId,
+                        userId: user?.id,
+                    },
+                })
+            }
+
+            baselineRoleIdsRef.current = selectedRoleIds
             if (authContext.userId === user?.id) {
                 authContext.updateTokenAndPermissionLabels()
             }
@@ -968,10 +999,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     // Update the area selection handler
-    const handleAreaSelection = (areaId: string) => {
+    const handleAreaSelection = (areaId: string, areaRecord?: {name?: string}) => {
+        setSelectedArea(areaId)
+
         if (createMode) {
             setUser((prev) => ({
                 ...prev,
+                area: {
+                    id: areaId,
+                    name: areaRecord?.name,
+                },
                 attributes: {
                     ...(prev?.attributes || {}),
                     "area-id": [areaId],
@@ -982,6 +1019,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 ...prev,
                 area: {
                     id: areaId,
+                    name: areaRecord?.name,
                 },
                 attributes: {
                     ...(prev?.attributes || {}),
@@ -1129,11 +1167,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         <ListUserRoles
                             userRoles={userRoles}
                             rolesList={rolesList}
-                            userId={id}
-                            refetch={() => refetch()}
-                            createMode={createMode}
-                            setUserRoles={createMode ? handleSelectedRolesOnCreate : undefined}
-                            selectedRolesOnCreate={selectedRolesOnCreate}
+                            activeRoleIds={createMode ? selectedRolesOnCreate : selectedRoleIds}
+                            onToggleRole={
+                                createMode ? handleSelectedRolesOnCreate : handleSelectedRoles
+                            }
                         />
                     ) : null}
                 </Box>
