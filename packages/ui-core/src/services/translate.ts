@@ -21,17 +21,28 @@ export const translate = <T, K extends keyof T>(
     return input[key] as string
 }
 
+const getPrimaryLanguageCode = (lang: string): string => lang.split("-")[0].toLowerCase()
+
 export const translateFromPresentation = (
     object: any,
     key: string,
     lang: string
 ): string | undefined => {
-    if (object?.["i18n"]) {
-        return object["i18n"][lang]?.[key] || undefined
-    }
-    if (object?.["presentation"]?.["i18n"]) {
-        return object["presentation"]["i18n"][lang]?.[key] || object[key] || undefined
-    } else {
+    const presentation = object?.["i18n"] ? object : object?.["presentation"]
+
+    if (!presentation?.["i18n"]) {
         return object?.[key] || undefined
     }
+
+    const userLanguage = getPrimaryLanguageCode(lang)
+    const defaultLanguageCode = presentation["language_conf"]?.["default_language_code"]
+    const defaultLanguage = defaultLanguageCode
+        ? getPrimaryLanguageCode(defaultLanguageCode)
+        : undefined
+
+    return (
+        presentation["i18n"][userLanguage]?.[key] ||
+        (defaultLanguage ? presentation["i18n"][defaultLanguage]?.[key] : undefined) ||
+        undefined
+    )
 }
