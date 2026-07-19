@@ -14,6 +14,7 @@ show_help() {
     echo "Usage: ./manage.sh [command]"
     echo ""
     echo "Commands:"
+    echo "  --verify         Verify the bundle's GPG signature and sha256 checksums."
     echo "  --setup-server   Install K3s, load system images, and start the cluster."
     echo "  --setup-client   Install Git/SSH packages for the Ubuntu Desktop."
     echo "  --deploy         Load infrastructure images and apply Kubernetes manifests."
@@ -24,6 +25,60 @@ show_help() {
 }
 
 case "$1" in
+    --verify)
+        echo "--- Verifying Airgap Bundle ---"
+        CHECKSUMS_FILE="$PROJECT_ROOT/checksums.txt"
+        SIGNATURE_FILE="$PROJECT_ROOT/checksums.txt.asc"
+        PUBKEY_FILE="$PROJECT_ROOT/release/airgap-signing-pubkey.asc"
+
+        for f in "$CHECKSUMS_FILE" "$SIGNATURE_FILE" "$PUBKEY_FILE"; do
+            if [ ! -f "$f" ]; then
+                echo "Error: required file not found: $f"
+                exit 1
+            fi
+        done
+
+        # Import the shipped public key into a throwaway keyring so verification
+        # never depends on (or pollutes) the operator's own GPG configuration.
+        VERIFY_GNUPGHOME=$(mktemp -d)
+        chmod 700 "$VERIFY_GNUPGHOME"
+        trap 'rm -rf "$VERIFY_GNUPGHOME"' EXIT
+        GPG=(gpg --homedir "$VERIFY_GNUPGHOME" --batch)
+        "${GPG[@]}" --import "$PUBKEY_FILE"
+
+        # The bundle's public key alone only proves the archive is self-consistent.
+        # Authenticity requires matching the key against the fingerprint the build
+        # operator communicated out-of-band. Set EXPECTED_FINGERPRINT to enforce it.
+        ACTUAL_FPR=$("${GPG[@]}" --list-keys --with-colons \
+            | awk -F: '/^fpr:/ {print $10; exit}')
+        echo "Signing key fingerprint: $ACTUAL_FPR"
+        if [ -n "${EXPECTED_FINGERPRINT:-}" ]; then
+            normalized_expected=$(printf '%s' "$EXPECTED_FINGERPRINT" | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')
+            normalized_actual=$(printf '%s' "$ACTUAL_FPR" | tr '[:lower:]' '[:upper:]')
+            if [ "$normalized_expected" != "$normalized_actual" ]; then
+                echo "Error: fingerprint mismatch!"
+                echo "  expected: $normalized_expected"
+                echo "  actual:   $normalized_actual"
+                exit 1
+            fi
+            echo "Fingerprint matches the expected value."
+        else
+            echo "Warning: EXPECTED_FINGERPRINT not set — confirm the fingerprint"
+            echo "above matches the value communicated out-of-band by the builder."
+        fi
+
+        echo "--- Verifying GPG signature over checksums.txt ---"
+        if ! "${GPG[@]}" --verify "$SIGNATURE_FILE" "$CHECKSUMS_FILE"; then
+            echo "Error: GPG signature verification failed!"
+            exit 1
+        fi
+        echo "Signature is valid."
+
+        echo "--- Verifying sha256 checksums of all artifacts ---"
+        ( cd "$PROJECT_ROOT" && sha256sum -c checksums.txt )
+        echo "Bundle verified successfully."
+        ;;
+
     --setup-server)
         echo "--- Installing K3s Server ---"
         ARCH=$(dpkg --print-architecture)

@@ -50,7 +50,7 @@ else
     OS_CODENAME="jammy"
 fi
 
-PACKAGES=("git" "openssh-client" "curl" "jq")
+PACKAGES=("git" "openssh-client" "curl" "jq" "gnupg")
 echo "Downloading packages for $ARCH ($OS_CODENAME)..."
 # Use docker to get dependencies correctly for any host
 docker run --rm --platform "linux/$ARCH" \
@@ -226,7 +226,48 @@ CHECKSUMS_FILE="$OUTPUT_DIR/checksums.txt"
         | sort -z | xargs -0 sha256sum > "$CHECKSUMS_FILE" )
 echo "Wrote $CHECKSUMS_FILE"
 
+echo "Signing checksums.txt with GPG..."
+# A detached GPG signature over checksums.txt gives the airgap operator
+# authenticity (who built the bundle), not just integrity (sha256sum). The
+# private key never leaves this machine; only the signature and the public key
+# travel in the bundle, and the operator verifies with `manage.sh --verify`.
+#
+# Provide a maintained signing identity via GPG_SIGNING_KEY_ID=<fingerprint> to
+# sign from your own keyring. Otherwise a dedicated keypair is generated (and
+# reused across runs) in AIRGAP_GNUPGHOME so the fingerprint stays stable and can
+# be trusted out-of-band.
+AIRGAP_GNUPGHOME="${AIRGAP_GNUPGHOME:-$PROJECT_ROOT/.airgap-gpg}"
+GPG_KEY_UID="${GPG_KEY_UID:-Sequent Airgap Release Signing <legal@sequentech.io>}"
+PUBKEY_FILE="$OUTPUT_DIR/release/airgap-signing-pubkey.asc"
+SIGNATURE_FILE="$OUTPUT_DIR/checksums.txt.asc"
+
+if [ -n "${GPG_SIGNING_KEY_ID:-}" ]; then
+    GPG=(gpg --batch)
+    GPG_KEY_ID="$GPG_SIGNING_KEY_ID"
+else
+    mkdir -p "$AIRGAP_GNUPGHOME"
+    chmod 700 "$AIRGAP_GNUPGHOME"
+    GPG=(gpg --homedir "$AIRGAP_GNUPGHOME" --batch --pinentry-mode loopback --passphrase '')
+    if ! "${GPG[@]}" --list-secret-keys "$GPG_KEY_UID" >/dev/null 2>&1; then
+        echo "Generating airgap signing keypair in $AIRGAP_GNUPGHOME..."
+        "${GPG[@]}" --quick-generate-key "$GPG_KEY_UID" ed25519 sign never
+    fi
+    GPG_KEY_ID=$("${GPG[@]}" --list-secret-keys --with-colons "$GPG_KEY_UID" \
+        | awk -F: '/^fpr:/ {print $10; exit}')
+fi
+
+"${GPG[@]}" --yes --armor --local-user "$GPG_KEY_ID" \
+    --detach-sign --output "$SIGNATURE_FILE" "$CHECKSUMS_FILE"
+"${GPG[@]}" --yes --armor --export "$GPG_KEY_ID" > "$PUBKEY_FILE"
+GPG_FPR=$("${GPG[@]}" --list-keys --with-colons "$GPG_KEY_ID" \
+    | awk -F: '/^fpr:/ {print $10; exit}')
+echo "Wrote signature to $SIGNATURE_FILE"
+echo "Wrote public key to $PUBKEY_FILE"
+
 echo "--- Preparation Complete! ---"
 echo "Release version: $RELEASE_VERSION"
+echo "Signing key fingerprint: $GPG_FPR"
+echo "Record this fingerprint and communicate it out-of-band so the airgap"
+echo "operator can confirm the bundle's authenticity."
 echo "Transfer 'airgap-output/' to the airgap machine."
-echo "Verify integrity on arrival with: (cd airgap-output && sha256sum -c checksums.txt)"
+echo "Verify authenticity and integrity on arrival with: ./manage.sh --verify"

@@ -141,22 +141,44 @@ Before going to the lab, you must bundle all required artifacts.
     - A 3.5GB `images/step-airgap-infra.tar` containing all required base images.
     - `release/image-digests.txt` — sha256 image IDs of every bundled image.
     - `release/trivy-report.txt` — HIGH/CRITICAL vulnerability scan of the Sequent-built images.
+    - `release/airgap-signing-pubkey.asc` — GPG public key used to sign the release.
     - `checksums.txt` — sha256 of every release artifact (for `sha256sum -c`).
+    - `checksums.txt.asc` — detached GPG signature over `checksums.txt`.
 4.  Copy the entire `airgap-output/` directory to your USB drive.
+
+    At the end of the run, `prepare.sh` prints the **signing key fingerprint**.
+    Record it and communicate it **out-of-band** (not on the same USB drive) so the
+    airgap operator can confirm the bundle's authenticity on arrival.
 
 ### Release Versioning & Integrity
 
 Every Sequent-built image is tagged with a release version (from `git describe`,
 overridable via `RELEASE_VERSION=x.y.z ./airgap/prepare.sh`) alongside `:latest`.
-On arrival at the airgap machine, verify the bundle before deploying:
+
+On arrival at the airgap machine, verify the bundle **before deploying**. The
+`--verify` command imports the shipped public key into a throwaway keyring,
+verifies the GPG signature over `checksums.txt`, and then runs `sha256sum -c`:
 
 ```bash
 cd airgap-output
-sha256sum -c checksums.txt
+# Pass the fingerprint you received out-of-band to enforce authenticity:
+EXPECTED_FINGERPRINT="<fingerprint from prepare.sh>" ./manage.sh --verify
 ```
+
+If `EXPECTED_FINGERPRINT` is omitted the signature and checksums are still
+verified, but you must manually confirm the printed fingerprint matches the one
+the builder communicated — otherwise a re-signed tampered bundle would pass.
 
 Review `release/trivy-report.txt` for known HIGH/CRITICAL CVEs and
 `release/image-digests.txt` for the exact image IDs shipped in this release.
+
+#### Signing key
+
+By default `prepare.sh` generates a dedicated Ed25519 signing keypair in
+`.airgap-gpg/` (git-ignored, never shipped) and reuses it across runs so the
+fingerprint stays stable. To sign with an existing maintained identity from your
+own keyring instead, export `GPG_SIGNING_KEY_ID=<fingerprint>` before running
+`prepare.sh`.
 
 ---
 
@@ -164,9 +186,14 @@ Review `release/trivy-report.txt` for known HIGH/CRITICAL CVEs and
 
 ### Install Cluster
 1.  Plug in the USB and copy `airgap-output` to your server.
-2.  Install the airgapped K3s cluster:
+2.  Verify the bundle before installing anything (see *Release Versioning &
+    Integrity* above for the fingerprint check):
     ```bash
     cd airgap-output
+    EXPECTED_FINGERPRINT="<fingerprint from prepare.sh>" ./manage.sh --verify
+    ```
+3.  Install the airgapped K3s cluster:
+    ```bash
     sudo ./manage.sh --setup-server
     ```
     *Note: This automatically configures internal registry trust for `gitea.gitea:3000` at the static IP `10.43.10.10`.*
