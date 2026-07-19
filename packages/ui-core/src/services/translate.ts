@@ -21,28 +21,111 @@ export const translate = <T, K extends keyof T>(
     return input[key] as string
 }
 
-const getPrimaryLanguageCode = (lang: string): string => lang.split("-")[0].toLowerCase()
+type TranslationValue = string | null | undefined
 
-export const translateFromPresentation = (
-    object: any,
-    key: string,
-    lang: string
-): string | undefined => {
-    const presentation = object?.["i18n"] ? object : object?.["presentation"]
+interface TranslatablePresentation {
+    i18n?: Record<string, Record<string, TranslationValue>>
+}
 
-    if (!presentation?.["i18n"]) {
-        return object?.[key] || undefined
+type TranslatableEntity<K extends string = string> = Partial<
+    Record<K, string | null | undefined>
+> & {
+    presentation?: TranslatablePresentation | null
+}
+
+type TranslationInput<K extends string = string> =
+    | TranslatablePresentation
+    | TranslatableEntity<K>
+    | null
+    | undefined
+
+interface TranslateFromPresentationOptions {
+    defaultLanguageCode?: string
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+export const isTranslatablePresentation = (value: unknown): value is TranslatablePresentation => {
+    if (!isRecord(value)) {
+        return false
     }
 
-    const userLanguage = getPrimaryLanguageCode(lang)
-    const defaultLanguageCode = presentation["language_conf"]?.["default_language_code"]
-    const defaultLanguage = defaultLanguageCode
-        ? getPrimaryLanguageCode(defaultLanguageCode)
-        : undefined
+    if (value.i18n === undefined) {
+        return true
+    }
 
-    return (
-        presentation["i18n"][userLanguage]?.[key] ||
-        (defaultLanguage ? presentation["i18n"][defaultLanguage]?.[key] : undefined) ||
-        undefined
+    if (!isRecord(value.i18n)) {
+        return false
+    }
+
+    return Object.values(value.i18n).every(
+        (translations) =>
+            isRecord(translations) &&
+            Object.values(translations).every(
+                (translation) => translation == null || typeof translation === "string"
+            )
     )
+}
+
+const getPresentation = <K extends string>(
+    object: TranslationInput<K>
+): TranslatablePresentation | undefined => {
+    if (!isRecord(object)) {
+        return undefined
+    }
+
+    const value =
+        "i18n" in object && object.i18n
+            ? object
+            : "presentation" in object
+              ? object.presentation
+              : object
+    return isRecord(value) ? (value as TranslatablePresentation) : undefined
+}
+
+const getPrimaryLanguageCode = (lang?: string): string | undefined =>
+    lang?.split("-")[0].toLowerCase()
+
+const getTranslatedValue = (
+    presentation: TranslatablePresentation | undefined,
+    language: string | undefined,
+    key: string
+): string | undefined => {
+    if (!language) {
+        return undefined
+    }
+
+    const value = presentation?.i18n?.[language]?.[key]
+    return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
+export const translateFromPresentation = <K extends string>(
+    object: TranslationInput<K>,
+    key: K,
+    lang: string,
+    options: TranslateFromPresentationOptions = {}
+): string | undefined => {
+    const presentation = getPresentation(object)
+    const userLanguage = getPrimaryLanguageCode(lang)
+    const defaultLanguage = getPrimaryLanguageCode(options.defaultLanguageCode)
+
+    const translatedValue =
+        getTranslatedValue(presentation, userLanguage, key) ||
+        getTranslatedValue(presentation, defaultLanguage, key)
+
+    if (translatedValue) {
+        return translatedValue
+    }
+
+    if (isRecord(object) && "i18n" in object && Boolean(object.i18n)) {
+        return undefined
+    }
+
+    if (!isRecord(object)) {
+        return undefined
+    }
+
+    const legacyValue = object[key]
+    return typeof legacyValue === "string" && legacyValue.length ? legacyValue : undefined
 }
