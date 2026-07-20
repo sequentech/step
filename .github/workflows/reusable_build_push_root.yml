@@ -26,6 +26,8 @@ jobs:
           - service: keycloak
             context: packages
             file: packages/Dockerfile.keycloak
+            build_contexts: |
+              beyond=./beyond
 
           - service: voting-portal
             context: packages
@@ -85,6 +87,24 @@ jobs:
     - name: Check Out Repo
       uses: actions/checkout@v4
 
+    - name: Check out beyond submodule
+      if: matrix.service == 'keycloak'
+      env:
+        BEYOND_TOKEN: ${{ secrets.PAT }}
+      run: |
+        if [ -n "${BEYOND_TOKEN:-}" ]; then
+          git config --global url."https://x-access-token:${BEYOND_TOKEN}@github.com/".insteadOf "git@github.com:"
+          git config --global url."https://x-access-token:${BEYOND_TOKEN}@github.com/".insteadOf "https://github.com/"
+        fi
+
+        # Fail instead of falling back: a keycloak image built without the
+        # beyond extensions would silently ship without HMAC Smart Link.
+        if ! git submodule update --init --recursive --depth 1 beyond; then
+          echo "::error::Failed to load the beyond submodule. Check that the PAT secret grants read access to sequentech/beyond."
+          exit 1
+        fi
+        echo "Beyond submodule loaded; keycloak image will include beyond extensions"
+
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
 
@@ -120,6 +140,7 @@ jobs:
           ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+        build-contexts: ${{ matrix.build_contexts }}
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}

@@ -25,6 +25,8 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
+import sequent.keycloak.login_bridge.LoginBridge;
+import sequent.keycloak.login_bridge.LoginBridgeActionToken;
 
 @JBossLog
 public class SmartLinkAuthenticator extends UsernamePasswordForm {
@@ -99,8 +101,8 @@ public class SmartLinkAuthenticator extends UsernamePasswordForm {
       return; // the enabledUser method sets the challenge
     }
 
-    SmartLinkActionToken token =
-        SmartLink.createActionToken(
+    LoginBridgeActionToken token =
+        LoginBridge.createActionToken(
             user,
             clientId,
             OptionalInt.empty(),
@@ -108,7 +110,7 @@ public class SmartLinkAuthenticator extends UsernamePasswordForm {
             context.getAuthenticationSession(),
             isActionTokenPersistent(context, true),
             getMarkEmailVerified(context, true));
-    String link = SmartLink.linkFromActionToken(context.getSession(), context.getRealm(), token);
+    String link = LoginBridge.linkFromActionToken(context.getSession(), context.getRealm(), token);
     boolean sent = SmartLink.sendSmartLinkNotification(context.getSession(), user, link);
     log.infof("sent notification to %s? %b. Link? %s", user.getEmail(), sent, link);
 

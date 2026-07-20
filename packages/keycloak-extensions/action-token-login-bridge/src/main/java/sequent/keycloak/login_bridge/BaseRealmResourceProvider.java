@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package sequent.keycloak.authenticator.smart_link;
+package sequent.keycloak.login_bridge;
 
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.http.HttpRequest;
@@ -26,8 +26,9 @@ public abstract class BaseRealmResourceProvider implements RealmResourceProvider
   @Override
   public Object getResource() {
     HttpRequest request = session.getContext().getHttpRequest();
-    log.debugf("request method %s", request.getHttpMethod());
-    if (request != null && "OPTIONS".equals(request.getHttpMethod())) {
+    String method = request == null ? null : request.getHttpMethod();
+    log.debugf("request method %s", method);
+    if ("OPTIONS".equals(method)) {
       return new CorsResource(session);
     } else {
       return getRealmResource();

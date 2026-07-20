@@ -28,6 +28,12 @@ type Query {
     ): FetchResultsArtifactOutput!
 }
 
+type Query {
+    get_realm_attributes(
+        election_event_id: String!
+    ): GetRealmAttributesOutput!
+}
+
 type Mutation {
     configureResultsWebsitePolicy(
         election_event_id: String!
@@ -1802,6 +1808,10 @@ type Mutation {
 
 type DeleteCertificateAuthorityOutput {
     deleted_count: Int!
+}
+
+type GetRealmAttributesOutput {
+    attributes: jsonb!
 }
 
 type Mutation {
