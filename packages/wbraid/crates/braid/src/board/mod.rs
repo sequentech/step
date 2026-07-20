@@ -40,11 +40,18 @@ use transport::Transport;
 /// a transport to b4. A constructed client always holds a `Configuration` (§9.8).
 pub struct BoardClient<C: Context, T: Transport<C>, P: Persistence> {
     store: MessageStore<C>,
+    /// The child (writable) board: `post` targets it, and it is one of the two
+    /// boards `update` reads. For a non-union client this is the only board.
     transport: T,
+    /// The parent (read-only) board of a union (§8.2). `Some` for a tally client
+    /// (its DKG board); `None` for a plain single-board client. `update` reads it
+    /// but `post` never targets it.
+    parent: Option<T>,
     persistence: P,
     /// The durable set of predicates b4 has committed to (§6.2). Loaded on
     /// [`connect`](Self::connect) and grown by [`update`](Self::update); its sole
-    /// purpose is the boundary anti-rewrite check (§6.3).
+    /// purpose is the boundary anti-rewrite check (§6.3). For a union it is
+    /// additionally **seeded** with the parent's predicates (§8.2).
     committed: Vec<Predicate>,
 }
 
@@ -61,35 +68,103 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         Ok(Self {
             store,
             transport,
+            parent: None,
             persistence,
             committed,
         })
     }
 
-    /// Update-first (§6): fetch from b4, verify each message, persist its digest,
-    /// and only then admit it to the in-memory store. Idempotent — the store is a
-    /// set keyed by predicate — so a full re-fetch each call is safe (§12).
-    pub async fn update(&mut self) -> Result<()> {
-        let messages = self.transport.fetch().await?;
-        for message in &messages {
-            let (predicate, body) = verify(message, self.store.configuration())?;
-            // Anti-rewrite boundary check (§6.3): a freshly fetched predicate must
-            // never collide with one b4 already committed to. Signatures were just
-            // re-verified by `verify`; this is the additional, durable layer that
-            // forbids b4 from filling a slot with a different body across restarts.
+    /// Construct a **union** client (§8.2): a tally over a prior DKG.
+    ///
+    /// `child_transport` is the tally board (writable); `parent_transport` is the
+    /// DKG board (read-only). The `Configuration` — the per-execution domain reused
+    /// by tallies (§9.5) — is taken from the **parent**.
+    ///
+    /// `parent_predicates` is the anti-rewrite **seed** (§8.2): it MUST be the
+    /// trustee's own committed digests from its DKG session, supplied out-of-band
+    /// (via [`committed`](Self::committed) on the DKG client), never a fresh b4
+    /// re-fetch. Seeding from the trustee's own memory is what forbids the child
+    /// board from rewriting its parent's DKG history: [`update`](Self::update)
+    /// re-fetches the parent for its bodies, but every fetched parent message is
+    /// checked against this seed, so a rewritten DKG predicate halts.
+    pub async fn connect_union(
+        child_transport: T,
+        parent_transport: T,
+        persistence: P,
+        parent_predicates: Vec<Predicate>,
+    ) -> Result<Self> {
+        let configuration_message = parent_transport.fetch_configuration().await?;
+        let store = MessageStore::from_configuration_message(&configuration_message)?;
+        let committed = persistence.load().await?;
+        let mut client = Self {
+            store,
+            transport: child_transport,
+            parent: Some(parent_transport),
+            persistence,
+            committed,
+        };
+        client.seed_parent_predicates(parent_predicates).await?;
+        Ok(client)
+    }
+
+    /// Seed the committed set with the parent's predicates (§8.2). Persists each so
+    /// the anti-rewrite baseline is durable across tally restarts. A seed that
+    /// equivocates against what is already committed is itself a fault (⇒ halt).
+    async fn seed_parent_predicates(&mut self, parent_predicates: Vec<Predicate>) -> Result<()> {
+        for predicate in parent_predicates {
             if let Some(prior) = self.committed.iter().find(|p| p.collides(&predicate)) {
                 bail!(
-                    "anti-rewrite violation: fetched predicate {:?} collides with committed {:?}",
+                    "union seed predicate {:?} collides with committed {:?}",
                     predicate,
                     prior
                 );
             }
-            self.persistence.persist(&predicate).await?;
             if !self.committed.contains(&predicate) {
-                self.committed.push(predicate.clone());
+                self.persistence.persist(&predicate).await?;
+                self.committed.push(predicate);
             }
-            self.store.insert(predicate, body)?;
         }
+        Ok(())
+    }
+
+    /// Update-first (§6): fetch from b4, verify each message, persist its digest,
+    /// and only then admit it to the in-memory store. For a union (§8.2) this reads
+    /// BOTH the parent (DKG) and child (tally) boards and merges them into the one
+    /// store the trustee sees. Idempotent — the store is a set keyed by predicate —
+    /// so a full re-fetch each call is safe (§12; fetching the static parent every
+    /// cycle is a known, deferred optimization).
+    pub async fn update(&mut self) -> Result<()> {
+        let mut messages = Vec::new();
+        if let Some(parent) = &self.parent {
+            messages.extend(parent.fetch().await?);
+        }
+        messages.extend(self.transport.fetch().await?);
+        for message in &messages {
+            self.admit(message).await?;
+        }
+        Ok(())
+    }
+
+    /// Verify a fetched message, run the anti-rewrite boundary check, then persist
+    /// its digest and admit it to the store (§6.2–6.3).
+    async fn admit(&mut self, message: &WireMessage<C>) -> Result<()> {
+        let (predicate, body) = verify(message, self.store.configuration())?;
+        // Anti-rewrite boundary check (§6.3): a freshly fetched predicate must never
+        // collide with one already committed. Signatures were just re-verified by
+        // `verify`; this is the additional, durable layer that forbids b4 from
+        // filling a slot with a different body across restarts and across the union.
+        if let Some(prior) = self.committed.iter().find(|p| p.collides(&predicate)) {
+            bail!(
+                "anti-rewrite violation: fetched predicate {:?} collides with committed {:?}",
+                predicate,
+                prior
+            );
+        }
+        self.persistence.persist(&predicate).await?;
+        if !self.committed.contains(&predicate) {
+            self.committed.push(predicate.clone());
+        }
+        self.store.insert(predicate, body)?;
         Ok(())
     }
 
@@ -108,6 +183,13 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
     pub fn view(&self) -> &MessageStore<C> {
         &self.store
     }
+
+    /// This client's committed predicate set (§6.2). A DKG session hands this to
+    /// its tallies as the union anti-rewrite seed (§8.2) — the trustee's own
+    /// memory of what it accepted during the DKG.
+    pub fn committed(&self) -> &[Predicate] {
+        &self.committed
+    }
 }
 
 #[cfg(all(test, feature = "native"))]
@@ -121,16 +203,59 @@ mod tests {
     use cryptography::utils::signatures::SignatureScheme;
 
     use b4::messages::artifact::Configuration;
-    use b4::messages::newtypes::ConfigurationHash;
+    use b4::messages::newtypes::{zero_hash, ConfigurationHash, PublicKeyHash};
     use b4::messages::protocol_manager::ProtocolManager;
     use b4::messages::wire::WireMessage;
 
-    use crate::board::persistence::SqlitePersistence;
+    use crate::board::persistence::{NoOpPersistence, SqlitePersistence};
     use crate::board::transport::{MemoryBoard, MemoryTransport};
     use crate::board::BoardClient;
+    use crate::messages::predicate::Predicate;
     use crate::runtime::SessionTrustee;
 
     const DATE: b4::messages::newtypes::Timestamp = 0;
+
+    /// A minimal manager + `n`-trustee configuration for board-client tests.
+    struct Setup<C: Context> {
+        pm: ProtocolManager<C>,
+        signing_keys: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer>,
+        cfg: Configuration<C>,
+        cfg_hash: ConfigurationHash,
+        cfg_message: WireMessage<C>,
+    }
+
+    fn setup<C: Context>(n: usize) -> Result<Setup<C>> {
+        let mut key_rng = C::get_rng();
+        let pm = ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut key_rng));
+        let mut signing_keys = Vec::new();
+        let mut trustee_vks = Vec::new();
+        let mut share_enc_keys = Vec::new();
+        for _ in 0..n {
+            let sk = C::SignatureScheme::gen_signing_key(&mut key_rng);
+            trustee_vks.push(C::SignatureScheme::verifying_key(&sk));
+            signing_keys.push(sk);
+            let keypair = KeyPair::<C>::generate();
+            share_enc_keys.push(keypair.pkey.y.clone());
+        }
+        let cfg = Configuration::<C>::new(
+            0,
+            C::SignatureScheme::verifying_key(&pm.signing_key),
+            trustee_vks,
+            2,
+            2,
+            PhantomData,
+        )
+        .with_share_encryption_keys(share_enc_keys);
+        let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
+        let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+        Ok(Setup {
+            pm,
+            signing_keys,
+            cfg,
+            cfg_hash,
+            cfg_message,
+        })
+    }
 
     /// Restart + anti-rewrite (§6.2/§6.3): a predicate persisted before a restart
     /// is reloaded into the committed set and forbids b4 from later filling the
@@ -214,6 +339,154 @@ mod tests {
         assert!(
             result.is_err(),
             "reloaded committed predicate must block the rewrite"
+        );
+        Ok(())
+    }
+
+    /// A union client (§8.2) reads BOTH boards into one store and writes only to
+    /// the child: the parent's `Shares` and the child's `Ballots` are both visible
+    /// to the trustee, while `post` lands only on the child (tally) board.
+    #[tokio::test]
+    async fn union_merges_parent_and_child() -> Result<()> {
+        run_union_merges::<RistrettoCtx>().await
+    }
+
+    async fn run_union_merges<C: Context>() -> Result<()> {
+        let Setup {
+            pm,
+            signing_keys,
+            cfg,
+            cfg_hash,
+            cfg_message,
+        } = setup::<C>(2)?;
+        let sk1 = signing_keys.into_iter().next().unwrap();
+        let trustee1 =
+            SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+
+        // Parent (DKG) board: Configuration + a Shares from trustee 1.
+        let parent_board = MemoryBoard::<C>::new();
+        parent_board.push(cfg_message);
+        parent_board.push(WireMessage::<C>::shares(
+            &trustee1,
+            DATE,
+            cfg_hash,
+            &vec![1u8, 2, 3],
+        ));
+
+        // Child (tally) board: a Ballots from the manager (dummy body — verify only
+        // hashes it and checks the manager signature).
+        let child_board = MemoryBoard::<C>::new();
+        child_board.push(WireMessage::<C>::ballots(
+            &pm,
+            DATE,
+            cfg_hash,
+            PublicKeyHash(zero_hash()),
+            vec![1, 2],
+            &vec![9u8, 9, 9],
+        ));
+
+        let mut client = BoardClient::connect_union(
+            MemoryTransport::new(child_board.clone()),
+            MemoryTransport::new(parent_board.clone()),
+            NoOpPersistence,
+            Vec::new(),
+        )
+        .await?;
+        client.update().await?;
+
+        let predicates = client.view().get_predicates();
+        assert!(
+            predicates.iter().any(|p| matches!(p, Predicate::Shares(_))),
+            "parent Shares must be merged into the union view"
+        );
+        assert!(
+            predicates
+                .iter()
+                .any(|p| matches!(p, Predicate::Ballots(_))),
+            "child Ballots must be merged into the union view"
+        );
+
+        // A post targets the child board only.
+        client
+            .post(vec![WireMessage::<C>::shares(
+                &trustee1,
+                DATE,
+                cfg_hash,
+                &vec![7u8, 7, 7],
+            )])
+            .await?;
+        assert_eq!(
+            child_board.snapshot().len(),
+            2,
+            "post lands on the child (Ballots + posted message)"
+        );
+        assert_eq!(
+            parent_board.snapshot().len(),
+            2,
+            "parent is untouched by post (Configuration + Shares)"
+        );
+        Ok(())
+    }
+
+    /// Anti-rewrite across the union (§8.2): the tally is seeded with the trustee's
+    /// own DKG-session committed digests, so a b4 that rewrites the DKG history
+    /// when serving it to the tally is caught (digest mismatch ⇒ HALT).
+    #[tokio::test]
+    async fn union_seed_blocks_parent_rewrite() -> Result<()> {
+        run_union_anti_rewrite::<RistrettoCtx>().await
+    }
+
+    async fn run_union_anti_rewrite<C: Context>() -> Result<()> {
+        let Setup {
+            pm: _,
+            signing_keys,
+            cfg,
+            cfg_hash,
+            cfg_message,
+        } = setup::<C>(2)?;
+        let sk1 = signing_keys.into_iter().next().unwrap();
+        let trustee1 =
+            SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+
+        let parent_board = MemoryBoard::<C>::new();
+        parent_board.push(cfg_message);
+        parent_board.push(WireMessage::<C>::shares(
+            &trustee1,
+            DATE,
+            cfg_hash,
+            &vec![1u8, 2, 3],
+        ));
+
+        // The DKG session's committed digests are the trustee's own memory of the
+        // DKG — this is the anti-rewrite seed (never a fresh b4 re-fetch).
+        let seed = {
+            let mut dkg =
+                BoardClient::connect(MemoryTransport::new(parent_board.clone()), NoOpPersistence)
+                    .await?;
+            dkg.update().await?;
+            dkg.committed().to_vec()
+        };
+
+        // b4 rewrites the DKG history: a colliding Shares (different body) appears.
+        parent_board.push(WireMessage::<C>::shares(
+            &trustee1,
+            DATE,
+            cfg_hash,
+            &vec![4u8, 5, 6],
+        ));
+
+        let child_board = MemoryBoard::<C>::new();
+        let mut client = BoardClient::connect_union(
+            MemoryTransport::new(child_board.clone()),
+            MemoryTransport::new(parent_board.clone()),
+            NoOpPersistence,
+            seed,
+        )
+        .await?;
+        let result = client.update().await;
+        assert!(
+            result.is_err(),
+            "seeded DKG digest must block the parent rewrite"
         );
         Ok(())
     }

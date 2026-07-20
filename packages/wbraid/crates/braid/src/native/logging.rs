@@ -35,9 +35,12 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let (filter, reload_handle) = reload::Layer::new(filter);
     let subscriber = Registry::default().with(filter).with(layer);
 
+    // Idempotent: a process (e.g. a test binary with several `#[test]`s) may call
+    // this more than once; the global dispatcher can only be set once, so ignore a
+    // repeat rather than panic.
     if set_global {
-        tracing::subscriber::set_global_default(subscriber).unwrap();
+        let _ = tracing::subscriber::set_global_default(subscriber);
     }
-    tracing_log::LogTracer::init().unwrap();
+    let _ = tracing_log::LogTracer::init();
     reload_handle
 }
