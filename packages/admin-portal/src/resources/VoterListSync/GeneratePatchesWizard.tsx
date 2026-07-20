@@ -34,6 +34,7 @@ type WizardStep = "idle" | "processing" | "review" | "generating" | "done"
 
 interface GeneratePatchesWizardProps {
     lastAppliedSequence: number
+    pendingIndeterminateCount: number
 }
 
 /**
@@ -45,6 +46,7 @@ interface GeneratePatchesWizardProps {
  */
 export const GeneratePatchesWizard: React.FC<GeneratePatchesWizardProps> = ({
     lastAppliedSequence,
+    pendingIndeterminateCount,
 }) => {
     const [step, setStep] = useState<WizardStep>("idle")
     const [fileName, setFileName] = useState<string | null>(null)
@@ -178,6 +180,15 @@ export const GeneratePatchesWizard: React.FC<GeneratePatchesWizardProps> = ({
                     Step 4: Generate the Sequent patch once a re-import comes back clean.
                 </Typography>
             </Box>
+
+            {pendingIndeterminateCount > 0 && (
+                <Alert severity="warning">
+                    {pendingIndeterminateCount} indeterminate ballot(s) are still unresolved for
+                    this election event. Importing is not blocked, but resolve them from the
+                    "Indeterminate votes" tab first if possible - see "Indeterminate Ballot
+                    Resolution" in DatafixPossibleImplementation.md.
+                </Alert>
+            )}
 
             {step === "idle" && (
                 <>

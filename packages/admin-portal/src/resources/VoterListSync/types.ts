@@ -99,3 +99,31 @@ export interface RowFailure {
 export interface SyncTaskResult {
     rowFailures: RowFailure[]
 }
+
+/**
+ * "Indeterminate Ballot Resolution" (DatafixPossibleImplementation.md):
+ * cast_vote rows left `indeterminate` by an ambiguous SetVoted outcome,
+ * resolved manually to `valid`/`discarded` before each day's reconciliation
+ * import. Mirrors sequent_backend_cast_vote's real column names/types
+ * (see Sequent_Backend_Cast_Vote in @/gql/graphql) so this is a light lift to
+ * a real query once the backend join by ballot_id exists.
+ */
+export type ECastVoteResolution = "valid" | "discarded"
+
+export interface ElectoralLogEntry {
+    id: string
+    statementKind: string
+    description: string
+    createdAt: string // ISO timestamp
+}
+
+export interface IndeterminateCastVote {
+    id: string
+    ballotId: string
+    voterIdString: string
+    createdAt: string // ISO timestamp
+    lastUpdatedAt: string // ISO timestamp
+    // Joined by ballot_id - see the Implementation Requirements note about
+    // exposing ballot_id on the electoral log query.
+    electoralLogEntries: ElectoralLogEntry[]
+}
