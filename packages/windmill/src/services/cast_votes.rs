@@ -33,9 +33,6 @@ pub enum CastVoteStatus {
     #[serde(rename = "in-progress")]
     #[strum(serialize = "in-progress")]
     InProgress,
-    #[serde(rename = "indeterminate")]
-    #[strum(serialize = "indeterminate")]
-    Indeterminate,
     #[serde(rename = "valid")]
     #[strum(serialize = "valid")]
     Valid,
@@ -202,15 +199,6 @@ pub async fn get_in_progress_cast_votes_batch(
                         cv.election_id IS NOT NULL AND
                         cv.voter_id_string IS NOT NULL AND
                         cv.created_at < NOW() - make_interval(secs => $6) AND
-                        NOT EXISTS (
-                            SELECT 1
-                            FROM "sequent_backend".cast_vote unresolved
-                            WHERE
-                                unresolved.tenant_id = cv.tenant_id AND
-                                unresolved.election_event_id = cv.election_event_id AND
-                                unresolved.voter_id_string = cv.voter_id_string AND
-                                unresolved.status = 'indeterminate'
-                        ) AND
                         ($1::UUID IS NULL OR
                             (cv.tenant_id, cv.election_event_id, cv.election_id, cv.voter_id_string) >
                             ($1::UUID, $2::UUID, $3::UUID, $4::VARCHAR))

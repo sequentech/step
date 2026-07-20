@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::cast_vote::{
-    compare_and_set_cast_vote_status, get_cast_vote_by_id, get_voter_cast_vote_state,
-    has_valid_cast_vote,
+    compare_and_set_cast_vote_status, get_cast_vote_by_id, has_valid_cast_vote,
 };
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
@@ -24,7 +23,6 @@ use deadpool_postgres::Client as DbClient;
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
-use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use sequent_core::util::retry::retry_with_exponential_backoff;
@@ -35,7 +33,7 @@ use uuid::Uuid;
 
 /// Processes a single Datafix vote left `in-progress` by the insert path:
 /// reloads the row, skips it unless it is still `in-progress`, then takes the
-/// event-wide per-voter lock and delegates the actual claim/send to
+/// event-wide per-voter lock and delegates the actual send to
 /// `process_locked_cast_vote`. The lock is always released, and its release
 /// error is only surfaced after the processing result so a failed send is not
 /// masked. `max_retries = 0` because the review beat, not Celery, drives retries.
@@ -85,10 +83,11 @@ pub async fn process_cast_vote(
     Ok(())
 }
 
-/// Runs the Datafix send while the per-voter lock is held: it re-checks for an
-/// earlier `indeterminate` vote (leaving this one for the beat if found),
-/// validates the event's Datafix configuration, resolves the voter, claims the
-/// vote and sends `SetVoted`, transitioning the row to its terminal status.
+/// Runs the Datafix send while the per-voter lock is held: validates the
+/// event's Datafix configuration, resolves the voter, and sends `SetVoted`,
+/// transitioning the row to its terminal status. Any error response or
+/// transport failure leaves the vote `in-progress`: it is retried on the next
+/// beat and, if the situation persists, requires manual reconciliation.
 #[instrument(skip(lock), fields(cast_vote_id = %cast_vote_id), err)]
 async fn process_locked_cast_vote(
     tenant_id: &str,
@@ -96,17 +95,15 @@ async fn process_locked_cast_vote(
     cast_vote_id: &Uuid,
     lock: &PgLock,
 ) -> Result<()> {
-    let Some(pending_cast_vote) =
-        load_cast_vote(tenant_id, election_event_id, cast_vote_id).await?
+    let Some(cast_vote) = load_cast_vote(tenant_id, election_event_id, cast_vote_id).await?
     else {
         return Ok(());
     };
-    if has_indeterminate_vote(&pending_cast_vote).await? {
-        info!("Another cast vote for this voter requires reconciliation; leaving this vote in-progress");
+    if cast_vote.status != CastVoteStatus::InProgress {
+        info!("Cast vote is no longer in-progress; skipping");
         return Ok(());
     }
 
-    let cast_vote = pending_cast_vote;
     let voter_id = cast_vote
         .voter_id_string
         .as_deref()
@@ -177,10 +174,6 @@ async fn process_locked_cast_vote(
         .await
         .map_err(|err| format!("Datafix voter lock was lost before SetVoted: {err}"))?;
 
-    let Some(_) = claim_cast_vote(tenant_id, election_event_id, cast_vote_id).await? else {
-        info!("Cast vote was claimed or resolved by another worker; skipping");
-        return Ok(());
-    };
     let template_sha256 = prepared.template_sha256().to_string();
     let result = datafix::voterview_requests::send_prepared(prepared).await;
     match &result {
@@ -201,7 +194,7 @@ async fn process_locked_cast_vote(
                 SoapRequestResponse::Ok => {
                     let changed = transition_cast_vote(
                         &cast_vote,
-                        CastVoteStatus::Indeterminate,
+                        CastVoteStatus::InProgress,
                         CastVoteStatus::Valid,
                     )
                     .await?;
@@ -223,7 +216,7 @@ async fn process_locked_cast_vote(
                 SoapRequestResponse::AlreadyVoted => {
                     let changed = transition_cast_vote(
                         &cast_vote,
-                        CastVoteStatus::Indeterminate,
+                        CastVoteStatus::InProgress,
                         CastVoteStatus::Discarded,
                     )
                     .await?;
@@ -239,29 +232,17 @@ async fn process_locked_cast_vote(
                         )
                     }
                 }
-                SoapRequestResponse::Rejected(_) => {
-                    let changed = transition_cast_vote(
-                        &cast_vote,
-                        CastVoteStatus::Indeterminate,
-                        CastVoteStatus::Discarded,
-                    )
-                    .await?;
-                    if changed {
-                        format!(
-                            "SetVoted Rejected (template_sha256={})",
-                            result.template_sha256
-                        )
-                    } else {
-                        format!(
-                            "SetVoted rejection ignored after concurrent resolution (template_sha256={})",
-                            result.template_sha256
-                        )
-                    }
-                }
+                // Everything else is an error response from VoterView (a
+                // definitive rejection, a SOAP fault, or an unexpected
+                // already-not-voted echo): never discard or otherwise mark the
+                // vote, just leave it `in-progress` so the next beat retries it.
+                // A persistently erroring vote is caught and fixed by the
+                // manual daily reconciliation process, not by this pipeline.
                 response @ (SoapRequestResponse::AlreadyNotVoted
-                | SoapRequestResponse::Fault(_)) => {
+                | SoapRequestResponse::Fault(_)
+                | SoapRequestResponse::Rejected(_)) => {
                     format!(
-                        "SetVoted Indeterminate: {} (template_sha256={})",
+                        "SetVoted Failed: {} (template_sha256={})",
                         response.classification(),
                         result.template_sha256
                     )
@@ -270,62 +251,28 @@ async fn process_locked_cast_vote(
             audit_operation(&cast_vote, voter_id, &username, operation).await;
         }
         Err(SoapSendError::NotDispatched(err)) => {
-            let changed = transition_cast_vote(
-                &cast_vote,
-                CastVoteStatus::Indeterminate,
-                CastVoteStatus::InProgress,
-            )
-            .await?;
-            let operation = if changed {
-                format!(
-                    "SetVoted NotDispatched: connection-error, vote requeued (template_sha256={template_sha256})"
-                )
-            } else {
-                format!(
-                    "SetVoted connection-error ignored after concurrent resolution (template_sha256={template_sha256})"
-                )
-            };
+            let operation = format!(
+                "SetVoted NotDispatched: connection-error (template_sha256={template_sha256})"
+            );
             audit_operation(&cast_vote, voter_id, &username, operation).await;
             return Err(format!(
-                "VoterView SetVoted was not dispatched; the vote was requeued: {err}"
+                "VoterView SetVoted was not dispatched; the vote stays in-progress: {err}"
             )
             .into());
         }
         Err(SoapSendError::Ambiguous(err)) => {
             let operation = format!(
-                "SetVoted Indeterminate: transport-or-response-error (template_sha256={template_sha256})"
+                "SetVoted Failed: transport-or-response-error (template_sha256={template_sha256})"
             );
             audit_operation(&cast_vote, voter_id, &username, operation).await;
-            return Err(format!("VoterView SetVoted outcome is indeterminate: {err}").into());
+            return Err(format!(
+                "VoterView SetVoted outcome is ambiguous; the vote stays in-progress: {err}"
+            )
+            .into());
         }
     }
 
     Ok(())
-}
-
-/// Returns whether the voter has any other `indeterminate` ballot in the event,
-/// so processing of this vote is deferred until the earlier one is reconciled.
-#[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
-async fn has_indeterminate_vote(cast_vote: &CastVote) -> Result<bool> {
-    let voter_id = cast_vote
-        .voter_id_string
-        .as_deref()
-        .ok_or("Voter id not found")?;
-    let tenant_id = parse_uuid_v4(&cast_vote.tenant_id)?;
-    let election_event_id = parse_uuid_v4(&cast_vote.election_event_id)?;
-    let mut client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
-    let state = get_voter_cast_vote_state(&transaction, &tenant_id, &election_event_id, voter_id)
-        .await
-        .map_err(|err| format!("Error checking unresolved cast votes: {err:?}"))?;
-    Ok(state.has_indeterminate_vote)
 }
 
 /// Loads the cast vote by id in its own short transaction, or `None` if it no
@@ -348,52 +295,6 @@ async fn load_cast_vote(
     get_cast_vote_by_id(&transaction, tenant_id, election_event_id, cast_vote_id)
         .await
         .map_err(|err| format!("Error loading cast vote: {err:?}").into())
-}
-
-/// Atomically claims an `in-progress` vote by moving it to `indeterminate`,
-/// returning the claimed row only if this worker won the compare-and-set. `None`
-/// means the row is gone or was already claimed/advanced by another worker, so
-/// the caller must not process it.
-#[instrument(fields(cast_vote_id = %cast_vote_id), err)]
-async fn claim_cast_vote(
-    tenant_id: &str,
-    election_event_id: &str,
-    cast_vote_id: &Uuid,
-) -> Result<Option<CastVote>> {
-    let mut client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
-    let Some(cast_vote) =
-        get_cast_vote_by_id(&transaction, tenant_id, election_event_id, cast_vote_id)
-            .await
-            .map_err(|err| format!("Error loading cast vote: {err:?}"))?
-    else {
-        return Ok(None);
-    };
-    if cast_vote.status != CastVoteStatus::InProgress {
-        return Ok(None);
-    }
-    let claimed = compare_and_set_cast_vote_status(
-        &transaction,
-        tenant_id,
-        election_event_id,
-        cast_vote_id,
-        CastVoteStatus::InProgress,
-        CastVoteStatus::Indeterminate,
-    )
-    .await
-    .map_err(|err| format!("Error claiming cast vote: {err:?}"))?;
-    transaction
-        .commit()
-        .await
-        .map_err(|err| format!("Error committing cast vote claim: {err:?}"))?;
-    Ok(claimed.then_some(cast_vote))
 }
 
 /// Loads the election event that owns the cast vote, needed for its Datafix

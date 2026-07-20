@@ -11,17 +11,6 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-/// The external Datafix/VoterView operation that left a cast vote
-/// `indeterminate`, persisted in the `datafix_pending_operation` annotation so
-/// an unresolved vote can be reconciled against the operation that produced it.
-/// A fourth value, `set-voted`, is written directly by
-/// `compare_and_set_cast_vote_status` for the outbound worker path.
-#[derive(Debug, Clone, Copy, strum_macros::Display)]
-pub enum DatafixPendingOperation {
-    #[strum(serialize = "set-not-voted")]
-    SetNotVoted,
-}
-
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
     hasura_transaction: &Transaction<'_>,
@@ -116,8 +105,7 @@ pub async fn insert_cast_vote(
 /// Atomically moves a cast vote from `expected_status` to `new_status`, scoped
 /// to its tenant and event. Returns `false` without any change when the row is
 /// no longer in `expected_status`, so concurrent workers cannot apply the same
-/// transition twice. A `new_status` of `indeterminate` stamps the `set-voted`
-/// pending operation; any other target clears the pending-operation marker.
+/// transition twice.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn compare_and_set_cast_vote_status(
     hasura_transaction: &Transaction<'_>,
@@ -135,15 +123,6 @@ pub async fn compare_and_set_cast_vote_status(
                 UPDATE sequent_backend.cast_vote
                 SET
                     status = $1,
-                    annotations = CASE
-                        WHEN $1 = 'indeterminate' THEN jsonb_set(
-                            COALESCE(annotations, '{}'::jsonb),
-                            '{datafix_pending_operation}',
-                            '"set-voted"'::jsonb,
-                            true
-                        )
-                        ELSE COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation'
-                    END,
                     last_updated_at = NOW()
                 WHERE
                     id = $2 AND
@@ -281,7 +260,7 @@ pub async fn count_unresolved_cast_votes(
                     election_event_id = $2 AND
                     election_id = $3 AND
                     area_id = $4 AND
-                    status IN ('in-progress', 'indeterminate')
+                    status = 'in-progress'
             "#,
         )
         .await?;
@@ -297,107 +276,14 @@ pub async fn count_unresolved_cast_votes(
     Ok(row.get("count"))
 }
 
-/// Moves every `valid` ballot of the voter to `indeterminate`, tagging each with
-/// `pending_operation`, and returns the affected ids. This pulls the ballots out
-/// of tally and statistics before an external release is attempted; the returned
-/// ids let `restore_quarantined_cast_votes` undo exactly this change if the
-/// operation is abandoned.
+/// Discards every `valid` or `in-progress` ballot of the voter for the event.
+/// Used when an admin disables a Datafix voter: the ballots are discarded
+/// unconditionally as part of the disable, regardless of whether the
+/// `SetNotVoted` notification to VoterView succeeds — a divergence between the
+/// platform and VoterView is caught by the separate manual reconciliation
+/// process. Returns the number of rows discarded.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn quarantine_valid_cast_votes(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-    voter_id_string: &str,
-    pending_operation: DatafixPendingOperation,
-) -> Result<Vec<Uuid>> {
-    let pending_operation = pending_operation.to_string();
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE sequent_backend.cast_vote
-                SET
-                    status = 'indeterminate',
-                    annotations = jsonb_set(
-                        COALESCE(annotations, '{}'::jsonb),
-                        '{datafix_pending_operation}',
-                        to_jsonb($4::text),
-                        true
-                    ),
-                    last_updated_at = NOW()
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2 AND
-                    voter_id_string = $3 AND
-                    status = 'valid'
-                RETURNING id
-            "#,
-        )
-        .await?;
-
-    hasura_transaction
-        .query(
-            &statement,
-            &[
-                tenant_id,
-                election_event_id,
-                &voter_id_string,
-                &pending_operation,
-            ],
-        )
-        .await
-        .map(|rows| rows.into_iter().map(|row| row.get("id")).collect())
-        .map_err(Into::into)
-}
-
-/// Reverses `quarantine_valid_cast_votes`: moves the given ids back to `valid`,
-/// but only rows still `indeterminate` under the same `pending_operation`, so it
-/// never disturbs a vote quarantined for a different reason.
-#[instrument(skip(hasura_transaction, cast_vote_ids), err)]
-pub async fn restore_quarantined_cast_votes(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-    cast_vote_ids: &[Uuid],
-    pending_operation: DatafixPendingOperation,
-) -> Result<()> {
-    let pending_operation = pending_operation.to_string();
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE sequent_backend.cast_vote
-                SET
-                    status = 'valid',
-                    annotations = COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation',
-                    last_updated_at = NOW()
-                WHERE
-                    id = ANY($1) AND
-                    tenant_id = $2 AND
-                    election_event_id = $3 AND
-                    status = 'indeterminate' AND
-                    annotations ->> 'datafix_pending_operation' = $4
-            "#,
-        )
-        .await?;
-
-    hasura_transaction
-        .execute(
-            &statement,
-            &[
-                &cast_vote_ids,
-                tenant_id,
-                election_event_id,
-                &pending_operation,
-            ],
-        )
-        .await?;
-    Ok(())
-}
-
-/// Discards all of the voter's non-discarded ballots for the event and clears
-/// the pending-operation marker, once an external release (`SetNotVoted`) has
-/// converged. Returns the number of rows discarded.
-#[instrument(skip(hasura_transaction), err)]
-pub async fn finalize_voter_release(
+pub async fn discard_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -409,53 +295,12 @@ pub async fn finalize_voter_release(
                 UPDATE sequent_backend.cast_vote
                 SET
                     status = 'discarded',
-                    annotations = COALESCE(annotations, '{}'::jsonb) - 'datafix_pending_operation',
                     last_updated_at = NOW()
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     voter_id_string = $3 AND
-                    status IN ('valid', 'in-progress', 'indeterminate')
-            "#,
-        )
-        .await?;
-
-    hasura_transaction
-        .execute(
-            &statement,
-            &[tenant_id, election_event_id, &voter_id_string],
-        )
-        .await
-        .map_err(Into::into)
-}
-
-/// Durably records that the voter's `indeterminate` ballots are awaiting a
-/// `SetNotVoted` release, so a repeated disabled-voter save resumes the release
-/// instead of re-quarantining. Returns the number of rows marked.
-#[instrument(skip(hasura_transaction), err)]
-pub async fn mark_voter_release_pending(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &Uuid,
-    election_event_id: &Uuid,
-    voter_id_string: &str,
-) -> Result<u64> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                UPDATE sequent_backend.cast_vote
-                SET
-                    annotations = jsonb_set(
-                        COALESCE(annotations, '{}'::jsonb),
-                        '{datafix_pending_operation}',
-                        '"set-not-voted"'::jsonb,
-                        true
-                    ),
-                    last_updated_at = NOW()
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2 AND
-                    voter_id_string = $3 AND
-                    status = 'indeterminate'
+                    status IN ('valid', 'in-progress')
             "#,
         )
         .await?;
@@ -473,13 +318,8 @@ pub async fn mark_voter_release_pending(
 /// query to drive the disabled-voter release decisions.
 #[derive(Debug, Clone, Copy)]
 pub struct VoterCastVoteState {
-    /// Any `in-progress` or `indeterminate` ballot exists.
+    /// At least one ballot is `in-progress`.
     pub has_unresolved_vote: bool,
-    /// At least one ballot is `indeterminate`.
-    pub has_indeterminate_vote: bool,
-    /// An `indeterminate` ballot is tagged `set-not-voted` (a release is in
-    /// flight for this voter).
-    pub has_pending_release: bool,
     /// At least one ballot is `valid`.
     pub has_valid_vote: bool,
 }
@@ -496,7 +336,7 @@ pub async fn get_voter_cast_vote_state(
         .prepare(
             r#"
                 WITH voter_votes AS MATERIALIZED (
-                    SELECT status, annotations
+                    SELECT status
                     FROM sequent_backend.cast_vote
                     WHERE
                         tenant_id = $1 AND
@@ -506,18 +346,8 @@ pub async fn get_voter_cast_vote_state(
                 SELECT
                     EXISTS (
                         SELECT 1 FROM voter_votes
-                        WHERE status IN ('in-progress', 'indeterminate')
+                        WHERE status = 'in-progress'
                     ) AS has_unresolved_vote,
-                    EXISTS (
-                        SELECT 1 FROM voter_votes
-                        WHERE status = 'indeterminate'
-                    ) AS has_indeterminate_vote,
-                    EXISTS (
-                        SELECT 1 FROM voter_votes
-                        WHERE
-                            status = 'indeterminate' AND
-                            annotations ->> 'datafix_pending_operation' = 'set-not-voted'
-                    ) AS has_pending_release,
                     EXISTS (
                         SELECT 1 FROM voter_votes
                         WHERE status = 'valid'
@@ -534,8 +364,6 @@ pub async fn get_voter_cast_vote_state(
         .await?;
     Ok(VoterCastVoteState {
         has_unresolved_vote: row.get("has_unresolved_vote"),
-        has_indeterminate_vote: row.get("has_indeterminate_vote"),
-        has_pending_release: row.get("has_pending_release"),
         has_valid_vote: row.get("has_valid_vote"),
     })
 }

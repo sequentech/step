@@ -9,7 +9,6 @@ export enum CastVoteStatus {
     IN_PROGRESS = "in-progress",
     VALID = "valid",
     DISCARDED = "discarded",
-    INDETERMINATE = "indeterminate",
 }
 
 export interface ICastVote {

@@ -142,7 +142,6 @@ impl TemplateRenderer for BallotTemplate {
             voter_id,
             &[
                 CastVoteStatus::InProgress,
-                CastVoteStatus::Indeterminate,
                 CastVoteStatus::Valid,
                 CastVoteStatus::Discarded,
             ],
