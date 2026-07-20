@@ -210,4 +210,5 @@ export enum IPermissions {
     PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
     PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
     PHONE_BLACKLIST_UPDATE = "phone-blacklist-update",
+    ELECTION_EVENT_VOTER_LIST_SYNC_TAB = "election-event-voter-list-sync-tab",
 }

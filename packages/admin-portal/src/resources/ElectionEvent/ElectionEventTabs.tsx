@@ -83,6 +83,9 @@ const EditElectionEventApprovals = lazy(() =>
 const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((m) => ({default: m.EditReportsTab}))
 )
+const VoterListSync = lazy(() =>
+    import("../VoterListSync/VoterListSync").then((m) => ({default: m.VoterListSync}))
+)
 
 // ---------------------------------------------------------------------
 // Stable Tab Components (all use useRecordContext)
@@ -205,6 +208,12 @@ const ReportsTab: React.FC = () => {
         </Suspense>
     )
 }
+
+const VoterListSyncTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Voterview Sync...</div>}>
+        <VoterListSync />
+    </Suspense>
+)
 
 const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -355,6 +364,10 @@ export const ElectionEventTabs: React.FC = () => {
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
         record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
+    // MOCK: hardcoded to true for the UI prototype - see DatafixPossibleImplementation.md
+    // "Permissions". Final implementation should read:
+    // authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_VOTER_LIST_SYNC_TAB)
+    const showVoterListSync = true
     const isTelephoneChannelEnabled =
         (record?.voting_channels as IVotingChannelsConfig | undefined)?.telephone ?? false
     const showIvr =
@@ -447,6 +460,15 @@ export const ElectionEventTabs: React.FC = () => {
             })
         }
 
+        // Voter List Sync (Datafix reconciliation wizards)
+        if (showVoterListSync) {
+            result.push({
+                // MOCK: hardcoded label, no i18n key added for this prototype.
+                label: "VOTERVIEW SYNC",
+                component: VoterListSyncTab,
+            })
+        }
+
         // Publish
         if (showPublish) {
             result.push({
@@ -511,6 +533,7 @@ export const ElectionEventTabs: React.FC = () => {
         showKeys,
         showTally,
         showTallySheetImports,
+        showVoterListSync,
         showPublish,
         showLogs,
         showTasksExecution,
