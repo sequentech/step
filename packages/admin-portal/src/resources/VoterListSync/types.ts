@@ -110,20 +110,15 @@ export interface SyncTaskResult {
  */
 export type ECastVoteResolution = "valid" | "discarded"
 
-export interface ElectoralLogEntry {
-    id: string
-    statementKind: string
-    description: string
-    createdAt: string // ISO timestamp
-}
-
 export interface IndeterminateCastVote {
     id: string
-    ballotId: string
+    userId: string
+    // Keycloak username - this is what's labeled "Voter ID" on the reconciliation
+    // file/patch rows (voterId/VoterID), not the backend user UUID (userId).
     voterIdString: string
+    enabled: boolean
+    voted: boolean
+    ballotId: string
     createdAt: string // ISO timestamp
     lastUpdatedAt: string // ISO timestamp
-    // Joined by ballot_id - see the Implementation Requirements note about
-    // exposing ballot_id on the electoral log query.
-    electoralLogEntries: ElectoralLogEntry[]
 }

@@ -17,7 +17,11 @@ import {ApplyPatchWizard} from "./ApplyPatchWizard"
  * still needs to be rewired to the real backend (S3 upload, diff-calculation
  * task, generate/apply-patch Celery tasks, cast_vote resolution mutation).
  */
-export const VoterListSync: React.FC = () => {
+interface VoterListSyncProps {
+    electionEventId?: string
+}
+
+export const VoterListSync: React.FC<VoterListSyncProps> = ({electionEventId}) => {
     // MOCK: the last applied reconciliation Sequence would normally be read
     // from the election event record (stale-file protection). Seeded at -1
     // so a fresh Sequence=0 kickoff file is accepted on first load.
@@ -33,7 +37,7 @@ export const VoterListSync: React.FC = () => {
         {
             label: "Indeterminate votes",
             component: IndeterminateVotesTab,
-            props: {onPendingCountChange: handlePendingCountChange},
+            props: {electionEventId, onPendingCountChange: handlePendingCountChange},
         },
         {
             label: "Generate patches",

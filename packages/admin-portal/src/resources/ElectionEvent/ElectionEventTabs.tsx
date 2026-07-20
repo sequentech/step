@@ -209,11 +209,14 @@ const ReportsTab: React.FC = () => {
     )
 }
 
-const VoterListSyncTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Voterview Sync...</div>}>
-        <VoterListSync />
-    </Suspense>
-)
+const VoterListSyncTab: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    return (
+        <Suspense fallback={<div>Loading Voterview Sync...</div>}>
+            <VoterListSync electionEventId={record?.id} />
+        </Suspense>
+    )
+}
 
 const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
