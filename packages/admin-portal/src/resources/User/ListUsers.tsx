@@ -75,6 +75,8 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
+import SyncAltIcon from "@mui/icons-material/SyncAlt"
+import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWizard"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
@@ -156,6 +158,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const [openReconciliationWizard, setOpenReconciliationWizard] = useState<boolean>(false)
     const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
     const [userRecord, setUserRecord] = useState<RaRecord<Identifier> | undefined>()
     const authContext = useContext(AuthContext)
@@ -270,6 +273,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        showVoterListSync,
     } = useUsersPermissions()
     /**
      * Permissions
@@ -1226,7 +1230,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 />
                             }
                             withComponent={canCreateVoters}
-                            extraActions={[...listActions]}
+                            extraActions={[
+                                ...listActions,
+                                ...(electionEventId && showVoterListSync
+                                    ? [
+                                          <Button
+                                              key="datafix-reconciliation-sync"
+                                              onClick={() => setOpenReconciliationWizard(true)}
+                                          >
+                                              <SyncAltIcon sx={{mr: 1}} />
+                                              Datafix sync
+                                          </Button>,
+                                      ]
+                                    : []),
+                            ]}
                         />
                     }
                     filter={{
@@ -1332,6 +1349,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            {electionEventId && showVoterListSync ? (
+                <ReconciliationWizard
+                    open={openReconciliationWizard}
+                    onClose={() => setOpenReconciliationWizard(false)}
+                />
+            ) : null}
 
             <ImportDataDrawer
                 open={openImportDrawer}

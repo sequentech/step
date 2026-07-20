@@ -3,17 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Shapes shared by the two Datafix reconciliation wizards (generate patches /
- * apply patch). Mirrors the reconciliation file, patch file and diff-row
- * shapes from DatafixPossibleImplementation.md so the mock layer in
- * mockSyncEngine.ts can be swapped for real GraphQL calls without touching
- * the wizard components or SyncDiffTable.
+ * Shapes used by the Datafix reconciliation wizard. Mirrors the
+ * reconciliation file, patch file and diff-row shapes from
+ * DatafixPossibleImplementation.md so the mock layer in mockSyncEngine.ts can
+ * be swapped for real GraphQL calls without touching the wizard component or
+ * SyncDiffTable.
  */
-
-export enum ESyncFileKind {
-    RECONCILIATION = "RECONCILIATION",
-    PATCH = "PATCH",
-}
 
 // Source-of-truth categories from the "Handling Inconsistencies" section.
 export enum ESyncChangeCategory {
@@ -98,27 +93,4 @@ export interface RowFailure {
 
 export interface SyncTaskResult {
     rowFailures: RowFailure[]
-}
-
-/**
- * "Indeterminate Ballot Resolution" (DatafixPossibleImplementation.md):
- * cast_vote rows left `indeterminate` by an ambiguous SetVoted outcome,
- * resolved manually to `valid`/`discarded` before each day's reconciliation
- * import. Mirrors sequent_backend_cast_vote's real column names/types
- * (see Sequent_Backend_Cast_Vote in @/gql/graphql) so this is a light lift to
- * a real query once the backend join by ballot_id exists.
- */
-export type ECastVoteResolution = "valid" | "discarded"
-
-export interface IndeterminateCastVote {
-    id: string
-    userId: string
-    // Keycloak username - this is what's labeled "Voter ID" on the reconciliation
-    // file/patch rows (voterId/VoterID), not the backend user UUID (userId).
-    voterIdString: string
-    enabled: boolean
-    voted: boolean
-    ballotId: string
-    createdAt: string // ISO timestamp
-    lastUpdatedAt: string // ISO timestamp
 }

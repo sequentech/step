@@ -10,19 +10,18 @@ import {CATEGORY_COLORS, CATEGORY_LABELS} from "./constants"
 
 interface SyncDiffTableProps {
     rows: SyncDiffRow[]
-    /** Show the "-> Datafix / -> Sequent" column (generate-patches wizard only). */
-    showTarget?: boolean
     emptyMessage?: string
 }
 
 /**
  * Same visual language as ReviewChangesTable (old value struck through, new
- * value plain) but built on DataGrid since a reconciliation/patch diff spans
- * many voters instead of a single record's fields.
+ * value plain) but built on DataGrid since a reconciliation diff spans many
+ * voters instead of a single record's fields. Callers split rows by `target`
+ * into separate Datafix-side/Sequent-side tables, so this component doesn't
+ * need to render which side a row belongs to.
  */
 export const SyncDiffTable: React.FC<SyncDiffTableProps> = ({
     rows,
-    showTarget = false,
     emptyMessage = "No differences found - the systems are in sync.",
 }) => {
     const columns: GridColDef<SyncDiffRow>[] = [
@@ -51,22 +50,6 @@ export const SyncDiffTable: React.FC<SyncDiffTableProps> = ({
             ),
         },
         {field: "newValue", headerName: "New value", width: 160},
-        ...(showTarget
-            ? [
-                  {
-                      field: "target",
-                      headerName: "Patch",
-                      width: 130,
-                      renderCell: (params: GridRenderCellParams<SyncDiffRow>) => (
-                          <Chip
-                              size="small"
-                              variant="outlined"
-                              label={params.row.target === "datafix" ? "-> Datafix" : "-> Sequent"}
-                          />
-                      ),
-                  } satisfies GridColDef<SyncDiffRow>,
-              ]
-            : []),
         {field: "failureReason", headerName: "Reason", flex: 1, minWidth: 220},
     ]
 

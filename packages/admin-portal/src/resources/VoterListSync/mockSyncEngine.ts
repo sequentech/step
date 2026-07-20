@@ -8,16 +8,15 @@
  * Files Format") and is real, reusable logic.
  *
  * Everything under the "MOCK" banner below simulates the backend (S3 upload,
- * the Celery diff-calculation/patch-generation/apply tasks) so the wizards
- * can be exercised end to end without a server. Replace those functions with
- * the real GraphQL mutations/queries when the reconciliation backend lands -
- * the wizard components only depend on the exported function signatures, not
- * on how the result is produced.
+ * the Celery diff-calculation/apply tasks) so the wizard can be exercised end
+ * to end without a server. Replace those functions with the real GraphQL
+ * mutations/queries when the reconciliation backend lands - the wizard
+ * component only depends on the exported function signatures, not on how the
+ * result is produced.
  */
 
 import {
     ESyncChangeCategory,
-    ESyncPatchTarget,
     ParsedReconciliationRow,
     PatchField,
     PatchFieldValue,
@@ -109,68 +108,6 @@ export const parseReconciliationFile = (
     return {meta, rows}
 }
 
-// ---------------------------------------------------------------------
-// Real parsing: patch file (VoterID, then <Field>_old/<Field>_new pairs)
-// ---------------------------------------------------------------------
-const categorizePatchField = (
-    field: string,
-    oldValue: string,
-    newValue: string
-): ESyncChangeCategory => {
-    if (field === "Channel") {
-        if (oldValue !== "INTERNET" && newValue === "INTERNET") {
-            return ESyncChangeCategory.VOTED_INTERNET
-        }
-        if (newValue !== "NONE" && newValue !== "INTERNET") {
-            return ESyncChangeCategory.VOTED_OTHER_CHANNEL
-        }
-    }
-    if (field === "Deleted") {
-        return newValue === "true"
-            ? ESyncChangeCategory.DISABLED
-            : ESyncChangeCategory.DELETION_REVERTED
-    }
-    return ESyncChangeCategory.PROFILE_UPDATE
-}
-
-export const parsePatchFile = (text: string): {meta: SyncFileMeta; rows: SyncDiffRow[]} => {
-    const lines = splitLines(text)
-    const meta = parseMetaLine(lines[0] ?? "")
-    const header = (lines[1] ?? "").split(",").map((value) => value.trim())
-    const fieldNames = header.slice(1, header.length).filter((_, index) => index % 2 === 0)
-    const cleanedFieldNames = fieldNames.map((name) => name.replace(/_old$/, ""))
-
-    const rows: SyncDiffRow[] = []
-    lines.slice(2).forEach((line, lineIndex) => {
-        const values = line.split(",").map((value) => value.trim())
-        const voterId = values[0]
-        const oldValues = cleanedFieldNames.map((_, fieldIndex) => values[1 + fieldIndex * 2])
-        const isAddedVoter = oldValues.every((value) => value === "NONE")
-
-        cleanedFieldNames.forEach((field, fieldIndex) => {
-            const oldValue = values[1 + fieldIndex * 2]
-            const newValue = values[2 + fieldIndex * 2]
-            if (oldValue === newValue) {
-                return
-            }
-            rows.push({
-                id: `${voterId}:${field}:${lineIndex}`,
-                voterId,
-                field,
-                label: FIELD_LABELS[field as PatchField] ?? field,
-                oldValue,
-                newValue,
-                category: isAddedVoter
-                    ? ESyncChangeCategory.VOTER_ADDED
-                    : categorizePatchField(field, oldValue, newValue),
-                target: "sequent",
-            })
-        })
-    })
-
-    return {meta, rows}
-}
-
 // Flattens a voter record into display rows, one per field that actually
 // changed (old !== new) - e.g. an added voter's Channel can legitimately be
 // NONE on both sides (hasn't voted yet), which isn't a field worth showing
@@ -191,17 +128,13 @@ export const recordToDiffRows = (record: SyncVoterRecord): SyncDiffRow[] =>
     }))
 
 // ---------------------------------------------------------------------
-// CSV serialization for the download buttons. Every PATCH_FIELDS column is
-// always written, in the same fixed order, for every voter that has at
-// least one change - matching sequent_patch.csv/datafix_patch.csv. VoterID
-// is the row key, never a column pair, and never changes.
+// CSV serialization for the Datafix patch download button. Every PATCH_FIELDS
+// column is always written, in the same fixed order, for every voter that has
+// at least one change - matching datafix_patch.csv. VoterID is the row key,
+// never a column pair, and never changes.
 // ---------------------------------------------------------------------
-export const buildPatchCsv = (
-    meta: SyncFileMeta,
-    records: SyncVoterRecord[],
-    target: ESyncPatchTarget
-): string => {
-    const targeted = records.filter((record) => record.target === target)
+export const buildDatafixPatchCsv = (meta: SyncFileMeta, records: SyncVoterRecord[]): string => {
+    const targeted = records.filter((record) => record.target === "datafix")
 
     const lines = [`#META,Sequence=${meta.sequence},GeneratedAt=${meta.generatedAt}`]
     lines.push(
@@ -238,7 +171,7 @@ export const downloadTextFile = (filename: string, content: string): void => {
 
 // =======================================================================
 // MOCK backend interaction below - replace when the reconciliation backend
-// (S3 upload, diff-calculation task, generate/apply patch tasks) lands.
+// (S3 upload, diff-calculation task, apply task) lands.
 // =======================================================================
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
@@ -298,7 +231,7 @@ const bumpWard = (ward: string): string => {
 }
 
 // MOCK: replace with a GraphQL query that reads the diff the backend Celery
-// task already computed on upload (see "Patches creation flow" step 2). This
+// task already computed on upload (see "Reconciliation flow" step 2). This
 // fabricates a plausible, deterministic diff from the uploaded rows so every
 // category described in "Handling Inconsistencies" shows up at least once,
 // regardless of which reconciliation file gets dropped. Each scenario below
@@ -308,11 +241,11 @@ const bumpWard = (ward: string): string => {
 //
 // `round` simulates the operator loop in "Operator flow (per synchronization)":
 // round 0 is the first import and always has Datafix-side changes (so there's
-// something to generate a Datafix patch for); round 1 simulates the next
-// reconciliation file coming back clean on the Datafix side (only Sequent-side
-// changes remain, so the Sequent patch can be generated); round 2+ simulates
-// full convergence (empty diff). The caller (GeneratePatchesWizard) advances
-// this on every new import within the session.
+// something to download a Datafix patch for) alongside Sequent-side ones;
+// round 1 simulates the next reconciliation file coming back clean on the
+// Datafix side (only Sequent-side changes remain, so Apply unlocks); round 2+
+// simulates full convergence (empty diff). The caller (ReconciliationWizard)
+// advances this on every new import within the session.
 export const mockCalculateReconciliationDiff = async (
     rows: ParsedReconciliationRow[],
     round: number
@@ -464,23 +397,16 @@ export interface MockTaskStep {
     delayMs: number
 }
 
-export const MOCK_GENERATE_PATCH_STEPS: MockTaskStep[] = [
+export const MOCK_APPLY_STEPS: MockTaskStep[] = [
     {log: "Task started", delayMs: 250},
-    {log: "Validating reconciliation snapshot against current voter data...", delayMs: 700},
-    {log: "Resolving inconsistencies per source-of-truth rules...", delayMs: 700},
-    {log: "Writing patch file to S3...", delayMs: 500},
-]
-
-export const MOCK_APPLY_PATCH_STEPS: MockTaskStep[] = [
-    {log: "Task started", delayMs: 250},
-    {log: "Validating patch Sequence against the current reconciliation round...", delayMs: 600},
-    {log: "Applying changes voter by voter (per-row atomic)...", delayMs: 900},
+    {log: "Validating the reconciliation Sequence against the current round...", delayMs: 600},
+    {log: "Applying Sequent-side changes voter by voter (per-row atomic)...", delayMs: 900},
     {log: "Writing electoral log entry...", delayMs: 450},
 ]
 
 // MOCK: replace with polling the real task_execution (see Widget.tsx /
-// WidgetsContextProvider) once the Celery tasks from ETasksExecution.
-// GENERATE_RECONCILIATION_PATCHES / APPLY_RECONCILIATION_PATCH exist.
+// WidgetsContextProvider) once the Celery task from ETasksExecution.
+// APPLY_RECONCILIATION_CHANGES exists.
 export const runMockTask = async (
     steps: MockTaskStep[],
     diffRows: SyncDiffRow[],
