@@ -278,7 +278,8 @@ const englishTranslation = {
                     "This screen lists the ballots you can access. Some may be open, scheduled, or closed. You can only vote on ballots that are open",
                 ok: "OK",
             },
-            noResults: "No ballots are currently available",
+            noResults: "No ballots for now.",
+            resultsButton: "View results",
             demoDialog: {
                 title: "Demo voting booth",
                 content:

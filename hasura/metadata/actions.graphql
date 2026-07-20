@@ -20,6 +20,23 @@ type Query {
     count_users(body: CountUsersInput!): CountUsersOutput!
 }
 
+type Query {
+    fetchResultsArtifact(
+        election_event_id: String!
+        election_id: String
+        publication_id: String!
+    ): FetchResultsArtifactOutput!
+}
+
+type Mutation {
+    configureResultsWebsitePolicy(
+        election_event_id: String!
+        status: ResultsWebsiteStatus!
+        access: ResultsWebsiteAccess!
+        visibility_scope: ResultsWebsiteVisibilityScope!
+    ): ConfigureResultsWebsitePolicyOutput!
+}
+
 type Mutation {
     createScheduledEvent(
         tenant_id: String!
@@ -221,6 +238,41 @@ type Mutation {
         tenant_id: String!
         election_event_id: String!
     ): ExportTasksExecutionOutput
+}
+
+type Mutation {
+    publishResultsWebsite(
+        election_event_id: String!
+        tally_session_id: String!
+        tally_session_execution_id: String!
+        results_event_id: String!
+        route_scope: ResultsRouteScope!
+        route_election_id: String
+        election_ids: [String!]!
+        contest_ids: [String!]!
+        access: ResultsWebsiteAccess!
+        visibility_scope: ResultsWebsiteVisibilityScope!
+    ): PublishResultsWebsiteOutput!
+}
+
+type Mutation {
+    revokeResultsPublication(
+        election_event_id: String!
+        publication_id: String!
+    ): RevokeResultsPublicationOutput!
+}
+
+type Mutation {
+    refreshResultsPublicationIndex(
+        election_event_id: String!
+    ): RefreshResultsPublicationIndexOutput!
+}
+
+type Query {
+    resolveResultsPublication(
+        ee_id: String!
+        election_id: String
+    ): ResolveResultsPublicationOutput
 }
 
 type Mutation {
@@ -1786,4 +1838,73 @@ type PhoneBlacklistEntry {
 
 type IdOutput {
     id: String!
+}
+
+enum ResultsWebsiteStatus {
+    enabled
+    disabled
+}
+
+enum ResultsWebsiteAccess {
+    public
+    authenticated
+}
+
+enum ResultsWebsiteVisibilityScope {
+    full_event
+    area_based
+}
+
+enum ResultsRouteScope {
+    event
+    election
+}
+
+enum ResultsPublicationStatus {
+    Publishing
+    Published
+    Failed
+    Revoked
+    Superseded
+}
+
+type PublishResultsWebsiteOutput {
+    publication_id: String!
+    task_execution_id: String!
+    publication_status: ResultsPublicationStatus!
+    task_execution: tasks_execution_type!
+    error_msg: String
+}
+
+type ConfigureResultsWebsitePolicyOutput {
+    election_event_id: String!
+    status: ResultsWebsiteStatus!
+    access: ResultsWebsiteAccess!
+    visibility_scope: ResultsWebsiteVisibilityScope!
+}
+
+type ResolveResultsPublicationOutput {
+    tenant_id: String!
+    election_event_id: String!
+    access: ResultsWebsiteAccess!
+    route_scope: ResultsRouteScope!
+    election_ids: [String!]!
+    publication_id: String!
+    manifest_public_path: String
+    manifest_url: String
+    manifest: jsonb
+}
+
+type FetchResultsArtifactOutput {
+    urls: [String!]!
+}
+
+type RevokeResultsPublicationOutput {
+    publication_id: String!
+    publication_status: ResultsPublicationStatus!
+}
+
+type RefreshResultsPublicationIndexOutput {
+    election_event_id: String!
+    results_enabled: Boolean!
 }

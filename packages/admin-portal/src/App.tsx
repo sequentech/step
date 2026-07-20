@@ -66,7 +66,9 @@ import {TrusteeDashboard} from "./screens/TrusteeDashboard"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{customCss: string}>`
+const StyledApp = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "customCss",
+})<{customCss: string}>`
     ${({customCss}) => customCss}
 `
 

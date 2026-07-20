@@ -55,6 +55,7 @@ export interface IElectionDates {
 
 export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
+    css?: string
     language_conf?: ILanguageConf
     contests_order?: ContestsOrder
     sort_order?: number

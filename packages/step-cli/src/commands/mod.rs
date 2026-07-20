@@ -26,6 +26,7 @@ pub mod import_election_event;
 pub mod publish_changes;
 pub mod refresh_token;
 pub mod render_template;
+pub mod results_publication;
 pub mod start_key_ceremony;
 pub mod start_tally;
 pub mod submit_tally_resolution;

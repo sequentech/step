@@ -157,9 +157,11 @@ export interface SelectElectionProps {
     hasVoted: boolean
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
+    resultsUrl?: string
     electionDates?: IElectionDates
     isStarted: boolean
     className?: string | null
+    formatDateTime?: (input: string) => string
 }
 
 /**
@@ -231,15 +233,18 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     hasVoted,
     onClickToVote,
     onClickBallotLocator,
+    resultsUrl,
     electionDates,
     isStarted,
     className,
+    formatDateTime,
 }) => {
     const {t} = useTranslation()
+    const formatElectionDate = formatDateTime ?? formatDate
     const startVotingDate = getStartDate(electionDates) ?? ""
     const endVotingDate = getEndDate(electionDates) ?? ""
-    const openDate = hasDate(startVotingDate) && formatDate(startVotingDate)
-    const closeDate = hasDate(endVotingDate) && formatDate(endVotingDate)
+    const openDate = hasDate(startVotingDate) && formatElectionDate(startVotingDate)
+    const closeDate = hasDate(endVotingDate) && formatElectionDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
@@ -262,6 +267,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     }
 
     const displayBallotLocator = !!onClickBallotLocator
+    const displayResults = !!resultsUrl
 
     return (
         <Box>
@@ -334,6 +340,23 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         >
                             {t("selectElection.ballotLocator")}
                         </StyledButton>
+                    )}
+                    {displayResults && (
+                        <Button
+                            sx={{
+                                padding: "10px 24px",
+                                minWidth: "unset",
+                                marginRight: "16px",
+                            }}
+                            variant="secondary"
+                            component="a"
+                            href={resultsUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                        >
+                            {t("selectElection.resultsButton")}
+                        </Button>
                     )}
                     {isOpen && (
                         <StyledButton

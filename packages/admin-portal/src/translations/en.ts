@@ -180,6 +180,7 @@ const englishTranslation = {
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
+                PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -365,6 +366,8 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    invalidDateTimeFormat:
+                        "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localization",
@@ -420,6 +423,26 @@ const englishTranslation = {
                         "multiple-contests": "Multiple Contests",
                     },
                     policyLabel: "Contest encryption policy",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Voting Portal date & time format",
+                    helperText:
+                        'Applies event-wide. To override per language, add the key "votingPortalDateTimeFormat" in the Localization tab using tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). See the docs for details.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (medium date, short time)",
+                        "date-only": "Date Only (no time)",
+                        "custom": "Custom format",
+                    },
+                    customFormat: {
+                        label: "Custom date & time format",
+                        helperText:
+                            "Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm). Any other characters are shown literally.",
+                        invalid:
+                            "Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
@@ -514,6 +537,7 @@ const englishTranslation = {
                     deleteError: "Failed to delete",
                 },
                 config: {
+                    configuredPhone: "Configured phone number",
                     infoMsg:
                         "Configure the IVR flow and its properties below. For more details, please contact Sequent.",
                 },
@@ -845,6 +869,15 @@ const englishTranslation = {
             users: {
                 title: "Users",
                 subtitle: "View and edit user data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",
@@ -896,6 +929,15 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                review: {
+                    title: "Review changes",
+                    subtitle: "Confirm these updates before submitting.",
+                    confirm: "Confirm changes",
+                    noChanges: "No changes to review",
+                    field: "Field",
+                    currentValue: "Current value",
+                    newValue: "New value",
+                },
                 logs: {
                     label: "User's Logs",
                 },
@@ -1007,6 +1049,8 @@ const englishTranslation = {
                 "tally-results-read": "Read Tally Results",
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
+                "publish-results-read": "Read Results Publication",
+                "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
@@ -1325,6 +1369,8 @@ const englishTranslation = {
                 unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
+                yes: "Yes",
+                no: "No",
                 save: "Save",
                 close: "Close",
                 back: "Back",
@@ -1699,6 +1745,56 @@ const englishTranslation = {
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
                 description:

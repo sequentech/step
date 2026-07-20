@@ -288,7 +288,8 @@ const catalanTranslation: TranslationType = {
                     "Aquesta pantalla mostra la llista de paperetes a les quals podeu accedir. Poden estar obertes, programades o tancades. Només podeu votar en les que estan obertes",
                 ok: "D'acord",
             },
-            noResults: "No hi ha paperetes disponibles actualment",
+            noResults: "No hi ha eleccions per ara.",
+            resultsButton: "Veure resultats",
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:

@@ -19,6 +19,7 @@ services:
     depends_on:
       - admin-portal
       - voting-portal
+      - results-portal
       - graphql-engine
       - keycloak
       - minio-proxy
@@ -665,6 +666,7 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
@@ -808,6 +810,7 @@ services:
         KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
         VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+        RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
         APP_VERSION: ${APP_VERSION}
         APP_HASH: ${APP_HASH}
         DEFAULT_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
@@ -836,9 +839,29 @@ services:
         APP_VERSION: ${APP_VERSION}
         APP_HASH: ${APP_HASH}
         BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+        RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
         PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900
         POLLING_DURATION_TIMEOUT: 12000
+
+  results-portal:
+    profiles: ["full"]
+    image: sequentech.local/results-portal-prod
+    container_name: results-portal
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile.prod
+      args:
+        SPA_NAME: results-portal
+    ports:
+      - 3004:8000
+    environment:
+        RESULTS_PORTAL_CLIENT_ID: results-portal
+        KEYCLOAK_URL: ${KEYCLOAK_PUBLIC_URL}/
+        HASURA_URL: ${HASURA_ENDPOINT}
+        APP_VERSION: ${APP_VERSION}
+        APP_HASH: ${APP_HASH}
+        PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
 
 volumes:
   db_data:

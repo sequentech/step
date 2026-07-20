@@ -181,6 +181,7 @@ const galegoTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
+                PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -367,6 +368,8 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada correctamente",
                     error: "Fallou a actualización da localización",
+                    invalidDateTimeFormat:
+                        "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localización",
@@ -419,6 +422,26 @@ const galegoTranslation: TranslationType = {
                         "multiple-contests": "Varios concursos",
                     },
                     policyLabel: "Política de cifrado de concurso",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Formato de data e hora do portal de votación",
+                    helperText:
+                        'Aplícase a todo o evento. Para substituílo por idioma, engade a clave "votingPortalDateTimeFormat" na pestana Localización usando os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Consulta a documentación para máis detalles.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (data media, hora curta)",
+                        "date-only": "Date Only (sen hora)",
+                        "custom": "Formato personalizado",
+                    },
+                    customFormat: {
+                        label: "Formato de data e hora personalizado",
+                        helperText:
+                            "Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm). Calquera outro carácter móstrase literalmente.",
+                        invalid:
+                            "Formato non válido. Usa polo menos un dos tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sen Conta Atrás",
@@ -515,6 +538,7 @@ const galegoTranslation: TranslationType = {
                     deleteError: "Non se puido eliminar",
                 },
                 config: {
+                    configuredPhone: "Número de teléfono configurado",
                     infoMsg:
                         "Configure o fluxo do IVR e as súas propiedades a continuación. Para máis detalles, póñase en contacto con Sequent.",
                 },
@@ -848,6 +872,15 @@ const galegoTranslation: TranslationType = {
             users: {
                 title: "Usuarios",
                 subtitle: "Ver e editar datos de usuarios",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 edit: {
                     title: "Datos do Usuario",
                     subtitle: "Ver e editar usuario",
@@ -899,6 +932,15 @@ const galegoTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
+                review: {
+                    title: "Revisar cambios",
+                    subtitle: "Confirma estas actualizacións antes de envialas.",
+                    confirm: "Confirmar cambios",
+                    noChanges: "Non hai cambios para revisar",
+                    field: "Campo",
+                    currentValue: "Valor actual",
+                    newValue: "Novo valor",
+                },
                 logs: {
                     label: "Rexistros do Usuario",
                 },
@@ -1010,6 +1052,8 @@ const galegoTranslation: TranslationType = {
                 "tally-results-read": "Leer Resultados de Recuento",
                 "publish-read": "Leer Publicación",
                 "publish-write": "Editar Publicación",
+                "publish-results-read": "Leer Publicación de Resultados",
+                "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
@@ -1338,6 +1382,8 @@ const galegoTranslation: TranslationType = {
                 unarchive: "Desarquivar",
                 cancel: "Cancelar",
                 edit: "Editar",
+                yes: "Si",
+                no: "Non",
                 save: "Gardar",
                 close: "Pechar",
                 back: "Atrás",
@@ -1713,6 +1759,56 @@ const galegoTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Paquete de Transmisión para a Área '{{name}}' e Elección '{{eventName}}'",
                 description:

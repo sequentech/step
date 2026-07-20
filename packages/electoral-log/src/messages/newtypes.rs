@@ -199,3 +199,53 @@ pub enum PhoneBlacklistAction {
     CreateEntry,
     DeleteEntry,
 }
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationIdString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationRouteScopeString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationAccessString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationVisibilityScopeString(pub String);
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum ResultsPublicationAction {
+    Publish,
+    Revoke,
+}
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResultsPublicationDetails {
+    pub publication_id: ResultsPublicationIdString,
+    pub action: ResultsPublicationAction,
+    pub route_scope: ResultsPublicationRouteScopeString,
+    pub route_election_id: ElectionIdString,
+    pub access: ResultsPublicationAccessString,
+    pub visibility_scope: ResultsPublicationVisibilityScopeString,
+    pub contest_ids: Vec<ContestIdString>,
+}

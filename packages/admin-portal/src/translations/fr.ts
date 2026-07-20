@@ -181,6 +181,7 @@ const frenchTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
+                PUBLISH_RESULTS_WEBSITE: "Publier le site des résultats",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -366,6 +367,8 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    invalidDateTimeFormat:
+                        "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisation",
@@ -419,6 +422,26 @@ const frenchTranslation: TranslationType = {
                         "multiple-contests": "Plusieurs concours",
                     },
                     policyLabel: "Politique de chiffrement de concours",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Format de date et d'heure du portail de vote",
+                    helperText:
+                        "S'applique à tout l'événement. Pour le remplacer par langue, ajoutez la clé \"votingPortalDateTimeFormat\" dans l'onglet Localisation avec les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Consultez la documentation pour plus de détails.",
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24h)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (date moyenne, heure courte)",
+                        "date-only": "Date Only (sans heure)",
+                        "custom": "Format personnalisé",
+                    },
+                    customFormat: {
+                        label: "Format de date et d'heure personnalisé",
+                        helperText:
+                            "Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm). Tout autre caractère est affiché tel quel.",
+                        invalid:
+                            "Format invalide. Utilisez au moins un des jetons yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Pas de compte à rebours",
@@ -515,6 +538,7 @@ const frenchTranslation: TranslationType = {
                     deleteError: "Échec de la suppression",
                 },
                 config: {
+                    configuredPhone: "Numéro de téléphone configuré",
                     infoMsg:
                         "Configurez le flux du SVI et ses propriétés ci-dessous. Pour plus de détails, veuillez contacter Sequent.",
                 },
@@ -850,6 +874,15 @@ const frenchTranslation: TranslationType = {
             users: {
                 title: "Utilisateurs",
                 subtitle: "Voir et éditer les données de l'utilisateur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 edit: {
                     title: "Informations de l'Utilisateur",
                     subtitle: "Voir et éditer l'Utilisateur",
@@ -901,6 +934,15 @@ const frenchTranslation: TranslationType = {
             voters: {
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                review: {
+                    title: "Vérifier les modifications",
+                    subtitle: "Confirmez ces mises à jour avant de les soumettre.",
+                    confirm: "Confirmer les modifications",
+                    noChanges: "Aucune modification à vérifier",
+                    field: "Champ",
+                    currentValue: "Valeur actuelle",
+                    newValue: "Nouvelle valeur",
+                },
                 logs: {
                     label: "Journaux de l'utilisateur",
                 },
@@ -1013,6 +1055,8 @@ const frenchTranslation: TranslationType = {
                 "tally-results-read": "Lire Résultats de Comptage",
                 "publish-read": "Lire Publication",
                 "publish-write": "Éditer Publication",
+                "publish-results-read": "Lire Publication des Résultats",
+                "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
@@ -1344,6 +1388,8 @@ const frenchTranslation: TranslationType = {
                 unarchive: "Désarchiver",
                 cancel: "Annuler",
                 edit: "Éditer",
+                yes: "Oui",
+                no: "Non",
                 save: "Sauvegarder",
                 close: "Fermer",
                 back: "Retour",
@@ -1726,6 +1772,56 @@ const frenchTranslation: TranslationType = {
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Paquet de Transmission pour la Zone '{{name}}' y Elección '{{eventName}}'",
                 description:

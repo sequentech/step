@@ -6,7 +6,7 @@ import {useGetMany, useGetList} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
-import {Box, Typography} from "@mui/material"
+import {Box} from "@mui/material"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -16,7 +16,11 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {EDeclineToVotePolicy, formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {Loader} from "@sequentech/ui-essentials"
+import {
+    Loader,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+} from "@sequentech/ui-essentials"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -45,6 +49,7 @@ interface GeneralInformationChartsProps {
 export const LoadingResults: React.FC = () => {
     return (
         <Box
+            className="seq-admin-tally-results__loading"
             sx={{
                 display: "flex",
                 justifyContent: "center",
@@ -87,9 +92,9 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     const election_name = aliasRenderer(result.presentation)
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
-    const nonVoters = eligibleCensus - totalVoters
+    const nonVoters = Math.max(eligibleCensus - totalVoters, 0)
 
-    const chartData = [
+    const representedChartData = [
         {
             label: t("tally.chart.totalVoters"),
             value: totalVoters,
@@ -99,6 +104,10 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
             value: nonVoters,
         },
     ].filter((item) => item.value > 0)
+    const chartData =
+        representedChartData.length > 0
+            ? representedChartData
+            : [{label: t("tally.chart.nonVoters"), value: 100}]
 
     const chartOptions: Props = {
         options: {
@@ -125,22 +134,24 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
 
     return (
         <Box
+            className="seq-admin-tally-results__general-information-chart"
             sx={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 mb: 2,
                 border: "1px solid #cccccc99",
-                maxWidth: {xs: "100%", lg: 450},
+                maxWidth: {xs: "100%", lg: TALLY_RESULTS_PIE_PANEL_WIDTH},
             }}
         >
             <CardChart title={election_name} collapsible={true}>
                 <Chart
+                    className="seq-admin-tally-results__general-information-pie"
                     options={chartOptions.options}
                     series={chartOptions.series}
                     type="pie"
                     width="100%"
-                    height={300}
+                    height={TALLY_RESULTS_PIE_HEIGHT}
                 />
             </CardChart>
         </Box>
@@ -299,6 +310,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         <>
             {resultsData.length ? (
                 <Box
+                    className="seq-admin-tally-results__content"
                     sx={{
                         display: "flex",
                         flexDirection: {xs: "column", lg: "row"},
@@ -306,15 +318,22 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         alignItems: "flex-start",
                     }}
                 >
-                    <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
+                    <Box
+                        className="seq-admin-tally-results__chart-column"
+                        sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}
+                    >
                         <GeneralInformationCharts
                             results={resultsData}
                             selectedElectionId={selectedElectionId || undefined}
                             aliasRenderer={aliasRenderer}
                         />
                     </Box>
-                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>
+                    <Box
+                        className="seq-admin-tally-results__grid-column"
+                        sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}
+                    >
                         <DataGrid
+                            className="seq-admin-tally-results__grid"
                             sx={{
                                 "mt": 0,
                                 "& .MuiDataGrid-row.selected": {

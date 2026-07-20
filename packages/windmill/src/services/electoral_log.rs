@@ -504,6 +504,25 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    pub async fn post_results_publication_action(
+        &self,
+        event_id: String,
+        details: ResultsPublicationDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::results_publication_action_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,
         event_id: String,

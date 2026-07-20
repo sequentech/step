@@ -180,6 +180,7 @@ const dutchTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
+                PUBLISH_RESULTS_WEBSITE: "Resultatenwebsite publiceren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -366,6 +367,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     success: "Localisatie succesvol bijgewerkt",
                     error: "Bijwerken lokalisatie mislukt",
+                    invalidDateTimeFormat:
+                        "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
                 },
                 common: {
                     title: "Localisatie",
@@ -418,6 +421,26 @@ const dutchTranslation: TranslationType = {
                         "multiple-contests": "Meerdere Verkiezingen",
                     },
                     policyLabel: "Encryptiebeleid verkiezingen",
+                },
+                votingPortalDateTimeFormat: {
+                    policyLabel: "Datum- en tijdnotatie van stemportaal",
+                    helperText:
+                        'Geldt voor het hele evenement. Om per taal te overschrijven, voeg de sleutel "votingPortalDateTimeFormat" toe op het tabblad Localisatie met de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Zie de documentatie voor details.',
+                    options: {
+                        "legacy-gb-24h": "Legacy GB 24h (dd/MM/yyyy HH:mm, 24u)",
+                        "iso-local": "ISO Local (yyyy-MM-dd HH:mm)",
+                        "us-12h": "US 12h (MM/dd/yyyy h:mm AM/PM)",
+                        "locale-medium": "Locale Medium (middellange datum, korte tijd)",
+                        "date-only": "Date Only (geen tijd)",
+                        "custom": "Aangepast formaat",
+                    },
+                    customFormat: {
+                        label: "Aangepast datum- en tijdformaat",
+                        helperText:
+                            "Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm). Andere tekens worden letterlijk weergegeven.",
+                        invalid:
+                            "Ongeldig formaat. Gebruik ten minste een van de tokens yyyy, MM, dd, HH, mm, ss.",
+                    },
                 },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Geen aftelling",
@@ -513,6 +536,7 @@ const dutchTranslation: TranslationType = {
                     deleteError: "Verwijderen mislukt",
                 },
                 config: {
+                    configuredPhone: "Geconfigureerd telefoonnummer",
                     infoMsg:
                         "Configureer hieronder de IVR-flow en de bijbehorende eigenschappen. Neem voor meer informatie contact op met Sequent.",
                 },
@@ -846,6 +870,15 @@ const dutchTranslation: TranslationType = {
             users: {
                 title: "Gebruikers",
                 subtitle: "Gebruikersgegevens bekijken en bewerken",
+                review: {
+                    title: "Wijzigingen controleren",
+                    subtitle: "Bevestig deze updates voordat u ze indient.",
+                    confirm: "Wijzigingen bevestigen",
+                    noChanges: "Geen wijzigingen om te controleren",
+                    field: "Veld",
+                    currentValue: "Huidige waarde",
+                    newValue: "Nieuwe waarde",
+                },
                 edit: {
                     title: "Gebruikersgegevens",
                     subtitle: "Gebruiker bekijken en bewerken",
@@ -897,6 +930,15 @@ const dutchTranslation: TranslationType = {
             voters: {
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                review: {
+                    title: "Wijzigingen controleren",
+                    subtitle: "Bevestig deze updates voordat u ze indient.",
+                    confirm: "Wijzigingen bevestigen",
+                    noChanges: "Geen wijzigingen om te controleren",
+                    field: "Veld",
+                    currentValue: "Huidige waarde",
+                    newValue: "Nieuwe waarde",
+                },
                 logs: {
                     label: "Logs van kiezer",
                 },
@@ -1009,6 +1051,8 @@ const dutchTranslation: TranslationType = {
                 "tally-results-read": "Telresultaten Lezen",
                 "publish-read": "Publicatie Lezen",
                 "publish-write": "Publicatie Bewerken",
+                "publish-results-read": "Resultatenpublicatie Lezen",
+                "publish-results-write": "Resultatenpublicatie Bewerken",
                 "logs-read": "Logs Lezen",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",
@@ -1333,6 +1377,8 @@ const dutchTranslation: TranslationType = {
                 unarchive: "Dearchiveren",
                 cancel: "Annuleren",
                 edit: "Bewerken",
+                yes: "Ja",
+                no: "Nee",
                 save: "Opslaan",
                 close: "Sluiten",
                 back: "Terug",
@@ -1709,6 +1755,56 @@ const dutchTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
+            resultsPublication: {
+                sectionTitle: "Publish to results website",
+                policyTitle: "Results Website",
+                policyAccess: "Results Website Access",
+                policyVisibility: "Results Website Visibility",
+                enabled: "Enabled",
+                disabled: "Disabled",
+                fullEvent: "Full event",
+                areaBased: "Area based",
+                publishStarted: "Results publication started",
+                publishError: "Could not start results publication",
+                revoked: "Results publication revoked",
+                revokeError: "Could not revoke results publication",
+                waitingForTally: "Results can be published after this tally has completed.",
+                writePermissionRequired:
+                    "You need publish-results-write permission to publish or revoke results.",
+                readPermissionRequired:
+                    "You need publish-results-read permission to view publication history.",
+                disabledPolicy:
+                    "Results website publishing is disabled for this election event. Enable it in the election event data before publishing results.",
+                loadingElectionContext: "Results publication is loading election context.",
+                route: "Route",
+                eventResults: "Event results",
+                electionResults: "Election results",
+                election: "Election",
+                access: "Access",
+                publicAccess: "Public access",
+                authenticatedAccess: "Authenticated access",
+                visibility: "Visibility",
+                fullPublishedScope: "Full published scope",
+                personalVisibility: "Personal visibility",
+                contests: "Contests",
+                noTalliedContests: "No tallied contests available.",
+                publishSelectedContests: "Publish selected contests",
+                selectedContestCount: "{{count}} contest selected",
+                selectedContestCount_plural: "{{count}} contests selected",
+                history: "Publication history",
+                version: "Version",
+                status: "Status",
+                published: "Published",
+                revokedAt: "Revoked",
+                actions: "Actions",
+                open: "Open",
+                revoke: "Revoke",
+                noPublications: "No publications yet.",
+                confirmTitle: "Start publish to results website?",
+                confirmDescription:
+                    "This will create a new publication from the current tally execution. The existing voter-facing results stay active until this publish task succeeds.",
+                close: "Close",
+            },
             transmissionPackage: {
                 title: "Transmissiepakket voor Gebied '{{name}}' en Verkiezing '{{eventName}}'",
                 description:
