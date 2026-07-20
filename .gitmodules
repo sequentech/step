@@ -5,4 +5,4 @@
 [submodule "beyond"]
 	path = beyond
 	url = ../beyond
-	branch = feat/meta-12275/main
+	branch = release/10.0
