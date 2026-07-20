@@ -10,7 +10,7 @@ ALTER TABLE "sequent_backend"."cast_vote"
 
 ALTER TABLE "sequent_backend"."cast_vote"
   ADD CONSTRAINT "cast_vote_status_check"
-  CHECK (status IN ('in-progress', 'indeterminate', 'valid', 'discarded'));
+  CHECK (status IN ('in-progress', 'valid', 'discarded'));
 
 CREATE INDEX "idx_cast_vote_optimized" ON
   "sequent_backend"."cast_vote" USING btree ("tenant_id", "election_event_id", "area_id", "status", "election_id", "voter_id_string", "created_at" DESC);
@@ -51,7 +51,7 @@ BEGIN
     AND cv.voter_id_string = NEW.voter_id_string
     AND cv.tenant_id = NEW.tenant_id
     AND cv.election_event_id = NEW.election_event_id
-    AND cv.status IN ('valid', 'in-progress', 'indeterminate')
+    AND cv.status IN ('valid', 'in-progress')
   ) >= allowed_revotes THEN
     RAISE EXCEPTION 'insert_failed_exceeds_allowed_revotes';
   END IF;

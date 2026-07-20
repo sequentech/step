@@ -16,8 +16,6 @@ pub const DISABLE_REASON_DELETE_CALL: &str =
     "Disable reason: datafix call to delete-voter endpoint";
 pub const DISABLE_REASON_MARKVOTED_CALL: &str =
     "Disable reason: Voter marked as voted via other channel";
-pub const DISABLE_REASON_SET_NOT_VOTED_PENDING: &str =
-    "Disable reason: Datafix SetNotVoted pending";
 
 /// If there is a call to Datafix mark-voted, we disable the voter and set this
 /// value to signal the channel e.g "PHONE", "POST"... whatsoever

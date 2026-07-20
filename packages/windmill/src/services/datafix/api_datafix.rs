@@ -20,8 +20,7 @@ use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
     User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
-    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL,
-    DISABLE_REASON_SET_NOT_VOTED_PENDING, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
+    DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
     VOTED_CHANNEL_INTERNET_VALUE,
 };
 use sequent_core::util::date_time::verify_date_format_ymd;
@@ -475,8 +474,8 @@ pub async fn ensure_voter_has_no_valid_vote(
 }
 
 /// Refuses to re-enable a Datafix voter whose voting state is still unresolved —
-/// an in-progress/indeterminate or valid vote, a pending `SetNotVoted` release,
-/// or any recorded voted channel — returning `Conflict` in that case.
+/// an in-progress or valid vote, or any recorded voted channel — returning
+/// `Conflict` in that case.
 #[instrument(skip_all)]
 pub async fn ensure_inbound_reenable_is_safe(
     hasura_transaction: &Transaction<'_>,
@@ -516,15 +515,8 @@ pub async fn ensure_inbound_reenable_is_safe(
         DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
     let attributes = user.attributes.unwrap_or_default();
-    let pending_release = matches!(
-        attributes
-            .get(DISABLE_COMMENT)
-            .and_then(|values| values.last()),
-        Some(value) if value == DISABLE_REASON_SET_NOT_VOTED_PENDING
-    );
     if state.has_unresolved_vote
         || state.has_valid_vote
-        || pending_release
         || voted_via_internet(&attributes)
         || voted_via_not_internet_channel(&attributes)
     {

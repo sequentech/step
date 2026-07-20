@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
-use crate::postgres::cast_vote::get_voter_cast_vote_state;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -166,37 +165,6 @@ async fn release_datafix_voter_lock(lock: PgLock) {
     }
 }
 
-/// Rejects a Datafix insert when the voter still has an `indeterminate` ballot
-/// awaiting reconciliation, so a fresh vote can't race an in-flight release.
-/// Runs inside the caller's already-locked transaction.
-#[instrument(skip(hasura_transaction), err)]
-async fn reject_if_voter_unresolved(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    voter_id: &str,
-) -> Result<(), CastVoteError> {
-    let tenant_uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| CastVoteError::UuidParseFailed(err.to_string(), "tenant_id".into()))?;
-    let election_event_uuid = parse_uuid_v4(election_event_id).map_err(|err| {
-        CastVoteError::UuidParseFailed(err.to_string(), "election_event_id".into())
-    })?;
-    let state = get_voter_cast_vote_state(
-        hasura_transaction,
-        &tenant_uuid,
-        &election_event_uuid,
-        voter_id,
-    )
-    .await
-    .map_err(|err| CastVoteError::CheckPreviousVotesFailed(err.to_string()))?;
-    if state.has_indeterminate_vote {
-        return Err(CastVoteError::VoterStateLocked(
-            "A previous Datafix vote requires reconciliation".to_string(),
-        ));
-    }
-    Ok(())
-}
-
 /// Inserts a Datafix vote under the per-voter lease, owning the whole lock and
 /// connection lifecycle so `try_insert_cast_vote` stays free of it.
 ///
@@ -204,8 +172,8 @@ async fn reject_if_voter_unresolved(
 /// `Transaction` borrows its `Client`, so the commit/drop can't move in here) —
 /// this is also required for pool safety: no connection is held while blocking on
 /// the lease. This acquires the `(tenant, event, voter)` lease on a fresh
-/// connection, rejects a voter with an unresolved `indeterminate` vote, inserts +
-/// commits, and always releases the lease before returning.
+/// connection, inserts + commits, and always releases the lease before
+/// returning.
 #[instrument(skip_all, err)]
 #[allow(clippy::too_many_arguments)]
 async fn insert_datafix_cast_vote_locked<'a>(
@@ -243,20 +211,6 @@ async fn insert_datafix_cast_vote_locked<'a>(
             return Err(CastVoteError::GetTransactionFailed(err.to_string()));
         }
     };
-
-    if let Err(err) = reject_if_voter_unresolved(
-        &hasura_transaction,
-        ids.tenant_id,
-        ids.election_event_id,
-        ids.voter_id,
-    )
-    .await
-    {
-        drop(hasura_transaction);
-        drop(hasura_db_client);
-        release_datafix_voter_lock(lock).await;
-        return Err(err);
-    }
 
     let result = insert_cast_vote_and_commit(
         input,
@@ -1154,11 +1108,7 @@ async fn check_previous_votes(
             election_event_uuid,
             election_uuid,
             voter_id_string,
-            &[
-                CastVoteStatus::Valid,
-                CastVoteStatus::InProgress,
-                CastVoteStatus::Indeterminate,
-            ],
+            &[CastVoteStatus::Valid, CastVoteStatus::InProgress],
         )
     )
     .map_err(|e| CastVoteError::CheckPreviousVotesFailed(e.to_string()))?;

@@ -546,9 +546,7 @@ const ElectionSelectionScreen: React.FC = () => {
             dispatch(addCastVotes(castVoteList))
 
             const hasUnresolvedCastVotes = castVoteList.some(
-                (castVote) =>
-                    castVote.status === CastVoteStatus.IN_PROGRESS ||
-                    castVote.status === CastVoteStatus.INDETERMINATE
+                (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
             )
             if (hasUnresolvedCastVotes) {
                 startCastVotePolling(globalSettings.QUERY_POLL_INTERVAL_MS)
