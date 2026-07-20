@@ -40,6 +40,18 @@ jobs:
           cmd: build:ui-essentials
           dir: packages/
 
+      - name: Test ui-essentials
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: test:ui-essentials
+          dir: packages/
+
+      - name: Test results portal
+        uses: borales/actions-yarn@v4
+        with:
+          cmd: test:results-portal
+          dir: packages/
+
       - name: Lint
         uses: borales/actions-yarn@v4
         with:

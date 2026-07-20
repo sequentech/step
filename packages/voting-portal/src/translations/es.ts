@@ -287,7 +287,8 @@ const spanishTranslation: TranslationType = {
                     "Esta pantalla muestra la lista de papeletas a las que puede acceder. Pueden estar abiertas, programadas o cerradas. Solo puede votar en las que están abiertas",
                 ok: "OK",
             },
-            noResults: "No hay papeletas disponibles actualmente",
+            noResults: "No hay elecciones por ahora.",
+            resultsButton: "Ver resultados",
             demoDialog: {
                 title: "Cabina de votación de demostración",
                 content:

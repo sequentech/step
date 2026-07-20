@@ -285,7 +285,8 @@ const tagalogTranslation: TranslationType = {
                     "Ipinapakita ng screen na ito ang listahan ng mga Balota na maaari mong botohan. Magkakaroon ka ng access kung nakabukas ang panahon ng pagboto.",
                 ok: "OK",
             },
-            noResults: "Walang mga balota na available sa ngayon.",
+            noResults: "Walang mga balota sa ngayon.",
+            resultsButton: "Tingnan ang mga resulta",
             demoDialog: {
                 title: "Demo Voting Booth",
                 content:

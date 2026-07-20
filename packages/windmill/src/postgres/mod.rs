@@ -31,6 +31,7 @@ pub mod results_election_area;
 pub mod results_event;
 pub mod scheduled_event;
 pub mod secret;
+pub mod tally_results_publication;
 pub mod tally_session;
 pub mod tally_session_contest;
 pub mod tally_session_execution;

@@ -286,7 +286,8 @@ const frenchTranslation: TranslationType = {
                     "Cet écran montre la liste des élections dans lesquelles vous pouvez voter. L'accès est possible uniquement si la période de vote est ouverte.",
                 ok: "OK",
             },
-            noResults: "Aucun bulletin disponible pour le moment.",
+            noResults: "Il n'y a pas d'élections pour le moment.",
+            resultsButton: "Voir les résultats",
             demoDialog: {
                 title: "Bureau de vote de démonstration",
                 content:
