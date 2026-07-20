@@ -29,9 +29,7 @@ type Query {
 }
 
 type Query {
-    get_realm_attributes(
-        election_event_id: String!
-    ): GetRealmAttributesOutput!
+    get_realm_attributes(election_event_id: String!): GetRealmAttributesOutput!
 }
 
 type Mutation {
