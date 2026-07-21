@@ -17,10 +17,18 @@ export const useElectionClassName = (confirmationBallot: IConfirmationBallot | n
     const {i18n} = useTranslation()
 
     const extractElectionName = (election: {presentation: IElectionPresentation; id: string}) => {
-        let language = i18n.resolvedLanguage || i18n.language
+        const language = i18n.resolvedLanguage || i18n.language
+        const defaultLanguageCode =
+            election.presentation.language_conf?.default_language_code ??
+            confirmationBallot?.election_config.election_event_presentation?.language_conf
+                ?.default_language_code
         return (
-            translateFromPresentation(election, "alias", language) ||
-            translateFromPresentation(election, "name", language) ||
+            translateFromPresentation(election.presentation, "alias", language) ||
+            translateFromPresentation(election.presentation, "name", language) ||
+            (defaultLanguageCode
+                ? translateFromPresentation(election.presentation, "alias", defaultLanguageCode) ||
+                  translateFromPresentation(election.presentation, "name", defaultLanguageCode)
+                : undefined) ||
             election.id
         )
     }
