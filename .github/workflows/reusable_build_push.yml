@@ -86,23 +86,21 @@ jobs:
     - name: Check Out Repo
       uses: actions/checkout@v4
 
+    - name: Resolve beyond submodule commit
+      if: matrix.service == 'keycloak'
+      id: beyond
+      run: echo "sha=$(git rev-parse HEAD:beyond)" >> "$GITHUB_OUTPUT"
+
     - name: Check out beyond submodule
       if: matrix.service == 'keycloak'
-      env:
-        BEYOND_TOKEN: ${{ secrets.PAT }}
-      run: |
-        if [ -n "${BEYOND_TOKEN:-}" ]; then
-          git config --global url."https://x-access-token:${BEYOND_TOKEN}@github.com/".insteadOf "git@github.com:"
-          git config --global url."https://x-access-token:${BEYOND_TOKEN}@github.com/".insteadOf "https://github.com/"
-        fi
-
-        # Fail instead of falling back: a keycloak image built without the
-        # beyond extensions would silently ship without HMAC Smart Link.
-        if ! git submodule update --init --recursive --depth 1 beyond; then
-          echo "::error::Failed to load the beyond submodule. Check that the PAT secret grants read access to sequentech/beyond."
-          exit 1
-        fi
-        echo "Beyond submodule loaded; keycloak image will include beyond extensions"
+      uses: actions/checkout@v4
+      with:
+        repository: sequentech/beyond
+        ref: ${{ steps.beyond.outputs.sha }}
+        token: ${{ secrets.PAT }}
+        path: beyond
+        submodules: recursive
+        persist-credentials: false
 
     - name: Set short SHA
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
