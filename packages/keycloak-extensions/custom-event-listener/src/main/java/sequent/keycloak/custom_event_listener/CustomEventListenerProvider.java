@@ -165,10 +165,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     message.add(inputObject);
     message.add(annotations);
 
-    try {
-      // Generate a correlation ID.
-      String correlationId = UUID.randomUUID().toString();
+    // Generate a correlation ID.
+    String correlationId = UUID.randomUUID().toString();
 
+    try {
       // Build headers map.
       Map<String, Object> headers = new HashMap<>();
       headers.put("id", correlationId);
@@ -186,14 +186,19 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               .headers(headers)
               .build();
 
-      rabbitMqEventPublisher.publish(session, props, om.writeValueAsBytes(message));
-      log.info("Audit event durably stored for asynchronous RabbitMQ delivery.");
-    } catch (AuditEventPersistenceException e) {
-      log.error("Failed to durably store audit event", e);
-      throw e;
+      rabbitMqEventPublisher.publish(props, om.writeValueAsBytes(message));
+      log.infov("Audit event published to RabbitMQ: correlationId={0}", correlationId);
     } catch (Exception e) {
-      log.error("Failed to serialize audit event", e);
-      throw new AuditEventPersistenceException("Failed to serialize audit event", e);
+      log.errorv(
+          e,
+          "Audit event was not delivered to RabbitMQ: correlationId={0}, tenantId={1}, electionEventId={2}, messageType={3}, userId={4}, username={5}, body={6}",
+          correlationId,
+          tenantId,
+          electionEventId,
+          messageType,
+          userId,
+          username,
+          body);
     }
   }
 

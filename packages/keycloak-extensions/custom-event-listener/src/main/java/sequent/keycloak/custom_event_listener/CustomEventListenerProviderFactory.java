@@ -32,9 +32,7 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
   public void init(Scope config) {}
 
   @Override
-  public void postInit(KeycloakSessionFactory factory) {
-    rabbitMqEventPublisher.start(factory);
-  }
+  public void postInit(KeycloakSessionFactory factory) {}
 
   @Override
   public void close() {
