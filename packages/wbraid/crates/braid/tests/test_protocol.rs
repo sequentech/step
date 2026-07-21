@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Native-only: drives the tokio/rayon harnesses in `braid::native`.
+#![cfg(feature = "native")]
+
 use cryptography::context::RistrettoCtx;
 
 #[test]

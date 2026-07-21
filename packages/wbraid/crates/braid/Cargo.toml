@@ -110,9 +110,14 @@ async-trait = "0.1"
 tikv-jemallocator = {version = "0.6", optional = true }
 tikv-jemalloc-ctl = { version = "0.6", features = ["stats"], optional = true }
 
-[dev-dependencies]
+# Native-only dev-deps (criterion pulls rayon and refuses to build for wasm).
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = {version = "0.5", features=["html_reports"]}
 serial_test = "3.2"
+
+# wasm-only: the headless-browser test harness for the IndexedDB backend (M3).
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
