@@ -15,14 +15,21 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
                     <#if !usernameHidden??>
                         <#if matchAttributes?? && matchAttributes?has_content>
+                            <#if matchAttributes?filter(f -> f.type == "tel")?has_content>
+                                <#include "intl-tel-input.ftl">
+                            </#if>
                             <#list matchAttributes as field>
                                 <div class="${properties.kcFormGroupClass!}">
                                     <label for="${field.name}" class="${properties.kcLabelClass!}">${msg(field.name)}</label>
 
-                                    <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
-                                           <#if field?index == 0>autofocus</#if> autocomplete="off"
-                                           aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
-                                    />
+                                    <#if field.type == "tel">
+                                        <@renderIntlTelInput id=field.name name=field.name autofocus=(field?index == 0)/>
+                                    <#else>
+                                        <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
+                                               <#if field?index == 0>autofocus</#if> autocomplete="off"
+                                               aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                        />
+                                    </#if>
                                 </div>
                             </#list>
 
