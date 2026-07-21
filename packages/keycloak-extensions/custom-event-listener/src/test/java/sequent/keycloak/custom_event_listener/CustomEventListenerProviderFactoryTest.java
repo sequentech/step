@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import org.junit.jupiter.api.Test;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
 
 class CustomEventListenerProviderFactoryTest {
 
@@ -28,5 +29,16 @@ class CustomEventListenerProviderFactoryTest {
 
     factory.close();
     verify(publisher).close();
+  }
+
+  @Test
+  void startsTheOutboxWorkerAfterKeycloakInitialization() {
+    RabbitMqEventPublisher publisher = mock(RabbitMqEventPublisher.class);
+    CustomEventListenerProviderFactory factory = new CustomEventListenerProviderFactory(publisher);
+    KeycloakSessionFactory sessionFactory = mock(KeycloakSessionFactory.class);
+
+    factory.postInit(sessionFactory);
+
+    verify(publisher).start(sessionFactory);
   }
 }
