@@ -15,6 +15,11 @@
 //!
 //! The real bindings — `SessionTrustee`/`BoardClient` over a browser transport
 //! and IndexedDB persistence — land in M3-C.
+//!
+//! This module is gated on `wasm-core` (the base wasm build). The Web Worker
+//! thread pool (`initThreadPool`) is only present under the full `wasm` feature,
+//! which adds `wasm-bindgen-rayon`; `wasm-core` builds (e.g. tests) omit it so
+//! they need no atomics / SharedArrayBuffer.
 
 use wasm_bindgen::prelude::*;
 
@@ -27,4 +32,5 @@ pub fn wasm_init() {
 // Re-export wasm-bindgen-rayon's thread-pool initializer for browser glue: the
 // crypto/action layer's parallelism (rayon) runs on a Web Worker pool, which the
 // page must start once via `initThreadPool` before heavy compute.
+#[cfg(feature = "wasm")]
 pub use wasm_bindgen_rayon::init_thread_pool as initThreadPool;

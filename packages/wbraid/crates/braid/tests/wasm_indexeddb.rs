@@ -13,7 +13,7 @@
 //! IndexedDB I/O itself, so this focuses on the round-trip + idempotency of
 //! [`IndexedDbPersistence`].
 
-#![cfg(all(target_arch = "wasm32", feature = "wasm"))]
+#![cfg(all(target_arch = "wasm32", feature = "wasm-core"))]
 
 use wasm_bindgen_test::*;
 

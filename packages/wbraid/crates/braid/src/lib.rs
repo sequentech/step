@@ -14,5 +14,5 @@ pub mod util;
 // Platform-specific modules
 #[cfg(feature = "native")]
 pub mod native;
-#[cfg(feature = "wasm")]
+#[cfg(feature = "wasm-core")]
 pub mod wasm;

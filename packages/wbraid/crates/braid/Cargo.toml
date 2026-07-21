@@ -150,14 +150,19 @@ native = [
     "dep:chrono",
 ]
 
-# WASM build with HTTP bulletin board and SQLite WASM storage
+# Base wasm build: bindings, IndexedDB persistence, browser I/O. Deliberately
+# EXCLUDES `wasm-bindgen-rayon` (the crypto Web Worker thread pool) because it is
+# the only dependency that forces `+atomics` — which in turn forces a
+# shared-memory build and a multithreaded async executor. Tests build against
+# `wasm-core` so they run in a plain headless browser (no atomics, no
+# SharedArrayBuffer, no COOP/COEP, no build-std). The parallel crypto add-on
+# lives in the `wasm` feature below.
 wasm-core = [
     "dep:vsc",
     "dep:toml",
     "vsc/wasm",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
-    "dep:wasm-bindgen-rayon",
     "dep:js-sys",
     "dep:web-sys",
     "dep:rayon",
@@ -171,9 +176,10 @@ wasm-core = [
     "b4/wasm-core",
 ]
 
-# Cryptography backend options (strand features)
-# wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-wasm = ["wasm-core"]
+# Full browser build = wasm-core + the `wasm-bindgen-rayon` thread pool for
+# parallel crypto (requires the atomics + shared-memory toolchain; see
+# build-wasm.ps1). This is what real browser trustees ship with.
+wasm = ["wasm-core", "dep:wasm-bindgen-rayon"]
 
 # Memory profiling (native only)
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]

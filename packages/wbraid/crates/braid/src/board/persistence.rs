@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use crate::messages::predicate::Predicate;
 // Predicate (de)serialization for the durable backends (native SQLite / wasm
 // IndexedDB); unused by the in-memory `NoOpPersistence`.
-#[cfg(any(feature = "native", feature = "wasm"))]
+#[cfg(any(feature = "native", feature = "wasm-core"))]
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
 /// One persistence backend, two media (§6.2): SQLite (native, M2) / IndexedDB
@@ -119,16 +119,16 @@ impl Persistence for SqlitePersistence {
 ///
 /// The web-sys handles and `JsFuture`s are `!Send`, which is why the
 /// [`Persistence`] seam is `?Send` (spec Option B).
-#[cfg(feature = "wasm")]
+#[cfg(feature = "wasm-core")]
 pub struct IndexedDbPersistence {
     db: indexed_db_futures::prelude::IdbDatabase,
 }
 
 /// The single object store holding predicate bytes.
-#[cfg(feature = "wasm")]
+#[cfg(feature = "wasm-core")]
 const PREDICATE_STORE: &str = "predicates";
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "wasm-core")]
 impl IndexedDbPersistence {
     /// Open (creating if absent) the IndexedDB database `db_name`, ensuring the
     /// predicate object store exists.
@@ -159,7 +159,7 @@ impl IndexedDbPersistence {
     }
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "wasm-core")]
 #[async_trait(?Send)]
 impl Persistence for IndexedDbPersistence {
     async fn load(&self) -> Result<Vec<Predicate>> {
