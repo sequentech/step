@@ -186,10 +186,14 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               .headers(headers)
               .build();
 
-      rabbitMqEventPublisher.publish(props, om.writeValueAsBytes(message));
-      log.info("Message sent to RabbitMQ queue.");
+      rabbitMqEventPublisher.publish(session, props, om.writeValueAsBytes(message));
+      log.info("Audit event durably stored for asynchronous RabbitMQ delivery.");
+    } catch (AuditEventPersistenceException e) {
+      log.error("Failed to durably store audit event", e);
+      throw e;
     } catch (Exception e) {
-      log.error("Failed to send message to RabbitMQ queue", e);
+      log.error("Failed to serialize audit event", e);
+      throw new AuditEventPersistenceException("Failed to serialize audit event", e);
     }
   }
 
