@@ -10,9 +10,10 @@
 //! update-first + loop-back), and it is NOT a defense against b4 dropping a
 //! message (that is availability).
 //!
-//! The trait is async so the wasm IndexedDB backend (M3) fits the same shape as
-//! native SQLite (M2). M1 uses [`NoOpPersistence`]: nothing is persisted, and a
-//! restart therefore relies entirely on re-fetching from b4 (§6.3).
+//! The trait is async (and `?Send`, spec Option B) so the wasm IndexedDB backend
+//! (M3) — whose `JsFuture`s are `!Send` — fits the same shape as native SQLite
+//! (M2). M1 uses [`NoOpPersistence`]: nothing is persisted, and a restart
+//! therefore relies entirely on re-fetching from b4 (§6.3).
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -21,9 +22,11 @@ use crate::messages::predicate::Predicate;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
 /// One persistence backend, two media (§6.2): SQLite (native, M2) / IndexedDB
-/// (wasm, M3), with [`NoOpPersistence`] for M1.
-#[async_trait]
-pub trait Persistence: Send + Sync {
+/// (wasm, M3), with [`NoOpPersistence`] for M1. `?Send` (Option B) so the wasm
+/// backend's `!Send` futures fit; native parallelism bounds the concrete type
+/// with `+ Sync` at the rayon call site, not the trait.
+#[async_trait(?Send)]
+pub trait Persistence {
     /// Load the persisted predicate set on restart (§6.3). NoOp returns empty.
     async fn load(&self) -> Result<Vec<Predicate>>;
     /// Persist a predicate digest before its body is admitted to memory (§6.2).
@@ -33,7 +36,7 @@ pub trait Persistence: Send + Sync {
 /// No-op persistence (M1): nothing is persisted; restart loads nothing.
 pub struct NoOpPersistence;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Persistence for NoOpPersistence {
     async fn load(&self) -> Result<Vec<Predicate>> {
         Ok(Vec::new())
@@ -77,7 +80,7 @@ impl SqlitePersistence {
 }
 
 #[cfg(feature = "native")]
-#[async_trait]
+#[async_trait(?Send)]
 impl Persistence for SqlitePersistence {
     async fn load(&self) -> Result<Vec<Predicate>> {
         let conn = self.conn.lock().expect("predicate store mutex poisoned");

@@ -237,8 +237,12 @@ async fn drive<C, T, P>(
 ) -> Result<()>
 where
     C: Context,
-    T: Transport<C>,
-    P: Persistence,
+    // `Transport`/`Persistence` are `?Send` (Option B); the parallel step below
+    // shares `&BoardClient` across rayon threads, so the concrete transport and
+    // persistence must be `Sync` here (everything C-derived already is, via
+    // `Context: Send + Sync`).
+    T: Transport<C> + Sync,
+    P: Persistence + Sync,
 {
     for _ in 0..MAX_ROUNDS {
         for client in clients.iter_mut() {

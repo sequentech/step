@@ -162,7 +162,7 @@ impl HttpTransport {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl<C: Context> Transport<C> for HttpTransport {
     async fn fetch_configuration(&self) -> Result<WireMessage<C>> {
         for bytes in self.fetch_raw().await? {

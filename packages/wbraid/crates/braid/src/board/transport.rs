@@ -21,10 +21,16 @@ use cryptography::context::Context;
 use b4::messages::wire::{MessageType, WireMessage};
 
 /// b4 transport: fetch the board's Configuration + protocol messages, post new
-/// ones. Send + Sync so a board client can be driven from async tasks / used
-/// across the harness's parallel step.
-#[async_trait]
-pub trait Transport<C: Context>: Send + Sync {
+/// ones.
+///
+/// `?Send` (spec Option B): the browser/wasm backends (M3) produce `!Send`
+/// futures (web-sys `JsFuture`, `JsValue`), so the seam is deliberately
+/// single-thread-friendly and carries no `Send`/`Sync` bound. Native
+/// cross-trustee parallelism is a *harness* concern: the rayon step bounds the
+/// concrete transport/persistence types with `+ Sync` where it needs them, not
+/// the trait. The async I/O runs on a current-thread runtime.
+#[async_trait(?Send)]
+pub trait Transport<C: Context> {
     /// The board's `Configuration` message (consumed once at construction, §9.8).
     async fn fetch_configuration(&self) -> Result<WireMessage<C>>;
     /// All protocol (non-`Configuration`) messages currently on the board.
@@ -86,7 +92,7 @@ impl<C: Context> Clone for MemoryTransport<C> {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl<C: Context> Transport<C> for MemoryTransport<C> {
     async fn fetch_configuration(&self) -> Result<WireMessage<C>> {
         self.board
