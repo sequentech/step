@@ -144,42 +144,51 @@ SPDX-License-Identifier: AGPL-3.0-only
     });
 
     // --- interactive ---
-    function setIntButtons({ created }) {
-      stepOneBtn.disabled = !created;
-      stepFixBtn.disabled = !created;
-      postBtn.disabled = !created;
-      verifyBtn.disabled = !created;
+    // Disable all interactive controls while an async op is running so the page
+    // never re-enters the emulator mid-await.
+    function setControls({ busy }) {
+      createBtn.disabled = busy;
+      const canRun = !!emu && !busy;
+      stepOneBtn.disabled = !canRun;
+      stepFixBtn.disabled = !canRun;
+      postBtn.disabled = !canRun;
+      verifyBtn.disabled = !canRun;
     }
 
     createBtn.addEventListener("click", async () => {
       const p = params();
+      setControls({ busy: true });
       intStatus.className = "status";
-      intStatus.textContent = "Creating committee…";
+      intStatus.textContent = "Creating committee (opening per-trustee IndexedDB stores)…";
       intLog.textContent = "";
       stateView.innerHTML = "";
       try {
         emu = await wasm.Emulator.create(p.trustees, p.threshold, p.ciphertexts, p.width);
-        setIntButtons({ created: true });
         intStatus.textContent = `Committee created (${p.trustees} trustees, threshold ${p.threshold}). Step to run the DKG.`;
         renderState(emu.state());
         ilog(`created: ${p.trustees} trustees, threshold ${p.threshold}, ${p.ciphertexts} ciphertexts, width ${p.width}`);
       } catch (err) {
         intStatus.textContent = "Error: " + err;
         intStatus.className = "status fail";
+      } finally {
+        setControls({ busy: false });
       }
     });
 
     stepOneBtn.addEventListener("click", async () => {
       if (!emu) return;
+      setControls({ busy: true });
       try {
         const r = await emu.step();
         ilog(`round ${r.round} [${r.phase}]: ${r.advanced ? "advanced" : "no change (fixpoint)"}, board=${r.board_messages}`);
         renderState(emu.state());
       } catch (err) { ilog("step error: " + err); }
+      finally { setControls({ busy: false }); }
     });
 
     stepFixBtn.addEventListener("click", async () => {
       if (!emu) return;
+      setControls({ busy: true });
       try {
         let last = null, guard = 0;
         while (guard++ < 500) {
@@ -191,6 +200,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         if (last) ilog(`reached fixpoint at round ${last.round} [${last.phase}], board=${last.board_messages}`);
         renderState(emu.state());
       } catch (err) { ilog("step error: " + err); }
+      finally { setControls({ busy: false }); }
     });
 
     postBtn.addEventListener("click", () => {

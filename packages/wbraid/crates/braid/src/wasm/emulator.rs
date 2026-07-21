@@ -40,7 +40,7 @@ use b4::messages::newtypes::{ConfigurationHash, PublicKeyHash, Timestamp, Truste
 use b4::messages::protocol_manager::ProtocolManager;
 use b4::messages::wire::{MessageType, WireMessage};
 
-use crate::board::persistence::NoOpPersistence;
+use crate::board::persistence::{IndexedDbPersistence, NoOpPersistence, Persistence};
 use crate::board::transport::{MemoryBoard, MemoryTransport};
 use crate::board::BoardClient;
 use crate::runtime::SessionTrustee;
@@ -55,8 +55,9 @@ const MAX_ROUNDS: usize = 200;
 /// The maximum committee size the dispatch macros monomorphize for.
 const MAX_TRUSTEES: usize = 8;
 
-/// A concrete emulator session (in-memory board, no persistence).
-type EmuSession = Session<RistrettoCtx, MemoryTransport<RistrettoCtx>, NoOpPersistence>;
+/// A concrete emulator session: in-memory board, IndexedDB-backed persistence
+/// (each trustee gets its own browser store).
+type EmuSession = Session<RistrettoCtx, MemoryTransport<RistrettoCtx>, IndexedDbPersistence>;
 
 ///////////////////////////////////////////////////////////////////////////
 // Shared setup / driver helpers (generic over the context to avoid the
@@ -64,20 +65,29 @@ type EmuSession = Session<RistrettoCtx, MemoryTransport<RistrettoCtx>, NoOpPersi
 ///////////////////////////////////////////////////////////////////////////
 
 /// The pieces produced by [`build_sessions`].
-struct Setup<C: Context> {
+struct Setup<C: Context, P: Persistence> {
     board: Arc<MemoryBoard<C>>,
     pm: ProtocolManager<C>,
     cfg_hash: ConfigurationHash,
-    sessions: Vec<Session<C, MemoryTransport<C>, NoOpPersistence>>,
+    sessions: Vec<Session<C, MemoryTransport<C>, P>>,
 }
 
 /// Generate key material + configuration, seed a shared board with the
-/// `Configuration`, and connect one session per trustee.
-async fn build_sessions<C: Context>(
+/// `Configuration`, and connect one session per trustee. `persistences` supplies
+/// one backend per trustee (length must equal `n_trustees`).
+async fn build_sessions<C: Context, P: Persistence>(
     n_trustees: usize,
     n_threshold: usize,
     width: usize,
-) -> Result<Setup<C>> {
+    persistences: Vec<P>,
+) -> Result<Setup<C, P>> {
+    if persistences.len() != n_trustees {
+        return Err(anyhow!(
+            "expected {} persistence backends, got {}",
+            n_trustees,
+            persistences.len()
+        ));
+    }
     let mut key_rng = C::get_rng();
     let pm = ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut key_rng));
 
@@ -110,9 +120,14 @@ async fn build_sessions<C: Context>(
     board.push(cfg_message);
 
     let mut sessions = Vec::with_capacity(n_trustees);
-    for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
+    for (i, ((signing_key, keypair), persistence)) in signing_keys
+        .into_iter()
+        .zip(share_keypairs)
+        .zip(persistences)
+        .enumerate()
+    {
         let transport = MemoryTransport::new(board.clone());
-        let client = BoardClient::connect(transport, NoOpPersistence).await?;
+        let client = BoardClient::connect(transport, persistence).await?;
         let trustee = SessionTrustee::new(
             (i + 1).to_string(),
             signing_key,
@@ -132,8 +147,8 @@ async fn build_sessions<C: Context>(
 
 /// One update-first round across all sessions (§6). Returns whether any trustee
 /// produced a message.
-async fn advance_round<C: Context>(
-    sessions: &mut [Session<C, MemoryTransport<C>, NoOpPersistence>],
+async fn advance_round<C: Context, P: Persistence>(
+    sessions: &mut [Session<C, MemoryTransport<C>, P>],
 ) -> Result<bool> {
     let mut produced_any = false;
     for session in sessions.iter_mut() {
@@ -145,8 +160,8 @@ async fn advance_round<C: Context>(
 }
 
 /// Drive to a fixpoint; returns the number of rounds taken.
-async fn drive_to_fixpoint<C: Context>(
-    sessions: &mut [Session<C, MemoryTransport<C>, NoOpPersistence>],
+async fn drive_to_fixpoint<C: Context, P: Persistence>(
+    sessions: &mut [Session<C, MemoryTransport<C>, P>],
 ) -> Result<usize> {
     for round in 0..MAX_ROUNDS {
         if !advance_round(sessions).await? {
@@ -280,12 +295,14 @@ async fn run_inner<C: Context, const W: usize>(
     n_threshold: usize,
     ciphertexts: u32,
 ) -> Result<EmulatorResult> {
+    // The one-shot run does not persist; a fresh NoOp backend per trustee.
+    let persistences: Vec<NoOpPersistence> = (0..n_trustees).map(|_| NoOpPersistence).collect();
     let Setup {
         board,
         pm,
         cfg_hash,
         mut sessions,
-    } = build_sessions::<C>(n_trustees, n_threshold, W).await?;
+    } = build_sessions::<C, NoOpPersistence>(n_trustees, n_threshold, W, persistences).await?;
 
     let dkg_rounds = drive_to_fixpoint(&mut sessions).await?;
 
@@ -401,9 +418,27 @@ impl Emulator {
     ) -> Result<Emulator, JsValue> {
         validate_params(trustees, threshold, width).map_err(|e| JsValue::from_str(&e))?;
 
-        let setup = build_sessions::<RistrettoCtx>(trustees, threshold, width)
-            .await
-            .map_err(|e| JsValue::from_str(&format!("{e:#}")))?;
+        // Each trustee gets its own IndexedDB store. A fresh, uniquely-named DB
+        // per `create` keeps repeated runs isolated (the anti-rewrite demo will
+        // later reuse names to simulate a restart).
+        let run_id = js_sys::Date::now() as u64;
+        let mut persistences = Vec::with_capacity(trustees);
+        for i in 0..trustees {
+            let name = format!("braid_emu_{run_id}_trustee_{i}");
+            let persistence = IndexedDbPersistence::open(&name)
+                .await
+                .map_err(|e| JsValue::from_str(&format!("failed to open IndexedDB: {e:#}")))?;
+            persistences.push(persistence);
+        }
+
+        let setup = build_sessions::<RistrettoCtx, IndexedDbPersistence>(
+            trustees,
+            threshold,
+            width,
+            persistences,
+        )
+        .await
+        .map_err(|e| JsValue::from_str(&format!("{e:#}")))?;
 
         Ok(Emulator {
             board: setup.board,
@@ -424,8 +459,15 @@ impl Emulator {
     /// Advance every trustee one update-first round. Returns whether the round
     /// produced anything (false ⇒ this phase has reached its fixpoint).
     pub async fn step(&self) -> Result<JsValue, JsValue> {
+        // `persist()` (IndexedDB) does real async I/O, so this borrow is held
+        // across an await. The driving page steps sequentially and disables its
+        // controls while a step runs; `try_borrow_mut` turns any accidental
+        // re-entrancy into a clean error instead of a panic.
         let advanced = {
-            let mut inner = self.inner.borrow_mut();
+            let mut inner = self
+                .inner
+                .try_borrow_mut()
+                .map_err(|_| JsValue::from_str("emulator is busy (a step is already running)"))?;
             let advanced = advance_round(&mut inner.sessions)
                 .await
                 .map_err(|e| JsValue::from_str(&format!("{e:#}")))?;
