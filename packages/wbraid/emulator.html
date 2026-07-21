@@ -181,13 +181,14 @@ SPDX-License-Identifier: AGPL-3.0-only
     stepFixBtn.addEventListener("click", async () => {
       if (!emu) return;
       try {
-        let advanced = true, guard = 0;
-        while (advanced && guard++ < 500) {
+        let last = null, guard = 0;
+        while (guard++ < 500) {
           const r = await emu.step();
-          advanced = r.advanced;
-          if (advanced) ilog(`round ${r.round} [${r.phase}]: advanced, board=${r.board_messages}`);
+          last = r;
+          if (!r.advanced) break;
+          ilog(`round ${r.round} [${r.phase}]: advanced, board=${r.board_messages}`);
         }
-        ilog(`reached fixpoint after round ${guard}`);
+        if (last) ilog(`reached fixpoint at round ${last.round} [${last.phase}], board=${last.board_messages}`);
         renderState(emu.state());
       } catch (err) { ilog("step error: " + err); }
     });
