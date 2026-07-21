@@ -14,20 +14,39 @@ SPDX-License-Identifier: AGPL-3.0-only
             <#if realm.password>
                 <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
                     <#if !usernameHidden??>
-                        <div class="${properties.kcFormGroupClass!}">
-                            <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
+                        <#if matchAttributes?? && matchAttributes?has_content>
+                            <#list matchAttributes as field>
+                                <div class="${properties.kcFormGroupClass!}">
+                                    <label for="${field.name}" class="${properties.kcLabelClass!}">${msg(field.name)}</label>
 
-                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="off"
-                                   aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
-                            />
+                                    <input tabindex="1" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
+                                           <#if field?index == 0>autofocus</#if> autocomplete="off"
+                                           aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                    />
+                                </div>
+                            </#list>
 
                             <#if messagesPerField.existsError('username','password')>
                                 <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
                                         ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
                                 </span>
                             </#if>
+                        <#else>
+                            <div class="${properties.kcFormGroupClass!}">
+                                <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
-                        </div>
+                                <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="off"
+                                       aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                />
+
+                                <#if messagesPerField.existsError('username','password')>
+                                    <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                            ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
+                                    </span>
+                                </#if>
+
+                            </div>
+                        </#if>
                     </#if>
 
                     <div class="${properties.kcFormGroupClass!}">

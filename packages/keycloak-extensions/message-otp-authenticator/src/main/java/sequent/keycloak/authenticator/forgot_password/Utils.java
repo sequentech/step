@@ -38,6 +38,8 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
 
 @UtilityClass
@@ -46,6 +48,8 @@ public class Utils {
   public static final String USERNAME_ATTRIBUTES = "usernameAttributes";
   public static final List<String> USERNAME_ATTRIBUTES_DEFAULT =
       Collections.unmodifiableList(Arrays.asList("username"));
+  public static final String MATCH_ATTRIBUTES = "matchAttributes";
+  public static final List<String> MATCH_ATTRIBUTES_DEFAULT = Collections.emptyList();
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
   public final String HIDE_USER_NOT_FOUND = "hideUserNotFound";
@@ -170,6 +174,33 @@ public class Utils {
         config,
         Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE,
         Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT);
+  }
+
+  /**
+   * Looks up the HTML5 input type ({@code date}, {@code email}, ...) that the realm's User Profile
+   * configuration declares for {@code attributeName} via its {@code inputType} annotation (e.g.
+   * {@code html5-date}), the same source registration/profile forms (user-profile-commons.ftl)
+   * already render from. Falls back to {@code text} when the attribute has no User Profile entry,
+   * or its declared input type isn't an {@code html5-*} one (e.g. {@code select}, {@code textarea}
+   * - not meaningful for a single login lookup field).
+   */
+  public String resolveHtml5InputType(KeycloakSession session, String attributeName) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    List<UPAttribute> attributes = userProfileProvider.getConfiguration().getAttributes();
+    if (attributes == null) {
+      return "text";
+    }
+    Object inputType =
+        attributes.stream()
+            .filter(attribute -> attributeName.equals(attribute.getName()))
+            .findFirst()
+            .map(UPAttribute::getAnnotations)
+            .map(annotations -> annotations.get("inputType"))
+            .orElse(null);
+    if (!(inputType instanceof String) || !((String) inputType).startsWith("html5-")) {
+      return "text";
+    }
+    return ((String) inputType).substring("html5-".length());
   }
 
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
