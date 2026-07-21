@@ -134,6 +134,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
+    const defaultLanguageCode =
+        election.presentation?.language_conf?.default_language_code ??
+        electionEvent?.presentation?.language_conf?.default_language_code
     const electionStatus = election?.status as IElectionStatus | null
     const isVotingOpen = () => {
         let isOnlineVotingOpen: boolean =
@@ -221,7 +224,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
-            title={translateFromPresentation(election, "name", i18n.language) || "-"}
+            title={
+                translateFromPresentation(election, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) || "-"
+            }
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
@@ -271,6 +278,8 @@ const ElectionSelectionScreen: React.FC = () => {
         useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const eventDefaultLanguageCode =
+        electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     useUpdateTranslation({electionEvent}, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -425,7 +434,12 @@ const ElectionSelectionScreen: React.FC = () => {
                             ? translateFromPresentation(
                                   election.presentation,
                                   "alias",
-                                  i18n.language
+                                  i18n.language,
+                                  {
+                                      defaultLanguageCode:
+                                          election.presentation.language_conf
+                                              ?.default_language_code ?? eventDefaultLanguageCode,
+                                  }
                               )
                             : undefined,
                     })
@@ -434,7 +448,11 @@ const ElectionSelectionScreen: React.FC = () => {
 
             let foundTestElection = dataElections.sequent_backend_election.find((election) => {
                 const name = election.presentation
-                    ? translateFromPresentation(election.presentation, "name", i18n.language)
+                    ? translateFromPresentation(election.presentation, "name", i18n.language, {
+                          defaultLanguageCode:
+                              election.presentation.language_conf?.default_language_code ??
+                              eventDefaultLanguageCode,
+                      })
                     : undefined
                 return name?.includes("TEST") ?? false
             })
@@ -445,7 +463,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
             setTestElectionId(foundTestElection?.id || null)
         }
-    }, [dataElections, dispatch, i18n.language])
+    }, [dataElections, dispatch, eventDefaultLanguageCode, i18n.language])
 
     useEffect(() => {
         if (!testElectionId) {
