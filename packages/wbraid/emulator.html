@@ -9,18 +9,22 @@ SPDX-License-Identifier: AGPL-3.0-only
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>braid v0.6 — in-browser mixnet emulator</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    body { font-family: system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; }
     h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; }
     .subtitle { color: #666; margin-top: -0.5rem; }
     fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 1rem 0; }
     label { display: inline-block; margin: 0.25rem 0.75rem 0.25rem 0; }
     input { width: 5rem; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+    button { padding: 0.4rem 0.9rem; font-size: 0.95rem; cursor: pointer; margin: 0.15rem; }
     button:disabled { opacity: 0.5; cursor: default; }
-    #status { font-weight: bold; margin: 1rem 0; }
+    .status { font-weight: bold; margin: 0.75rem 0; }
     .ok { color: #137333; }
     .fail { color: #b3261e; }
-    pre { background: #f5f5f5; border-radius: 6px; padding: 1rem; overflow-x: auto; white-space: pre-wrap; }
+    pre { background: #f5f5f5; border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; max-height: 20rem; }
+    table { border-collapse: collapse; margin: 0.5rem 0; }
+    td, th { border: 1px solid #ddd; padding: 0.2rem 0.6rem; text-align: right; font-variant-numeric: tabular-nums; }
+    th { text-align: left; background: #f5f5f5; }
   </style>
 </head>
 <body>
@@ -41,63 +45,172 @@ SPDX-License-Identifier: AGPL-3.0-only
     <label>Width <input id="width" type="number" min="1" max="8" value="2" /></label>
   </fieldset>
 
-  <button id="run" disabled>Run</button>
-  <p id="status">Loading wasm…</p>
-  <pre id="output"></pre>
+  <h2>One-shot run</h2>
+  <button id="run" disabled>Run whole protocol</button>
+  <p id="runStatus" class="status">Loading wasm…</p>
+  <pre id="runOutput"></pre>
+
+  <h2>Interactive</h2>
+  <div>
+    <button id="create" disabled>Create committee</button>
+    <button id="stepOne" disabled>Step once</button>
+    <button id="stepFix" disabled>Step to fixpoint</button>
+    <button id="postBallots" disabled>Post ballots</button>
+    <button id="verify" disabled>Verify</button>
+  </div>
+  <p id="intStatus" class="status"></p>
+  <div id="stateView"></div>
+  <pre id="intLog"></pre>
 
   <script type="module">
-    const statusEl = document.getElementById("status");
-    const outputEl = document.getElementById("output");
+    const runStatus = document.getElementById("runStatus");
+    const runOutput = document.getElementById("runOutput");
     const runBtn = document.getElementById("run");
 
-    function log(msg) {
-      outputEl.textContent += msg + "\n";
+    const intStatus = document.getElementById("intStatus");
+    const intLog = document.getElementById("intLog");
+    const stateView = document.getElementById("stateView");
+    const createBtn = document.getElementById("create");
+    const stepOneBtn = document.getElementById("stepOne");
+    const stepFixBtn = document.getElementById("stepFix");
+    const postBtn = document.getElementById("postBallots");
+    const verifyBtn = document.getElementById("verify");
+
+    function params() {
+      return {
+        trustees: Number(document.getElementById("trustees").value),
+        threshold: Number(document.getElementById("threshold").value),
+        ciphertexts: Number(document.getElementById("ciphertexts").value),
+        width: Number(document.getElementById("width").value),
+      };
+    }
+    function ilog(msg) { intLog.textContent += msg + "\n"; }
+
+    function renderState(s) {
+      stateView.innerHTML = `
+        <table>
+          <tr><th>phase</th><td>${s.phase}</td></tr>
+          <tr><th>round</th><td>${s.round}</td></tr>
+          <tr><th>Configuration</th><td>${s.configuration}</td></tr>
+          <tr><th>Shares</th><td>${s.shares}</td></tr>
+          <tr><th>PublicKey</th><td>${s.public_key}</td></tr>
+          <tr><th>Ballots</th><td>${s.ballots}</td></tr>
+          <tr><th>Mix</th><td>${s.mix}</td></tr>
+          <tr><th>MixSignature</th><td>${s.mix_signature}</td></tr>
+          <tr><th>PartialDecryptions</th><td>${s.partial_decryptions}</td></tr>
+          <tr><th>Plaintexts</th><td>${s.plaintexts}</td></tr>
+        </table>`;
     }
 
-    let run_in_memory;
+    let wasm;
+    let emu = null;
+
     try {
       const timestamp = new Date().getTime();
-      const mod = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
-      await mod.default({}); // init (runs the panic-hook start fn)
-      // The production wasm build ships the Web Worker thread pool for parallel
-      // crypto; start it once before running.
-      if (mod.initThreadPool) {
-        await mod.initThreadPool(navigator.hardwareConcurrency || 4);
+      wasm = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
+      await wasm.default({}); // init (runs the panic-hook start fn)
+      if (wasm.initThreadPool) {
+        await wasm.initThreadPool(navigator.hardwareConcurrency || 4);
       }
-      run_in_memory = mod.run_in_memory;
-      statusEl.textContent = "Ready.";
+      runStatus.textContent = "Ready.";
       runBtn.disabled = false;
+      createBtn.disabled = false;
     } catch (err) {
-      statusEl.textContent = "Failed to load wasm: " + err;
-      statusEl.className = "fail";
+      runStatus.textContent = "Failed to load wasm: " + err;
+      runStatus.className = "status fail";
       throw err;
     }
 
+    // --- one-shot ---
     runBtn.addEventListener("click", async () => {
-      const trustees = Number(document.getElementById("trustees").value);
-      const threshold = Number(document.getElementById("threshold").value);
-      const ciphertexts = Number(document.getElementById("ciphertexts").value);
-      const width = Number(document.getElementById("width").value);
-
+      const p = params();
       runBtn.disabled = true;
-      statusEl.className = "";
-      statusEl.textContent = "Running…";
-      outputEl.textContent = "";
+      runStatus.className = "status";
+      runStatus.textContent = "Running…";
+      runOutput.textContent = "";
       const started = performance.now();
       try {
-        const result = await run_in_memory(trustees, threshold, ciphertexts, width);
+        const result = await wasm.run_in_memory(p.trustees, p.threshold, p.ciphertexts, p.width);
         const secs = ((performance.now() - started) / 1000).toFixed(2);
-        log(JSON.stringify(result, null, 2));
-        log("");
-        log(`elapsed: ${secs}s`);
-        statusEl.textContent = result.success ? "PASS — plaintexts match" : "FAIL — mismatch";
-        statusEl.className = result.success ? "ok" : "fail";
+        runOutput.textContent = JSON.stringify(result, null, 2) + `\n\nelapsed: ${secs}s`;
+        runStatus.textContent = result.success ? "PASS — plaintexts match" : "FAIL — mismatch";
+        runStatus.className = result.success ? "status ok" : "status fail";
       } catch (err) {
-        statusEl.textContent = "Error: " + err;
-        statusEl.className = "fail";
-        log(String(err));
+        runStatus.textContent = "Error: " + err;
+        runStatus.className = "status fail";
       } finally {
         runBtn.disabled = false;
+      }
+    });
+
+    // --- interactive ---
+    function setIntButtons({ created }) {
+      stepOneBtn.disabled = !created;
+      stepFixBtn.disabled = !created;
+      postBtn.disabled = !created;
+      verifyBtn.disabled = !created;
+    }
+
+    createBtn.addEventListener("click", async () => {
+      const p = params();
+      intStatus.className = "status";
+      intStatus.textContent = "Creating committee…";
+      intLog.textContent = "";
+      stateView.innerHTML = "";
+      try {
+        emu = await wasm.Emulator.create(p.trustees, p.threshold, p.ciphertexts, p.width);
+        setIntButtons({ created: true });
+        intStatus.textContent = `Committee created (${p.trustees} trustees, threshold ${p.threshold}). Step to run the DKG.`;
+        renderState(emu.state());
+        ilog(`created: ${p.trustees} trustees, threshold ${p.threshold}, ${p.ciphertexts} ciphertexts, width ${p.width}`);
+      } catch (err) {
+        intStatus.textContent = "Error: " + err;
+        intStatus.className = "status fail";
+      }
+    });
+
+    stepOneBtn.addEventListener("click", async () => {
+      if (!emu) return;
+      try {
+        const r = await emu.step();
+        ilog(`round ${r.round} [${r.phase}]: ${r.advanced ? "advanced" : "no change (fixpoint)"}, board=${r.board_messages}`);
+        renderState(emu.state());
+      } catch (err) { ilog("step error: " + err); }
+    });
+
+    stepFixBtn.addEventListener("click", async () => {
+      if (!emu) return;
+      try {
+        let advanced = true, guard = 0;
+        while (advanced && guard++ < 500) {
+          const r = await emu.step();
+          advanced = r.advanced;
+          if (advanced) ilog(`round ${r.round} [${r.phase}]: advanced, board=${r.board_messages}`);
+        }
+        ilog(`reached fixpoint after round ${guard}`);
+        renderState(emu.state());
+      } catch (err) { ilog("step error: " + err); }
+    });
+
+    postBtn.addEventListener("click", () => {
+      if (!emu) return;
+      try {
+        const s = emu.post_ballots();
+        ilog("posted ballots; entering tally phase");
+        renderState(s);
+      } catch (err) { ilog("post_ballots error: " + err); }
+    });
+
+    verifyBtn.addEventListener("click", () => {
+      if (!emu) return;
+      try {
+        const v = emu.verify();
+        ilog(`verify: expected=${v.expected}, actual=${v.actual}, success=${v.success}`);
+        intStatus.textContent = v.success ? "PASS — plaintexts match" : "FAIL — mismatch";
+        intStatus.className = v.success ? "status ok" : "status fail";
+      } catch (err) {
+        intStatus.textContent = "verify error: " + err;
+        intStatus.className = "status fail";
       }
     });
   </script>
