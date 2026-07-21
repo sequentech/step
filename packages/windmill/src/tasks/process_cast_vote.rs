@@ -95,8 +95,7 @@ async fn process_locked_cast_vote(
     cast_vote_id: &Uuid,
     lock: &PgLock,
 ) -> Result<()> {
-    let Some(cast_vote) = load_cast_vote(tenant_id, election_event_id, cast_vote_id).await?
-    else {
+    let Some(cast_vote) = load_cast_vote(tenant_id, election_event_id, cast_vote_id).await? else {
         return Ok(());
     };
     if cast_vote.status != CastVoteStatus::InProgress {

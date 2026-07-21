@@ -224,12 +224,16 @@ fn operation_namespace(body: &str, request: SoapRequest) -> Result<String> {
     let document = Document::parse(body).context("Rendered VoterView template is not valid XML")?;
     let body_element = soap_body(&document)?;
     let operation = exactly_one_child(body_element, request.operation_name(), None)?;
-    operation.tag_name().namespace().map(str::to_string).ok_or_else(|| {
-        anyhow!(
-            "Rendered VoterView template's {} element has no namespace",
-            request.operation_name()
-        )
-    })
+    operation
+        .tag_name()
+        .namespace()
+        .map(str::to_string)
+        .ok_or_else(|| {
+            anyhow!(
+                "Rendered VoterView template's {} element has no namespace",
+                request.operation_name()
+            )
+        })
 }
 
 /// Collapses whitespace, strips trailing punctuation and lowercases, so a known
@@ -483,8 +487,13 @@ mod tests {
             TEST_NAMESPACE,
         );
         assert_eq!(
-            parse_response(StatusCode::OK, &already_voted, SoapRequest::SetVoted, TEST_NAMESPACE)
-                .unwrap(),
+            parse_response(
+                StatusCode::OK,
+                &already_voted,
+                SoapRequest::SetVoted,
+                TEST_NAMESPACE
+            )
+            .unwrap(),
             SoapRequestResponse::AlreadyVoted
         );
 
@@ -507,19 +516,25 @@ mod tests {
 
     #[test]
     fn rejects_malformed_or_ambiguous_success_elements() {
-        assert!(
-            parse_response(StatusCode::OK, "not xml", SoapRequest::SetVoted, TEST_NAMESPACE)
-                .is_err()
-        );
+        assert!(parse_response(
+            StatusCode::OK,
+            "not xml",
+            SoapRequest::SetVoted,
+            TEST_NAMESPACE
+        )
+        .is_err());
         let duplicate = response(
             "<v:Success>true</v:Success><v:Success>true</v:Success>",
             "SetVoted",
             TEST_NAMESPACE,
         );
-        assert!(
-            parse_response(StatusCode::OK, &duplicate, SoapRequest::SetVoted, TEST_NAMESPACE)
-                .is_err()
-        );
+        assert!(parse_response(
+            StatusCode::OK,
+            &duplicate,
+            SoapRequest::SetVoted,
+            TEST_NAMESPACE
+        )
+        .is_err());
     }
 
     #[test]
