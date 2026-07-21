@@ -19,6 +19,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::messages::predicate::Predicate;
+// Used by the native SQLite backend (predicate (de)serialization); the wasm
+// IndexedDB backend (M3-B) will need it too.
+#[cfg(feature = "native")]
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
 /// One persistence backend, two media (§6.2): SQLite (native, M2) / IndexedDB
