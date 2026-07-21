@@ -22,6 +22,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>ivr-config-provider</module>
         <module>dummy-email-sender-provider</module>
         <module>voter-enrollment</module>
+        <module>action-token-login-bridge</module>
         <module>message-otp-authenticator</module>
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
@@ -29,6 +30,20 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>url-truststore-provider</module>
         <module>idp-linking-authenticator</module>
     </modules>
+
+	<profiles>
+		<profile>
+			<id>beyond-keycloak-extensions</id>
+			<activation>
+				<file>
+					<exists>../../beyond/packages/keycloak-extensions/pom.xml</exists>
+				</file>
+			</activation>
+			<modules>
+				<module>../../beyond/packages/keycloak-extensions</module>
+			</modules>
+		</profile>
+	</profiles>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -148,9 +163,10 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>aws-ses-email-sender-provider/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
                 <include>ivr-config-provider/pom.xml</include>
-				<include>dummy-email-sender-provider/pom.xml</include>
-				<include>voter-enrollment/pom.xml</include>
-				<include>message-otp-authenticator/pom.xml</include>
+                <include>dummy-email-sender-provider/pom.xml</include>
+                <include>voter-enrollment/pom.xml</include>
+                <include>action-token-login-bridge/pom.xml</include>
+                <include>message-otp-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
@@ -165,9 +181,10 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>aws-ses-email-sender-provider/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
                 <include>ivr-config-provider/pom.xml</include>
-				<include>dummy-email-sender-provider/pom.xml</include>
-				<include>voter-enrollment/pom.xml</include>
-				<include>message-otp-authenticator/pom.xml</include>
+                <include>dummy-email-sender-provider/pom.xml</include>
+                <include>voter-enrollment/pom.xml</include>
+                <include>action-token-login-bridge/pom.xml</include>
+                <include>message-otp-authenticator/pom.xml</include>
               </includes>
               <goals>
                 <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>

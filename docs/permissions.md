@@ -28,6 +28,7 @@ CRUD endpoints for:
 
 - tenant-create|read|write
 - election-event-create|read|write|delete|archive
+- keycloak-realm-attributes-read|write
 - election-create|read|write|delete
 - voter-create|read|write
 - user-create|read|write
