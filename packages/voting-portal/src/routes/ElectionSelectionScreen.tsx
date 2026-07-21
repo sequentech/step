@@ -90,6 +90,47 @@ const ElectionContainer = styled(Box)`
     margin-bottom: 30px;
 `
 
+const TitleSection = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    min-height: 100px;
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        min-height: unset;
+        padding: 24px 0;
+    }
+`
+
+const PageActions = styled(Box)`
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 16px;
+
+    .election-event-results-button {
+        min-width: 150px;
+        padding: 10px 24px;
+        justify-content: center;
+        font-weight: 500;
+        line-height: 24px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        width: 100%;
+
+        > .MuiButton-root {
+            flex: 1;
+        }
+    }
+`
+
 interface ElectionWrapperProps {
     electionId: string
     bypassChooser: boolean
@@ -584,17 +625,8 @@ const ElectionSelectionScreen: React.FC = () => {
                 <Stepper selected={0} />
             </Box>
 
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    minHeight: "100px",
-                }}
-                className="title-section"
-            >
-                <Box sx={{width: "100%"}}>
+            <TitleSection className="title-section">
+                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
                     <StyledTitle variant="h1">
                         <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
@@ -624,9 +656,11 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Typography>
                     )}
                 </Box>
-                <Box sx={{display: "flex", gap: 2, alignItems: "center"}}>
+                <PageActions className="election-event-actions">
                     {eventResultsUrl ? (
                         <Button
+                            className="results-button election-event-results-button"
+                            variant="secondary"
                             component="a"
                             href={eventResultsUrl}
                             target="_blank"
@@ -640,8 +674,8 @@ const ElectionSelectionScreen: React.FC = () => {
                             {t("materials.common.label")}
                         </Button>
                     ) : null}
-                </Box>
-            </Box>
+                </PageActions>
+            </TitleSection>
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
