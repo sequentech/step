@@ -8,12 +8,6 @@ import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,110 +26,20 @@ import org.keycloak.models.KeycloakSession;
 public class CustomEventListenerProvider implements EventListenerProvider {
 
   private final KeycloakSession session;
+  private final RabbitMqEventPublisher rabbitMqEventPublisher;
 
   // Environment variables (read once for performance)
-  private static final String AMQP_URI = System.getenv("AMQP_ADDR");
   private static final String TASK_NAME =
       Optional.ofNullable(System.getenv("ELECTORAL_LOG_TASK"))
           .orElse("enqueue_electoral_log_event")
           .trim();
-  private static final String QUEUE_NAME;
 
-  static {
-    final String envSlug = System.getenv("ENV_SLUG");
-    final String baseQueueName =
-        Optional.ofNullable(System.getenv("ELECTORAL_LOG_QUEUE"))
-            .orElse("electoral_log_event_queue")
-            .trim();
-    if (envSlug != null && !envSlug.trim().isEmpty()) {
-      QUEUE_NAME = envSlug.trim() + "_" + baseQueueName;
-    } else {
-      QUEUE_NAME = baseQueueName;
-    }
-  }
+  private final ObjectMapper om = new ObjectMapper();
 
-  // RabbitMQ connection fields
-  private Connection rabbitConnection;
-  private Channel rabbitChannel;
-  private ConnectionFactory rabbitFactory;
-
-  private ObjectMapper om = new ObjectMapper();
-
-  public CustomEventListenerProvider(KeycloakSession session) {
+  CustomEventListenerProvider(
+      KeycloakSession session, RabbitMqEventPublisher rabbitMqEventPublisher) {
     this.session = session;
-    initializeRabbitMQConnection();
-  }
-
-  /**
-   * Parses a raw AMQP URI string and returns a new URI string with the user info (user and
-   * password) percent-encoded.
-   *
-   * @param rawAmqpUri The raw AMQP URI from environment variables.
-   * @return A URI string safe to be used with ConnectionFactory.setUri().
-   */
-  private String createEncodedAmqpUri(String rawAmqpUri) {
-    if (rawAmqpUri == null || !rawAmqpUri.startsWith("amqp://")) {
-      return rawAmqpUri; // Return as-is or throw an exception for invalid format
-    }
-
-    try {
-      // Extract the part after "amqp://"
-      String afterScheme = rawAmqpUri.substring("amqp://".length());
-      int atIndex = afterScheme.indexOf('@');
-      if (atIndex == -1) {
-        log.info("encoding Amqp Uri: No user info present");
-        return rawAmqpUri; // No user info present
-      }
-
-      // Split into user info and the rest (host:port/path)
-      String userInfo = afterScheme.substring(0, atIndex);
-      String afterUserInfo = afterScheme.substring(atIndex + 1);
-
-      // Split user info into user and password
-      String[] userPass = userInfo.split(":", 2);
-      String user = userPass[0];
-      String password = userPass.length > 1 ? userPass[1] : "";
-
-      // Percent-encode user and password
-      String encodedUser = URLEncoder.encode(user, StandardCharsets.UTF_8.name());
-      String encodedPassword = URLEncoder.encode(password, StandardCharsets.UTF_8.name());
-      String encodedUserInfo = encodedUser + (password.isEmpty() ? "" : ":" + encodedPassword);
-
-      // Reconstruct the URI
-      return "amqp://" + encodedUserInfo + "@" + afterUserInfo;
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException("UTF-8 encoding not supported", e);
-    }
-  }
-
-  /** Initializes (or reinitializes) the RabbitMQ connection and channel using AMQP_ADDR. */
-  private synchronized void initializeRabbitMQConnection() {
-    try {
-      log.debug("initializeRabbitMQConnection");
-      rabbitFactory = new ConnectionFactory();
-      String amqpUri = createEncodedAmqpUri(AMQP_URI);
-      log.debug("Encoded Amqp Uri: " + amqpUri);
-      rabbitFactory.setUri(amqpUri);
-      rabbitConnection = rabbitFactory.newConnection();
-      rabbitChannel = rabbitConnection.createChannel();
-      rabbitChannel.queueDeclare(QUEUE_NAME, true, false, false, null);
-      log.info("RabbitMQ connection and channel initialized.");
-    } catch (Exception e) {
-      log.error("Error initializing RabbitMQ connection", e);
-    }
-  }
-
-  /** Returns an open RabbitMQ channel, reconnecting if necessary. */
-  private synchronized Channel getRabbitChannel() throws Exception {
-    if (rabbitConnection == null || !rabbitConnection.isOpen()) {
-      log.warn("RabbitMQ connection is closed or null. Reinitializing connection.");
-      initializeRabbitMQConnection();
-    }
-    if (rabbitChannel == null || !rabbitChannel.isOpen()) {
-      rabbitChannel = rabbitConnection.createChannel();
-      rabbitChannel.queueDeclare(QUEUE_NAME, true, false, false, null);
-    }
-    return rabbitChannel;
+    this.rabbitMqEventPublisher = rabbitMqEventPublisher;
   }
 
   /**
@@ -261,10 +165,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     message.add(inputObject);
     message.add(annotations);
 
-    try {
-      // Generate a correlation ID.
-      String correlationId = UUID.randomUUID().toString();
+    // Generate a correlation ID.
+    String correlationId = UUID.randomUUID().toString();
 
+    try {
       // Build headers map.
       Map<String, Object> headers = new HashMap<>();
       headers.put("id", correlationId);
@@ -282,26 +186,22 @@ public class CustomEventListenerProvider implements EventListenerProvider {
               .headers(headers)
               .build();
 
-      Channel channel = getRabbitChannel();
-      channel.basicPublish("", QUEUE_NAME, props, om.writeValueAsBytes(message));
-      log.info("Message sent to RabbitMQ queue: " + QUEUE_NAME);
+      rabbitMqEventPublisher.publish(props, om.writeValueAsBytes(message));
+      log.infov("Audit event published to RabbitMQ: correlationId={0}", correlationId);
     } catch (Exception e) {
-      log.error("Failed to send message to RabbitMQ queue: " + QUEUE_NAME, e);
+      log.errorv(
+          e,
+          "Audit event was not delivered to RabbitMQ: correlationId={0}, tenantId={1}, electionEventId={2}, messageType={3}, userId={4}, username={5}, body={6}",
+          correlationId,
+          tenantId,
+          electionEventId,
+          messageType,
+          userId,
+          username,
+          body);
     }
   }
 
   @Override
-  public void close() {
-    log.info("close()");
-    try {
-      if (rabbitChannel != null && rabbitChannel.isOpen()) {
-        rabbitChannel.close();
-      }
-      if (rabbitConnection != null && rabbitConnection.isOpen()) {
-        rabbitConnection.close();
-      }
-    } catch (Exception e) {
-      log.error("Error closing RabbitMQ connection", e);
-    }
-  }
+  public void close() {}
 }
