@@ -1,0 +1,105 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>braid v0.6 — in-browser mixnet emulator</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; }
+    .subtitle { color: #666; margin-top: -0.5rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 1rem 0; }
+    label { display: inline-block; margin: 0.25rem 0.75rem 0.25rem 0; }
+    input { width: 5rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #status { font-weight: bold; margin: 1rem 0; }
+    .ok { color: #137333; }
+    .fail { color: #b3261e; }
+    pre { background: #f5f5f5; border-radius: 6px; padding: 1rem; overflow-x: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>braid v0.6 — in-browser mixnet emulator</h1>
+  <p class="subtitle">verifiable mixnet emulator (in-memory board)</p>
+
+  <p>
+    Runs the full protocol — DKG → encrypt → mix → threshold-decrypt — entirely
+    in the browser over an in-memory board (no b4), then checks that the
+    decrypted plaintexts match the encrypted inputs.
+  </p>
+
+  <fieldset>
+    <legend>Parameters</legend>
+    <label>Trustees <input id="trustees" type="number" min="2" max="8" value="3" /></label>
+    <label>Threshold <input id="threshold" type="number" min="2" max="8" value="2" /></label>
+    <label>Ciphertexts <input id="ciphertexts" type="number" min="1" value="50" /></label>
+    <label>Width <input id="width" type="number" min="1" max="8" value="2" /></label>
+  </fieldset>
+
+  <button id="run" disabled>Run</button>
+  <p id="status">Loading wasm…</p>
+  <pre id="output"></pre>
+
+  <script type="module">
+    const statusEl = document.getElementById("status");
+    const outputEl = document.getElementById("output");
+    const runBtn = document.getElementById("run");
+
+    function log(msg) {
+      outputEl.textContent += msg + "\n";
+    }
+
+    let run_in_memory;
+    try {
+      const timestamp = new Date().getTime();
+      const mod = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
+      await mod.default({}); // init (runs the panic-hook start fn)
+      // The production wasm build ships the Web Worker thread pool for parallel
+      // crypto; start it once before running.
+      if (mod.initThreadPool) {
+        await mod.initThreadPool(navigator.hardwareConcurrency || 4);
+      }
+      run_in_memory = mod.run_in_memory;
+      statusEl.textContent = "Ready.";
+      runBtn.disabled = false;
+    } catch (err) {
+      statusEl.textContent = "Failed to load wasm: " + err;
+      statusEl.className = "fail";
+      throw err;
+    }
+
+    runBtn.addEventListener("click", async () => {
+      const trustees = Number(document.getElementById("trustees").value);
+      const threshold = Number(document.getElementById("threshold").value);
+      const ciphertexts = Number(document.getElementById("ciphertexts").value);
+      const width = Number(document.getElementById("width").value);
+
+      runBtn.disabled = true;
+      statusEl.className = "";
+      statusEl.textContent = "Running…";
+      outputEl.textContent = "";
+      const started = performance.now();
+      try {
+        const result = await run_in_memory(trustees, threshold, ciphertexts, width);
+        const secs = ((performance.now() - started) / 1000).toFixed(2);
+        log(JSON.stringify(result, null, 2));
+        log("");
+        log(`elapsed: ${secs}s`);
+        statusEl.textContent = result.success ? "PASS — plaintexts match" : "FAIL — mismatch";
+        statusEl.className = result.success ? "ok" : "fail";
+      } catch (err) {
+        statusEl.textContent = "Error: " + err;
+        statusEl.className = "fail";
+        log(String(err));
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

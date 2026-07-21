@@ -21,6 +21,8 @@
 //! which adds `wasm-bindgen-rayon`; `wasm-core` builds (e.g. tests) omit it so
 //! they need no atomics / SharedArrayBuffer.
 
+pub mod emulator;
+
 use wasm_bindgen::prelude::*;
 
 /// Module-load hook: route Rust panics to the browser console. Idempotent.
