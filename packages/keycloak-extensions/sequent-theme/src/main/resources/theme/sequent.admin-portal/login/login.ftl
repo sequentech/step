@@ -19,7 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <div class="${properties.kcFormGroupClass!}">
                                     <label for="${field.name}" class="${properties.kcLabelClass!}">${msg(field.name)}</label>
 
-                                    <input tabindex="1" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
+                                    <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
                                            <#if field?index == 0>autofocus</#if> autocomplete="off"
                                            aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
                                     />

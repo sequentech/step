@@ -32,6 +32,7 @@ import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.messages.Messages;
 
 /**
@@ -172,11 +173,19 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     return Optional.of(passwordMatches.get(0));
   }
 
+  /**
+   * Resolves candidates for one configured attribute. {@code username} is always unique in
+   * Keycloak, so a single lookup is safe there - but {@code email} is only unique when the realm
+   * has {@code duplicateEmailsAllowed} disabled, so it uses the exact-match search API (rather than
+   * {@code getUserByEmail}, which returns only one arbitrary match) to keep every candidate in play
+   * for the password-disambiguation step in {@link #resolveAuthenticatedUser}.
+   */
   protected Stream<UserModel> findUsersByAttribute(
       KeycloakSession session, RealmModel realm, String attribute, String value) {
     if ("email".equalsIgnoreCase(attribute)) {
-      UserModel user = session.users().getUserByEmail(realm, value);
-      return user == null ? Stream.empty() : Stream.of(user);
+      return session
+          .users()
+          .searchForUserStream(realm, Map.of(UserModel.EMAIL, value, UserModel.EXACT, "true"));
     }
     if ("username".equalsIgnoreCase(attribute)) {
       UserModel user = session.users().getUserByUsername(realm, value);
@@ -216,14 +225,20 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
    * from. {@code type} mirrors whatever HTML5 input type (e.g. {@code date}) the realm's User
    * Profile configuration declares for that attribute, so a field like {@code dateOfBirth} renders
    * the same native date picker here as it does at registration - see {@link
-   * Utils#resolveHtml5InputType}.
+   * Utils#resolveHtml5InputType}. Fetches the User Profile attribute list once up front rather than
+   * once per configured attribute.
    */
   protected List<Map<String, String>> buildAttributeFields(
       KeycloakSession session, List<String> matchAttributes) {
+    List<UPAttribute> profileAttributes = Utils.getRealmUserProfileAttributes(session);
     List<Map<String, String>> fields = new ArrayList<>();
     for (String attribute : matchAttributes) {
       fields.add(
-          Map.of("name", attribute, "type", Utils.resolveHtml5InputType(session, attribute)));
+          Map.of(
+              "name",
+              attribute,
+              "type",
+              Utils.resolveHtml5InputType(profileAttributes, attribute)));
     }
     return fields;
   }

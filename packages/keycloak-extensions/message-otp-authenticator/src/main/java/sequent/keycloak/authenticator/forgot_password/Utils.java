@@ -177,19 +177,29 @@ public class Utils {
   }
 
   /**
-   * Looks up the HTML5 input type ({@code date}, {@code email}, ...) that the realm's User Profile
-   * configuration declares for {@code attributeName} via its {@code inputType} annotation (e.g.
-   * {@code html5-date}), the same source registration/profile forms (user-profile-commons.ftl)
-   * already render from. Falls back to {@code text} when the attribute has no User Profile entry,
-   * or its declared input type isn't an {@code html5-*} one (e.g. {@code select}, {@code textarea}
-   * - not meaningful for a single login lookup field).
+   * Fetches the realm's User Profile attribute declarations, tolerating a missing {@link
+   * UserProfileProvider}, a missing configuration, or a missing attribute list - any of which
+   * yields an empty list rather than throwing, so callers never need their own null checks.
    */
-  public String resolveHtml5InputType(KeycloakSession session, String attributeName) {
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
     UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
-    List<UPAttribute> attributes = userProfileProvider.getConfiguration().getAttributes();
-    if (attributes == null) {
-      return "text";
+    if (userProfileProvider == null || userProfileProvider.getConfiguration() == null) {
+      return Collections.emptyList();
     }
+    List<UPAttribute> attributes = userProfileProvider.getConfiguration().getAttributes();
+    return attributes == null ? Collections.emptyList() : attributes;
+  }
+
+  /**
+   * Looks up the HTML5 input type ({@code date}, {@code email}, ...) that {@code attributeName}
+   * declares via its {@code inputType} annotation (e.g. {@code html5-date}) among the given User
+   * Profile attributes - the same source registration/profile forms (user-profile-commons.ftl)
+   * already render from; see {@link #getRealmUserProfileAttributes}. Falls back to {@code text}
+   * when the attribute has no User Profile entry, or its declared input type isn't an {@code
+   * html5-*} one (e.g. {@code select}, {@code textarea} - not meaningful for a single login lookup
+   * field).
+   */
+  public String resolveHtml5InputType(List<UPAttribute> attributes, String attributeName) {
     Object inputType =
         attributes.stream()
             .filter(attribute -> attributeName.equals(attribute.getName()))

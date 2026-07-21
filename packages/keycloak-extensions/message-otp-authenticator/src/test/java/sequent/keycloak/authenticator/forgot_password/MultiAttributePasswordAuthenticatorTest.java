@@ -279,9 +279,11 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
-  void emailAttribute_usesGetUserByEmail() {
+  void emailAttribute_usesExactSearchForUserStream() {
     UserModel user = mockUser("user-1", "pw", true);
-    when(userProvider.getUserByEmail(realm, "voter1@example.com")).thenReturn(user);
+    when(userProvider.searchForUserStream(
+            realm, Map.of(UserModel.EMAIL, "voter1@example.com", UserModel.EXACT, "true")))
+        .thenReturn(Stream.of(user));
 
     Optional<UserModel> result =
         authenticator.resolveAuthenticatedUser(
@@ -289,6 +291,25 @@ class MultiAttributePasswordAuthenticatorTest {
 
     assertTrue(result.isPresent());
     assertEquals(user, result.get());
+  }
+
+  @Test
+  void emailAttribute_duplicateEmailsAllowed_multipleCandidates_passwordDisambiguates() {
+    // When a realm allows duplicate emails, more than one user can share the same email.
+    // getUserByEmail() would silently pick just one of them; searchForUserStream() must return
+    // every candidate so the password check can still disambiguate.
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm, Map.of(UserModel.EMAIL, "shared@example.com", UserModel.EXACT, "true")))
+        .thenReturn(Stream.of(alice, bob));
+
+    Optional<UserModel> result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("email"), valuesOf("email", "shared@example.com"), "bob-pw");
+
+    assertTrue(result.isPresent());
+    assertEquals(bob, result.get());
   }
 
   // ── Rendering: HTML5 input type resolved from the realm's User Profile ──
@@ -331,6 +352,49 @@ class MultiAttributePasswordAuthenticatorTest {
         authenticator.buildAttributeFields(session, List.of("nationalId"));
 
     assertEquals(List.of(Map.of("name", "nationalId", "type", "text")), fields);
+  }
+
+  @Test
+  void getRealmUserProfileAttributes_noUserProfileProvider_returnsEmptyList() {
+    when(session.getProvider(UserProfileProvider.class)).thenReturn(null);
+
+    List<UPAttribute> attributes = Utils.getRealmUserProfileAttributes(session);
+
+    assertTrue(attributes.isEmpty());
+  }
+
+  @Test
+  void getRealmUserProfileAttributes_noConfiguration_returnsEmptyList() {
+    UserProfileProvider userProfileProvider = mock(UserProfileProvider.class);
+    when(session.getProvider(UserProfileProvider.class)).thenReturn(userProfileProvider);
+    when(userProfileProvider.getConfiguration()).thenReturn(null);
+
+    List<UPAttribute> attributes = Utils.getRealmUserProfileAttributes(session);
+
+    assertTrue(attributes.isEmpty());
+  }
+
+  @Test
+  void getRealmUserProfileAttributes_noAttributesInConfiguration_returnsEmptyList() {
+    mockUserProfileAttributes();
+
+    List<UPAttribute> attributes = Utils.getRealmUserProfileAttributes(session);
+
+    assertTrue(attributes.isEmpty());
+  }
+
+  @Test
+  void resolveHtml5InputType_html5Prefix_stripsPrefix() {
+    assertEquals(
+        "date",
+        Utils.resolveHtml5InputType(
+            List.of(new UPAttribute("dateOfBirth", Map.of("inputType", "html5-date"))),
+            "dateOfBirth"));
+  }
+
+  @Test
+  void resolveHtml5InputType_unknownAttribute_fallsBackToText() {
+    assertEquals("text", Utils.resolveHtml5InputType(List.of(), "nationalId"));
   }
 
   // ── Factory metadata ────────────────────────────────────────────────────
