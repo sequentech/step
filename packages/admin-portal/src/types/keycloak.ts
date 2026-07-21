@@ -10,6 +10,8 @@ export enum IPermissions {
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
+    KEYCLOAK_REALM_ATTRIBUTES_READ = "keycloak-realm-attributes-read",
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE = "keycloak-realm-attributes-write",
     ELECTION_EVENT_DELETE = "election-event-delete",
     ELECTION_EVENT_ARCHIVE = "election-event-archive",
     VOTER_CREATE = "voter-create",
