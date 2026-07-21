@@ -192,7 +192,7 @@ interface ContestPaginationProps {
     onSetDisableNext: (contest: any) => void
     onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
     encryptAndReview: () => void
-    disableNextButton: () => boolean
+    disableNextButton: (contests?: IContest[]) => boolean
 }
 
 const ContestPagination: React.FC<ContestPaginationProps> = ({
@@ -293,7 +293,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                 handlePrev={handlePrev}
                 handleClearCustom={handleClear}
                 pageIndex={pageIndex}
-                disableNext={disableNextButton() && contests.length !== 1}
+                disableNext={disableNextButton(sortedContests) && contests.length !== 1}
             />
         </>
     )
@@ -342,8 +342,8 @@ const VotingScreen: React.FC = () => {
 
     // if true, when the user clicks next, there will be a dialog
     // that doesn't allow to continue and forces the user to fix the issues
-    const disableNextButton = (): boolean => {
-        return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
+    const disableNextButton = (contests = ballotStyle?.ballot_eml.contests): boolean => {
+        return check_voting_not_allowed_next_bool(contests, decodedContests)
     }
 
     // if true, when the user click next, there will be a dialog that prompts
