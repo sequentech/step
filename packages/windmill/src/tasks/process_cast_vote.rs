@@ -95,8 +95,7 @@ async fn process_locked_cast_vote(
     cast_vote_id: &Uuid,
     lock: &PgLock,
 ) -> Result<()> {
-    let Some(cast_vote) = load_cast_vote(tenant_id, election_event_id, cast_vote_id).await?
-    else {
+    let Some(cast_vote) = load_cast_vote(tenant_id, election_event_id, cast_vote_id).await? else {
         return Ok(());
     };
     if cast_vote.status != CastVoteStatus::InProgress {
@@ -217,7 +216,7 @@ async fn process_locked_cast_vote(
                     let changed = transition_cast_vote(
                         &cast_vote,
                         CastVoteStatus::InProgress,
-                        CastVoteStatus::Discarded,
+                        CastVoteStatus::Valid,
                     )
                     .await?;
                     if changed {
@@ -232,15 +231,19 @@ async fn process_locked_cast_vote(
                         )
                     }
                 }
-                // Everything else is an error response from VoterView (a
+                // These cases can be an error response from VoterView (a
                 // definitive rejection, a SOAP fault, or an unexpected
-                // already-not-voted echo): never discard or otherwise mark the
-                // vote, just leave it `in-progress` so the next beat retries it.
-                // A persistently erroring vote is caught and fixed by the
-                // manual daily reconciliation process, not by this pipeline.
+                // already-not-voted echo): never discard, just mark the
+                // vote valid and the next reconciliation process can sync it.
                 response @ (SoapRequestResponse::AlreadyNotVoted
                 | SoapRequestResponse::Fault(_)
                 | SoapRequestResponse::Rejected(_)) => {
+                    let changed = transition_cast_vote(
+                        &cast_vote,
+                        CastVoteStatus::InProgress,
+                        CastVoteStatus::Valid,
+                    )
+                    .await?;
                     format!(
                         "SetVoted Failed: {} (template_sha256={})",
                         response.classification(),
@@ -251,6 +254,9 @@ async fn process_locked_cast_vote(
             audit_operation(&cast_vote, voter_id, &username, operation).await;
         }
         Err(SoapSendError::NotDispatched(err)) => {
+            // Everything else being equal, a transport failure is treated as a transient error and the vote is left in-progress for the next beat to retry.
+            // A persistently erroring vote is caught and fixed by the
+            // manual daily reconciliation process, not by this pipeline.
             let operation = format!(
                 "SetVoted NotDispatched: connection-error (template_sha256={template_sha256})"
             );

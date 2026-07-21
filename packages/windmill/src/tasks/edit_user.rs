@@ -314,7 +314,9 @@ async fn send_set_not_voted(
         }
         Err(SoapSendError::NotDispatched(err)) => {
             error!("SetNotVoted could not be dispatched: {err}");
-            format!("SetNotVoted NotDispatched: connection-error (template_sha256={template_sha256})")
+            format!(
+                "SetNotVoted NotDispatched: connection-error (template_sha256={template_sha256})"
+            )
         }
         Err(SoapSendError::Ambiguous(err)) => {
             error!("SetNotVoted transport or response error: {err}");
@@ -388,7 +390,9 @@ async fn run_datafix_voter_edit(
     ctx.lock
         .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
         .await
-        .map_err(|err| format!("The Datafix voter lock was lost before discarding ballots: {err}"))?;
+        .map_err(|err| {
+            format!("The Datafix voter lock was lost before discarding ballots: {err}")
+        })?;
     discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
         .await
         .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;

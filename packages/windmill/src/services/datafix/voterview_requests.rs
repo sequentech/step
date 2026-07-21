@@ -23,7 +23,6 @@ pub const PUBLIC_ASSETS_VOTERVIEW_SETVOTED_TEMPLATE: &str = "voterview_setvoted.
 pub const PUBLIC_ASSETS_VOTERVIEW_SETNOTVOTED_TEMPLATE: &str = "voterview_setnotvoted.hbs";
 pub const VOTERVIEW_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
-const VOTERVIEW_NAMESPACE: &str = "https://www.voterview.ca/MVVServices";
 const SOAP_11_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";
 const SOAP_12_NAMESPACE: &str = "http://www.w3.org/2003/05/soap-envelope";
 const ALREADY_VOTED_MESSAGE: &str = "the voter has already voted";
@@ -39,6 +38,7 @@ pub struct PreparedSoapRequest {
     url: String,
     body: String,
     template_sha256: String,
+    operation_namespace: String,
 }
 
 impl PreparedSoapRequest {
@@ -75,17 +75,28 @@ impl SoapRequest {
     }
 }
 
-/// Renders the request's Handlebars template with the annotation values and
-/// returns `(rendered_body, template_sha256)`. The rendered output is checked
-/// for the invariants a correct template can never violate (see
-/// [`validate_rendered_xml`]); its structure is left to the template.
+/// The rendered request body, plus everything about the render that
+/// [`PreparedSoapRequest`] needs to carry forward: the template's hash for the
+/// audit trail, and the operation namespace extracted from the rendered body
+/// (see [`operation_namespace`]).
+struct RenderedSoapRequest {
+    body: String,
+    template_sha256: String,
+    operation_namespace: String,
+}
+
+/// Renders the request's Handlebars template with the annotation values. The
+/// rendered output is checked for the invariants a correct template can never
+/// violate (see [`validate_rendered_xml`]), and its operation namespace is
+/// extracted (see [`operation_namespace`]); the rest of its structure is left to
+/// the template.
 #[instrument(skip(annotations), err)]
 async fn render_request(
     request: SoapRequest,
     annotations: &DatafixAnnotations,
     voter_id: &str,
     timestamp: &str,
-) -> Result<(String, String)> {
+) -> Result<RenderedSoapRequest> {
     let template_path = get_public_asset_file_path(request.template_name())
         .context("Error resolving the VoterView template path")?;
     let template = download_s3_file_to_string(&template_path)
@@ -107,8 +118,13 @@ async fn render_request(
     let body = render_template_text(&template, variables)
         .map_err(|err| anyhow!("Error rendering the VoterView template: {err}"))?;
     validate_rendered_xml(&body, &data)?;
+    let operation_namespace = operation_namespace(&body, request)?;
 
-    Ok((body, template_sha256))
+    Ok(RenderedSoapRequest {
+        body,
+        template_sha256,
+        operation_namespace,
+    })
 }
 
 /// Validates only the invariants a correct template can never violate: the
@@ -156,26 +172,28 @@ fn soap_body<'a, 'input>(document: &'a Document<'input>) -> Result<Node<'a, 'inp
     {
         return Err(anyhow!("Unexpected SOAP Envelope namespace"));
     }
-    exactly_one_child(envelope, "Body", namespace.unwrap_or_default())
+    exactly_one_child(envelope, "Body", namespace)
 }
 
-/// Returns the single child element with `name` in `namespace`. Both "missing"
-/// and "more than one" are errors: an ambiguous `Success` element must never be
-/// read as a definitive outcome.
+/// Returns the single child element with `name` in `namespace`. `None` matches by
+/// tag name only, for callers that don't yet know the namespace (e.g. extracting
+/// it from a rendered template). Both "missing" and "more than one" are errors:
+/// an ambiguous `Success` element must never be read as a definitive outcome.
 #[instrument(skip(parent), err)]
 fn exactly_one_child<'a, 'input>(
     parent: Node<'a, 'input>,
     name: &str,
-    namespace: &str,
+    namespace: Option<&str>,
 ) -> Result<Node<'a, 'input>> {
     let mut elements = parent.children().filter(|node| {
         node.is_element()
             && node.tag_name().name() == name
-            && node.tag_name().namespace() == Some(namespace)
+            && (namespace.is_none() || node.tag_name().namespace() == namespace)
     });
-    let element = elements
-        .next()
-        .ok_or_else(|| anyhow!("Missing XML element {name} in namespace {namespace}"))?;
+    let element = elements.next().ok_or_else(|| match namespace {
+        Some(namespace) => anyhow!("Missing XML element {name} in namespace {namespace}"),
+        None => anyhow!("Missing XML element {name}"),
+    })?;
     if elements.next().is_some() {
         return Err(anyhow!("Multiple XML elements named {name}"));
     }
@@ -186,13 +204,36 @@ fn exactly_one_child<'a, 'input>(
 /// duplicated, or empty.
 #[instrument(skip(parent), err)]
 fn child_text(parent: Node<'_, '_>, name: &str, namespace: &str) -> Result<String> {
-    let element = exactly_one_child(parent, name, namespace)?;
+    let element = exactly_one_child(parent, name, Some(namespace))?;
     element
         .text()
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
         .ok_or_else(|| anyhow!("Missing or empty XML element {name}"))
+}
+
+/// Reads the target namespace of the request's operation root element (e.g.
+/// `SetVoted`) off the rendered request body. The hot-swappable S3 template owns
+/// this namespace; extracting it here — rather than hardcoding it in Rust — is
+/// what keeps the outbound `SOAPAction` header and the expected response
+/// namespace in sync with whatever template is actually live, instead of two
+/// independent hardcoded values drifting apart.
+#[instrument(skip_all, err)]
+fn operation_namespace(body: &str, request: SoapRequest) -> Result<String> {
+    let document = Document::parse(body).context("Rendered VoterView template is not valid XML")?;
+    let body_element = soap_body(&document)?;
+    let operation = exactly_one_child(body_element, request.operation_name(), None)?;
+    operation
+        .tag_name()
+        .namespace()
+        .map(str::to_string)
+        .ok_or_else(|| {
+            anyhow!(
+                "Rendered VoterView template's {} element has no namespace",
+                request.operation_name()
+            )
+        })
 }
 
 /// Collapses whitespace, strips trailing punctuation and lowercases, so a known
@@ -217,6 +258,7 @@ fn parse_response(
     status: StatusCode,
     response_text: &str,
     request: SoapRequest,
+    namespace: &str,
 ) -> Result<SoapRequestResponse> {
     let document = Document::parse(response_text).context("VoterView returned malformed XML")?;
     let soap_body = soap_body(&document)?;
@@ -235,13 +277,13 @@ fn parse_response(
     }
 
     let response_name = format!("{}Response", request.operation_name());
-    let response = exactly_one_child(soap_body, &response_name, VOTERVIEW_NAMESPACE)?;
-    let result = exactly_one_child(response, request.result_name(), VOTERVIEW_NAMESPACE)?;
-    let success = child_text(result, "Success", VOTERVIEW_NAMESPACE)?;
+    let response = exactly_one_child(soap_body, &response_name, Some(namespace))?;
+    let result = exactly_one_child(response, request.result_name(), Some(namespace))?;
+    let success = child_text(result, "Success", namespace)?;
     match success.to_lowercase().as_str() {
         "true" => Ok(SoapRequestResponse::Ok),
         "false" => {
-            let message = child_text(result, "ErrorMessage", VOTERVIEW_NAMESPACE)?;
+            let message = child_text(result, "ErrorMessage", namespace)?;
             match (request, normalize_message(&message).as_str()) {
                 (SoapRequest::SetVoted, ALREADY_VOTED_MESSAGE) => {
                     Ok(SoapRequestResponse::AlreadyVoted)
@@ -258,13 +300,17 @@ fn parse_response(
 
 /// Reads the response body and hands it to [`parse_response`] with its status.
 #[instrument(skip(response), err)]
-async fn read_response(response: Response, request: SoapRequest) -> Result<SoapRequestResponse> {
+async fn read_response(
+    response: Response,
+    request: SoapRequest,
+    namespace: &str,
+) -> Result<SoapRequestResponse> {
     let status = response.status();
     let response_text = response
         .text()
         .await
         .context("Failed to read the VoterView response")?;
-    parse_response(status, &response_text, request)
+    parse_response(status, &response_text, request, namespace)
 }
 
 /// Renders, validates and hashes the request without contacting VoterView.
@@ -287,8 +333,11 @@ pub async fn prepare(
     let annotations = election_event
         .get_annotations()
         .context("Invalid Datafix election event annotations")?;
-    let (body, template_sha256) =
-        render_request(request, &annotations, voter_id, &timestamp).await?;
+    let RenderedSoapRequest {
+        body,
+        template_sha256,
+        operation_namespace,
+    } = render_request(request, &annotations, voter_id, &timestamp).await?;
 
     let client = reqwest::Client::builder()
         .timeout(VOTERVIEW_REQUEST_TIMEOUT)
@@ -301,6 +350,7 @@ pub async fn prepare(
         url: annotations.voterview_request.url,
         body,
         template_sha256,
+        operation_namespace,
     })
 }
 
@@ -338,13 +388,14 @@ pub async fn send_prepared(
         url,
         body,
         template_sha256,
+        operation_namespace,
     } = prepared;
     let response = client
         .post(url)
         .header("Content-Type", "text/xml; charset=UTF-8")
         .header(
             "SOAPAction",
-            format!("https://www.voterview.ca/MVVServices/{request}"),
+            format!("{operation_namespace}/{}", request.operation_name()),
         )
         .body(body)
         .send()
@@ -360,11 +411,13 @@ pub async fn send_prepared(
                 SoapSendError::Ambiguous(wrapped)
             }
         })?;
-    let response = read_response(response, request).await.map_err(|err| {
-        SoapSendError::Ambiguous(err.context(format!(
-            "Invalid VoterView response (template_sha256={template_sha256})"
-        )))
-    })?;
+    let response = read_response(response, request, &operation_namespace)
+        .await
+        .map_err(|err| {
+            SoapSendError::Ambiguous(err.context(format!(
+                "Invalid VoterView response (template_sha256={template_sha256})"
+            )))
+        })?;
 
     Ok(SoapRequestResult {
         response,
@@ -398,6 +451,7 @@ mod tests {
             url: "http://127.0.0.1:9/mvv".to_string(),
             body: "<x/>".to_string(),
             template_sha256: "test".to_string(),
+            operation_namespace: "test".to_string(),
         };
         match send_prepared(prepared).await {
             Err(SoapSendError::NotDispatched(_)) => {}
@@ -405,10 +459,12 @@ mod tests {
         }
     }
 
-    fn response(result: &str, prefix: &str) -> String {
+    const TEST_NAMESPACE: &str = "urn:test:voterview";
+
+    fn response(result: &str, prefix: &str, namespace: &str) -> String {
         format!(
             r#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
-                xmlns:v="https://www.voterview.ca/MVVServices">
+                xmlns:v="{namespace}">
                 <soap:Body><v:{prefix}Response><v:{prefix}Result>{result}</v:{prefix}Result>
                 </v:{prefix}Response></soap:Body></soap:Envelope>"#
         )
@@ -416,9 +472,9 @@ mod tests {
 
     #[test]
     fn parses_namespaced_success() {
-        let xml = response("<v:Success> true </v:Success>", "SetVoted");
+        let xml = response("<v:Success> true </v:Success>", "SetVoted", TEST_NAMESPACE);
         assert_eq!(
-            parse_response(StatusCode::OK, &xml, SoapRequest::SetVoted).unwrap(),
+            parse_response(StatusCode::OK, &xml, SoapRequest::SetVoted, TEST_NAMESPACE).unwrap(),
             SoapRequestResponse::Ok
         );
     }
@@ -428,37 +484,109 @@ mod tests {
         let already_voted = response(
             "<v:Success>false</v:Success><v:ErrorMessage> The voter  has already voted. </v:ErrorMessage>",
             "SetVoted",
+            TEST_NAMESPACE,
         );
         assert_eq!(
-            parse_response(StatusCode::OK, &already_voted, SoapRequest::SetVoted).unwrap(),
+            parse_response(
+                StatusCode::OK,
+                &already_voted,
+                SoapRequest::SetVoted,
+                TEST_NAMESPACE
+            )
+            .unwrap(),
             SoapRequestResponse::AlreadyVoted
         );
 
         let already_not_voted = response(
             "<v:Success>false</v:Success><v:ErrorMessage>The voter has not voted.</v:ErrorMessage>",
             "SetNotVoted",
+            TEST_NAMESPACE,
         );
         assert_eq!(
-            parse_response(StatusCode::OK, &already_not_voted, SoapRequest::SetNotVoted).unwrap(),
+            parse_response(
+                StatusCode::OK,
+                &already_not_voted,
+                SoapRequest::SetNotVoted,
+                TEST_NAMESPACE
+            )
+            .unwrap(),
             SoapRequestResponse::AlreadyNotVoted
         );
     }
 
     #[test]
     fn rejects_malformed_or_ambiguous_success_elements() {
-        assert!(parse_response(StatusCode::OK, "not xml", SoapRequest::SetVoted).is_err());
+        assert!(parse_response(
+            StatusCode::OK,
+            "not xml",
+            SoapRequest::SetVoted,
+            TEST_NAMESPACE
+        )
+        .is_err());
         let duplicate = response(
             "<v:Success>true</v:Success><v:Success>true</v:Success>",
             "SetVoted",
+            TEST_NAMESPACE,
         );
-        assert!(parse_response(StatusCode::OK, &duplicate, SoapRequest::SetVoted).is_err());
+        assert!(parse_response(
+            StatusCode::OK,
+            &duplicate,
+            SoapRequest::SetVoted,
+            TEST_NAMESPACE
+        )
+        .is_err());
     }
 
     #[test]
     fn rejects_success_from_an_unexpected_namespace() {
-        let xml = response("<v:Success>true</v:Success>", "SetVoted")
-            .replace(VOTERVIEW_NAMESPACE, "https://unexpected.example.test");
-        assert!(parse_response(StatusCode::OK, &xml, SoapRequest::SetVoted).is_err());
+        let xml = response("<v:Success>true</v:Success>", "SetVoted", TEST_NAMESPACE);
+        assert!(parse_response(
+            StatusCode::OK,
+            &xml,
+            SoapRequest::SetVoted,
+            "urn:different:namespace"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn extracts_the_operation_element_namespace_from_the_rendered_body() {
+        let body = r#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body><SetVoted xmlns="urn:whatever">
+            <CountyMun>county</CountyMun></SetVoted></soap:Body></soap:Envelope>"#;
+        assert_eq!(
+            operation_namespace(body, SoapRequest::SetVoted).unwrap(),
+            "urn:whatever"
+        );
+    }
+
+    #[test]
+    fn rejects_a_rendered_body_missing_the_operation_element() {
+        let body = r#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body><SetNotVoted xmlns="urn:whatever">
+            <CountyMun>county</CountyMun></SetNotVoted></soap:Body></soap:Envelope>"#;
+        assert!(operation_namespace(body, SoapRequest::SetVoted).is_err());
+    }
+
+    #[test]
+    fn rejects_a_rendered_operation_element_with_no_namespace() {
+        let body = r#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body><SetVoted>
+            <CountyMun>county</CountyMun></SetVoted></soap:Body></soap:Envelope>"#;
+        assert!(operation_namespace(body, SoapRequest::SetVoted).is_err());
+    }
+
+    #[test]
+    fn rejects_a_rendered_body_with_a_duplicated_operation_element() {
+        let body = r#"<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body><SetVoted xmlns="urn:whatever"/><SetVoted xmlns="urn:whatever"/>
+            </soap:Body></soap:Envelope>"#;
+        assert!(operation_namespace(body, SoapRequest::SetVoted).is_err());
+    }
+
+    #[test]
+    fn rejects_malformed_xml_when_extracting_operation_namespace() {
+        assert!(operation_namespace("not xml", SoapRequest::SetVoted).is_err());
     }
 
     fn sample_data() -> SoapRequestData<'static> {
@@ -517,7 +645,13 @@ mod tests {
             <s:Body><s:Fault><s:Reason><s:Text>Service unavailable</s:Text></s:Reason>
             </s:Fault></s:Body></s:Envelope>"#;
         assert_eq!(
-            parse_response(StatusCode::SERVICE_UNAVAILABLE, xml, SoapRequest::SetVoted).unwrap(),
+            parse_response(
+                StatusCode::SERVICE_UNAVAILABLE,
+                xml,
+                SoapRequest::SetVoted,
+                TEST_NAMESPACE
+            )
+            .unwrap(),
             SoapRequestResponse::Fault("Service unavailable".to_string())
         );
     }
