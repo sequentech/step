@@ -41,7 +41,8 @@ use b4::messages::protocol_manager::ProtocolManager;
 use b4::messages::wire::{MessageType, WireMessage};
 
 use crate::board::persistence::{IndexedDbPersistence, NoOpPersistence, Persistence};
-use crate::board::transport::{MemoryBoard, MemoryTransport};
+use crate::board::transport::{MemoryBoard, MemoryTransport, Transport};
+use crate::board::wasm_transport::WasmHttpTransport;
 use crate::board::BoardClient;
 use crate::runtime::SessionTrustee;
 use crate::session::Session;
@@ -64,30 +65,21 @@ type EmuSession = Session<RistrettoCtx, MemoryTransport<RistrettoCtx>, IndexedDb
 // ambiguous-associated-type issue with a concrete `RistrettoCtx`).
 ///////////////////////////////////////////////////////////////////////////
 
-/// The pieces produced by [`build_sessions`].
-struct Setup<C: Context, P: Persistence> {
-    board: Arc<MemoryBoard<C>>,
+/// Freshly generated committee key material + configuration.
+struct Committee<C: Context> {
     pm: ProtocolManager<C>,
+    signing_keys: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer>,
+    share_keypairs: Vec<KeyPair<C>>,
+    cfg: Configuration<C>,
     cfg_hash: ConfigurationHash,
-    sessions: Vec<Session<C, MemoryTransport<C>, P>>,
 }
 
-/// Generate key material + configuration, seed a shared board with the
-/// `Configuration`, and connect one session per trustee. `persistences` supplies
-/// one backend per trustee (length must equal `n_trustees`).
-async fn build_sessions<C: Context, P: Persistence>(
+/// Generate the manager + `n_trustees` key pairs and the shared `Configuration`.
+fn generate_committee<C: Context>(
     n_trustees: usize,
     n_threshold: usize,
     width: usize,
-    persistences: Vec<P>,
-) -> Result<Setup<C, P>> {
-    if persistences.len() != n_trustees {
-        return Err(anyhow!(
-            "expected {} persistence backends, got {}",
-            n_trustees,
-            persistences.len()
-        ));
-    }
+) -> Result<Committee<C>> {
     let mut key_rng = C::get_rng();
     let pm = ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut key_rng));
 
@@ -114,15 +106,51 @@ async fn build_sessions<C: Context, P: Persistence>(
     )
     .with_share_encryption_keys(share_enc_keys);
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
-    let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+
+    Ok(Committee {
+        pm,
+        signing_keys,
+        share_keypairs,
+        cfg,
+        cfg_hash,
+    })
+}
+
+/// The pieces produced by [`build_sessions`].
+struct Setup<C: Context, P: Persistence> {
+    board: Arc<MemoryBoard<C>>,
+    pm: ProtocolManager<C>,
+    cfg_hash: ConfigurationHash,
+    sessions: Vec<Session<C, MemoryTransport<C>, P>>,
+}
+
+/// Generate key material + configuration, seed a shared board with the
+/// `Configuration`, and connect one session per trustee. `persistences` supplies
+/// one backend per trustee (length must equal `n_trustees`).
+async fn build_sessions<C: Context, P: Persistence>(
+    n_trustees: usize,
+    n_threshold: usize,
+    width: usize,
+    persistences: Vec<P>,
+) -> Result<Setup<C, P>> {
+    if persistences.len() != n_trustees {
+        return Err(anyhow!(
+            "expected {} persistence backends, got {}",
+            n_trustees,
+            persistences.len()
+        ));
+    }
+    let committee = generate_committee::<C>(n_trustees, n_threshold, width)?;
+    let cfg_message = WireMessage::<C>::configuration(&committee.pm, DATE, &committee.cfg);
 
     let board = MemoryBoard::<C>::new();
     board.push(cfg_message);
 
     let mut sessions = Vec::with_capacity(n_trustees);
-    for (i, ((signing_key, keypair), persistence)) in signing_keys
+    for (i, ((signing_key, keypair), persistence)) in committee
+        .signing_keys
         .into_iter()
-        .zip(share_keypairs)
+        .zip(committee.share_keypairs)
         .zip(persistences)
         .enumerate()
     {
@@ -139,16 +167,16 @@ async fn build_sessions<C: Context, P: Persistence>(
 
     Ok(Setup {
         board,
-        pm,
-        cfg_hash,
+        pm: committee.pm,
+        cfg_hash: committee.cfg_hash,
         sessions,
     })
 }
 
 /// One update-first round across all sessions (§6). Returns whether any trustee
 /// produced a message.
-async fn advance_round<C: Context, P: Persistence>(
-    sessions: &mut [Session<C, MemoryTransport<C>, P>],
+async fn advance_round<C: Context, T: Transport<C>, P: Persistence>(
+    sessions: &mut [Session<C, T, P>],
 ) -> Result<bool> {
     let mut produced_any = false;
     for session in sessions.iter_mut() {
@@ -160,8 +188,8 @@ async fn advance_round<C: Context, P: Persistence>(
 }
 
 /// Drive to a fixpoint; returns the number of rounds taken.
-async fn drive_to_fixpoint<C: Context, P: Persistence>(
-    sessions: &mut [Session<C, MemoryTransport<C>, P>],
+async fn drive_to_fixpoint<C: Context, T: Transport<C>, P: Persistence>(
+    sessions: &mut [Session<C, T, P>],
 ) -> Result<usize> {
     for round in 0..MAX_ROUNDS {
         if !advance_round(sessions).await? {
@@ -312,6 +340,129 @@ async fn run_inner<C: Context, const W: usize>(
     let tally_rounds = drive_to_fixpoint(&mut sessions).await?;
 
     let (success, _) = verify_inner::<C, W>(&board, &expected)?;
+
+    Ok(EmulatorResult {
+        success,
+        trustees: n_trustees,
+        threshold: n_threshold,
+        ciphertexts,
+        width: W,
+        dkg_rounds,
+        tally_rounds,
+        message: if success {
+            "decrypted plaintexts match the encrypted inputs".to_string()
+        } else {
+            "MISMATCH: decrypted plaintexts do not match the inputs".to_string()
+        },
+    })
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Networked one-shot entry point (against a live b4)
+///////////////////////////////////////////////////////////////////////////
+
+/// Run the full protocol in the browser against a **live b4** at `b4_url` (over
+/// HTTP+S3 via [`WasmHttpTransport`]). Creates a fresh board, runs DKG → mix →
+/// threshold-decrypt, and checks the plaintexts. Requires a running b4 with CORS
+/// enabled (and S3/LocalStack).
+#[wasm_bindgen]
+pub async fn run_http(
+    b4_url: String,
+    trustees: usize,
+    threshold: usize,
+    ciphertexts: u32,
+    width: usize,
+) -> Result<JsValue, JsValue> {
+    validate_params(trustees, threshold, width).map_err(|e| JsValue::from_str(&e))?;
+
+    let outcome = crate::dispatch_ciphertext_width!(width, {
+        run_http_inner::<RistrettoCtx, W>(&b4_url, trustees, threshold, ciphertexts).await
+    });
+
+    match outcome {
+        Ok(result) => serde_wasm_bindgen::to_value(&result)
+            .map_err(|e| JsValue::from_str(&format!("failed to serialize result: {e}"))),
+        Err(e) => Err(JsValue::from_str(&format!("{e:#}"))),
+    }
+}
+
+async fn run_http_inner<C: Context, const W: usize>(
+    b4_url: &str,
+    n_trustees: usize,
+    n_threshold: usize,
+    ciphertexts: u32,
+) -> Result<EmulatorResult> {
+    let committee = generate_committee::<C>(n_trustees, n_threshold, W)?;
+    let cfg_hash = committee.cfg_hash;
+    let cfg_message = WireMessage::<C>::configuration(&committee.pm, DATE, &committee.cfg);
+
+    // A fresh board per run so re-runs never collide on b4's persistent store.
+    let board_name = format!("emu_{}", js_sys::Date::now() as u64);
+    WasmHttpTransport::create_board(b4_url, &board_name).await?;
+    let manager_tx = WasmHttpTransport::new(b4_url, &board_name);
+    Transport::<C>::post(&manager_tx, vec![cfg_message]).await?;
+
+    let mut sessions = Vec::with_capacity(n_trustees);
+    for (i, (signing_key, keypair)) in committee
+        .signing_keys
+        .into_iter()
+        .zip(committee.share_keypairs)
+        .enumerate()
+    {
+        let transport = WasmHttpTransport::new(b4_url, &board_name);
+        let client = BoardClient::connect(transport, NoOpPersistence).await?;
+        let trustee = SessionTrustee::new(
+            (i + 1).to_string(),
+            signing_key,
+            keypair,
+            client.configuration(),
+        )?;
+        sessions.push(Session::new(trustee, client));
+    }
+
+    let dkg_rounds = drive_to_fixpoint(&mut sessions).await?;
+
+    let dkg_messages = Transport::<C>::fetch(&manager_tx).await?;
+    let pk_body = dkg_messages
+        .iter()
+        .find(|m| m.message_type == MessageType::PublicKey)
+        .and_then(|m| m.body.as_ref())
+        .ok_or_else(|| anyhow!("DKG did not produce a public key"))?;
+    let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
+        .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
+    let pk_hash = PublicKeyHash(b4::hash_bytes(pk_body));
+
+    let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+    let mut enc_rng = C::get_rng();
+    let plaintexts_in: Vec<[C::Element; W]> = (0..ciphertexts)
+        .map(|_| std::array::from_fn(|_| C::G::random_element(&mut enc_rng)))
+        .collect();
+    let encrypted: Vec<Ciphertext<C, W>> = plaintexts_in.iter().map(|p| pk.encrypt(p)).collect();
+    let expected: HashSet<Vec<u8>> = plaintexts_in.iter().map(|p| p.ser()).collect();
+    let mixing_trustees: Vec<TrusteeIndex> = (1..=n_threshold).collect();
+    let ballots = Ballots::<C, W>::new(encrypted);
+    let ballots_message = WireMessage::<C>::ballots(
+        &committee.pm,
+        DATE,
+        cfg_hash,
+        pk_hash,
+        mixing_trustees,
+        &ballots,
+    );
+    Transport::<C>::post(&manager_tx, vec![ballots_message]).await?;
+
+    let tally_rounds = drive_to_fixpoint(&mut sessions).await?;
+
+    let final_messages = Transport::<C>::fetch(&manager_tx).await?;
+    let pt_body = final_messages
+        .iter()
+        .find(|m| m.message_type == MessageType::Plaintexts)
+        .and_then(|m| m.body.as_ref())
+        .ok_or_else(|| anyhow!("protocol did not produce plaintexts"))?;
+    let plaintexts = Plaintexts::<C, W>::deser(pt_body)
+        .map_err(|e| anyhow!("failed to deserialize plaintexts: {:?}", e))?;
+    let actual: HashSet<Vec<u8>> = plaintexts.0.iter().map(|p| p.ser()).collect();
+    let success = expected == actual;
 
     Ok(EmulatorResult {
         success,

@@ -45,12 +45,22 @@ SPDX-License-Identifier: AGPL-3.0-only
     <label>Width <input id="width" type="number" min="1" max="8" value="2" /></label>
   </fieldset>
 
-  <h2>One-shot run</h2>
+  <h2>One-shot run (in-memory)</h2>
   <button id="run" disabled>Run whole protocol</button>
   <p id="runStatus" class="status">Loading wasm…</p>
   <pre id="runOutput"></pre>
 
-  <h2>Interactive</h2>
+  <h2>One-shot run (live b4)</h2>
+  <p>
+    Same protocol, but each trustee talks to a running b4 over HTTP+S3
+    (requires <code>b4.ps1</code> + <code>localstack.ps1</code>, and b4 CORS).
+  </p>
+  <label>b4 URL <input id="b4url" type="text" value="http://127.0.0.1:3000" style="width: 16rem" /></label>
+  <button id="runHttp" disabled>Run against b4</button>
+  <p id="httpStatus" class="status"></p>
+  <pre id="httpOutput"></pre>
+
+  <h2>Interactive (in-memory)</h2>
   <div>
     <button id="create" disabled>Create committee</button>
     <button id="stepOne" disabled>Step once</button>
@@ -66,6 +76,10 @@ SPDX-License-Identifier: AGPL-3.0-only
     const runStatus = document.getElementById("runStatus");
     const runOutput = document.getElementById("runOutput");
     const runBtn = document.getElementById("run");
+
+    const httpStatus = document.getElementById("httpStatus");
+    const httpOutput = document.getElementById("httpOutput");
+    const runHttpBtn = document.getElementById("runHttp");
 
     const intStatus = document.getElementById("intStatus");
     const intLog = document.getElementById("intLog");
@@ -114,6 +128,7 @@ SPDX-License-Identifier: AGPL-3.0-only
       }
       runStatus.textContent = "Ready.";
       runBtn.disabled = false;
+      runHttpBtn.disabled = false;
       createBtn.disabled = false;
     } catch (err) {
       runStatus.textContent = "Failed to load wasm: " + err;
@@ -140,6 +155,29 @@ SPDX-License-Identifier: AGPL-3.0-only
         runStatus.className = "status fail";
       } finally {
         runBtn.disabled = false;
+      }
+    });
+
+    // --- one-shot against live b4 ---
+    runHttpBtn.addEventListener("click", async () => {
+      const p = params();
+      const b4url = document.getElementById("b4url").value.trim();
+      runHttpBtn.disabled = true;
+      httpStatus.className = "status";
+      httpStatus.textContent = "Running against b4…";
+      httpOutput.textContent = "";
+      const started = performance.now();
+      try {
+        const result = await wasm.run_http(b4url, p.trustees, p.threshold, p.ciphertexts, p.width);
+        const secs = ((performance.now() - started) / 1000).toFixed(2);
+        httpOutput.textContent = JSON.stringify(result, null, 2) + `\n\nelapsed: ${secs}s`;
+        httpStatus.textContent = result.success ? "PASS — plaintexts match" : "FAIL — mismatch";
+        httpStatus.className = result.success ? "status ok" : "status fail";
+      } catch (err) {
+        httpStatus.textContent = "Error: " + err;
+        httpStatus.className = "status fail";
+      } finally {
+        runHttpBtn.disabled = false;
       }
     });
 
