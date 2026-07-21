@@ -23,6 +23,10 @@ pub mod transport;
 #[cfg(feature = "native")]
 pub mod http_transport;
 
+// The browser HTTP+S3 transport (web_sys `fetch`) is wasm-only.
+#[cfg(feature = "wasm-core")]
+pub mod wasm_transport;
+
 use anyhow::{bail, Result};
 
 use cryptography::context::Context;
