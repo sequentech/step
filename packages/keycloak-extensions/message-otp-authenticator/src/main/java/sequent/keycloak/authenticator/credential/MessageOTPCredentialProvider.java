@@ -17,11 +17,6 @@ import org.keycloak.models.UserModel;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticatorFactory;
 
-/**
- * 证书使用 CredentialValidator 来认证，例如 password 证书 使用登录认证，本例中使用 phone OTP 认证 //not have credential ,
- * SmsOtpMfaAuthenticator setRequiredActions will add ConfigSmsOtpRequiredAction to add an OPT
- * credential -> OTP
- */
 public class MessageOTPCredentialProvider
     implements CredentialProvider<MessageOTPCredentialModel>, CredentialInputValidator {
 
