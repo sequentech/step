@@ -49,9 +49,12 @@ cargo test -p braid --release
 
 This runs:
 
-- **Crate unit tests** — the datalog engine and accumulator, the board client
-  (anti-rewrite boundary check + DKG/tally board union), and `SqlitePersistence`.
-- **`tests/test_protocol.rs`** (the end-to-end harnesses):
+- **Crate unit tests** — the datalog engine and accumulator, and the board client:
+  the anti-rewrite boundary check, the DKG/tally board union, and the
+  restart/anti-rewrite persistence test (`persisted_predicate_blocks_rewrite_across_restart`),
+  which is what exercises `SqlitePersistence` (the native persistence backend).
+- **`tests/test_protocol.rs`** (the end-to-end harnesses) — these use
+  `NoOpPersistence` (a clean run does not exercise persistence/restart):
   - `test_protocol_memory` — DKG → mix → threshold-decrypt over an in-memory
     mock b4.
   - `test_protocol_memory_union` — one DKG, one tally over a child board unioned
@@ -62,13 +65,16 @@ This runs:
 ### Live-b4 native tests (opt-in)
 
 Two harnesses talk to a real `b4` over HTTP and are `#[ignore]`d so the default
-run stays hermetic:
+run stays hermetic. Both need `b4` **and** S3/LocalStack: b4 stores every message
+body in S3 (`MAX_INLINE_MESSAGE_SIZE = 0`), so any live-b4 run touches S3
+regardless of the test. They differ in the *client* board setup:
 
-- `test_protocol_http` — HTTP transport, no persistence. Needs `b4` running.
-- `test_protocol_http_union` — board union over HTTP + S3 with SQLite
-  persistence. Needs `b4` **and** S3/LocalStack.
+- `test_protocol_http` — single board, `NoOpPersistence` (no client-side
+  persistence).
+- `test_protocol_http_union` — DKG/tally board union with client-side
+  `SqlitePersistence`.
 
-Run them with a `b4` (and, for the union test, LocalStack) up:
+Run them with `b4` + LocalStack up:
 
 ```sh
 # Terminal 1:  .\localstack.ps1     (S3 via LocalStack)
