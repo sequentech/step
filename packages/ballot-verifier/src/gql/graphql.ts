@@ -3929,7 +3929,6 @@ export type Mutation_RootUpdate_Sequent_Backend_Election_EventArgs = {
     _delete_at_path?: InputMaybe<Sequent_Backend_Election_Event_Delete_At_Path_Input>
     _delete_elem?: InputMaybe<Sequent_Backend_Election_Event_Delete_Elem_Input>
     _delete_key?: InputMaybe<Sequent_Backend_Election_Event_Delete_Key_Input>
-    _inc?: InputMaybe<Sequent_Backend_Election_Event_Inc_Input>
     _prepend?: InputMaybe<Sequent_Backend_Election_Event_Prepend_Input>
     _set?: InputMaybe<Sequent_Backend_Election_Event_Set_Input>
     where: Sequent_Backend_Election_Event_Bool_Exp
@@ -3941,7 +3940,6 @@ export type Mutation_RootUpdate_Sequent_Backend_Election_Event_By_PkArgs = {
     _delete_at_path?: InputMaybe<Sequent_Backend_Election_Event_Delete_At_Path_Input>
     _delete_elem?: InputMaybe<Sequent_Backend_Election_Event_Delete_Elem_Input>
     _delete_key?: InputMaybe<Sequent_Backend_Election_Event_Delete_Key_Input>
-    _inc?: InputMaybe<Sequent_Backend_Election_Event_Inc_Input>
     _prepend?: InputMaybe<Sequent_Backend_Election_Event_Prepend_Input>
     _set?: InputMaybe<Sequent_Backend_Election_Event_Set_Input>
     pk_columns: Sequent_Backend_Election_Event_Pk_Columns_Input
@@ -10028,7 +10026,6 @@ export type Sequent_Backend_Election_Event = {
     audit_election_event_id?: Maybe<Scalars["uuid"]["output"]>
     bulletin_board_reference?: Maybe<Scalars["jsonb"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
-    datafix_last_applied_sequence: Scalars["bigint"]["output"]
     description?: Maybe<Scalars["String"]["output"]>
     /** An array relationship */
     elections: Array<Sequent_Backend_Election>
@@ -10113,17 +10110,9 @@ export type Sequent_Backend_Election_Event_Aggregate = {
 /** aggregate fields of "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_Aggregate_Fields = {
     __typename?: "sequent_backend_election_event_aggregate_fields"
-    avg?: Maybe<Sequent_Backend_Election_Event_Avg_Fields>
     count: Scalars["Int"]["output"]
     max?: Maybe<Sequent_Backend_Election_Event_Max_Fields>
     min?: Maybe<Sequent_Backend_Election_Event_Min_Fields>
-    stddev?: Maybe<Sequent_Backend_Election_Event_Stddev_Fields>
-    stddev_pop?: Maybe<Sequent_Backend_Election_Event_Stddev_Pop_Fields>
-    stddev_samp?: Maybe<Sequent_Backend_Election_Event_Stddev_Samp_Fields>
-    sum?: Maybe<Sequent_Backend_Election_Event_Sum_Fields>
-    var_pop?: Maybe<Sequent_Backend_Election_Event_Var_Pop_Fields>
-    var_samp?: Maybe<Sequent_Backend_Election_Event_Var_Samp_Fields>
-    variance?: Maybe<Sequent_Backend_Election_Event_Variance_Fields>
 }
 
 /** aggregate fields of "sequent_backend.election_event" */
@@ -10143,12 +10132,6 @@ export type Sequent_Backend_Election_Event_Append_Input = {
     voting_channels?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
-/** aggregate avg on columns */
-export type Sequent_Backend_Election_Event_Avg_Fields = {
-    __typename?: "sequent_backend_election_event_avg_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
-}
-
 /** Boolean expression to filter rows from the table "sequent_backend.election_event". All fields are combined with a logical 'AND'. */
 export type Sequent_Backend_Election_Event_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Election_Event_Bool_Exp>>
@@ -10158,7 +10141,6 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
     audit_election_event_id?: InputMaybe<Uuid_Comparison_Exp>
     bulletin_board_reference?: InputMaybe<Jsonb_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
-    datafix_last_applied_sequence?: InputMaybe<Bigint_Comparison_Exp>
     description?: InputMaybe<String_Comparison_Exp>
     elections?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
     elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Bool_Exp>
@@ -10219,18 +10201,12 @@ export type Sequent_Backend_Election_Event_Delete_Key_Input = {
     voting_channels?: InputMaybe<Scalars["String"]["input"]>
 }
 
-/** input type for incrementing numeric columns in table "sequent_backend.election_event" */
-export type Sequent_Backend_Election_Event_Inc_Input = {
-    datafix_last_applied_sequence?: InputMaybe<Scalars["bigint"]["input"]>
-}
-
 /** input type for inserting data into table "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     audit_election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    datafix_last_applied_sequence?: InputMaybe<Scalars["bigint"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     elections?: InputMaybe<Sequent_Backend_Election_Arr_Rel_Insert_Input>
     encryption_protocol?: InputMaybe<Scalars["String"]["input"]>
@@ -10254,7 +10230,6 @@ export type Sequent_Backend_Election_Event_Max_Fields = {
     __typename?: "sequent_backend_election_event_max_fields"
     audit_election_event_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
-    datafix_last_applied_sequence?: Maybe<Scalars["bigint"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
     encryption_protocol?: Maybe<Scalars["String"]["output"]>
     external_id?: Maybe<Scalars["String"]["output"]>
@@ -10270,7 +10245,6 @@ export type Sequent_Backend_Election_Event_Min_Fields = {
     __typename?: "sequent_backend_election_event_min_fields"
     audit_election_event_id?: Maybe<Scalars["uuid"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
-    datafix_last_applied_sequence?: Maybe<Scalars["bigint"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
     encryption_protocol?: Maybe<Scalars["String"]["output"]>
     external_id?: Maybe<Scalars["String"]["output"]>
@@ -10303,7 +10277,6 @@ export type Sequent_Backend_Election_Event_Order_By = {
     audit_election_event_id?: InputMaybe<Order_By>
     bulletin_board_reference?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
-    datafix_last_applied_sequence?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
     elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Order_By>
     encryption_protocol?: InputMaybe<Order_By>
@@ -10349,8 +10322,6 @@ export enum Sequent_Backend_Election_Event_Select_Column {
     /** column name */
     CreatedAt = "created_at",
     /** column name */
-    DatafixLastAppliedSequence = "datafix_last_applied_sequence",
-    /** column name */
     Description = "description",
     /** column name */
     EncryptionProtocol = "encryption_protocol",
@@ -10388,7 +10359,6 @@ export type Sequent_Backend_Election_Event_Set_Input = {
     audit_election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    datafix_last_applied_sequence?: InputMaybe<Scalars["bigint"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     encryption_protocol?: InputMaybe<Scalars["String"]["input"]>
     external_id?: InputMaybe<Scalars["String"]["input"]>
@@ -10404,24 +10374,6 @@ export type Sequent_Backend_Election_Event_Set_Input = {
     updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     user_boards?: InputMaybe<Scalars["String"]["input"]>
     voting_channels?: InputMaybe<Scalars["jsonb"]["input"]>
-}
-
-/** aggregate stddev on columns */
-export type Sequent_Backend_Election_Event_Stddev_Fields = {
-    __typename?: "sequent_backend_election_event_stddev_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
-}
-
-/** aggregate stddev_pop on columns */
-export type Sequent_Backend_Election_Event_Stddev_Pop_Fields = {
-    __typename?: "sequent_backend_election_event_stddev_pop_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
-}
-
-/** aggregate stddev_samp on columns */
-export type Sequent_Backend_Election_Event_Stddev_Samp_Fields = {
-    __typename?: "sequent_backend_election_event_stddev_samp_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** Streaming cursor of the table "sequent_backend_election_event" */
@@ -10438,7 +10390,6 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
     audit_election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     bulletin_board_reference?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    datafix_last_applied_sequence?: InputMaybe<Scalars["bigint"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
     encryption_protocol?: InputMaybe<Scalars["String"]["input"]>
     external_id?: InputMaybe<Scalars["String"]["input"]>
@@ -10456,12 +10407,6 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
     voting_channels?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
-/** aggregate sum on columns */
-export type Sequent_Backend_Election_Event_Sum_Fields = {
-    __typename?: "sequent_backend_election_event_sum_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["bigint"]["output"]>
-}
-
 /** update columns of table "sequent_backend.election_event" */
 export enum Sequent_Backend_Election_Event_Update_Column {
     /** column name */
@@ -10472,8 +10417,6 @@ export enum Sequent_Backend_Election_Event_Update_Column {
     BulletinBoardReference = "bulletin_board_reference",
     /** column name */
     CreatedAt = "created_at",
-    /** column name */
-    DatafixLastAppliedSequence = "datafix_last_applied_sequence",
     /** column name */
     Description = "description",
     /** column name */
@@ -10515,32 +10458,12 @@ export type Sequent_Backend_Election_Event_Updates = {
     _delete_elem?: InputMaybe<Sequent_Backend_Election_Event_Delete_Elem_Input>
     /** delete key/value pair or string element. key/value pairs are matched based on their key value */
     _delete_key?: InputMaybe<Sequent_Backend_Election_Event_Delete_Key_Input>
-    /** increments the numeric columns with given value of the filtered values */
-    _inc?: InputMaybe<Sequent_Backend_Election_Event_Inc_Input>
     /** prepend existing jsonb value of filtered columns with new jsonb value */
     _prepend?: InputMaybe<Sequent_Backend_Election_Event_Prepend_Input>
     /** sets the columns of the filtered rows to the given values */
     _set?: InputMaybe<Sequent_Backend_Election_Event_Set_Input>
     /** filter the rows which have to be updated */
     where: Sequent_Backend_Election_Event_Bool_Exp
-}
-
-/** aggregate var_pop on columns */
-export type Sequent_Backend_Election_Event_Var_Pop_Fields = {
-    __typename?: "sequent_backend_election_event_var_pop_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
-}
-
-/** aggregate var_samp on columns */
-export type Sequent_Backend_Election_Event_Var_Samp_Fields = {
-    __typename?: "sequent_backend_election_event_var_samp_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
-}
-
-/** aggregate variance on columns */
-export type Sequent_Backend_Election_Event_Variance_Fields = {
-    __typename?: "sequent_backend_election_event_variance_fields"
-    datafix_last_applied_sequence?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** input type for incrementing numeric columns in table "sequent_backend.election" */
