@@ -1353,6 +1353,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             {electionEventId && showVoterListSync ? (
                 <ReconciliationWizard
                     open={openReconciliationWizard}
+                    electionEventId={electionEventId}
                     onClose={() => setOpenReconciliationWizard(false)}
                 />
             ) : null}

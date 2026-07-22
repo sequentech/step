@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Shapes used by the Datafix reconciliation wizard. Mirrors the
- * reconciliation file, patch file and diff-row shapes from
- * DatafixPossibleImplementation.md so the mock layer in mockSyncEngine.ts can
- * be swapped for real GraphQL calls without touching the wizard component or
- * SyncDiffTable.
+ * Shapes used by the Datafix reconciliation wizard. 
+ * Wire values match the backend's Rust enums exactly (see D4 in
+ * DatafixReconciliationImplementationPlan.md), so these describe GraphQL
+ * response shapes directly with no translation layer.
  */
 
-// Source-of-truth categories from the "Handling Inconsistencies" section.
+// Source-of-truth categories from the "Handling Inconsistencies" section,
+// plus REENABLED (D12: a voter Sequent disabled solely because of a prior
+// Datafix delete call is re-enabled when the file no longer reports them
+// Deleted).
 export enum ESyncChangeCategory {
     VOTED_INTERNET = "VOTED_INTERNET", // A: Sequent holds a valid internet ballot, Datafix says NONE
     VOTED_OTHER_CHANNEL = "VOTED_OTHER_CHANNEL", // B: Datafix reports a non-INTERNET channel
@@ -18,6 +20,7 @@ export enum ESyncChangeCategory {
     DELETION_REVERTED = "DELETION_REVERTED", // C exception: voter has voted, deletion is not applied
     PROFILE_UPDATE = "PROFILE_UPDATE", // C: Ward/Poll/SchoolSupportCode/DoB changed
     VOTER_ADDED = "VOTER_ADDED", // D: voter missing on one side
+    REENABLED = "REENABLED", // D12: re-enabled after a Datafix delete-call disable is undone
     ROW_FAILURE = "ROW_FAILURE", // CountyMun mismatch or the voted-other-channel guard
 }
 
@@ -43,36 +46,6 @@ export const PATCH_FIELDS = [
 
 export type PatchField = (typeof PATCH_FIELDS)[number]
 
-export interface PatchFieldValue {
-    oldValue: string
-    newValue: string
-}
-
-/**
- * One patch row: every PATCH_FIELDS entry is always present (unchanged
- * fields carry the same value in both columns), only voters with at least
- * one changed field get a record. This is the source of truth for CSV
- * output; SyncDiffRow (below) is a per-changed-field flattening of it for
- * display.
- */
-export interface SyncVoterRecord {
-    voterId: string
-    target: ESyncPatchTarget
-    category: ESyncChangeCategory
-    fields: Record<PatchField, PatchFieldValue>
-}
-
-export interface ParsedReconciliationRow {
-    countyMun: string
-    voterId: string
-    dob: string
-    ward: string
-    poll: string
-    schoolSupportCode: string
-    channel: string
-    deleted: boolean
-}
-
 export interface SyncDiffRow {
     id: string
     voterId: string
@@ -89,8 +62,4 @@ export interface SyncDiffRow {
 export interface RowFailure {
     voterId: string
     reason: string
-}
-
-export interface SyncTaskResult {
-    rowFailures: RowFailure[]
 }

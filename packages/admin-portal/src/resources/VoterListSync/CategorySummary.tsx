@@ -2,29 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useMemo} from "react"
+import React from "react"
 import {Box, Stack, Typography} from "@mui/material"
-import {ESyncChangeCategory, SyncDiffRow} from "./types"
+import {ESyncChangeCategory} from "./types"
 import {CATEGORY_LABELS} from "./constants"
 
 interface CategorySummaryProps {
-    rows: SyncDiffRow[]
+    /** Backend-computed per-category counts (the import row's `summary`
+     * column) — never re-derived from a paginated page of items, which would
+     * silently undercount once the item grids are server-paginated. */
+    counts: Partial<Record<ESyncChangeCategory, number>>
     highlighted?: Set<ESyncChangeCategory>
 }
 
-/** Aggregate per-category counts, e.g. "marks N voters as voted via other
+/** Renders the per-category counts, e.g. "marks N voters as voted via other
  * channels, disables M voters, updates K profiles, adds J voters" from the
  * reconciliation confirmation dialog acceptance criteria. */
-export const CategorySummary: React.FC<CategorySummaryProps> = ({rows, highlighted}) => {
-    const counts = useMemo(() => {
-        const byCategory = new Map<ESyncChangeCategory, number>()
-        rows.forEach((row) => byCategory.set(row.category, (byCategory.get(row.category) ?? 0) + 1))
-        return Array.from(byCategory.entries())
-    }, [rows])
+export const CategorySummary: React.FC<CategorySummaryProps> = ({counts, highlighted}) => {
+    const entries = Object.entries(counts).filter(([, count]) => (count ?? 0) > 0) as Array<
+        [ESyncChangeCategory, number]
+    >
 
     return (
         <Stack direction="row" gap={1} flexWrap="wrap">
-            {counts.map(([category, count]) => (
+            {entries.map(([category, count]) => (
                 <Box
                     key={category}
                     sx={{
