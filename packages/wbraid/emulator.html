@@ -37,10 +37,12 @@ SPDX-License-Identifier: AGPL-3.0-only
   <p class="subtitle">interactive, browser-hosted trustees against a live b4</p>
 
   <p>
-    Drives the full protocol — DKG → encrypt → mix → threshold-decrypt — one round
-    at a time, with each browser trustee talking to a running b4 over HTTP+S3 and
-    persisting to its own IndexedDB store. Requires <code>localstack.ps1</code> +
-    <code>b4.ps1</code> running.
+    Manages one <strong>Setup</strong> (a committee: manager + trustee keys +
+    configuration) and drives the protocol one round at a time, with each browser
+    trustee talking to a running b4 over HTTP+S3 and persisting to its own
+    IndexedDB store. The DKG runs once; each <strong>tally</strong> then runs over
+    its own child board unioned with the DKG (§8.2). Requires
+    <code>localstack.ps1</code> + <code>b4.ps1</code> running.
   </p>
 
   <fieldset>
@@ -50,15 +52,25 @@ SPDX-License-Identifier: AGPL-3.0-only
     <label>Threshold <input id="threshold" class="num" type="number" min="2" max="8" value="2" /></label>
     <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
     <label>Width <input id="width" class="num" type="number" min="1" max="8" value="2" /></label>
+    <div id="setupId" style="color:#666; margin-top:0.5rem;"></div>
   </fieldset>
 
   <div>
-    <button id="create" disabled>Create committee</button>
+    <button id="create" disabled>Create setup</button>
     <button id="stepOne" disabled>Step once</button>
     <button id="stepFix" disabled>Step to fixpoint</button>
-    <button id="postBallots" disabled>Post ballots</button>
+    <button id="newTally" disabled>New tally</button>
     <button id="verify" disabled>Verify</button>
   </div>
+
+  <fieldset>
+    <legend>Bridge (survive a refresh)</legend>
+    <div>
+      <button id="exportBtn" disabled>Export setup</button>
+      <button id="importBtn" disabled>Import setup</button>
+    </div>
+    <div><textarea id="blob" rows="3" style="width:100%; font-family:monospace; font-size:0.75rem;" placeholder="Setup blob (base64) — Export writes it here; paste one and Import to reconnect after a refresh."></textarea></div>
+  </fieldset>
 
   <p id="status" class="status">Loading wasm…</p>
 
@@ -87,11 +99,15 @@ SPDX-License-Identifier: AGPL-3.0-only
     const trusteeSel = document.getElementById("trusteeSel");
     const storeView = document.getElementById("storeView");
     const committedView = document.getElementById("committedView");
+    const setupIdEl = document.getElementById("setupId");
+    const blobEl = document.getElementById("blob");
     const createBtn = document.getElementById("create");
     const stepOneBtn = document.getElementById("stepOne");
     const stepFixBtn = document.getElementById("stepFix");
-    const postBtn = document.getElementById("postBallots");
+    const newTallyBtn = document.getElementById("newTally");
     const verifyBtn = document.getElementById("verify");
+    const exportBtn = document.getElementById("exportBtn");
+    const importBtn = document.getElementById("importBtn");
 
     function params() {
       return {
@@ -108,6 +124,8 @@ SPDX-License-Identifier: AGPL-3.0-only
       const counts = `
         <tr><th>phase</th><td>${s.phase}</td></tr>
         <tr><th>round</th><td>${s.round}</td></tr>
+        <tr><th>tally</th><td>${s.tally}</td></tr>
+        <tr><th>board</th><td>${s.board}</td></tr>
         <tr><th>Configuration</th><td>${s.configuration}</td></tr>
         <tr><th>Shares</th><td>${s.shares}</td></tr>
         <tr><th>PublicKey</th><td>${s.public_key}</td></tr>
@@ -150,11 +168,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     // emulator mid-await.
     function setControls({ busy }) {
       createBtn.disabled = busy;
+      importBtn.disabled = busy;
       const canRun = !!emu && !busy;
       stepOneBtn.disabled = !canRun;
       stepFixBtn.disabled = !canRun;
-      postBtn.disabled = !canRun;
+      newTallyBtn.disabled = !canRun;
       verifyBtn.disabled = !canRun;
+      exportBtn.disabled = !canRun;
       trusteeSel.disabled = !canRun;
     }
 
@@ -168,8 +188,9 @@ SPDX-License-Identifier: AGPL-3.0-only
       if (wasm.initThreadPool) {
         await wasm.initThreadPool(navigator.hardwareConcurrency || 4);
       }
-      statusEl.textContent = "Ready. Start localstack.ps1 + b4.ps1, then Create a committee.";
+      statusEl.textContent = "Ready. Start localstack.ps1 + b4.ps1, then Create a setup (or Import one).";
       createBtn.disabled = false;
+      importBtn.disabled = false;
     } catch (err) {
       statusEl.textContent = "Failed to load wasm: " + err;
       statusEl.className = "status fail";
@@ -181,11 +202,24 @@ SPDX-License-Identifier: AGPL-3.0-only
       refreshTrustee();
     }
 
+    function populateTrustees() {
+      const n = emu.trustee_count();
+      trusteeSel.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = "trustee " + (i + 1);
+        trusteeSel.appendChild(opt);
+      }
+      trusteeSel.value = "0";
+      setupIdEl.textContent = "setup id: " + emu.setup_id();
+    }
+
     createBtn.addEventListener("click", async () => {
       const p = params();
       setControls({ busy: true });
       statusEl.className = "status";
-      statusEl.textContent = "Creating committee (creating board on b4, posting configuration)…";
+      statusEl.textContent = "Creating setup (creating DKG board on b4, posting configuration)…";
       logEl.textContent = "";
       boardView.innerHTML = "";
       storeView.textContent = "";
@@ -193,20 +227,46 @@ SPDX-License-Identifier: AGPL-3.0-only
       emu = null;
       try {
         emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.ciphertexts, p.width);
-        const n = emu.trustee_count();
-        trusteeSel.innerHTML = "";
-        for (let i = 0; i < n; i++) {
-          const opt = document.createElement("option");
-          opt.value = String(i);
-          opt.textContent = "trustee " + (i + 1);
-          trusteeSel.appendChild(opt);
-        }
-        trusteeSel.value = "0";
+        populateTrustees();
         log(`created: ${p.trustees} trustees, threshold ${p.threshold}, ${p.ciphertexts} ciphertexts, width ${p.width}, b4 ${p.b4url}`);
-        statusEl.textContent = "Committee created. Step to run the DKG.";
+        statusEl.textContent = "Setup created. Step to run the DKG, then New tally.";
         await refreshAll();
       } catch (err) {
         statusEl.textContent = "Error: " + err;
+        statusEl.className = "status fail";
+      } finally {
+        setControls({ busy: false });
+      }
+    });
+
+    exportBtn.addEventListener("click", () => {
+      if (!emu) return;
+      try {
+        blobEl.value = emu.export();
+        log("exported setup to the blob field (copy it to bridge a refresh)");
+      } catch (err) { log("export error: " + err); }
+    });
+
+    importBtn.addEventListener("click", async () => {
+      const blob = blobEl.value.trim();
+      if (!blob) { log("paste a setup blob first"); return; }
+      const b4url = document.getElementById("b4url").value.trim();
+      setControls({ busy: true });
+      statusEl.className = "status";
+      statusEl.textContent = "Importing setup (reconnecting to boards + IndexedDB)…";
+      logEl.textContent = "";
+      boardView.innerHTML = "";
+      storeView.textContent = "";
+      committedView.textContent = "";
+      emu = null;
+      try {
+        emu = await wasm.Emulator.import(b4url, blob);
+        populateTrustees();
+        log(`imported setup ${emu.setup_id()} (b4 ${b4url})`);
+        statusEl.textContent = "Setup imported. Step the DKG if needed, then New tally.";
+        await refreshAll();
+      } catch (err) {
+        statusEl.textContent = "Import error: " + err;
         statusEl.className = "status fail";
       } finally {
         setControls({ busy: false });
@@ -241,15 +301,15 @@ SPDX-License-Identifier: AGPL-3.0-only
       finally { setControls({ busy: false }); }
     });
 
-    postBtn.addEventListener("click", async () => {
+    newTallyBtn.addEventListener("click", async () => {
       if (!emu) return;
       setControls({ busy: true });
       try {
-        const s = await emu.post_ballots();
-        log("posted ballots; entering tally phase");
+        const s = await emu.new_tally();
+        log(`started tally ${s.tally} on ${s.board}; posted ballots`);
         renderBoard(s);
         refreshTrustee();
-      } catch (err) { log("post_ballots error: " + err); }
+      } catch (err) { log("new_tally error: " + err); }
       finally { setControls({ busy: false }); }
     });
 
