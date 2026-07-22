@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {translateFromPresentation} from "@sequentech/ui-core"
+import {isTranslatablePresentation, translateFromPresentation} from "@sequentech/ui-core"
 import {ResultsJson, ResultsRow, ResultsSerializedJson} from "@/types/results"
 
 const isResultsJson = (value: unknown): value is ResultsJson => {
@@ -46,11 +46,11 @@ export const translatedLabel = (
         return fallback
     }
 
-    const presentation = parseMaybeJson(row.presentation)
-    const translated =
-        translateFromPresentation({presentation, ...row}, "name", locale) ??
-        translateFromPresentation(presentation, "name", locale) ??
-        row.name
+    const parsedPresentation = parseMaybeJson(row.presentation)
+    const presentation = isTranslatablePresentation(parsedPresentation)
+        ? parsedPresentation
+        : undefined
+    const translated = translateFromPresentation({...row, presentation}, "name", locale)
 
     return typeof translated === "string" && translated.length ? translated : fallback
 }
