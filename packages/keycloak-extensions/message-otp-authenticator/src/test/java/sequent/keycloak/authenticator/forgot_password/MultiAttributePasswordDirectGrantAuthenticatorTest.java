@@ -7,6 +7,8 @@ package sequent.keycloak.authenticator.forgot_password;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.credential.CredentialInput;
+import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -34,6 +37,7 @@ import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.managers.BruteForceProtector;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -49,6 +53,8 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
   @Mock private AuthenticatorConfigModel authConfig;
   @Mock private HttpRequest httpRequest;
   @Mock private EventBuilder event;
+  @Mock private PasswordHashProvider passwordHashProvider;
+  @Mock private BruteForceProtector bruteForceProtector;
 
   @BeforeEach
   void setUp() {
@@ -59,6 +65,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     lenient().when(context.getHttpRequest()).thenReturn(httpRequest);
     lenient().when(context.getAuthenticatorConfig()).thenReturn(authConfig);
     lenient().when(context.getEvent()).thenReturn(event);
+    // Every "no viable candidate" path performs a dummy password hash for timing equalization
+    // (see MultiAttributeCredentialResolver#performDummyHash) - stub it as a safe no-op default.
+    lenient()
+        .when(session.getProvider(PasswordHashProvider.class))
+        .thenReturn(passwordHashProvider);
   }
 
   private UserModel mockUser(String id, String password, boolean enabled) {
@@ -137,8 +148,28 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
     authenticator.authenticate(context);
 
-    verify(context, never()).setUser(any());
+    // The sole candidate is still set on the auth session before failure is signaled, even
+    // though the PIN was wrong - otherwise Keycloak's brute-force accounting
+    // (DefaultAuthenticationFlow.processResult() -> AuthenticationProcessor.logFailure()) has no
+    // user to attribute the failed attempt to, same as the stock ValidateUsername/ValidatePassword.
+    verify(context).setUser(user);
     verify(context, never()).success();
+    verify(context).failure(any(), any());
+  }
+
+  @Test
+  void dobAndPin_multipleCandidates_wrongPin_doesNotSetUser() {
+    // Ambiguous candidates: no single account a failure can honestly be attributed to.
+    ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
+    formParams("dob", "19900101", "password", "wrong");
+    UserModel alice = mockUser("alice", "alice-pin", true);
+    UserModel bob = mockUser("bob", "bob-pin", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+
+    authenticator.authenticate(context);
+
+    verify(context, never()).setUser(any());
     verify(context).failure(any(), any());
   }
 
@@ -183,6 +214,68 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
     verify(context, never()).setUser(any());
     verify(context).failure(any(), any());
+  }
+
+  // ── Brute-force lockout ──────────────────────────────────────────────────
+
+  @Test
+  void dobAndPin_temporarilyLockedOut_forceChallengesWithoutPinCheck() {
+    ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
+    formParams("dob", "19900101", "password", "1234");
+    UserModel user = mockUser("user-1", "1234", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+        .thenReturn(Stream.of(user));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    when(bruteForceProtector.isTemporarilyDisabled(session, realm, user)).thenReturn(true);
+
+    authenticator.authenticate(context);
+
+    verify(context).setUser(user);
+    verify(context, never()).success();
+    // Locked-out accounts use forceChallenge (matching the stock ValidateUsername authenticator's
+    // brute-force handling), not failure() - the flow engine only logs another brute-force
+    // failure for FAILED/FAILURE_CHALLENGE results, and this account is already locked out.
+    verify(context, never()).failure(any(), any());
+    verify(context).forceChallenge(any());
+    verify(user.credentialManager(), never()).isValid(any(CredentialInput.class));
+  }
+
+  // ── Timing side-channel ──────────────────────────────────────────────────
+
+  @Test
+  void dobAndPin_noCandidates_performsDummyHash() {
+    ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
+    formParams("dob", "19900101", "password", "1234");
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+        .thenReturn(Stream.empty());
+
+    authenticator.authenticate(context);
+
+    verify(passwordHashProvider).encodedCredential(anyString(), anyInt());
+  }
+
+  // ── Date normalization (date_format) ────────────────────────────────────
+
+  @Test
+  void dobAndPin_ivrDateFormat_normalizesToCanonicalBeforeLookup() {
+    Map<String, String> config = new HashMap<>();
+    config.put("field", "dob##pin");
+    config.put("max_digits", "8##8");
+    config.put("kind", "identifier##secret");
+    config.put("maps_to", "dob##password");
+    config.put("date_format", "MMDDYYYY");
+    lenient().when(authConfig.getConfig()).thenReturn(config);
+    // IVR collects raw digits in MMDDYYYY order; the stored attribute is canonical YYYY-MM-DD.
+    formParams("dob", "01051990", "password", "1234");
+    UserModel user = mockUser("user-1", "1234", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "1990-01-05"))
+        .thenReturn(Stream.of(user));
+
+    authenticator.authenticate(context);
+
+    verify(context).setUser(user);
+    verify(context).success();
   }
 
   // ── Factory metadata ─────────────────────────────────────────────────────

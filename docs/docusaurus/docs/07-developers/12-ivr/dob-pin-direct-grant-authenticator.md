@@ -74,6 +74,12 @@ never drift out of sync:
   `password` (the standard OAuth2 ROPC parameter name).
 - All four required properties (`field`, `max_digits`, `kind`, `maps_to`) must have the same
   `##`-separated value count; `prompt_key` is optional but must also match that count if present.
+- **Date-valued identifier fields** (e.g. a date of birth collected as 8 raw DTMF digits): the
+  stored attribute must be canonical `YYYY-MM-DD`. Since the IVR prompt collects raw digits with
+  no separators (e.g. `MMDDYYYY`), set the `date_format` property to that digit order - aligned
+  by index with the `identifier` fields only (not the secret field) - and the authenticator
+  normalizes into `YYYY-MM-DD` before matching. Leave it unset (or leave that field's entry
+  blank) for identifier fields that aren't dates.
 
 **Example (target design)** - DOB + national ID + PIN, no voter ID. Requires the `beyond` fixes
 described above; not usable end-to-end today:
@@ -145,16 +151,23 @@ configuration needed there.
 | No `kind=secret` entry, or no `kind=identifier` entries | Direct Grant `invalid_grant` error (misconfiguration, fails closed). |
 | No user matches all `identifier` attributes | Direct Grant `invalid_grant` error. |
 | Exactly one candidate, correct PIN | Authenticates as that user. |
-| Exactly one candidate, wrong PIN | Direct Grant `invalid_grant` error. |
+| Exactly one candidate, wrong PIN | Direct Grant `invalid_grant` error - counted toward that account's Brute Force Detection lockout, same as a standard login. |
+| Exactly one candidate, currently locked out by Brute Force Detection | Direct Grant `invalid_grant` error - no PIN check is even attempted. |
 | Multiple candidates share the identifying attribute(s), PIN matches exactly one | Authenticates as that user. |
-| Multiple candidates match the PIN (or none do) | Direct Grant `invalid_grant` error. |
+| Multiple candidates match the PIN (or none do) | Direct Grant `invalid_grant` error - see the brute-force note below. |
 
 The error is the same generic `invalid_grant` regardless of cause, matching the web form's
 generic-error behavior - a failed attempt never reveals which attribute, or the PIN, was wrong.
+Every "no match" outcome takes the same time to respond, including a real password-hash
+computation on paths that never found a candidate to check.
 
-> **Note on brute-force protection**, same caveat as the web form: Keycloak's per-account
-> brute-force lockout needs a resolved user before it can engage. When more than one candidate
-> matches the identifying attributes, there is no single user to attribute a failed attempt to
-> until the PIN check resolves. Configuring more identifying attributes narrows the candidate set
-> before that point and is the main mitigation; keep **Brute Force Detection** enabled at the
-> realm level regardless.
+> **Note on brute-force protection**, same behavior as the web form: Keycloak's per-account
+> brute-force lockout engages once resolution narrows to a single candidate - that account's
+> failed PIN attempts get counted the same way a standard login's would. When more than one
+> candidate still shares the identifying attribute(s), there is no single account a failed attempt
+> can honestly be attributed to, so the counter can't engage for that specific request (a
+> locked-out account among several ambiguous candidates still can't have its PIN probed, though -
+> it's excluded from consideration before any PIN is checked). Configuring more identifying
+> attributes narrows the candidate set before the PIN check, making the single-candidate (fully
+> protected) case the common one; keep **Brute Force Detection** enabled at the realm level
+> regardless.

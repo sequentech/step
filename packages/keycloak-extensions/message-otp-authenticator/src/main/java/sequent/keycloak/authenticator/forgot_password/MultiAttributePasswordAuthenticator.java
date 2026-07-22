@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -81,19 +80,23 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             context.getAuthenticatorConfig(),
             Utils.MATCH_ATTRIBUTES,
             Utils.MATCH_ATTRIBUTES_DEFAULT);
-    Map<String, String> submittedValues = new HashMap<>();
-    for (String attribute : matchAttributes) {
-      submittedValues.put(attribute, formData.getFirst(attribute));
-    }
+    Map<String, String> submittedValues =
+        collectSubmittedValues(context.getSession(), matchAttributes, formData);
     String password = formData.getFirst(FIELD_PASSWORD);
 
-    Optional<UserModel> user =
+    MultiAttributeCredentialResolver.Resolution result =
         resolveAuthenticatedUser(
             context.getSession(), context.getRealm(), matchAttributes, submittedValues, password);
 
-    if (user.isPresent()) {
-      context.setUser(user.get());
+    // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
+    // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
+    // for a user set on the authentication session, same as the standard username/password form.
+    result.attributableUser().ifPresent(context::setUser);
+
+    if (result.authenticatedUser().isPresent()) {
       context.success();
+    } else if (result.lockoutState() != MultiAttributeCredentialResolver.LockoutState.NONE) {
+      lockedOut(context, formData, result.lockoutState());
     } else {
       fail(context, formData);
     }
@@ -106,11 +109,32 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
   }
 
   /**
+   * Mirrors {@code AbstractUsernameFormAuthenticator.isDisabledByBruteForce}: uses {@code
+   * forceChallenge} rather than {@code failureChallenge} so the flow engine doesn't log yet another
+   * failure against an account that's already locked out.
+   */
+  private void lockedOut(
+      AuthenticationFlowContext context,
+      MultivaluedMap<String, String> formData,
+      MultiAttributeCredentialResolver.LockoutState state) {
+    boolean permanent = state == MultiAttributeCredentialResolver.LockoutState.PERMANENT;
+    context.getEvent().error(permanent ? Errors.USER_DISABLED : Errors.USER_TEMPORARILY_DISABLED);
+    Response challengeResponse =
+        challenge(
+            context,
+            formData,
+            permanent
+                ? Messages.ACCOUNT_PERMANENTLY_DISABLED
+                : Messages.ACCOUNT_TEMPORARILY_DISABLED);
+    context.forceChallenge(challengeResponse);
+  }
+
+  /**
    * Resolves the single user matching every configured attribute AND the submitted password. See
    * {@link MultiAttributeCredentialResolver} for the resolution rules (shared with the IVR Direct
    * Grant authenticator).
    */
-  protected Optional<UserModel> resolveAuthenticatedUser(
+  protected MultiAttributeCredentialResolver.Resolution resolveAuthenticatedUser(
       KeycloakSession session,
       RealmModel realm,
       List<String> matchAttributes,
@@ -118,6 +142,30 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       String password) {
     return MultiAttributeCredentialResolver.resolveAuthenticatedUser(
         session, realm, matchAttributes, submittedValues, password);
+  }
+
+  /**
+   * Reads each configured attribute's submitted value, normalizing date-typed attributes (per the
+   * realm's User Profile {@code html5-date} annotation, the same source {@link
+   * #buildAttributeFields} reads) into the canonical {@code YYYY-MM-DD} storage format - see {@link
+   * Utils#normalizeDate}. An HTML5 date input already submits exactly {@code YYYY-MM-DD}, so this
+   * is a no-op for the common case; it's still applied defensively so the browser path stays
+   * consistent with the IVR path, which needs real reordering.
+   */
+  protected Map<String, String> collectSubmittedValues(
+      KeycloakSession session,
+      List<String> matchAttributes,
+      MultivaluedMap<String, String> formData) {
+    List<UPAttribute> profileAttributes = Utils.getRealmUserProfileAttributes(session);
+    Map<String, String> submittedValues = new HashMap<>();
+    for (String attribute : matchAttributes) {
+      String rawValue = formData.getFirst(attribute);
+      if ("date".equals(Utils.resolveHtml5InputType(profileAttributes, attribute))) {
+        rawValue = Utils.normalizeDate(rawValue, "YYYY-MM-DD");
+      }
+      submittedValues.put(attribute, rawValue);
+    }
+    return submittedValues;
   }
 
   protected Response challenge(

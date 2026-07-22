@@ -213,6 +213,41 @@ public class Utils {
     return ((String) inputType).substring("html5-".length());
   }
 
+  /**
+   * Reformats a date-like value into the canonical {@code YYYY-MM-DD} form user attributes are
+   * stored/searched in (the same format an HTML5 date input always submits), given the digit order
+   * it arrived in (e.g. {@code "YYYY-MM-DD"} for an HTML5 date input - a no-op reformat - or {@code
+   * "MMDDYYYY"} for 8 raw IVR DTMF digits). Non-digit characters in {@code rawValue} (separators)
+   * are stripped before reordering, so callers don't need to pre-clean input. Returns {@code
+   * rawValue} unchanged if its digit count doesn't match {@code sourceFormat}'s, rather than
+   * guessing.
+   */
+  public String normalizeDate(String rawValue, String sourceFormat) {
+    if (rawValue == null) {
+      return null;
+    }
+    String digits = rawValue.replaceAll("[^0-9]", "");
+    String formatLetters = sourceFormat.replaceAll("[^YMDymd]", "").toUpperCase();
+    if (digits.length() != formatLetters.length()) {
+      return rawValue;
+    }
+
+    StringBuilder year = new StringBuilder();
+    StringBuilder month = new StringBuilder();
+    StringBuilder day = new StringBuilder();
+    for (int i = 0; i < formatLetters.length(); i++) {
+      switch (formatLetters.charAt(i)) {
+        case 'Y' -> year.append(digits.charAt(i));
+        case 'M' -> month.append(digits.charAt(i));
+        case 'D' -> day.append(digits.charAt(i));
+        default -> {
+          // unrecognized letter in sourceFormat; ignore this position
+        }
+      }
+    }
+    return year + "-" + month + "-" + day;
+  }
+
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
     // Using streams to find the first matching configuration
     // TODO: We're assuming there's only one instance in this realm of this

@@ -39,6 +39,9 @@ second identifying attribute is available.
   If an attribute is configured there with **Input type** `html5-date` (e.g. a date of birth
   field), the login form automatically renders it as a native date picker too, matching what
   voters already see at registration.
+- **Date-valued attributes must be stored as `YYYY-MM-DD`** (e.g. `1990-01-05` for January 5,
+  1990) - the same format the browser's native date picker always submits, so no reformatting is
+  needed on the browser path.
 
 ---
 
@@ -86,16 +89,24 @@ keeps using the realm's default browser flow unchanged.
 | A configured attribute field is left blank | Generic "invalid credentials" error (no lookup performed). |
 | No user matches all configured attributes | Generic "invalid credentials" error. |
 | Exactly one candidate, correct password | Login succeeds. |
-| Exactly one candidate, wrong password | Generic "invalid credentials" error. |
+| Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. |
+| Exactly one candidate, currently locked out by Brute Force Detection | "Account temporarily/permanently disabled" - no password check is even attempted. |
 | Multiple candidates share the configured attribute(s), and the password matches exactly one | Login succeeds as that user. |
-| Multiple candidates match the password (or none do) | Generic "invalid credentials" error. |
+| Multiple candidates match the password (or none do) | Generic "invalid credentials" error - see the brute-force note below. |
 
 The error is always the same generic message regardless of cause, so a failed attempt never
-reveals which attribute, or the password, was wrong.
+reveals which attribute, or the password, was wrong. Every "no match" outcome above (blank field,
+no candidates, wrong password) takes the same time to respond, including a real password-hash
+computation on paths that never actually found a candidate to check - so response time doesn't
+reveal whether any account has the submitted attribute value.
 
-> **Note on brute-force protection:** Keycloak's built-in per-account lockout is tied to a
-> resolved user. When more than one candidate matches the configured attributes, there is no
-> single user to attribute a failed attempt to until the password check resolves, so the
-> brute-force counter cannot engage the same way it does for a standard username/password login.
-> Configuring more attributes narrows the candidate set before the password check and is the main
-> way to mitigate this; keep **Brute Force Detection** enabled at the realm level regardless.
+> **Note on brute-force protection:** Keycloak's built-in per-account lockout only engages once
+> resolution narrows to a single candidate - the same account that ends up locked out is also the
+> one whose failed attempts get counted, matching how the standard username/password form behaves.
+> When more than one candidate still shares the configured attribute(s), there is no single
+> account a failed attempt can honestly be attributed to, so the counter can't engage for that
+> specific request (a locked-out account among several ambiguous candidates still can't have its
+> password probed, though - it's excluded from consideration before any password is checked).
+> Configuring more attributes narrows the candidate set before the password check, making the
+> single-candidate (fully protected) case the common one; keep **Brute Force Detection** enabled
+> at the realm level regardless.

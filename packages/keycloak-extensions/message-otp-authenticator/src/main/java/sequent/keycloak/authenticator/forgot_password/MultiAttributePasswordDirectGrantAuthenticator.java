@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
@@ -60,6 +59,16 @@ public class MultiAttributePasswordDirectGrantAuthenticator
   public static final String CONFIG_MAPS_TO = "maps_to";
   public static final String CONFIG_PROMPT_KEY = "prompt_key";
 
+  /**
+   * Authenticator-internal only - not part of the {@code ivr-config-provider} contract, so it's not
+   * subject to that module's strict field-count validation. Optional, {@code ##}-separated, aligned
+   * by index with the {@code identifier}-kind fields in the order they appear (i.e. with {@code
+   * matchAttributes}, not the full field list) - e.g. {@code "MMDDYYYY"} for the raw digit order
+   * IVR DTMF collection uses for a date. Missing/blank entries mean "no normalization" for that
+   * field.
+   */
+  public static final String CONFIG_DATE_FORMAT = "date_format";
+
   public static final String KIND_IDENTIFIER = "identifier";
   public static final String KIND_SECRET = "secret";
 
@@ -97,22 +106,50 @@ public class MultiAttributePasswordDirectGrantAuthenticator
     }
 
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
-    Map<String, String> submittedValues = new HashMap<>();
-    for (String attribute : matchAttributes) {
-      submittedValues.put(attribute, formData.getFirst(attribute));
-    }
+    Map<String, String> submittedValues =
+        collectSubmittedValues(authConfig, matchAttributes, formData);
     String password = formData.getFirst(passwordField);
 
-    Optional<UserModel> user =
+    MultiAttributeCredentialResolver.Resolution result =
         MultiAttributeCredentialResolver.resolveAuthenticatedUser(
             context.getSession(), context.getRealm(), matchAttributes, submittedValues, password);
 
-    if (user.isPresent()) {
-      context.setUser(user.get());
+    // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
+    // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
+    // for a user set on the authentication session, same as the standard ValidateUsername.
+    result.attributableUser().ifPresent(context::setUser);
+
+    if (result.authenticatedUser().isPresent()) {
       context.success();
+    } else if (result.lockoutState() != MultiAttributeCredentialResolver.LockoutState.NONE) {
+      lockedOut(context, result.lockoutState());
     } else {
       fail(context);
     }
+  }
+
+  /**
+   * Normalizes date-typed identifier values from the raw digit order the IVR Lambda collects (per
+   * the optional {@link #CONFIG_DATE_FORMAT} config, aligned by index with {@code matchAttributes})
+   * into the canonical {@code YYYY-MM-DD} storage format - see {@link Utils#normalizeDate}. Without
+   * this, IVR-collected digits in any order other than YYYY-MM-DD never match a stored value.
+   */
+  protected Map<String, String> collectSubmittedValues(
+      AuthenticatorConfigModel authConfig,
+      List<String> matchAttributes,
+      MultivaluedMap<String, String> formData) {
+    List<String> dateFormats = Utils.getMultivalueString(authConfig, CONFIG_DATE_FORMAT, List.of());
+    Map<String, String> submittedValues = new HashMap<>();
+    for (int i = 0; i < matchAttributes.size(); i++) {
+      String attribute = matchAttributes.get(i);
+      String rawValue = formData.getFirst(attribute);
+      String format = i < dateFormats.size() ? dateFormats.get(i) : "";
+      if (format != null && !format.isBlank()) {
+        rawValue = Utils.normalizeDate(rawValue, format);
+      }
+      submittedValues.put(attribute, rawValue);
+    }
+    return submittedValues;
   }
 
   private void fail(AuthenticationFlowContext context) {
@@ -123,6 +160,23 @@ public class MultiAttributePasswordDirectGrantAuthenticator
             "invalid_grant",
             "Invalid user credentials");
     context.failure(AuthenticationFlowError.INVALID_USER, challengeResponse);
+  }
+
+  /**
+   * Mirrors the stock {@code ValidateUsername} Direct Grant authenticator's brute-force handling:
+   * uses {@code forceChallenge} rather than {@code failure} so the flow engine doesn't log yet
+   * another failure against an account that's already locked out.
+   */
+  private void lockedOut(
+      AuthenticationFlowContext context, MultiAttributeCredentialResolver.LockoutState state) {
+    boolean permanent = state == MultiAttributeCredentialResolver.LockoutState.PERMANENT;
+    context.getEvent().error(permanent ? Errors.USER_DISABLED : Errors.USER_TEMPORARILY_DISABLED);
+    Response challengeResponse =
+        errorResponse(
+            Response.Status.BAD_REQUEST.getStatusCode(),
+            "invalid_grant",
+            permanent ? "Account permanently disabled" : "Account temporarily disabled");
+    context.forceChallenge(challengeResponse);
   }
 
   @Override
@@ -207,6 +261,16 @@ public class MultiAttributePasswordDirectGrantAuthenticator
             "IVR prompt key per field (optional)",
             "Overrides the IVR Lambda's default prompt key per field, same order. Leave empty to"
                 + " use the Lambda's well-known defaults.",
+            ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
+            null),
+        new ProviderConfigProperty(
+            CONFIG_DATE_FORMAT,
+            "Date format per identifier field (optional)",
+            "For date-valued identifier fields only (e.g. a date of birth collected as raw DTMF"
+                + " digits): the digit order the IVR Lambda collects it in, e.g. \"MMDDYYYY\"."
+                + " Aligned by index with the identifier fields only (not the secret field) -"
+                + " leave an entry empty for identifier fields that aren't dates. Normalizes into"
+                + " the canonical YYYY-MM-DD storage format before matching.",
             ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
             null));
   }

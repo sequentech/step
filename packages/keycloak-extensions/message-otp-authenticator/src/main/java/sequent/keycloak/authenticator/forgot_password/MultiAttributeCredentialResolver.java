@@ -11,10 +11,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.services.managers.BruteForceProtector;
 
 /**
  * Resolves a user from one or more configured attributes plus a password, without a username.
@@ -24,18 +27,63 @@ import org.keycloak.models.UserModel;
  * of how the values arrived.
  *
  * <p>Resolution: for each configured attribute, find every user whose attribute equals the
- * submitted value, then intersect those candidate sets across all attributes. If exactly one
- * candidate's password matches the submitted password, that user authenticates. Any other outcome
- * (no candidates, no password match, more than one password match) fails generically, so callers
- * never need to distinguish "no such attributes" from "wrong password" - that distinction must not
- * leak to the end user.
+ * submitted value, then intersect those candidate sets across all attributes. Candidates who are
+ * disabled or currently locked out by brute-force protection are excluded before any password is
+ * checked. If exactly one candidate remains, its password is checked directly - this is the only
+ * case where a failure can be attributed to one account (see {@link
+ * Resolution#attributableUser()}), so callers should {@code setUser()} it before signaling failure,
+ * letting Keycloak's normal brute-force accounting engage the same way it does for the standard
+ * username/password form. If more than one candidate remains, the password disambiguates among
+ * them, but a failure there can't be attributed to a single account. Any early-return path performs
+ * an equivalent-cost dummy password hash first, so "no viable candidate" doesn't respond measurably
+ * faster than "wrong password" - see {@link #performDummyHash}.
  */
 @JBossLog
 public final class MultiAttributeCredentialResolver {
 
   private MultiAttributeCredentialResolver() {}
 
-  public static Optional<UserModel> resolveAuthenticatedUser(
+  /** Brute-force lockout state of a resolved candidate. */
+  public enum LockoutState {
+    NONE,
+    TEMPORARY,
+    PERMANENT
+  }
+
+  /**
+   * Outcome of a resolution attempt.
+   *
+   * @param authenticatedUser populated only on full success (matching attributes AND password).
+   * @param attributableUser populated whenever resolution narrowed to exactly one viable candidate,
+   *     regardless of whether their password matched - callers should {@code context.setUser()}
+   *     this before signaling failure so Keycloak's brute-force accounting can attribute the
+   *     attempt.
+   * @param lockoutState non-{@code NONE} when the sole viable-by-attributes candidate is currently
+   *     locked out by brute-force protection, so no password check was even attempted.
+   */
+  public record Resolution(
+      Optional<UserModel> authenticatedUser,
+      Optional<UserModel> attributableUser,
+      LockoutState lockoutState) {
+
+    static Resolution success(UserModel user) {
+      return new Resolution(Optional.of(user), Optional.of(user), LockoutState.NONE);
+    }
+
+    static Resolution failure() {
+      return new Resolution(Optional.empty(), Optional.empty(), LockoutState.NONE);
+    }
+
+    static Resolution failureAttributedTo(UserModel user) {
+      return new Resolution(Optional.empty(), Optional.of(user), LockoutState.NONE);
+    }
+
+    static Resolution lockedOut(UserModel user, LockoutState state) {
+      return new Resolution(Optional.empty(), Optional.of(user), state);
+    }
+  }
+
+  public static Resolution resolveAuthenticatedUser(
       KeycloakSession session,
       RealmModel realm,
       List<String> matchAttributes,
@@ -43,17 +91,17 @@ public final class MultiAttributeCredentialResolver {
       String password) {
     if (matchAttributes == null || matchAttributes.isEmpty()) {
       log.warn("resolveAuthenticatedUser(): no matchAttributes configured");
-      return Optional.empty();
+      return dummyFailure(session, realm);
     }
     if (password == null || password.isBlank()) {
-      return Optional.empty();
+      return dummyFailure(session, realm);
     }
 
     Map<String, UserModel> candidatesById = null;
     for (String attribute : matchAttributes) {
       String value = submittedValues.get(attribute);
       if (value == null || value.isBlank()) {
-        return Optional.empty();
+        return dummyFailure(session, realm);
       }
       value = value.trim();
 
@@ -68,27 +116,97 @@ public final class MultiAttributeCredentialResolver {
       }
 
       if (candidatesById.isEmpty()) {
-        return Optional.empty();
+        return dummyFailure(session, realm);
       }
+    }
+
+    List<UserModel> enabledCandidates =
+        candidatesById.values().stream().filter(UserModel::isEnabled).collect(Collectors.toList());
+    Map<UserModel, LockoutState> lockoutStates =
+        enabledCandidates.stream()
+            .collect(Collectors.toMap(Function.identity(), c -> lockoutStateOf(session, realm, c)));
+    List<UserModel> lockedOutCandidates =
+        enabledCandidates.stream()
+            .filter(candidate -> lockoutStates.get(candidate) != LockoutState.NONE)
+            .collect(Collectors.toList());
+    List<UserModel> viableCandidates =
+        enabledCandidates.stream()
+            .filter(candidate -> lockoutStates.get(candidate) == LockoutState.NONE)
+            .collect(Collectors.toList());
+
+    if (viableCandidates.isEmpty()) {
+      // Every enabled candidate for these attributes is currently locked out: only report the
+      // specific lockout when there is exactly one such account to attribute it to - an ambiguous
+      // set of locked accounts must stay as generic a failure as any other ambiguous outcome.
+      if (lockedOutCandidates.size() == 1) {
+        UserModel locked = lockedOutCandidates.get(0);
+        return Resolution.lockedOut(locked, lockoutStates.get(locked));
+      }
+      return dummyFailure(session, realm);
+    }
+
+    if (viableCandidates.size() == 1) {
+      UserModel candidate = viableCandidates.get(0);
+      if (isPasswordValid(candidate, password)) {
+        return Resolution.success(candidate);
+      }
+      return Resolution.failureAttributedTo(candidate);
     }
 
     List<UserModel> passwordMatches =
-        candidatesById.values().stream()
-            .filter(UserModel::isEnabled)
+        viableCandidates.stream()
             .filter(candidate -> isPasswordValid(candidate, password))
             .collect(Collectors.toList());
 
-    if (passwordMatches.size() != 1) {
-      if (passwordMatches.size() > 1) {
-        log.warnv(
-            "resolveAuthenticatedUser(): ambiguous match, {0} candidates matched the submitted"
-                + " password",
-            passwordMatches.size());
-      }
-      return Optional.empty();
+    if (passwordMatches.size() == 1) {
+      return Resolution.success(passwordMatches.get(0));
     }
+    if (passwordMatches.size() > 1) {
+      log.warnv(
+          "resolveAuthenticatedUser(): ambiguous match, {0} candidates matched the submitted"
+              + " password",
+          passwordMatches.size());
+    }
+    return Resolution.failure();
+  }
 
-    return Optional.of(passwordMatches.get(0));
+  private static Resolution dummyFailure(KeycloakSession session, RealmModel realm) {
+    performDummyHash(session, realm);
+    return Resolution.failure();
+  }
+
+  /**
+   * Performs a password-hash computation of realistic cost against fixed dummy data, matching
+   * {@code org.keycloak.authentication.authenticators.util.AuthenticatorUtils#dummyHash} (used by
+   * Keycloak's own {@code ValidateUsername} when no user is found), so that "no viable candidate"
+   * doesn't resolve measurably faster than "found a candidate, wrong password" - both perform
+   * exactly one hash comparison.
+   */
+  private static void performDummyHash(KeycloakSession session, RealmModel realm) {
+    PasswordPolicy passwordPolicy = realm.getPasswordPolicy();
+    PasswordHashProvider provider;
+    if (passwordPolicy != null && passwordPolicy.getHashAlgorithm() != null) {
+      provider = session.getProvider(PasswordHashProvider.class, passwordPolicy.getHashAlgorithm());
+    } else {
+      provider = session.getProvider(PasswordHashProvider.class);
+    }
+    int iterations = passwordPolicy != null ? passwordPolicy.getHashIterations() : -1;
+    provider.encodedCredential("SlightlyLongerDummyPassword", iterations);
+  }
+
+  private static LockoutState lockoutStateOf(
+      KeycloakSession session, RealmModel realm, UserModel user) {
+    if (!realm.isBruteForceProtected()) {
+      return LockoutState.NONE;
+    }
+    BruteForceProtector protector = session.getProvider(BruteForceProtector.class);
+    if (protector.isPermanentlyLockedOut(session, realm, user)) {
+      return LockoutState.PERMANENT;
+    }
+    if (protector.isTemporarilyDisabled(session, realm, user)) {
+      return LockoutState.TEMPORARY;
+    }
+    return LockoutState.NONE;
   }
 
   /**

@@ -6,21 +6,28 @@ package sequent.keycloak.authenticator.forgot_password;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.credential.CredentialInput;
+import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
@@ -29,9 +36,12 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
+import org.keycloak.services.managers.BruteForceProtector;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import sequent.keycloak.authenticator.forgot_password.MultiAttributeCredentialResolver.LockoutState;
+import sequent.keycloak.authenticator.forgot_password.MultiAttributeCredentialResolver.Resolution;
 
 @ExtendWith(MockitoExtension.class)
 class MultiAttributePasswordAuthenticatorTest {
@@ -41,11 +51,18 @@ class MultiAttributePasswordAuthenticatorTest {
   @Mock private KeycloakSession session;
   @Mock private RealmModel realm;
   @Mock private UserProvider userProvider;
+  @Mock private PasswordHashProvider passwordHashProvider;
 
   @BeforeEach
   void setUp() {
     authenticator = new MultiAttributePasswordAuthenticator();
     lenient().when(session.users()).thenReturn(userProvider);
+    // Every "no viable candidate" path performs a dummy password hash for timing equalization
+    // (see MultiAttributeCredentialResolver#performDummyHash) - stub it as a safe no-op default
+    // so tests that don't care about this don't need to.
+    lenient()
+        .when(session.getProvider(PasswordHashProvider.class))
+        .thenReturn(passwordHashProvider);
   }
 
   private UserModel mockUser(String id, String password, boolean enabled) {
@@ -81,12 +98,12 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
         .thenReturn(Stream.of(user));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "correct-horse");
 
-    assertTrue(result.isPresent());
-    assertEquals(user, result.get());
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(user, result.authenticatedUser().get());
   }
 
   @Test
@@ -95,11 +112,11 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
         .thenReturn(Stream.of(user));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "wrong");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   @Test
@@ -108,11 +125,11 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
         .thenReturn(Stream.of(user));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "correct-horse");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   // ── Multiple attributes intersect to one candidate ──────────────────────
@@ -127,7 +144,7 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "ALICE-ID"))
         .thenReturn(Stream.of(alice));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session,
             realm,
@@ -135,8 +152,8 @@ class MultiAttributePasswordAuthenticatorTest {
             valuesOf("dateOfBirth", "19900101", "nationalId", "ALICE-ID"),
             "alice-pw");
 
-    assertTrue(result.isPresent());
-    assertEquals(alice, result.get());
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(alice, result.authenticatedUser().get());
   }
 
   // ── DOB-not-unique-alone case: multiple candidates, password disambiguates ──
@@ -148,7 +165,7 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
         .thenReturn(Stream.of(alice, bob));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session,
             realm,
@@ -156,8 +173,8 @@ class MultiAttributePasswordAuthenticatorTest {
             valuesOf("dateOfBirth", "19900101"),
             "alice-pw");
 
-    assertTrue(result.isPresent());
-    assertEquals(alice, result.get());
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(alice, result.authenticatedUser().get());
   }
 
   @Test
@@ -167,11 +184,11 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
         .thenReturn(Stream.of(alice, bob));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("dateOfBirth"), valuesOf("dateOfBirth", "19900101"), "wrong");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   @Test
@@ -181,7 +198,7 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
         .thenReturn(Stream.of(alice, bob));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session,
             realm,
@@ -189,7 +206,7 @@ class MultiAttributePasswordAuthenticatorTest {
             valuesOf("dateOfBirth", "19900101"),
             "shared-pw");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   // ── Zero candidates ──────────────────────────────────────────────────────
@@ -199,11 +216,11 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "unknown"))
         .thenReturn(Stream.empty());
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), valuesOf("nationalId", "unknown"), "pw");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   @Test
@@ -215,7 +232,7 @@ class MultiAttributePasswordAuthenticatorTest {
     when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "BOB-ID"))
         .thenReturn(Stream.of(bob));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session,
             realm,
@@ -223,44 +240,44 @@ class MultiAttributePasswordAuthenticatorTest {
             valuesOf("dateOfBirth", "19900101", "nationalId", "BOB-ID"),
             "alice-pw");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   // ── Missing / blank submitted values ────────────────────────────────────
 
   @Test
   void blankSubmittedValue_failsWithoutLookup() {
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), valuesOf("nationalId", "  "), "pw");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   @Test
   void missingSubmittedValue_failsWithoutLookup() {
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), Map.of(), "pw");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   @Test
   void blankPassword_failsWithoutLookup() {
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), " ");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   @Test
   void noMatchAttributesConfigured_fails() {
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(session, realm, List.of(), Map.of(), "pw");
 
-    assertTrue(result.isEmpty());
+    assertTrue(result.authenticatedUser().isEmpty());
   }
 
   // ── username / email special-casing ─────────────────────────────────────
@@ -270,12 +287,12 @@ class MultiAttributePasswordAuthenticatorTest {
     UserModel user = mockUser("user-1", "pw", true);
     when(userProvider.getUserByUsername(realm, "voter1")).thenReturn(user);
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("username"), valuesOf("username", "voter1"), "pw");
 
-    assertTrue(result.isPresent());
-    assertEquals(user, result.get());
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(user, result.authenticatedUser().get());
   }
 
   @Test
@@ -285,12 +302,12 @@ class MultiAttributePasswordAuthenticatorTest {
             realm, Map.of(UserModel.EMAIL, "voter1@example.com", UserModel.EXACT, "true")))
         .thenReturn(Stream.of(user));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("email"), valuesOf("email", "voter1@example.com"), "pw");
 
-    assertTrue(result.isPresent());
-    assertEquals(user, result.get());
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(user, result.authenticatedUser().get());
   }
 
   @Test
@@ -304,12 +321,185 @@ class MultiAttributePasswordAuthenticatorTest {
             realm, Map.of(UserModel.EMAIL, "shared@example.com", UserModel.EXACT, "true")))
         .thenReturn(Stream.of(alice, bob));
 
-    Optional<UserModel> result =
+    Resolution result =
         authenticator.resolveAuthenticatedUser(
             session, realm, List.of("email"), valuesOf("email", "shared@example.com"), "bob-pw");
 
-    assertTrue(result.isPresent());
-    assertEquals(bob, result.get());
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(bob, result.authenticatedUser().get());
+  }
+
+  // ── Brute-force attribution ──────────────────────────────────────────────
+
+  @Test
+  void singleCandidate_wrongPassword_attributesFailureToCandidate() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenReturn(Stream.of(user));
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "wrong");
+
+    // Even though authentication failed, the single candidate is reported so the caller can
+    // context.setUser() it before signaling failure - otherwise Keycloak's brute-force counters
+    // never engage (DefaultAuthenticationFlow.processResult() ->
+    // AuthenticationProcessor.logFailure()
+    // can only find a user via authenticationSession.getAuthenticatedUser()).
+    assertTrue(result.attributableUser().isPresent());
+    assertEquals(user, result.attributableUser().get());
+    assertEquals(LockoutState.NONE, result.lockoutState());
+  }
+
+  @Test
+  void ambiguousCandidates_wrongPassword_doesNotAttributeFailure() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("dateOfBirth"), valuesOf("dateOfBirth", "19900101"), "wrong");
+
+    // With more than one viable candidate there is no single account a failure can honestly be
+    // attributed to.
+    assertTrue(result.attributableUser().isEmpty());
+  }
+
+  @Test
+  void singleCandidate_correctPassword_attributableUserIsTheAuthenticatedUser() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenReturn(Stream.of(user));
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "correct-horse");
+
+    assertEquals(user, result.attributableUser().orElse(null));
+  }
+
+  // ── Brute-force lockout ──────────────────────────────────────────────────
+
+  @Mock private BruteForceProtector bruteForceProtector;
+
+  @Test
+  void singleCandidate_temporarilyLockedOut_failsWithoutPasswordCheck() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenReturn(Stream.of(user));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    when(bruteForceProtector.isPermanentlyLockedOut(session, realm, user)).thenReturn(false);
+    when(bruteForceProtector.isTemporarilyDisabled(session, realm, user)).thenReturn(true);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "correct-horse");
+
+    assertEquals(LockoutState.TEMPORARY, result.lockoutState());
+    assertEquals(user, result.attributableUser().orElse(null));
+    assertTrue(result.authenticatedUser().isEmpty());
+    // No credential check should even be attempted against a locked-out account.
+    verify(user.credentialManager(), never()).isValid(any(CredentialInput.class));
+  }
+
+  @Test
+  void singleCandidate_permanentlyLockedOut_reportsPermanent() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenReturn(Stream.of(user));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    when(bruteForceProtector.isPermanentlyLockedOut(session, realm, user)).thenReturn(true);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "correct-horse");
+
+    assertEquals(LockoutState.PERMANENT, result.lockoutState());
+  }
+
+  @Test
+  void multipleCandidatesAllLockedOut_ambiguous_staysGeneric() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    when(bruteForceProtector.isTemporarilyDisabled(session, realm, alice)).thenReturn(true);
+    when(bruteForceProtector.isTemporarilyDisabled(session, realm, bob)).thenReturn(true);
+    // isPermanentlyLockedOut() is left unstubbed - Mockito defaults unstubbed boolean methods to
+    // false, which is exactly the "not permanently locked" case this test needs.
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("dateOfBirth"), valuesOf("dateOfBirth", "19900101"), "pw");
+
+    // Two locked-out candidates: no single account to attribute the lockout to, so this stays a
+    // generic failure rather than confirming "an account with this DOB is locked."
+    assertEquals(LockoutState.NONE, result.lockoutState());
+    assertTrue(result.attributableUser().isEmpty());
+  }
+
+  @Test
+  void realmNotBruteForceProtected_neverConsultsProtector() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenReturn(Stream.of(user));
+    // realm.isBruteForceProtected() defaults to false (unstubbed) - the protector must never be
+    // consulted in that case.
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "correct-horse");
+
+    assertTrue(result.authenticatedUser().isPresent());
+    verify(session, never()).getProvider(BruteForceProtector.class);
+  }
+
+  // ── Timing side-channel: dummy hash on every early-return path ──────────
+
+  @Test
+  void noCandidates_performsDummyHash() {
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "unknown"))
+        .thenReturn(Stream.empty());
+
+    authenticator.resolveAuthenticatedUser(
+        session, realm, List.of("nationalId"), valuesOf("nationalId", "unknown"), "pw");
+
+    verify(passwordHashProvider).encodedCredential(anyString(), anyInt());
+  }
+
+  @Test
+  void blankSubmittedValue_performsDummyHash() {
+    authenticator.resolveAuthenticatedUser(
+        session, realm, List.of("nationalId"), valuesOf("nationalId", "  "), "pw");
+
+    verify(passwordHashProvider).encodedCredential(anyString(), anyInt());
+  }
+
+  @Test
+  void noMatchAttributesConfigured_performsDummyHash() {
+    authenticator.resolveAuthenticatedUser(session, realm, List.of(), Map.of(), "pw");
+
+    verify(passwordHashProvider).encodedCredential(anyString(), anyInt());
+  }
+
+  @Test
+  void singleCandidate_wrongPassword_doesNotAlsoPerformDummyHash() {
+    // A real candidate got a real credential check - a redundant dummy hash on top would be
+    // pointless extra cost, not a correctness issue, but confirms the two paths are disjoint.
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenReturn(Stream.of(user));
+
+    authenticator.resolveAuthenticatedUser(
+        session, realm, List.of("nationalId"), valuesOf("nationalId", "X123"), "wrong");
+
+    verify(passwordHashProvider, never()).encodedCredential(anyString(), anyInt());
   }
 
   // ── Rendering: HTML5 input type resolved from the realm's User Profile ──
@@ -395,6 +585,72 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void resolveHtml5InputType_unknownAttribute_fallsBackToText() {
     assertEquals("text", Utils.resolveHtml5InputType(List.of(), "nationalId"));
+  }
+
+  // ── Date normalization (collectSubmittedValues) ─────────────────────────
+
+  @Test
+  void collectSubmittedValues_dateTypedAttribute_normalizesFromHtml5Format() {
+    mockUserProfileAttributes(new UPAttribute("dateOfBirth", Map.of("inputType", "html5-date")));
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add("dateOfBirth", "1990-01-05");
+
+    Map<String, String> submitted =
+        authenticator.collectSubmittedValues(session, List.of("dateOfBirth"), formData);
+
+    assertEquals("1990-01-05", submitted.get("dateOfBirth"));
+  }
+
+  @Test
+  void collectSubmittedValues_nonDateAttribute_passesThroughUnchanged() {
+    mockUserProfileAttributes(new UPAttribute("nationalId", Map.of("inputType", "text")));
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add("nationalId", "X123");
+
+    Map<String, String> submitted =
+        authenticator.collectSubmittedValues(session, List.of("nationalId"), formData);
+
+    assertEquals("X123", submitted.get("nationalId"));
+  }
+
+  @Test
+  void collectSubmittedValues_dateTypedAttribute_missingValue_staysNull() {
+    mockUserProfileAttributes(new UPAttribute("dateOfBirth", Map.of("inputType", "html5-date")));
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+
+    Map<String, String> submitted =
+        authenticator.collectSubmittedValues(session, List.of("dateOfBirth"), formData);
+
+    assertNull(submitted.get("dateOfBirth"));
+  }
+
+  // ── Utils.normalizeDate ──────────────────────────────────────────────────
+
+  @Test
+  void normalizeDate_isoFormat_isUnchanged() {
+    assertEquals("1990-01-05", Utils.normalizeDate("1990-01-05", "YYYY-MM-DD"));
+  }
+
+  @Test
+  void normalizeDate_mmddyyyy_reordersToCanonical() {
+    assertEquals("1990-01-05", Utils.normalizeDate("01051990", "MMDDYYYY"));
+  }
+
+  @Test
+  void normalizeDate_yyyymmddDigitsOnly_reordersToCanonical() {
+    assertEquals("1990-01-05", Utils.normalizeDate("19900105", "YYYYMMDD"));
+  }
+
+  @Test
+  void normalizeDate_digitCountMismatch_returnsRawValueUnchanged() {
+    // Can't confidently reorder if the digit count doesn't match the declared format - fall back
+    // to returning the original value unchanged rather than guessing.
+    assertEquals("1-2-3", Utils.normalizeDate("1-2-3", "YYYY-MM-DD"));
+  }
+
+  @Test
+  void normalizeDate_null_returnsNull() {
+    assertNull(Utils.normalizeDate(null, "YYYY-MM-DD"));
   }
 
   // ── Factory metadata ────────────────────────────────────────────────────
