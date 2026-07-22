@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {DocumentNode, print} from "graphql"
+
 export interface GraphqlResponse<T> {
     data?: T
     errors?: Array<{message: string}>
@@ -9,7 +11,7 @@ export interface GraphqlResponse<T> {
 
 export const graphqlFetch = async <T, TVariables extends object>(
     hasuraUrl: string,
-    query: string,
+    query: DocumentNode,
     variables: TVariables,
     token?: string
 ): Promise<T> => {
@@ -19,7 +21,7 @@ export const graphqlFetch = async <T, TVariables extends object>(
             "Content-Type": "application/json",
             ...(token ? {Authorization: `Bearer ${token}`} : {}),
         },
-        body: JSON.stringify({query, variables}),
+        body: JSON.stringify({query: print(query), variables}),
     })
 
     if (!response.ok) {
