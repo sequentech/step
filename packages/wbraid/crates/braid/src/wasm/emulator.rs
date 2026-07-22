@@ -9,10 +9,14 @@
 //! production-shaped setting. It lets a page drive the protocol one round at a
 //! time and inspect what the board and each trustee hold between rounds.
 //!
-//! One-shot pass/fail runs belong in tests, not the emulator: the protocol logic
-//! is covered natively by `protocol_test_memory` / `protocol_test_http`, and its
-//! correctness *under wasm* by the headless [`run_in_memory`] test (see
-//! `tests/wasm_protocol.rs`).
+//! One-shot pass/fail runs belong in tests, not the emulator. Coverage: the
+//! protocol logic is covered natively by `protocol_test_memory` /
+//! `protocol_test_http`; the wasm build + serialization + async I/O by the
+//! headless IndexedDB test (`tests/wasm_indexeddb.rs`); and the protocol running
+//! correctly *under wasm* end-to-end by this emulator in a real browser. (A
+//! headless wasm *protocol* test is infeasible: the crypto needs the rayon thread
+//! pool, which needs the atomics/shared-memory build, whose async test executor
+//! needs SharedArrayBuffer/COOP that the wasm-bindgen test runner cannot provide.)
 
 use wasm_bindgen::prelude::*;
 
@@ -33,8 +37,8 @@ use b4::messages::newtypes::{ConfigurationHash, PublicKeyHash, Timestamp, Truste
 use b4::messages::protocol_manager::ProtocolManager;
 use b4::messages::wire::{MessageType, WireMessage};
 
-use crate::board::persistence::{IndexedDbPersistence, NoOpPersistence, Persistence};
-use crate::board::transport::{MemoryBoard, MemoryTransport, Transport};
+use crate::board::persistence::{IndexedDbPersistence, Persistence};
+use crate::board::transport::Transport;
 use crate::board::wasm_transport::WasmHttpTransport;
 use crate::board::BoardClient;
 use crate::runtime::SessionTrustee;
@@ -42,9 +46,6 @@ use crate::session::Session;
 
 /// Wire `date` for every emulator message (§3.1 — timestamps are wire-only).
 const DATE: Timestamp = 0;
-
-/// Safety cap on driver rounds; a healthy run converges in a handful of passes.
-const MAX_ROUNDS: usize = 200;
 
 /// The maximum committee size the dispatch macros monomorphize for.
 const MAX_TRUSTEES: usize = 8;
@@ -119,21 +120,6 @@ async fn advance_round<C: Context, T: Transport<C>, P: Persistence>(
     Ok(produced_any)
 }
 
-/// Drive to a fixpoint; returns the number of rounds taken.
-async fn drive_to_fixpoint<C: Context, T: Transport<C>, P: Persistence>(
-    sessions: &mut [Session<C, T, P>],
-) -> Result<usize> {
-    for round in 0..MAX_ROUNDS {
-        if !advance_round(sessions).await? {
-            return Ok(round);
-        }
-    }
-    Err(anyhow!(
-        "protocol did not reach a fixpoint within {} rounds",
-        MAX_ROUNDS
-    ))
-}
-
 /// The body of the first message of `kind` in `messages`, if any.
 fn find_body<C: Context>(messages: &[WireMessage<C>], kind: MessageType) -> Option<&Vec<u8>> {
     messages
@@ -199,100 +185,6 @@ fn validate_params(trustees: usize, threshold: usize, width: usize) -> Result<()
         ));
     }
     Ok(())
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Headless in-memory protocol run (for `tests/wasm_protocol.rs`)
-///////////////////////////////////////////////////////////////////////////
-
-/// The outcome of an in-memory protocol run.
-#[derive(Serialize)]
-pub struct EmulatorResult {
-    pub success: bool,
-    pub trustees: usize,
-    pub threshold: usize,
-    pub ciphertexts: u32,
-    pub width: usize,
-    pub dkg_rounds: usize,
-    pub tally_rounds: usize,
-}
-
-/// Run the full protocol over an in-memory board (no b4, no persistence) and
-/// return the outcome. Used by the headless wasm protocol test to confirm the
-/// v0.6 core runs correctly compiled to wasm32; not exported to JS.
-pub async fn run_in_memory(
-    trustees: usize,
-    threshold: usize,
-    ciphertexts: u32,
-    width: usize,
-) -> Result<EmulatorResult> {
-    validate_params(trustees, threshold, width)?;
-    crate::dispatch_ciphertext_width!(width, {
-        run_in_memory_inner::<RistrettoCtx, W>(trustees, threshold, ciphertexts).await
-    })
-}
-
-async fn run_in_memory_inner<C: Context, const W: usize>(
-    n_trustees: usize,
-    n_threshold: usize,
-    ciphertexts: u32,
-) -> Result<EmulatorResult> {
-    let committee = generate_committee::<C>(n_trustees, n_threshold, W)?;
-    let cfg_hash = committee.cfg_hash;
-    let cfg_message = WireMessage::<C>::configuration(&committee.pm, DATE, &committee.cfg);
-
-    let board = MemoryBoard::<C>::new();
-    board.push(cfg_message);
-
-    let mut sessions = Vec::with_capacity(n_trustees);
-    for (i, (signing_key, keypair)) in committee
-        .signing_keys
-        .into_iter()
-        .zip(committee.share_keypairs)
-        .enumerate()
-    {
-        let transport = MemoryTransport::new(board.clone());
-        let client = BoardClient::connect(transport, NoOpPersistence).await?;
-        let trustee = SessionTrustee::new(
-            (i + 1).to_string(),
-            signing_key,
-            keypair,
-            client.configuration(),
-        )?;
-        sessions.push(Session::new(trustee, client));
-    }
-
-    let dkg_rounds = drive_to_fixpoint(&mut sessions).await?;
-
-    let dkg_messages = board.snapshot();
-    let pk_body = find_body(&dkg_messages, MessageType::PublicKey)
-        .ok_or_else(|| anyhow!("DKG did not produce a public key"))?;
-    let mixing_trustees: Vec<TrusteeIndex> = (1..=n_threshold).collect();
-    let (ballots_message, expected) = encrypt_ballots::<C, W>(
-        pk_body,
-        ciphertexts,
-        mixing_trustees,
-        &committee.pm,
-        cfg_hash,
-    )?;
-    board.push(ballots_message);
-
-    let tally_rounds = drive_to_fixpoint(&mut sessions).await?;
-
-    let final_messages = board.snapshot();
-    let pt_body = find_body(&final_messages, MessageType::Plaintexts)
-        .ok_or_else(|| anyhow!("protocol did not produce plaintexts"))?;
-    let (success, _) = plaintexts_match::<C, W>(pt_body, &expected)?;
-
-    Ok(EmulatorResult {
-        success,
-        trustees: n_trustees,
-        threshold: n_threshold,
-        ciphertexts,
-        width: W,
-        dkg_rounds,
-        tally_rounds,
-    })
 }
 
 ///////////////////////////////////////////////////////////////////////////

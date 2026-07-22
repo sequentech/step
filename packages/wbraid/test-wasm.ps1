@@ -19,7 +19,7 @@ $env:CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER = "wasm-bindgen-test-runner"
 cargo test -p braid `
     --no-default-features --features wasm-core `
     --target wasm32-unknown-unknown `
-    --test wasm_indexeddb --test wasm_protocol
+    --test wasm_indexeddb
 
 $code = $LASTEXITCODE
 
