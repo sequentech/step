@@ -15,9 +15,13 @@ use deadpool_postgres::Client as DbClient;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Recovery work older than one beat interval is redundant: the next scan will
+/// enqueue the cast vote again if it is still in progress.
+const RECOVERY_TASK_EXPIRES_SECS: u32 = 90;
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, expires = 90)]
 pub async fn review_cast_votes() -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -49,11 +53,14 @@ pub async fn review_cast_votes() -> Result<()> {
         // For this Celery has to be properly configured with acks_late=true and a realistic value for prefetch_count, which establishes the number of tasks executed in parallel.
         for ballot in &ballots_list {
             celery_app
-                .send_task(process_cast_vote::new(
-                    ballot.tenant_id.to_string(),
-                    ballot.election_event_id.to_string(),
-                    ballot.id.clone(),
-                ))
+                .send_task(
+                    process_cast_vote::new(
+                        ballot.tenant_id.to_string(),
+                        ballot.election_event_id.to_string(),
+                        ballot.id.clone(),
+                    )
+                    .with_expires_in(RECOVERY_TASK_EXPIRES_SECS),
+                )
                 .await
                 .map_err(|e| anyhow!("Error sending cast_vote_actions task: {e:?}"))?;
         }
