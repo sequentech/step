@@ -55,7 +55,6 @@ path = [
 	".devcontainer/minio/certs.json",
 	"packages/orare/doc_renderer/assets/**",
 	"packages/windmill/external-bin/janitor/**.xlsx",
-	"packages/step-cli/rust-local-target/release/step-cli",
 	"packages/strand/browserstack/package-lock.json"
 ]
 precedence = "aggregate"
