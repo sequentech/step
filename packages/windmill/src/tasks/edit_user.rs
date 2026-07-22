@@ -7,13 +7,13 @@ use crate::postgres::cast_vote::{
 };
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::database::get_hasura_pool;
-use crate::services::datafix;
-use crate::services::datafix::types::{SoapRequest, SoapRequestResponse, SoapRequestResult};
-use crate::services::datafix::utils::{
+use crate::services::external;
+use crate::services::external::types::{SoapRequest, SoapRequestResponse, SoapRequestResult};
+use crate::services::external::utils::{
     datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
-use crate::services::datafix::voterview_requests::SoapSendError;
+use crate::services::external::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
@@ -276,7 +276,7 @@ async fn send_set_not_voted(
     election_event: ElectionEvent,
     username: &str,
 ) {
-    let prepared = match datafix::voterview_requests::prepare(
+    let prepared = match external::voterview_requests::prepare(
         SoapRequest::SetNotVoted,
         ElectionEventDatafix(election_event),
         &Some(username.to_string()),
@@ -296,7 +296,7 @@ async fn send_set_not_voted(
         }
     };
     let template_sha256 = prepared.template_sha256().to_string();
-    let operation = match datafix::voterview_requests::send_prepared(prepared).await {
+    let operation = match external::voterview_requests::send_prepared(prepared).await {
         Ok(SoapRequestResult {
             response,
             template_sha256,

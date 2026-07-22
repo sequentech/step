@@ -1797,6 +1797,15 @@
         "attributes": {}
       },
       {
+        "id": "2f6b8e4a-9c1d-4e3f-8a7b-5d0c6f2a1b3e",
+        "name": "election-event-voter-list-reconciliation",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "93fc971f-1d2e-4bff-8440-da937436f423",
         "name": "voter-import",
         "description": "",
@@ -2515,6 +2524,7 @@
         "voter-export",
         "voter-import",
         "voter-manually-verify",
+        "election-event-voter-list-reconciliation",
         "election-event-tally-columns",
         "election-event-tally-back-button",
         "transmition-ceremony",

@@ -625,7 +625,7 @@ pub fn valid_inbound_voting_channel(channel: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{create_user_error_response, valid_inbound_voting_channel};
-    use crate::services::datafix::types::DatafixErrorCode;
+    use crate::services::external::types::DatafixErrorCode;
     use keycloak::KeycloakError;
     use rocket::http::Status;
 

@@ -29,8 +29,6 @@ export enum ETasksExecution {
     EXPORT_TALLY_RESULTS_XLSX = "EXPORT_TALLY_RESULTS_XLSX",
     EXPORT_CERTIFICATE_AUTHORITIES = "EXPORT_CERTIFICATE_AUTHORITIES",
     PUBLISH_RESULTS_WEBSITE = "PUBLISH_RESULTS_WEBSITE",
-    // Reserved for the real Celery tasks once the Datafix reconciliation backend lands.
-    // Not wired to the Widget/WidgetsContextProvider yet - see resources/VoterListSync.
     GENERATE_RECONCILIATION_PATCHES = "GENERATE_RECONCILIATION_PATCHES",
     APPLY_RECONCILIATION_PATCH = "APPLY_RECONCILIATION_PATCH",
 }
