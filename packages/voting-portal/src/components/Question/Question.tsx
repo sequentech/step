@@ -209,7 +209,7 @@ export const Question: React.FC<IQuestionProps> = ({
 
     useEffect(() => {
         // Calculating the number of selected candidates
-        let selectedChoicesCount = 0
+        let selectedChoicesCount = Number(contestState?.is_explicit_invalid)
         contestState?.choices.forEach((choice) => {
             choice.selected >= 0 && selectedChoicesCount++
         })
