@@ -2025,7 +2025,6 @@ export type Mutation_RootCreate_ElectionArgs = {
 export type Mutation_RootCreate_External_Reconciliation_ImportArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
-  sha256: Scalars['String']['input'];
 };
 
 

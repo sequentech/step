@@ -7,12 +7,10 @@ export const CREATE_EXTERNAL_RECONCILIATION_IMPORT = gql`
     mutation CreateExternalReconciliationImport(
         $election_event_id: String!
         $document_id: String!
-        $sha256: String!
     ) {
         create_external_reconciliation_import(
             election_event_id: $election_event_id
             document_id: $document_id
-            sha256: $sha256
         ) {
             task_execution {
                 id

@@ -183,7 +183,6 @@ type Mutation {
     create_external_reconciliation_import(
         election_event_id: String!
         document_id: String!
-        sha256: String!
     ): taskOutput
 }
 

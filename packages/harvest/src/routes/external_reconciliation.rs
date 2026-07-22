@@ -23,7 +23,6 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::documents::get_document_as_temp_file;
 use windmill::services::external::reconciliation::diff::ReconciliationDiff;
-use windmill::services::tally_sheet_import::hash::hash_bytes;
 use windmill::services::tasks_execution::post as post_task_execution;
 use windmill::tasks::apply_reconciliation_patch::{
     apply_reconciliation_patch, ApplyReconciliationPatchBody,
@@ -42,7 +41,6 @@ pub struct DatafixReconciliationTaskOutput {
 pub struct CreateDatafixReconciliationImportInput {
     pub election_event_id: String,
     pub document_id: String,
-    pub sha256: String,
 }
 
 /// Kicks off `generate_reconciliation_patches` for an uploaded reconciliation
@@ -51,7 +49,14 @@ pub struct CreateDatafixReconciliationImportInput {
 /// widget) rather than `create_tally_sheet_import`'s synchronous shape, since
 /// reconciliation files can be 100k+ rows and always need the async task
 /// path. There is no row to insert here — the generate task is the only
-/// record of this round until it produces the diff-envelope document.
+/// record of this round until it produces the diff-envelope document. The
+/// uploaded file itself isn't read here at all: `generate_reconciliation_patches`
+/// downloads it once (to parse it) and hashes those same bytes for the
+/// electoral log; re-downloading it here just to check a client-computed
+/// hash would be a second, redundant download that doesn't protect anything
+/// the electoral log's own hash doesn't already cover — that hash exists so
+/// Datafix's own generated hash can be compared against it manually, not as
+/// an upload integrity gate.
 #[instrument(skip(claims))]
 #[post("/create-reconciliation-import", format = "json", data = "<body>")]
 pub async fn create_reconciliation_import(
@@ -67,54 +72,6 @@ pub async fn create_reconciliation_import(
         vec![Permissions::ELECTION_EVENT_VOTER_LIST_SYNC],
     )
     .map_err(|err| (Status::Forbidden, format!("{err:?}")))?;
-
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
-
-    let document = get_document(
-        &hasura_transaction,
-        &tenant_id,
-        Some(input.election_event_id.clone()),
-        &input.document_id,
-    )
-    .await
-    .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?
-    .ok_or_else(|| {
-        (
-            Status::NotFound,
-            "Uploaded reconciliation file not found".to_string(),
-        )
-    })?;
-
-    let temp_file = get_document_as_temp_file(&tenant_id, &document)
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
-    let file_bytes = std::fs::read(temp_file.path()).map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error reading uploaded file: {err}"),
-        )
-    })?;
-
-    let actual_sha256 = hash_bytes(&file_bytes);
-    if !actual_sha256.eq_ignore_ascii_case(input.sha256.trim()) {
-        return Err((
-            Status::BadRequest,
-            format!("Uploaded file SHA-256 mismatch: expected {}, got {actual_sha256}", input.sha256),
-        ));
-    }
-
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
 
     let executer_name = claims
         .name
@@ -139,7 +96,6 @@ pub async fn create_reconciliation_import(
         tenant_id: tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
         source_document_id: input.document_id.clone(),
-        source_sha256: actual_sha256,
     };
 
     let celery_app = get_celery_app().await;
