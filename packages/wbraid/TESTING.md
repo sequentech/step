@@ -4,55 +4,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 # Testing braid v0.6
 
-This describes how the v0.6 stack (the `braid` trustee + the `b4` bulletin board)
-is tested. See `crates/braid/v0.6_spec.md` for the protocol itself.
+The v0.6 stack (the `braid` trustee + the `b4` bulletin board) runs in two
+environments — **native** and **wasm** — and is tested separately in each. See
+`crates/braid/v0.6_spec.md` for the protocol itself.
 
-## Philosophy: three layers
+The two environments also carry the two persistence backends
+(`SqlitePersistence` native, `IndexedDbPersistence` wasm); each is covered within
+its section below.
 
-Coverage is split across three complementary layers rather than a single
-"run-all" suite, because the trustee runs in two very different environments
-(native and wasm) with two different persistence backends, and because one
-otherwise-obvious test is infeasible:
+## Native
 
-| Layer | Runs | Persistence | Covers |
-|---|---|---|---|
-| 1. Native | `cargo test` | in-memory / SQLite | protocol logic, board client, datalog, crypto |
-| 2. Wasm headless | `test-wasm.ps1` | IndexedDB | wasm build + serialization + async I/O round-trip |
-| 3. Interactive browser | `emulator.html` | IndexedDB | the full protocol running **under wasm** against a live b4 |
+The default build (`default = ["native"]`), driven with `cargo`.
 
-**Why the protocol isn't tested headless under wasm.** The crypto is
-rayon-parallel, so a wasm build that runs it needs the `wasm-bindgen-rayon`
-thread pool, which needs the atomics / shared-memory build, whose async executor
-needs `Atomics.waitAsync` on `SharedArrayBuffer` (cross-origin isolation via
-COOP/COEP). The `wasm-bindgen` headless test runner serves plain HTTP without
-that isolation, so an atomics build's async tests cannot run there (they fail
-with `memory access out of bounds` / "not a shared typed array"). Layer 2 is
-therefore restricted to threadless I/O; the protocol running correctly under wasm
-is validated by Layer 3 (a real browser, which *can* provide COOP/COEP) plus the
-native protocol tests of Layer 1.
-
-**Two persistence backends.** `SqlitePersistence` (native) is exercised by
-Layer 1; `IndexedDbPersistence` (wasm) by Layers 2 and 3. The anti-rewrite
-`collides()` logic they guard is platform-agnostic and covered natively, so the
-wasm layers only need to exercise the DB I/O and the end-to-end behaviour.
-
----
-
-## Layer 1 — Native (fast, default)
-
-The default build (`default = ["native"]`), run with `cargo`.
+### Unit + integration tests
 
 ```sh
 # From the repo root (wbraid/). --release because the crypto is slow in debug.
 cargo test -p braid --release
 ```
 
-This runs:
-
 - **Crate unit tests** — the datalog engine and accumulator, and the board client:
   the anti-rewrite boundary check, the DKG/tally board union, and the
-  restart/anti-rewrite persistence test (`persisted_predicate_blocks_rewrite_across_restart`),
-  which is what exercises `SqlitePersistence` (the native persistence backend).
+  restart/anti-rewrite persistence test
+  (`persisted_predicate_blocks_rewrite_across_restart`), which is what exercises
+  `SqlitePersistence` (the native persistence backend).
 - **`tests/test_protocol.rs`** (the end-to-end harnesses) — these use
   `NoOpPersistence` (a clean run does not exercise persistence/restart):
   - `test_protocol_memory` — DKG → mix → threshold-decrypt over an in-memory
@@ -62,7 +37,7 @@ This runs:
   - `test_protocol_memory_union_batches` — one DKG reused by several tallies, each
     on its own child board (the union-as-batch mechanism).
 
-### Live-b4 native tests (opt-in)
+### Live-b4 tests (opt-in)
 
 Two harnesses talk to a real `b4` over HTTP and are `#[ignore]`d so the default
 run stays hermetic. Both need `b4` **and** S3/LocalStack: b4 stores every message
@@ -74,8 +49,6 @@ regardless of the test. They differ in the *client* board setup:
 - `test_protocol_http_union` — DKG/tally board union with client-side
   `SqlitePersistence`.
 
-Run them with `b4` + LocalStack up:
-
 ```sh
 # Terminal 1:  .\localstack.ps1     (S3 via LocalStack)
 # Terminal 2:  .\b4.ps1             (b4 server on :3000)
@@ -83,40 +56,53 @@ Run them with `b4` + LocalStack up:
 cargo test -p braid --release -- --ignored
 ```
 
----
+### Prerequisites
 
-## Layer 2 — Wasm headless (I/O only)
+- A stable Rust toolchain (for the default build).
+- For the live-b4 tests: **Docker** + the **AWS CLI** — `localstack.ps1` starts
+  LocalStack, creates the `wbraid-messages` bucket, and applies `s3-cors.json` —
+  and the **`b4`** server (`b4.ps1` sets the S3 endpoint/credentials and points
+  `DATABASE_URL` at a repo-root `b4.db`).
 
-A headless-Chrome `wasm-bindgen-test` that exercises the IndexedDB persistence
-backend (round-trip + idempotency).
+## Wasm
+
+The trustee also compiles to `wasm32-unknown-unknown` and runs in the browser.
+Two things are tested: the IndexedDB persistence backend (headless), and the full
+protocol running under wasm (interactively).
+
+The protocol itself **cannot** be tested headless. The crypto is rayon-parallel,
+so a wasm build that runs it needs the `wasm-bindgen-rayon` thread pool → the
+atomics / shared-memory build → an async executor that needs `Atomics.waitAsync`
+on `SharedArrayBuffer` (cross-origin isolation via COOP/COEP). The `wasm-bindgen`
+headless test runner serves plain HTTP without that isolation, so the atomics
+build's async tests can't run there (they fail with `memory access out of
+bounds`). So the headless test is restricted to threadless I/O, and the
+protocol-under-wasm is validated interactively in a real browser (which can
+provide COOP/COEP) — backed by the native protocol tests above.
+
+### Headless persistence test (I/O only)
 
 ```sh
 # From the repo root (wbraid/), NOT crates/braid.
 .\test-wasm.ps1
 ```
 
-Key points:
+Runs a `wasm-bindgen-test` (`tests/wasm_indexeddb.rs`) exercising the
+`IndexedDbPersistence` round-trip + idempotency in headless Chrome.
 
-- Uses the **`wasm-core`** feature (no `wasm-bindgen-rayon`, hence no atomics),
-  so it runs in plain headless Chrome without any SharedArrayBuffer / COOP setup.
+- Uses the **`wasm-core`** feature (no `wasm-bindgen-rayon`, hence no atomics), so
+  it runs in plain headless Chrome with no SharedArrayBuffer / COOP setup.
 - **Run from the repo root**, so the atomics `.cargo/config.toml` under
-  `crates/braid` is not applied. Also ensure `RUSTFLAGS` is empty in your shell —
-  a leftover `-C target-feature=+atomics…` from a prior production build silently
-  produces a shared-memory binary that then fails here (`$env:RUSTFLAGS=""`).
+  `crates/braid` is not applied. Also ensure `RUSTFLAGS` is empty — a leftover
+  `-C target-feature=+atomics…` from a prior production build silently produces a
+  shared-memory binary that then fails here (`$env:RUSTFLAGS=""`).
 - Set `NO_HEADLESS=1` to watch the browser.
 
-Prerequisites: the `wasm32-unknown-unknown` target
-(`rustup target add wasm32-unknown-unknown`), `wasm-bindgen-test-runner` (ships
-with `wasm-bindgen-cli`, version-matched to the pinned `wasm-bindgen`), and a
-`chromedriver` matching your Chrome, both on `PATH`.
+### Interactive emulator (full protocol under wasm)
 
----
-
-## Layer 3 — Interactive browser emulator (full protocol under wasm)
-
-`emulator.html` runs browser-hosted trustees against a live `b4`, driving the
-full protocol a round at a time. This is the production-shaped setting and the
-primary validation that the protocol runs correctly under wasm.
+`emulator.html` runs browser-hosted trustees against a live `b4`, driving the full
+protocol a round at a time — the production-shaped setting and the primary
+validation that the protocol runs correctly under wasm.
 
 ```sh
 # Terminal 1:
@@ -125,8 +111,8 @@ primary validation that the protocol runs correctly under wasm.
 .\b4.ps1                # b4 server on :3000 (SQLite + S3)
 # Terminal 3:
 .\serve.ps1             # clears RUSTFLAGS, builds the wasm client (build-wasm.ps1,
-                        # nightly + atomics + wasm-bindgen-rayon), then serves
-                        # on :8080 with COOP/COEP (server.py)
+                        # nightly + atomics + wasm-bindgen-rayon), then serves on
+                        # :8080 with COOP/COEP (server.py)
 ```
 
 Then open <http://127.0.0.1:8080/emulator.html> and:
@@ -142,27 +128,23 @@ Then open <http://127.0.0.1:8080/emulator.html> and:
    paste it back, and Import to reconnect the same boards + IndexedDB stores
    (the bridge for testing persistence across a refresh).
 
-What it validates: the full DKG → mix → threshold-decrypt under wasm; live b4 +
-S3; per-trustee IndexedDB persistence; the DKG/tally board union and multiple
-tallies over one DKG; and the export/import Setup bridge. This layer is **manual
-by design** — see the philosophy note above for why it cannot be automated
-headless.
+Validates the full DKG → mix → threshold-decrypt under wasm; live b4 + S3;
+per-trustee IndexedDB persistence; the DKG/tally board union and multiple tallies
+over one DKG; and the export/import Setup bridge. Manual by design (see the note
+above).
 
----
+### Prerequisites
 
-## Prerequisites & environment
-
-- **Docker** — for LocalStack (S3). `localstack.ps1` starts it, creates the
-  `wbraid-messages` bucket, and applies `s3-cors.json`.
-- **AWS CLI** — used by `localstack.ps1` to create the bucket and set CORS.
-- **`b4` environment** — `b4.ps1` sets the LocalStack S3 endpoint/credentials and
-  points `DATABASE_URL` at a repo-root `b4.db`.
-- **Nightly toolchain + `wasm32-unknown-unknown` target** — for the production
-  wasm build (`build-wasm.ps1` sets a nightly override under `crates/braid`).
-- **`wasm-bindgen-cli`** (version-matched to the pinned `wasm-bindgen`) and
-  **Chrome + `chromedriver`** — for Layers 2 and 3.
-- **`RUSTFLAGS` / atomics caveat** — `crates/braid/.cargo/config.toml` forces
-  the atomics target-features for the production wasm build. Run wasm **tests**
-  (Layer 2) from the repo root so that config is not applied, and clear any
-  inherited `RUSTFLAGS` before running them. `serve.ps1` clears `RUSTFLAGS`
-  itself before the production build.
+- The `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`).
+- **`wasm-bindgen-test-runner`** (ships with `wasm-bindgen-cli`, version-matched to
+  the pinned `wasm-bindgen`) and **Chrome + `chromedriver`** on `PATH` — for the
+  headless test.
+- A **nightly** toolchain — for the production wasm build (`build-wasm.ps1` sets a
+  nightly override under `crates/braid`, whose `.cargo/config.toml` forces the
+  atomics target-features), plus **Python** for `server.py` (the COOP/COEP dev
+  server).
+- For the emulator: **Docker/LocalStack** + **`b4`**, as in the Native live-b4
+  prerequisites.
+- **`RUSTFLAGS` caveat** — clear any inherited `RUSTFLAGS` before the headless test
+  (and run it from the repo root); `serve.ps1` clears it itself before the
+  production build.
