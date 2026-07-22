@@ -9,7 +9,7 @@ use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDat
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
 use crate::services::external;
-use crate::services::external::types::{SoapRequest, SoapRequestResponse};
+use crate::services::external::datafix_types::{SoapRequest, SoapRequestResponse};
 use crate::services::external::utils::{
     datafix_annotations, datafix_voter_lock_key, post_operation_result_to_electoral_log,
     voted_via_internet, voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,

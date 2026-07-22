@@ -7,6 +7,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::json;
 use serde_json::value::Value;
+use std::collections::HashSet;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -431,6 +432,38 @@ pub async fn get_cast_votes(
         .collect::<Result<Vec<CastVote>>>()?;
 
     Ok(cast_votes)
+}
+
+/// Precomputes the set of usernames with a `valid` cast vote for the event —
+/// small enough (bounded by turnout, not roll size) to fetch in one query,
+/// unlike a realm-wide user scan.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_usernames_with_valid_cast_vote(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashSet<String>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT DISTINCT voter_id_string
+                FROM sequent_backend.cast_vote
+                WHERE tenant_id = $1
+                    AND election_event_id = $2
+                    AND status = 'valid'
+                    AND voter_id_string IS NOT NULL
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &[&tenant_id, &election_event_id])
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| row.get::<_, Option<String>>("voter_id_string"))
+        .collect())
 }
 
 #[instrument(skip(hasura_transaction), err)]

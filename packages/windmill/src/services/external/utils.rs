@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::types::*;
+use super::datafix_types::*;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::update_election_event_annotations;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::electoral_log::ElectoralLog;
@@ -12,6 +13,8 @@ use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
+use sequent_core::ballot::Annotations;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::UserArea;
 use sequent_core::types::keycloak::{
@@ -23,6 +26,13 @@ use tracing::{error, info, instrument, warn};
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
+/// Last `Sequence` (from a reconciliation file's `#META` line) actually applied
+/// for this event — the monotonic gate against importing a stale file. Kept
+/// per-provider under its own annotation key (like the three above), not a
+/// dedicated `election_event` column, since a future non-Datafix voter
+/// registry integration would need its own independent sequence, not share
+/// this one.
+pub const DATAFIX_LAST_APPLIED_SEQUENCE_KEY: &str = "datafix:last_applied_sequence";
 /// Lifetime of the per-voter Datafix advisory lock. Must exceed the slowest
 /// VoterView round-trip so the lock outlives an in-flight SOAP call.
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
@@ -113,8 +123,12 @@ pub async fn get_event_id_and_datafix_annotations(
 /// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
 /// ignored (e.g. `WARD-POLL` when there is no SchoolSupportCode,
 /// `WARD-SCHOOL` when there is no Poll). All values are uppercased.
+/// `pub(crate)` (rather than private) so `reconciliation::diff` can reuse the
+/// exact same Ward-SchoolSupportCode-Poll composition/uppercasing rule when
+/// comparing a reconciliation file row's area against a voter's resolved
+/// `Area::name` — see DatafixReconciliationImplementationPlan.md section 7.3.
 #[instrument(skip_all)]
-fn compose_area_name(voter_info: &VoterInformationBody) -> String {
+pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     let mut parts = vec![voter_info.ward.clone()];
 
     if let Some(schoolboard) = &voter_info.schoolboard {
@@ -241,6 +255,42 @@ pub fn datafix_annotations(election_event: &ElectionEvent) -> Result<Option<Data
         .get_annotations()
         .map(Some)
         .map_err(|err| anyhow!("Invalid Datafix election event configuration: {err}"))
+}
+
+/// Bumps the event's `DATAFIX_LAST_APPLIED_SEQUENCE_KEY` annotation to
+/// `sequence`, but only forward: a retry at the same Sequence must not
+/// regress or redundantly rewrite it (see the implementation plan's
+/// "Sequence gating" note). Read-modify-write of the whole `annotations`
+/// blob, matching every other annotation writer in this codebase (e.g.
+/// `update_election_event_sbei_users`) rather than a raw `jsonb_set`
+/// compare-and-swap — reconciliation apply is an infrequent, deliberate admin
+/// action, not a hot concurrent path.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn bump_datafix_last_applied_sequence(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    sequence: i64,
+) -> Result<()> {
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let annotations_value = election_event
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+    let mut annotations: Annotations = deserialize_value(annotations_value)?;
+
+    let current: i64 = annotations
+        .get(DATAFIX_LAST_APPLIED_SEQUENCE_KEY)
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0);
+    if current >= sequence {
+        return Ok(());
+    }
+
+    annotations.insert(DATAFIX_LAST_APPLIED_SEQUENCE_KEY.to_string(), sequence.to_string());
+    let annotations_value = serde_json::to_value(&annotations)?;
+    update_election_event_annotations(hasura_transaction, tenant_id, election_event_id, annotations_value).await
 }
 
 #[instrument(skip_all, fields(direction = %direction), err)]

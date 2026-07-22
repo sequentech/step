@@ -19,7 +19,7 @@ use windmill::services::external::api_datafix::{
     ensure_voter_has_no_valid_vote, release_inbound_voter_lock,
     valid_inbound_voting_channel, InboundVoterLock,
 };
-use windmill::services::external::types::*;
+use windmill::services::external::datafix_types::*;
 use windmill::services::external::utils::get_event_id_and_datafix_annotations;
 
 #[instrument(skip_all)]

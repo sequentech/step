@@ -41,6 +41,116 @@ pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-valida
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
+/// A voter's current Sequent-side state, as far as reconciliation cares.
+#[derive(Debug, Clone)]
+pub struct VoterSnapshot {
+    pub username: String,
+    pub enabled: bool,
+    /// The voter's resolved area name (`WARD-SCHOOLBOARD-POLL`, uppercased —
+    /// see `reconciliation::snapshot`), `None` if their `area-id` attribute
+    /// doesn't resolve to a known area (or is unset).
+    pub area_name: Option<String>,
+    pub dob: Option<String>,
+    /// Raw `voted-channel` attribute value, uppercased; `None` means not voted.
+    pub voted_channel: Option<String>,
+    pub has_valid_internet_vote: bool,
+    /// Raw `disable-comment` attribute value (`sequent_core::types::keycloak::DISABLE_COMMENT`),
+    /// used by `diff.rs` to classify an already-disabled voter (D12 in the
+    /// implementation plan — see the match block in
+    /// `reconciliation::diff::classify_disabled_voter`).
+    pub disable_comment: Option<String>,
+}
+
+const VOTER_SNAPSHOT_PAGE_SIZE: i64 = 5_000;
+
+/// One keyset-paginated page of the realm's users, ordered by username, with
+/// every attribute. `after_username` is the
+/// last username of the previous page (`None` for the first page); an empty
+/// result means the scan is done.
+///
+/// Kept as a direct query against Keycloak's own Postgres rather than the
+/// Admin REST API (`GET /admin/realms/{realm}/users`, see
+/// `sequent_core::services::keycloak::admin_client`): that endpoint only
+/// offers offset-based (`first`/`max`) pagination, which is not
+/// concurrency-safe — a user created or deleted elsewhere in the realm while
+/// a scan is in progress shifts every later offset, silently skipping or
+/// duplicating voters. The keyset scan here (`username > $2`) doesn't have
+/// that failure mode, which reconciliation (needing to see every voter
+/// exactly once) depends on.
+#[instrument(skip(keycloak_transaction, areas_by_id), err)]
+pub async fn fetch_realm_voter_snapshots_page(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    after_username: Option<&str>,
+    areas_by_id: &HashMap<String, String>,
+) -> Result<Vec<VoterSnapshot>> {
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+                SELECT
+                    u.username,
+                    u.enabled,
+                    json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
+                FROM user_entity u
+                INNER JOIN realm AS ra ON ra.id = u.realm_id
+                LEFT JOIN user_attribute ua ON ua.user_id = u.id
+                WHERE ra.name = $1
+                    AND u.username > $2
+                GROUP BY u.id, u.username, u.enabled
+                ORDER BY u.username
+                LIMIT $3
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(
+            &statement,
+            &[
+                &realm,
+                &after_username.unwrap_or(""),
+                &VOTER_SNAPSHOT_PAGE_SIZE,
+            ],
+        )
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| voter_snapshot_row_to_snapshot(row, areas_by_id))
+        .collect())
+}
+
+#[instrument(skip(row, areas_by_id))]
+fn voter_snapshot_row_to_snapshot(
+    row: Row,
+    areas_by_id: &HashMap<String, String>,
+) -> Option<VoterSnapshot> {
+    let username: String = row.get("username");
+    let enabled: bool = row.get("enabled");
+    let attributes: Option<serde_json::Value> = row.get("attributes");
+    let attributes = attributes.unwrap_or(serde_json::Value::Null);
+
+    let attr = |key: &str| -> Option<String> {
+        attributes
+            .get(key)
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+    };
+
+    let area_id = attr(AREA_ID_ATTR_NAME);
+    let area_name = area_id.and_then(|id| areas_by_id.get(&id).cloned());
+
+    Some(VoterSnapshot {
+        username,
+        enabled,
+        area_name,
+        dob: attr(DATE_OF_BIRTH),
+        voted_channel: attr(VOTED_CHANNEL),
+        has_valid_internet_vote: false, // filled in by the caller from get_usernames_with_valid_cast_vote
+        disable_comment: attr(DISABLE_COMMENT),
+    })
+}
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,

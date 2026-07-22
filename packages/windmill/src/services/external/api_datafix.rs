@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::types::*;
+use super::datafix_types::*;
 use super::utils::*;
 
 use crate::postgres::cast_vote::{get_voter_cast_vote_state, has_valid_cast_vote};
@@ -625,7 +625,7 @@ pub fn valid_inbound_voting_channel(channel: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{create_user_error_response, valid_inbound_voting_channel};
-    use crate::services::external::types::DatafixErrorCode;
+    use crate::services::external::datafix_types::DatafixErrorCode;
     use keycloak::KeycloakError;
     use rocket::http::Status;
 
