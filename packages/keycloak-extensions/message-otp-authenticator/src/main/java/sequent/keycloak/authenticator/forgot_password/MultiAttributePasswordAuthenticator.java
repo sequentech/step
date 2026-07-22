@@ -84,9 +84,16 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
         collectSubmittedValues(context.getSession(), matchAttributes, formData);
     String password = formData.getFirst(FIELD_PASSWORD);
 
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        Utils.getThrottleConfig(context.getAuthenticatorConfig());
     MultiAttributeCredentialResolver.Resolution result =
         resolveAuthenticatedUser(
-            context.getSession(), context.getRealm(), matchAttributes, submittedValues, password);
+            context.getSession(),
+            context.getRealm(),
+            matchAttributes,
+            submittedValues,
+            password,
+            throttleConfig);
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -142,6 +149,18 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       String password) {
     return MultiAttributeCredentialResolver.resolveAuthenticatedUser(
         session, realm, matchAttributes, submittedValues, password);
+  }
+
+  /** Overload used by {@link #action} once the DoS-mitigation config has been read. */
+  protected MultiAttributeCredentialResolver.Resolution resolveAuthenticatedUser(
+      KeycloakSession session,
+      RealmModel realm,
+      List<String> matchAttributes,
+      Map<String, String> submittedValues,
+      String password,
+      MultiAttributeCredentialResolver.ThrottleConfig throttleConfig) {
+    return MultiAttributeCredentialResolver.resolveAuthenticatedUser(
+        session, realm, matchAttributes, submittedValues, password, throttleConfig);
   }
 
   /**
@@ -280,7 +299,37 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             "All of these user attributes must match the submitted values, for the same user."
                 + " For example: dateOfBirth or dateOfBirth,nationalId",
             ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
-            null));
+            null),
+        new ProviderConfigProperty(
+            Utils.MAX_CANDIDATES,
+            "Max candidates per request",
+            "DoS guard: once the configured attributes match more than this many enabled,"
+                + " non-locked-out candidates, the request fails generically without checking any"
+                + " of their passwords. Bounds the worst-case number of password hashes per"
+                + " request. Default: "
+                + Utils.MAX_CANDIDATES_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_CANDIDATES_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.TUPLE_MAX_FAILURES,
+            "Max failures per attribute-value combination",
+            "DoS guard: failures allowed for a single submitted combination of attribute values"
+                + " (e.g. one date of birth) within the failure window below, before further"
+                + " attempts against it are rejected without any user lookup. Default: "
+                + Utils.TUPLE_MAX_FAILURES_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.TUPLE_MAX_FAILURES_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.TUPLE_FAILURE_WINDOW_SECONDS,
+            "Failure window (seconds)",
+            "Rolling window the failure count above applies over; each new failure against the"
+                + " same attribute-value combination resets the window. Default: "
+                + Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
   }
 
   @Override

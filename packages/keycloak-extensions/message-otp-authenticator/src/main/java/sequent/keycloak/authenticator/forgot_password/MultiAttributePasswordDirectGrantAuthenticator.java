@@ -110,9 +110,16 @@ public class MultiAttributePasswordDirectGrantAuthenticator
         collectSubmittedValues(authConfig, matchAttributes, formData);
     String password = formData.getFirst(passwordField);
 
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        Utils.getThrottleConfig(authConfig);
     MultiAttributeCredentialResolver.Resolution result =
         MultiAttributeCredentialResolver.resolveAuthenticatedUser(
-            context.getSession(), context.getRealm(), matchAttributes, submittedValues, password);
+            context.getSession(),
+            context.getRealm(),
+            matchAttributes,
+            submittedValues,
+            password,
+            throttleConfig);
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -272,7 +279,37 @@ public class MultiAttributePasswordDirectGrantAuthenticator
                 + " leave an entry empty for identifier fields that aren't dates. Normalizes into"
                 + " the canonical YYYY-MM-DD storage format before matching.",
             ProviderConfigProperty.MULTIVALUED_STRING_TYPE,
-            null));
+            null),
+        new ProviderConfigProperty(
+            Utils.MAX_CANDIDATES,
+            "Max candidates per request",
+            "DoS guard: once the identifier fields match more than this many enabled,"
+                + " non-locked-out candidates, the request fails generically without checking any"
+                + " of their PINs. Bounds the worst-case number of password hashes per request."
+                + " Default: "
+                + Utils.MAX_CANDIDATES_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_CANDIDATES_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.TUPLE_MAX_FAILURES,
+            "Max failures per identifier-value combination",
+            "DoS guard: failures allowed for a single submitted combination of identifier values"
+                + " (e.g. one date of birth) within the failure window below, before further"
+                + " attempts against it are rejected without any user lookup. Default: "
+                + Utils.TUPLE_MAX_FAILURES_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.TUPLE_MAX_FAILURES_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.TUPLE_FAILURE_WINDOW_SECONDS,
+            "Failure window (seconds)",
+            "Rolling window the failure count above applies over; each new failure against the"
+                + " same identifier-value combination resets the window. Default: "
+                + Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
   }
 
   @Override

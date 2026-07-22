@@ -65,7 +65,12 @@ second identifying attribute is available.
    require, e.g. `dateOfBirth`, then **+ Add** again for `nationalId` if you want a second
    attribute (all listed attributes must match the same user). These must be existing User
    Profile attribute names (see Prerequisites).
-4. Click **Save**.
+4. Optionally adjust the DoS-mitigation settings below (sensible defaults are pre-filled - see
+   [Denial-of-Service Considerations](#denial-of-service-considerations)):
+   - **Max candidates per request** (default `10`)
+   - **Max failures per attribute-value combination** (default `10`)
+   - **Failure window (seconds)** (default `60`)
+5. Click **Save**.
 
 ---
 
@@ -110,3 +115,40 @@ reveal whether any account has the submitted attribute value.
 > Configuring more attributes narrows the candidate set before the password check, making the
 > single-candidate (fully protected) case the common one; keep **Brute Force Detection** enabled
 > at the realm level regardless.
+
+---
+
+## Denial-of-Service Considerations
+
+Because this authenticator matches on attributes rather than a unique username, a single request
+can legitimately resolve to many candidates (e.g. every voter born on a common date) - and each
+candidate normally costs one password-hash comparison to rule out. Two independent settings bound
+that cost per request, on top of Keycloak's standard Brute Force Detection:
+
+- **Max candidates per request** (`maxCandidates`, default `10`): once the configured attributes
+  match more candidates than this, the request fails generically without checking any of their
+  passwords. This bounds the worst-case number of password hashes a single request can force,
+  regardless of how many voters share the submitted attribute value(s).
+- **Max failures per attribute-value combination** / **Failure window (seconds)**
+  (`tupleMaxFailures` / `tupleFailureWindowSeconds`, defaults `10` / `60`): failures are also
+  counted per distinct combination of submitted attribute values, independent of any single
+  account. This closes a gap that per-account Brute Force Detection can't cover on its own: when a
+  request matches more than one candidate, Keycloak has no single account to attribute the failure
+  to, so its lockout counter never engages for that request - an attacker could otherwise repeat a
+  common attribute value (e.g. a shared date of birth) indefinitely at full cost. Once a
+  combination's failures reach the configured maximum within the window, further attempts against
+  it are rejected without any user lookup at all, until the window elapses or a matching request
+  succeeds (which clears the count). This throttle is tracked cluster-wide, so it can't be evaded
+  by spreading requests across Keycloak nodes.
+
+Raising **Max candidates per request** trades this protection for looser matching (useful if a
+single attribute alone is expected to match unusually large groups); lowering the failure
+threshold or widening the window trades convenience for tighter DoS protection. Configuring a
+second identifying attribute (see [Step 2](#step-2--configure-the-attributes-to-match)) is
+generally the better lever - it keeps genuine candidate sets small without needing to loosen these
+guards.
+
+If PINs or passwords used with this authenticator are short (e.g. a numeric PIN), do **not**
+compensate for guessability by weakening the password hash algorithm - that only makes offline
+cracking easier if hashes ever leak. Use the settings above instead; they bound CPU cost without
+touching hash strength.

@@ -50,6 +50,12 @@ public class Utils {
       Collections.unmodifiableList(Arrays.asList("username"));
   public static final String MATCH_ATTRIBUTES = "matchAttributes";
   public static final List<String> MATCH_ATTRIBUTES_DEFAULT = Collections.emptyList();
+  public static final String MAX_CANDIDATES = "maxCandidates";
+  public static final String MAX_CANDIDATES_DEFAULT = "10";
+  public static final String TUPLE_MAX_FAILURES = "tupleMaxFailures";
+  public static final String TUPLE_MAX_FAILURES_DEFAULT = "10";
+  public static final String TUPLE_FAILURE_WINDOW_SECONDS = "tupleFailureWindowSeconds";
+  public static final String TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT = "60";
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
   public final String HIDE_USER_NOT_FOUND = "hideUserNotFound";
@@ -154,6 +160,19 @@ public class Utils {
       return defaultValue;
     }
     return Boolean.parseBoolean(mapConfig.get(configKey));
+  }
+
+  /**
+   * Reads the DoS-mitigation config shared by {@link MultiAttributePasswordAuthenticator} and
+   * {@link MultiAttributePasswordDirectGrantAuthenticator} - see {@link
+   * MultiAttributeCredentialResolver.ThrottleConfig}.
+   */
+  public MultiAttributeCredentialResolver.ThrottleConfig getThrottleConfig(
+      AuthenticatorConfigModel config) {
+    return new MultiAttributeCredentialResolver.ThrottleConfig(
+        getInt(config, MAX_CANDIDATES, MAX_CANDIDATES_DEFAULT),
+        getInt(config, TUPLE_MAX_FAILURES, TUPLE_MAX_FAILURES_DEFAULT),
+        getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
   }
 
   int getPasswordLength(AuthenticatorConfigModel config) {

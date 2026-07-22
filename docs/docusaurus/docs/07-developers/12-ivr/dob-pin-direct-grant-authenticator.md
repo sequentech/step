@@ -129,7 +129,12 @@ candidate set.
    "works today" example above (`maps_to=username##password`) unless the deployment's `beyond`
    version has already picked up the fixes described in
    [Current IVR Lambda compatibility](#current-ivr-lambda-compatibility).
-3. Click **Save**.
+3. Optionally adjust the DoS-mitigation settings below (sensible defaults are pre-filled - see
+   [Denial-of-Service Considerations](#denial-of-service-considerations)):
+   - **Max candidates per request** (default `10`)
+   - **Max failures per identifier-value combination** (default `10`)
+   - **Failure window (seconds)** (default `60`)
+4. Click **Save**.
 
 ## Step 3 - Bind the Flow to the `ivr-voting` Client
 
@@ -171,3 +176,43 @@ computation on paths that never found a candidate to check.
 > attributes narrows the candidate set before the PIN check, making the single-candidate (fully
 > protected) case the common one; keep **Brute Force Detection** enabled at the realm level
 > regardless.
+
+---
+
+## Denial-of-Service Considerations
+
+Because this authenticator matches on identifier attributes rather than a unique voter ID, a
+single request can legitimately resolve to many candidates (e.g. every voter born on a common
+date) - and each candidate normally costs one PIN-hash comparison to rule out. Two independent
+settings, shared with the web form's `MultiAttributeCredentialResolver`, bound that cost per
+request, on top of Keycloak's standard Brute Force Detection:
+
+- **Max candidates per request** (`maxCandidates`, default `10`): once the identifier fields match
+  more candidates than this, the request fails generically without checking any of their PINs.
+  This bounds the worst-case number of password hashes a single request can force, regardless of
+  how many voters share the submitted identifier value(s).
+- **Max failures per identifier-value combination** / **Failure window (seconds)**
+  (`tupleMaxFailures` / `tupleFailureWindowSeconds`, defaults `10` / `60`): failures are also
+  counted per distinct combination of submitted identifier values, independent of any single
+  account. This closes a gap that per-account Brute Force Detection can't cover on its own: when a
+  request matches more than one candidate, Keycloak has no single account to attribute the failure
+  to, so its lockout counter never engages for that request - an IVR caller could otherwise repeat
+  a common identifier value (e.g. a shared date of birth) indefinitely at full cost. Once a
+  combination's failures reach the configured maximum within the window, further attempts against
+  it are rejected without any user lookup at all, until the window elapses or a matching request
+  succeeds (which clears the count). This throttle is tracked cluster-wide, so it can't be evaded
+  by spreading requests across Keycloak nodes.
+
+If PINs are short (e.g. a numeric PIN, as is typical for IVR), do **not** compensate for
+guessability by weakening the password hash algorithm - that only makes offline cracking easier if
+hashes ever leak. A 16-digit numeric PIN is already infeasible to guess online; these settings
+exist to bound CPU cost, not to compensate for a weak PIN. Configuring a second identifier field
+(once the IVR Lambda supports collecting more than one - see
+[Current IVR Lambda compatibility](#current-ivr-lambda-compatibility)) is generally the better
+lever for keeping genuine candidate sets small.
+
+A throttled voter who then resets their PIN may still be blocked under the per-combination
+throttle for up to `tupleFailureWindowSeconds` (60s by default) - the same short delay as a
+standard Keycloak temporary lockout. The forgot-password/reset flow itself resolves by
+username/email or action token, not by these identifier attributes, so it is unaffected by and
+doesn't clear this throttle.

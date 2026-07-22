@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,17 +53,22 @@ class MultiAttributePasswordAuthenticatorTest {
   @Mock private RealmModel realm;
   @Mock private UserProvider userProvider;
   @Mock private PasswordHashProvider passwordHashProvider;
+  private final FakeSingleUseObjectProvider singleUseObjects = new FakeSingleUseObjectProvider();
 
   @BeforeEach
   void setUp() {
     authenticator = new MultiAttributePasswordAuthenticator();
     lenient().when(session.users()).thenReturn(userProvider);
+    lenient().when(realm.getId()).thenReturn("test-realm");
     // Every "no viable candidate" path performs a dummy password hash for timing equalization
     // (see MultiAttributeCredentialResolver#performDummyHash) - stub it as a safe no-op default
     // so tests that don't care about this don't need to.
     lenient()
         .when(session.getProvider(PasswordHashProvider.class))
         .thenReturn(passwordHashProvider);
+    // Per-tuple failure throttle (see MultiAttributeCredentialResolver.ThrottleConfig) needs a
+    // SingleUseObjectProvider for every request that reaches a valid attribute-value combination.
+    lenient().when(session.singleUseObjects()).thenReturn(singleUseObjects);
   }
 
   private UserModel mockUser(String id, String password, boolean enabled) {
@@ -502,6 +508,173 @@ class MultiAttributePasswordAuthenticatorTest {
     verify(passwordHashProvider, never()).encodedCredential(anyString(), anyInt());
   }
 
+  // ── DoS mitigation: maxCandidates cap ────────────────────────────────────
+
+  @Test
+  void candidateCap_exceededCount_genericFailureWithNoPasswordChecks() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    UserModel carol = mockUser("carol", "carol-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob, carol));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(2, 10, 60);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "alice-pw",
+            throttleConfig);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    assertTrue(result.attributableUser().isEmpty());
+    verify(alice.credentialManager(), never()).isValid(any(CredentialInput.class));
+    verify(bob.credentialManager(), never()).isValid(any(CredentialInput.class));
+    verify(carol.credentialManager(), never()).isValid(any(CredentialInput.class));
+    verify(passwordHashProvider).encodedCredential(anyString(), anyInt());
+  }
+
+  @Test
+  void candidateCap_atBoundary_normalDisambiguationProceeds() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(2, 10, 60);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "alice-pw",
+            throttleConfig);
+
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(alice, result.authenticatedUser().get());
+  }
+
+  // ── DoS mitigation: per-tuple failure throttle ───────────────────────────
+
+  @Test
+  void tupleThrottle_maxFailuresReached_shortCircuitsWithoutUserSearch() {
+    // A Stream can only be consumed once - thenAnswer (rather than thenReturn) gives each of the
+    // multiple resolveAuthenticatedUser() calls below its own fresh stream.
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenAnswer(invocation -> Stream.of(user));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
+
+    // Two failed attempts against the same attribute-value tuple.
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "X123"),
+        "wrong",
+        throttleConfig);
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "X123"),
+        "wrong",
+        throttleConfig);
+
+    // Third attempt: the tuple is now throttled, so it must short-circuit before any user search,
+    // even with the correct password.
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("nationalId"),
+            valuesOf("nationalId", "X123"),
+            "correct-horse",
+            throttleConfig);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    assertTrue(result.attributableUser().isEmpty());
+    verify(userProvider, times(2)).searchForUserByUserAttributeStream(realm, "nationalId", "X123");
+  }
+
+  @Test
+  void tupleThrottle_windowExpires_countResets() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenAnswer(invocation -> Stream.of(user));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 1, 60);
+
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "X123"),
+        "wrong",
+        throttleConfig);
+    singleUseObjects.advanceTimeSeconds(61);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("nationalId"),
+            valuesOf("nationalId", "X123"),
+            "correct-horse",
+            throttleConfig);
+
+    assertTrue(result.authenticatedUser().isPresent());
+  }
+
+  @Test
+  void tupleThrottle_successClearsCounter() {
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+        .thenAnswer(invocation -> Stream.of(user));
+    // tupleMaxFailures=2 so the single prior failure below (count=1) doesn't itself throttle the
+    // success attempt that follows - otherwise that attempt could never reach the credential
+    // check needed to prove success clears the counter.
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
+
+    // One failure, then a success - the success must clear the counter so it doesn't carry over
+    // into the next failure and prematurely throttle it.
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "X123"),
+        "wrong",
+        throttleConfig);
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "X123"),
+        "correct-horse",
+        throttleConfig);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("nationalId"),
+            valuesOf("nationalId", "X123"),
+            "wrong",
+            throttleConfig);
+
+    // Not throttled (the prior failure was cleared by the success in between), so this attempt
+    // reaches the real single-candidate path and gets attributed normally.
+    assertTrue(result.attributableUser().isPresent());
+    assertEquals(user, result.attributableUser().get());
+  }
+
   // ── Rendering: HTML5 input type resolved from the realm's User Profile ──
 
   private void mockUserProfileAttributes(UPAttribute... attributes) {
@@ -668,6 +841,16 @@ class MultiAttributePasswordAuthenticatorTest {
         factory.getConfigProperties().stream()
             .anyMatch(prop -> Utils.MATCH_ATTRIBUTES.equals(prop.getName()));
     assertTrue(hasMatchAttributes);
+  }
+
+  @Test
+  void factory_configPropertiesIncludeDosMitigationOptions() {
+    MultiAttributePasswordAuthenticator factory = new MultiAttributePasswordAuthenticator();
+    List<String> names =
+        factory.getConfigProperties().stream().map(prop -> prop.getName()).toList();
+    assertTrue(names.contains(Utils.MAX_CANDIDATES));
+    assertTrue(names.contains(Utils.TUPLE_MAX_FAILURES));
+    assertTrue(names.contains(Utils.TUPLE_FAILURE_WINDOW_SECONDS));
   }
 
   @Test

@@ -4,6 +4,12 @@
 
 package sequent.keycloak.authenticator.forgot_password;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +21,7 @@ import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.SingleUseObjectProvider;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.services.managers.BruteForceProtector;
@@ -37,17 +44,64 @@ import org.keycloak.services.managers.BruteForceProtector;
  * them, but a failure there can't be attributed to a single account. Any early-return path performs
  * an equivalent-cost dummy password hash first, so "no viable candidate" doesn't respond measurably
  * faster than "wrong password" - see {@link #performDummyHash}.
+ *
+ * <p>Two DoS mitigations bound the CPU cost an attacker can force per request, since - unlike a
+ * standard username/password form - a common attribute value (e.g. a shared date of birth) can
+ * legitimately resolve to many candidates, and Keycloak's own brute-force accounting can't engage
+ * until resolution narrows to one account:
+ *
+ * <ul>
+ *   <li>{@code maxCandidates} ({@link ThrottleConfig#maxCandidates()}): once attribute matching
+ *       narrows to more viable candidates than this, resolution fails generically without checking
+ *       any of their passwords - bounding the worst-case number of password hashes per request
+ *       regardless of how many voters happen to share the submitted attribute value(s).
+ *   <li>Per-tuple failure throttle ({@link ThrottleConfig#tupleMaxFailures()} / {@link
+ *       ThrottleConfig#tupleFailureWindowSeconds()}): failures are counted per distinct combination
+ *       of submitted attribute values (a "tuple"), independent of any single account, using {@link
+ *       SingleUseObjectProvider} (replicated across Keycloak nodes) so the same tuple can't be
+ *       hammered past the limit across a cluster. Once a tuple's failures reach the configured
+ *       maximum within the window, further attempts against it short-circuit before any user lookup
+ *       - closing the accounting gap that lets an attacker repeat a common,
+ *       never-uniquely-attributable attribute value indefinitely at full amplification cost.
+ * </ul>
  */
 @JBossLog
 public final class MultiAttributeCredentialResolver {
 
   private MultiAttributeCredentialResolver() {}
 
+  private static final String TUPLE_THROTTLE_KEY_PREFIX =
+      "multi-attribute-password:tuple-throttle:";
+  private static final String FAILURE_COUNT_NOTE = "failures";
+
   /** Brute-force lockout state of a resolved candidate. */
   public enum LockoutState {
     NONE,
     TEMPORARY,
     PERMANENT
+  }
+
+  /**
+   * DoS-mitigation configuration, read from each caller's own {@code AuthenticatorConfigModel} via
+   * {@link Utils#getThrottleConfig}, so the browser form and the IVR Direct Grant flow can be tuned
+   * independently even though they share this resolution logic.
+   *
+   * @param maxCandidates per-request cap on viable candidates before password disambiguation is
+   *     skipped entirely (see the class-level DoS-mitigation note).
+   * @param tupleMaxFailures failures allowed for a single submitted-attribute-value combination
+   *     within {@code tupleFailureWindowSeconds} before further attempts against it short-circuit.
+   * @param tupleFailureWindowSeconds rolling window, in seconds, that {@code tupleMaxFailures}
+   *     applies over; each new failure resets the window for that tuple.
+   */
+  public record ThrottleConfig(
+      int maxCandidates, int tupleMaxFailures, int tupleFailureWindowSeconds) {
+
+    public static ThrottleConfig defaults() {
+      return new ThrottleConfig(
+          Integer.parseInt(Utils.MAX_CANDIDATES_DEFAULT),
+          Integer.parseInt(Utils.TUPLE_MAX_FAILURES_DEFAULT),
+          Integer.parseInt(Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
+    }
   }
 
   /**
@@ -83,12 +137,24 @@ public final class MultiAttributeCredentialResolver {
     }
   }
 
+  /** Convenience overload for callers that don't need a non-default {@link ThrottleConfig}. */
   public static Resolution resolveAuthenticatedUser(
       KeycloakSession session,
       RealmModel realm,
       List<String> matchAttributes,
       Map<String, String> submittedValues,
       String password) {
+    return resolveAuthenticatedUser(
+        session, realm, matchAttributes, submittedValues, password, ThrottleConfig.defaults());
+  }
+
+  public static Resolution resolveAuthenticatedUser(
+      KeycloakSession session,
+      RealmModel realm,
+      List<String> matchAttributes,
+      Map<String, String> submittedValues,
+      String password,
+      ThrottleConfig throttleConfig) {
     if (matchAttributes == null || matchAttributes.isEmpty()) {
       log.warn("resolveAuthenticatedUser(): no matchAttributes configured");
       return dummyFailure(session, realm);
@@ -97,13 +163,28 @@ public final class MultiAttributeCredentialResolver {
       return dummyFailure(session, realm);
     }
 
-    Map<String, UserModel> candidatesById = null;
+    Map<String, String> trimmedValues = new LinkedHashMap<>();
     for (String attribute : matchAttributes) {
       String value = submittedValues.get(attribute);
       if (value == null || value.isBlank()) {
         return dummyFailure(session, realm);
       }
-      value = value.trim();
+      trimmedValues.put(attribute, value.trim());
+    }
+
+    // Computed once every attribute has a validated value, and checked before any user lookup -
+    // see the class-level DoS-mitigation note. Values that never reach this point (missing/blank)
+    // don't correspond to a specific tuple worth throttling: the loop above already bails out at
+    // the same cost as any other invalid-input request, without searching for or hashing anything.
+    String tupleKey = tupleThrottleKey(realm, matchAttributes, trimmedValues);
+    if (isTupleThrottled(session, tupleKey, throttleConfig.tupleMaxFailures())) {
+      log.warnv("resolveAuthenticatedUser(): tuple throttled, key={0}", tupleKey);
+      return dummyFailure(session, realm);
+    }
+
+    Map<String, UserModel> candidatesById = null;
+    for (String attribute : matchAttributes) {
+      String value = trimmedValues.get(attribute);
 
       Map<String, UserModel> matchesForAttribute =
           findUsersByAttribute(session, realm, attribute, value)
@@ -116,6 +197,7 @@ public final class MultiAttributeCredentialResolver {
       }
 
       if (candidatesById.isEmpty()) {
+        recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
         return dummyFailure(session, realm);
       }
     }
@@ -138,6 +220,7 @@ public final class MultiAttributeCredentialResolver {
       // Every enabled candidate for these attributes is currently locked out: only report the
       // specific lockout when there is exactly one such account to attribute it to - an ambiguous
       // set of locked accounts must stay as generic a failure as any other ambiguous outcome.
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       if (lockedOutCandidates.size() == 1) {
         UserModel locked = lockedOutCandidates.get(0);
         return Resolution.lockedOut(locked, lockoutStates.get(locked));
@@ -145,11 +228,24 @@ public final class MultiAttributeCredentialResolver {
       return dummyFailure(session, realm);
     }
 
+    if (viableCandidates.size() > throttleConfig.maxCandidates()) {
+      // Hash-amplification cap: bounds the worst-case number of password hashes per request to a
+      // constant regardless of how many voters share the submitted attribute value(s) - see the
+      // class-level DoS-mitigation note. Never log the candidate values themselves, only the count.
+      log.warnv(
+          "resolveAuthenticatedUser(): candidate cap exceeded, {0} viable candidates (max {1})",
+          viableCandidates.size(), throttleConfig.maxCandidates());
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      return dummyFailure(session, realm);
+    }
+
     if (viableCandidates.size() == 1) {
       UserModel candidate = viableCandidates.get(0);
       if (isPasswordValid(candidate, password)) {
+        clearTupleThrottle(session, tupleKey);
         return Resolution.success(candidate);
       }
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       return Resolution.failureAttributedTo(candidate);
     }
 
@@ -159,6 +255,7 @@ public final class MultiAttributeCredentialResolver {
             .collect(Collectors.toList());
 
     if (passwordMatches.size() == 1) {
+      clearTupleThrottle(session, tupleKey);
       return Resolution.success(passwordMatches.get(0));
     }
     if (passwordMatches.size() > 1) {
@@ -167,12 +264,78 @@ public final class MultiAttributeCredentialResolver {
               + " password",
           passwordMatches.size());
     }
+    recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
     return Resolution.failure();
   }
 
   private static Resolution dummyFailure(KeycloakSession session, RealmModel realm) {
     performDummyHash(session, realm);
     return Resolution.failure();
+  }
+
+  /**
+   * Builds the per-tuple throttle key: {@code SHA-256(realmId + '|' + attr1=value1 + '|' +
+   * attr2=value2 ...)}, sorted by attribute name so the key is independent of {@code
+   * matchAttributes}' configured order.
+   */
+  private static String tupleThrottleKey(
+      RealmModel realm, List<String> matchAttributes, Map<String, String> trimmedValues) {
+    List<String> sortedAttributes = new ArrayList<>(matchAttributes);
+    Collections.sort(sortedAttributes);
+    StringBuilder raw = new StringBuilder(String.valueOf(realm.getId()));
+    for (String attribute : sortedAttributes) {
+      raw.append('|').append(attribute).append('=').append(trimmedValues.get(attribute));
+    }
+    return sha256Hex(raw.toString());
+  }
+
+  private static String sha256Hex(String input) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+      StringBuilder hex = new StringBuilder(hash.length * 2);
+      for (byte b : hash) {
+        hex.append(String.format("%02x", b));
+      }
+      return hex.toString();
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 not available", e);
+    }
+  }
+
+  private static String tupleThrottleStoreKey(String tupleKey) {
+    return TUPLE_THROTTLE_KEY_PREFIX + tupleKey;
+  }
+
+  private static int failureCount(Map<String, String> notes) {
+    if (notes == null) {
+      return 0;
+    }
+    String count = notes.get(FAILURE_COUNT_NOTE);
+    return count == null ? 0 : Integer.parseInt(count);
+  }
+
+  private static boolean isTupleThrottled(
+      KeycloakSession session, String tupleKey, int tupleMaxFailures) {
+    Map<String, String> notes = session.singleUseObjects().get(tupleThrottleStoreKey(tupleKey));
+    return failureCount(notes) >= tupleMaxFailures;
+  }
+
+  /**
+   * Records a failure against this tuple, resetting its TTL to a fresh {@code windowSeconds} window
+   * - a rolling window, not a fixed one, so sustained hammering of the same tuple keeps it
+   * throttled rather than getting a clean slate mid-attack.
+   */
+  private static void recordTupleFailure(
+      KeycloakSession session, String tupleKey, int windowSeconds) {
+    String storeKey = tupleThrottleStoreKey(tupleKey);
+    SingleUseObjectProvider store = session.singleUseObjects();
+    int nextCount = failureCount(store.get(storeKey)) + 1;
+    store.put(storeKey, windowSeconds, Map.of(FAILURE_COUNT_NOTE, String.valueOf(nextCount)));
+  }
+
+  private static void clearTupleThrottle(KeycloakSession session, String tupleKey) {
+    session.singleUseObjects().remove(tupleThrottleStoreKey(tupleKey));
   }
 
   /**

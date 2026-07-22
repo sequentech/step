@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +56,7 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
   @Mock private EventBuilder event;
   @Mock private PasswordHashProvider passwordHashProvider;
   @Mock private BruteForceProtector bruteForceProtector;
+  private final FakeSingleUseObjectProvider singleUseObjects = new FakeSingleUseObjectProvider();
 
   @BeforeEach
   void setUp() {
@@ -65,11 +67,15 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     lenient().when(context.getHttpRequest()).thenReturn(httpRequest);
     lenient().when(context.getAuthenticatorConfig()).thenReturn(authConfig);
     lenient().when(context.getEvent()).thenReturn(event);
+    lenient().when(realm.getId()).thenReturn("test-realm");
     // Every "no viable candidate" path performs a dummy password hash for timing equalization
     // (see MultiAttributeCredentialResolver#performDummyHash) - stub it as a safe no-op default.
     lenient()
         .when(session.getProvider(PasswordHashProvider.class))
         .thenReturn(passwordHashProvider);
+    // Per-tuple failure throttle (see MultiAttributeCredentialResolver.ThrottleConfig) needs a
+    // SingleUseObjectProvider for every request that reaches a valid attribute-value combination.
+    lenient().when(session.singleUseObjects()).thenReturn(singleUseObjects);
   }
 
   private UserModel mockUser(String id, String password, boolean enabled) {
@@ -278,6 +284,53 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     verify(context).success();
   }
 
+  // ── DoS mitigation ────────────────────────────────────────────────────────
+
+  @Test
+  void dobAndPin_candidateCapExceeded_genericFailureNoPinChecks() {
+    Map<String, String> config = new HashMap<>();
+    config.put("field", "dob##pin");
+    config.put("max_digits", "8##8");
+    config.put("kind", "identifier##secret");
+    config.put("maps_to", "dob##password");
+    config.put("maxCandidates", "2");
+    lenient().when(authConfig.getConfig()).thenReturn(config);
+    formParams("dob", "19900101", "password", "alice-pin");
+    UserModel alice = mockUser("alice", "alice-pin", true);
+    UserModel bob = mockUser("bob", "bob-pin", true);
+    UserModel carol = mockUser("carol", "carol-pin", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+        .thenReturn(Stream.of(alice, bob, carol));
+
+    authenticator.authenticate(context);
+
+    verify(context, never()).setUser(any());
+    verify(context, never()).success();
+    verify(alice.credentialManager(), never()).isValid(any(CredentialInput.class));
+    verify(bob.credentialManager(), never()).isValid(any(CredentialInput.class));
+    verify(carol.credentialManager(), never()).isValid(any(CredentialInput.class));
+  }
+
+  @Test
+  void dobAndPin_tupleThrottled_shortCircuitsWithoutUserSearchOnRepeatedAttempts() {
+    Map<String, String> config = new HashMap<>();
+    config.put("field", "dob##pin");
+    config.put("max_digits", "8##8");
+    config.put("kind", "identifier##secret");
+    config.put("maps_to", "dob##password");
+    config.put("tupleMaxFailures", "1");
+    lenient().when(authConfig.getConfig()).thenReturn(config);
+    formParams("dob", "19900101", "password", "wrong");
+    UserModel user = mockUser("user-1", "1234", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+        .thenReturn(Stream.of(user));
+
+    authenticator.authenticate(context); // 1st failure - counted against the tuple.
+    authenticator.authenticate(context); // 2nd attempt - the tuple is now throttled.
+
+    verify(userProvider, times(1)).searchForUserByUserAttributeStream(realm, "dob", "19900101");
+  }
+
   // ── Factory metadata ─────────────────────────────────────────────────────
 
   @Test
@@ -295,5 +348,17 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     List<ProviderConfigProperty> props = authenticator.getConfigProperties();
     List<String> names = props.stream().map(ProviderConfigProperty::getName).toList();
     assertTrue(names.containsAll(List.of("field", "max_digits", "kind", "maps_to", "prompt_key")));
+  }
+
+  @Test
+  void factory_configPropertiesIncludeDosMitigationOptions() {
+    List<ProviderConfigProperty> props = authenticator.getConfigProperties();
+    List<String> names = props.stream().map(ProviderConfigProperty::getName).toList();
+    assertTrue(
+        names.containsAll(
+            List.of(
+                Utils.MAX_CANDIDATES,
+                Utils.TUPLE_MAX_FAILURES,
+                Utils.TUPLE_FAILURE_WINDOW_SECONDS)));
   }
 }
