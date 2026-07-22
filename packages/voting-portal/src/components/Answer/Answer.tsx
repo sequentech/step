@@ -207,7 +207,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    const shouldDisable = disableSelect && selectionState?.selected === -1
+    const shouldDisable = disableSelect && !isChecked()
 
     const isWriteIn = checkIsWriteIn(answer)
     const allowWriteIns = question && checkAllowWriteIns(question)
