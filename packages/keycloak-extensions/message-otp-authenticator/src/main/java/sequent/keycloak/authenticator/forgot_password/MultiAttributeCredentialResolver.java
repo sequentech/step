@@ -52,9 +52,11 @@ import org.keycloak.services.managers.BruteForceProtector;
  *
  * <ul>
  *   <li>{@code maxCandidates} ({@link ThrottleConfig#maxCandidates()}): once attribute matching
- *       narrows to more viable candidates than this, resolution fails generically without checking
- *       any of their passwords - bounding the worst-case number of password hashes per request
- *       regardless of how many voters happen to share the submitted attribute value(s).
+ *       narrows to more enabled candidates than this, resolution fails generically without checking
+ *       any of their passwords or their brute-force lockout state - bounding both the worst-case
+ *       number of password hashes and the worst-case number of {@code BruteForceProtector} lookups
+ *       per request, regardless of how many voters happen to share the submitted attribute
+ *       value(s).
  *   <li>Per-tuple failure throttle ({@link ThrottleConfig#tupleMaxFailures()} / {@link
  *       ThrottleConfig#tupleFailureWindowSeconds()}): failures are counted per distinct combination
  *       of submitted attribute values (a "tuple"), independent of any single account, using {@link
@@ -86,8 +88,8 @@ public final class MultiAttributeCredentialResolver {
    * {@link Utils#getThrottleConfig}, so the browser form and the IVR Direct Grant flow can be tuned
    * independently even though they share this resolution logic.
    *
-   * @param maxCandidates per-request cap on viable candidates before password disambiguation is
-   *     skipped entirely (see the class-level DoS-mitigation note).
+   * @param maxCandidates per-request cap on enabled candidates, checked before any brute-force
+   *     lockout lookup or password disambiguation (see the class-level DoS-mitigation note).
    * @param tupleMaxFailures failures allowed for a single submitted-attribute-value combination
    *     within {@code tupleFailureWindowSeconds} before further attempts against it short-circuit.
    * @param tupleFailureWindowSeconds rolling window, in seconds, that {@code tupleMaxFailures}
@@ -204,6 +206,19 @@ public final class MultiAttributeCredentialResolver {
 
     List<UserModel> enabledCandidates =
         candidatesById.values().stream().filter(UserModel::isEnabled).collect(Collectors.toList());
+
+    if (enabledCandidates.size() > throttleConfig.maxCandidates()) {
+      // Cap checked here, before lockoutStateOf() below touches BruteForceProtector for each
+      // candidate - bounds not just the worst-case number of password hashes per request (see the
+      // class-level DoS-mitigation note) but also the K brute-force-lockout lookups that would
+      // otherwise run first. Never log the candidate values themselves, only the count.
+      log.warnv(
+          "resolveAuthenticatedUser(): candidate cap exceeded, {0} enabled candidates (max {1})",
+          enabledCandidates.size(), throttleConfig.maxCandidates());
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      return dummyFailure(session, realm);
+    }
+
     Map<UserModel, LockoutState> lockoutStates =
         enabledCandidates.stream()
             .collect(Collectors.toMap(Function.identity(), c -> lockoutStateOf(session, realm, c)));
@@ -211,6 +226,7 @@ public final class MultiAttributeCredentialResolver {
         enabledCandidates.stream()
             .filter(candidate -> lockoutStates.get(candidate) != LockoutState.NONE)
             .collect(Collectors.toList());
+    // Bounded by the cap above (<= maxCandidates), since it's a subset of enabledCandidates.
     List<UserModel> viableCandidates =
         enabledCandidates.stream()
             .filter(candidate -> lockoutStates.get(candidate) == LockoutState.NONE)
@@ -225,17 +241,6 @@ public final class MultiAttributeCredentialResolver {
         UserModel locked = lockedOutCandidates.get(0);
         return Resolution.lockedOut(locked, lockoutStates.get(locked));
       }
-      return dummyFailure(session, realm);
-    }
-
-    if (viableCandidates.size() > throttleConfig.maxCandidates()) {
-      // Hash-amplification cap: bounds the worst-case number of password hashes per request to a
-      // constant regardless of how many voters share the submitted attribute value(s) - see the
-      // class-level DoS-mitigation note. Never log the candidate values themselves, only the count.
-      log.warnv(
-          "resolveAuthenticatedUser(): candidate cap exceeded, {0} viable candidates (max {1})",
-          viableCandidates.size(), throttleConfig.maxCandidates());
-      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       return dummyFailure(session, realm);
     }
 
@@ -325,6 +330,14 @@ public final class MultiAttributeCredentialResolver {
    * Records a failure against this tuple, resetting its TTL to a fresh {@code windowSeconds} window
    * - a rolling window, not a fixed one, so sustained hammering of the same tuple keeps it
    * throttled rather than getting a clean slate mid-attack.
+   *
+   * <p>Read-then-write, not atomic: {@link SingleUseObjectProvider} exposes no compare-and-swap, so
+   * concurrent requests against the same tuple can race both ways - two failures can collapse into
+   * one increment (undercount, delaying engagement), or a failure can read stale data and overwrite
+   * a concurrent {@link #clearTupleThrottle} (spuriously reviving a counter a success just
+   * cleared). Acceptable here since this throttle only bounds CPU cost rather than enforcing a hard
+   * security limit: every write resets the TTL to at most {@code windowSeconds}, so either race
+   * self-clears within that window - never a stuck lockout, for attacker or legitimate voter alike.
    */
   private static void recordTupleFailure(
       KeycloakSession session, String tupleKey, int windowSeconds) {

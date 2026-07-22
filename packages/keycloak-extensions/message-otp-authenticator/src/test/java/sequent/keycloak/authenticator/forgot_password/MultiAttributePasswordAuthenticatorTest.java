@@ -538,6 +538,31 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void candidateCap_exceededCount_neverConsultsBruteForceProtector() {
+    // The cap is checked against enabled candidates before any lockoutStateOf() call, so it also
+    // bounds the K BruteForceProtector lookups that would otherwise run for every candidate - not
+    // just the password hashes.
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    UserModel carol = mockUser("carol", "carol-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob, carol));
+    lenient().when(realm.isBruteForceProtected()).thenReturn(true);
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(2, 10, 60);
+
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("dateOfBirth"),
+        valuesOf("dateOfBirth", "19900101"),
+        "alice-pw",
+        throttleConfig);
+
+    verify(session, never()).getProvider(BruteForceProtector.class);
+  }
+
+  @Test
   void candidateCap_atBoundary_normalDisambiguationProceeds() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
