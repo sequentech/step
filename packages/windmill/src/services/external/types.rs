@@ -1,375 +1,101 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
-use anyhow::{anyhow, Result};
-use rand::{distr, Rng};
-use rocket::http::Status;
-use rocket::response::status::Custom;
-use rocket::serde::json::Json;
-use sequent_core::ballot::Annotations;
-use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
+use super::datafix_types::DatafixReconciliationField;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
-use tracing::{instrument, warn};
 
-use crate::postgres::election_event::ElectionEventDatafix;
-use crate::services::consolidation::eml_generator::ValidateAnnotations;
-#[derive(Deserialize, Debug)]
-pub struct VoterInformationBody {
-    pub voter_id: String,
-    pub ward: String,
-    pub schoolboard: Option<String>,
-    pub poll: Option<String>,
-    pub birthdate: Option<String>,
-    pub enabled: Option<bool>,
+/// The mandatory `#META,Sequence=N,GeneratedAt=T` line every reconciliation
+/// and patch file starts with. `Sequence` is the ordering authority for
+/// stale-file protection; `GeneratedAt` is informational only.
+#[derive(Debug, Clone, Copy)]
+pub struct ReconciliationFileMeta {
+    pub sequence: i64,
+    pub generated_at: i64,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct MarkVotedBody {
-    pub voter_id: String,
-    pub channel: String,
+/// Source-of-truth category a reconciliation change falls under. Wire
+/// values match the admin portal's `ESyncChangeCategory` exactly.
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString)]
+pub enum ReconciliationChangeCategory {
+    /// A: Sequent holds a valid Internet ballot, Datafix reported `NONE`.
+    VOTED_INTERNET,
+    /// B: Datafix reports a non-`INTERNET` channel Sequent doesn't have.
+    VOTED_OTHER_CHANNEL,
+    /// C: `Deleted=true` in the file for a voter who has not voted.
+    DISABLED,
+    /// C exception: `Deleted=true` in the file for a voter who *has* voted —
+    /// the deletion is not applied, the Datafix patch reverts it.
+    DELETION_REVERTED,
+    /// C: `Ward`/`Poll`/`SchoolSupportCode`/`DoB` changed on the Datafix side.
+    PROFILE_UPDATE,
+    /// D: a voter present on one side, missing on the other.
+    VOTER_ADDED,
+    /// A voter Sequent disabled solely because of a Datafix `/delete-voter`
+    /// call (`disable-comment = DISABLE_REASON_DELETE_CALL`) is re-enabled
+    /// because the file no longer reports them `Deleted` (D12 — see the
+    /// match block in `reconciliation::diff::classify_disabled_voter`).
+    REENABLED,
+    /// Excluded from both diffs/patch: a `CountyMun` processing error, or the
+    /// "voted via other channel but holds a valid Internet ballot" guard.
+    ROW_FAILURE,
 }
 
-/// Stable, machine-readable `error_code` values of the Datafix API error
-/// contract: new codes may be added, but existing ones never change meaning.
-#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DatafixErrorCode {
-    #[strum(serialize = "voter-already-exists")]
-    #[serde(rename = "voter-already-exists")]
-    VoterAlreadyExists,
-    #[strum(serialize = "voter-operation-in-progress")]
-    #[serde(rename = "voter-operation-in-progress")]
-    VoterOperationInProgress,
-    #[strum(serialize = "voter-state-unresolved")]
-    #[serde(rename = "voter-state-unresolved")]
-    VoterStateUnresolved,
-    #[strum(serialize = "voter-voted-online")]
-    #[serde(rename = "voter-voted-online")]
-    VoterVotedOnline,
-    #[strum(serialize = "voter-not-found")]
-    #[serde(rename = "voter-not-found")]
-    VoterNotFound,
-    #[strum(serialize = "area-not-found")]
-    #[serde(rename = "area-not-found")]
-    AreaNotFound,
-    #[strum(serialize = "event-not-found")]
-    #[serde(rename = "event-not-found")]
-    EventNotFound,
-    #[strum(serialize = "invalid-request")]
-    #[serde(rename = "invalid-request")]
-    InvalidRequest,
-    #[strum(serialize = "forbidden")]
-    #[serde(rename = "forbidden")]
-    Forbidden,
-    #[strum(serialize = "internal-error")]
-    #[serde(rename = "internal-error")]
-    InternalError,
+/// Sequent-side field a reconciliation change applies to, when `target =
+/// Sequent`. Distinct from `DatafixReconciliationField`: Sequent doesn't
+/// store `Ward`/`Poll`/`SchoolSupportCode` separately, only the composed area
+/// name (see `Area::name` / `reconciliation::diff::composed_area_name`), so
+/// those three external columns collapse into a single `AreaName` here.
+#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString)]
+pub enum SequentReconciliationField {
+    AreaName,
+    DoB,
+    Channel,
+    Deleted,
 }
 
-impl DatafixErrorCode {
-    /// The HTTP status the Datafix API contract pairs with this error code.
-    #[instrument]
-    pub fn status(self) -> Status {
+/// Which side of the reconciliation a change is applied to, carrying the
+/// field it applies to in the shape that side actually understands: `Datafix`
+/// changes are written into the downloadable patch for Datafix to apply on
+/// their end, described in terms of `DatafixReconciliationField`; `Sequent`
+/// changes are applied directly to this system, described in terms of
+/// `SequentReconciliationField` — `None` when the change (e.g. a `CountyMun`
+/// mismatch `ROW_FAILURE`) doesn't correspond to any field Sequent actually
+/// stores. Kept generic on the Sequent side (an area name rather than
+/// Datafix's raw Ward/Poll/SchoolSupportCode columns) so a future voter
+/// interface provider other than Datafix can populate the same shape.
+///
+/// Wire shape: adjacently tagged (`{"target": "datafix"|"sequent", "field":
+/// ...}`), matching the admin portal's separate `target`/`field` columns
+/// (D4).
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(tag = "target", content = "field", rename_all = "lowercase")]
+pub enum ReconciliationPatchTarget {
+    Datafix(DatafixReconciliationField),
+    Sequent(Option<SequentReconciliationField>),
+}
+
+impl ReconciliationPatchTarget {
+    pub fn is_datafix(&self) -> bool {
+        matches!(self, Self::Datafix(_))
+    }
+
+    pub fn is_sequent(&self) -> bool {
+        matches!(self, Self::Sequent(_))
+    }
+
+    pub fn datafix_field(&self) -> Option<DatafixReconciliationField> {
         match self {
-            Self::VoterAlreadyExists
-            | Self::VoterOperationInProgress
-            | Self::VoterStateUnresolved
-            | Self::VoterVotedOnline => Status::Conflict,
-            Self::VoterNotFound | Self::EventNotFound => Status::NotFound,
-            Self::AreaNotFound => Status::UnprocessableEntity,
-            Self::InvalidRequest => Status::BadRequest,
-            Self::Forbidden => Status::Forbidden,
-            Self::InternalError => Status::InternalServerError,
+            Self::Datafix(field) => Some(*field),
+            Self::Sequent(_) => None,
         }
     }
-}
 
-/// JSON body of every Datafix API reply, carrying the HTTP status code and its
-/// reason phrase so a client that only reads the body still sees the outcome.
-/// Errors may additionally carry a [`DatafixErrorCode`].
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DatafixResponse {
-    pub code: u16,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_code: Option<DatafixErrorCode>,
-}
-
-/// Error half of the Datafix route `Result`: the same JSON body as the
-/// success half, wrapped in [`Custom`] so the reply's HTTP status matches the
-/// `code` carried in the body.
-pub type JsonErrorResponse = Custom<Json<DatafixResponse>>;
-
-impl DatafixResponse {
-    /// Success body of a Datafix API reply.
-    #[instrument]
-    pub fn ok() -> Json<DatafixResponse> {
-        Json(DatafixResponse {
-            code: Status::Ok.code,
-            message: Status::Ok.reason().unwrap_or_default().to_string(),
-            error_code: None,
-        })
-    }
-
-    /// Error reply carrying one of the stable machine-readable
-    /// [`DatafixErrorCode`] values, answered with the HTTP status the
-    /// contract pairs with it.
-    #[instrument]
-    pub fn error(error_code: DatafixErrorCode) -> JsonErrorResponse {
-        let status = error_code.status();
-        Custom(
-            status,
-            Json(DatafixResponse {
-                code: status.code,
-                message: status.reason().unwrap_or_default().to_string(),
-                error_code: Some(error_code),
-            }),
-        )
-    }
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct VoterviewRequest {
-    pub url: String,
-    pub usr: String,
-    pub psw: String,
-    pub county_mun: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct DatafixAnnotations {
-    pub id: String,
-    pub password_policy: PasswordPolicy,
-    pub voterview_request: VoterviewRequest,
-}
-
-#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
-pub enum BasePolicy {
-    #[strum(serialize = "id-password-concatenated")]
-    #[serde(rename = "id-password-concatenated")]
-    IdPswConcat,
-    #[default]
-    #[strum(serialize = "password-only")]
-    #[serde(rename = "password-only")]
-    PswOnly,
-}
-
-#[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
-pub enum CharactersPolicy {
-    #[strum(serialize = "numeric")]
-    #[serde(rename = "numeric")]
-    Numeric,
-    #[default]
-    #[strum(serialize = "alphanumeric")]
-    #[serde(rename = "alphanumeric")]
-    Alphanumeric,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct PasswordPolicy {
-    base: BasePolicy,
-    size: usize,
-    characters: CharactersPolicy,
-}
-
-impl PasswordPolicy {
-    #[instrument]
-    pub fn generate_password(&self, voter_id: &str) -> String {
-        let pin = match self.characters {
-            CharactersPolicy::Numeric => {
-                let mut pass = String::new();
-                let mut rng = rand::thread_rng();
-                for _ in 0..self.size {
-                    pass.push_str(rng.gen_range(0..10).to_string().as_str());
-                }
-                pass
-            }
-            CharactersPolicy::Alphanumeric => rand::thread_rng()
-                .sample_iter(distr::Alphanumeric)
-                .take(self.size)
-                .map(char::from)
-                .collect(),
-        };
-        match self.base {
-            BasePolicy::IdPswConcat => format!("{}{}", voter_id, pin),
-            BasePolicy::PswOnly => pin,
-        }
-    }
-}
-
-impl ValidateAnnotations for ElectionEventDatafix {
-    type Item = DatafixAnnotations;
-
-    fn get_annotations(&self) -> Result<Self::Item> {
-        let annotations_value = self
-            .0
-            .annotations
-            .clone()
-            .ok_or_else(|| anyhow!("Missing election event annotations"))?;
-
-        let annotations: Annotations = deserialize_value(annotations_value)?;
-        let id = match annotations.get(DATAFIX_ID_KEY) {
-            Some(id) => id.clone(),
-            None => return Err(anyhow!("{DATAFIX_ID_KEY} not found")),
-        };
-
-        let password_policy: PasswordPolicy = match annotations.get(DATAFIX_PSW_POLICY_KEY) {
-            Some(value_as_str) => deserialize_str(value_as_str)?,
-            None => return Err(anyhow!("{DATAFIX_PSW_POLICY_KEY} not found")),
-        };
-
-        let voterview_request: VoterviewRequest = match annotations.get(DATAFIX_VOTERVIEW_REQ_KEY) {
-            Some(value_as_str) => deserialize_str(value_as_str)?,
-            None => return Err(anyhow!("{DATAFIX_VOTERVIEW_REQ_KEY} not found")),
-        };
-
-        Ok(DatafixAnnotations {
-            id,
-            password_policy,
-            voterview_request,
-        })
-    }
-}
-
-#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SoapRequest {
-    SetVoted,
-    SetNotVoted,
-}
-
-/// Classified outcome of a VoterView SOAP call. `AlreadyVoted`/`AlreadyNotVoted`
-/// are the idempotent "already in that state" replies the caller treats as
-/// success; `Fault` carries a transport/SOAP-fault detail and `Rejected` an
-/// application `Success=false` message.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SoapRequestResponse {
-    Ok,
-    AlreadyVoted,
-    AlreadyNotVoted,
-    Fault(String),
-    Rejected(String),
-}
-
-impl SoapRequestResponse {
-    /// Stable, low-cardinality tag for the electoral log—never the raw VoterView
-    /// message, which may contain sensitive data.
-    #[instrument(skip_all)]
-    pub fn classification(&self) -> &'static str {
+    pub fn sequent_field(&self) -> Option<SequentReconciliationField> {
         match self {
-            Self::Ok => "ok",
-            Self::AlreadyVoted => "already-voted",
-            Self::AlreadyNotVoted => "already-not-voted",
-            Self::Fault(_) => "soap-fault",
-            Self::Rejected(_) => "rejected",
+            Self::Sequent(field) => *field,
+            Self::Datafix(_) => None,
         }
-    }
-}
-
-/// A classified [`SoapRequestResponse`] paired with the SHA-256 of the template
-/// that produced the request, so the audit trail records which template was sent.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SoapRequestResult {
-    pub response: SoapRequestResponse,
-    pub template_sha256: String,
-}
-
-/// Borrowed view of the values interpolated into a VoterView SOAP template,
-/// serialized to the Handlebars variables and re-checked against the rendered
-/// XML so a template cannot silently alter them.
-#[derive(Serialize)]
-pub struct SoapRequestData<'a> {
-    pub county_mun: &'a str,
-    pub usr: &'a str,
-    pub psw: &'a str,
-    pub voter_id: &'a str,
-    pub timestamp: &'a str,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{DatafixErrorCode, DatafixResponse};
-    use rocket::http::Status;
-
-    #[test]
-    fn error_reply_carries_the_documented_status_and_error_code() {
-        let response = DatafixResponse::error(DatafixErrorCode::VoterAlreadyExists);
-        assert_eq!(response.0, Status::Conflict);
-        assert_eq!(
-            serde_json::to_value(&*response.1).unwrap(),
-            serde_json::json!({
-                "code": 409,
-                "message": "Conflict",
-                "error_code": "voter-already-exists"
-            })
-        );
-    }
-
-    #[test]
-    fn error_codes_keep_their_documented_wire_names_and_statuses() {
-        let contract = [
-            (
-                DatafixErrorCode::VoterAlreadyExists,
-                "voter-already-exists",
-                Status::Conflict,
-            ),
-            (
-                DatafixErrorCode::VoterOperationInProgress,
-                "voter-operation-in-progress",
-                Status::Conflict,
-            ),
-            (
-                DatafixErrorCode::VoterStateUnresolved,
-                "voter-state-unresolved",
-                Status::Conflict,
-            ),
-            (
-                DatafixErrorCode::VoterVotedOnline,
-                "voter-voted-online",
-                Status::Conflict,
-            ),
-            (
-                DatafixErrorCode::VoterNotFound,
-                "voter-not-found",
-                Status::NotFound,
-            ),
-            (
-                DatafixErrorCode::AreaNotFound,
-                "area-not-found",
-                Status::UnprocessableEntity,
-            ),
-            (
-                DatafixErrorCode::EventNotFound,
-                "event-not-found",
-                Status::NotFound,
-            ),
-            (
-                DatafixErrorCode::InvalidRequest,
-                "invalid-request",
-                Status::BadRequest,
-            ),
-            (DatafixErrorCode::Forbidden, "forbidden", Status::Forbidden),
-            (
-                DatafixErrorCode::InternalError,
-                "internal-error",
-                Status::InternalServerError,
-            ),
-        ];
-        for (code, wire_name, status) in contract {
-            assert_eq!(
-                serde_json::to_value(code).unwrap(),
-                serde_json::json!(wire_name)
-            );
-            assert_eq!(code.status(), status);
-        }
-    }
-
-    #[test]
-    fn success_body_omits_the_error_code() {
-        let body = DatafixResponse::ok();
-        assert_eq!(
-            serde_json::to_value(&*body).unwrap(),
-            serde_json::json!({"code": 200, "message": "OK"})
-        );
     }
 }
