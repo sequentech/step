@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export const RESOLVE_RESULTS_PUBLICATION = `
+import {gql} from "@apollo/client"
+
+export const RESOLVE_RESULTS_PUBLICATION = gql`
     query ResolveResultsPublication($eeId: String!, $electionId: String) {
         resolveResultsPublication(ee_id: $eeId, election_id: $electionId) {
             tenant_id
@@ -23,7 +25,7 @@ export interface ResolveResultsPublicationVariables {
     electionId?: string
 }
 
-export const FETCH_RESULTS_ARTIFACT = `
+export const FETCH_RESULTS_ARTIFACT = gql`
     query FetchResultsArtifact(
         $electionEventId: String!
         $electionId: String
