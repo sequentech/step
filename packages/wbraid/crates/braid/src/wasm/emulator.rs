@@ -37,7 +37,7 @@ use b4::messages::newtypes::{ConfigurationHash, PublicKeyHash, Timestamp, Truste
 use b4::messages::protocol_manager::ProtocolManager;
 use b4::messages::wire::{MessageType, WireMessage};
 
-use crate::board::persistence::{IndexedDbPersistence, Persistence};
+use crate::board::persistence::IndexedDbPersistence;
 use crate::board::transport::Transport;
 use crate::board::wasm_transport::WasmHttpTransport;
 use crate::board::BoardClient;
@@ -104,20 +104,6 @@ fn generate_committee<C: Context>(
         cfg,
         cfg_hash,
     })
-}
-
-/// One update-first round across all sessions (§6). Returns whether any trustee
-/// produced a message.
-async fn advance_round<C: Context, T: Transport<C>, P: Persistence>(
-    sessions: &mut [Session<C, T, P>],
-) -> Result<bool> {
-    let mut produced_any = false;
-    for session in sessions.iter_mut() {
-        if session.advance().await? {
-            produced_any = true;
-        }
-    }
-    Ok(produced_any)
 }
 
 /// The body of the first message of `kind` in `messages`, if any.
@@ -207,15 +193,31 @@ impl Phase {
     }
 }
 
-/// One round's result.
+/// What one trustee produced in a round (message types it posted).
+#[derive(Serialize)]
+struct TrusteeActivity {
+    trustee: usize,
+    produced: Vec<String>,
+}
+
+/// One round's result, including per-trustee activity.
 #[derive(Serialize)]
 struct StepReport {
     advanced: bool,
     round: usize,
     phase: String,
+    activity: Vec<TrusteeActivity>,
 }
 
-/// A snapshot of the board contents by message type.
+/// A board message summary (type, sender, short body digest).
+#[derive(Serialize)]
+struct MessageSummary {
+    kind: String,
+    sender: String,
+    digest: String,
+}
+
+/// A snapshot of the board: per-type counts plus the message list.
 #[derive(Serialize)]
 struct StateReport {
     phase: String,
@@ -228,6 +230,7 @@ struct StateReport {
     mix_signature: usize,
     partial_decryptions: usize,
     plaintexts: usize,
+    messages: Vec<MessageSummary>,
 }
 
 /// Result of a verification.
@@ -352,17 +355,41 @@ impl Emulator {
         // The board client does real HTTP here, so this borrow is held across an
         // await. The driving page steps sequentially and disables its controls
         // while an op runs; `try_borrow_mut` turns any accidental re-entrancy into
-        // a clean error instead of a panic.
-        let (advanced, round, phase) = {
+        // a clean error instead of a panic. Each trustee is driven update -> step
+        // -> post so we can report what it produced this round.
+        let (advanced, round, phase, activity) = {
             let mut inner = self.inner.try_borrow_mut().map_err(|_| busy())?;
-            let advanced = advance_round(&mut inner.sessions).await.map_err(js)?;
+            let mut advanced = false;
+            let mut activity = Vec::with_capacity(inner.sessions.len());
+            for (i, session) in inner.sessions.iter_mut().enumerate() {
+                session.update().await.map_err(js)?;
+                let produced = session.step().map_err(js)?;
+                let kinds: Vec<String> = produced
+                    .iter()
+                    .map(|m| format!("{:?}", m.message_type))
+                    .collect();
+                if !produced.is_empty() {
+                    advanced = true;
+                }
+                session.post(produced).await.map_err(js)?;
+                activity.push(TrusteeActivity {
+                    trustee: i + 1,
+                    produced: kinds,
+                });
+            }
             inner.round += 1;
-            (advanced, inner.round, inner.phase.as_str().to_string())
+            (
+                advanced,
+                inner.round,
+                inner.phase.as_str().to_string(),
+                activity,
+            )
         };
         let report = StepReport {
             advanced,
             round,
             phase,
+            activity,
         };
         serde_wasm_bindgen::to_value(&report)
             .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
@@ -410,6 +437,20 @@ impl Emulator {
             .await
             .map_err(js)?;
         let count = |t: MessageType| messages.iter().filter(|m| m.message_type == t).count();
+        let list: Vec<MessageSummary> = messages
+            .iter()
+            .map(|m| MessageSummary {
+                kind: format!("{:?}", m.message_type),
+                sender: m.sender.name.clone(),
+                digest: match &m.body {
+                    Some(body) => hex::encode(&b4::hash_bytes(body)[..])
+                        .chars()
+                        .take(12)
+                        .collect(),
+                    None => "-".to_string(),
+                },
+            })
+            .collect();
         let report = StateReport {
             phase,
             round,
@@ -422,6 +463,7 @@ impl Emulator {
             mix_signature: count(MessageType::MixSignature),
             partial_decryptions: count(MessageType::PartialDecryptions),
             plaintexts: count(MessageType::Plaintexts),
+            messages: list,
         };
         serde_wasm_bindgen::to_value(&report)
             .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
@@ -452,6 +494,52 @@ impl Emulator {
             actual,
         };
         serde_wasm_bindgen::to_value(&report)
+            .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
+    }
+
+    /// The number of trustees (for the page's trustee selector).
+    pub fn trustee_count(&self) -> usize {
+        self.inner
+            .try_borrow()
+            .map(|i| i.sessions.len())
+            .unwrap_or(0)
+    }
+
+    /// The message-store predicates the given trustee (0-based) currently holds
+    /// — the datalog EDB it runs on (§6.1). Returned as readable `Debug` strings.
+    pub fn trustee_predicates(&self, index: usize) -> Result<JsValue, JsValue> {
+        let inner = self.inner.try_borrow().map_err(|_| busy())?;
+        let session = inner
+            .sessions
+            .get(index)
+            .ok_or_else(|| JsValue::from_str("trustee index out of range"))?;
+        let predicates: Vec<String> = session
+            .client
+            .view()
+            .get_predicates()
+            .iter()
+            .map(|p| format!("{p:?}"))
+            .collect();
+        serde_wasm_bindgen::to_value(&predicates)
+            .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
+    }
+
+    /// The given trustee's persisted **committed** predicate set (§6.2) — the
+    /// anti-rewrite baseline. Identical to the store in the happy path; diverges
+    /// under anti-rewrite. Returned as readable `Debug` strings.
+    pub fn trustee_committed(&self, index: usize) -> Result<JsValue, JsValue> {
+        let inner = self.inner.try_borrow().map_err(|_| busy())?;
+        let session = inner
+            .sessions
+            .get(index)
+            .ok_or_else(|| JsValue::from_str("trustee index out of range"))?;
+        let committed: Vec<String> = session
+            .client
+            .committed()
+            .iter()
+            .map(|p| format!("{p:?}"))
+            .collect();
+        serde_wasm_bindgen::to_value(&committed)
             .map_err(|e| JsValue::from_str(&format!("failed to serialize: {e}")))
     }
 }
