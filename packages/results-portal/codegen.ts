@@ -15,7 +15,7 @@ const config: CodegenConfig = {
             },
         },
     ],
-    documents: "**/*.(graphql|ts|tsx)",
+    documents: ["src/**/*.{graphql,ts,tsx}", "!src/gql/**"],
     generates: {
         "src/gql/": {
             preset: "client",
