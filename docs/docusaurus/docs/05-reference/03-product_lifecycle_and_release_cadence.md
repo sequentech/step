@@ -285,7 +285,7 @@ Each release follows this general schedule:
 
 If you discover a security vulnerability in the Sequent Voting Platform, please
 report it responsibly by following the guidelines outlined in our 
-[Cyber Security and Vulnerabilities](./06-technology/04-cyber-security.md#reporting-security-vulnerabilities) documentation.
+[Vulnerability Disclosure Policy](../06-technology/06-vulnerability-disclosure-policy.md).
 
 ## Version Release Lifecycle
 
