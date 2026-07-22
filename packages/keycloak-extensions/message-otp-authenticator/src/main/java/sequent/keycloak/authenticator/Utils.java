@@ -85,6 +85,7 @@ public class Utils {
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   public final String DEFERRED_USER_ATTRIBUTE = "deferredUserAttribute";
+  public final String AUTO_CREATE_CREDENTIAL_ATTRIBUTE = "autoCreateCredentialAttribute";
   public final String OTL_RESTORED_AUTH_NOTES_ATTRIBUTE = "otlRestoredAuthNotesAttribute";
 
   public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
