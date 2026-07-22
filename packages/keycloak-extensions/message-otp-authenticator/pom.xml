@@ -119,6 +119,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Provides a jakarta.ws.rs.ext.RuntimeDelegate for tests exercising
+			 AbstractDirectGrantAuthenticator#errorResponse (Response.status(...)),
+			 not otherwise available outside a running Keycloak server. -->
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-common</artifactId>
+			<version>3.1.6</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
