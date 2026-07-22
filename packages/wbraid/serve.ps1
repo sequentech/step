@@ -9,26 +9,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Inject build info into HTML
-$wasmFile = "crates\braid\pkg\braid_bg.wasm"
-$buildTime = (Get-Item $wasmFile).LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
-$version = (Get-Content "crates\braid\Cargo.toml" | Select-String -Pattern 'version = "(.+)"').Matches[0].Groups[1].Value
-$buildInfo = "braid-vsc v$version, built $buildTime"
-
-$htmlContent = Get-Content "trustee.html" -Raw
-# Remove any existing build info first, then add new one
-$htmlContent = $htmlContent -replace '(<p class="subtitle">verifiable mixnet node)( \([^)]+\))?(</p>)', "`$1 ($buildInfo)`$3"
-# Ensure HTML points to braid (not braid)
-$htmlContent = $htmlContent -replace 'crates/braid/pkg/braid\.js', 'crates/braid/pkg/braid.js'
-$htmlContent | Set-Content "trustee.html" -NoNewline
-
-# Inject build info into verifier.html as well
-$verifierContent = Get-Content "verifier.html" -Raw
-$verifierContent = $verifierContent -replace '(<p class="subtitle">election verifier)( \([^)]+\))?(</p>)', "`$1 ($buildInfo)`$3"
-# Ensure HTML points to braid (not braid)
-$verifierContent = $verifierContent -replace 'crates/braid/pkg/braid\.js', 'crates/braid/pkg/braid.js'
-$verifierContent | Set-Content "verifier.html" -NoNewline
-
-Write-Host "Injected build info: $buildInfo" -ForegroundColor Cyan
 Write-Host "Starting development server on http://127.0.0.1:8080" -ForegroundColor Green
+Write-Host "Open http://127.0.0.1:8080/emulator.html" -ForegroundColor Green
 python server.py

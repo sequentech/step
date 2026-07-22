@@ -11,5 +11,3 @@ pub mod protocol_test_http_union;
 pub mod protocol_test_memory;
 /// Test the DKG+tally board union (§8.2) using in-memory boards.
 pub mod protocol_test_memory_union;
-// Legacy `dbg`, `vector_board`, `vector_session` are retired from the build for
-// M2; their files remain on disk for reference.

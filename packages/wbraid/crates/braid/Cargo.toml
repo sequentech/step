@@ -11,10 +11,6 @@ authors = [
 ]
 edition = "2021"
 license = "AGPL-3.0-only"
-# Legacy binaries under src/bin depend on the pre-v0.6 protocol/native stack and
-# are retired from the build for M2 (files kept on disk for reference; M3 rebuilds
-# `dbg`). Disable auto-discovery so src/bin/* is not compiled.
-autobins = false
 
 [dependencies]
 rand = "0.9"

@@ -4,17 +4,9 @@
 
 //! WASM bindings for the braid mixnet (M3).
 //!
-//! M3-A unblocks the `--features wasm` build on the v0.6 core. The pre-v0.6
-//! bindings — `session.rs`, `verify.rs`, and `board/` — are built on the retired
-//! `protocol::{session,board,trustee}` stack (plus `symm` / `TrusteeConfig`'s
-//! `encryption_key`, removed in v0.6), so they are **not declared here**. Those
-//! files remain on disk, undeclared and uncompiled, as the reference for the
-//! M3-B/M3-C port (IndexedDB persistence, browser-fetch transport); a dedicated
-//! retirement pass removes them once mined. This mirrors how `protocol.rs` keeps
-//! only the dispatch macros while its legacy submodules stay on disk.
-//!
-//! The real bindings — `SessionTrustee`/`BoardClient` over a browser transport
-//! and IndexedDB persistence — land in M3-C.
+//! The bindings are `SessionTrustee`/`BoardClient` over a browser-`fetch`
+//! transport with IndexedDB persistence, exposed through the interactive
+//! [`emulator`]. (The pre-v0.6 wasm bindings were archived to `legacy/`.)
 //!
 //! This module is gated on `wasm-core` (the base wasm build). The Web Worker
 //! thread pool (`initThreadPool`) is only present under the full `wasm` feature,
