@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">DOB + PIN Authentication (Direct Grant) | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2876/docs/developers/ivr/dob-pin-direct-grant-authenticator"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="DOB + PIN Authentication (Direct Grant) | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2876/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2876/docs/developers/ivr/dob-pin-direct-grant-authenticator"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2876/docs/developers/ivr/dob-pin-direct-grant-authenticator" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2876/docs/developers/ivr/dob-pin-direct-grant-authenticator" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"DOB + PIN Authentication (Direct Grant)","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2876/docs/developers/ivr/dob-pin-direct-grant-authenticator"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2876/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2876/assets/js/runtime~main.339cafd0.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2876/assets/js/runtime~main.027f0ce7.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2876/assets/js/main.07f0807c.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -111,6 +111,7 @@ version has already picked up the fixes described in
 <li class=""><strong>Max candidates per request</strong> (default <code>10</code>)</li>
 <li class=""><strong>Max failures per identifier-value combination</strong> (default <code>10</code>)</li>
 <li class=""><strong>Failure window (seconds)</strong> (default <code>60</code>)</li>
+<li class=""><strong>Max user-store rows per identifier lookup</strong> (default <code>5000</code>)</li>
 </ul>
 </li>
 <li class="">Leave <strong>Multiple-candidate match policy</strong> at its default, <code>REJECT_AMBIGUOUS</code>, unless you have
@@ -151,7 +152,7 @@ regardless.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="denial-of-service-considerations">Denial-of-Service Considerations<a href="#denial-of-service-considerations" class="hash-link" aria-label="Direct link to Denial-of-Service Considerations" title="Direct link to Denial-of-Service Considerations" translate="no">​</a></h2>
 <p>Because this authenticator matches on identifier attributes rather than a unique voter ID, a
 single request can legitimately resolve to many candidates (e.g. every voter born on a common
-date) - and each candidate normally costs one PIN-hash comparison to rule out. Two independent
+date) - and each candidate normally costs one PIN-hash comparison to rule out. Three independent
 settings, shared with the web form&#x27;s <code>MultiAttributeCredentialResolver</code>, bound that cost per
 request, on top of Keycloak&#x27;s standard Brute Force Detection:</p>
 <ul>
@@ -170,6 +171,13 @@ combination&#x27;s failures reach the configured maximum within the window, furt
 it are rejected without any user lookup at all, until the window elapses or a matching request
 succeeds (which clears the count). This throttle is tracked cluster-wide, so it can&#x27;t be evaded
 by spreading requests across Keycloak nodes.</li>
+<li class=""><strong>Max user-store rows per identifier lookup</strong> (<code>maxAttributeLookupResults</code>, default <code>5000</code>): a
+hard ceiling on how many rows the underlying user-store query may return, applied before any
+candidate is even loaded into memory. This is deliberately much larger than <strong>Max candidates per
+request</strong> - it exists only to stop a truly pathological match (e.g. an identifier value shared by
+most of the realm) from pulling an unbounded number of rows from the database, not to replace the
+tighter candidate cap above. Keep it well above the largest realistic combined match count you&#x27;d
+expect a legitimate voter lookup to produce.</li>
 </ul>
 <p>If PINs are short (e.g. a numeric PIN, as is typical for IVR), do <strong>not</strong> compensate for
 guessability by weakening the password hash algorithm - that only makes offline cracking easier if
