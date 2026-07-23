@@ -9,6 +9,8 @@ import {
     MAX_LOGIN_HINT_VALUE_LENGTH,
     appendLoginHints,
     parseLoginHints,
+    removeLoginHintsFromSearch,
+    routeAcceptsLoginHints,
 } from "./loginHints"
 
 describe("parseLoginHints", () => {
@@ -66,8 +68,33 @@ describe("parseLoginHints", () => {
             ).join("&")}`,
         ],
         ["a duplicate field", "?login_hint__username=first&login_hint__username=second"],
+        ["an invalid percent escape", "?login_hint__username=user%ZZexample"],
+        ["invalid UTF-8", "?login_hint__username=%E0%A4%A"],
     ])("rejects %s", (_description, search) => {
         expect(() => parseLoginHints(search)).toThrow(InvalidLoginHintsError)
+    })
+
+    it("does not apply hint encoding validation to unrelated parameters", () => {
+        expect(parseLoginHints("?return_to=%ZZ")).toEqual({
+            hints: {},
+            remainingSearch: "?return_to=%25ZZ",
+        })
+    })
+
+    it("treats prototype property names as ordinary bounded hints", () => {
+        const parsed = parseLoginHints("?login_hint____proto__=value&lang=en")
+
+        expect(Object.hasOwn(parsed.hints, "__proto__")).toBe(true)
+        expect(parsed.hints.__proto__).toBe("value")
+        expect(parsed.remainingSearch).toBe("?lang=en")
+    })
+
+    it("removes invalid raw hint components while preserving unrelated query text", () => {
+        expect(
+            removeLoginHintsFromSearch(
+                "?lang=en&login_hint__username=%E0%A4%A&login_hint__username=duplicate&kiosk"
+            )
+        ).toBe("?lang=en&kiosk")
     })
 })
 
@@ -90,5 +117,18 @@ describe("appendLoginHints", () => {
         expect(resultUrl.searchParams.get("login_hint__username")).toBe("user@example.com")
         expect(resultUrl.searchParams.get("login_hint__reference")).toBe("a&b=c % value")
         expect(resultUrl.searchParams.get("b")).toBeNull()
+    })
+})
+
+describe("routeAcceptsLoginHints", () => {
+    it.each(["/tenant/t/event/e/login", "/tenant/t/event/e/login/", "/enroll", "/enroll/"])(
+        "accepts %s",
+        (pathname) => {
+            expect(routeAcceptsLoginHints(pathname)).toBe(true)
+        }
+    )
+
+    it("rejects non-authentication routes", () => {
+        expect(routeAcceptsLoginHints("/tenant/t/event/e/vote")).toBe(false)
     })
 })

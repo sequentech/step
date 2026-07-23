@@ -33,7 +33,12 @@ import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
-import {InvalidLoginHintsError, parseLoginHints} from "./utils/loginHints"
+import {
+    InvalidLoginHintsError,
+    parseLoginHints,
+    removeLoginHintsFromSearch,
+    routeAcceptsLoginHints,
+} from "./utils/loginHints"
 interface ElectionEventConfigDocument {
     id: string
     tenant_id: string
@@ -134,9 +139,7 @@ const App = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
     const [loginHintRequest] = useState(() => {
-        const acceptsLoginHints = ["/login", "/enroll"].some((suffix) =>
-            location.pathname.endsWith(suffix)
-        )
+        const acceptsLoginHints = routeAcceptsLoginHints(location.pathname)
 
         try {
             const parsed = acceptsLoginHints
@@ -145,6 +148,12 @@ const App = () => {
             return {...parsed, pathname: location.pathname, hash: location.hash}
         } catch (error) {
             if (error instanceof InvalidLoginHintsError) {
+                const remainingSearch = removeLoginHintsFromSearch(location.search)
+                window.history.replaceState(
+                    window.history.state,
+                    "",
+                    `${location.pathname}${remainingSearch}${location.hash}`
+                )
                 throw new VotingPortalError(VotingPortalErrorType.INVALID_LOGIN_HINT_PARAMETERS)
             }
             throw error

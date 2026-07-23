@@ -35,7 +35,8 @@ For deployments enabling prefill:
 1. **Notification templates**: append only approved `login_hint__<field>`
   parameters. Wrap every dynamic value with the Handlebars `url_encode` helper.
   Custom Keycloak attributes are available as `user.<attribute>` for the first
-  value and `user.attributes.<attribute>` for the complete value array.
+  value and `user.attributes.<attribute>` for the complete value array. Use
+  `{{lookup user "attribute.with-dots"}}` for names containing dots or dashes.
 2. **Stock Keycloak registration**: add the
   **Sequent: Login hint registration prefill** action as **Required** before the
   registration user-creation execution, then bind the updated registration
