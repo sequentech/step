@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
+import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 
 final class LoginHintPrefill {
@@ -23,6 +24,8 @@ final class LoginHintPrefill {
   private static final String CLIENT_NOTE_PREFIX =
       AuthorizationEndpoint.LOGIN_SESSION_NOTE_ADDITIONAL_REQ_PARAMS_PREFIX + HINT_PREFIX;
   private static final Pattern HINT_NAME_PATTERN = Pattern.compile("[A-Za-z0-9._-]+");
+  private static final String INPUT_TYPE_ANNOTATION = "inputType";
+  private static final String HIDDEN_INPUT_TYPE = "hidden";
   private static final Set<String> CREDENTIAL_FIELDS =
       Set.of(RegistrationPage.FIELD_PASSWORD, RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
@@ -62,15 +65,22 @@ final class LoginHintPrefill {
 
     hints.forEach(
         (attributeName, value) -> {
+          AttributeMetadata metadata = attributes.getMetadata(attributeName);
           if (!CREDENTIAL_FIELDS.contains(attributeName)
               && !excludedAttributes.contains(attributeName)
               && writableAttributes.containsKey(attributeName)
               && !unmanagedAttributes.containsKey(attributeName)
-              && attributes.getMetadata(attributeName) != null) {
+              && metadata != null
+              && !isHidden(metadata)) {
             filteredHints.putSingle(attributeName, value);
           }
         });
 
     return filteredHints;
+  }
+
+  private static boolean isHidden(AttributeMetadata metadata) {
+    Map<String, Object> annotations = metadata.getAnnotations();
+    return annotations != null && HIDDEN_INPUT_TYPE.equals(annotations.get(INPUT_TYPE_ANNOTATION));
   }
 }

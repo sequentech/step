@@ -95,7 +95,7 @@ impl EmailSender {
         })
     }
 
-    #[instrument(skip(self, plaintext_body, html_body, attachments), err)]
+    #[instrument(skip_all, err)]
     pub async fn send(
         &self,
         receivers: Vec<String>,
@@ -165,11 +165,7 @@ impl EmailSender {
 
         match self.transport {
             EmailTransport::AwsSes(ref aws_client) => {
-                event!(
-                    Level::INFO,
-                    "EmailTransport::AwsSes: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
-                    html_body=html_body.clone().unwrap_or_default(),
-                );
+                event!(Level::INFO, "EmailTransport::AwsSes: Sending email",);
                 if !attachments.is_empty() {
                     for attachment in &attachments {
                         event!(
@@ -204,10 +200,7 @@ impl EmailSender {
                     .map_err(|err| anyhow!("error sending email: {err:?}"))?;
             }
             EmailTransport::Smtp(ref smtp_transport) => {
-                event!(
-                    Level::INFO,
-                    "EmailTransport::Smtp: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}",
-                );
+                event!(Level::INFO, "EmailTransport::Smtp: Sending email",);
                 if !attachments.is_empty() {
                     for attachment in &attachments {
                         event!(
@@ -225,11 +218,7 @@ impl EmailSender {
                 event!(Level::INFO, "Email sent successfully via SMTP");
             }
             EmailTransport::Console => {
-                event!(
-                    Level::INFO,
-                    "EmailTransport::Console: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
-                    html_body=html_body.clone().unwrap_or_default(),
-                );
+                event!(Level::INFO, "EmailTransport::Console: Simulating email",);
                 if !attachments.is_empty() {
                     for attachment in &attachments {
                         event!(

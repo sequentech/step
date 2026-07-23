@@ -77,15 +77,20 @@ class LoginHintPrefillTest {
   void keepsOnlyExplicitWritableManagedAttributes() {
     Attributes attributes = mock(Attributes.class);
     AttributeMetadata metadata = mock(AttributeMetadata.class);
+    AttributeMetadata hiddenMetadata = mock(AttributeMetadata.class);
+    when(metadata.getAnnotations()).thenReturn(Map.of());
+    when(hiddenMetadata.getAnnotations()).thenReturn(Map.of("inputType", "hidden"));
     when(attributes.getWritable())
         .thenReturn(
             Map.of(
                 "username", List.of("voter@example.com"),
                 "dateOfBirth", List.of("2000-01-01"),
+                "hiddenReference", List.of("internal-value"),
                 "unmanaged", List.of("value")));
     when(attributes.getUnmanagedAttributes()).thenReturn(Map.of("unmanaged", List.of("value")));
     when(attributes.getMetadata("username")).thenReturn(metadata);
     when(attributes.getMetadata("dateOfBirth")).thenReturn(metadata);
+    when(attributes.getMetadata("hiddenReference")).thenReturn(hiddenMetadata);
 
     MultivaluedMap<String, String> result =
         LoginHintPrefill.filterWritableHints(
@@ -93,6 +98,7 @@ class LoginHintPrefillTest {
                 "username", "voter@example.com",
                 "dateOfBirth", "2000-01-01",
                 "verificationStatus", "VERIFIED",
+                "hiddenReference", "internal-value",
                 "unmanaged", "value",
                 "password", "secret"),
             attributes,

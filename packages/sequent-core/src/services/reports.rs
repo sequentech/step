@@ -186,10 +186,8 @@ pub fn helper_wrapper<'a>(
                 Ok(val) => Ok(val),
                 Err(err) => {
                     warn!(
-                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}: {err:?}",
-                        name=helper.name(),
-                        params=helper.params(),
-                        hash=helper.hash()
+                        "Error calling helper name={name:?}: {err:?}",
+                        name = helper.name(),
                     );
                     Err(err)
                 }
@@ -849,6 +847,16 @@ mod tests {
         assert_eq!(
             rendered,
             "https://vote.example/login?login_hint__reference=a%26admin%3Dtrue%2050%25%20%22M%C3%A1laga%22"
+        );
+    }
+
+    #[test]
+    fn url_encode_rejects_non_string_values() {
+        let mut variables = Map::new();
+        variables.insert("value".to_string(), json!(["private", "values"]));
+
+        assert!(
+            render_template_text("{{url_encode value}}", variables).is_err()
         );
     }
 }

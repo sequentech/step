@@ -42,7 +42,7 @@ use std::default::Default;
 use strand::info;
 use tracing::{event, info, instrument, Level};
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 fn get_variables(
     user: &User,
     election_event: Option<ElectionEvent>,
@@ -91,7 +91,11 @@ fn get_variables(
     Ok(variables)
 }
 
-#[instrument(skip(sender), err)]
+fn delivery_audit_message(channel: &str) -> String {
+    json!({"channel": channel}).to_string()
+}
+
+#[instrument(skip_all, err)]
 async fn send_template_sms(
     receiver: &Option<String>,
     template: &Option<SmsConfig>,
@@ -103,20 +107,14 @@ async fn send_template_sms(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message.clone()).await?;
-        return Ok(Some(
-            json!({
-                "receiver": receiver,
-                "message": message
-            })
-            .to_string(),
-        ));
+        return Ok(Some(delivery_audit_message("sms")));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
     Ok(None)
 }
 
-#[instrument(skip(sender), err)]
+#[instrument(skip_all, err)]
 pub async fn send_template_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
@@ -138,8 +136,6 @@ pub async fn send_template_email(
             ),
             None => None,
         };
-        info!("html_body: {html_body:?}");
-
         sender
             .send(
                 vec![receiver.to_string()],
@@ -151,15 +147,7 @@ pub async fn send_template_email(
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(
-            json!({
-                "receiver": receiver,
-                "subject": subject,
-                "html_body": html_body,
-                "plaintext_body": plaintext_body
-            })
-            .to_string(),
-        ));
+        return Ok(Some(delivery_audit_message("email")));
     } else {
         // Log the event if the receiver or template is missing
         event!(
@@ -324,7 +312,7 @@ async fn on_success_send_message(
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn send_template(
@@ -535,7 +523,7 @@ pub async fn send_template(
 ///
 /// In the case of acceptance:
 /// All the fields are required.
-#[instrument(err, skip(election_event, email_sender, sms_sender))]
+#[instrument(skip_all, err)]
 pub async fn send_template_email_or_sms(
     hasura_transaction: &Transaction<'_>,
     user: &User,
@@ -653,7 +641,7 @@ pub async fn send_template_email_or_sms(
 
 #[cfg(test)]
 mod tests {
-    use super::get_variables;
+    use super::{delivery_audit_message, get_variables};
     use sequent_core::services::generate_urls::AuthAction;
     use sequent_core::types::keycloak::User;
     use serde_json::json;
@@ -692,5 +680,16 @@ mod tests {
             json!(["untrusted-collision"])
         );
         assert_eq!(variables["user"]["attributes"]["empty"], json!([]));
+    }
+
+    #[test]
+    fn delivery_audit_message_does_not_include_rendered_content() {
+        let message = delivery_audit_message("email");
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&message).expect("valid audit JSON"),
+            json!({"channel": "email"})
+        );
+        assert!(!message.contains("login_hint__"));
     }
 }

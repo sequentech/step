@@ -66,14 +66,11 @@ impl SmsSender {
         })
     }
 
-    #[instrument(skip(self, message), err)]
+    #[instrument(skip_all, err)]
     pub async fn send(&self, receiver: String, message: String) -> Result<()> {
         match self.transport {
             SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
-                event!(
-                    Level::INFO,
-                    "SmsTransport::AwsSes: Sending SMS:\n\t - receiver={receiver}\n\t - message={message:.255}",
-                );
+                event!(Level::INFO, "SmsTransport::AwsSns: Sending SMS",);
                 aws_client
                     .publish()
                     .set_message_attributes(messsage_attributes.clone())
@@ -84,10 +81,7 @@ impl SmsSender {
                     .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
             }
             SmsTransport::Console => {
-                event!(
-                    Level::INFO,
-                    "SmsTransport::Console: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
-                );
+                event!(Level::INFO, "SmsTransport::Console: Simulating SMS",);
             }
         }
 

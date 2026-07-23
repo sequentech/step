@@ -306,8 +306,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                         const registerOptions = {
                             ...keycloakInitOptions,
                             // after successful enrollment, we should redirect to login
-                            redirectUri: baseUrl.endsWith("/enroll")
-                                ? baseUrl.replace(/\/enroll$/, "/login") + queryString
+                            redirectUri: /\/enroll\/?$/.test(baseUrl)
+                                ? baseUrl.replace(/\/enroll\/?$/, "/login") + queryString
                                 : undefined,
                             loginHint: loginHints.username,
                         }

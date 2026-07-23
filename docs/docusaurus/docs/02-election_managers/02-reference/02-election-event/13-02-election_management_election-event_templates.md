@@ -52,8 +52,16 @@ Email and SMS Handlebars templates can use these standard voter variables:
 Custom Keycloak user attributes are also available. The first value is exposed
 as `user.<attribute>`. The complete value list remains available as
 `user.attributes.<attribute>`. Standard variables take precedence if a custom
-attribute uses the same name. Empty custom value lists are present only under
-`user.attributes`.
+attribute uses the same name. The `attributes` name is reserved for the complete
+attribute map. Empty custom value lists are present only under `user.attributes`.
+
+Dot notation works for simple names such as `dateOfBirth`. Use Handlebars
+`lookup` for names containing dots or dashes. For example:
+
+```handlebars
+{{lookup user "sequent.read-only.mobile-number"}}
+{{#each (lookup user.attributes "sequent.read-only.mobile-number")}}{{this}} {{/each}}
+```
 
 For example, a `reference` attribute with values `ABC-123` and `legacy-456` can
 be rendered as follows:

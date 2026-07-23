@@ -128,7 +128,9 @@ Treat every hint as untrusted, user-editable input. Prefill must not mark email,
 phone, identity, eligibility, or other verification state as trusted. Do not log
 hint values, and do not place credentials, tokens, or secrets in notification
 URLs. URL encoding prevents query-structure injection but does not make values
-confidential or authentic.
+confidential or authentic. Dynamic attributes with dots or dashes in their names
+must be read with the Handlebars `lookup` helper; `attributes` is reserved for
+the complete attribute map.
 
 ## Tally
 
