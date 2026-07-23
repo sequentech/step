@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Shapes used by the Datafix reconciliation wizard.
+ * Shapes used by the external voter registry reconciliation wizard.
  * Wire values match the backend's Rust enums exactly, so these describe
  * GraphQL response shapes directly with no translation layer.
  */

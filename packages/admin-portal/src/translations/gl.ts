@@ -105,7 +105,7 @@ const galegoTranslation: TranslationType = {
             },
         },
         reconciliation: {
-            menuButton: "Sincronización con Datafix",
+            menuButton: "Sincr. votantes ext.",
             categories: {
                 VOTED_INTERNET: "Votou por Internet",
                 VOTED_OTHER_CHANNEL: "Votou por outra canle",
@@ -127,10 +127,10 @@ const galegoTranslation: TranslationType = {
                 noDifferences: "Non se atoparon diferenzas - os sistemas están sincronizados.",
             },
             wizard: {
-                title: "Sincronización de reconciliación con Datafix",
+                title: "Sincronización de reconciliación externa",
                 drop: {
                     description:
-                        "Solta o ficheiro de reconciliación xerado por Datafix - ambos os diffs (lado Datafix e lado Sequent) calcúlanse automaticamente e móstranse en táboas separadas.",
+                        "Solta o ficheiro de reconciliación xerado polo sistema externo - ambos os diffs (lado externo e lado Sequent) calcúlanse automaticamente e móstranse en táboas separadas.",
                     fileFormatLabel: "Ficheiro CSV",
                     uploading: "Subindo {{fileName}} e calculando ambos os diffs...",
                 },
@@ -139,10 +139,10 @@ const galegoTranslation: TranslationType = {
                     rowFailuresWarning:
                         "{{count}} fila(s) teñen un CountyMun inesperado (ou a protección de votado-por-outra-canle) e quedan excluídas de ambos os diffs - repórtanse como erros de fila unha vez aplicado.",
                     noDifferences: "Non hai diferenzas - ambos os sistemas xa están sincronizados.",
-                    datafixDiffTitle: "Diff de Datafix",
+                    externalDiffTitle: "Diff externo",
                     sequentDiffTitle: "Diff de Sequent",
-                    downloadDatafixPatch: "Descargar parche de Datafix",
-                    noDatafixDifferences: "Non hai diferenzas do lado de Datafix.",
+                    downloadExternalPatch: "Descargar parche externo",
+                    noExternalDifferences: "Non hai diferenzas do lado externo.",
                     sequentDiffCaption:
                         "Aplícase directamente a Sequent - non se xera ficheiro de parche para estes.",
                     noSequentDifferences: "Non hai diferenzas do lado de Sequent.",

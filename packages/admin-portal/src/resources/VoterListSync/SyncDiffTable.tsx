@@ -18,7 +18,7 @@ interface SyncDiffTableProps {
  * Same visual language as ReviewChangesTable (old value struck through, new
  * value plain) but built on DataGrid since a reconciliation diff spans many
  * voters instead of a single record's fields. Callers split rows by `target`
- * into separate Datafix-side/Sequent-side tables, so this component doesn't
+ * into separate external-side/Sequent-side tables, so this component doesn't
  * need to render which side a row belongs to. Client-side paginated: the
  * whole diff is fetched at once.
  */

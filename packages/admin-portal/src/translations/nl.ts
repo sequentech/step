@@ -105,7 +105,7 @@ const dutchTranslation: TranslationType = {
             },
         },
         reconciliation: {
-            menuButton: "Synchronisatie met Datafix",
+            menuButton: "Ext. kiezerssync",
             categories: {
                 VOTED_INTERNET: "Gestemd via Internet",
                 VOTED_OTHER_CHANNEL: "Gestemd via ander kanaal",
@@ -127,10 +127,10 @@ const dutchTranslation: TranslationType = {
                 noDifferences: "Geen verschillen gevonden - de systemen zijn gesynchroniseerd.",
             },
             wizard: {
-                title: "Datafix-reconciliatiesynchronisatie",
+                title: "Externe reconciliatiesynchronisatie",
                 drop: {
                     description:
-                        "Sleep het door Datafix gegenereerde reconciliatiebestand hierheen - beide diffs (Datafix-zijde en Sequent-zijde) worden automatisch berekend en in aparte tabellen weergegeven.",
+                        "Sleep het door het externe systeem gegenereerde reconciliatiebestand hierheen - beide diffs (externe zijde en Sequent-zijde) worden automatisch berekend en in aparte tabellen weergegeven.",
                     fileFormatLabel: "CSV-bestand",
                     uploading: "{{fileName}} wordt geüpload en beide diffs worden berekend...",
                 },
@@ -140,10 +140,10 @@ const dutchTranslation: TranslationType = {
                     rowFailuresWarning:
                         "{{count}} rij(en) hebben een onverwachte CountyMun (of de bescherming tegen gestemd-via-ander-kanaal) en zijn uitgesloten van beide diffs - deze worden na toepassing gerapporteerd als rijfouten.",
                     noDifferences: "Geen verschillen - beide systemen zijn al gesynchroniseerd.",
-                    datafixDiffTitle: "Datafix-diff",
+                    externalDiffTitle: "Externe diff",
                     sequentDiffTitle: "Sequent-diff",
-                    downloadDatafixPatch: "Datafix-patch downloaden",
-                    noDatafixDifferences: "Geen verschillen aan de Datafix-zijde.",
+                    downloadExternalPatch: "Externe patch downloaden",
+                    noExternalDifferences: "Geen verschillen aan de externe zijde.",
                     sequentDiffCaption:
                         "Wordt direct op Sequent toegepast - hiervoor wordt geen patchbestand gegenereerd.",
                     noSequentDifferences: "Geen verschillen aan de Sequent-zijde.",

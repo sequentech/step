@@ -105,7 +105,7 @@ const tagalogTranslation: TranslationType = {
             },
         },
         reconciliation: {
-            menuButton: "I-sync sa Datafix",
+            menuButton: "I-sync ang ext. botante",
             categories: {
                 VOTED_INTERNET: "Bumoto sa pamamagitan ng Internet",
                 VOTED_OTHER_CHANNEL: "Bumoto sa ibang channel",
@@ -127,10 +127,10 @@ const tagalogTranslation: TranslationType = {
                 noDifferences: "Walang nakitang pagkakaiba - naka-sync na ang mga sistema.",
             },
             wizard: {
-                title: "Pag-sync ng Reconciliation sa Datafix",
+                title: "Pag-sync ng External Reconciliation",
                 drop: {
                     description:
-                        "I-drop ang reconciliation file na ginawa ng Datafix - awtomatikong kinakalkula at ipinapakita sa magkahiwalay na tables ang parehong diffs (Datafix side at Sequent side).",
+                        "I-drop ang reconciliation file na ginawa ng external system - awtomatikong kinakalkula at ipinapakita sa magkahiwalay na tables ang parehong diffs (external side at Sequent side).",
                     fileFormatLabel: "CSV file",
                     uploading: "Ina-upload ang {{fileName}} at kinakalkula ang parehong diffs...",
                 },
@@ -140,10 +140,10 @@ const tagalogTranslation: TranslationType = {
                     rowFailuresWarning:
                         "May hindi inaasahang CountyMun ang {{count}} row(s) (o ang voted-via-other-channel guard) at hindi kasama sa parehong diffs - iri-report ang mga ito bilang row failures kapag na-apply na.",
                     noDifferences: "Walang pagkakaiba - naka-sync na ang dalawang sistema.",
-                    datafixDiffTitle: "Datafix diff",
+                    externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
-                    downloadDatafixPatch: "I-download ang Datafix patch",
-                    noDatafixDifferences: "Walang pagkakaiba sa Datafix side.",
+                    downloadExternalPatch: "I-download ang external patch",
+                    noExternalDifferences: "Walang pagkakaiba sa external side.",
                     sequentDiffCaption:
                         "Direktang inilalapat sa Sequent - walang ginagawang patch file para dito.",
                     noSequentDifferences: "Walang pagkakaiba sa Sequent side.",

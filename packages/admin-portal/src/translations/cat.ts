@@ -105,7 +105,7 @@ const catalanTranslation: TranslationType = {
             },
         },
         reconciliation: {
-            menuButton: "Sincronització amb Datafix",
+            menuButton: "Sincr. votants ext.",
             categories: {
                 VOTED_INTERNET: "Ha votat per Internet",
                 VOTED_OTHER_CHANNEL: "Ha votat per un altre canal",
@@ -127,10 +127,10 @@ const catalanTranslation: TranslationType = {
                 noDifferences: "No s'han trobat diferències - els sistemes estan sincronitzats.",
             },
             wizard: {
-                title: "Sincronització de reconciliació amb Datafix",
+                title: "Sincronització de reconciliació externa",
                 drop: {
                     description:
-                        "Deixa anar el fitxer de reconciliació generat per Datafix - ambdós diffs (costat Datafix i costat Sequent) es calculen automàticament i es mostren en taules separades.",
+                        "Deixa anar el fitxer de reconciliació generat pel sistema extern - ambdós diffs (costat extern i costat Sequent) es calculen automàticament i es mostren en taules separades.",
                     fileFormatLabel: "Fitxer CSV",
                     uploading: "Pujant {{fileName}} i calculant ambdós diffs...",
                 },
@@ -139,10 +139,10 @@ const catalanTranslation: TranslationType = {
                     rowFailuresWarning:
                         "{{count}} fila(es) tenen un CountyMun inesperat (o la protecció de votat-per-un-altre-canal) i queden excloses d'ambdós diffs - es reporten com a errors de fila un cop aplicat.",
                     noDifferences: "No hi ha diferències - ambdós sistemes ja estan sincronitzats.",
-                    datafixDiffTitle: "Diff de Datafix",
+                    externalDiffTitle: "Diff extern",
                     sequentDiffTitle: "Diff de Sequent",
-                    downloadDatafixPatch: "Descarregar pedaç de Datafix",
-                    noDatafixDifferences: "No hi ha diferències del costat de Datafix.",
+                    downloadExternalPatch: "Descarregar pedaç extern",
+                    noExternalDifferences: "No hi ha diferències del costat extern.",
                     sequentDiffCaption:
                         "S'aplica directament a Sequent - no es genera cap fitxer de pedaç per aquests.",
                     noSequentDifferences: "No hi ha diferències del costat de Sequent.",

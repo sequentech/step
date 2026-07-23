@@ -105,7 +105,7 @@ const basqueTranslation: TranslationType = {
             },
         },
         reconciliation: {
-            menuButton: "Datafix-ekiko sinkronizazioa",
+            menuButton: "Kanpo bozk. sink.",
             categories: {
                 VOTED_INTERNET: "Internet bidez bozkatu du",
                 VOTED_OTHER_CHANNEL: "Beste kanal batetik bozkatu du",
@@ -127,10 +127,10 @@ const basqueTranslation: TranslationType = {
                 noDifferences: "Ez da desberdintasunik aurkitu - sistemak sinkronizatuta daude.",
             },
             wizard: {
-                title: "Datafix bat-egite sinkronizazioa",
+                title: "Kanpoko bat-egite sinkronizazioa",
                 drop: {
                     description:
-                        "Jaregin Datafix-ek sortutako bat-egite fitxategia - bi diffak (Datafix aldea eta Sequent aldea) automatikoki kalkulatzen dira eta taula bereizietan erakusten dira.",
+                        "Jaregin kanpoko sistemak sortutako bat-egite fitxategia - bi diffak (kanpoko aldea eta Sequent aldea) automatikoki kalkulatzen dira eta taula bereizietan erakusten dira.",
                     fileFormatLabel: "CSV fitxategia",
                     uploading: "{{fileName}} igotzen eta bi diffak kalkulatzen...",
                 },
@@ -140,10 +140,10 @@ const basqueTranslation: TranslationType = {
                         "{{count}} errenkadak ustekabeko CountyMun bat dute (edo beste-kanal-batetik-bozkatuaren babesa) eta bi diffetatik kanpo geratzen dira - errenkada-errore gisa jakinaraziko dira aplikatu ondoren.",
                     noDifferences:
                         "Ez dago desberdintasunik - bi sistemak jada sinkronizatuta daude.",
-                    datafixDiffTitle: "Datafix diff-a",
+                    externalDiffTitle: "Kanpoko diff-a",
                     sequentDiffTitle: "Sequent diff-a",
-                    downloadDatafixPatch: "Deskargatu Datafix adabakia",
-                    noDatafixDifferences: "Ez dago desberdintasunik Datafix aldean.",
+                    downloadExternalPatch: "Deskargatu kanpoko adabakia",
+                    noExternalDifferences: "Ez dago desberdintasunik kanpoko aldean.",
                     sequentDiffCaption:
                         "Zuzenean Sequent-i aplikatzen zaio - hauetarako ez da adabaki-fitxategirik sortzen.",
                     noSequentDifferences: "Ez dago desberdintasunik Sequent aldean.",

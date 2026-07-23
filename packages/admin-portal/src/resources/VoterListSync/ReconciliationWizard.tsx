@@ -201,8 +201,8 @@ const toRowFailures = (items: RawDiffItem[], t: TranslateFn): SyncDiffRow[] =>
         })
 
 /**
- * Reconciliation wizard: Drop the reconciliation file, both diffs (Datafix-side, Sequent-side) are
- * calculated at once and shown in separate tables. The Datafix patch is
+ * Reconciliation wizard: Drop the reconciliation file, both diffs (external-side, Sequent-side) are
+ * calculated at once and shown in separate tables. The external patch is
  * downloadable as soon as its diff is non-empty; Apply is disabled until that
  * diff is empty (clean import), then applies the Sequent-side diff directly -
  * there is no Sequent patch file to download (the Sequent-side items exist
@@ -499,7 +499,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                             alignItems="center"
                                         >
                                             <Typography variant="subtitle1">
-                                                {t("reconciliation.wizard.review.datafixDiffTitle")}
+                                                {t("reconciliation.wizard.review.externalDiffTitle")}
                                                 {datafixRows.length > 0 &&
                                                     ` (${datafixRows.length})`}
                                             </Typography>
@@ -515,7 +515,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                                         }
                                                     >
                                                         {t(
-                                                            "reconciliation.wizard.review.downloadDatafixPatch"
+                                                            "reconciliation.wizard.review.downloadExternalPatch"
                                                         )}
                                                     </Button>
                                                 )}
@@ -523,7 +523,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                         <SyncDiffTable
                                             rows={datafixRows}
                                             emptyMessage={t(
-                                                "reconciliation.wizard.review.noDatafixDifferences"
+                                                "reconciliation.wizard.review.noExternalDifferences"
                                             )}
                                         />
                                     </Stack>
@@ -595,7 +595,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                         <DownloadDocument
                             documentId={downloadingDocumentId}
                             electionEventId={electionEventId}
-                            fileName={`datafix-reconciliation-${downloadingDocumentId}.csv`}
+                            fileName={`external-reconciliation-${downloadingDocumentId}.csv`}
                             onDownload={() => setDownloadingDocumentId(null)}
                         />
                     )}

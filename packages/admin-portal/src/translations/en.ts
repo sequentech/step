@@ -104,7 +104,7 @@ const englishTranslation = {
             },
         },
         reconciliation: {
-            menuButton: "Datafix sync",
+            menuButton: "Ext. voters sync",
             categories: {
                 VOTED_INTERNET: "Voted via Internet",
                 VOTED_OTHER_CHANNEL: "Voted via other channel",
@@ -126,10 +126,10 @@ const englishTranslation = {
                 noDifferences: "No differences found - the systems are in sync.",
             },
             wizard: {
-                title: "Datafix reconciliation sync",
+                title: "External reconciliation sync",
                 drop: {
                     description:
-                        "Drop the reconciliation file Datafix produced - both diffs (Datafix-side and Sequent-side) are calculated automatically and shown in separate tables.",
+                        "Drop the reconciliation file the external system produced - both diffs (external-side and Sequent-side) are calculated automatically and shown in separate tables.",
                     fileFormatLabel: "CSV file",
                     uploading: "Uploading {{fileName}} and calculating both diffs...",
                 },
@@ -138,10 +138,10 @@ const englishTranslation = {
                     rowFailuresWarning:
                         "{{count}} row(s) have an unexpected CountyMun (or a voted-via-other-channel guard) and are excluded from both diffs - reported as row failures once applied.",
                     noDifferences: "No differences - the two systems are already in sync.",
-                    datafixDiffTitle: "Datafix diff",
+                    externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
-                    downloadDatafixPatch: "Download Datafix patch",
-                    noDatafixDifferences: "No Datafix-side differences.",
+                    downloadExternalPatch: "Download external patch",
+                    noExternalDifferences: "No external-side differences.",
                     sequentDiffCaption:
                         "Applied directly to Sequent - no patch file is generated for these.",
                     noSequentDifferences: "No Sequent-side differences.",
