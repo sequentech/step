@@ -147,17 +147,23 @@ async fn process_locked_cast_vote(
         return Ok(());
     }
 
+    let is_internet_voter = voted_via_internet(&attributes);
     let prior_valid_vote = has_prior_valid_vote(&cast_vote, voter_id).await?;
-    if voted_via_internet(&attributes) || prior_valid_vote {
+
+    if is_internet_voter || prior_valid_vote {
         let changed = transition_cast_vote(
             &cast_vote,
             CastVoteStatus::InProgress,
             CastVoteStatus::Valid,
         )
         .await?;
-        if changed && !voted_via_internet(&attributes) {
-            mark_voted_via_internet(&realm, voter_id).await?;
+
+        if changed && !is_internet_voter {
+            if let Err(err) = mark_voted_via_internet(&realm, voter_id).await {
+                error!("Could not mark the voter Internet channel: {err}");
+            }
         }
+
         return Ok(());
     }
 
@@ -191,16 +197,10 @@ async fn process_locked_cast_vote(
         Ok(result) => {
             let operation = match result.response {
                 SoapRequestResponse::Ok => {
-                    let changed = transition_cast_vote(
-                        &cast_vote,
-                        CastVoteStatus::InProgress,
-                        CastVoteStatus::Valid,
-                    )
-                    .await?;
+                    let changed =
+                        transition_cast_vote_and_mark_internet(&cast_vote, &realm, voter_id)
+                            .await?;
                     if changed {
-                        if let Err(err) = mark_voted_via_internet(&realm, voter_id).await {
-                            error!("Could not mark the voter Internet channel: {err}");
-                        }
                         format!(
                             "SetVoted Succeeded (template_sha256={})",
                             result.template_sha256
@@ -213,12 +213,9 @@ async fn process_locked_cast_vote(
                     }
                 }
                 SoapRequestResponse::AlreadyVoted => {
-                    let changed = transition_cast_vote(
-                        &cast_vote,
-                        CastVoteStatus::InProgress,
-                        CastVoteStatus::Valid,
-                    )
-                    .await?;
+                    let changed =
+                        transition_cast_vote_and_mark_internet(&cast_vote, &realm, voter_id)
+                            .await?;
                     if changed {
                         format!(
                             "SetVoted Failed: voter already voted (template_sha256={})",
@@ -387,6 +384,30 @@ async fn transition_cast_vote(
     }
     Ok(changed)
 }
+
+/// Promotes an in-progress vote and then records the Internet channel. A
+/// Keycloak failure is traced and left for the reconciliation process; it does
+/// not roll back the terminal Hasura status.
+#[instrument(
+    skip(cast_vote),
+    fields(cast_vote_id = %cast_vote.id),
+    err
+)]
+async fn transition_cast_vote_and_mark_internet(
+    cast_vote: &CastVote,
+    realm: &str,
+    voter_id: &str,
+) -> Result<bool> {
+    let changed =
+        transition_cast_vote(cast_vote, CastVoteStatus::InProgress, CastVoteStatus::Valid).await?;
+    if changed {
+        if let Err(err) = mark_voted_via_internet(realm, voter_id).await {
+            error!("Could not mark the voter Internet channel: {err}");
+        }
+    }
+    Ok(changed)
+}
+
 
 /// Records the outcome of an outbound Datafix operation in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the vote itself.

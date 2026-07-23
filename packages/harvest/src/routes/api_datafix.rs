@@ -16,7 +16,7 @@ use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::external::api_datafix::{
     acquire_inbound_voter_lock, audit_inbound_operation,
     audit_inbound_operation_standalone, ensure_inbound_reenable_is_safe,
-    ensure_voter_has_no_valid_vote, release_inbound_voter_lock,
+    ensure_voter_has_no_active_vote, release_inbound_voter_lock,
     valid_inbound_voting_channel, InboundVoterLock,
 };
 use windmill::services::external::datafix_types::*;
@@ -187,7 +187,7 @@ pub async fn update_voter(
             .await
         }
         Some(false) => {
-            ensure_voter_has_no_valid_vote(
+            ensure_voter_has_no_active_vote(
                 &hasura_transaction,
                 &keycloak_transaction,
                 &claims,
@@ -331,7 +331,7 @@ pub async fn delete_voter(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    if let Err(err) = ensure_voter_has_no_valid_vote(
+    if let Err(err) = ensure_voter_has_no_active_vote(
         &hasura_transaction,
         &keycloak_transaction,
         &claims,
@@ -466,7 +466,7 @@ pub async fn unmark_voted(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    if let Err(err) = ensure_voter_has_no_valid_vote(
+    if let Err(err) = ensure_voter_has_no_active_vote(
         &hasura_transaction,
         &keycloak_transaction,
         &claims,
@@ -612,7 +612,7 @@ pub async fn mark_voted(
     let hasura_transaction =
         transaction_result.expect("transaction result was checked above");
 
-    if let Err(err) = ensure_voter_has_no_valid_vote(
+    if let Err(err) = ensure_voter_has_no_active_vote(
         &hasura_transaction,
         &keycloak_transaction,
         &claims,

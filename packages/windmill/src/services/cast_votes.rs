@@ -184,6 +184,7 @@ pub async fn get_in_progress_cast_votes_batch(
         ),
         None => (None, None, None, None),
     };
+    let in_progress_status = CastVoteStatus::InProgress.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -195,10 +196,10 @@ pub async fn get_in_progress_cast_votes_batch(
                         voter_id_string
                     FROM "sequent_backend".cast_vote cv
                     WHERE
-                        cv.status = 'in-progress' AND
+                        cv.status = $6 AND
                         cv.election_id IS NOT NULL AND
                         cv.voter_id_string IS NOT NULL AND
-                        cv.created_at < NOW() - make_interval(secs => $6) AND
+                        cv.created_at < NOW() - make_interval(secs => $7) AND
                         ($1::UUID IS NULL OR
                             (cv.tenant_id, cv.election_event_id, cv.election_id, cv.voter_id_string) >
                             ($1::UUID, $2::UUID, $3::UUID, $4::VARCHAR))
@@ -216,6 +217,7 @@ pub async fn get_in_progress_cast_votes_batch(
                 &after_election_id,
                 &after_voter_id,
                 &limit,
+                &in_progress_status,
                 &IN_PROGRESS_ENQUEUE_GRACE_SECS,
             ],
         )
@@ -454,7 +456,7 @@ pub async fn get_users_with_vote_info(
     if user_ids.is_empty() {
         return Ok(vec![]);
     }
-    let status = CastVoteStatus::Valid.to_string();
+    let discarded_status = CastVoteStatus::Discarded.to_string();
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
@@ -469,7 +471,7 @@ pub async fn get_users_with_vote_info(
             AND v.election_event_id = $2::uuid
             AND v.voter_id_string   = ANY($3::text[])
             AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
-            AND v.status = $5
+            AND v.status <> $5
         GROUP BY
             v.voter_id_string, v.election_id
         "#,
@@ -484,7 +486,7 @@ pub async fn get_users_with_vote_info(
                 &election_event_uuid,
                 &user_ids,
                 &election_uuid,
-                &status,
+                &discarded_status,
             ],
         )
         .await

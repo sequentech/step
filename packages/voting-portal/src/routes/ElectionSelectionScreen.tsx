@@ -94,6 +94,47 @@ const ElectionContainer = styled(Box)`
     margin-bottom: 30px;
 `
 
+const TitleSection = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    min-height: 100px;
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        min-height: unset;
+        padding: 24px 0;
+    }
+`
+
+const PageActions = styled(Box)`
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 16px;
+
+    .election-event-results-button {
+        min-width: 150px;
+        padding: 10px 24px;
+        justify-content: center;
+        font-weight: 500;
+        line-height: 24px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        width: 100%;
+
+        > .MuiButton-root {
+            flex: 1;
+        }
+    }
+`
+
 interface ElectionWrapperProps {
     electionId: string
     bypassChooser: boolean
@@ -160,6 +201,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
 
+    const defaultLanguageCode =
+        election.presentation?.language_conf?.default_language_code ??
+        electionEvent?.presentation?.language_conf?.default_language_code
     let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
@@ -257,7 +301,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
-            title={translateFromPresentation(election, "name", i18n.language) || "-"}
+            title={
+                translateFromPresentation(election, "name", i18n.language, {
+                    defaultLanguageCode,
+                }) || "-"
+            }
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
@@ -316,6 +364,8 @@ const ElectionSelectionScreen: React.FC = () => {
         useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const eventDefaultLanguageCode =
+        electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     //Handle both transalations from presentation and i18n language change.
     useUpdateTranslation({electionEvent}, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
@@ -500,7 +550,12 @@ const ElectionSelectionScreen: React.FC = () => {
                             ? translateFromPresentation(
                                   election.presentation,
                                   "alias",
-                                  i18n.language
+                                  i18n.language,
+                                  {
+                                      defaultLanguageCode:
+                                          election.presentation.language_conf
+                                              ?.default_language_code ?? eventDefaultLanguageCode,
+                                  }
                               )
                             : undefined,
                     })
@@ -509,7 +564,11 @@ const ElectionSelectionScreen: React.FC = () => {
 
             let foundTestElection = dataElections.sequent_backend_election.find((election) => {
                 const name = election.presentation
-                    ? translateFromPresentation(election.presentation, "name", i18n.language)
+                    ? translateFromPresentation(election.presentation, "name", i18n.language, {
+                          defaultLanguageCode:
+                              election.presentation.language_conf?.default_language_code ??
+                              eventDefaultLanguageCode,
+                      })
                     : undefined
                 return name?.includes("TEST") ?? false
             })
@@ -520,7 +579,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
             setTestElectionId(foundTestElection?.id || null)
         }
-    }, [dataElections, dispatch, i18n.language])
+    }, [dataElections, dispatch, eventDefaultLanguageCode, i18n.language])
 
     useEffect(() => {
         if (!testElectionId) {
@@ -609,17 +668,8 @@ const ElectionSelectionScreen: React.FC = () => {
                 <Stepper selected={0} />
             </Box>
 
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    minHeight: "100px",
-                }}
-                className="title-section"
-            >
-                <Box sx={{width: "100%"}}>
+            <TitleSection className="title-section">
+                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
                     <StyledTitle variant="h1">
                         <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
@@ -649,9 +699,11 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Typography>
                     )}
                 </Box>
-                <Box sx={{display: "flex", gap: 2, alignItems: "center"}}>
+                <PageActions className="election-event-actions">
                     {eventResultsUrl ? (
                         <Button
+                            className="results-button election-event-results-button"
+                            variant="secondary"
                             component="a"
                             href={eventResultsUrl}
                             target="_blank"
@@ -665,8 +717,8 @@ const ElectionSelectionScreen: React.FC = () => {
                             {t("materials.common.label")}
                         </Button>
                     ) : null}
-                </Box>
-            </Box>
+                </PageActions>
+            </TitleSection>
             <ElectionContainer className="elections-list">
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (

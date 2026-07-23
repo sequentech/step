@@ -67,10 +67,10 @@ pub struct EditUserOutput {
 /// the (potentially slow, retried) VoterView round-trip. The release logic runs
 /// in [`apply_datafix_voter_edit`]; its outcome is recorded on `task_execution`,
 /// which backs the operator's task widget. A Datafix voter's ballots are
-/// discarded as soon as the disable itself succeeds, regardless of whether
-/// `SetNotVoted` converges — a divergence from VoterView's own record is caught
-/// by the separate manual reconciliation process, not by this task, so this
-/// task only fails on a genuine local error (e.g. the Keycloak edit itself).
+/// discarded after the Keycloak disable. A retry also resumes a partial
+/// disable when Keycloak is already disabled but active ballots remain.
+/// Whether `SetNotVoted` converges is still handled by the separate manual
+/// reconciliation process.
 #[instrument(
     skip_all,
     fields(
@@ -142,6 +142,12 @@ fn plan_voter_release(
 ) -> std::result::Result<VoterReleasePlan, String> {
     let disable_transition = is_disable_transition(current_enabled, requested_enabled);
     let reenable_transition = is_reenable_transition(current_enabled, requested_enabled);
+    let disable_requested = requested_enabled == Some(false);
+    let release_attempt = disable_transition
+        || (disable_requested
+            && (cast_vote_state.has_unresolved_vote
+                || cast_vote_state.has_valid_vote
+                || voted_via_internet(current_attributes)));
 
     if reenable_transition
         && (cast_vote_state.has_unresolved_vote
@@ -153,15 +159,15 @@ fn plan_voter_release(
             "Cannot re-enable a voter while its Datafix voting state is unresolved".to_string(),
         );
     }
-    if disable_transition && voted_via_not_internet_channel(current_attributes) {
+    if release_attempt && voted_via_not_internet_channel(current_attributes) {
         return Err(
             "Cannot release a voter recorded as having voted through another channel".to_string(),
         );
     }
 
     Ok(VoterReleasePlan {
-        release_attempt: disable_transition,
-        owes_set_not_voted: disable_transition && voted_via_internet(current_attributes),
+        release_attempt,
+        owes_set_not_voted: release_attempt && voted_via_internet(current_attributes),
     })
 }
 
@@ -211,9 +217,34 @@ async fn voter_cast_vote_state(
     get_voter_cast_vote_state(&transaction, &tenant_id, &election_event_id, voter_id).await
 }
 
-/// Discards the voter's `valid`/`in-progress` ballots for the event, as part of
-/// a disable. Unconditional: it does not wait for or depend on the outcome of
-/// `SetNotVoted`.
+/// Applies the requested Keycloak fields.
+#[instrument(skip(ctx, client), err)]
+async fn edit_keycloak_voter(
+    ctx: &DatafixEditCtx<'_>,
+    client: KeycloakAdminClient,
+) -> std::result::Result<(), String> {
+    let body = ctx.body;
+    client
+        .edit_user(
+            &ctx.realm,
+            &body.user_id,
+            body.enabled,
+            Some(body.attributes.clone()),
+            body.email.clone(),
+            body.first_name.clone(),
+            body.last_name.clone(),
+            body.username.clone(),
+            body.password.clone(),
+            body.temporary,
+        )
+        .await
+        .map(|_| ())
+        .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
+}
+
+/// Discards the voter's active ballots in its own Hasura transaction. Keycloak
+/// and Hasura are updated sequentially; failures are traced by the caller and
+/// left for the existing reconciliation process.
 #[instrument(err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
@@ -224,8 +255,10 @@ async fn discard_voter_ballots(
     let election_event_id = parse_uuid_v4(election_event_id)?;
     let mut client: DbClient = get_hasura_pool().await.get().await?;
     let transaction = client.transaction().await?;
-    discard_voter_cast_votes(&transaction, &tenant_id, &election_event_id, voter_id).await?;
+    let discarded =
+        discard_voter_cast_votes(&transaction, &tenant_id, &election_event_id, voter_id).await?;
     transaction.commit().await?;
+    info!(discarded, "Discarded active Datafix cast votes");
     Ok(())
 }
 
@@ -331,8 +364,8 @@ async fn send_set_not_voted(
 }
 
 /// Runs the voter edit while the per-voter lock is held: validates the edit,
-/// plans the release, applies the Keycloak edit and, on a disable, discards the
-/// voter's ballots and — if the voter had voted online — sends `SetNotVoted`.
+/// plans the release and, on a disable, edits Keycloak before discarding the
+/// voter's ballots and sending `SetNotVoted` when required.
 #[instrument(skip(ctx, election_event), err)]
 async fn run_datafix_voter_edit(
     ctx: &DatafixEditCtx<'_>,
@@ -349,8 +382,8 @@ async fn run_datafix_voter_edit(
     let current_attributes = current_user.attributes.clone().unwrap_or_default();
     validate_datafix_immutable_fields(body, &current_user, &current_attributes)?;
 
-    let needs_cast_vote_state = is_disable_transition(current_user.enabled, body.enabled)
-        || is_reenable_transition(current_user.enabled, body.enabled);
+    let needs_cast_vote_state =
+        body.enabled == Some(false) || is_reenable_transition(current_user.enabled, body.enabled);
     let cast_vote_state = if needs_cast_vote_state {
         voter_cast_vote_state(&body.tenant_id, &body.election_event_id, &body.user_id)
             .await
@@ -369,21 +402,7 @@ async fn run_datafix_voter_edit(
     )?;
     info!("Voter edit plan: {plan:?}, cast-vote state: {cast_vote_state:?}");
 
-    client
-        .edit_user(
-            &ctx.realm,
-            &body.user_id,
-            body.enabled,
-            Some(body.attributes.clone()),
-            body.email.clone(),
-            body.first_name.clone(),
-            body.last_name.clone(),
-            body.username.clone(),
-            body.password.clone(),
-            body.temporary,
-        )
-        .await
-        .map_err(|err| format!("{err:?}"))?;
+    edit_keycloak_voter(ctx, client).await?;
 
     if !plan.release_attempt {
         return Ok(());
@@ -514,6 +533,30 @@ mod tests {
         let plan = plan_voter_release(Some(false), Some(false), &no_cast_votes(), &HashMap::new())
             .unwrap();
         assert!(!plan.release_attempt);
+    }
+
+    #[test]
+    fn a_partial_disable_with_active_votes_retries_the_release() {
+        let state = VoterCastVoteState {
+            has_unresolved_vote: true,
+            has_valid_vote: false,
+        };
+        let plan = plan_voter_release(Some(false), Some(false), &state, &HashMap::new()).unwrap();
+        assert!(plan.release_attempt);
+        assert!(!plan.owes_set_not_voted);
+    }
+
+    #[test]
+    fn a_partial_disable_with_an_internet_channel_retries_set_not_voted() {
+        let plan = plan_voter_release(
+            Some(false),
+            Some(false),
+            &no_cast_votes(),
+            &internet_voter(),
+        )
+        .unwrap();
+        assert!(plan.release_attempt);
+        assert!(plan.owes_set_not_voted);
     }
 
     #[test]

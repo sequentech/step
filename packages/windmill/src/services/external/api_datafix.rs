@@ -4,7 +4,7 @@
 use super::datafix_types::*;
 use super::utils::*;
 
-use crate::postgres::cast_vote::{get_voter_cast_vote_state, has_valid_cast_vote};
+use crate::postgres::cast_vote::{get_voter_cast_vote_state, VoterCastVoteState};
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::users::{list_users, FilterOption, ListUsersFilter};
@@ -436,13 +436,23 @@ pub async fn release_inbound_voter_lock(lock: PgLock) {
     }
 }
 
-/// Rejects the inbound operation when the voter already has a `valid` online
-/// vote: a valid Internet vote is immutable through the inbound API, and the
-/// only way to change it is disabling the voter in the admin portal, which runs
-/// the `SetNotVoted` release flow. Callers hold the per-voter lock, so the
+/// Maps a non-discarded vote state to the inbound API error contract.
+fn active_vote_error(state: &VoterCastVoteState) -> Option<DatafixErrorCode> {
+    if state.has_unresolved_vote {
+        Some(DatafixErrorCode::VoterStateUnresolved)
+    } else if state.has_valid_vote {
+        Some(DatafixErrorCode::VoterVotedOnline)
+    } else {
+        None
+    }
+}
+
+/// Rejects the inbound operation while the voter has any non-discarded online
+/// vote. An in-progress vote is still being reconciled and a valid vote is
+/// immutable through the inbound API. Callers hold the per-voter lock, so the
 /// check cannot race a vote being promoted to `valid`.
 #[instrument(skip_all)]
-pub async fn ensure_voter_has_no_valid_vote(
+pub async fn ensure_voter_has_no_active_vote(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     claims: &DatafixClaims,
@@ -456,19 +466,25 @@ pub async fn ensure_voter_has_no_valid_vote(
     .await?;
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let voted_online = has_valid_cast_vote(
+    let tenant_id = parse_uuid_v4(&claims.tenant_id)
+        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
+    let election_event_uuid = parse_uuid_v4(&election_event_id)
+        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
+    let state = get_voter_cast_vote_state(
         hasura_transaction,
-        &claims.tenant_id,
-        &election_event_id,
+        &tenant_id,
+        &election_event_uuid,
         &user_id,
     )
     .await
     .map_err(|err| {
-        error!("Error checking for a valid online vote before an inbound Datafix operation: {err}");
+        error!(
+            "Error checking for an active online vote before an inbound Datafix operation: {err}"
+        );
         DatafixResponse::error(DatafixErrorCode::InternalError)
     })?;
-    if voted_online {
-        return Err(DatafixResponse::error(DatafixErrorCode::VoterVotedOnline));
+    if let Some(error_code) = active_vote_error(&state) {
+        return Err(DatafixResponse::error(error_code));
     }
     Ok(())
 }
@@ -624,7 +640,8 @@ pub fn valid_inbound_voting_channel(channel: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{create_user_error_response, valid_inbound_voting_channel};
+    use super::{active_vote_error, create_user_error_response, valid_inbound_voting_channel};
+    use crate::postgres::cast_vote::VoterCastVoteState;
     use crate::services::external::datafix_types::DatafixErrorCode;
     use keycloak::KeycloakError;
     use rocket::http::Status;
@@ -678,5 +695,30 @@ mod tests {
         }
         assert!(valid_inbound_voting_channel("PHONE"));
         assert!(valid_inbound_voting_channel("Paper"));
+    }
+
+    #[test]
+    fn active_vote_guard_distinguishes_in_progress_and_valid_votes() {
+        assert_eq!(
+            active_vote_error(&VoterCastVoteState {
+                has_unresolved_vote: true,
+                has_valid_vote: false,
+            }),
+            Some(DatafixErrorCode::VoterStateUnresolved)
+        );
+        assert_eq!(
+            active_vote_error(&VoterCastVoteState {
+                has_unresolved_vote: false,
+                has_valid_vote: true,
+            }),
+            Some(DatafixErrorCode::VoterVotedOnline)
+        );
+        assert_eq!(
+            active_vote_error(&VoterCastVoteState {
+                has_unresolved_vote: false,
+                has_valid_vote: false,
+            }),
+            None
+        );
     }
 }

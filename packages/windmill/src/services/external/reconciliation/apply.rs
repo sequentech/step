@@ -17,7 +17,7 @@
 //! own path since creating a voter is a different Keycloak call
 //! (`create_user`, not `edit_user`) with no existing `user_id` to edit yet.
 //!
-//! The per-voter cast-vote guards (`ensure_voter_has_no_valid_vote`-style
+//! The per-voter cast-vote guards (`ensure_voter_has_no_active_vote`-style
 //! checks before a disable/re-enable actually lands) are re-implemented here
 //! rather than reused from the inbound Datafix API, since those take a
 //! `DatafixClaims` (the inbound request guard) that doesn't exist on this

@@ -8,9 +8,10 @@
 //! Sequent-side changes directly.
 //!
 //! Reuses the existing Datafix API helpers throughout (per the spec's
-//! explicit instruction to do so): `api_datafix::ensure_voter_has_no_valid_vote`,
-//! `utils::datafix_voter_lock_key`/`PgLock`, `utils::post_operation_result_to_electoral_log`,
-//! and `utils::compose_area_name`.
+//! explicit instruction to do so): `utils::datafix_voter_lock_key`/`PgLock`,
+//! `utils::post_operation_result_to_electoral_log`, and
+//! `utils::compose_area_name`. The per-voter cast-vote guard is
+//! re-implemented rather than reused — see `apply`'s module doc.
 
 pub mod apply;
 pub mod csv;

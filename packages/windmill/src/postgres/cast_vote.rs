@@ -251,6 +251,7 @@ pub async fn count_unresolved_cast_votes(
     election_id: &Uuid,
     area_id: &Uuid,
 ) -> Result<i64> {
+    let unresolved_status = CastVoteStatus::InProgress.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -261,7 +262,7 @@ pub async fn count_unresolved_cast_votes(
                     election_event_id = $2 AND
                     election_id = $3 AND
                     area_id = $4 AND
-                    status = 'in-progress'
+                    status = $5
             "#,
         )
         .await?;
@@ -269,7 +270,13 @@ pub async fn count_unresolved_cast_votes(
     let row = hasura_transaction
         .query_one(
             &statement,
-            &[tenant_id, election_event_id, election_id, area_id],
+            &[
+                tenant_id,
+                election_event_id,
+                election_id,
+                area_id,
+                &unresolved_status,
+            ],
         )
         .await
         .map_err(|err| anyhow!("Error counting cast votes by status: {}", err))?;
@@ -290,18 +297,23 @@ pub async fn discard_voter_cast_votes(
     election_event_id: &Uuid,
     voter_id_string: &str,
 ) -> Result<u64> {
+    let discarded_status = CastVoteStatus::Discarded.to_string();
+    let active_statuses = vec![
+        CastVoteStatus::Valid.to_string(),
+        CastVoteStatus::InProgress.to_string(),
+    ];
     let statement = hasura_transaction
         .prepare(
             r#"
                 UPDATE sequent_backend.cast_vote
                 SET
-                    status = 'discarded',
+                    status = $4,
                     last_updated_at = NOW()
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     voter_id_string = $3 AND
-                    status IN ('valid', 'in-progress')
+                    status = ANY($5)
             "#,
         )
         .await?;
@@ -309,7 +321,13 @@ pub async fn discard_voter_cast_votes(
     hasura_transaction
         .execute(
             &statement,
-            &[tenant_id, election_event_id, &voter_id_string],
+            &[
+                tenant_id,
+                election_event_id,
+                &voter_id_string,
+                &discarded_status,
+                &active_statuses,
+            ],
         )
         .await
         .map_err(Into::into)
@@ -333,6 +351,8 @@ pub async fn get_voter_cast_vote_state(
     election_event_id: &Uuid,
     voter_id_string: &str,
 ) -> Result<VoterCastVoteState> {
+    let unresolved_status = CastVoteStatus::InProgress.to_string();
+    let valid_status = CastVoteStatus::Valid.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -347,11 +367,11 @@ pub async fn get_voter_cast_vote_state(
                 SELECT
                     EXISTS (
                         SELECT 1 FROM voter_votes
-                        WHERE status = 'in-progress'
+                        WHERE status = $4
                     ) AS has_unresolved_vote,
                     EXISTS (
                         SELECT 1 FROM voter_votes
-                        WHERE status = 'valid'
+                        WHERE status = $5
                     ) AS has_valid_vote
             "#,
         )
@@ -360,7 +380,13 @@ pub async fn get_voter_cast_vote_state(
     let row = hasura_transaction
         .query_one(
             &statement,
-            &[tenant_id, election_event_id, &voter_id_string],
+            &[
+                tenant_id,
+                election_event_id,
+                &voter_id_string,
+                &unresolved_status,
+                &valid_status,
+            ],
         )
         .await?;
     Ok(VoterCastVoteState {
