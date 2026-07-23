@@ -46,6 +46,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
+  private static final int DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS =
+      Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT);
+
   private MultiAttributePasswordDirectGrantAuthenticator authenticator;
 
   @Mock private AuthenticationFlowContext context;
@@ -120,7 +123,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
     formParams("dob", "19900101", "password", "1234");
     UserModel user = mockUser("user-1", "1234", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     authenticator.authenticate(context);
@@ -136,7 +143,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     formParams("dob", "19900101", "password", "bob-pin");
     UserModel alice = mockUser("alice", "alice-pin", true);
     UserModel bob = mockUser("bob", "bob-pin", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     authenticator.authenticate(context);
@@ -150,7 +161,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
     formParams("dob", "19900101", "password", "wrong");
     UserModel user = mockUser("user-1", "1234", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     authenticator.authenticate(context);
@@ -171,7 +186,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     formParams("dob", "19900101", "password", "wrong");
     UserModel alice = mockUser("alice", "alice-pin", true);
     UserModel bob = mockUser("bob", "bob-pin", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     authenticator.authenticate(context);
@@ -184,7 +203,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
   void dobAndPin_noCandidates_fails() {
     ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
     formParams("dob", "19900101", "password", "1234");
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.empty());
 
     authenticator.authenticate(context);
@@ -230,7 +253,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
     formParams("dob", "19900101", "password", "1234");
     UserModel user = mockUser("user-1", "1234", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
     when(realm.isBruteForceProtected()).thenReturn(true);
     when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
@@ -254,7 +281,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
   void dobAndPin_noCandidates_performsDummyHash() {
     ivrConfig("dob##pin", "8##8", "identifier##secret", "dob##password");
     formParams("dob", "19900101", "password", "1234");
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.empty());
 
     authenticator.authenticate(context);
@@ -276,7 +307,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     // IVR collects raw digits in MMDDYYYY order; the stored attribute is canonical YYYY-MM-DD.
     formParams("dob", "01051990", "password", "1234");
     UserModel user = mockUser("user-1", "1234", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "1990-01-05"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "1990-01-05", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     authenticator.authenticate(context);
@@ -300,7 +335,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     UserModel alice = mockUser("alice", "alice-pin", true);
     UserModel bob = mockUser("bob", "bob-pin", true);
     UserModel carol = mockUser("carol", "carol-pin", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob, carol));
 
     authenticator.authenticate(context);
@@ -323,13 +362,49 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     lenient().when(authConfig.getConfig()).thenReturn(config);
     formParams("dob", "19900101", "password", "wrong");
     UserModel user = mockUser("user-1", "1234", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     authenticator.authenticate(context); // 1st failure - counted against the tuple.
     authenticator.authenticate(context); // 2nd attempt - the tuple is now throttled.
 
-    verify(userProvider, times(1)).searchForUserByUserAttributeStream(realm, "dob", "19900101");
+    verify(userProvider, times(1))
+        .searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS);
+  }
+
+  @Test
+  void dobAndPin_attributeLookupPassesConfiguredMaxAttributeLookupResultsAsQueryLimit() {
+    // Same end-to-end concern as the browser form: bounding retrieval is the user store's job,
+    // via maxResults - a real SQL LIMIT under the default JPA provider - see
+    // MultiAttributeCredentialResolver.ThrottleConfig#maxAttributeLookupResults. This verifies
+    // the configured ceiling is actually passed through end-to-end as the combined query's
+    // maxResults: the stub only matches maxResults=5, so if the resolver passed a different
+    // value, the mock would return null and authenticate() would fail instead of succeeding.
+    Map<String, String> config = new HashMap<>();
+    config.put("field", "dob##pin");
+    config.put("max_digits", "8##8");
+    config.put("kind", "identifier##secret");
+    config.put("maps_to", "dob##password");
+    config.put("maxAttributeLookupResults", "5");
+    lenient().when(authConfig.getConfig()).thenReturn(config);
+    formParams("dob", "19900101", "password", "1234");
+    UserModel user = mockUser("user-1", "1234", true);
+    when(userProvider.searchForUserStream(
+            realm, Map.of("dob", "19900101", UserModel.EXACT, "true"), 0, 5))
+        .thenReturn(Stream.of(user));
+
+    authenticator.authenticate(context);
+
+    verify(context).setUser(user);
+    verify(context).success();
   }
 
   // ── MatchPolicy: FIRST_MATCH ─────────────────────────────────────────────
@@ -350,7 +425,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     formParams("dob", "19900101", "password", "shared-pin");
     UserModel alice = mockUser("alice", "shared-pin", true);
     UserModel bob = mockUser("bob", "shared-pin", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dob", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     authenticator.authenticate(context);
@@ -387,7 +466,8 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
             List.of(
                 Utils.MAX_CANDIDATES,
                 Utils.TUPLE_MAX_FAILURES,
-                Utils.TUPLE_FAILURE_WINDOW_SECONDS)));
+                Utils.TUPLE_FAILURE_WINDOW_SECONDS,
+                Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS)));
   }
 
   @Test

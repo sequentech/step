@@ -49,6 +49,9 @@ import sequent.keycloak.authenticator.forgot_password.MultiAttributeCredentialRe
 @ExtendWith(MockitoExtension.class)
 class MultiAttributePasswordAuthenticatorTest {
 
+  private static final int DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS =
+      Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT);
+
   private MultiAttributePasswordAuthenticator authenticator;
 
   @Mock private KeycloakSession session;
@@ -103,7 +106,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleAttribute_uniqueMatch_correctPassword_succeeds() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     Resolution result =
@@ -117,7 +124,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleAttribute_uniqueMatch_wrongPassword_fails() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     Resolution result =
@@ -130,7 +141,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleAttribute_disabledUser_fails() {
     UserModel user = mockUser("user-1", "correct-horse", false);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     Resolution result =
@@ -147,9 +162,14 @@ class MultiAttributePasswordAuthenticatorTest {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
 
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
-        .thenReturn(Stream.of(alice, bob));
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "ALICE-ID"))
+    // Both attributes are ANDed together into a single store query (see
+    // MultiAttributeCredentialResolver.ThrottleConfig#maxAttributeLookupResults) - the store
+    // computes the true intersection itself, so only alice (who matches both) comes back.
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", "nationalId", "ALICE-ID", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice));
 
     Resolution result =
@@ -170,7 +190,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void singleAttribute_multipleCandidates_passwordUniquelyMatchesOne_succeeds() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     Resolution result =
@@ -189,7 +213,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void singleAttribute_multipleCandidates_passwordMatchesNone_fails() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     Resolution result =
@@ -203,7 +231,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void singleAttribute_multipleCandidates_passwordMatchesMoreThanOne_fails() {
     UserModel alice = mockUser("alice", "shared-pw", true);
     UserModel bob = mockUser("bob", "shared-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     Resolution result =
@@ -221,7 +253,11 @@ class MultiAttributePasswordAuthenticatorTest {
 
   @Test
   void noCandidates_fails() {
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "unknown"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "unknown", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.empty());
 
     Resolution result =
@@ -233,12 +269,14 @@ class MultiAttributePasswordAuthenticatorTest {
 
   @Test
   void twoAttributes_disjointCandidateSets_fails() {
-    UserModel alice = mockUser("alice", "alice-pw", true);
-    UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
-        .thenReturn(Stream.of(alice));
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "BOB-ID"))
-        .thenReturn(Stream.of(bob));
+    // No single user has both dateOfBirth=19900101 AND nationalId=BOB-ID, so the store's combined
+    // ANDed query returns nothing.
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", "nationalId", "BOB-ID", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.empty());
 
     Resolution result =
         authenticator.resolveAuthenticatedUser(
@@ -307,7 +345,10 @@ class MultiAttributePasswordAuthenticatorTest {
   void emailAttribute_usesExactSearchForUserStream() {
     UserModel user = mockUser("user-1", "pw", true);
     when(userProvider.searchForUserStream(
-            realm, Map.of(UserModel.EMAIL, "voter1@example.com", UserModel.EXACT, "true")))
+            realm,
+            Map.of(UserModel.EMAIL, "voter1@example.com", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     Resolution result =
@@ -326,7 +367,10 @@ class MultiAttributePasswordAuthenticatorTest {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
     when(userProvider.searchForUserStream(
-            realm, Map.of(UserModel.EMAIL, "shared@example.com", UserModel.EXACT, "true")))
+            realm,
+            Map.of(UserModel.EMAIL, "shared@example.com", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     Resolution result =
@@ -342,7 +386,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleCandidate_wrongPassword_attributesFailureToCandidate() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     Resolution result =
@@ -363,7 +411,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void ambiguousCandidates_wrongPassword_doesNotAttributeFailure() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
 
     Resolution result =
@@ -378,7 +430,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleCandidate_correctPassword_attributableUserIsTheAuthenticatedUser() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     Resolution result =
@@ -395,7 +451,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleCandidate_temporarilyLockedOut_failsWithoutPasswordCheck() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
     when(realm.isBruteForceProtected()).thenReturn(true);
     when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
@@ -416,7 +476,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void singleCandidate_permanentlyLockedOut_reportsPermanent() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
     when(realm.isBruteForceProtected()).thenReturn(true);
     when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
@@ -433,7 +497,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void multipleCandidatesAllLockedOut_ambiguous_staysGeneric() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
     when(realm.isBruteForceProtected()).thenReturn(true);
     when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
@@ -455,7 +523,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void realmNotBruteForceProtected_neverConsultsProtector() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
     // realm.isBruteForceProtected() defaults to false (unstubbed) - the protector must never be
     // consulted in that case.
@@ -472,7 +544,11 @@ class MultiAttributePasswordAuthenticatorTest {
 
   @Test
   void noCandidates_performsDummyHash() {
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "unknown"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "unknown", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.empty());
 
     authenticator.resolveAuthenticatedUser(
@@ -501,7 +577,11 @@ class MultiAttributePasswordAuthenticatorTest {
     // A real candidate got a real credential check - a redundant dummy hash on top would be
     // pointless extra cost, not a correctness issue, but confirms the two paths are disjoint.
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(user));
 
     authenticator.resolveAuthenticatedUser(
@@ -517,7 +597,11 @@ class MultiAttributePasswordAuthenticatorTest {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
     UserModel carol = mockUser("carol", "carol-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob, carol));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(2, 10, 60);
@@ -547,7 +631,11 @@ class MultiAttributePasswordAuthenticatorTest {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
     UserModel carol = mockUser("carol", "carol-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob, carol));
     lenient().when(realm.isBruteForceProtected()).thenReturn(true);
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
@@ -568,7 +656,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void candidateCap_atBoundary_normalDisambiguationProceeds() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(2, 10, 60);
@@ -586,6 +678,52 @@ class MultiAttributePasswordAuthenticatorTest {
     assertEquals(alice, result.authenticatedUser().get());
   }
 
+  // ── DoS mitigation: maxAttributeLookupResults ────────────────────────────
+
+  @Test
+  void attributeLookup_passesConfiguredMaxAttributeLookupResultsAsQueryLimit() {
+    // Bounding retrieval is the user store's job, via maxResults - a real SQL LIMIT under the
+    // default JPA provider - see ThrottleConfig#maxAttributeLookupResults. This verifies the
+    // configured ceiling is actually passed through as the combined query's maxResults: this stub
+    // only matches maxResults=5, so if the resolver passed a different value, the mock would
+    // return null and the resolver would NPE instead of authenticating.
+    UserModel user = mockUser("user-1", "pw", true);
+    when(userProvider.searchForUserStream(
+            realm, Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"), 0, 5))
+        .thenReturn(Stream.of(user));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60, 5);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "pw",
+            throttleConfig);
+
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(user, result.authenticatedUser().get());
+  }
+
+  @Test
+  void throttleConfig_defaults_includesMaxAttributeLookupResultsDefault() {
+    assertEquals(
+        Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        MultiAttributeCredentialResolver.ThrottleConfig.defaults().maxAttributeLookupResults());
+  }
+
+  @Test
+  void throttleConfig_threeArgConstructor_defaultsMaxAttributeLookupResults() {
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
+
+    assertEquals(
+        Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        throttleConfig.maxAttributeLookupResults());
+  }
+
   // ── DoS mitigation: per-tuple failure throttle ───────────────────────────
 
   @Test
@@ -593,7 +731,11 @@ class MultiAttributePasswordAuthenticatorTest {
     // A Stream can only be consumed once - thenAnswer (rather than thenReturn) gives each of the
     // multiple resolveAuthenticatedUser() calls below its own fresh stream.
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenAnswer(invocation -> Stream.of(user));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
@@ -627,13 +769,22 @@ class MultiAttributePasswordAuthenticatorTest {
 
     assertTrue(result.authenticatedUser().isEmpty());
     assertTrue(result.attributableUser().isEmpty());
-    verify(userProvider, times(2)).searchForUserByUserAttributeStream(realm, "nationalId", "X123");
+    verify(userProvider, times(2))
+        .searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS);
   }
 
   @Test
   void tupleThrottle_windowExpires_countResets() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenAnswer(invocation -> Stream.of(user));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(10, 1, 60);
@@ -662,7 +813,11 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void tupleThrottle_successClearsCounter() {
     UserModel user = mockUser("user-1", "correct-horse", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "nationalId", "X123"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenAnswer(invocation -> Stream.of(user));
     // tupleMaxFailures=2 so the single prior failure below (count=1) doesn't itself throttle the
     // success attempt that follows - otherwise that attempt could never reach the credential
@@ -708,7 +863,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void firstMatch_multipleCandidates_uniquePasswords_succeedsWithTheMatchingOne() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
@@ -737,7 +896,11 @@ class MultiAttributePasswordAuthenticatorTest {
     // config description warns that password uniqueness across candidates is mandatory.
     UserModel alice = mockUser("alice", "shared-pw", true);
     UserModel bob = mockUser("bob", "shared-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
@@ -760,7 +923,11 @@ class MultiAttributePasswordAuthenticatorTest {
   void firstMatch_multipleCandidates_noneMatch_failsGenerically() {
     UserModel alice = mockUser("alice", "alice-pw", true);
     UserModel bob = mockUser("bob", "bob-pw", true);
-    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
@@ -998,6 +1165,7 @@ class MultiAttributePasswordAuthenticatorTest {
     assertTrue(names.contains(Utils.MAX_CANDIDATES));
     assertTrue(names.contains(Utils.TUPLE_MAX_FAILURES));
     assertTrue(names.contains(Utils.TUPLE_FAILURE_WINDOW_SECONDS));
+    assertTrue(names.contains(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS));
   }
 
   @Test

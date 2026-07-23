@@ -70,6 +70,7 @@ second identifying attribute is available.
    - **Max candidates per request** (default `10`)
    - **Max failures per attribute-value combination** (default `10`)
    - **Failure window (seconds)** (default `60`)
+   - **Max user-store rows per attribute lookup** (default `5000`)
 5. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
    read and understood [Multiple-Candidate Match Policy](#multiple-candidate-match-policy) below -
    the alternative, `FIRST_MATCH`, is only safe when password uniqueness across every possible
@@ -126,8 +127,8 @@ reveal whether any account has the submitted attribute value.
 
 Because this authenticator matches on attributes rather than a unique username, a single request
 can legitimately resolve to many candidates (e.g. every voter born on a common date) - and each
-candidate normally costs one password-hash comparison to rule out. Two independent settings bound
-that cost per request, on top of Keycloak's standard Brute Force Detection:
+candidate normally costs one password-hash comparison to rule out. Three independent settings
+bound that cost per request, on top of Keycloak's standard Brute Force Detection:
 
 - **Max candidates per request** (`maxCandidates`, default `10`): once the configured attributes
   match more candidates than this, the request fails generically without checking any of their
@@ -144,6 +145,14 @@ that cost per request, on top of Keycloak's standard Brute Force Detection:
   it are rejected without any user lookup at all, until the window elapses or a matching request
   succeeds (which clears the count). This throttle is tracked cluster-wide, so it can't be evaded
   by spreading requests across Keycloak nodes.
+- **Max user-store rows per attribute lookup** (`maxAttributeLookupResults`, default `5000`): a
+  hard ceiling on how many rows the underlying user-store query may return, applied before any
+  candidate is even loaded into memory. This is deliberately much larger than **Max candidates per
+  request** - it exists only to stop a truly pathological match (e.g. an attribute value shared by
+  most of the realm) from pulling an unbounded number of rows from the database, not to replace the
+  tighter candidate cap above. Keep it well above the largest realistic combined match count you'd
+  expect a legitimate voter lookup to produce; setting it too low can make configuring a second
+  identifying attribute (the recommended lever below) less effective at narrowing large buckets.
 
 Raising **Max candidates per request** trades this protection for looser matching (useful if a
 single attribute alone is expected to match unusually large groups); lowering the failure

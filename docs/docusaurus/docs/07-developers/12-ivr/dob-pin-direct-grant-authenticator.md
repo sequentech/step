@@ -134,6 +134,7 @@ candidate set.
    - **Max candidates per request** (default `10`)
    - **Max failures per identifier-value combination** (default `10`)
    - **Failure window (seconds)** (default `60`)
+   - **Max user-store rows per identifier lookup** (default `5000`)
 4. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
    read and understood [Multiple-Candidate Match Policy](#multiple-candidate-match-policy) below -
    the alternative, `FIRST_MATCH`, is only safe when PIN uniqueness across every possible candidate
@@ -187,7 +188,7 @@ computation on paths that never found a candidate to check.
 
 Because this authenticator matches on identifier attributes rather than a unique voter ID, a
 single request can legitimately resolve to many candidates (e.g. every voter born on a common
-date) - and each candidate normally costs one PIN-hash comparison to rule out. Two independent
+date) - and each candidate normally costs one PIN-hash comparison to rule out. Three independent
 settings, shared with the web form's `MultiAttributeCredentialResolver`, bound that cost per
 request, on top of Keycloak's standard Brute Force Detection:
 
@@ -206,6 +207,13 @@ request, on top of Keycloak's standard Brute Force Detection:
   it are rejected without any user lookup at all, until the window elapses or a matching request
   succeeds (which clears the count). This throttle is tracked cluster-wide, so it can't be evaded
   by spreading requests across Keycloak nodes.
+- **Max user-store rows per identifier lookup** (`maxAttributeLookupResults`, default `5000`): a
+  hard ceiling on how many rows the underlying user-store query may return, applied before any
+  candidate is even loaded into memory. This is deliberately much larger than **Max candidates per
+  request** - it exists only to stop a truly pathological match (e.g. an identifier value shared by
+  most of the realm) from pulling an unbounded number of rows from the database, not to replace the
+  tighter candidate cap above. Keep it well above the largest realistic combined match count you'd
+  expect a legitimate voter lookup to produce.
 
 If PINs are short (e.g. a numeric PIN, as is typical for IVR), do **not** compensate for
 guessability by weakening the password hash algorithm - that only makes offline cracking easier if

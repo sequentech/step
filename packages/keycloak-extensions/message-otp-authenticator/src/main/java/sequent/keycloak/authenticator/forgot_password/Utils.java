@@ -58,6 +58,16 @@ public class Utils {
   public static final String TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT = "60";
 
   /**
+   * Hard ceiling on rows pulled from the user store per configured attribute - see {@link
+   * MultiAttributeCredentialResolver.ThrottleConfig#maxAttributeLookupResults}. Deliberately much
+   * larger than {@link #MAX_CANDIDATES_DEFAULT}: a safety ceiling against pathological matches, not
+   * a replacement for the tighter password-hash cost bound.
+   */
+  public static final String MAX_ATTRIBUTE_LOOKUP_RESULTS = "maxAttributeLookupResults";
+
+  public static final String MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT = "5000";
+
+  /**
    * Selects {@link MultiAttributeCredentialResolver.MatchPolicy}. Defaults to the safe {@code
    * REJECT_AMBIGUOUS} - {@code FIRST_MATCH} must only be enabled when passwords are guaranteed
    * unique across every candidate a request could match, since it authenticates as the first
@@ -183,7 +193,8 @@ public class Utils {
     return new MultiAttributeCredentialResolver.ThrottleConfig(
         getInt(config, MAX_CANDIDATES, MAX_CANDIDATES_DEFAULT),
         getInt(config, TUPLE_MAX_FAILURES, TUPLE_MAX_FAILURES_DEFAULT),
-        getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
+        getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+        getInt(config, MAX_ATTRIBUTE_LOOKUP_RESULTS, MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
   }
 
   /** Reads {@link #MATCH_POLICY}, defaulting to the safe {@code REJECT_AMBIGUOUS}. */

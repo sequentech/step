@@ -81,9 +81,14 @@ public class MultiAttributePasswordDirectGrantAuthenticator
     List<String> kinds = Utils.getMultivalueString(authConfig, CONFIG_KIND, List.of());
 
     if (mapsTos.isEmpty() || mapsTos.size() != kinds.size()) {
-      log.warn(
-          "authenticate(): misconfigured or mismatched maps_to/kind, cannot resolve identifying"
-              + " attributes");
+      // Logged at ERROR: a static misconfiguration, not a one-off bad request - every Direct
+      // Grant attempt through this authenticator config fails until an admin fixes it, so it
+      // needs to stand out clearly in production monitoring. IVR callers have no client-side way
+      // to report the actual cause, so the config alias here is the only lead an operator has.
+      log.errorv(
+          "authenticate(): misconfigured - maps_to/kind missing or count mismatch, realm={0},"
+              + " authenticatorConfig={1}",
+          context.getRealm().getName(), configAlias(authConfig));
       fail(context);
       return;
     }
@@ -98,9 +103,10 @@ public class MultiAttributePasswordDirectGrantAuthenticator
       }
     }
     if (passwordField == null || matchAttributes.isEmpty()) {
-      log.warn(
-          "authenticate(): config must declare exactly one 'secret' kind entry and at least one"
-              + " 'identifier' entry");
+      log.errorv(
+          "authenticate(): misconfigured - config must declare exactly one 'secret' kind entry"
+              + " and at least one 'identifier' entry, realm={0}, authenticatorConfig={1}",
+          context.getRealm().getName(), configAlias(authConfig));
       fail(context);
       return;
     }
@@ -159,6 +165,15 @@ public class MultiAttributePasswordDirectGrantAuthenticator
       submittedValues.put(attribute, rawValue);
     }
     return submittedValues;
+  }
+
+  /**
+   * The admin-visible config alias (e.g. as shown next to the flow step in the Admin Console), or a
+   * placeholder when no config is attached - the only way a log line can point an operator at which
+   * specific authenticator config to fix, since a realm can have more than one.
+   */
+  private static String configAlias(AuthenticatorConfigModel authConfig) {
+    return authConfig == null || authConfig.getAlias() == null ? "(none)" : authConfig.getAlias();
   }
 
   private void fail(AuthenticationFlowContext context) {
@@ -332,6 +347,21 @@ public class MultiAttributePasswordDirectGrantAuthenticator
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
             Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS,
+            "Max user-store rows per identifier lookup",
+            "DoS guard: hard ceiling on rows the user store may return for the combined query"
+                + " across every identifier field - bounds worst-case database/memory cost,"
+                + " separately from the (much tighter) max candidates guard above, which bounds"
+                + " PIN-hash cost. Since all identifier fields are ANDed together in one query, the"
+                + " rows returned are always the true multi-field match, so this ceiling can only"
+                + " ever discard results in a genuinely pathological case (more true combined"
+                + " matches than the ceiling) - keep it well above the largest realistic combined"
+                + " match count you'd expect a legitimate voter lookup to produce. Default: "
+                + Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
         matchPolicy);
   }
 

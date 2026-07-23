@@ -368,6 +368,22 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
             Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+        new ProviderConfigProperty(
+            Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS,
+            "Max user-store rows per attribute lookup",
+            "DoS guard: hard ceiling on rows the user store may return for the combined query"
+                + " across every configured attribute - bounds worst-case database/memory cost,"
+                + " separately from the (much tighter) max candidates guard above, which bounds"
+                + " password-hash cost. Since all configured attributes are ANDed together in one"
+                + " query, the rows returned are always the true multi-attribute match, so this"
+                + " ceiling can only ever discard results in a genuinely pathological case (more"
+                + " true combined matches than the ceiling) - keep it well above the largest"
+                + " realistic combined match count you'd expect a legitimate voter lookup to"
+                + " produce. Default: "
+                + Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT
+                + ".",
+            ProviderConfigProperty.STRING_TYPE,
+            Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
         matchPolicy);
   }
 

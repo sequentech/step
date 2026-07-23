@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.models.KeycloakSession;
@@ -33,11 +32,13 @@ import org.keycloak.services.managers.BruteForceProtector;
  * (MultiAttributePasswordDirectGrantAuthenticator) - same rules, same failure semantics, regardless
  * of how the values arrived.
  *
- * <p>Resolution: for each configured attribute, find every user whose attribute equals the
- * submitted value, then intersect those candidate sets across all attributes. Candidates who are
- * disabled or currently locked out by brute-force protection are excluded before any password is
- * checked. If exactly one candidate remains, its password is checked directly - this is the only
- * case where a failure can be attributed to one account (see {@link
+ * <p>Resolution: every configured attribute except {@code username} is ANDed together into a single
+ * user-store query (see the {@code maxAttributeLookupResults} mitigation below), so the store
+ * itself computes the candidates matching every attribute at once; {@code username}, always unique,
+ * is resolved separately via its own dedicated lookup and intersected with that result. Candidates
+ * who are disabled or currently locked out by brute-force protection are excluded before any
+ * password is checked. If exactly one candidate remains, its password is checked directly - this is
+ * the only case where a failure can be attributed to one account (see {@link
  * Resolution#attributableUser()}), so callers should {@code setUser()} it before signaling failure,
  * letting Keycloak's normal brute-force accounting engage the same way it does for the standard
  * username/password form. If more than one candidate remains, {@link MatchPolicy} governs how the
@@ -46,18 +47,20 @@ import org.keycloak.services.managers.BruteForceProtector;
  * viable candidate" doesn't respond measurably faster than "wrong password" - see {@link
  * #performDummyHash}.
  *
- * <p>Two DoS mitigations bound the CPU cost an attacker can force per request, since - unlike a
+ * <p>Three DoS mitigations bound the cost an attacker can force per request, since - unlike a
  * standard username/password form - a common attribute value (e.g. a shared date of birth) can
  * legitimately resolve to many candidates, and Keycloak's own brute-force accounting can't engage
  * until resolution narrows to one account:
  *
  * <ul>
+ *   <li>{@code maxAttributeLookupResults} ({@link ThrottleConfig#maxAttributeLookupResults()}):
+ *       bounds the rows the user-store query itself may return, regardless of how many accounts
+ *       happen to share the submitted attribute value(s) - see that field's javadoc.
  *   <li>{@code maxCandidates} ({@link ThrottleConfig#maxCandidates()}): once attribute matching
  *       narrows to more enabled candidates than this, resolution fails generically without checking
  *       any of their passwords or their brute-force lockout state - bounding both the worst-case
  *       number of password hashes and the worst-case number of {@code BruteForceProtector} lookups
- *       per request, regardless of how many voters happen to share the submitted attribute
- *       value(s).
+ *       per request.
  *   <li>Per-tuple failure throttle ({@link ThrottleConfig#tupleMaxFailures()} / {@link
  *       ThrottleConfig#tupleFailureWindowSeconds()}): failures are counted per distinct combination
  *       of submitted attribute values (a "tuple"), independent of any single account, using {@link
@@ -95,15 +98,44 @@ public final class MultiAttributeCredentialResolver {
    *     within {@code tupleFailureWindowSeconds} before further attempts against it short-circuit.
    * @param tupleFailureWindowSeconds rolling window, in seconds, that {@code tupleMaxFailures}
    *     applies over; each new failure resets the window for that tuple.
+   * @param maxAttributeLookupResults hard ceiling on rows the user store may return for the
+   *     combined, ANDed query {@link #resolveAuthenticatedUser} issues across every non-username
+   *     match attribute at once (see the class-level DoS-mitigation note on unbounded retrieval) -
+   *     passed straight through as that query's {@code maxResults}, so the store itself applies the
+   *     bound (a real SQL {@code LIMIT} under the default JPA provider). Deliberately much larger
+   *     than {@code maxCandidates}: it exists only to stop a truly pathological match (e.g. a value
+   *     shared by most of the realm) from returning unbounded rows, not to replace {@code
+   *     maxCandidates}'s much tighter bound on password-hash cost. Because every attribute is ANDed
+   *     together in the same query before this limit is applied, the rows returned are always the
+   *     true multi-attribute intersection, so this ceiling can only ever discard results in a
+   *     genuinely pathological case (more true combined matches than the ceiling) - it can never
+   *     exclude a legitimate candidate that a less-common attribute would otherwise have uniquely
+   *     matched.
    */
   public record ThrottleConfig(
-      int maxCandidates, int tupleMaxFailures, int tupleFailureWindowSeconds) {
+      int maxCandidates,
+      int tupleMaxFailures,
+      int tupleFailureWindowSeconds,
+      int maxAttributeLookupResults) {
+
+    /**
+     * Convenience overload defaulting {@code maxAttributeLookupResults} to {@link
+     * Utils#MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT}.
+     */
+    public ThrottleConfig(int maxCandidates, int tupleMaxFailures, int tupleFailureWindowSeconds) {
+      this(
+          maxCandidates,
+          tupleMaxFailures,
+          tupleFailureWindowSeconds,
+          Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
+    }
 
     public static ThrottleConfig defaults() {
       return new ThrottleConfig(
           Integer.parseInt(Utils.MAX_CANDIDATES_DEFAULT),
           Integer.parseInt(Utils.TUPLE_MAX_FAILURES_DEFAULT),
-          Integer.parseInt(Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
+          Integer.parseInt(Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+          Integer.parseInt(Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
     }
   }
 
@@ -218,7 +250,12 @@ public final class MultiAttributeCredentialResolver {
       ThrottleConfig throttleConfig,
       MatchPolicy matchPolicy) {
     if (matchAttributes == null || matchAttributes.isEmpty()) {
-      log.warn("resolveAuthenticatedUser(): no matchAttributes configured");
+      // Logged at ERROR: a static misconfiguration, not a one-off bad request - every login
+      // attempt through this authenticator config fails until an admin fixes it, so it needs to
+      // stand out clearly in production monitoring.
+      log.errorv(
+          "resolveAuthenticatedUser(): misconfigured - no matchAttributes configured, realm={0}",
+          realm.getName());
       return dummyFailure(session, realm);
     }
     if (password == null || password.isBlank()) {
@@ -240,28 +277,64 @@ public final class MultiAttributeCredentialResolver {
     // the same cost as any other invalid-input request, without searching for or hashing anything.
     String tupleKey = tupleThrottleKey(realm, matchAttributes, trimmedValues);
     if (isTupleThrottled(session, tupleKey, throttleConfig.tupleMaxFailures())) {
-      log.warnv("resolveAuthenticatedUser(): tuple throttled, key={0}", tupleKey);
+      log.warnv(
+          "resolveAuthenticatedUser(): tuple throttled, realm={0}, key={1}",
+          realm.getName(), tupleKey);
       return dummyFailure(session, realm);
     }
 
+    // username is always resolved by its own dedicated, always-at-most-one-result lookup - it
+    // never needs the DoS-bounding below, since a username match can never be more than one row.
+    // Every other attribute (including email) is ANDed together into a single store query, so the
+    // store computes the true multi-attribute intersection itself - see
+    // ThrottleConfig#maxAttributeLookupResults. Because the rows returned are already the true
+    // intersection, bounding the query's result count can only ever discard results in the
+    // genuinely pathological case (more true combined matches than the ceiling); it can never
+    // exclude a legitimate candidate, since attributes are never queried independently.
     Map<String, UserModel> candidatesById = null;
-    for (String attribute : matchAttributes) {
-      String value = trimmedValues.get(attribute);
 
-      Map<String, UserModel> matchesForAttribute =
-          findUsersByAttribute(session, realm, attribute, value)
+    List<String> nonUsernameAttributes =
+        matchAttributes.stream()
+            .filter(attribute -> !"username".equalsIgnoreCase(attribute))
+            .toList();
+    if (!nonUsernameAttributes.isEmpty()) {
+      Map<String, String> queryParams = new LinkedHashMap<>();
+      for (String attribute : nonUsernameAttributes) {
+        String key = "email".equalsIgnoreCase(attribute) ? UserModel.EMAIL : attribute;
+        queryParams.put(key, trimmedValues.get(attribute));
+      }
+      // Exact match, not the store's default partial/LIKE behavior for some fields - see
+      // UserQueryMethodsProvider#searchForUserStream's javadoc on UserModel#EXACT. Custom
+      // attributes still match case-insensitively, since the store lower-cases both sides of the
+      // comparison before comparing.
+      queryParams.put(UserModel.EXACT, Boolean.TRUE.toString());
+
+      candidatesById =
+          session
+              .users()
+              .searchForUserStream(
+                  realm, queryParams, 0, throttleConfig.maxAttributeLookupResults())
               .collect(Collectors.toMap(UserModel::getId, Function.identity(), (a, b) -> a));
+    }
 
+    Optional<String> usernameAttribute =
+        matchAttributes.stream()
+            .filter(attribute -> "username".equalsIgnoreCase(attribute))
+            .findFirst();
+    if (usernameAttribute.isPresent()) {
+      UserModel user =
+          session.users().getUserByUsername(realm, trimmedValues.get(usernameAttribute.get()));
+      Map<String, UserModel> usernameMatch = user == null ? Map.of() : Map.of(user.getId(), user);
       if (candidatesById == null) {
-        candidatesById = matchesForAttribute;
+        candidatesById = usernameMatch;
       } else {
-        candidatesById.keySet().retainAll(matchesForAttribute.keySet());
+        candidatesById.keySet().retainAll(usernameMatch.keySet());
       }
+    }
 
-      if (candidatesById.isEmpty()) {
-        recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
-        return dummyFailure(session, realm);
-      }
+    if (candidatesById.isEmpty()) {
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      return dummyFailure(session, realm);
     }
 
     List<UserModel> enabledCandidates =
@@ -273,8 +346,9 @@ public final class MultiAttributeCredentialResolver {
       // class-level DoS-mitigation note) but also the K brute-force-lockout lookups that would
       // otherwise run first. Never log the candidate values themselves, only the count.
       log.warnv(
-          "resolveAuthenticatedUser(): candidate cap exceeded, {0} enabled candidates (max {1})",
-          enabledCandidates.size(), throttleConfig.maxCandidates());
+          "resolveAuthenticatedUser(): candidate cap exceeded, realm={0}, {1} enabled candidates"
+              + " (max {2})",
+          realm.getName(), enabledCandidates.size(), throttleConfig.maxCandidates());
       recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       return dummyFailure(session, realm);
     }
@@ -338,9 +412,9 @@ public final class MultiAttributeCredentialResolver {
     }
     if (passwordMatches.size() > 1) {
       log.warnv(
-          "resolveAuthenticatedUser(): ambiguous match, {0} candidates matched the submitted"
-              + " password",
-          passwordMatches.size());
+          "resolveAuthenticatedUser(): ambiguous match, realm={0}, {1} candidates matched the"
+              + " submitted password",
+          realm.getName(), passwordMatches.size());
     }
     recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
     return Resolution.failure();
@@ -456,27 +530,6 @@ public final class MultiAttributeCredentialResolver {
       return LockoutState.TEMPORARY;
     }
     return LockoutState.NONE;
-  }
-
-  /**
-   * Resolves candidates for one configured attribute. {@code username} is always unique in
-   * Keycloak, so a single lookup is safe there - but {@code email} is only unique when the realm
-   * has {@code duplicateEmailsAllowed} disabled, so it uses the exact-match search API (rather than
-   * {@code getUserByEmail}, which returns only one arbitrary match) to keep every candidate in play
-   * for the password-disambiguation step in {@link #resolveAuthenticatedUser}.
-   */
-  public static Stream<UserModel> findUsersByAttribute(
-      KeycloakSession session, RealmModel realm, String attribute, String value) {
-    if ("email".equalsIgnoreCase(attribute)) {
-      return session
-          .users()
-          .searchForUserStream(realm, Map.of(UserModel.EMAIL, value, UserModel.EXACT, "true"));
-    }
-    if ("username".equalsIgnoreCase(attribute)) {
-      UserModel user = session.users().getUserByUsername(realm, value);
-      return user == null ? Stream.empty() : Stream.of(user);
-    }
-    return session.users().searchForUserByUserAttributeStream(realm, attribute, value);
   }
 
   public static boolean isPasswordValid(UserModel user, String password) {
