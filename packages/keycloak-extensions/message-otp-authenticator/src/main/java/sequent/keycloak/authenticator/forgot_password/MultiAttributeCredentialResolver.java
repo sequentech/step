@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -428,7 +429,10 @@ public final class MultiAttributeCredentialResolver {
   /**
    * Builds the per-tuple throttle key: {@code SHA-256(realmId + '|' + attr1=value1 + '|' +
    * attr2=value2 ...)}, sorted by attribute name so the key is independent of {@code
-   * matchAttributes}' configured order.
+   * matchAttributes}' configured order. Values are lowercased before hashing to match the
+   * case-insensitive attribute matching the combined user-store query performs, so submitting the
+   * same value with different casing always lands in the same throttle bucket rather than each
+   * casing getting its own fresh allowance of failures.
    */
   private static String tupleThrottleKey(
       RealmModel realm, List<String> matchAttributes, Map<String, String> trimmedValues) {
@@ -436,7 +440,10 @@ public final class MultiAttributeCredentialResolver {
     Collections.sort(sortedAttributes);
     StringBuilder raw = new StringBuilder(String.valueOf(realm.getId()));
     for (String attribute : sortedAttributes) {
-      raw.append('|').append(attribute).append('=').append(trimmedValues.get(attribute));
+      raw.append('|')
+          .append(attribute)
+          .append('=')
+          .append(trimmedValues.get(attribute).toLowerCase(Locale.ROOT));
     }
     return sha256Hex(raw.toString());
   }

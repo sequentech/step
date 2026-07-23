@@ -95,18 +95,21 @@ public class MultiAttributePasswordDirectGrantAuthenticator
 
     List<String> matchAttributes = new ArrayList<>();
     String passwordField = null;
+    int secretCount = 0;
     for (int i = 0; i < mapsTos.size(); i++) {
       if (KIND_SECRET.equalsIgnoreCase(kinds.get(i))) {
+        secretCount++;
         passwordField = mapsTos.get(i);
       } else {
         matchAttributes.add(mapsTos.get(i));
       }
     }
-    if (passwordField == null || matchAttributes.isEmpty()) {
+    if (secretCount != 1 || matchAttributes.isEmpty()) {
       log.errorv(
           "authenticate(): misconfigured - config must declare exactly one 'secret' kind entry"
-              + " and at least one 'identifier' entry, realm={0}, authenticatorConfig={1}",
-          context.getRealm().getName(), configAlias(authConfig));
+              + " ({0} found) and at least one 'identifier' entry, realm={1},"
+              + " authenticatorConfig={2}",
+          secretCount, context.getRealm().getName(), configAlias(authConfig));
       fail(context);
       return;
     }

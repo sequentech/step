@@ -246,6 +246,27 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     verify(context).failure(any(), any());
   }
 
+  @Test
+  void multipleSecretKindEntries_fails() {
+    // Two "secret" entries - ambiguous which one is the real PIN field. Must be rejected rather
+    // than silently using whichever entry happens to be last, which would silently ignore
+    // whatever the admin intended the other "secret" entry to do.
+    Map<String, String> config = new HashMap<>();
+    config.put("field", "dob##pin##backupPin");
+    config.put("max_digits", "8##8##8");
+    config.put("kind", "identifier##secret##secret");
+    config.put("maps_to", "dob##password##backupPassword");
+    lenient().when(authConfig.getConfig()).thenReturn(config);
+    formParams("dob", "19900101", "password", "1234", "backupPassword", "5678");
+
+    authenticator.authenticate(context);
+
+    verify(context, never()).setUser(any());
+    verify(context).failure(any(), any());
+    verify(userProvider, never())
+        .searchForUserStream(any(RealmModel.class), any(Map.class), any(), any());
+  }
+
   // ── Brute-force lockout ──────────────────────────────────────────────────
 
   @Test

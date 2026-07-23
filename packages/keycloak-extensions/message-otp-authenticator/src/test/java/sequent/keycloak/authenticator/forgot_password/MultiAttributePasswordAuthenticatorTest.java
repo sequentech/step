@@ -778,6 +778,71 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void tupleThrottle_caseVariedSubmittedValue_stillCountsTowardSameTuple() {
+    // The user store matches custom attributes case-insensitively (see
+    // MultiAttributeCredentialResolver#resolveAuthenticatedUser), so "X123" and "x123" resolve to
+    // the same candidate. The failure throttle must treat them as the same tuple too - otherwise
+    // an attacker could reset their allowance of attempts simply by varying the submitted value's
+    // casing, multiplying the effective attempt budget by every case permutation of the value.
+    UserModel user = mockUser("user-1", "correct-horse", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenAnswer(invocation -> Stream.of(user));
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("nationalId", "x123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenAnswer(invocation -> Stream.of(user));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 2, 60);
+
+    // Two failed attempts against the same logical value, submitted with different casing.
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "X123"),
+        "wrong",
+        throttleConfig);
+    authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("nationalId"),
+        valuesOf("nationalId", "x123"),
+        "wrong",
+        throttleConfig);
+
+    // Third attempt: the tuple must already be throttled, so it short-circuits before any user
+    // search, even though this exact casing was never submitted before.
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("nationalId"),
+            valuesOf("nationalId", "X123"),
+            "correct-horse",
+            throttleConfig);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    verify(userProvider, times(1))
+        .searchForUserStream(
+            realm,
+            Map.of("nationalId", "X123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS);
+    verify(userProvider, times(1))
+        .searchForUserStream(
+            realm,
+            Map.of("nationalId", "x123", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS);
+  }
+
+  @Test
   void tupleThrottle_windowExpires_countResets() {
     UserModel user = mockUser("user-1", "correct-horse", true);
     when(userProvider.searchForUserStream(
