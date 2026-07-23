@@ -6,7 +6,6 @@ import type {CodegenConfig} from "@graphql-codegen/cli"
 
 const config: CodegenConfig = {
     overwrite: true,
-    ignoreNoDocuments: true,
     schema: [
         {
             "http://graphql-engine:8080/v1/graphql": {
@@ -16,7 +15,7 @@ const config: CodegenConfig = {
             },
         },
     ],
-    documents: ["**/*.(graphql|ts|tsx)", "!**/node_modules/**"],
+    documents: ["src/**/*.{graphql,ts,tsx}", "!src/gql/**"],
     generates: {
         "src/gql/": {
             preset: "client",

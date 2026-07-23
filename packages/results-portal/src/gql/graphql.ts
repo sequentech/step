@@ -1,4 +1,5 @@
  
+import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = T | null | undefined;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -1227,8 +1228,6 @@ export type Mutation_Root = {
   ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
-  /** applies the Sequent-side reconciliation diff for an already-computed import */
-  apply_external_reconciliation_changes?: Maybe<TaskOutput>;
   call_plugin_route: PluginsRouteOutput;
   /** check private key */
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
@@ -1239,8 +1238,6 @@ export type Mutation_Root = {
   /** create_ballot_receipt */
   create_ballot_receipt?: Maybe<CreateBallotReceiptOutput>;
   create_election?: Maybe<CreateElectionOutput>;
-  /** uploads an external (i.e. Datafix) reconciliation file and kicks off the diff-calculation task */
-  create_external_reconciliation_import?: Maybe<TaskOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   /** create_new_tally_sheet */
@@ -1962,13 +1959,6 @@ export type Mutation_RootVerifyApplicationArgs = {
 
 
 /** mutation root */
-export type Mutation_RootApply_External_Reconciliation_ChangesArgs = {
-  diff_document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
-};
-
-
-/** mutation root */
 export type Mutation_RootCall_Plugin_RouteArgs = {
   data: Scalars['jsonb']['input'];
   path: Scalars['String']['input'];
@@ -2017,13 +2007,6 @@ export type Mutation_RootCreate_ElectionArgs = {
   election_event_id: Scalars['String']['input'];
   external_id: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
-};
-
-
-/** mutation root */
-export type Mutation_RootCreate_External_Reconciliation_ImportArgs = {
-  document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
 };
 
 
@@ -25001,3 +24984,24 @@ export type Uuid_Comparison_Exp = {
   _neq?: InputMaybe<Scalars['uuid']['input']>;
   _nin?: InputMaybe<Array<Scalars['uuid']['input']>>;
 };
+
+export type ResolveResultsPublicationQueryVariables = Exact<{
+  eeId: Scalars['String']['input'];
+  electionId?: InputMaybe<Scalars['String']['input']>;
+}>;
+
+
+export type ResolveResultsPublicationQuery = { __typename?: 'query_root', resolveResultsPublication?: { __typename?: 'ResolveResultsPublicationOutput', tenant_id: string, election_event_id: string, access: ResultsWebsiteAccess, route_scope: ResultsRouteScope, election_ids: Array<string>, publication_id: string, manifest_public_path?: string | null, manifest_url?: string | null, manifest?: any | null } | null };
+
+export type FetchResultsArtifactQueryVariables = Exact<{
+  electionEventId: Scalars['String']['input'];
+  electionId?: InputMaybe<Scalars['String']['input']>;
+  publicationId: Scalars['String']['input'];
+}>;
+
+
+export type FetchResultsArtifactQuery = { __typename?: 'query_root', fetchResultsArtifact: { __typename?: 'FetchResultsArtifactOutput', urls: Array<string> } };
+
+
+export const ResolveResultsPublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ResolveResultsPublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eeId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"resolveResultsPublication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"ee_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eeId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"access"}},{"kind":"Field","name":{"kind":"Name","value":"route_scope"}},{"kind":"Field","name":{"kind":"Name","value":"election_ids"}},{"kind":"Field","name":{"kind":"Name","value":"publication_id"}},{"kind":"Field","name":{"kind":"Name","value":"manifest_public_path"}},{"kind":"Field","name":{"kind":"Name","value":"manifest_url"}},{"kind":"Field","name":{"kind":"Name","value":"manifest"}}]}}]}}]} as unknown as DocumentNode<ResolveResultsPublicationQuery, ResolveResultsPublicationQueryVariables>;
+export const FetchResultsArtifactDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FetchResultsArtifact"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fetchResultsArtifact"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"publication_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"urls"}}]}}]}}]} as unknown as DocumentNode<FetchResultsArtifactQuery, FetchResultsArtifactQueryVariables>;
