@@ -398,7 +398,11 @@ impl KeycloakAdminClient {
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
             .map_err(|err| {
-                anyhow!("Failed to create user in keycloak: {:?}", err)
+                // Keep the KeycloakError as the source so callers can downcast
+                // it and react to the HTTP status Keycloak returned.
+                let message =
+                    format!("Failed to create user in keycloak: {:?}", err);
+                anyhow::Error::new(err).context(message)
             })?;
         let found_users = self
             .client

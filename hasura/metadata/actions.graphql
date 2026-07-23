@@ -180,7 +180,7 @@ type Mutation {
 }
 
 type Mutation {
-    edit_user(body: EditUsersInput!): KeycloakUser!
+    edit_user(body: EditUsersInput!): EditUserOutput!
 }
 
 type Mutation {
@@ -1288,6 +1288,11 @@ type KeycloakUser {
 type GetUsersOutput {
     items: [KeycloakUser!]!
     total: TotalAggregate!
+}
+
+type EditUserOutput {
+    user: KeycloakUser
+    task_execution: tasks_execution_type
 }
 
 type GetPermissionsOutput {
