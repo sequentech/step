@@ -31,7 +31,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: 1.96.0
           components: rustfmt
           override: true
           target: x86_64-unknown-linux-musl

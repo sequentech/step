@@ -1,5 +1,18 @@
 { pkgs, ... }:
 
+let
+  rustOverlay = import (builtins.fetchTarball {
+    url = "https://github.com/oxalica/rust-overlay/archive/107c334f141854f563f8adf1db781dc453d92639.tar.gz";
+    sha256 = "138jwq564qji7dc5yav2j2c1c1mr65smqqk00mni9lvqhx0n45w4";
+  });
+
+  pkgs' = pkgs.extend rustOverlay;
+
+  rustStable = pkgs'.rust-bin.stable."1.96.0".default.override {
+    targets = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2" ];
+    extensions = [ "rust-src" "rust-analyzer-preview" ];
+  };
+in
 {
   # https://devenv.sh/basics/
   env = {
@@ -16,6 +29,9 @@
 
   # https://devenv.sh/packages/
   packages = with pkgs; [
+    # Binary Rust
+    rustStable
+
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
 
@@ -83,15 +99,9 @@
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
-  '';
 
-  # https://devenv.sh/languages/
-  languages.rust = {
-    enable = true;
-    # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "nightly";
-    toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
-  };
+    export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library
+  '';
 
   languages.java = {
     enable = true;
