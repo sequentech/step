@@ -161,6 +161,7 @@ const tagalogTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
                 IMPORT_USERS: "I-import ang mga Gumagamit",
+                EDIT_USER: "I-edit ang Botante",
                 IMPORT_CANDIDATES: "I-import ang mga Kandidato",
                 EXPORT_VOTERS: "I-export ang mga botante",
                 CREATE_TRANSMISSION_PACKAGE: "Lumikha ng Transmission Package",
@@ -895,6 +896,8 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "voted-channel": "Channel ng pagboto",
+                    "disable-comment": "Komento sa pag-disable",
                     "username": "Username",
                     "first_name": "Unang Pangalan",
                     "last_name": "Huling Pangalan",

@@ -3,10 +3,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-set -ex -o pipefail
+set -e -o pipefail
 
 source .devcontainer/.env
-docker compose restart graphql-engine
+# devenv prepends its Nix OpenSSL to LD_LIBRARY_PATH, but the devcontainer's
+# system Docker CLI must load the Ubuntu-compatible OpenSSL libraries.
+env -u LD_LIBRARY_PATH docker compose restart graphql-engine
 
 # graphql-engine needs some waiting time before it's up and working
 sleep 10
