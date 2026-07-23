@@ -74,7 +74,7 @@ describe("parseLoginHints", () => {
 describe("appendLoginHints", () => {
     it("preserves OIDC parameters and percent-encodes hint names and values", () => {
         const result = appendLoginHints(
-            "https://id.example/authorize?state=oidc-state&login_hint=user%40example.com",
+            "https://id.example/authorize?state=oidc-state&nonce=oidc-nonce&code_challenge=pkce-challenge&redirect_uri=https%3A%2F%2Fvote.example%2Flogin&login_hint=user%40example.com",
             {
                 username: "user@example.com",
                 reference: "a&b=c % value",
@@ -83,6 +83,9 @@ describe("appendLoginHints", () => {
         const resultUrl = new URL(result)
 
         expect(resultUrl.searchParams.get("state")).toBe("oidc-state")
+        expect(resultUrl.searchParams.get("nonce")).toBe("oidc-nonce")
+        expect(resultUrl.searchParams.get("code_challenge")).toBe("pkce-challenge")
+        expect(resultUrl.searchParams.get("redirect_uri")).toBe("https://vote.example/login")
         expect(resultUrl.searchParams.get("login_hint")).toBe("user@example.com")
         expect(resultUrl.searchParams.get("login_hint__username")).toBe("user@example.com")
         expect(resultUrl.searchParams.get("login_hint__reference")).toBe("a&b=c % value")
