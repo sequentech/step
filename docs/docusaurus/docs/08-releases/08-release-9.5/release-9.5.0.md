@@ -24,6 +24,40 @@ See [sequentech/meta#11928](https://github.com/sequentech/meta/issues/11928) for
 ### ✨ Import versioning constraints
 Events can no longer be imported into a different major version. If you rely on cross-version imports, review [sequentech/meta#11114](https://github.com/sequentech/meta/issues/11114) before upgrading.
 
+### ✨ Prefill login and registration fields from notification links
+
+Voting Portal `/login` and `/enroll` routes now accept up to five bounded
+`login_hint__<field>` query parameters. A `username` value is also forwarded as
+the standard OIDC `login_hint`. Existing links continue to work unchanged.
+
+For deployments enabling prefill:
+
+1. **Notification templates**: append only approved `login_hint__<field>`
+  parameters. Wrap every dynamic value with the Handlebars `url_encode` helper.
+  Custom Keycloak attributes are available as `user.<attribute>` for the first
+  value and `user.attributes.<attribute>` for the complete value array.
+2. **Stock Keycloak registration**: add the
+  **Sequent: Login hint registration prefill** action as **Required** before the
+  registration user-creation execution, then bind the updated registration
+  flow to the realm.
+3. **Deferred registration**: leave **Prefill Parameters Policy** at its default
+  `IGNORE` value unless the realm explicitly permits prefill. Set it to `ACCEPT`
+  only after reviewing which managed, writable profile fields may appear in
+  notification URLs.
+4. **Realm rollout**: update and upload the default tenant and election-event
+  realm templates for newly created realms. Update existing realms separately;
+  replacing a default template does not modify them.
+5. **Verification**: test direct `/enroll`, `/login` redirected to registration,
+  and deferred registration. Confirm submitted form values override hints and
+  verification or credential fields are never prefilled.
+
+Hints are editable, untrusted convenience data. Do not include passwords,
+tokens, secrets, or inappropriate sensitive identifiers, and never use a hint to
+bypass authentication or mark identity, contact details, or eligibility as
+verified. Percent encoding protects query structure, not confidentiality or
+authenticity. See [sequentech/meta#12617](https://github.com/sequentech/meta/issues/12617)
+for details.
+
 ## 📝 Highlights
 
 ### ✨ Keycloak and authentication enhancements
