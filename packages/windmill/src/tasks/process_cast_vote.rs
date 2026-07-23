@@ -408,7 +408,6 @@ async fn transition_cast_vote_and_mark_internet(
     Ok(changed)
 }
 
-
 /// Records the outcome of an outbound Datafix operation in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the vote itself.
 #[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id))]
