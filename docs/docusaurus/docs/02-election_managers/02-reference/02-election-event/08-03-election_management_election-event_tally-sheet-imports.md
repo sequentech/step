@@ -9,7 +9,7 @@ Tally sheet imports let election administrators upload precinct-level results fr
 
 An import is election-event scoped. One uploaded file can produce many pending tally sheet versions across areas, contests, elections, and a selected voting channel. Saving an import does not change active results. Active tally-sheet results change only after the generated versions are approved.
 
-In the Admin Portal, open an election event and go to **Tally**. The **Tally sheet imports** section appears above the tally ceremony list for users with `tally-sheet-import-view`.
+In the Admin Portal, open an election event and select the **Tally sheet imports** tab. The tab is available to users with `tally-sheet-import-view`.
 
 ## Permissions
 
@@ -20,9 +20,9 @@ The feature uses these permissions:
 - `tally-sheet-import-review` to approve or disapprove a saved import
 - `tally-recount-execute` to manually trigger a recount of a completed tally session
 
-## Supported File Formats
+## Supported File Format
 
-STEP uses a vendor-neutral canonical CSV format for tally sheet imports. ES&S Enhanced XML uploads are converted server-side into this CSV format before validation, preview, saving, review, and audit.
+STEP uses a vendor-neutral canonical CSV format for tally sheet imports.
 
 The canonical CSV is a long format with one row per field value:
 
@@ -78,7 +78,7 @@ Candidate vote rows are summed into candidate results.
 
 `total_blank_votes` is treated as part of valid votes.
 
-`explicit_invalid` is for an intentional invalid-vote option in STEP. ES&S Enhanced XML does not have an equivalent concept, so ES&S imports set it to `0`.
+`explicit_invalid` is for an intentional invalid-vote option in STEP.
 
 `implicit_invalid` is for invalid votes caused by tally rules, such as overvotes and non-blank undervotes.
 
@@ -90,18 +90,6 @@ total_valid_votes = sum(candidate_votes) + total_blank_votes
 total_votes = total_valid_votes + total_invalid
 total_votes <= census
 ```
-
-## ES&S Enhanced XML Mapping
-
-For ES&S Enhanced XML uploads:
-
-- precinct names are matched to STEP areas by exact area name
-- contest `altId1` is matched to contest external ID
-- candidate `altId1` is matched to candidate external ID
-- only ES&S reporting group `1` is read: its values are summed per precinct into one result for the selected STEP channel, and all other reporting groups are ignored
-- ES&S overvotes become STEP implicit invalid votes
-- ES&S blank votes become STEP blank votes
-- ES&S undervotes are treated with the overlap-safe rule `max(underVotes - blankVotes, 0)` before adding them to implicit invalid votes
 
 ## Import Lifecycle
 
@@ -159,7 +147,4 @@ The same flow is available in `step-cli` under `cli step tally-sheet`:
 - `import-list`
 - `import-show`
 - `import-download-source`
-- `convert-ess-xml`
 - `recount`
-
-Use `convert-ess-xml` to convert an ES&S Enhanced XML file into canonical CSV for offline inspection before upload.
