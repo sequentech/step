@@ -18,7 +18,7 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::get_username_by_id;
 use anyhow::{anyhow, Context, Result};
-use b4::messages::message::Signer;
+use b3::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
