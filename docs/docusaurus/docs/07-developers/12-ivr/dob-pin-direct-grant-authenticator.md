@@ -134,7 +134,11 @@ candidate set.
    - **Max candidates per request** (default `10`)
    - **Max failures per identifier-value combination** (default `10`)
    - **Failure window (seconds)** (default `60`)
-4. Click **Save**.
+4. Leave **Multiple-candidate match policy** at its default, `REJECT_AMBIGUOUS`, unless you have
+   read and understood [Multiple-Candidate Match Policy](#multiple-candidate-match-policy) below -
+   the alternative, `FIRST_MATCH`, is only safe when PIN uniqueness across every possible candidate
+   is guaranteed.
+5. Click **Save**.
 
 ## Step 3 - Bind the Flow to the `ivr-voting` Client
 
@@ -216,3 +220,27 @@ throttle for up to `tupleFailureWindowSeconds` (60s by default) - the same short
 standard Keycloak temporary lockout. The forgot-password/reset flow itself resolves by
 username/email or action token, not by these identifier attributes, so it is unaffected by and
 doesn't clear this throttle.
+
+---
+
+## Multiple-Candidate Match Policy
+
+When more than one candidate shares the identifying attribute value(s) (e.g. several voters born
+on the same date), **Multiple-candidate match policy** governs how the submitted PIN picks one:
+
+- **`REJECT_AMBIGUOUS`** (default): checks every candidate's PIN. Only succeeds if the submitted
+  PIN matches **exactly one** of them; if it matches more than one, the request fails generically,
+  the same as if none had matched.
+- **`FIRST_MATCH`**: succeeds as soon as **any** candidate's PIN matches, without checking whether
+  another candidate would also have matched. Cheaper (stops at the first hit instead of hashing
+  every candidate), but only correct under one condition.
+
+> ⚠️ **Security warning:** `FIRST_MATCH` is only safe to enable when **PIN uniqueness across every
+> candidate a request could ever match is guaranteed** - for example, PINs assigned centrally and
+> never reused, with no possibility of two voters who share an identifying attribute value also
+> sharing a PIN. If two candidates in a matched set share the same PIN, **which one authenticates
+> is unspecified** - meaning one voter could end up authenticated as a different voter's account.
+> If you cannot guarantee PIN uniqueness across candidates, leave this at `REJECT_AMBIGUOUS`.
+
+Enabling `FIRST_MATCH` does not change anything about the DoS mitigations above - the candidate cap
+and per-tuple throttle still apply exactly the same way regardless of match policy.

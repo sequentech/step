@@ -112,6 +112,7 @@ public class MultiAttributePasswordDirectGrantAuthenticator
 
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         Utils.getThrottleConfig(authConfig);
+    MultiAttributeCredentialResolver.MatchPolicy matchPolicy = Utils.getMatchPolicy(authConfig);
     MultiAttributeCredentialResolver.Resolution result =
         MultiAttributeCredentialResolver.resolveAuthenticatedUser(
             context.getSession(),
@@ -119,7 +120,8 @@ public class MultiAttributePasswordDirectGrantAuthenticator
             matchAttributes,
             submittedValues,
             password,
-            throttleConfig);
+            throttleConfig,
+            matchPolicy);
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -233,6 +235,26 @@ public class MultiAttributePasswordDirectGrantAuthenticator
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
+    ProviderConfigProperty matchPolicy =
+        new ProviderConfigProperty(
+            Utils.MATCH_POLICY,
+            "Multiple-candidate match policy",
+            "How to resolve when more than one candidate shares the identifying attribute"
+                + " value(s). REJECT_AMBIGUOUS (default, safe): only succeed if the submitted PIN"
+                + " matches exactly one candidate; if it matches more than one, fail generically."
+                + " FIRST_MATCH: succeed as soon as any candidate's PIN matches, without checking"
+                + " the rest. WARNING: FIRST_MATCH is only secure if PINs are guaranteed unique"
+                + " across every candidate this could ever match - if two candidates share a PIN,"
+                + " which one authenticates is unspecified, letting one voter authenticate as"
+                + " another's account. Do not enable it unless PIN uniqueness across candidates is"
+                + " guaranteed.",
+            ProviderConfigProperty.LIST_TYPE,
+            Utils.MATCH_POLICY_DEFAULT);
+    matchPolicy.setOptions(
+        List.of(
+            MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name(),
+            MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH.name()));
+
     return List.of(
         new ProviderConfigProperty(
             CONFIG_FIELD,
@@ -309,7 +331,8 @@ public class MultiAttributePasswordDirectGrantAuthenticator
                 + Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
-            Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
+            Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+        matchPolicy);
   }
 
   @Override

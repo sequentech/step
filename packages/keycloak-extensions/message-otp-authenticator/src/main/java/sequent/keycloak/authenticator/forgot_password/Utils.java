@@ -56,6 +56,17 @@ public class Utils {
   public static final String TUPLE_MAX_FAILURES_DEFAULT = "10";
   public static final String TUPLE_FAILURE_WINDOW_SECONDS = "tupleFailureWindowSeconds";
   public static final String TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT = "60";
+
+  /**
+   * Selects {@link MultiAttributeCredentialResolver.MatchPolicy}. Defaults to the safe {@code
+   * REJECT_AMBIGUOUS} - {@code FIRST_MATCH} must only be enabled when passwords are guaranteed
+   * unique across every candidate a request could match, since it authenticates as the first
+   * candidate whose password matches without checking for other matches.
+   */
+  public static final String MATCH_POLICY = "matchPolicy";
+
+  public static final String MATCH_POLICY_DEFAULT =
+      MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name();
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
   public final String HIDE_USER_NOT_FOUND = "hideUserNotFound";
@@ -173,6 +184,13 @@ public class Utils {
         getInt(config, MAX_CANDIDATES, MAX_CANDIDATES_DEFAULT),
         getInt(config, TUPLE_MAX_FAILURES, TUPLE_MAX_FAILURES_DEFAULT),
         getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
+  }
+
+  /** Reads {@link #MATCH_POLICY}, defaulting to the safe {@code REJECT_AMBIGUOUS}. */
+  public MultiAttributeCredentialResolver.MatchPolicy getMatchPolicy(
+      AuthenticatorConfigModel config) {
+    return MultiAttributeCredentialResolver.MatchPolicy.fromString(
+        getString(config, MATCH_POLICY, MATCH_POLICY_DEFAULT));
   }
 
   int getPasswordLength(AuthenticatorConfigModel config) {

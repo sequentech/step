@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -331,6 +332,33 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     verify(userProvider, times(1)).searchForUserByUserAttributeStream(realm, "dob", "19900101");
   }
 
+  // ── MatchPolicy: FIRST_MATCH ─────────────────────────────────────────────
+
+  @Test
+  void dobAndPin_firstMatch_sharedPin_authenticatesDespiteAmbiguity() {
+    // Same security tradeoff as the browser form: with FIRST_MATCH, alice and bob sharing a PIN
+    // no longer generically fails (as REJECT_AMBIGUOUS, the default, would - see
+    // dobAndPin_multipleCandidates_wrongPin_doesNotSetUser above) but authenticates as whichever
+    // of them is checked first. This is exactly why the config warns PIN uniqueness is mandatory.
+    Map<String, String> config = new HashMap<>();
+    config.put("field", "dob##pin");
+    config.put("max_digits", "8##8");
+    config.put("kind", "identifier##secret");
+    config.put("maps_to", "dob##password");
+    config.put("matchPolicy", "FIRST_MATCH");
+    lenient().when(authConfig.getConfig()).thenReturn(config);
+    formParams("dob", "19900101", "password", "shared-pin");
+    UserModel alice = mockUser("alice", "shared-pin", true);
+    UserModel bob = mockUser("bob", "shared-pin", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dob", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+
+    authenticator.authenticate(context);
+
+    verify(context).success();
+    verify(context).setUser(argThat(user -> user == alice || user == bob));
+  }
+
   // ── Factory metadata ─────────────────────────────────────────────────────
 
   @Test
@@ -360,5 +388,21 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
                 Utils.MAX_CANDIDATES,
                 Utils.TUPLE_MAX_FAILURES,
                 Utils.TUPLE_FAILURE_WINDOW_SECONDS)));
+  }
+
+  @Test
+  void factory_configPropertiesIncludeMatchPolicyWithSecurityWarning() {
+    ProviderConfigProperty matchPolicyProp =
+        authenticator.getConfigProperties().stream()
+            .filter(prop -> Utils.MATCH_POLICY.equals(prop.getName()))
+            .findFirst()
+            .orElse(null);
+
+    assertTrue(matchPolicyProp != null);
+    assertEquals(
+        MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name(),
+        matchPolicyProp.getDefaultValue());
+    assertTrue(matchPolicyProp.getOptions().contains("FIRST_MATCH"));
+    assertTrue(matchPolicyProp.getHelpText().toLowerCase().contains("unique"));
   }
 }

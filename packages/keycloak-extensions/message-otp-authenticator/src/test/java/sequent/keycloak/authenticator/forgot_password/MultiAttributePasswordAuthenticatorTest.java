@@ -7,6 +7,7 @@ package sequent.keycloak.authenticator.forgot_password;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -35,6 +36,7 @@ import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
@@ -698,6 +700,126 @@ class MultiAttributePasswordAuthenticatorTest {
     // reaches the real single-candidate path and gets attributed normally.
     assertTrue(result.attributableUser().isPresent());
     assertEquals(user, result.attributableUser().get());
+  }
+
+  // ── MatchPolicy: FIRST_MATCH ─────────────────────────────────────────────
+
+  @Test
+  void firstMatch_multipleCandidates_uniquePasswords_succeedsWithTheMatchingOne() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "alice-pw",
+            throttleConfig,
+            MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    assertTrue(result.authenticatedUser().isPresent());
+    assertEquals(alice, result.authenticatedUser().get());
+  }
+
+  @Test
+  void firstMatch_multipleCandidates_sharedPassword_succeedsDespiteAmbiguity() {
+    // The security-relevant property FIRST_MATCH trades away: alice and bob share a password, so
+    // this is exactly the ambiguous case REJECT_AMBIGUOUS (the default) would fail generically -
+    // see ambiguousCandidates_wrongPassword_doesNotAttributeFailure and
+    // singleAttribute_multipleCandidates_passwordMatchesMoreThanOne_fails above. FIRST_MATCH
+    // authenticates as whichever candidate it happens to check first instead, which is why its
+    // config description warns that password uniqueness across candidates is mandatory.
+    UserModel alice = mockUser("alice", "shared-pw", true);
+    UserModel bob = mockUser("bob", "shared-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "shared-pw",
+            throttleConfig,
+            MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    assertTrue(result.authenticatedUser().isPresent());
+    assertTrue(List.of(alice, bob).contains(result.authenticatedUser().get()));
+  }
+
+  @Test
+  void firstMatch_multipleCandidates_noneMatch_failsGenerically() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserByUserAttributeStream(realm, "dateOfBirth", "19900101"))
+        .thenReturn(Stream.of(alice, bob));
+    MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60);
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "wrong",
+            throttleConfig,
+            MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    assertTrue(result.attributableUser().isEmpty());
+  }
+
+  @Test
+  void matchPolicy_fromString_nullOrBlank_defaultsToRejectAmbiguous() {
+    assertEquals(
+        MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS,
+        MultiAttributeCredentialResolver.MatchPolicy.fromString(null));
+    assertEquals(
+        MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS,
+        MultiAttributeCredentialResolver.MatchPolicy.fromString("  "));
+  }
+
+  @Test
+  void matchPolicy_fromString_caseInsensitive() {
+    assertEquals(
+        MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH,
+        MultiAttributeCredentialResolver.MatchPolicy.fromString("first_match"));
+  }
+
+  @Test
+  void matchPolicy_fromString_unknownValue_throws() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> MultiAttributeCredentialResolver.MatchPolicy.fromString("bogus"));
+  }
+
+  @Test
+  void factory_configPropertiesIncludeMatchPolicyWithSecurityWarning() {
+    MultiAttributePasswordAuthenticator factory = new MultiAttributePasswordAuthenticator();
+    ProviderConfigProperty matchPolicyProp =
+        factory.getConfigProperties().stream()
+            .filter(prop -> Utils.MATCH_POLICY.equals(prop.getName()))
+            .findFirst()
+            .orElse(null);
+
+    assertTrue(matchPolicyProp != null);
+    assertEquals(
+        MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name(),
+        matchPolicyProp.getDefaultValue());
+    assertTrue(matchPolicyProp.getOptions().contains("FIRST_MATCH"));
+    // The user-facing description must actually carry the safety warning, not just exist as a
+    // config option - this is the requirement this whole feature was added under.
+    assertTrue(matchPolicyProp.getHelpText().toLowerCase().contains("unique"));
   }
 
   // ── Rendering: HTML5 input type resolved from the realm's User Profile ──

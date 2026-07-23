@@ -40,10 +40,11 @@ import org.keycloak.services.managers.BruteForceProtector;
  * case where a failure can be attributed to one account (see {@link
  * Resolution#attributableUser()}), so callers should {@code setUser()} it before signaling failure,
  * letting Keycloak's normal brute-force accounting engage the same way it does for the standard
- * username/password form. If more than one candidate remains, the password disambiguates among
- * them, but a failure there can't be attributed to a single account. Any early-return path performs
- * an equivalent-cost dummy password hash first, so "no viable candidate" doesn't respond measurably
- * faster than "wrong password" - see {@link #performDummyHash}.
+ * username/password form. If more than one candidate remains, {@link MatchPolicy} governs how the
+ * password disambiguates among them; either way a failure there can't be attributed to a single
+ * account. Any early-return path performs an equivalent-cost dummy password hash first, so "no
+ * viable candidate" doesn't respond measurably faster than "wrong password" - see {@link
+ * #performDummyHash}.
  *
  * <p>Two DoS mitigations bound the CPU cost an attacker can force per request, since - unlike a
  * standard username/password form - a common attribute value (e.g. a shared date of birth) can
@@ -107,6 +108,46 @@ public final class MultiAttributeCredentialResolver {
   }
 
   /**
+   * Governs what happens when more than one viable candidate remains after attribute matching - see
+   * the multi-candidate branch of {@link #resolveAuthenticatedUser}.
+   */
+  public enum MatchPolicy {
+    /**
+     * Default, safe for any deployment: password-check every viable candidate, and only succeed
+     * when the submitted password matches <em>exactly one</em> of them. If it matches more than
+     * one, that's an ambiguous outcome and the request fails generically, the same as if none had
+     * matched.
+     */
+    REJECT_AMBIGUOUS,
+    /**
+     * Succeed as soon as any viable candidate's password matches, without checking whether another
+     * candidate would also have matched. Cheaper (stops at the first hit instead of hashing every
+     * candidate) but <strong>only safe when passwords are guaranteed unique across every candidate
+     * this could ever match against</strong> - if two candidates in a matched set share the same
+     * password, which one gets authenticated is unspecified, letting one voter authenticate as
+     * another's account. See {@link Utils#MATCH_POLICY} for where this is surfaced as authenticator
+     * config, including the required warning.
+     */
+    FIRST_MATCH;
+
+    /**
+     * Mirrors {@code Utils.MessageCourier#fromString} - the convention used elsewhere in this
+     * module.
+     */
+    public static MatchPolicy fromString(String value) {
+      if (value == null || value.isBlank()) {
+        return REJECT_AMBIGUOUS;
+      }
+      for (MatchPolicy policy : values()) {
+        if (policy.name().equalsIgnoreCase(value)) {
+          return policy;
+        }
+      }
+      throw new IllegalArgumentException("No constant with text " + value + " found");
+    }
+  }
+
+  /**
    * Outcome of a resolution attempt.
    *
    * @param authenticatedUser populated only on full success (matching attributes AND password).
@@ -150,6 +191,7 @@ public final class MultiAttributeCredentialResolver {
         session, realm, matchAttributes, submittedValues, password, ThrottleConfig.defaults());
   }
 
+  /** Overload for callers that don't need a non-default {@link MatchPolicy}. */
   public static Resolution resolveAuthenticatedUser(
       KeycloakSession session,
       RealmModel realm,
@@ -157,6 +199,24 @@ public final class MultiAttributeCredentialResolver {
       Map<String, String> submittedValues,
       String password,
       ThrottleConfig throttleConfig) {
+    return resolveAuthenticatedUser(
+        session,
+        realm,
+        matchAttributes,
+        submittedValues,
+        password,
+        throttleConfig,
+        MatchPolicy.REJECT_AMBIGUOUS);
+  }
+
+  public static Resolution resolveAuthenticatedUser(
+      KeycloakSession session,
+      RealmModel realm,
+      List<String> matchAttributes,
+      Map<String, String> submittedValues,
+      String password,
+      ThrottleConfig throttleConfig,
+      MatchPolicy matchPolicy) {
     if (matchAttributes == null || matchAttributes.isEmpty()) {
       log.warn("resolveAuthenticatedUser(): no matchAttributes configured");
       return dummyFailure(session, realm);
@@ -252,6 +312,19 @@ public final class MultiAttributeCredentialResolver {
       }
       recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       return Resolution.failureAttributedTo(candidate);
+    }
+
+    if (matchPolicy == MatchPolicy.FIRST_MATCH) {
+      // Stops at the first match rather than checking every candidate - see MatchPolicy's
+      // javadoc for why this is only safe when passwords are unique across the candidate set.
+      for (UserModel candidate : viableCandidates) {
+        if (isPasswordValid(candidate, password)) {
+          clearTupleThrottle(session, tupleKey);
+          return Resolution.success(candidate);
+        }
+      }
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      return Resolution.failure();
     }
 
     List<UserModel> passwordMatches =

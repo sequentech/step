@@ -86,6 +86,8 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
     MultiAttributeCredentialResolver.ThrottleConfig throttleConfig =
         Utils.getThrottleConfig(context.getAuthenticatorConfig());
+    MultiAttributeCredentialResolver.MatchPolicy matchPolicy =
+        Utils.getMatchPolicy(context.getAuthenticatorConfig());
     MultiAttributeCredentialResolver.Resolution result =
         resolveAuthenticatedUser(
             context.getSession(),
@@ -93,7 +95,8 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             matchAttributes,
             submittedValues,
             password,
-            throttleConfig);
+            throttleConfig,
+            matchPolicy);
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -161,6 +164,21 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       MultiAttributeCredentialResolver.ThrottleConfig throttleConfig) {
     return MultiAttributeCredentialResolver.resolveAuthenticatedUser(
         session, realm, matchAttributes, submittedValues, password, throttleConfig);
+  }
+
+  /**
+   * Overload used by {@link #action} once the DoS-mitigation and match-policy config has been read.
+   */
+  protected MultiAttributeCredentialResolver.Resolution resolveAuthenticatedUser(
+      KeycloakSession session,
+      RealmModel realm,
+      List<String> matchAttributes,
+      Map<String, String> submittedValues,
+      String password,
+      MultiAttributeCredentialResolver.ThrottleConfig throttleConfig,
+      MultiAttributeCredentialResolver.MatchPolicy matchPolicy) {
+    return MultiAttributeCredentialResolver.resolveAuthenticatedUser(
+        session, realm, matchAttributes, submittedValues, password, throttleConfig, matchPolicy);
   }
 
   /**
@@ -292,6 +310,26 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
+    ProviderConfigProperty matchPolicy =
+        new ProviderConfigProperty(
+            Utils.MATCH_POLICY,
+            "Multiple-candidate match policy",
+            "How to resolve when more than one candidate shares the configured attribute"
+                + " value(s). REJECT_AMBIGUOUS (default, safe): only succeed if the submitted"
+                + " password matches exactly one candidate; if it matches more than one, fail"
+                + " generically. FIRST_MATCH: succeed as soon as any candidate's password"
+                + " matches, without checking the rest. WARNING: FIRST_MATCH is only secure if"
+                + " passwords are guaranteed unique across every candidate this could ever match"
+                + " - if two candidates share a password, which one authenticates is unspecified,"
+                + " letting one voter log in as another's account. Do not enable it unless"
+                + " password uniqueness across candidates is guaranteed.",
+            ProviderConfigProperty.LIST_TYPE,
+            Utils.MATCH_POLICY_DEFAULT);
+    matchPolicy.setOptions(
+        List.of(
+            MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name(),
+            MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH.name()));
+
     return List.of(
         new ProviderConfigProperty(
             Utils.MATCH_ATTRIBUTES,
@@ -329,7 +367,8 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 + Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
-            Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT));
+            Utils.TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+        matchPolicy);
   }
 
   @Override
