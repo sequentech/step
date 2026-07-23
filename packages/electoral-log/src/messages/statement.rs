@@ -393,14 +393,13 @@ pub enum StatementBody {
     /// Records a third-party voter registry reconciliation run event: either
     /// the external-side diff/patch being generated, or the Sequent-side diff
     /// being applied. Named for the general capability, not the specific
-    /// integration (Datafix) that first needed it — see
-    /// DatafixReconciliationImplementationPlan.md section 10 (D10) for why
-    /// this doesn't fit `ExternalApiRequest`'s shape (there is no HTTP call to
-    /// the external system involved; it is offline for the whole freeze
-    /// period a reconciliation run happens during). The JSON of every applied
-    /// voter's old/new values is carried in `Message.artifact` on the
+    /// integration (Datafix) that first needed it. Doesn't fit
+    /// `ExternalApiRequest`'s shape: there is no HTTP call to the external
+    /// system involved, since it is offline for the whole freeze period a
+    /// reconciliation run happens during. The JSON of every applied voter's
+    /// old/new values is carried in `Message.artifact` on the
     /// `ChangesApplied` entry — there is exactly one entry per phase per run,
-    /// not one per voter (see D13 in that same document).
+    /// not one per voter.
     ExternalReconciliation(
         EventIdString,
         ExternalReconciliationKind,

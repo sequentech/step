@@ -380,13 +380,10 @@ fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<Diff
         .collect()
 }
 
-/// D12: reconciles the `Deleted` field for a voter Sequent already has
-/// disabled, based on *why* — read off `disable_comment`
+/// Reconciles the `Deleted` field for a voter Sequent already has disabled,
+/// based on *why* — read off `disable_comment`
 /// (`sequent_core::types::keycloak::DISABLE_COMMENT`) — rather than assuming
-/// every disabled voter should read as `Deleted=true`. See the decision
-/// table in DatafixReconciliationImplementationPlan.md section 2 (D12) for
-/// the full reasoning; this `match` is its direct implementation — search
-/// for "D12" in that document to find this block from the plan.
+/// every disabled voter should read as `Deleted=true`.
 #[instrument(skip_all, fields(voter_username = %row.voter_id))]
 fn classify_disabled_voter(
     row: &ParsedDatafixReconciliationRow,

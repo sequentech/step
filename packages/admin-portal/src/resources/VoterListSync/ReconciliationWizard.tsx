@@ -197,9 +197,9 @@ const toRowFailures = (items: RawDiffItem[]): SyncDiffRow[] =>
  * diff is empty (clean import), then applies the Sequent-side diff directly -
  * there is no Sequent patch file to download (the Sequent-side items exist
  * only as an internal document apply_reconciliation_patch reads from). There
- * is no separate "convergence check" mode (D8): re-checking an
- * already-applied Sequence just recomputes an empty Sequent-side diff, so
- * "Next" naturally has nothing to apply.
+ * is no separate "convergence check" mode: re-checking an already-applied
+ * Sequence just recomputes an empty Sequent-side diff, so "Next" naturally
+ * has nothing to apply.
  *
  * There is no `datafix_reconciliation_import` table: the whole diff is a
  * document referenced from the generate task_execution's own
@@ -376,9 +376,9 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
         }
         setConfirmOpen(false)
 
-        // Nothing to apply (a plain convergence re-check, D8/D9 - see the
-        // module doc above): go straight to "done" without running the apply
-        // task at all, rather than kicking off a no-op Celery task.
+        // Nothing to apply (a plain convergence re-check - see the module
+        // doc above): go straight to "done" without running the apply task
+        // at all, rather than kicking off a no-op Celery task.
         if (sequentRows.length === 0) {
             setStep("done")
             return

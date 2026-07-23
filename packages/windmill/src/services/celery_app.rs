@@ -367,8 +367,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             publish_results_website_task::NAME => &Queue::Reports.queue_name(&slug),
             process_cast_vote::NAME => &Queue::Communication.queue_name(&slug),
             edit_user::NAME => &Queue::Short.queue_name(&slug),
-            // D11 in DatafixReconciliationImplementationPlan.md: same queue as
-            // import_users/export_users, same order of magnitude of work.
+            // Same queue as import_users/export_users: same order of
+            // magnitude of work.
             generate_reconciliation_patches::NAME => &Queue::ImportExport.queue_name(&slug),
             apply_reconciliation_patch::NAME => &Queue::ImportExport.queue_name(&slug),
         ],

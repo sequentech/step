@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Shapes used by the Datafix reconciliation wizard. 
- * Wire values match the backend's Rust enums exactly (see D4 in
- * DatafixReconciliationImplementationPlan.md), so these describe GraphQL
- * response shapes directly with no translation layer.
+ * Shapes used by the Datafix reconciliation wizard.
+ * Wire values match the backend's Rust enums exactly, so these describe
+ * GraphQL response shapes directly with no translation layer.
  */
 
 // Source-of-truth categories from the "Handling Inconsistencies" section,
-// plus REENABLED (D12: a voter Sequent disabled solely because of a prior
+// plus REENABLED (a voter Sequent disabled solely because of a prior
 // Datafix delete call is re-enabled when the file no longer reports them
 // Deleted).
 export enum ESyncChangeCategory {
@@ -20,7 +19,7 @@ export enum ESyncChangeCategory {
     DELETION_REVERTED = "DELETION_REVERTED", // C exception: voter has voted, deletion is not applied
     PROFILE_UPDATE = "PROFILE_UPDATE", // C: Ward/Poll/SchoolSupportCode/DoB changed
     VOTER_ADDED = "VOTER_ADDED", // D: voter missing on one side
-    REENABLED = "REENABLED", // D12: re-enabled after a Datafix delete-call disable is undone
+    REENABLED = "REENABLED", // re-enabled after a Datafix delete-call disable is undone
     ROW_FAILURE = "ROW_FAILURE", // CountyMun mismatch or the voted-other-channel guard
 }
 

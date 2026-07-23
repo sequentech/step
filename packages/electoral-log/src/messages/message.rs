@@ -88,10 +88,9 @@ impl Message {
     }
     /// Records a third-party voter registry reconciliation run event (patch
     /// generation or applying the Sequent-side diff) — see
-    /// `StatementBody::ExternalReconciliation` and
-    /// DatafixReconciliationImplementationPlan.md section 10 (D10). Named for
-    /// the general capability, not the specific integration (Datafix) that
-    /// first needed it.
+    /// `StatementBody::ExternalReconciliation`. Named for the general
+    /// capability, not the specific integration (Datafix) that first needed
+    /// it.
     /// Unlike most `Message::*_message` constructors, this calls [`Self::sign`]
     /// directly instead of [`Self::from_body`] so `artifact` (the JSON of
     /// old/new values applied, for a `ChangesApplied` entry) can be carried —

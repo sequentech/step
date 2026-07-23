@@ -55,9 +55,8 @@ pub struct VoterSnapshot {
     pub voted_channel: Option<String>,
     pub has_valid_internet_vote: bool,
     /// Raw `disable-comment` attribute value (`sequent_core::types::keycloak::DISABLE_COMMENT`),
-    /// used by `diff.rs` to classify an already-disabled voter (D12 in the
-    /// implementation plan — see the match block in
-    /// `reconciliation::diff::classify_disabled_voter`).
+    /// used by `diff.rs` to classify an already-disabled voter — see the
+    /// match block in `reconciliation::diff::classify_disabled_voter`.
     pub disable_comment: Option<String>,
 }
 

@@ -38,8 +38,8 @@ pub enum ReconciliationChangeCategory {
     VOTER_ADDED,
     /// A voter Sequent disabled solely because of a Datafix `/delete-voter`
     /// call (`disable-comment = DISABLE_REASON_DELETE_CALL`) is re-enabled
-    /// because the file no longer reports them `Deleted` (D12 — see the
-    /// match block in `reconciliation::diff::classify_disabled_voter`).
+    /// because the file no longer reports them `Deleted` — see the match
+    /// block in `reconciliation::diff::classify_disabled_voter`.
     REENABLED,
     /// Excluded from both diffs/patch: a `CountyMun` processing error, or the
     /// "voted via other channel but holds a valid Internet ballot" guard.
@@ -113,8 +113,7 @@ impl SequentReconciliationField {
 /// populate the same shape.
 ///
 /// Wire shape: adjacently tagged (`{"target": "datafix"|"sequent", "field":
-/// ...}`), matching the admin portal's separate `target`/`field` columns
-/// (D4).
+/// ...}`), matching the admin portal's separate `target`/`field` columns.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "target", content = "field", rename_all = "lowercase")]
 pub enum ReconciliationPatchTarget {

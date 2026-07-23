@@ -112,7 +112,7 @@ async fn run_apply_reconciliation_patch(
     }
 
     // Source-specific bookkeeping: today only Datafix exists, tracking its
-    // own last-applied `Sequence` per event annotation (D9) — a future
+    // own last-applied `Sequence` per event annotation — a future
     // non-Datafix source would keep its own independent tracking here
     // instead, under its own arm, without touching the generic apply below.
     if let ReconciliationPatchSource::Datafix { .. } = &body.source {
@@ -123,7 +123,7 @@ async fn run_apply_reconciliation_patch(
             .get_annotations()
             .map_err(|err| format!("Error reading Datafix configuration: {err}"))?;
 
-        // Apply-time Sequence check (D9): reject only if this round is stale
+        // Apply-time Sequence check: reject only if this round is stale
         // relative to the current one. Unlike the earlier table-backed design,
         // there's no "already fully applied at this same Sequence" row to detect
         // a bare retry against — re-running apply against the same
@@ -131,7 +131,7 @@ async fn run_apply_reconciliation_patch(
         // is safe (the underlying per-voter operations are themselves
         // idempotent) but will post a second electoral log entry. Acceptable:
         // the frontend only calls apply when there's something outstanding to
-        // apply in the first place (D8), so an accidental retry here is a rare
+        // apply in the first place, so an accidental retry here is a rare
         // double-click, not a normal path.
         if envelope.sequence < datafix_annotations.last_applied_sequence {
             return Err(format!(
@@ -194,8 +194,8 @@ async fn run_apply_reconciliation_patch(
     }
 
     // Electoral log: one "changes applied" run-level entry, carrying every
-    // applied voter's old/new values as the artifact (D10) - not one entry
-    // per voter, since the spec asks for "a log" per run.
+    // applied voter's old/new values as the artifact - not one entry per
+    // voter, since the spec asks for "a log" per run.
     if !applied_items.is_empty() {
         let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
         let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);

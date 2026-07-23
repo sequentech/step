@@ -175,10 +175,9 @@ pub struct ExternalApiSubject {
 
 /// Which phase of a third-party voter registry reconciliation run a
 /// `StatementBody::ExternalReconciliation` entry records — see
-/// `external_reconciliation_message` and
-/// DatafixReconciliationImplementationPlan.md section 10 (D10). Named for the
-/// general capability (any external voter registry this system reconciles
-/// against), not the specific integration (Datafix) that first needed it.
+/// `external_reconciliation_message`. Named for the general capability (any
+/// external voter registry this system reconciles against), not the specific
+/// integration (Datafix) that first needed it.
 #[derive(
     BorshSerialize,
     BorshDeserialize,

@@ -126,7 +126,7 @@ pub async fn get_event_id_and_datafix_annotations(
 /// `pub(crate)` (rather than private) so `reconciliation::diff` can reuse the
 /// exact same Ward-SchoolSupportCode-Poll composition/uppercasing rule when
 /// comparing a reconciliation file row's area against a voter's resolved
-/// `Area::name` — see DatafixReconciliationImplementationPlan.md section 7.3.
+/// `Area::name`.
 #[instrument(skip_all)]
 pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     let mut parts = vec![voter_info.ward.clone()];
@@ -259,9 +259,8 @@ pub fn datafix_annotations(election_event: &ElectionEvent) -> Result<Option<Data
 
 /// Bumps the event's `DATAFIX_LAST_APPLIED_SEQUENCE_KEY` annotation to
 /// `sequence`, but only forward: a retry at the same Sequence must not
-/// regress or redundantly rewrite it (see the implementation plan's
-/// "Sequence gating" note). Read-modify-write of the whole `annotations`
-/// blob, matching every other annotation writer in this codebase (e.g.
+/// regress or redundantly rewrite it. Read-modify-write of the whole
+/// `annotations` blob, matching every other annotation writer in this codebase (e.g.
 /// `update_election_event_sbei_users`) rather than a raw `jsonb_set`
 /// compare-and-swap — reconciliation apply is an infrequent, deliberate admin
 /// action, not a hot concurrent path.

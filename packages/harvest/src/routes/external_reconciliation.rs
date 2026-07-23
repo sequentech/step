@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Admin-portal-facing Datafix reconciliation routes — see
-//! DatafixReconciliationImplementationPlan.md. Unlike `routes::api_datafix`
-//! (the *inbound* Datafix->Sequent API, gated by `DatafixClaims`/`DATAFIX_ACCOUNT`),
-//! these are triggered by an admin operator through the wizard and authorized
-//! like every other admin action (`JwtClaims` + `authorize`).
+//! Admin-portal-facing Datafix reconciliation routes. Unlike
+//! `routes::api_datafix` (the *inbound* Datafix->Sequent API, gated by
+//! `DatafixClaims`/`DATAFIX_ACCOUNT`), these are triggered by an admin
+//! operator through the wizard and authorized like every other admin action
+//! (`JwtClaims` + `authorize`).
 
 use crate::services::authorization::authorize;
 use anyhow::Result;

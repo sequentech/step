@@ -63,8 +63,7 @@ pub fn build_external_patch_csv(items: &[DiffItem], sequence: i64, generated_at:
                 // for every other field within the diff alone, "NONE" is used
                 // as a conservative placeholder here. TODO: thread the full
                 // per-voter Sequent snapshot through so unchanged fields
-                // carry their real value instead of "NONE" (see
-                // DatafixReconciliationImplementationPlan.md section 7.4).
+                // carry their real value instead of "NONE".
                 None => vec!["NONE".to_string(), "NONE".to_string()],
             })
             .collect();

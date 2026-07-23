@@ -300,9 +300,8 @@ pub struct SoapRequestData<'a> {
 }
 
 // =======================================================================
-// Datafix reconciliation types — see DatafixReconciliationImplementationPlan.md
-// section 6. These live here (not in sequent_core::types) per decision D3 in
-// that plan: they don't need WASM exposure, and the direct precedent for this
+// Datafix reconciliation types. These live here (not in sequent_core::types)
+// since they don't need WASM exposure, and the direct precedent for this
 // feature (everything else in this file) already lives here and is reused by
 // harvest via its dependency on this crate. `ReconciliationFileMeta`,
 // `ReconciliationChangeCategory` and `ReconciliationPatchTarget` live in
@@ -314,7 +313,7 @@ pub struct SoapRequestData<'a> {
 /// separate `old_value`/`new_value` on `DiffItem` — a field and its own
 /// old/new values are never meaningful apart from each other, so keeping
 /// them on `DiffItem` alongside the field was pure duplication. Wire column
-/// names match `PATCH_FIELDS` in the admin portal's `types.ts` exactly (D4).
+/// names match `PATCH_FIELDS` in the admin portal's `types.ts` exactly.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DatafixReconciliationField {

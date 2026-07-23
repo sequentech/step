@@ -11,9 +11,8 @@
 //! `datafix_reconciliation_import` table or row of any kind; the envelope
 //! document *is* the record, and its id is the one thing recorded on
 //! `task_execution.annotations.document_id`. Named `GENERATE_RECONCILIATION_PATCHES`
-//! to match the `ETasksExecution` value already committed on the frontend
-//! (D2 in the implementation history), even though it also computes the
-//! diff, not just the patch.
+//! to match the `ETasksExecution` value already committed on the frontend,
+//! even though it also computes the diff, not just the patch.
 
 use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::get_usernames_with_valid_cast_vote;
@@ -266,8 +265,7 @@ async fn run_generate_reconciliation_patches(
 
     // Document 3: the diff envelope — always produced. Its id is the one
     // thing recorded on task_execution.annotations.document_id; the frontend
-    // fetches and parses it for everything else (D13/annotations-based
-    // redesign — see the implementation description).
+    // fetches and parses it for everything else.
     let envelope = ReconciliationDiff {
         sequence: meta.sequence,
         generated_at: meta.generated_at,
@@ -289,7 +287,7 @@ async fn run_generate_reconciliation_patches(
     .await
     .map_err(|err| format!("Error uploading the diff envelope: {err:?}"))?;
 
-    // Electoral log: "patch generated" run-level entry (D10).
+    // Electoral log: "patch generated" run-level entry.
     let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
     if let Ok(electoral_log) = ElectoralLog::new(

@@ -505,12 +505,11 @@ impl ElectoralLog {
 
     /// Posts a third-party voter registry reconciliation run event (patch
     /// generation or applying the Sequent-side diff) — see
-    /// `windmill::services::external::reconciliation` and
-    /// DatafixReconciliationImplementationPlan.md section 10 (D10). Named for
-    /// the general capability, not the specific integration (Datafix) that
-    /// first needed it. `artifact` carries the JSON of old/new values
-    /// applied, for a `ChangesApplied` entry (`None` for `PatchGenerated`,
-    /// which has nothing to apply yet).
+    /// `windmill::services::external::reconciliation`. Named for the general
+    /// capability, not the specific integration (Datafix) that first needed
+    /// it. `artifact` carries the JSON of old/new values applied, for a
+    /// `ChangesApplied` entry (`None` for `PatchGenerated`, which has nothing
+    /// to apply yet).
     #[instrument(skip(self, artifact), fields(kind = %kind), err)]
     pub async fn post_external_reconciliation(
         &self,
