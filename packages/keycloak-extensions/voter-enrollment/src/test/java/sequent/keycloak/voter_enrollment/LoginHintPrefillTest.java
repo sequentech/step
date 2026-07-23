@@ -3,23 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.voter_enrollment;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.HttpRequest;
+import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -131,6 +140,46 @@ class LoginHintPrefillTest {
     verify(form).setFormData(ArgumentMatchers.<MultivaluedMap<String, String>>any());
     verify(profileProvider, never())
         .create(eq(UserProfileContext.ACCOUNT), ArgumentMatchers.<Map<String, ?>>any());
+  }
+
+  @Test
+  void stockActionRejectsAnInvalidHintSetAtomically() {
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getHttpMethod()).thenReturn("GET");
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getClientNotes())
+        .thenReturn(
+            Map.of(
+                clientNote("username"), "voter@example.com", clientNote("invalid field"), "value"));
+
+    new LoginHintRegistrationPrefill().buildPage(context, form);
+
+    verifyNoInteractions(form);
+  }
+
+  @Test
+  void stockActionFactoryIsRegisteredWithExpectedRequirements() throws IOException {
+    LoginHintRegistrationPrefill action = new LoginHintRegistrationPrefill();
+    String serviceResource = "META-INF/services/" + FormActionFactory.class.getName();
+
+    try (InputStream providers = getClass().getClassLoader().getResourceAsStream(serviceResource)) {
+      assertNotNull(providers);
+      String registeredProviders = new String(providers.readAllBytes(), StandardCharsets.UTF_8);
+      assertTrue(registeredProviders.contains(LoginHintRegistrationPrefill.class.getName()));
+    }
+
+    assertEquals(LoginHintRegistrationPrefill.PROVIDER_ID, action.getId());
+    assertArrayEquals(
+        new AuthenticationExecutionModel.Requirement[] {
+          AuthenticationExecutionModel.Requirement.REQUIRED,
+          AuthenticationExecutionModel.Requirement.DISABLED
+        },
+        action.getRequirementChoices());
   }
 
   private static String clientNote(String attributeName) {
