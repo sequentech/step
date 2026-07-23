@@ -94,6 +94,13 @@ type CheckPrivateKeyOutput {
   is_valid: Boolean!
 }
 
+type ConfigureResultsWebsitePolicyOutput {
+  access: ResultsWebsiteAccess!
+  election_event_id: String!
+  status: ResultsWebsiteStatus!
+  visibility_scope: ResultsWebsiteVisibilityScope!
+}
+
 input CountUsersInput {
   attributes: jsonb
   authorized_to_election_alias: String
@@ -205,6 +212,11 @@ type DeleteUsersOutput {
 enum EarlyVotingPolicy {
   allow_early_voting
   no_early_voting
+}
+
+type EditUserOutput {
+  task_execution: tasks_execution_type
+  user: KeycloakUser
 }
 
 input EditUsersInput {
@@ -368,6 +380,10 @@ type ExportUsersOutput {
 
 type FetchDocumentOutput {
   url: String!
+}
+
+type FetchResultsArtifactOutput {
+  urls: [String!]!
 }
 
 type GenerateGoogleMeetOutput {
@@ -747,6 +763,19 @@ type PublishBallotOutput {
   ballot_publication_id: uuid!
 }
 
+type PublishResultsWebsiteOutput {
+  error_msg: String
+  publication_id: String!
+  publication_status: ResultsPublicationStatus!
+  task_execution: tasks_execution_type!
+  task_execution_id: String!
+}
+
+type RefreshResultsPublicationIndexOutput {
+  election_event_id: String!
+  results_enabled: Boolean!
+}
+
 type RenderDocumentPDFOutput {
   document_id: String
   task_execution: tasks_execution_type
@@ -757,6 +786,18 @@ enum ReportEncryptionPolicy {
   unencrypted
 }
 
+type ResolveResultsPublicationOutput {
+  access: ResultsWebsiteAccess!
+  election_event_id: String!
+  election_ids: [String!]!
+  manifest: jsonb
+  manifest_public_path: String
+  manifest_url: String
+  publication_id: String!
+  route_scope: ResultsRouteScope!
+  tenant_id: String!
+}
+
 input RestorePrivateKeyInput {
   election_event_id: String!
   private_key_base64: String!
@@ -765,6 +806,39 @@ input RestorePrivateKeyInput {
 
 type RestorePrivateKeyOutput {
   is_valid: Boolean!
+}
+
+enum ResultsPublicationStatus {
+  Failed
+  Published
+  Publishing
+  Revoked
+  Superseded
+}
+
+enum ResultsRouteScope {
+  election
+  event
+}
+
+enum ResultsWebsiteAccess {
+  authenticated
+  public
+}
+
+enum ResultsWebsiteStatus {
+  disabled
+  enabled
+}
+
+enum ResultsWebsiteVisibilityScope {
+  area_based
+  full_event
+}
+
+type RevokeResultsPublicationOutput {
+  publication_id: String!
+  publication_status: ResultsPublicationStatus!
 }
 
 type ScheduledEventOutput3 {
@@ -1080,6 +1154,8 @@ type mutation_root {
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
+  """Configure the results website policy for an election event"""
+  configureResultsWebsitePolicy(access: ResultsWebsiteAccess!, election_event_id: String!, status: ResultsWebsiteStatus!, visibility_scope: ResultsWebsiteVisibilityScope!): ConfigureResultsWebsitePolicyOutput!
   """create scheduled event"""
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
@@ -1446,6 +1522,17 @@ type mutation_root {
   """
   delete_sequent_backend_support_material_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): support_material
   """
+  delete data from the table: "sequent_backend.tally_results_publication"
+  """
+  delete_sequent_backend_tally_results_publication(
+    """filter the rows which have to be deleted"""
+    where: tally_results_publication_bool_exp!
+  ): tally_results_publication_mutation_response
+  """
+  delete single row from the table: "sequent_backend.tally_results_publication"
+  """
+  delete_sequent_backend_tally_results_publication_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_results_publication
+  """
   delete data from the table: "sequent_backend.tally_session"
   """
   delete_sequent_backend_tally_session(
@@ -1570,7 +1657,7 @@ type mutation_root {
   delete_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   """delete users"""
   delete_users(election_event_id: String, tenant_id: String!, users_id: [String!]!): DeleteUsersOutput
-  edit_user(body: EditUsersInput!): KeycloakUser!
+  edit_user(body: EditUsersInput!): EditUserOutput!
   encrypt_report(election_event_id: String!, password: String!, report_id: String): EncryptReportOutput
   exportTrustees(password: String!): ExportTrusteesOutput
   export_application(election_event_id: String, election_id: String, tenant_id: String!): ExportApplicationOutput
@@ -2174,6 +2261,24 @@ type mutation_root {
     on_conflict: support_material_on_conflict
   ): support_material
   """
+  insert data into the table: "sequent_backend.tally_results_publication"
+  """
+  insert_sequent_backend_tally_results_publication(
+    """the rows to be inserted"""
+    objects: [tally_results_publication_insert_input!]!
+    """upsert condition"""
+    on_conflict: tally_results_publication_on_conflict
+  ): tally_results_publication_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.tally_results_publication"
+  """
+  insert_sequent_backend_tally_results_publication_one(
+    """the row to be inserted"""
+    object: tally_results_publication_insert_input!
+    """upsert condition"""
+    on_conflict: tally_results_publication_on_conflict
+  ): tally_results_publication
+  """
   insert data into the table: "sequent_backend.tally_session"
   """
   insert_sequent_backend_tally_session(
@@ -2376,15 +2481,23 @@ type mutation_root {
   prepare_ballot_publication_preview(ballot_publication_id: String!, election_event_id: String!): PrepareBallotPublicationPreviewOutput
   """preview_tally_sheet_import"""
   preview_tally_sheet_import(document_id: String!, election_event_id: String!, selected_channel: String!, sha256: String, source_format: String!): TallySheetImportPreviewActionOutput
+  """Publish selected tally contests to the results website"""
+  publishResultsWebsite(access: ResultsWebsiteAccess!, contest_ids: [String!]!, election_event_id: String!, election_ids: [String!]!, results_event_id: String!, route_election_id: String, route_scope: ResultsRouteScope!, tally_session_execution_id: String!, tally_session_id: String!, visibility_scope: ResultsWebsiteVisibilityScope!): PublishResultsWebsiteOutput!
   publish_ballot(ballot_publication_id: uuid!, election_event_id: uuid!): PublishBallotOutput
   """Recount a completed tally session with fresh result ids"""
   recount_tally_session(election_event_id: uuid!, tally_session_id: uuid!): StartTallyOutput
+  """
+  Refresh the public results publication index using the current results website policy
+  """
+  refreshResultsPublicationIndex(election_event_id: String!): RefreshResultsPublicationIndexOutput!
   render_document_pdf(document_id: uuid!, election_event_id: uuid, tally_session_id: uuid): RenderDocumentPDFOutput
   restore_private_key(object: RestorePrivateKeyInput!): RestorePrivateKeyOutput
   """review_tally_sheet"""
   review_tally_sheet(election_event_id: String!, new_status: String!, tally_sheet_id: String!): TallySheetOutput
   """review_tally_sheet_import"""
   review_tally_sheet_import(decision: String!, election_event_id: String!, import_id: String!): TallySheetImportActionOutput
+  """Revoke an active results website publication"""
+  revokeResultsPublication(election_event_id: String!, publication_id: String!): RevokeResultsPublicationOutput!
   send_transmission_package(area_id: uuid!, election_id: uuid!, tally_session_id: uuid!): OptionalId
   set_custom_urls(dns_prefix: String!, election_id: String!, key: String!, origin: String!, redirect_to: String!): SetCustomUrlsOutput
   set_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
@@ -4072,6 +4185,66 @@ type mutation_root {
     updates: [support_material_updates!]!
   ): [support_material_mutation_response]
   """
+  update data of the table: "sequent_backend.tally_results_publication"
+  """
+  update_sequent_backend_tally_results_publication(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_results_publication_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_results_publication_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_results_publication_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_results_publication_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: tally_results_publication_inc_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_results_publication_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_results_publication_set_input
+    """filter the rows which have to be updated"""
+    where: tally_results_publication_bool_exp!
+  ): tally_results_publication_mutation_response
+  """
+  update single row of the table: "sequent_backend.tally_results_publication"
+  """
+  update_sequent_backend_tally_results_publication_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_results_publication_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_results_publication_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_results_publication_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_results_publication_delete_key_input
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: tally_results_publication_inc_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_results_publication_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_results_publication_set_input
+    pk_columns: tally_results_publication_pk_columns_input!
+  ): tally_results_publication
+  """
+  update multiples rows of table: "sequent_backend.tally_results_publication"
+  """
+  update_sequent_backend_tally_results_publication_many(
+    """updates to execute, in order"""
+    updates: [tally_results_publication_updates!]!
+  ): [tally_results_publication_mutation_response]
+  """
   update data of the table: "sequent_backend.tally_session"
   """
   update_sequent_backend_tally_session(
@@ -4755,6 +4928,8 @@ type query_root {
   count_users(body: CountUsersInput!): CountUsersOutput!
   """fetch document"""
   fetchDocument(document_id: String!, election_event_id: String): FetchDocumentOutput
+  """Fetch voter-authorized results website artifact URLs"""
+  fetchResultsArtifact(election_event_id: String!, election_id: String, publication_id: String!): FetchResultsArtifactOutput!
   """get election event stats"""
   getElectionEventStats(object: ElectionEventStatsInput!): ElectionEventStatsOutput
   """get election event stats"""
@@ -4775,6 +4950,10 @@ type query_root {
   list_user_roles(election_event_id: String, tenant_id: String!, user_id: String!): [KeycloakRole!]!
   """log an event in immudb"""
   logEvent(body: String!, election_event_id: String!, message_type: String!, user_id: String): LogEventOutput
+  """
+  Resolve the active results website publication for authenticated viewers
+  """
+  resolveResultsPublication(ee_id: String!, election_id: String): ResolveResultsPublicationOutput
   """
   fetch data from the table: "sequent_backend.applications"
   """
@@ -5829,6 +6008,40 @@ type query_root {
   fetch data from the table: "sequent_backend.support_material" using primary key columns
   """
   sequent_backend_support_material_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): support_material
+  """
+  fetch data from the table: "sequent_backend.tally_results_publication"
+  """
+  sequent_backend_tally_results_publication(
+    """distinct select on columns"""
+    distinct_on: [tally_results_publication_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_results_publication_order_by!]
+    """filter the rows returned"""
+    where: tally_results_publication_bool_exp
+  ): [tally_results_publication!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_results_publication"
+  """
+  sequent_backend_tally_results_publication_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_results_publication_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_results_publication_order_by!]
+    """filter the rows returned"""
+    where: tally_results_publication_bool_exp
+  ): tally_results_publication_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_results_publication" using primary key columns
+  """
+  sequent_backend_tally_results_publication_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_results_publication
   """
   fetch data from the table: "sequent_backend.tally_session"
   """
@@ -8320,6 +8533,7 @@ type cast_vote {
     path: String
   ): jsonb
   last_updated_at: timestamptz
+  status: String!
   tenant_id: uuid!
   voter_id_string: String
 }
@@ -8365,6 +8579,7 @@ input cast_vote_bool_exp {
   id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
+  status: String_comparison_exp
   tenant_id: uuid_comparison_exp
   voter_id_string: String_comparison_exp
 }
@@ -8418,6 +8633,7 @@ input cast_vote_insert_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8432,6 +8648,7 @@ type cast_vote_max_fields {
   election_id: uuid
   id: uuid
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8446,6 +8663,7 @@ type cast_vote_min_fields {
   election_id: uuid
   id: uuid
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8482,6 +8700,7 @@ input cast_vote_order_by {
   id: order_by
   labels: order_by
   last_updated_at: order_by
+  status: order_by
   tenant_id: order_by
   voter_id_string: order_by
 }
@@ -8526,6 +8745,8 @@ enum cast_vote_select_column {
   """column name"""
   last_updated_at
   """column name"""
+  status
+  """column name"""
   tenant_id
   """column name"""
   voter_id_string
@@ -8546,6 +8767,7 @@ input cast_vote_set_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8573,6 +8795,7 @@ input cast_vote_stream_cursor_value_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
+  status: String
   tenant_id: uuid
   voter_id_string: String
 }
@@ -8603,6 +8826,8 @@ enum cast_vote_update_column {
   labels
   """column name"""
   last_updated_at
+  """column name"""
+  status
   """column name"""
   tenant_id
   """column name"""
@@ -13924,12 +14149,6 @@ type results_area_contest {
     path: String
   ): jsonb
   area_id: uuid!
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid!
   created_at: timestamptz
   documents(
@@ -13939,9 +14158,13 @@ type results_area_contest {
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid!
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels(
@@ -13953,6 +14176,8 @@ type results_area_contest {
   tenant_id: uuid!
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -13995,19 +14220,19 @@ input results_area_contest_append_input {
 
 """aggregate avg on columns"""
 type results_area_contest_avg_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14025,21 +14250,19 @@ input results_area_contest_bool_exp {
   _or: [results_area_contest_bool_exp!]
   annotations: jsonb_comparison_exp
   area_id: uuid_comparison_exp
-  total_blank_votes: Int_comparison_exp
-  explicit_blank_votes: Int_comparison_exp
-  implicit_blank_votes: Int_comparison_exp
-  total_blank_votes_percent: numeric_comparison_exp
-  explicit_blank_votes_percent: numeric_comparison_exp
-  implicit_blank_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   documents: jsonb_comparison_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
+  explicit_blank_votes: Int_comparison_exp
+  explicit_blank_votes_percent: numeric_comparison_exp
   explicit_invalid_votes: Int_comparison_exp
   explicit_invalid_votes_percent: numeric_comparison_exp
   id: uuid_comparison_exp
+  implicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes_percent: numeric_comparison_exp
   implicit_invalid_votes: Int_comparison_exp
   implicit_invalid_votes_percent: numeric_comparison_exp
   labels: jsonb_comparison_exp
@@ -14048,6 +14271,8 @@ input results_area_contest_bool_exp {
   tenant_id: uuid_comparison_exp
   total_auditable_votes: Int_comparison_exp
   total_auditable_votes_percent: numeric_comparison_exp
+  total_blank_votes: Int_comparison_exp
+  total_blank_votes_percent: numeric_comparison_exp
   total_invalid_votes: Int_comparison_exp
   total_invalid_votes_percent: numeric_comparison_exp
   total_valid_votes: Int_comparison_exp
@@ -14575,19 +14800,19 @@ input results_area_contest_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_area_contest"
 """
 input results_area_contest_inc_input {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14602,21 +14827,19 @@ input type for inserting data into table "sequent_backend.results_area_contest"
 input results_area_contest_insert_input {
   annotations: jsonb
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -14625,6 +14848,8 @@ input results_area_contest_insert_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14636,20 +14861,18 @@ input results_area_contest_insert_input {
 """aggregate max on columns"""
 type results_area_contest_max_fields {
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -14657,6 +14880,8 @@ type results_area_contest_max_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14668,20 +14893,18 @@ type results_area_contest_max_fields {
 """aggregate min on columns"""
 type results_area_contest_min_fields {
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -14689,6 +14912,8 @@ type results_area_contest_min_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14722,21 +14947,19 @@ Ordering options when selecting data from "sequent_backend.results_area_contest"
 input results_area_contest_order_by {
   annotations: order_by
   area_id: order_by
-  total_blank_votes: order_by
-  explicit_blank_votes: order_by
-  implicit_blank_votes: order_by
-  total_blank_votes_percent: order_by
-  explicit_blank_votes_percent: order_by
-  implicit_blank_votes_percent: order_by
   contest_id: order_by
   created_at: order_by
   documents: order_by
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
+  explicit_blank_votes: order_by
+  explicit_blank_votes_percent: order_by
   explicit_invalid_votes: order_by
   explicit_invalid_votes_percent: order_by
   id: order_by
+  implicit_blank_votes: order_by
+  implicit_blank_votes_percent: order_by
   implicit_invalid_votes: order_by
   implicit_invalid_votes_percent: order_by
   labels: order_by
@@ -14745,6 +14968,8 @@ input results_area_contest_order_by {
   tenant_id: order_by
   total_auditable_votes: order_by
   total_auditable_votes_percent: order_by
+  total_blank_votes: order_by
+  total_blank_votes_percent: order_by
   total_invalid_votes: order_by
   total_invalid_votes_percent: order_by
   total_valid_votes: order_by
@@ -14779,18 +15004,6 @@ enum results_area_contest_select_column {
   """column name"""
   area_id
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   created_at
@@ -14803,11 +15016,19 @@ enum results_area_contest_select_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -14824,6 +15045,10 @@ enum results_area_contest_select_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -14844,21 +15069,19 @@ input type for updating data in table "sequent_backend.results_area_contest"
 input results_area_contest_set_input {
   annotations: jsonb
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -14867,6 +15090,8 @@ input results_area_contest_set_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14877,19 +15102,19 @@ input results_area_contest_set_input {
 
 """aggregate stddev on columns"""
 type results_area_contest_stddev_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14900,19 +15125,19 @@ type results_area_contest_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_area_contest_stddev_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14923,19 +15148,19 @@ type results_area_contest_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_area_contest_stddev_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -14958,21 +15183,19 @@ input results_area_contest_stream_cursor_input {
 input results_area_contest_stream_cursor_value_input {
   annotations: jsonb
   area_id: uuid
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   created_at: timestamptz
   documents: jsonb
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -14981,6 +15204,8 @@ input results_area_contest_stream_cursor_value_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -14991,19 +15216,19 @@ input results_area_contest_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_area_contest_sum_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15021,18 +15246,6 @@ enum results_area_contest_update_column {
   """column name"""
   area_id
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   created_at
@@ -15045,11 +15258,19 @@ enum results_area_contest_update_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -15066,6 +15287,10 @@ enum results_area_contest_update_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -15107,19 +15332,19 @@ input results_area_contest_updates {
 
 """aggregate var_pop on columns"""
 type results_area_contest_var_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15130,19 +15355,19 @@ type results_area_contest_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_area_contest_var_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15153,19 +15378,19 @@ type results_area_contest_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_area_contest_variance_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15182,12 +15407,6 @@ type results_contest {
     """JSON select path"""
     path: String
   ): jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid!
   counting_algorithm: String
   created_at: timestamptz
@@ -15198,9 +15417,13 @@ type results_contest {
   election_event_id: uuid!
   election_id: uuid!
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid!
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels(
@@ -15213,6 +15436,8 @@ type results_contest {
   tenant_id: uuid!
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15256,19 +15481,19 @@ input results_contest_append_input {
 
 """aggregate avg on columns"""
 type results_contest_avg_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -15285,12 +15510,6 @@ input results_contest_bool_exp {
   _not: results_contest_bool_exp
   _or: [results_contest_bool_exp!]
   annotations: jsonb_comparison_exp
-  total_blank_votes: Int_comparison_exp
-  explicit_blank_votes: Int_comparison_exp
-  implicit_blank_votes: Int_comparison_exp
-  total_blank_votes_percent: numeric_comparison_exp
-  explicit_blank_votes_percent: numeric_comparison_exp
-  implicit_blank_votes_percent: numeric_comparison_exp
   contest_id: uuid_comparison_exp
   counting_algorithm: String_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -15298,9 +15517,13 @@ input results_contest_bool_exp {
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   elegible_census: Int_comparison_exp
+  explicit_blank_votes: Int_comparison_exp
+  explicit_blank_votes_percent: numeric_comparison_exp
   explicit_invalid_votes: Int_comparison_exp
   explicit_invalid_votes_percent: numeric_comparison_exp
   id: uuid_comparison_exp
+  implicit_blank_votes: Int_comparison_exp
+  implicit_blank_votes_percent: numeric_comparison_exp
   implicit_invalid_votes: Int_comparison_exp
   implicit_invalid_votes_percent: numeric_comparison_exp
   labels: jsonb_comparison_exp
@@ -15310,6 +15533,8 @@ input results_contest_bool_exp {
   tenant_id: uuid_comparison_exp
   total_auditable_votes: Int_comparison_exp
   total_auditable_votes_percent: numeric_comparison_exp
+  total_blank_votes: Int_comparison_exp
+  total_blank_votes_percent: numeric_comparison_exp
   total_invalid_votes: Int_comparison_exp
   total_invalid_votes_percent: numeric_comparison_exp
   total_valid_votes: Int_comparison_exp
@@ -15826,19 +16051,19 @@ input results_contest_delete_key_input {
 input type for incrementing numeric columns in table "sequent_backend.results_contest"
 """
 input results_contest_inc_input {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15852,12 +16077,6 @@ input type for inserting data into table "sequent_backend.results_contest"
 """
 input results_contest_insert_input {
   annotations: jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -15865,9 +16084,13 @@ input results_contest_insert_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -15877,6 +16100,8 @@ input results_contest_insert_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15888,21 +16113,19 @@ input results_contest_insert_input {
 
 """aggregate max on columns"""
 type results_contest_max_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -15911,6 +16134,8 @@ type results_contest_max_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15922,21 +16147,19 @@ type results_contest_max_fields {
 
 """aggregate min on columns"""
 type results_contest_min_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   last_updated_at: timestamptz
@@ -15945,6 +16168,8 @@ type results_contest_min_fields {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -15978,12 +16203,6 @@ Ordering options when selecting data from "sequent_backend.results_contest".
 """
 input results_contest_order_by {
   annotations: order_by
-  total_blank_votes: order_by
-  explicit_blank_votes: order_by
-  implicit_blank_votes: order_by
-  total_blank_votes_percent: order_by
-  explicit_blank_votes_percent: order_by
-  implicit_blank_votes_percent: order_by
   contest_id: order_by
   counting_algorithm: order_by
   created_at: order_by
@@ -15991,9 +16210,13 @@ input results_contest_order_by {
   election_event_id: order_by
   election_id: order_by
   elegible_census: order_by
+  explicit_blank_votes: order_by
+  explicit_blank_votes_percent: order_by
   explicit_invalid_votes: order_by
   explicit_invalid_votes_percent: order_by
   id: order_by
+  implicit_blank_votes: order_by
+  implicit_blank_votes_percent: order_by
   implicit_invalid_votes: order_by
   implicit_invalid_votes_percent: order_by
   labels: order_by
@@ -16003,6 +16226,8 @@ input results_contest_order_by {
   tenant_id: order_by
   total_auditable_votes: order_by
   total_auditable_votes_percent: order_by
+  total_blank_votes: order_by
+  total_blank_votes_percent: order_by
   total_invalid_votes: order_by
   total_invalid_votes_percent: order_by
   total_valid_votes: order_by
@@ -16034,18 +16259,6 @@ enum results_contest_select_column {
   """column name"""
   annotations
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   counting_algorithm
@@ -16060,11 +16273,19 @@ enum results_contest_select_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -16083,6 +16304,10 @@ enum results_contest_select_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -16104,12 +16329,6 @@ input type for updating data in table "sequent_backend.results_contest"
 """
 input results_contest_set_input {
   annotations: jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -16117,9 +16336,13 @@ input results_contest_set_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -16129,6 +16352,8 @@ input results_contest_set_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -16140,19 +16365,19 @@ input results_contest_set_input {
 
 """aggregate stddev on columns"""
 type results_contest_stddev_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16163,19 +16388,19 @@ type results_contest_stddev_fields {
 
 """aggregate stddev_pop on columns"""
 type results_contest_stddev_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16186,19 +16411,19 @@ type results_contest_stddev_pop_fields {
 
 """aggregate stddev_samp on columns"""
 type results_contest_stddev_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16220,12 +16445,6 @@ input results_contest_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input results_contest_stream_cursor_value_input {
   annotations: jsonb
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   contest_id: uuid
   counting_algorithm: String
   created_at: timestamptz
@@ -16233,9 +16452,13 @@ input results_contest_stream_cursor_value_input {
   election_event_id: uuid
   election_id: uuid
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
   id: uuid
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   labels: jsonb
@@ -16245,6 +16468,8 @@ input results_contest_stream_cursor_value_input {
   tenant_id: uuid
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -16256,19 +16481,19 @@ input results_contest_stream_cursor_value_input {
 
 """aggregate sum on columns"""
 type results_contest_sum_fields {
-  total_blank_votes: Int
-  explicit_blank_votes: Int
-  implicit_blank_votes: Int
-  total_blank_votes_percent: numeric
-  explicit_blank_votes_percent: numeric
-  implicit_blank_votes_percent: numeric
   elegible_census: Int
+  explicit_blank_votes: Int
+  explicit_blank_votes_percent: numeric
   explicit_invalid_votes: Int
   explicit_invalid_votes_percent: numeric
+  implicit_blank_votes: Int
+  implicit_blank_votes_percent: numeric
   implicit_invalid_votes: Int
   implicit_invalid_votes_percent: numeric
   total_auditable_votes: Int
   total_auditable_votes_percent: numeric
+  total_blank_votes: Int
+  total_blank_votes_percent: numeric
   total_invalid_votes: Int
   total_invalid_votes_percent: numeric
   total_valid_votes: Int
@@ -16284,18 +16509,6 @@ enum results_contest_update_column {
   """column name"""
   annotations
   """column name"""
-  total_blank_votes
-  """column name"""
-  explicit_blank_votes
-  """column name"""
-  implicit_blank_votes
-  """column name"""
-  total_blank_votes_percent
-  """column name"""
-  explicit_blank_votes_percent
-  """column name"""
-  implicit_blank_votes_percent
-  """column name"""
   contest_id
   """column name"""
   counting_algorithm
@@ -16310,11 +16523,19 @@ enum results_contest_update_column {
   """column name"""
   elegible_census
   """column name"""
+  explicit_blank_votes
+  """column name"""
+  explicit_blank_votes_percent
+  """column name"""
   explicit_invalid_votes
   """column name"""
   explicit_invalid_votes_percent
   """column name"""
   id
+  """column name"""
+  implicit_blank_votes
+  """column name"""
+  implicit_blank_votes_percent
   """column name"""
   implicit_invalid_votes
   """column name"""
@@ -16333,6 +16554,10 @@ enum results_contest_update_column {
   total_auditable_votes
   """column name"""
   total_auditable_votes_percent
+  """column name"""
+  total_blank_votes
+  """column name"""
+  total_blank_votes_percent
   """column name"""
   total_invalid_votes
   """column name"""
@@ -16376,19 +16601,19 @@ input results_contest_updates {
 
 """aggregate var_pop on columns"""
 type results_contest_var_pop_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16399,19 +16624,19 @@ type results_contest_var_pop_fields {
 
 """aggregate var_samp on columns"""
 type results_contest_var_samp_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -16422,19 +16647,19 @@ type results_contest_var_samp_fields {
 
 """aggregate variance on columns"""
 type results_contest_variance_fields {
-  total_blank_votes: Float
-  explicit_blank_votes: Float
-  implicit_blank_votes: Float
-  total_blank_votes_percent: Float
-  explicit_blank_votes_percent: Float
-  implicit_blank_votes_percent: Float
   elegible_census: Float
+  explicit_blank_votes: Float
+  explicit_blank_votes_percent: Float
   explicit_invalid_votes: Float
   explicit_invalid_votes_percent: Float
+  implicit_blank_votes: Float
+  implicit_blank_votes_percent: Float
   implicit_invalid_votes: Float
   implicit_invalid_votes_percent: Float
   total_auditable_votes: Float
   total_auditable_votes_percent: Float
+  total_blank_votes: Float
+  total_blank_votes_percent: Float
   total_invalid_votes: Float
   total_invalid_votes_percent: Float
   total_valid_votes: Float
@@ -18410,6 +18635,558 @@ input support_material_updates {
   _set: support_material_set_input
   """filter the rows which have to be updated"""
   where: support_material_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.tally_results_publication"
+"""
+type tally_results_publication {
+  access: String!
+  contest_publication_state(
+    """JSON select path"""
+    path: String
+  ): jsonb!
+  created_at: timestamptz!
+  documents(
+    """JSON select path"""
+    path: String
+  ): jsonb!
+  election_event_id: uuid!
+  election_ids: [uuid!]!
+  error_message: String
+  id: uuid!
+  manifest(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  publication_status: String!
+  published_at: timestamptz
+  published_by_user_id: uuid
+  published_contest_ids(
+    """JSON select path"""
+    path: String
+  ): jsonb!
+  results_event_id: uuid!
+  revoked_at: timestamptz
+  route_election_id: uuid
+  route_scope: String!
+  tally_session_execution_id: uuid!
+  tally_session_id: uuid!
+  task_execution_id: uuid
+  tenant_id: uuid!
+  updated_at: timestamptz!
+  version: Int!
+  visibility_scope: String!
+}
+
+"""
+aggregated selection of "sequent_backend.tally_results_publication"
+"""
+type tally_results_publication_aggregate {
+  aggregate: tally_results_publication_aggregate_fields
+  nodes: [tally_results_publication!]!
+}
+
+"""
+aggregate fields of "sequent_backend.tally_results_publication"
+"""
+type tally_results_publication_aggregate_fields {
+  avg: tally_results_publication_avg_fields
+  count(columns: [tally_results_publication_select_column!], distinct: Boolean): Int!
+  max: tally_results_publication_max_fields
+  min: tally_results_publication_min_fields
+  stddev: tally_results_publication_stddev_fields
+  stddev_pop: tally_results_publication_stddev_pop_fields
+  stddev_samp: tally_results_publication_stddev_samp_fields
+  sum: tally_results_publication_sum_fields
+  var_pop: tally_results_publication_var_pop_fields
+  var_samp: tally_results_publication_var_samp_fields
+  variance: tally_results_publication_variance_fields
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input tally_results_publication_append_input {
+  contest_publication_state: jsonb
+  documents: jsonb
+  manifest: jsonb
+  published_contest_ids: jsonb
+}
+
+"""aggregate avg on columns"""
+type tally_results_publication_avg_fields {
+  version: Float
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.tally_results_publication". All fields are combined with a logical 'AND'.
+"""
+input tally_results_publication_bool_exp {
+  _and: [tally_results_publication_bool_exp!]
+  _not: tally_results_publication_bool_exp
+  _or: [tally_results_publication_bool_exp!]
+  access: String_comparison_exp
+  contest_publication_state: jsonb_comparison_exp
+  created_at: timestamptz_comparison_exp
+  documents: jsonb_comparison_exp
+  election_event_id: uuid_comparison_exp
+  election_ids: uuid_array_comparison_exp
+  error_message: String_comparison_exp
+  id: uuid_comparison_exp
+  manifest: jsonb_comparison_exp
+  publication_status: String_comparison_exp
+  published_at: timestamptz_comparison_exp
+  published_by_user_id: uuid_comparison_exp
+  published_contest_ids: jsonb_comparison_exp
+  results_event_id: uuid_comparison_exp
+  revoked_at: timestamptz_comparison_exp
+  route_election_id: uuid_comparison_exp
+  route_scope: String_comparison_exp
+  tally_session_execution_id: uuid_comparison_exp
+  tally_session_id: uuid_comparison_exp
+  task_execution_id: uuid_comparison_exp
+  tenant_id: uuid_comparison_exp
+  updated_at: timestamptz_comparison_exp
+  version: Int_comparison_exp
+  visibility_scope: String_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.tally_results_publication"
+"""
+enum tally_results_publication_constraint {
+  """
+  unique or primary key constraint on columns "route_election_id", "tenant_id", "route_scope", "election_event_id"
+  """
+  tally_results_publication_active_election_idx
+  """
+  unique or primary key constraint on columns "tenant_id", "route_scope", "election_event_id"
+  """
+  tally_results_publication_active_event_idx
+  """
+  unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
+  """
+  tally_results_publication_pkey
+  """
+  unique or primary key constraint on columns "tenant_id", "route_scope", "version", "election_event_id"
+  """
+  tally_results_publication_route_version_idx
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input tally_results_publication_delete_at_path_input {
+  contest_publication_state: [String!]
+  documents: [String!]
+  manifest: [String!]
+  published_contest_ids: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input tally_results_publication_delete_elem_input {
+  contest_publication_state: Int
+  documents: Int
+  manifest: Int
+  published_contest_ids: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input tally_results_publication_delete_key_input {
+  contest_publication_state: String
+  documents: String
+  manifest: String
+  published_contest_ids: String
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.tally_results_publication"
+"""
+input tally_results_publication_inc_input {
+  version: Int
+}
+
+"""
+input type for inserting data into table "sequent_backend.tally_results_publication"
+"""
+input tally_results_publication_insert_input {
+  access: String
+  contest_publication_state: jsonb
+  created_at: timestamptz
+  documents: jsonb
+  election_event_id: uuid
+  election_ids: [uuid!]
+  error_message: String
+  id: uuid
+  manifest: jsonb
+  publication_status: String
+  published_at: timestamptz
+  published_by_user_id: uuid
+  published_contest_ids: jsonb
+  results_event_id: uuid
+  revoked_at: timestamptz
+  route_election_id: uuid
+  route_scope: String
+  tally_session_execution_id: uuid
+  tally_session_id: uuid
+  task_execution_id: uuid
+  tenant_id: uuid
+  updated_at: timestamptz
+  version: Int
+  visibility_scope: String
+}
+
+"""aggregate max on columns"""
+type tally_results_publication_max_fields {
+  access: String
+  created_at: timestamptz
+  election_event_id: uuid
+  election_ids: [uuid!]
+  error_message: String
+  id: uuid
+  publication_status: String
+  published_at: timestamptz
+  published_by_user_id: uuid
+  results_event_id: uuid
+  revoked_at: timestamptz
+  route_election_id: uuid
+  route_scope: String
+  tally_session_execution_id: uuid
+  tally_session_id: uuid
+  task_execution_id: uuid
+  tenant_id: uuid
+  updated_at: timestamptz
+  version: Int
+  visibility_scope: String
+}
+
+"""aggregate min on columns"""
+type tally_results_publication_min_fields {
+  access: String
+  created_at: timestamptz
+  election_event_id: uuid
+  election_ids: [uuid!]
+  error_message: String
+  id: uuid
+  publication_status: String
+  published_at: timestamptz
+  published_by_user_id: uuid
+  results_event_id: uuid
+  revoked_at: timestamptz
+  route_election_id: uuid
+  route_scope: String
+  tally_session_execution_id: uuid
+  tally_session_id: uuid
+  task_execution_id: uuid
+  tenant_id: uuid
+  updated_at: timestamptz
+  version: Int
+  visibility_scope: String
+}
+
+"""
+response of any mutation on the table "sequent_backend.tally_results_publication"
+"""
+type tally_results_publication_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [tally_results_publication!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.tally_results_publication"
+"""
+input tally_results_publication_on_conflict {
+  constraint: tally_results_publication_constraint!
+  update_columns: [tally_results_publication_update_column!]! = []
+  where: tally_results_publication_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.tally_results_publication".
+"""
+input tally_results_publication_order_by {
+  access: order_by
+  contest_publication_state: order_by
+  created_at: order_by
+  documents: order_by
+  election_event_id: order_by
+  election_ids: order_by
+  error_message: order_by
+  id: order_by
+  manifest: order_by
+  publication_status: order_by
+  published_at: order_by
+  published_by_user_id: order_by
+  published_contest_ids: order_by
+  results_event_id: order_by
+  revoked_at: order_by
+  route_election_id: order_by
+  route_scope: order_by
+  tally_session_execution_id: order_by
+  tally_session_id: order_by
+  task_execution_id: order_by
+  tenant_id: order_by
+  updated_at: order_by
+  version: order_by
+  visibility_scope: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.tally_results_publication
+"""
+input tally_results_publication_pk_columns_input {
+  election_event_id: uuid!
+  id: uuid!
+  tenant_id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input tally_results_publication_prepend_input {
+  contest_publication_state: jsonb
+  documents: jsonb
+  manifest: jsonb
+  published_contest_ids: jsonb
+}
+
+"""
+select columns of table "sequent_backend.tally_results_publication"
+"""
+enum tally_results_publication_select_column {
+  """column name"""
+  access
+  """column name"""
+  contest_publication_state
+  """column name"""
+  created_at
+  """column name"""
+  documents
+  """column name"""
+  election_event_id
+  """column name"""
+  election_ids
+  """column name"""
+  error_message
+  """column name"""
+  id
+  """column name"""
+  manifest
+  """column name"""
+  publication_status
+  """column name"""
+  published_at
+  """column name"""
+  published_by_user_id
+  """column name"""
+  published_contest_ids
+  """column name"""
+  results_event_id
+  """column name"""
+  revoked_at
+  """column name"""
+  route_election_id
+  """column name"""
+  route_scope
+  """column name"""
+  tally_session_execution_id
+  """column name"""
+  tally_session_id
+  """column name"""
+  task_execution_id
+  """column name"""
+  tenant_id
+  """column name"""
+  updated_at
+  """column name"""
+  version
+  """column name"""
+  visibility_scope
+}
+
+"""
+input type for updating data in table "sequent_backend.tally_results_publication"
+"""
+input tally_results_publication_set_input {
+  access: String
+  contest_publication_state: jsonb
+  created_at: timestamptz
+  documents: jsonb
+  election_event_id: uuid
+  election_ids: [uuid!]
+  error_message: String
+  id: uuid
+  manifest: jsonb
+  publication_status: String
+  published_at: timestamptz
+  published_by_user_id: uuid
+  published_contest_ids: jsonb
+  results_event_id: uuid
+  revoked_at: timestamptz
+  route_election_id: uuid
+  route_scope: String
+  tally_session_execution_id: uuid
+  tally_session_id: uuid
+  task_execution_id: uuid
+  tenant_id: uuid
+  updated_at: timestamptz
+  version: Int
+  visibility_scope: String
+}
+
+"""aggregate stddev on columns"""
+type tally_results_publication_stddev_fields {
+  version: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type tally_results_publication_stddev_pop_fields {
+  version: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type tally_results_publication_stddev_samp_fields {
+  version: Float
+}
+
+"""
+Streaming cursor of the table "sequent_backend_tally_results_publication"
+"""
+input tally_results_publication_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: tally_results_publication_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input tally_results_publication_stream_cursor_value_input {
+  access: String
+  contest_publication_state: jsonb
+  created_at: timestamptz
+  documents: jsonb
+  election_event_id: uuid
+  election_ids: [uuid!]
+  error_message: String
+  id: uuid
+  manifest: jsonb
+  publication_status: String
+  published_at: timestamptz
+  published_by_user_id: uuid
+  published_contest_ids: jsonb
+  results_event_id: uuid
+  revoked_at: timestamptz
+  route_election_id: uuid
+  route_scope: String
+  tally_session_execution_id: uuid
+  tally_session_id: uuid
+  task_execution_id: uuid
+  tenant_id: uuid
+  updated_at: timestamptz
+  version: Int
+  visibility_scope: String
+}
+
+"""aggregate sum on columns"""
+type tally_results_publication_sum_fields {
+  version: Int
+}
+
+"""
+update columns of table "sequent_backend.tally_results_publication"
+"""
+enum tally_results_publication_update_column {
+  """column name"""
+  access
+  """column name"""
+  contest_publication_state
+  """column name"""
+  created_at
+  """column name"""
+  documents
+  """column name"""
+  election_event_id
+  """column name"""
+  election_ids
+  """column name"""
+  error_message
+  """column name"""
+  id
+  """column name"""
+  manifest
+  """column name"""
+  publication_status
+  """column name"""
+  published_at
+  """column name"""
+  published_by_user_id
+  """column name"""
+  published_contest_ids
+  """column name"""
+  results_event_id
+  """column name"""
+  revoked_at
+  """column name"""
+  route_election_id
+  """column name"""
+  route_scope
+  """column name"""
+  tally_session_execution_id
+  """column name"""
+  tally_session_id
+  """column name"""
+  task_execution_id
+  """column name"""
+  tenant_id
+  """column name"""
+  updated_at
+  """column name"""
+  version
+  """column name"""
+  visibility_scope
+}
+
+input tally_results_publication_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: tally_results_publication_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: tally_results_publication_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: tally_results_publication_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: tally_results_publication_delete_key_input
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: tally_results_publication_inc_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: tally_results_publication_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: tally_results_publication_set_input
+  """filter the rows which have to be updated"""
+  where: tally_results_publication_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type tally_results_publication_var_pop_fields {
+  version: Float
+}
+
+"""aggregate var_samp on columns"""
+type tally_results_publication_var_samp_fields {
+  version: Float
+}
+
+"""aggregate variance on columns"""
+type tally_results_publication_variance_fields {
+  version: Float
 }
 
 """
@@ -24476,6 +25253,51 @@ type subscription_root {
     """filter the rows returned"""
     where: support_material_bool_exp
   ): [support_material!]!
+  """
+  fetch data from the table: "sequent_backend.tally_results_publication"
+  """
+  sequent_backend_tally_results_publication(
+    """distinct select on columns"""
+    distinct_on: [tally_results_publication_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_results_publication_order_by!]
+    """filter the rows returned"""
+    where: tally_results_publication_bool_exp
+  ): [tally_results_publication!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_results_publication"
+  """
+  sequent_backend_tally_results_publication_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_results_publication_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_results_publication_order_by!]
+    """filter the rows returned"""
+    where: tally_results_publication_bool_exp
+  ): tally_results_publication_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_results_publication" using primary key columns
+  """
+  sequent_backend_tally_results_publication_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_results_publication
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.tally_results_publication"
+  """
+  sequent_backend_tally_results_publication_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [tally_results_publication_stream_cursor_input]!
+    """filter the rows returned"""
+    where: tally_results_publication_bool_exp
+  ): [tally_results_publication!]!
   """
   fetch data from the table: "sequent_backend.tally_session"
   """
