@@ -50,16 +50,22 @@ fn get_variables(
     auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
     let mut variables: Map<String, Value> = Default::default();
-    variables.insert(
-        "user".to_string(),
-        json!({
-            "first_name": user.first_name.clone(),
-            "last_name": user.last_name.clone(),
-            "username": user.username.clone(),
-            "first_name": user.first_name.clone(),
-            "email": user.email.clone(),
-        }),
-    );
+    let mut user_variables = Map::new();
+    user_variables.insert("first_name".to_string(), json!(user.first_name));
+    user_variables.insert("last_name".to_string(), json!(user.last_name));
+    user_variables.insert("username".to_string(), json!(user.username));
+    user_variables.insert("email".to_string(), json!(user.email));
+
+    let attributes = user.attributes.clone().unwrap_or_default();
+    for (attribute_name, values) in &attributes {
+        if let Some(first_value) = values.first() {
+            user_variables
+                .entry(attribute_name.clone())
+                .or_insert_with(|| json!(first_value));
+        }
+    }
+    user_variables.insert("attributes".to_string(), json!(attributes));
+    variables.insert("user".to_string(), Value::Object(user_variables));
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
     if let Some(ref election_event) = election_event {
         let default_language = election_event.get_default_language();
@@ -642,5 +648,49 @@ pub async fn send_template_email_or_sms(
             //nothing to do
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_variables;
+    use sequent_core::services::generate_urls::AuthAction;
+    use sequent_core::types::keycloak::User;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    #[test]
+    fn get_variables_exposes_dynamic_and_multivalued_user_attributes() {
+        let user = User {
+            username: Some("canonical-user".to_string()),
+            attributes: Some(HashMap::from([
+                (
+                    "dateOfBirth".to_string(),
+                    vec!["2000-01-01".to_string(), "ignored-first-value".to_string()],
+                ),
+                (
+                    "username".to_string(),
+                    vec!["untrusted-collision".to_string()],
+                ),
+                ("empty".to_string(), Vec::new()),
+            ])),
+            ..User::default()
+        };
+
+        let variables = get_variables(&user, None, "tenant-id".to_string(), AuthAction::Login)
+            .expect("variables should be generated");
+
+        assert_eq!(variables["user"]["username"], json!("canonical-user"));
+        assert_eq!(variables["user"]["dateOfBirth"], json!("2000-01-01"));
+        assert!(variables["user"].get("empty").is_none());
+        assert_eq!(
+            variables["user"]["attributes"]["dateOfBirth"],
+            json!(["2000-01-01", "ignored-first-value"])
+        );
+        assert_eq!(
+            variables["user"]["attributes"]["username"],
+            json!(["untrusted-collision"])
+        );
+        assert_eq!(variables["user"]["attributes"]["empty"], json!([]));
     }
 }
