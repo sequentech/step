@@ -397,6 +397,26 @@ pub struct ParsedDatafixReconciliationRow {
     pub deleted: String, // "true"/"false" — kept as the wire string, parsed where needed
 }
 
+impl ParsedDatafixReconciliationRow {
+    /// This row's own value for one of `DatafixReconciliationField::NAMES`,
+    /// by column name — used to fill in a field that didn't change for this
+    /// voter on the outbound patch CSV with its real current value (this row
+    /// is exactly that value, since an unchanged field is one Sequent didn't
+    /// disagree with) instead of a placeholder.
+    pub fn field_value(&self, name: &str) -> Option<&str> {
+        match name {
+            "CountyMun" => Some(&self.county_mun),
+            "DoB" => Some(&self.dob),
+            "Ward" => Some(&self.ward),
+            "Poll" => Some(&self.poll),
+            "SchoolSupportCode" => Some(&self.school_support_code),
+            "Channel" => Some(&self.channel),
+            "Deleted" => Some(&self.deleted),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{DatafixErrorCode, DatafixResponse};

@@ -235,7 +235,12 @@ async fn run_generate_reconciliation_patches(
     .map_err(|err| format!("Error uploading the Sequent patch: {err:?}"))?;
 
     // Document 2: the downloadable external (Datafix) patch CSV — only if non-empty.
-    let patch_csv = build_external_patch_csv(&all_items, meta.sequence, meta.generated_at);
+    let patch_csv = build_external_patch_csv(
+        &all_items,
+        &file_rows_by_username,
+        meta.sequence,
+        meta.generated_at,
+    );
     let mut external_patch_document_id = None;
     let mut external_patch_sha256 = None;
     if let Some(patch_csv) = &patch_csv {

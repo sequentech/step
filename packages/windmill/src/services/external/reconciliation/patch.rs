@@ -10,7 +10,9 @@
 //! per the "Patch Files Format" spec.
 
 use crate::services::external::reconciliation::diff::DiffItem;
-use crate::services::external::datafix_types::DatafixReconciliationField;
+use crate::services::external::datafix_types::{
+    DatafixReconciliationField, ParsedDatafixReconciliationRow,
+};
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchTarget};
 use anyhow::Result;
 use sha2::{Digest, Sha256};
@@ -20,11 +22,20 @@ use tracing::instrument;
 /// Serializes the `target = Datafix` items into the patch CSV described in
 /// "Patch Files Format": a `#META` line carrying the source file's `Sequence`
 /// and this patch's own `GeneratedAt`, then one row per changed voter with
-/// every `DatafixReconciliationField` as an `_old`/`_new` pair — unchanged fields
-/// repeat the same value in both columns. Returns `None` if there is nothing
-/// to patch (no `target = Datafix` items at all).
-#[instrument(skip(items))]
-pub fn build_external_patch_csv(items: &[DiffItem], sequence: i64, generated_at: i64) -> Option<String> {
+/// every `DatafixReconciliationField` as an `_old`/`_new` pair — unchanged
+/// fields repeat this voter's real value (read off `file_rows_by_username`,
+/// the same parsed rows the diff was computed from) in both columns, per
+/// spec. `NONE` is only used when the voter has no row in the file at all
+/// (D, reverse direction — added to Datafix), the spec's own example of a
+/// legitimate `NONE`. Returns `None` if there is nothing to patch (no
+/// `target = Datafix` items at all).
+#[instrument(skip(items, file_rows_by_username))]
+pub fn build_external_patch_csv(
+    items: &[DiffItem],
+    file_rows_by_username: &HashMap<String, ParsedDatafixReconciliationRow>,
+    sequence: i64,
+    generated_at: i64,
+) -> Option<String> {
     let mut by_voter: HashMap<&str, HashMap<&'static str, (&str, &str)>> = HashMap::new();
     for item in items {
         let Some(field) = item.target.datafix_field() else {
@@ -52,19 +63,15 @@ pub fn build_external_patch_csv(items: &[DiffItem], sequence: i64, generated_at:
 
     for voter_username in voters {
         let fields = &by_voter[voter_username];
+        let file_row = file_rows_by_username.get(voter_username);
         let values: Vec<String> = DatafixReconciliationField::NAMES
             .iter()
             .flat_map(|name| match fields.get(name) {
                 Some((old_value, new_value)) => vec![old_value.to_string(), new_value.to_string()],
-                // Unchanged field for this voter: the patch format still
-                // requires the column pair present, carrying the same value
-                // in both — since this row only exists because *some* field
-                // changed, but we don't have this voter's Sequent baseline
-                // for every other field within the diff alone, "NONE" is used
-                // as a conservative placeholder here. TODO: thread the full
-                // per-voter Sequent snapshot through so unchanged fields
-                // carry their real value instead of "NONE".
-                None => vec!["NONE".to_string(), "NONE".to_string()],
+                None => {
+                    let value = file_row.and_then(|row| row.field_value(name)).unwrap_or("NONE");
+                    vec![value.to_string(), value.to_string()]
+                }
             })
             .collect();
         lines.push(format!("{voter_username},{}", values.join(",")));
@@ -121,6 +128,19 @@ mod tests {
         }
     }
 
+    fn file_row(voter_id: &str) -> ParsedDatafixReconciliationRow {
+        ParsedDatafixReconciliationRow {
+            county_mun: "0014".to_string(),
+            voter_id: voter_id.to_string(),
+            dob: "1990-01-01".to_string(),
+            ward: "01".to_string(),
+            poll: "000".to_string(),
+            school_support_code: "P".to_string(),
+            channel: "NONE".to_string(),
+            deleted: "false".to_string(),
+        }
+    }
+
     #[test]
     fn returns_none_when_there_is_nothing_for_the_external_system() {
         let items = vec![item(
@@ -130,7 +150,7 @@ mod tests {
                 "02".to_string(),
             ))),
         )];
-        assert!(build_external_patch_csv(&items, 1, 100).is_none());
+        assert!(build_external_patch_csv(&items, &HashMap::new(), 1, 100).is_none());
     }
 
     #[test]
@@ -142,11 +162,43 @@ mod tests {
                 "INTERNET".to_string(),
             )),
         )];
-        let csv = build_external_patch_csv(&items, 5, 1781780700).unwrap();
+        let csv = build_external_patch_csv(&items, &HashMap::new(), 5, 1781780700).unwrap();
         let mut lines = csv.lines();
         assert_eq!(lines.next(), Some("#META,Sequence=5,GeneratedAt=1781780700"));
         assert!(lines.next().unwrap().starts_with("VoterID,CountyMun_old,CountyMun_new"));
         assert!(csv.contains("v1,"));
+    }
+
+    #[test]
+    fn unchanged_fields_carry_the_voters_real_row_value_not_none() {
+        let items = vec![item(
+            "v1",
+            ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                "NONE".to_string(),
+                "INTERNET".to_string(),
+            )),
+        )];
+        let file_rows = HashMap::from([("v1".to_string(), file_row("v1"))]);
+        let csv = build_external_patch_csv(&items, &file_rows, 5, 1781780700).unwrap();
+        let data_line = csv.lines().nth(2).unwrap();
+        assert!(data_line.contains("0014,0014")); // CountyMun_old,CountyMun_new
+        assert!(data_line.contains("1990-01-01,1990-01-01")); // DoB_old,DoB_new
+        assert!(data_line.contains("false,false")); // Deleted_old,Deleted_new
+        assert!(!data_line.contains("NONE"));
+    }
+
+    #[test]
+    fn voter_missing_from_the_file_falls_back_to_none_for_unchanged_fields() {
+        let items = vec![item(
+            "v2",
+            ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Ward(
+                "NONE".to_string(),
+                "01-P-000".to_string(),
+            )),
+        )];
+        let csv = build_external_patch_csv(&items, &HashMap::new(), 5, 1781780700).unwrap();
+        let data_line = csv.lines().nth(2).unwrap();
+        assert!(data_line.contains("NONE,NONE")); // e.g. CountyMun_old,CountyMun_new
     }
 
     #[test]
