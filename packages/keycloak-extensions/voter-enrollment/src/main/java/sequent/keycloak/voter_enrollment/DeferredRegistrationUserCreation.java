@@ -62,6 +62,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
   public static final String PASSWORD_REQUIRED = "password-required";
   public static final String FORM_MODE = "form-mode";
+  public static final String PREFILL_PARAMETERS_POLICY = "prefill-parameters-policy";
   public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE =
       "password-expiration-user-attribute";
   public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT =
@@ -81,6 +82,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     public String getValue() {
       return value;
     }
+  }
+
+  public enum PrefillPolicy {
+    IGNORE,
+    ACCEPT
   }
 
   public static final String VERIFIED_VALUE = "VERIFIED";
@@ -114,6 +120,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             ProviderConfigProperty.LIST_TYPE,
             FormMode.REGISTRATION.name());
     formMode.setOptions(asList(FormMode.REGISTRATION.name(), FormMode.LOGIN.name()));
+
+    ProviderConfigProperty prefillPolicy =
+        new ProviderConfigProperty(
+            PREFILL_PARAMETERS_POLICY,
+            "Prefill Parameters Policy",
+            "Choose whether validated login hint parameters may prefill writable profile fields.",
+            ProviderConfigProperty.LIST_TYPE,
+            PrefillPolicy.IGNORE.name());
+    prefillPolicy.setOptions(asList(PrefillPolicy.IGNORE.name(), PrefillPolicy.ACCEPT.name()));
 
     // Define configuration properties
     return List.of(
@@ -159,6 +174,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Comma-separated list of profile attributes to hide from the form and ignore if Keycloak marks them as required.",
             ProviderConfigProperty.STRING_TYPE,
             HIDDEN_PROFILE_ATTRIBUTES_DEFAULT),
+        prefillPolicy,
         formMode);
   }
 
@@ -510,11 +526,60 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final boolean passwordRequired =
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 
+    Set<String> hiddenProfileAttributes = getHiddenProfileAttributes(configMap);
+    prefillFromLoginHints(context, form, configMap, hiddenProfileAttributes);
+
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
-    form.setAttribute("hiddenProfileAttributes", getHiddenProfileAttributes(configMap));
+    form.setAttribute("hiddenProfileAttributes", hiddenProfileAttributes);
     log.infov("buildPage(): formMode = {0}", formMode);
     checkNotOtherUserAuthenticating(context);
+  }
+
+  private void prefillFromLoginHints(
+      FormContext context,
+      LoginFormsProvider form,
+      Map<String, String> configMap,
+      Set<String> hiddenProfileAttributes) {
+    String policy =
+        Optional.ofNullable(configMap.get(PREFILL_PARAMETERS_POLICY))
+            .orElse(PrefillPolicy.IGNORE.name());
+    if (!PrefillPolicy.ACCEPT.name().equals(policy)
+        || !"GET".equals(context.getHttpRequest().getHttpMethod())) {
+      return;
+    }
+
+    Map<String, String> hints;
+    try {
+      hints = LoginHintPrefill.extractHints(context.getAuthenticationSession().getClientNotes());
+    } catch (IllegalArgumentException invalidHints) {
+      return;
+    }
+
+    if (hints.isEmpty()) {
+      return;
+    }
+
+    MultivaluedMap<String, String> candidateFormData = new MultivaluedHashMap<>();
+    hints.forEach(candidateFormData::putSingle);
+    UserProfile profile =
+        context
+            .getSession()
+            .getProvider(UserProfileProvider.class)
+            .create(UserProfileContext.REGISTRATION, candidateFormData);
+    Set<String> excludedAttributes =
+        Stream.concat(
+                hiddenProfileAttributes.stream(),
+                Stream.of(
+                    Optional.ofNullable(configMap.get(Utils.USER_STATUS_ATTRIBUTE))
+                        .orElse(VERIFIED_DEFAULT_ID)))
+            .collect(Collectors.toUnmodifiableSet());
+    MultivaluedMap<String, String> writableHints =
+        LoginHintPrefill.filterWritableHints(hints, profile.getAttributes(), excludedAttributes);
+
+    if (!writableHints.isEmpty()) {
+      form.setFormData(writableHints);
+    }
   }
 
   @Override
