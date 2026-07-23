@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
 use super::sql_utils::escape_sql_literal;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
-use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};

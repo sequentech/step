@@ -287,9 +287,18 @@ pub async fn bump_datafix_last_applied_sequence(
         return Ok(());
     }
 
-    annotations.insert(DATAFIX_LAST_APPLIED_SEQUENCE_KEY.to_string(), sequence.to_string());
+    annotations.insert(
+        DATAFIX_LAST_APPLIED_SEQUENCE_KEY.to_string(),
+        sequence.to_string(),
+    );
     let annotations_value = serde_json::to_value(&annotations)?;
-    update_election_event_annotations(hasura_transaction, tenant_id, election_event_id, annotations_value).await
+    update_election_event_annotations(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        annotations_value,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(direction = %direction), err)]

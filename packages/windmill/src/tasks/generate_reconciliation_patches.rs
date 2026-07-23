@@ -172,13 +172,16 @@ async fn run_generate_reconciliation_patches(
         .await
         .map_err(|err| format!("Error starting Keycloak transaction: {err}"))?;
 
-    let areas_by_id: HashMap<String, String> =
-        get_event_areas(&hasura_transaction, &body.tenant_id, &body.election_event_id)
-            .await
-            .map_err(|err| format!("Error loading event areas: {err:?}"))?
-            .into_iter()
-            .filter_map(|area| area.name.map(|name| (area.id, name)))
-            .collect();
+    let areas_by_id: HashMap<String, String> = get_event_areas(
+        &hasura_transaction,
+        &body.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|err| format!("Error loading event areas: {err:?}"))?
+    .into_iter()
+    .filter_map(|area| area.name.map(|name| (area.id, name)))
+    .collect();
 
     let valid_voters = get_usernames_with_valid_cast_vote(
         &hasura_transaction,

@@ -254,7 +254,14 @@ impl StatementHead {
                     ..default_head
                 }
             }
-            StatementBody::ExternalReconciliation(_, kind, sequence, _, input_hash, output_hash) => {
+            StatementBody::ExternalReconciliation(
+                _,
+                kind,
+                sequence,
+                _,
+                input_hash,
+                output_hash,
+            ) => {
                 let action = match kind {
                     ExternalReconciliationKind::PatchGenerated => "External patch generated",
                     ExternalReconciliationKind::ChangesApplied => "Sequent-side changes applied",

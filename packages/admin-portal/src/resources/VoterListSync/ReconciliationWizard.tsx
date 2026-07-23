@@ -618,7 +618,10 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                         />
                         <Typography variant="caption" color="text.secondary">
                             Categories outlined in orange (
-                            {[ESyncChangeCategory.VOTED_OTHER_CHANNEL, ESyncChangeCategory.DISABLED_DELETE_CALL]
+                            {[
+                                ESyncChangeCategory.VOTED_OTHER_CHANNEL,
+                                ESyncChangeCategory.DISABLED_DELETE_CALL,
+                            ]
                                 .map((category) => CATEGORY_LABELS[category])
                                 .join(", ")}
                             ) touch voted status or disable voters.

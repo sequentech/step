@@ -19,7 +19,9 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::document::get_document;
-use windmill::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use windmill::postgres::election_event::{
+    get_election_event_by_id, ElectionEventDatafix,
+};
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::consolidation::eml_generator::ValidateAnnotations;
 use windmill::services::database::get_hasura_pool;
@@ -127,11 +129,7 @@ pub struct ApplyDatafixReconciliationChangesInput {
 /// re-fetching and re-parsing the diff-envelope document) because the client
 /// is never trusted to enforce it.
 #[instrument(skip(claims))]
-#[post(
-    "/apply-reconciliation-changes",
-    format = "json",
-    data = "<body>"
-)]
+#[post("/apply-reconciliation-changes", format = "json", data = "<body>")]
 pub async fn apply_reconciliation_changes(
     claims: JwtClaims,
     body: Json<ApplyDatafixReconciliationChangesInput>,
@@ -198,9 +196,13 @@ pub async fn apply_reconciliation_changes(
     // `CountyMun` so the apply task can record the round's source (see
     // `ReconciliationPatchSource`), gating its own Datafix-specific
     // bookkeeping without the generic apply logic needing to know about it.
-    let election_event = get_election_event_by_id(&hasura_transaction, &tenant_id, &input.election_event_id)
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
+    let election_event = get_election_event_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
     let datafix_annotations = ElectionEventDatafix(election_event)
         .get_annotations()
         .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;

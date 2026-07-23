@@ -28,7 +28,9 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::has_valid_cast_vote;
 use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::ReconciliationChangeCategory;
-use crate::services::external::utils::{datafix_voter_lock_key, get_user_id, DATAFIX_VOTER_LOCK_SECS};
+use crate::services::external::utils::{
+    datafix_voter_lock_key, get_user_id, DATAFIX_VOTER_LOCK_SECS,
+};
 use crate::services::pg_lock::PgLock;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
@@ -149,7 +151,14 @@ async fn apply_voter_changes_locked(
             .await
         }
         ReconciliationChangeCategory::VOTER_ADDED => {
-            apply_voter_added(hasura_transaction, tenant_id, election_event_id, realm, items).await
+            apply_voter_added(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                realm,
+                items,
+            )
+            .await
         }
         ReconciliationChangeCategory::VOTED_INTERNET
         | ReconciliationChangeCategory::DELETION_REVERTED
@@ -254,13 +263,31 @@ async fn apply_generic_voter_edit(
         .map_err(|err| anyhow!("Error resolving voter user id: {err:?}"))?;
 
     let (enabled, mut attributes) = keycloak_edit_from_items(items);
-    resolve_area_attribute(hasura_transaction, tenant_id, election_event_id, items, &mut attributes).await?;
+    resolve_area_attribute(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        items,
+        &mut attributes,
+    )
+    .await?;
 
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|err| anyhow!("Error getting KeycloakAdminClient: {err:?}"))?;
     let result = client
-        .edit_user(realm, &user_id, enabled, Some(attributes), None, None, None, None, None, None)
+        .edit_user(
+            realm,
+            &user_id,
+            enabled,
+            Some(attributes),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
         .await;
     Ok(match result {
         Ok(_) => VoterApplyOutcome::Applied,
@@ -292,7 +319,14 @@ async fn apply_voter_added(
     // newly-added voter is always created enabled (pre-existing behavior,
     // not something this generalization changes).
     let (_enabled, mut attributes) = keycloak_edit_from_items(items);
-    resolve_area_attribute(hasura_transaction, tenant_id, election_event_id, items, &mut attributes).await?;
+    resolve_area_attribute(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        items,
+        &mut attributes,
+    )
+    .await?;
     attributes.insert(TENANT_ID_ATTR_NAME.to_string(), vec![tenant_id.to_string()]);
 
     let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")

@@ -241,7 +241,10 @@ fn classify_file_row(
         items.push(diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::AreaName(
-                snapshot.area_name.clone().unwrap_or_else(|| "NONE".to_string()),
+                snapshot
+                    .area_name
+                    .clone()
+                    .unwrap_or_else(|| "NONE".to_string()),
                 file_area_name.clone(),
             ))),
             ReconciliationChangeCategory::PROFILE_UPDATE,
@@ -356,7 +359,10 @@ fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<Diff
     let fields = [
         DatafixReconciliationField::Ward(
             "NONE".to_string(),
-            snapshot.area_name.clone().unwrap_or_else(|| "NONE".to_string()),
+            snapshot
+                .area_name
+                .clone()
+                .unwrap_or_else(|| "NONE".to_string()),
         ),
         DatafixReconciliationField::DoB(
             "NONE".to_string(),
@@ -364,7 +370,10 @@ fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<Diff
         ),
         DatafixReconciliationField::Channel(
             "NONE".to_string(),
-            snapshot.voted_channel.clone().unwrap_or_else(|| "NONE".to_string()),
+            snapshot
+                .voted_channel
+                .clone()
+                .unwrap_or_else(|| "NONE".to_string()),
         ),
         DatafixReconciliationField::Deleted("NONE".to_string(), "false".to_string()),
     ];
@@ -431,7 +440,10 @@ fn classify_disabled_voter(
                 ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                     HashMap::from([(
                         DISABLE_COMMENT.to_string(),
-                        snapshot.disable_comment.clone().unwrap_or_else(|| "NONE".to_string()),
+                        snapshot
+                            .disable_comment
+                            .clone()
+                            .unwrap_or_else(|| "NONE".to_string()),
                     )]),
                     HashMap::from([(
                         DISABLE_COMMENT.to_string(),
@@ -538,7 +550,11 @@ mod tests {
             has_valid_internet_vote: true,
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "NONE", "false"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "NONE", "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert_eq!(items.len(), 1);
         assert_eq!(
             items[0].category,
@@ -568,7 +584,10 @@ mod tests {
             .iter()
             .find_map(|item| item.target.sequent_field()?.new_keycloak_attributes())
             .expect("one item carries the Keycloak attributes");
-        assert_eq!(attributes_item.get(VOTED_CHANNEL), Some(&"PAPER".to_string()));
+        assert_eq!(
+            attributes_item.get(VOTED_CHANNEL),
+            Some(&"PAPER".to_string())
+        );
         assert_eq!(
             attributes_item.get(DISABLE_COMMENT),
             Some(&DISABLE_REASON_MARKVOTED_CALL.to_string())
@@ -587,7 +606,11 @@ mod tests {
             has_valid_internet_vote: true,
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "PAPER", "false"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "PAPER", "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert_eq!(items.len(), 2);
         assert!(items
             .iter()
@@ -624,7 +647,11 @@ mod tests {
             has_valid_internet_vote: true,
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "NONE", "true"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "NONE", "true"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert!(items.iter().any(|item| {
             item.category == ReconciliationChangeCategory::DELETION_REVERTED
                 && item.target
@@ -640,7 +667,11 @@ mod tests {
 
     #[test]
     fn unknown_voter_is_added_to_sequent_with_none_old_values() {
-        let items = classify_file_row(&row("voter-1", "NONE", "false"), None, &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "NONE", "false"),
+            None,
+            &datafix_source("0014"),
+        );
         assert_eq!(items.len(), 4); // one per SequentReconciliationField
         assert!(items
             .iter()
@@ -670,7 +701,11 @@ mod tests {
             disable_comment: Some(DISABLE_REASON_DELETE_CALL.to_string()),
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "NONE", "true"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "NONE", "true"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert!(items.is_empty());
     }
 
@@ -681,7 +716,11 @@ mod tests {
             disable_comment: Some(DISABLE_REASON_DELETE_CALL.to_string()),
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "NONE", "false"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "NONE", "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].category, ReconciliationChangeCategory::REENABLED);
         assert_eq!(
@@ -699,7 +738,11 @@ mod tests {
             disable_comment: Some(DISABLE_REASON_MARKVOTED_CALL.to_string()),
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "PAPER", "true"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "PAPER", "true"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert_eq!(items.len(), 2);
         assert!(items
             .iter()
@@ -727,7 +770,11 @@ mod tests {
             disable_comment: Some("Released after voting online".to_string()),
             ..enabled_snapshot()
         };
-        let items = classify_file_row(&row("voter-1", "NONE", "true"), Some(&snapshot), &datafix_source("0014"));
+        let items = classify_file_row(
+            &row("voter-1", "NONE", "true"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
         assert_eq!(items.len(), 2);
         assert!(items
             .iter()

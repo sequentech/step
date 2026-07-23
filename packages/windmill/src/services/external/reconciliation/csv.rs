@@ -77,7 +77,10 @@ pub fn parse_reconciliation_rows(
         .from_reader(csv_bytes);
     let mut rows = Vec::new();
     let mut errors = Vec::new();
-    for (index, record) in reader.deserialize::<ParsedDatafixReconciliationRow>().enumerate() {
+    for (index, record) in reader
+        .deserialize::<ParsedDatafixReconciliationRow>()
+        .enumerate()
+    {
         match record {
             Ok(row) => rows.push(row),
             Err(err) => errors.push(RowParseError {

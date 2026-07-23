@@ -15,13 +15,13 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
 use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationDiff};
 use crate::services::external::reconciliation::patch::build_row_failures_csv;
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
 use crate::services::external::utils::bump_datafix_last_applied_sequence;
-use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
-use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
@@ -108,7 +108,10 @@ async fn run_apply_reconciliation_patch(
     .map_err(|err| format!("Error loading the reconciliation diff: {err:?}"))?;
 
     if envelope.external_patch_document_id.is_some() {
-        return Err("The external-side diff is not empty — apply the external patch and re-import first".to_string());
+        return Err(
+            "The external-side diff is not empty — apply the external patch and re-import first"
+                .to_string(),
+        );
     }
 
     // Source-specific bookkeeping: today only Datafix exists, tracking its
@@ -116,9 +119,13 @@ async fn run_apply_reconciliation_patch(
     // non-Datafix source would keep its own independent tracking here
     // instead, under its own arm, without touching the generic apply below.
     if let ReconciliationPatchSource::Datafix { .. } = &body.source {
-        let election_event = get_election_event_by_id(&hasura_transaction, &body.tenant_id, &body.election_event_id)
-            .await
-            .map_err(|err| format!("Error loading election event: {err:?}"))?;
+        let election_event = get_election_event_by_id(
+            &hasura_transaction,
+            &body.tenant_id,
+            &body.election_event_id,
+        )
+        .await
+        .map_err(|err| format!("Error loading election event: {err:?}"))?;
         let datafix_annotations = ElectionEventDatafix(election_event)
             .get_annotations()
             .map_err(|err| format!("Error reading Datafix configuration: {err}"))?;
@@ -153,7 +160,10 @@ async fn run_apply_reconciliation_patch(
 
     let mut indices_by_voter: HashMap<String, Vec<usize>> = HashMap::new();
     for (index, item) in sequent_items.iter().enumerate() {
-        indices_by_voter.entry(item.voter_username.clone()).or_default().push(index);
+        indices_by_voter
+            .entry(item.voter_username.clone())
+            .or_default()
+            .push(index);
     }
 
     let mut keycloak_client = get_keycloak_pool()
@@ -170,8 +180,14 @@ async fn run_apply_reconciliation_patch(
     let mut applied_items: Vec<DiffItem> = Vec::new();
 
     for (voter_username, indices) in &indices_by_voter {
-        let voter_items: Vec<DiffItem> = indices.iter().map(|&index| sequent_items[index].clone()).collect();
-        if voter_items.iter().any(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE) {
+        let voter_items: Vec<DiffItem> = indices
+            .iter()
+            .map(|&index| sequent_items[index].clone())
+            .collect();
+        if voter_items
+            .iter()
+            .any(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE)
+        {
             continue; // never applied - excluded at generate time already, defensive only
         }
 
@@ -188,7 +204,9 @@ async fn run_apply_reconciliation_patch(
 
         match outcome {
             Ok(VoterApplyOutcome::Applied) => applied_items.extend(voter_items),
-            Ok(VoterApplyOutcome::Failed { reason }) => row_failures.push((voter_username.clone(), reason)),
+            Ok(VoterApplyOutcome::Failed { reason }) => {
+                row_failures.push((voter_username.clone(), reason))
+            }
             Err(err) => row_failures.push((voter_username.clone(), format!("{err:?}"))),
         }
     }
@@ -199,8 +217,13 @@ async fn run_apply_reconciliation_patch(
     if !applied_items.is_empty() {
         let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
         let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
-        if let Ok(electoral_log) =
-            ElectoralLog::new(&hasura_transaction, &body.tenant_id, Some(&body.election_event_id), &board_name).await
+        if let Ok(electoral_log) = ElectoralLog::new(
+            &hasura_transaction,
+            &body.tenant_id,
+            Some(&body.election_event_id),
+            &board_name,
+        )
+        .await
         {
             let artifact = serde_json::to_vec(&applied_items).ok();
             electoral_log
@@ -224,7 +247,8 @@ async fn run_apply_reconciliation_patch(
     if !row_failures.is_empty() {
         let csv = build_row_failures_csv(&row_failures);
         let file_name = format!("apply_row_failures_seq{}.csv", envelope.sequence);
-        let mut temp_file = tempfile::NamedTempFile::new().map_err(|err| format!("Error creating temp file: {err}"))?;
+        let mut temp_file = tempfile::NamedTempFile::new()
+            .map_err(|err| format!("Error creating temp file: {err}"))?;
         temp_file
             .write_all(csv.as_bytes())
             .map_err(|err| format!("Error writing row failures CSV: {err}"))?;
@@ -245,9 +269,14 @@ async fn run_apply_reconciliation_patch(
     }
 
     if let ReconciliationPatchSource::Datafix { .. } = &body.source {
-        bump_datafix_last_applied_sequence(&hasura_transaction, &body.tenant_id, &body.election_event_id, envelope.sequence)
-            .await
-            .map_err(|err| format!("Error bumping datafix_last_applied_sequence: {err:?}"))?;
+        bump_datafix_last_applied_sequence(
+            &hasura_transaction,
+            &body.tenant_id,
+            &body.election_event_id,
+            envelope.sequence,
+        )
+        .await
+        .map_err(|err| format!("Error bumping datafix_last_applied_sequence: {err:?}"))?;
     }
 
     hasura_transaction
@@ -267,9 +296,14 @@ async fn fetch_json_document<T: serde::de::DeserializeOwned>(
     election_event_id: &str,
     document_id: &str,
 ) -> anyhow::Result<T> {
-    let document = get_document(hasura_transaction, tenant_id, Some(election_event_id.to_string()), document_id)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
+    let document = get_document(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id.to_string()),
+        document_id,
+    )
+    .await?
+    .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
     let temp_file = get_document_as_temp_file(tenant_id, &document).await?;
     let bytes = std::fs::read(temp_file.path())?;
     Ok(serde_json::from_slice(&bytes)?)

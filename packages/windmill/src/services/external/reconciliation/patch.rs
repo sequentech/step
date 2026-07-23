@@ -9,10 +9,10 @@
 //! `DatafixReconciliationField` present per voter regardless of which ones changed,
 //! per the "Patch Files Format" spec.
 
-use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::datafix_types::{
     DatafixReconciliationField, ParsedDatafixReconciliationRow,
 };
+use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchTarget};
 use anyhow::Result;
 use sha2::{Digest, Sha256};
@@ -51,7 +51,9 @@ pub fn build_external_patch_csv(
         return None;
     }
 
-    let mut lines = vec![format!("#META,Sequence={sequence},GeneratedAt={generated_at}")];
+    let mut lines = vec![format!(
+        "#META,Sequence={sequence},GeneratedAt={generated_at}"
+    )];
     let header: Vec<String> = DatafixReconciliationField::NAMES
         .iter()
         .flat_map(|name| [format!("{name}_old"), format!("{name}_new")])
@@ -69,7 +71,9 @@ pub fn build_external_patch_csv(
             .flat_map(|name| match fields.get(name) {
                 Some((old_value, new_value)) => vec![old_value.to_string(), new_value.to_string()],
                 None => {
-                    let value = file_row.and_then(|row| row.field_value(name)).unwrap_or("NONE");
+                    let value = file_row
+                        .and_then(|row| row.field_value(name))
+                        .unwrap_or("NONE");
                     vec![value.to_string(), value.to_string()]
                 }
             })
@@ -117,7 +121,9 @@ pub fn sha256_hex(content: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::external::types::{ReconciliationChangeCategory, SequentReconciliationField};
+    use crate::services::external::types::{
+        ReconciliationChangeCategory, SequentReconciliationField,
+    };
 
     fn item(voter: &str, target: ReconciliationPatchTarget) -> DiffItem {
         DiffItem {
@@ -164,8 +170,14 @@ mod tests {
         )];
         let csv = build_external_patch_csv(&items, &HashMap::new(), 5, 1781780700).unwrap();
         let mut lines = csv.lines();
-        assert_eq!(lines.next(), Some("#META,Sequence=5,GeneratedAt=1781780700"));
-        assert!(lines.next().unwrap().starts_with("VoterID,CountyMun_old,CountyMun_new"));
+        assert_eq!(
+            lines.next(),
+            Some("#META,Sequence=5,GeneratedAt=1781780700")
+        );
+        assert!(lines
+            .next()
+            .unwrap()
+            .starts_with("VoterID,CountyMun_old,CountyMun_new"));
         assert!(csv.contains("v1,"));
     }
 
