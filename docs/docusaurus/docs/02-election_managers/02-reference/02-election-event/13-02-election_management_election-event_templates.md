@@ -40,5 +40,57 @@ Once configured, the Template becomes available for its associated Report Types 
 - For document templates, ensure any required assets (logos, images) are accessible and correctly referenced.
 - If your system supports previewing or templating languages (e.g., handlebars, Liquid), include sample data to verify rendering.
 
-> **Note:** For further guidance on template fields or syntax, refer to the Reports section of the guide where Template usage in report configuration is detailed. ```
+## Voter variables in notification templates
+
+Email and SMS Handlebars templates can use these standard voter variables:
+
+- `user.first_name`
+- `user.last_name`
+- `user.username`
+- `user.email`
+
+Custom Keycloak user attributes are also available. The first value is exposed
+as `user.<attribute>`. The complete value list remains available as
+`user.attributes.<attribute>`. Standard variables take precedence if a custom
+attribute uses the same name. Empty custom value lists are present only under
+`user.attributes`.
+
+For example, a `reference` attribute with values `ABC-123` and `legacy-456` can
+be rendered as follows:
+
+```handlebars
+Primary reference: {{user.reference}}
+All references: {{#each user.attributes.reference}}{{this}} {{/each}}
+```
+
+### Prefilled voting links
+
+Voting Portal `/login` and `/enroll` links accept up to five prefilled fields
+named `login_hint__<field>`. Field names may contain letters, numbers, `.`, `_`,
+and `-`; names are limited to 128 characters and values to 255 characters.
+
+Use the `url_encode` helper around every dynamic query value. Keep the parameter
+names and URL structure static:
+
+```handlebars
+https://vote.example/tenant/TENANT_ID/event/EVENT_ID/login?login_hint__username={{url_encode user.username}}&login_hint__reference={{url_encode user.reference}}
+```
+
+```handlebars
+https://vote.example/tenant/TENANT_ID/event/EVENT_ID/enroll?login_hint__username={{url_encode user.username}}&login_hint__dateOfBirth={{url_encode user.dateOfBirth}}
+```
+
+The Voting Portal removes accepted hint parameters from its visible URL before
+redirecting to Keycloak. Invalid, duplicate, or over-limit hint sets are rejected
+as a whole.
+
+:::warning
+Prefilled values are editable convenience data, not verified identity claims.
+They never bypass authentication, registration validation, or required actions.
+Do not include passwords, tokens, secrets, or sensitive attributes that are not
+approved for browser URLs and notification delivery. Percent encoding protects
+URL structure; it does not provide confidentiality or authenticity.
+:::
+
+> **Note:** For further guidance on template fields or syntax, refer to the Reports section of the guide where Template usage in report configuration is detailed.
 
