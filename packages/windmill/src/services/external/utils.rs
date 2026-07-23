@@ -37,11 +37,12 @@ pub const DATAFIX_LAST_APPLIED_SEQUENCE_KEY: &str = "datafix:last_applied_sequen
 /// VoterView round-trip so the lock outlives an in-flight SOAP call.
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 
-/// Advisory-lock key that serializes all Datafix work for one voter within an
-/// event, so outbound `SetVoted`, disable-release and inbound mark/unmark cannot
-/// interleave for the same voter.
+/// Advisory-lock key that serializes all external-voter-registry work for one
+/// voter within an event — outbound `SetVoted`, disable-release, inbound
+/// mark/unmark, and reconciliation apply all take this same lock, so none of
+/// them can interleave for the same voter.
 #[instrument]
-pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &str) -> String {
+pub fn external_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &str) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 

@@ -12,7 +12,8 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
-    datafix_annotations, datafix_voter_lock_key, is_datafix_election_event, DATAFIX_VOTER_LOCK_SECS,
+    datafix_annotations, external_voter_lock_key, is_datafix_election_event,
+    DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
@@ -190,7 +191,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
     initial_status: CastVoteStatus,
 ) -> Result<CastVote, CastVoteError> {
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
+        external_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )

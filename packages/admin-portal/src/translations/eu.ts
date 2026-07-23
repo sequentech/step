@@ -104,6 +104,96 @@ const basqueTranslation: TranslationType = {
                 next: "Hurrengoa",
             },
         },
+        reconciliation: {
+            menuButton: "Datafix-ekiko sinkronizazioa",
+            categories: {
+                VOTED_INTERNET: "Internet bidez bozkatu du",
+                VOTED_OTHER_CHANNEL: "Beste kanal batetik bozkatu du",
+                DISABLED_DELETE_CALL: "Bozkatzailea desgaituta",
+                DELETION_REVERTED: "Ezabaketa desegina",
+                PROFILE_UPDATE: "Profila eguneratuta",
+                VOTER_ADDED: "Bozkatzailea gehituta",
+                REENABLED: "Bozkatzailea berriz gaituta",
+                ROW_FAILURE: "Errenkada-errorea",
+            },
+            table: {
+                voterId: "Bozkatzailearen IDa",
+                field: "Eremua",
+                category: "Kategoria",
+                currentValue: "Uneko balioa",
+                newValue: "Balio berria",
+                reason: "Arrazoia",
+                rowLabel: "Errenkada",
+                noDifferences: "Ez da desberdintasunik aurkitu - sistemak sinkronizatuta daude.",
+            },
+            wizard: {
+                title: "Datafix bat-egite sinkronizazioa",
+                drop: {
+                    description:
+                        "Jaregin Datafix-ek sortutako bat-egite fitxategia - bi diffak (Datafix aldea eta Sequent aldea) automatikoki kalkulatzen dira eta taula bereizietan erakusten dira.",
+                    fileFormatLabel: "CSV fitxategia",
+                    uploading: "{{fileName}} igotzen eta bi diffak kalkulatzen...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - {{sequence}} sekuentzia, {{generatedAt}} sortua",
+                    rowFailuresWarning:
+                        "{{count}} errenkadak ustekabeko CountyMun bat dute (edo beste-kanal-batetik-bozkatuaren babesa) eta bi diffetatik kanpo geratzen dira - errenkada-errore gisa jakinaraziko dira aplikatu ondoren.",
+                    noDifferences:
+                        "Ez dago desberdintasunik - bi sistemak jada sinkronizatuta daude.",
+                    datafixDiffTitle: "Datafix diff-a",
+                    sequentDiffTitle: "Sequent diff-a",
+                    downloadDatafixPatch: "Deskargatu Datafix adabakia",
+                    noDatafixDifferences: "Ez dago desberdintasunik Datafix aldean.",
+                    sequentDiffCaption:
+                        "Zuzenean Sequent-i aplikatzen zaio - hauetarako ez da adabaki-fitxategirik sortzen.",
+                    noSequentDifferences: "Ez dago desberdintasunik Sequent aldean.",
+                },
+                applying: {
+                    inProgress: "Sequent aldeko aldaketak aplikatzen...",
+                    rowFailures:
+                        "{{count}} errenkadak huts egin dute aplikatzean - zuzendu eskuz; bestela, hurrengo bat-egite fitxategiak desberdintasun bera adieraziko du.",
+                    success: "Sequent aldeko aldaketa guztiak ondo aplikatu dira.",
+                    downloadRowFailures: "Deskargatu errenkada-erroreen txostena",
+                },
+                actions: {
+                    cancel: "Ezeztatu",
+                    back: "Atzera",
+                    apply: "Aplikatu",
+                    next: "Hurrengoa",
+                    startOver: "Hasi berriro",
+                    close: "Itxi",
+                },
+                confirm: {
+                    title: "Berretsi bat-egite aldaketak",
+                    categoriesNote:
+                        "Laranjaz nabarmendutako kategoriek ({{categories}}) boto-egoerari eragiten diote edo bozkatzaileak desgaitzen dituzte.",
+                    applyChanges: "Aplikatu aldaketak",
+                    continue: "Jarraitu",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "{{count}} bozkatzaile beste kanal batetik bozkatu izana adierazten du",
+                    disabled: "{{count}} bozkatzaile desgaitzen ditu",
+                    reenabled: "{{count}} bozkatzaile berriz gaitzen ditu",
+                    profileUpdated: "{{count}} profil eguneratzen ditu",
+                    voterAdded: "{{count}} bozkatzaile gehitzen ditu",
+                    prefix: "Honek {{parts}} dituzten aldaketak aplikatuko ditu.",
+                    empty: "Ez dago Sequent aldeko aldaketarik aplikatzeko.",
+                },
+                notifications: {
+                    envelopeLoadError: "Ezin izan da bat-egite diff-a kargatu - saiatu berriro.",
+                    generateFailed:
+                        "Ezin izan da bat-egite diff-a kalkulatu - ikusi zereginen widget-a xehetasunetarako.",
+                    applyFailed:
+                        "Ezin izan dira Sequent aldeko aldaketak aplikatu - ikusi zereginen widget-a xehetasunetarako.",
+                    uploadUrlError: "Ezin izan da igotzeko URLa lortu",
+                    generateTaskError: "Ezin izan da bat-egite diff zeregina abiarazi",
+                    uploadError: "Ezin izan da bat-egite fitxategia igo",
+                    applyTaskError: "Ezin izan da aplikatzeko zeregina abiarazi",
+                    applyError: "Ezin izan dira bat-egite aldaketak aplikatu",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",

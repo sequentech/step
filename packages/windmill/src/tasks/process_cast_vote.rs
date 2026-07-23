@@ -11,7 +11,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::external;
 use crate::services::external::datafix_types::{SoapRequest, SoapRequestResponse};
 use crate::services::external::utils::{
-    datafix_annotations, datafix_voter_lock_key, post_operation_result_to_electoral_log,
+    datafix_annotations, external_voter_lock_key, post_operation_result_to_electoral_log,
     voted_via_internet, voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::external::voterview_requests::SoapSendError;
@@ -62,7 +62,7 @@ pub async fn process_cast_vote(
         .as_deref()
         .ok_or("Voter id not found")?;
     let lock = match PgLock::acquire(
-        datafix_voter_lock_key(&cast_vote.tenant_id, &cast_vote.election_event_id, voter_id),
+        external_voter_lock_key(&cast_vote.tenant_id, &cast_vote.election_event_id, voter_id),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -478,16 +478,16 @@ mod tests {
 
     #[test]
     fn voter_lock_is_event_wide() {
-        let first = datafix_voter_lock_key("tenant", "event", "voter");
-        let second = datafix_voter_lock_key("tenant", "event", "voter");
+        let first = external_voter_lock_key("tenant", "event", "voter");
+        let second = external_voter_lock_key("tenant", "event", "voter");
         assert_eq!(first, second);
         assert_ne!(
             first,
-            datafix_voter_lock_key("tenant", "other-event", "voter")
+            external_voter_lock_key("tenant", "other-event", "voter")
         );
         assert_ne!(
             first,
-            datafix_voter_lock_key("tenant", "event", "other-voter")
+            external_voter_lock_key("tenant", "event", "other-voter")
         );
     }
 }

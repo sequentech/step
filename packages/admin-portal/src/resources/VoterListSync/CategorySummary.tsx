@@ -4,8 +4,8 @@
 
 import React from "react"
 import {Box, Stack, Typography} from "@mui/material"
+import {useTranslation} from "react-i18next"
 import {ESyncChangeCategory} from "./types"
-import {CATEGORY_LABELS} from "./constants"
 
 interface CategorySummaryProps {
     /** Backend-computed per-category counts (the import row's `summary`
@@ -19,6 +19,7 @@ interface CategorySummaryProps {
  * channels, disables M voters, updates K profiles, adds J voters" from the
  * reconciliation confirmation dialog acceptance criteria. */
 export const CategorySummary: React.FC<CategorySummaryProps> = ({counts, highlighted}) => {
+    const {t} = useTranslation()
     const entries = Object.entries(counts).filter(([, count]) => (count ?? 0) > 0) as Array<
         [ESyncChangeCategory, number]
     >
@@ -37,7 +38,7 @@ export const CategorySummary: React.FC<CategorySummaryProps> = ({counts, highlig
                     }}
                 >
                     <Typography variant="caption" color="text.secondary">
-                        {CATEGORY_LABELS[category]}
+                        {t(`reconciliation.categories.${category}`, category)}
                     </Typography>
                     <Typography variant="h6">{count}</Typography>
                 </Box>

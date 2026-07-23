@@ -8,7 +8,7 @@
 //! Sequent-side changes directly.
 //!
 //! Reuses the existing Datafix API helpers throughout (per the spec's
-//! explicit instruction to do so): `utils::datafix_voter_lock_key`/`PgLock`,
+//! explicit instruction to do so): `utils::external_voter_lock_key`/`PgLock`,
 //! `utils::post_operation_result_to_electoral_log`, and
 //! `utils::compose_area_name`. The per-voter cast-vote guard is
 //! re-implemented rather than reused — see `apply`'s module doc.

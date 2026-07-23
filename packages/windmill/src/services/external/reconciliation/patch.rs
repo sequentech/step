@@ -196,9 +196,9 @@ mod tests {
         assert!(data_line.contains("0014,0014")); // CountyMun_old,CountyMun_new
         assert!(data_line.contains("1990-01-01,1990-01-01")); // DoB_old,DoB_new
         assert!(data_line.contains("false,false")); // Deleted_old,Deleted_new
-        // The changed field (Channel) legitimately carries "NONE" as its real
-        // old value here — only the placeholder pair for an unchanged field
-        // would indicate the bug this test guards against.
+                                                    // The changed field (Channel) legitimately carries "NONE" as its real
+                                                    // old value here — only the placeholder pair for an unchanged field
+                                                    // would indicate the bug this test guards against.
         assert!(!data_line.contains("NONE,NONE"));
     }
 

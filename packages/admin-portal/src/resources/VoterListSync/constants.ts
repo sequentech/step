@@ -4,17 +4,6 @@
 
 import {ESyncChangeCategory} from "./types"
 
-export const CATEGORY_LABELS: Record<ESyncChangeCategory, string> = {
-    [ESyncChangeCategory.VOTED_INTERNET]: "Voted via Internet",
-    [ESyncChangeCategory.VOTED_OTHER_CHANNEL]: "Voted via other channel",
-    [ESyncChangeCategory.DISABLED_DELETE_CALL]: "Voter disabled",
-    [ESyncChangeCategory.DELETION_REVERTED]: "Deletion reverted",
-    [ESyncChangeCategory.PROFILE_UPDATE]: "Profile update",
-    [ESyncChangeCategory.VOTER_ADDED]: "Voter added",
-    [ESyncChangeCategory.REENABLED]: "Voter re-enabled",
-    [ESyncChangeCategory.ROW_FAILURE]: "Row failure",
-}
-
 export const CATEGORY_COLORS: Record<
     ESyncChangeCategory,
     "default" | "success" | "warning" | "error" | "info"

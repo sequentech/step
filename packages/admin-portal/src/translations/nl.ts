@@ -104,6 +104,97 @@ const dutchTranslation: TranslationType = {
                 next: "Volgende",
             },
         },
+        reconciliation: {
+            menuButton: "Synchronisatie met Datafix",
+            categories: {
+                VOTED_INTERNET: "Gestemd via Internet",
+                VOTED_OTHER_CHANNEL: "Gestemd via ander kanaal",
+                DISABLED_DELETE_CALL: "Kiezer gedeactiveerd",
+                DELETION_REVERTED: "Verwijdering teruggedraaid",
+                PROFILE_UPDATE: "Profiel bijgewerkt",
+                VOTER_ADDED: "Kiezer toegevoegd",
+                REENABLED: "Kiezer heractiveerd",
+                ROW_FAILURE: "Rijfout",
+            },
+            table: {
+                voterId: "Kiezer-ID",
+                field: "Veld",
+                category: "Categorie",
+                currentValue: "Huidige waarde",
+                newValue: "Nieuwe waarde",
+                reason: "Reden",
+                rowLabel: "Rij",
+                noDifferences: "Geen verschillen gevonden - de systemen zijn gesynchroniseerd.",
+            },
+            wizard: {
+                title: "Datafix-reconciliatiesynchronisatie",
+                drop: {
+                    description:
+                        "Sleep het door Datafix gegenereerde reconciliatiebestand hierheen - beide diffs (Datafix-zijde en Sequent-zijde) worden automatisch berekend en in aparte tabellen weergegeven.",
+                    fileFormatLabel: "CSV-bestand",
+                    uploading: "{{fileName}} wordt geüpload en beide diffs worden berekend...",
+                },
+                review: {
+                    fileSummary:
+                        "{{fileName}} - Sequentie {{sequence}}, gegenereerd {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} rij(en) hebben een onverwachte CountyMun (of de bescherming tegen gestemd-via-ander-kanaal) en zijn uitgesloten van beide diffs - deze worden na toepassing gerapporteerd als rijfouten.",
+                    noDifferences: "Geen verschillen - beide systemen zijn al gesynchroniseerd.",
+                    datafixDiffTitle: "Datafix-diff",
+                    sequentDiffTitle: "Sequent-diff",
+                    downloadDatafixPatch: "Datafix-patch downloaden",
+                    noDatafixDifferences: "Geen verschillen aan de Datafix-zijde.",
+                    sequentDiffCaption:
+                        "Wordt direct op Sequent toegepast - hiervoor wordt geen patchbestand gegenereerd.",
+                    noSequentDifferences: "Geen verschillen aan de Sequent-zijde.",
+                },
+                applying: {
+                    inProgress: "Wijzigingen aan de Sequent-zijde worden toegepast...",
+                    rowFailures:
+                        "{{count}} rij(en) konden niet worden toegepast - corrigeer deze handmatig; anders wijst het volgende reconciliatiebestand op hetzelfde verschil.",
+                    success: "Alle wijzigingen aan de Sequent-zijde zijn succesvol toegepast.",
+                    downloadRowFailures: "Rapport met rijfouten downloaden",
+                },
+                actions: {
+                    cancel: "Annuleren",
+                    back: "Terug",
+                    apply: "Toepassen",
+                    next: "Volgende",
+                    startOver: "Opnieuw beginnen",
+                    close: "Sluiten",
+                },
+                confirm: {
+                    title: "Reconciliatiewijzigingen bevestigen",
+                    categoriesNote:
+                        "Categorieën die oranje zijn omlijnd ({{categories}}) hebben invloed op de stemstatus of deactiveren kiezers.",
+                    applyChanges: "Wijzigingen toepassen",
+                    continue: "Doorgaan",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "markeert {{count}} kiezer(s) als gestemd via een ander kanaal",
+                    disabled: "deactiveert {{count}} kiezer(s)",
+                    reenabled: "heractiveert {{count}} kiezer(s)",
+                    profileUpdated: "werkt {{count}} profiel(en) bij",
+                    voterAdded: "voegt {{count}} kiezer(s) toe",
+                    prefix: "Dit past wijzigingen toe die {{parts}}.",
+                    empty: "Er zijn geen wijzigingen aan de Sequent-zijde om toe te passen.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Kon de reconciliatie-diff niet laden - probeer het opnieuw.",
+                    generateFailed:
+                        "Kon de reconciliatie-diff niet berekenen - zie de taakwidget voor details.",
+                    applyFailed:
+                        "Kon de wijzigingen aan de Sequent-zijde niet toepassen - zie de taakwidget voor details.",
+                    uploadUrlError: "Kon geen upload-URL verkrijgen",
+                    generateTaskError: "Kon de reconciliatie-difftaak niet starten",
+                    uploadError: "Kon het reconciliatiebestand niet uploaden",
+                    applyTaskError: "Kon de toepassingstaak niet starten",
+                    applyError: "Kon de reconciliatiewijzigingen niet toepassen",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",

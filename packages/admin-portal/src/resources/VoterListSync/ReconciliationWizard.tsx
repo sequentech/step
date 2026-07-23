@@ -19,13 +19,14 @@ import {
     Typography,
 } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
+import {useTranslation} from "react-i18next"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SyncDiffTable} from "./SyncDiffTable"
 import {CategorySummary} from "./CategorySummary"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {ESyncChangeCategory, SyncDiffRow} from "./types"
-import {HIGHLIGHTED_CATEGORIES, CATEGORY_LABELS} from "./constants"
+import {HIGHLIGHTED_CATEGORIES} from "./constants"
 import {formatGeneratedAt} from "./utils"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -42,6 +43,8 @@ interface ReconciliationWizardProps {
     electionEventId: string
     onClose: () => void
 }
+
+type TranslateFn = ReturnType<typeof useTranslation>["t"]
 
 const POLL_INTERVAL_MS = 3000
 
@@ -80,28 +83,31 @@ interface ReconciliationDiffEnvelope {
     items: RawDiffItem[]
 }
 
-const summarizeForConfirmation = (rows: SyncDiffRow[]): string => {
+const summarizeForConfirmation = (rows: SyncDiffRow[], t: TranslateFn): string => {
     const counts = new Map<ESyncChangeCategory, number>()
     rows.forEach((row) => counts.set(row.category, (counts.get(row.category) ?? 0) + 1))
 
     const phrases = [
-        [ESyncChangeCategory.VOTED_OTHER_CHANNEL, "marks", "voter(s) as voted via other channels"],
-        [ESyncChangeCategory.DISABLED_DELETE_CALL, "disables", "voter(s)"],
-        [ESyncChangeCategory.REENABLED, "re-enables", "voter(s)"],
-        [ESyncChangeCategory.PROFILE_UPDATE, "updates", "profile(s)"],
-        [ESyncChangeCategory.VOTER_ADDED, "adds", "voter(s)"],
+        [
+            ESyncChangeCategory.VOTED_OTHER_CHANNEL,
+            "reconciliation.wizard.summary.votedOtherChannel",
+        ],
+        [ESyncChangeCategory.DISABLED_DELETE_CALL, "reconciliation.wizard.summary.disabled"],
+        [ESyncChangeCategory.REENABLED, "reconciliation.wizard.summary.reenabled"],
+        [ESyncChangeCategory.PROFILE_UPDATE, "reconciliation.wizard.summary.profileUpdated"],
+        [ESyncChangeCategory.VOTER_ADDED, "reconciliation.wizard.summary.voterAdded"],
     ] as const
 
     const parts = phrases
-        .map(([category, verb, noun]) => {
+        .map(([category, key]) => {
             const count = counts.get(category) ?? 0
-            return count > 0 ? `${verb} ${count} ${noun}` : null
+            return count > 0 ? t(key, {count}) : null
         })
         .filter((part): part is string => part !== null)
 
     return parts.length > 0
-        ? `This will apply changes that ${parts.join(", ")}.`
-        : "There are no Sequent-side changes to apply."
+        ? t("reconciliation.wizard.summary.prefix", {parts: parts.join(", ")})
+        : t("reconciliation.wizard.summary.empty")
 }
 
 const countsByCategory = (rows: SyncDiffRow[]): Partial<Record<ESyncChangeCategory, number>> => {
@@ -134,12 +140,12 @@ const formatFieldValue = (value: unknown): string => {
     return value == null ? "NONE" : String(value)
 }
 
-const describeField = (field: RawFieldValue): FieldDisplay => {
+const describeField = (field: RawFieldValue, t: TranslateFn): FieldDisplay => {
     const entry = field ? Object.entries(field)[0] : undefined
     if (!entry) {
         // `null` when the change (e.g. a CountyMun mismatch row failure)
         // has no corresponding field at all - the Reason column explains it.
-        return {label: "Row", oldValue: "NONE", newValue: "NONE"}
+        return {label: t("reconciliation.table.rowLabel"), oldValue: "NONE", newValue: "NONE"}
     }
     const [variantName, tuple] = entry as [string, [unknown, unknown]]
     const [oldRaw, newRaw] = tuple
@@ -153,13 +159,17 @@ const describeField = (field: RawFieldValue): FieldDisplay => {
     return {label, oldValue: formatFieldValue(oldRaw), newValue: formatFieldValue(newRaw)}
 }
 
-const toRows = (items: RawDiffItem[], target: "datafix" | "sequent"): SyncDiffRow[] =>
+const toRows = (
+    items: RawDiffItem[],
+    target: "datafix" | "sequent",
+    t: TranslateFn
+): SyncDiffRow[] =>
     items
         .filter(
             (item) => item.target === target && item.category !== ESyncChangeCategory.ROW_FAILURE
         )
         .map((item, index) => {
-            const {label, oldValue, newValue} = describeField(item.field ?? null)
+            const {label, oldValue, newValue} = describeField(item.field ?? null, t)
             return {
                 id: `${item.voter_username}:${label}:${index}`,
                 voterId: item.voter_username,
@@ -172,11 +182,11 @@ const toRows = (items: RawDiffItem[], target: "datafix" | "sequent"): SyncDiffRo
             }
         })
 
-const toRowFailures = (items: RawDiffItem[]): SyncDiffRow[] =>
+const toRowFailures = (items: RawDiffItem[], t: TranslateFn): SyncDiffRow[] =>
     items
         .filter((item) => item.category === ESyncChangeCategory.ROW_FAILURE)
         .map((item, index) => {
-            const {label, oldValue, newValue} = describeField(item.field ?? null)
+            const {label, oldValue, newValue} = describeField(item.field ?? null, t)
             return {
                 id: `failure:${item.voter_username}:${index}`,
                 voterId: item.voter_username,
@@ -211,6 +221,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     electionEventId,
     onClose,
 }) => {
+    const {t} = useTranslation()
     const [addWidget, setWidgetTaskId] = useWidgetStore()
 
     const [step, setStep] = useState<WizardStep>("drop")
@@ -259,21 +270,24 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                 setStep("review")
             })
             .catch(() =>
-                setErrorMessage("Failed to load the reconciliation diff - please try again.")
+                setErrorMessage(t("reconciliation.wizard.notifications.envelopeLoadError"))
             )
-    }, [diffDocumentData?.fetchDocument?.url, envelope])
+    }, [diffDocumentData?.fetchDocument?.url, envelope, t])
 
     const items: RawDiffItem[] = envelope?.items ?? []
 
-    const datafixRows = useMemo(() => toRows(items, "datafix"), [items])
-    const sequentRows = useMemo(() => toRows(items, "sequent"), [items])
-    const rowFailures = useMemo(() => toRowFailures(items), [items])
+    const datafixRows = useMemo(() => toRows(items, "datafix", t), [items, t])
+    const sequentRows = useMemo(() => toRows(items, "sequent", t), [items, t])
+    const rowFailures = useMemo(() => toRowFailures(items, t), [items, t])
     const isClean = datafixRows.length === 0
     const summary = useMemo(
         () => countsByCategory([...datafixRows, ...sequentRows]),
         [datafixRows, sequentRows]
     )
-    const confirmationSummary = useMemo(() => summarizeForConfirmation(sequentRows), [sequentRows])
+    const confirmationSummary = useMemo(
+        () => summarizeForConfirmation(sequentRows, t),
+        [sequentRows, t]
+    )
 
     // Drives the wizard's own step transitions - separate from the ambient
     // addWidget/setWidgetTaskId call below (which only feeds the app-wide
@@ -291,9 +305,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
         // Stays on "processing" until the effect above finishes fetching and
         // parsing the envelope document, then moves to "review" itself.
     } else if (step === "processing" && generateStatus === ETaskExecutionStatus.FAILED) {
-        setErrorMessage(
-            "Failed to calculate the reconciliation diff - see the task widget for details."
-        )
+        setErrorMessage(t("reconciliation.wizard.notifications.generateFailed"))
         setStep("drop")
     }
 
@@ -303,9 +315,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     if (step === "applying" && applyStatus === ETaskExecutionStatus.SUCCESS) {
         setStep("done")
     } else if (step === "applying" && applyStatus === ETaskExecutionStatus.FAILED) {
-        setErrorMessage(
-            "Failed to apply the Sequent-side changes - see the task widget for details."
-        )
+        setErrorMessage(t("reconciliation.wizard.notifications.applyFailed"))
         setStep("done")
     }
 
@@ -340,7 +350,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             })
             const upload = uploadData?.get_upload_url
             if (!upload?.url || !upload?.document_id) {
-                throw new Error("Failed to get an upload URL")
+                throw new Error(t("reconciliation.wizard.notifications.uploadUrlError"))
             }
             await fetch(upload.url, {
                 method: "PUT",
@@ -356,7 +366,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             })
             const created = createData?.create_external_reconciliation_import
             if (!created?.task_execution?.id) {
-                throw new Error("Failed to start the reconciliation diff task")
+                throw new Error(t("reconciliation.wizard.notifications.generateTaskError"))
             }
 
             setGenerateTaskId(created.task_execution.id)
@@ -364,7 +374,9 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             setWidgetTaskId(widget.identifier, created.task_execution.id)
         } catch (error) {
             setErrorMessage(
-                error instanceof Error ? error.message : "Failed to upload the reconciliation file"
+                error instanceof Error
+                    ? error.message
+                    : t("reconciliation.wizard.notifications.uploadError")
             )
             setStep("drop")
         }
@@ -391,7 +403,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             })
             const taskId = data?.apply_external_reconciliation_changes?.task_execution?.id
             if (!taskId) {
-                throw new Error("Failed to start the apply task")
+                throw new Error(t("reconciliation.wizard.notifications.applyTaskError"))
             }
             setApplyTaskId(taskId)
             const widget = addWidget(ETasksExecution.APPLY_RECONCILIATION_PATCH, false)
@@ -400,7 +412,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             setErrorMessage(
                 error instanceof Error
                     ? error.message
-                    : "Failed to apply the reconciliation changes"
+                    : t("reconciliation.wizard.notifications.applyError")
             )
             setStep("done")
         }
@@ -410,8 +422,12 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
             <DialogTitle>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6">Datafix reconciliation sync</Typography>
-                    <IconButton onClick={onClose} size="small" aria-label="Close">
+                    <Typography variant="h6">{t("reconciliation.wizard.title")}</Typography>
+                    <IconButton
+                        onClick={onClose}
+                        size="small"
+                        aria-label={t("reconciliation.wizard.actions.close")}
+                    >
                         <CloseIcon fontSize="small" />
                     </IconButton>
                 </Stack>
@@ -421,22 +437,20 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                     {(step === "drop" || step === "processing") && (
                         <>
                             <Typography color="text.secondary">
-                                Drop the reconciliation file Datafix produced - both diffs
-                                (Datafix-side and Sequent-side) are calculated automatically and
-                                shown in separate tables.
+                                {t("reconciliation.wizard.drop.description")}
                             </Typography>
                             {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
                             {step === "drop" ? (
                                 <DropFile
                                     handleFiles={handleFiles}
                                     accept=".csv"
-                                    formatLabel="CSV file"
+                                    formatLabel={t("reconciliation.wizard.drop.fileFormatLabel")}
                                 />
                             ) : (
                                 <Stack direction="row" spacing={2} alignItems="center">
                                     <CircularProgress size={20} />
                                     <Typography>
-                                        Uploading {fileName} and calculating both diffs...
+                                        {t("reconciliation.wizard.drop.uploading", {fileName})}
                                     </Typography>
                                 </Stack>
                             )}
@@ -454,22 +468,25 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                 }}
                             >
                                 <Typography variant="body2" color="text.secondary">
-                                    {fileName} - Sequence {envelope.sequence}, generated{" "}
-                                    {formatGeneratedAt(envelope.generated_at)}
+                                    {t("reconciliation.wizard.review.fileSummary", {
+                                        fileName,
+                                        sequence: envelope.sequence,
+                                        generatedAt: formatGeneratedAt(envelope.generated_at),
+                                    })}
                                 </Typography>
                             </Box>
 
                             {rowFailures.length > 0 && (
                                 <Alert severity="warning">
-                                    {rowFailures.length} row(s) have an unexpected CountyMun (or a
-                                    voted-via-other-channel guard) and are excluded from both diffs
-                                    - reported as row failures once applied.
+                                    {t("reconciliation.wizard.review.rowFailuresWarning", {
+                                        count: rowFailures.length,
+                                    })}
                                 </Alert>
                             )}
 
                             {datafixRows.length === 0 && sequentRows.length === 0 ? (
                                 <Alert severity="success">
-                                    No differences - the two systems are already in sync.
+                                    {t("reconciliation.wizard.review.noDifferences")}
                                 </Alert>
                             ) : (
                                 <>
@@ -482,7 +499,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                             alignItems="center"
                                         >
                                             <Typography variant="subtitle1">
-                                                Datafix diff
+                                                {t("reconciliation.wizard.review.datafixDiffTitle")}
                                                 {datafixRows.length > 0 &&
                                                     ` (${datafixRows.length})`}
                                             </Typography>
@@ -497,13 +514,17 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                                             )
                                                         }
                                                     >
-                                                        Download Datafix patch
+                                                        {t(
+                                                            "reconciliation.wizard.review.downloadDatafixPatch"
+                                                        )}
                                                     </Button>
                                                 )}
                                         </Stack>
                                         <SyncDiffTable
                                             rows={datafixRows}
-                                            emptyMessage="No Datafix-side differences."
+                                            emptyMessage={t(
+                                                "reconciliation.wizard.review.noDatafixDifferences"
+                                            )}
                                         />
                                     </Stack>
 
@@ -511,16 +532,17 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
 
                                     <Stack spacing={1}>
                                         <Typography variant="subtitle1">
-                                            Sequent diff
+                                            {t("reconciliation.wizard.review.sequentDiffTitle")}
                                             {sequentRows.length > 0 && ` (${sequentRows.length})`}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            Applied directly to Sequent - no patch file is generated
-                                            for these.
+                                            {t("reconciliation.wizard.review.sequentDiffCaption")}
                                         </Typography>
                                         <SyncDiffTable
                                             rows={sequentRows}
-                                            emptyMessage="No Sequent-side differences."
+                                            emptyMessage={t(
+                                                "reconciliation.wizard.review.noSequentDifferences"
+                                            )}
                                         />
                                     </Stack>
                                 </>
@@ -534,20 +556,22 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                             {step === "applying" && (
                                 <Stack direction="row" spacing={2} alignItems="center">
                                     <CircularProgress size={20} />
-                                    <Typography>Applying Sequent-side changes...</Typography>
+                                    <Typography>
+                                        {t("reconciliation.wizard.applying.inProgress")}
+                                    </Typography>
                                 </Stack>
                             )}
                             {step === "done" && !errorMessage && (
                                 <>
                                     {rowFailures.length > 0 ? (
                                         <Alert severity="warning">
-                                            {rowFailures.length} row(s) failed to apply - fix
-                                            manually; the next reconciliation file will point out
-                                            the same diff otherwise.
+                                            {t("reconciliation.wizard.applying.rowFailures", {
+                                                count: rowFailures.length,
+                                            })}
                                         </Alert>
                                     ) : (
                                         <Alert severity="success">
-                                            All Sequent-side changes applied successfully.
+                                            {t("reconciliation.wizard.applying.success")}
                                         </Alert>
                                     )}
                                     {rowFailuresDocumentId && (
@@ -557,7 +581,9 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                                 setDownloadingDocumentId(rowFailuresDocumentId)
                                             }
                                         >
-                                            Download row failures report
+                                            {t(
+                                                "reconciliation.wizard.applying.downloadRowFailures"
+                                            )}
                                         </Button>
                                     )}
                                 </>
@@ -579,12 +605,12 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             <DialogActions sx={{justifyContent: "space-between", px: 3, py: 2}}>
                 {(step === "drop" || step === "processing") && (
                     <Button onClick={onClose} disabled={step === "processing"}>
-                        Cancel
+                        {t("reconciliation.wizard.actions.cancel")}
                     </Button>
                 )}
                 {step === "review" && (
                     <>
-                        <Button onClick={reset}>Back</Button>
+                        <Button onClick={reset}>{t("reconciliation.wizard.actions.back")}</Button>
                         <Button
                             variant="contained"
                             disabled={!isClean}
@@ -592,23 +618,29 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                 sequentRows.length > 0 ? setConfirmOpen(true) : handleApply()
                             }
                         >
-                            {sequentRows.length > 0 ? "Apply" : "Next"}
+                            {sequentRows.length > 0
+                                ? t("reconciliation.wizard.actions.apply")
+                                : t("reconciliation.wizard.actions.next")}
                         </Button>
                     </>
                 )}
-                {step === "applying" && <Button disabled>Back</Button>}
+                {step === "applying" && (
+                    <Button disabled>{t("reconciliation.wizard.actions.back")}</Button>
+                )}
                 {step === "done" && (
                     <>
-                        <Button onClick={reset}>Start over</Button>
+                        <Button onClick={reset}>
+                            {t("reconciliation.wizard.actions.startOver")}
+                        </Button>
                         <Button variant="contained" onClick={onClose}>
-                            Close
+                            {t("reconciliation.wizard.actions.close")}
                         </Button>
                     </>
                 )}
             </DialogActions>
 
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-                <DialogTitle>Confirm reconciliation changes</DialogTitle>
+                <DialogTitle>{t("reconciliation.wizard.confirm.title")}</DialogTitle>
                 <DialogContent>
                     <Stack spacing={2} sx={{pt: 1}}>
                         <Typography>{confirmationSummary}</Typography>
@@ -617,21 +649,27 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                             highlighted={HIGHLIGHTED_CATEGORIES}
                         />
                         <Typography variant="caption" color="text.secondary">
-                            Categories outlined in orange (
-                            {[
-                                ESyncChangeCategory.VOTED_OTHER_CHANNEL,
-                                ESyncChangeCategory.DISABLED_DELETE_CALL,
-                            ]
-                                .map((category) => CATEGORY_LABELS[category])
-                                .join(", ")}
-                            ) touch voted status or disable voters.
+                            {t("reconciliation.wizard.confirm.categoriesNote", {
+                                categories: [
+                                    ESyncChangeCategory.VOTED_OTHER_CHANNEL,
+                                    ESyncChangeCategory.DISABLED_DELETE_CALL,
+                                ]
+                                    .map((category) =>
+                                        t(`reconciliation.categories.${category}`, category)
+                                    )
+                                    .join(", "),
+                            })}
                         </Typography>
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                    <Button onClick={() => setConfirmOpen(false)}>
+                        {t("reconciliation.wizard.actions.cancel")}
+                    </Button>
                     <Button variant="contained" onClick={handleApply}>
-                        {sequentRows.length > 0 ? "Apply changes" : "Continue"}
+                        {sequentRows.length > 0
+                            ? t("reconciliation.wizard.confirm.applyChanges")
+                            : t("reconciliation.wizard.confirm.continue")}
                     </Button>
                 </DialogActions>
             </Dialog>

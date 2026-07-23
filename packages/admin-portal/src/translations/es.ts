@@ -104,6 +104,95 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
             },
         },
+        reconciliation: {
+            menuButton: "Sincronización con Datafix",
+            categories: {
+                VOTED_INTERNET: "Votó por Internet",
+                VOTED_OTHER_CHANNEL: "Votó por otro canal",
+                DISABLED_DELETE_CALL: "Votante deshabilitado",
+                DELETION_REVERTED: "Eliminación revertida",
+                PROFILE_UPDATE: "Perfil actualizado",
+                VOTER_ADDED: "Votante añadido",
+                REENABLED: "Votante rehabilitado",
+                ROW_FAILURE: "Fallo de fila",
+            },
+            table: {
+                voterId: "ID de Votante",
+                field: "Campo",
+                category: "Categoría",
+                currentValue: "Valor actual",
+                newValue: "Valor nuevo",
+                reason: "Motivo",
+                rowLabel: "Fila",
+                noDifferences: "No se encontraron diferencias - los sistemas están sincronizados.",
+            },
+            wizard: {
+                title: "Sincronización de reconciliación con Datafix",
+                drop: {
+                    description:
+                        "Suelta el archivo de reconciliación generado por Datafix - ambos diffs (lado Datafix y lado Sequent) se calculan automáticamente y se muestran en tablas separadas.",
+                    fileFormatLabel: "Archivo CSV",
+                    uploading: "Subiendo {{fileName}} y calculando ambos diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Secuencia {{sequence}}, generado {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} fila(s) tienen un CountyMun inesperado (o la protección de votado-por-otro-canal) y quedan excluidas de ambos diffs - se reportan como fallos de fila una vez aplicado.",
+                    noDifferences: "No hay diferencias - ambos sistemas ya están sincronizados.",
+                    datafixDiffTitle: "Diff de Datafix",
+                    sequentDiffTitle: "Diff de Sequent",
+                    downloadDatafixPatch: "Descargar parche de Datafix",
+                    noDatafixDifferences: "No hay diferencias del lado de Datafix.",
+                    sequentDiffCaption:
+                        "Se aplica directamente a Sequent - no se genera archivo de parche para estos.",
+                    noSequentDifferences: "No hay diferencias del lado de Sequent.",
+                },
+                applying: {
+                    inProgress: "Aplicando cambios del lado de Sequent...",
+                    rowFailures:
+                        "{{count}} fila(s) fallaron al aplicarse - corrígelas manualmente; el próximo archivo de reconciliación señalará la misma diferencia si no.",
+                    success: "Todos los cambios del lado de Sequent se aplicaron correctamente.",
+                    downloadRowFailures: "Descargar informe de fallos de fila",
+                },
+                actions: {
+                    cancel: "Cancelar",
+                    back: "Atrás",
+                    apply: "Aplicar",
+                    next: "Siguiente",
+                    startOver: "Empezar de nuevo",
+                    close: "Cerrar",
+                },
+                confirm: {
+                    title: "Confirmar cambios de reconciliación",
+                    categoriesNote:
+                        "Las categorías resaltadas en naranja ({{categories}}) afectan el estado de voto o deshabilitan votantes.",
+                    applyChanges: "Aplicar cambios",
+                    continue: "Continuar",
+                },
+                summary: {
+                    votedOtherChannel: "marca {{count}} votante(s) como votado(s) por otro canal",
+                    disabled: "deshabilita {{count}} votante(s)",
+                    reenabled: "rehabilita {{count}} votante(s)",
+                    profileUpdated: "actualiza {{count}} perfil(es)",
+                    voterAdded: "añade {{count}} votante(s)",
+                    prefix: "Esto aplicará cambios que {{parts}}.",
+                    empty: "No hay cambios del lado de Sequent para aplicar.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "No se pudo cargar el diff de reconciliación - inténtalo de nuevo.",
+                    generateFailed:
+                        "No se pudo calcular el diff de reconciliación - consulta el widget de tareas para más detalles.",
+                    applyFailed:
+                        "No se pudieron aplicar los cambios del lado de Sequent - consulta el widget de tareas para más detalles.",
+                    uploadUrlError: "No se pudo obtener una URL de subida",
+                    generateTaskError: "No se pudo iniciar la tarea de diff de reconciliación",
+                    uploadError: "No se pudo subir el archivo de reconciliación",
+                    applyTaskError: "No se pudo iniciar la tarea de aplicación",
+                    applyError: "No se pudieron aplicar los cambios de reconciliación",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",

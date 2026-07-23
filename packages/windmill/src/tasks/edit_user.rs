@@ -12,7 +12,7 @@ use crate::services::external::datafix_types::{
     SoapRequest, SoapRequestResponse, SoapRequestResult,
 };
 use crate::services::external::utils::{
-    datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
+    external_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::external::voterview_requests::SoapSendError;
@@ -29,7 +29,7 @@ use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
 use sequent_core::types::keycloak::{
-    ATTR_RESET_VALUE, User, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
+    User, ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -275,8 +275,10 @@ async fn discard_voter_ballots(
 #[instrument(skip(ctx))]
 async fn clear_voted_channel(ctx: &DatafixEditCtx<'_>) -> anyhow::Result<()> {
     let client = KeycloakAdminClient::new().await?;
-    let attributes =
-        HashMap::from([(VOTED_CHANNEL.to_string(), vec![ATTR_RESET_VALUE.to_string()])]);
+    let attributes = HashMap::from([(
+        VOTED_CHANNEL.to_string(),
+        vec![ATTR_RESET_VALUE.to_string()],
+    )]);
     client
         .edit_user(
             &ctx.realm,
@@ -478,7 +480,7 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
         .map_err(|err| format!("Error loading election event: {err:?}"))?;
 
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(&body.tenant_id, &body.election_event_id, &body.user_id),
+        external_voter_lock_key(&body.tenant_id, &body.election_event_id, &body.user_id),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -610,9 +612,8 @@ mod tests {
         // re-enable must key off the live `VoterCastVoteState`, not this stale
         // attribute, or a fully-resolved (discarded) voter could never be
         // re-enabled.
-        let plan =
-            plan_voter_release(Some(false), Some(true), &no_cast_votes(), &internet_voter())
-                .unwrap();
+        let plan = plan_voter_release(Some(false), Some(true), &no_cast_votes(), &internet_voter())
+            .unwrap();
         assert!(!plan.release_attempt);
     }
 

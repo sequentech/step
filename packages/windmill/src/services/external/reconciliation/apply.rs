@@ -29,7 +29,7 @@ use crate::postgres::cast_vote::has_valid_cast_vote;
 use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::ReconciliationChangeCategory;
 use crate::services::external::utils::{
-    datafix_voter_lock_key, get_user_id, DATAFIX_VOTER_LOCK_SECS,
+    external_voter_lock_key, get_user_id, DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
 use anyhow::{anyhow, Result};
@@ -65,7 +65,7 @@ pub async fn apply_voter_changes(
     items: &[DiffItem],
 ) -> Result<VoterApplyOutcome> {
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(tenant_id, election_event_id, voter_username),
+        external_voter_lock_key(tenant_id, election_event_id, voter_username),
         Uuid::new_v4().to_string(),
         ISO8601::now() + chrono::Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )

@@ -104,6 +104,96 @@ const frenchTranslation: TranslationType = {
                 next: "Suivant",
             },
         },
+        reconciliation: {
+            menuButton: "Synchronisation avec Datafix",
+            categories: {
+                VOTED_INTERNET: "A voté par Internet",
+                VOTED_OTHER_CHANNEL: "A voté par un autre canal",
+                DISABLED_DELETE_CALL: "Électeur désactivé",
+                DELETION_REVERTED: "Suppression annulée",
+                PROFILE_UPDATE: "Profil mis à jour",
+                VOTER_ADDED: "Électeur ajouté",
+                REENABLED: "Électeur réactivé",
+                ROW_FAILURE: "Échec de ligne",
+            },
+            table: {
+                voterId: "ID Électeur",
+                field: "Champ",
+                category: "Catégorie",
+                currentValue: "Valeur actuelle",
+                newValue: "Nouvelle valeur",
+                reason: "Motif",
+                rowLabel: "Ligne",
+                noDifferences: "Aucune différence trouvée - les systèmes sont synchronisés.",
+            },
+            wizard: {
+                title: "Synchronisation de réconciliation avec Datafix",
+                drop: {
+                    description:
+                        "Déposez le fichier de réconciliation généré par Datafix - les deux diffs (côté Datafix et côté Sequent) sont calculés automatiquement et affichés dans des tableaux séparés.",
+                    fileFormatLabel: "Fichier CSV",
+                    uploading: "Téléversement de {{fileName}} et calcul des deux diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Séquence {{sequence}}, généré {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} ligne(s) ont un CountyMun inattendu (ou la protection voté-par-un-autre-canal) et sont exclues des deux diffs - elles sont signalées comme échecs de ligne une fois appliquées.",
+                    noDifferences: "Aucune différence - les deux systèmes sont déjà synchronisés.",
+                    datafixDiffTitle: "Diff Datafix",
+                    sequentDiffTitle: "Diff Sequent",
+                    downloadDatafixPatch: "Télécharger le correctif Datafix",
+                    noDatafixDifferences: "Aucune différence côté Datafix.",
+                    sequentDiffCaption:
+                        "Appliqué directement à Sequent - aucun fichier de correctif n'est généré pour ceux-ci.",
+                    noSequentDifferences: "Aucune différence côté Sequent.",
+                },
+                applying: {
+                    inProgress: "Application des changements côté Sequent...",
+                    rowFailures:
+                        "{{count}} ligne(s) n'ont pas pu être appliquées - corrigez-les manuellement ; le prochain fichier de réconciliation signalera la même différence sinon.",
+                    success: "Tous les changements côté Sequent ont été appliqués avec succès.",
+                    downloadRowFailures: "Télécharger le rapport d'échecs de ligne",
+                },
+                actions: {
+                    cancel: "Annuler",
+                    back: "Retour",
+                    apply: "Appliquer",
+                    next: "Suivant",
+                    startOver: "Recommencer",
+                    close: "Fermer",
+                },
+                confirm: {
+                    title: "Confirmer les changements de réconciliation",
+                    categoriesNote:
+                        "Les catégories surlignées en orange ({{categories}}) affectent le statut de vote ou désactivent des électeurs.",
+                    applyChanges: "Appliquer les changements",
+                    continue: "Continuer",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "marque {{count}} électeur(s) comme ayant voté par un autre canal",
+                    disabled: "désactive {{count}} électeur(s)",
+                    reenabled: "réactive {{count}} électeur(s)",
+                    profileUpdated: "met à jour {{count}} profil(s)",
+                    voterAdded: "ajoute {{count}} électeur(s)",
+                    prefix: "Ceci appliquera des changements qui {{parts}}.",
+                    empty: "Il n'y a aucun changement côté Sequent à appliquer.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Impossible de charger le diff de réconciliation - veuillez réessayer.",
+                    generateFailed:
+                        "Impossible de calculer le diff de réconciliation - consultez le widget de tâches pour plus de détails.",
+                    applyFailed:
+                        "Impossible d'appliquer les changements côté Sequent - consultez le widget de tâches pour plus de détails.",
+                    uploadUrlError: "Impossible d'obtenir une URL de téléversement",
+                    generateTaskError: "Impossible de démarrer la tâche de diff de réconciliation",
+                    uploadError: "Impossible de téléverser le fichier de réconciliation",
+                    applyTaskError: "Impossible de démarrer la tâche d'application",
+                    applyError: "Impossible d'appliquer les changements de réconciliation",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",

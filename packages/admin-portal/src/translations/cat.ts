@@ -104,6 +104,96 @@ const catalanTranslation: TranslationType = {
                 next: "Següent",
             },
         },
+        reconciliation: {
+            menuButton: "Sincronització amb Datafix",
+            categories: {
+                VOTED_INTERNET: "Ha votat per Internet",
+                VOTED_OTHER_CHANNEL: "Ha votat per un altre canal",
+                DISABLED_DELETE_CALL: "Votant deshabilitat",
+                DELETION_REVERTED: "Eliminació revertida",
+                PROFILE_UPDATE: "Perfil actualitzat",
+                VOTER_ADDED: "Votant afegit",
+                REENABLED: "Votant rehabilitat",
+                ROW_FAILURE: "Error de fila",
+            },
+            table: {
+                voterId: "ID de Votant",
+                field: "Camp",
+                category: "Categoria",
+                currentValue: "Valor actual",
+                newValue: "Valor nou",
+                reason: "Motiu",
+                rowLabel: "Fila",
+                noDifferences: "No s'han trobat diferències - els sistemes estan sincronitzats.",
+            },
+            wizard: {
+                title: "Sincronització de reconciliació amb Datafix",
+                drop: {
+                    description:
+                        "Deixa anar el fitxer de reconciliació generat per Datafix - ambdós diffs (costat Datafix i costat Sequent) es calculen automàticament i es mostren en taules separades.",
+                    fileFormatLabel: "Fitxer CSV",
+                    uploading: "Pujant {{fileName}} i calculant ambdós diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Seqüència {{sequence}}, generat {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} fila(es) tenen un CountyMun inesperat (o la protecció de votat-per-un-altre-canal) i queden excloses d'ambdós diffs - es reporten com a errors de fila un cop aplicat.",
+                    noDifferences: "No hi ha diferències - ambdós sistemes ja estan sincronitzats.",
+                    datafixDiffTitle: "Diff de Datafix",
+                    sequentDiffTitle: "Diff de Sequent",
+                    downloadDatafixPatch: "Descarregar pedaç de Datafix",
+                    noDatafixDifferences: "No hi ha diferències del costat de Datafix.",
+                    sequentDiffCaption:
+                        "S'aplica directament a Sequent - no es genera cap fitxer de pedaç per aquests.",
+                    noSequentDifferences: "No hi ha diferències del costat de Sequent.",
+                },
+                applying: {
+                    inProgress: "Aplicant els canvis del costat de Sequent...",
+                    rowFailures:
+                        "{{count}} fila(es) han fallat en aplicar-se - corregeix-les manualment; el proper fitxer de reconciliació assenyalarà la mateixa diferència si no.",
+                    success: "Tots els canvis del costat de Sequent s'han aplicat correctament.",
+                    downloadRowFailures: "Descarregar informe d'errors de fila",
+                },
+                actions: {
+                    cancel: "Cancel·lar",
+                    back: "Enrere",
+                    apply: "Aplicar",
+                    next: "Següent",
+                    startOver: "Tornar a començar",
+                    close: "Tancar",
+                },
+                confirm: {
+                    title: "Confirmar canvis de reconciliació",
+                    categoriesNote:
+                        "Les categories ressaltades en taronja ({{categories}}) afecten l'estat de vot o deshabiliten votants.",
+                    applyChanges: "Aplicar canvis",
+                    continue: "Continuar",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "marca {{count}} votant(s) com a votat(s) per un altre canal",
+                    disabled: "deshabilita {{count}} votant(s)",
+                    reenabled: "rehabilita {{count}} votant(s)",
+                    profileUpdated: "actualitza {{count}} perfil(s)",
+                    voterAdded: "afegeix {{count}} votant(s)",
+                    prefix: "Això aplicarà canvis que {{parts}}.",
+                    empty: "No hi ha canvis del costat de Sequent per aplicar.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "No s'ha pogut carregar el diff de reconciliació - torna-ho a provar.",
+                    generateFailed:
+                        "No s'ha pogut calcular el diff de reconciliació - consulta el widget de tasques per a més detalls.",
+                    applyFailed:
+                        "No s'han pogut aplicar els canvis del costat de Sequent - consulta el widget de tasques per a més detalls.",
+                    uploadUrlError: "No s'ha pogut obtenir una URL de pujada",
+                    generateTaskError: "No s'ha pogut iniciar la tasca de diff de reconciliació",
+                    uploadError: "No s'ha pogut pujar el fitxer de reconciliació",
+                    applyTaskError: "No s'ha pogut iniciar la tasca d'aplicació",
+                    applyError: "No s'han pogut aplicar els canvis de reconciliació",
+                },
+            },
+        },
         tasksScreen: {
             noPermissions: "No tens permís per accedir als registres.",
             title: "Execució de tasques",

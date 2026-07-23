@@ -1239,7 +1239,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                               onClick={() => setOpenReconciliationWizard(true)}
                                           >
                                               <SyncAltIcon sx={{mr: 1}} />
-                                              Datafix sync
+                                              {t("reconciliation.menuButton")}
                                           </Button>,
                                       ]
                                     : []),

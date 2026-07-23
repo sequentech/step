@@ -5,8 +5,9 @@
 import React from "react"
 import {Box, Chip, Typography} from "@mui/material"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {useTranslation} from "react-i18next"
 import {SyncDiffRow} from "./types"
-import {CATEGORY_COLORS, CATEGORY_LABELS} from "./constants"
+import {CATEGORY_COLORS} from "./constants"
 
 interface SyncDiffTableProps {
     rows: SyncDiffRow[]
@@ -21,28 +22,29 @@ interface SyncDiffTableProps {
  * need to render which side a row belongs to. Client-side paginated: the
  * whole diff is fetched at once.
  */
-export const SyncDiffTable: React.FC<SyncDiffTableProps> = ({
-    rows,
-    emptyMessage = "No differences found - the systems are in sync.",
-}) => {
+export const SyncDiffTable: React.FC<SyncDiffTableProps> = ({rows, emptyMessage}) => {
+    const {t} = useTranslation()
     const columns: GridColDef<SyncDiffRow>[] = [
-        {field: "voterId", headerName: "Voter ID", width: 120},
-        {field: "label", headerName: "Field", width: 180},
+        {field: "voterId", headerName: t("reconciliation.table.voterId"), width: 120},
+        {field: "label", headerName: t("reconciliation.table.field"), width: 180},
         {
             field: "category",
-            headerName: "Category",
+            headerName: t("reconciliation.table.category"),
             width: 200,
             renderCell: (params: GridRenderCellParams<SyncDiffRow>) => (
                 <Chip
                     size="small"
-                    label={CATEGORY_LABELS[params.row.category]}
+                    label={t(
+                        `reconciliation.categories.${params.row.category}`,
+                        params.row.category
+                    )}
                     color={CATEGORY_COLORS[params.row.category]}
                 />
             ),
         },
         {
             field: "oldValue",
-            headerName: "Current value",
+            headerName: t("reconciliation.table.currentValue"),
             width: 160,
             renderCell: (params: GridRenderCellParams<SyncDiffRow>) => (
                 <Box component="del" sx={{opacity: 0.6}}>
@@ -50,14 +52,19 @@ export const SyncDiffTable: React.FC<SyncDiffTableProps> = ({
                 </Box>
             ),
         },
-        {field: "newValue", headerName: "New value", width: 160},
-        {field: "failureReason", headerName: "Reason", flex: 1, minWidth: 220},
+        {field: "newValue", headerName: t("reconciliation.table.newValue"), width: 160},
+        {
+            field: "failureReason",
+            headerName: t("reconciliation.table.reason"),
+            flex: 1,
+            minWidth: 220,
+        },
     ]
 
     if (rows.length === 0) {
         return (
             <Typography color="text.secondary" sx={{py: 2}}>
-                {emptyMessage}
+                {emptyMessage ?? t("reconciliation.table.noDifferences")}
             </Typography>
         )
     }
