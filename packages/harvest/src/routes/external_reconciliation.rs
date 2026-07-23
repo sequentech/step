@@ -19,10 +19,13 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::document::get_document;
+use windmill::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::consolidation::eml_generator::ValidateAnnotations;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::documents::get_document_as_temp_file;
 use windmill::services::external::reconciliation::diff::ReconciliationDiff;
+use windmill::services::external::types::ReconciliationPatchSource;
 use windmill::services::tasks_execution::post as post_task_execution;
 use windmill::tasks::apply_reconciliation_patch::{
     apply_reconciliation_patch, ApplyReconciliationPatchBody,
@@ -184,12 +187,26 @@ pub async fn apply_reconciliation_changes(
             )
         })?;
 
-    if envelope.datafix_patch_document_id.is_some() {
+    if envelope.external_patch_document_id.is_some() {
         return Err((
             Status::Conflict,
-            "The Datafix-side diff is not empty — apply the Datafix patch and re-import first".to_string(),
+            "The external-side diff is not empty — apply the external patch and re-import first".to_string(),
         ));
     }
+
+    // Every reconciliation round today comes from Datafix — resolve its
+    // `CountyMun` so the apply task can record the round's source (see
+    // `ReconciliationPatchSource`), gating its own Datafix-specific
+    // bookkeeping without the generic apply logic needing to know about it.
+    let election_event = get_election_event_by_id(&hasura_transaction, &tenant_id, &input.election_event_id)
+        .await
+        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
+    let datafix_annotations = ElectionEventDatafix(election_event)
+        .get_annotations()
+        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
+    let source = ReconciliationPatchSource::Datafix {
+        county_mun: datafix_annotations.voterview_request.county_mun,
+    };
 
     hasura_transaction
         .commit()
@@ -218,6 +235,7 @@ pub async fn apply_reconciliation_changes(
     let task_body = ApplyReconciliationPatchBody {
         tenant_id: tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
+        source,
         diff_document_id: input.diff_document_id.clone(),
         applied_by_user_id: executer_name,
     };

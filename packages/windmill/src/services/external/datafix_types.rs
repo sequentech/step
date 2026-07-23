@@ -309,32 +309,69 @@ pub struct SoapRequestData<'a> {
 // `super::types` instead — they're not Datafix-specific wire shapes.
 // =======================================================================
 
-/// One column of the "Patch Files Format" `_old`/`_new` pair contract. Wire
-/// values match `PATCH_FIELDS` in the admin portal's `types.ts` exactly (D4).
+/// One column of the "Patch Files Format" `_old`/`_new` pair contract,
+/// carrying that pair directly (`old`, `new`) instead of leaving it to a
+/// separate `old_value`/`new_value` on `DiffItem` — a field and its own
+/// old/new values are never meaningful apart from each other, so keeping
+/// them on `DiffItem` alongside the field was pure duplication. Wire column
+/// names match `PATCH_FIELDS` in the admin portal's `types.ts` exactly (D4).
 #[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, EnumString)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DatafixReconciliationField {
-    CountyMun,
-    DoB,
-    Ward,
-    Poll,
-    SchoolSupportCode,
-    Channel,
-    Deleted,
+    CountyMun(String, String),
+    DoB(String, String),
+    Ward(String, String),
+    Poll(String, String),
+    SchoolSupportCode(String, String),
+    Channel(String, String),
+    /// Kept as the literal CSV strings ("true"/"false"/"NONE"), not a `bool`
+    /// — unlike Sequent's own `Enabled` (a genuine two-state Keycloak flag),
+    /// the patch CSV's `Deleted` column can legitimately carry `NONE` (no
+    /// prior value, e.g. reporting a Sequent-only voter Datafix has never
+    /// seen), which a `bool` can't represent.
+    Deleted(String, String),
 }
 
 impl DatafixReconciliationField {
-    /// Every field, in the fixed column order the patch CSV and the "Patch
-    /// Files Format" spec require regardless of which fields changed.
-    pub const ALL: [DatafixReconciliationField; 7] = [
-        Self::CountyMun,
-        Self::DoB,
-        Self::Ward,
-        Self::Poll,
-        Self::SchoolSupportCode,
-        Self::Channel,
-        Self::Deleted,
+    /// Every column name, in the fixed order the patch CSV and the "Patch
+    /// Files Format" spec require regardless of which fields changed —
+    /// carries no old/new data since it's used to iterate the fixed set of
+    /// possible columns, not any voter's actual values.
+    pub const NAMES: [&'static str; 7] = [
+        "CountyMun",
+        "DoB",
+        "Ward",
+        "Poll",
+        "SchoolSupportCode",
+        "Channel",
+        "Deleted",
     ];
+
+    /// The column name this instance carries a value for.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::CountyMun(..) => "CountyMun",
+            Self::DoB(..) => "DoB",
+            Self::Ward(..) => "Ward",
+            Self::Poll(..) => "Poll",
+            Self::SchoolSupportCode(..) => "SchoolSupportCode",
+            Self::Channel(..) => "Channel",
+            Self::Deleted(..) => "Deleted",
+        }
+    }
+
+    /// The `(old, new)` pair as the literal strings the patch CSV writes.
+    pub fn old_new(&self) -> (&str, &str) {
+        match self {
+            Self::CountyMun(old, new)
+            | Self::DoB(old, new)
+            | Self::Ward(old, new)
+            | Self::Poll(old, new)
+            | Self::SchoolSupportCode(old, new)
+            | Self::Channel(old, new)
+            | Self::Deleted(old, new) => (old.as_str(), new.as_str()),
+        }
+    }
 }
 
 /// One row of an uploaded reconciliation file, after CSV parsing. Field names

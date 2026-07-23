@@ -45,13 +45,24 @@ interface ReconciliationWizardProps {
 
 const POLL_INTERVAL_MS = 3000
 
+/**
+ * A field's own `(old, new)` pair now lives inside the field itself, wire-
+ * shaped as a single-key object keyed by the Rust variant name (e.g.
+ * `{"Channel": ["NONE", "INTERNET"]}`, `{"Enabled": [true, false]}`,
+ * `{"KeycloakUA": [{"voted-channel": "NONE"}, {"voted-channel": "PAPER"}]}`)
+ * — not a separate `old_value`/`new_value` on the item, since a field is
+ * never meaningful apart from its own old/new values. `null` when the change
+ * (e.g. a CountyMun mismatch row failure) has no corresponding field at all.
+ * See `describeField` below for how this is turned back into a flat
+ * label/oldValue/newValue for display.
+ */
+type RawFieldValue = Record<string, unknown> | null
+
 interface RawDiffItem {
     voter_username: string
     target: "datafix" | "sequent"
     category: ESyncChangeCategory
-    field?: string | null
-    old_value?: string | null
-    new_value?: string | null
+    field?: RawFieldValue
     failure_reason?: string | null
 }
 
@@ -65,7 +76,7 @@ interface RawDiffItem {
 interface ReconciliationDiffEnvelope {
     sequence: number
     generated_at: number
-    datafix_patch_document_id: string | null
+    external_patch_document_id: string | null
     items: RawDiffItem[]
 }
 
@@ -75,7 +86,7 @@ const summarizeForConfirmation = (rows: SyncDiffRow[]): string => {
 
     const phrases = [
         [ESyncChangeCategory.VOTED_OTHER_CHANNEL, "marks", "voter(s) as voted via other channels"],
-        [ESyncChangeCategory.DISABLED, "disables", "voter(s)"],
+        [ESyncChangeCategory.DISABLED_DELETE_CALL, "disables", "voter(s)"],
         [ESyncChangeCategory.REENABLED, "re-enables", "voter(s)"],
         [ESyncChangeCategory.PROFILE_UPDATE, "updates", "profile(s)"],
         [ESyncChangeCategory.VOTER_ADDED, "adds", "voter(s)"],
@@ -101,39 +112,83 @@ const countsByCategory = (rows: SyncDiffRow[]): Partial<Record<ESyncChangeCatego
     return counts
 }
 
+/** Flat label/oldValue/newValue the table actually renders, derived from a
+ * raw item's `field` (see the `RawFieldValue` doc above). */
+interface FieldDisplay {
+    label: string
+    oldValue: string
+    newValue: string
+}
+
+/** Renders a single old/new element: booleans as "true"/"false" (`Enabled`),
+ * a Keycloak attribute bag as "key=value" pairs (`KeycloakUA`), otherwise the
+ * value as-is (every other field is already a plain string). */
+const formatFieldValue = (value: unknown): string => {
+    if (typeof value === "boolean") {
+        return value ? "true" : "false"
+    }
+    if (value !== null && typeof value === "object") {
+        const entries = Object.entries(value as Record<string, string>)
+        return entries.length > 0 ? entries.map(([key, val]) => `${key}=${val}`).join(", ") : "NONE"
+    }
+    return value == null ? "NONE" : String(value)
+}
+
+const describeField = (field: RawFieldValue): FieldDisplay => {
+    const entry = field ? Object.entries(field)[0] : undefined
+    if (!entry) {
+        // `null` when the change (e.g. a CountyMun mismatch row failure)
+        // has no corresponding field at all - the Reason column explains it.
+        return {label: "Row", oldValue: "NONE", newValue: "NONE"}
+    }
+    const [variantName, tuple] = entry as [string, [unknown, unknown]]
+    const [oldRaw, newRaw] = tuple
+    // KeycloakUA carries a bag of Keycloak attributes rather than a single
+    // field - label by the attribute(s) actually being written instead of
+    // the generic variant name.
+    const label =
+        variantName === "KeycloakUA" && newRaw && typeof newRaw === "object"
+            ? Object.keys(newRaw as Record<string, string>).join(", ") || variantName
+            : variantName
+    return {label, oldValue: formatFieldValue(oldRaw), newValue: formatFieldValue(newRaw)}
+}
+
 const toRows = (items: RawDiffItem[], target: "datafix" | "sequent"): SyncDiffRow[] =>
     items
         .filter(
             (item) => item.target === target && item.category !== ESyncChangeCategory.ROW_FAILURE
         )
-        .map((item, index) => ({
-            id: `${item.voter_username}:${item.field ?? ""}:${index}`,
-            voterId: item.voter_username,
-            field: item.field ?? "",
-            label: item.field ?? "",
-            oldValue: item.old_value ?? "NONE",
-            newValue: item.new_value ?? "NONE",
-            category: item.category,
-            target: item.target,
-        }))
+        .map((item, index) => {
+            const {label, oldValue, newValue} = describeField(item.field ?? null)
+            return {
+                id: `${item.voter_username}:${label}:${index}`,
+                voterId: item.voter_username,
+                field: label,
+                label,
+                oldValue,
+                newValue,
+                category: item.category,
+                target: item.target,
+            }
+        })
 
 const toRowFailures = (items: RawDiffItem[]): SyncDiffRow[] =>
     items
         .filter((item) => item.category === ESyncChangeCategory.ROW_FAILURE)
-        .map((item, index) => ({
-            id: `failure:${item.voter_username}:${index}`,
-            voterId: item.voter_username,
-            // `field` is null when the failure (e.g. a CountyMun mismatch)
-            // doesn't correspond to any Sequent field - falls back to a
-            // generic label instead of a blank Field column.
-            field: item.field ?? "Row",
-            label: item.field ?? "Row",
-            oldValue: item.old_value ?? "NONE",
-            newValue: item.new_value ?? "NONE",
-            category: item.category,
-            target: item.target,
-            failureReason: item.failure_reason ?? undefined,
-        }))
+        .map((item, index) => {
+            const {label, oldValue, newValue} = describeField(item.field ?? null)
+            return {
+                id: `failure:${item.voter_username}:${index}`,
+                voterId: item.voter_username,
+                field: label,
+                label,
+                oldValue,
+                newValue,
+                category: item.category,
+                target: item.target,
+                failureReason: item.failure_reason ?? undefined,
+            }
+        })
 
 /**
  * Reconciliation wizard: Drop the reconciliation file, both diffs (Datafix-side, Sequent-side) are
@@ -432,13 +487,13 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                                     ` (${datafixRows.length})`}
                                             </Typography>
                                             {datafixRows.length > 0 &&
-                                                envelope.datafix_patch_document_id && (
+                                                envelope.external_patch_document_id && (
                                                     <Button
                                                         size="small"
                                                         variant="outlined"
                                                         onClick={() =>
                                                             setDownloadingDocumentId(
-                                                                envelope.datafix_patch_document_id
+                                                                envelope.external_patch_document_id
                                                             )
                                                         }
                                                     >
@@ -563,7 +618,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                         />
                         <Typography variant="caption" color="text.secondary">
                             Categories outlined in orange (
-                            {[ESyncChangeCategory.VOTED_OTHER_CHANNEL, ESyncChangeCategory.DISABLED]
+                            {[ESyncChangeCategory.VOTED_OTHER_CHANNEL, ESyncChangeCategory.DISABLED_DELETE_CALL]
                                 .map((category) => CATEGORY_LABELS[category])
                                 .join(", ")}
                             ) touch voted status or disable voters.

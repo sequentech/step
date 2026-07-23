@@ -16,7 +16,7 @@
 export enum ESyncChangeCategory {
     VOTED_INTERNET = "VOTED_INTERNET", // A: Sequent holds a valid internet ballot, Datafix says NONE
     VOTED_OTHER_CHANNEL = "VOTED_OTHER_CHANNEL", // B: Datafix reports a non-INTERNET channel
-    DISABLED = "DISABLED", // C: Deleted=true in the reconciliation file
+    DISABLED_DELETE_CALL = "DISABLED_DELETE_CALL", // C: Deleted=true in the reconciliation file
     DELETION_REVERTED = "DELETION_REVERTED", // C exception: voter has voted, deletion is not applied
     PROFILE_UPDATE = "PROFILE_UPDATE", // C: Ward/Poll/SchoolSupportCode/DoB changed
     VOTER_ADDED = "VOTER_ADDED", // D: voter missing on one side

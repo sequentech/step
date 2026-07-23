@@ -7,7 +7,7 @@ import {ESyncChangeCategory} from "./types"
 export const CATEGORY_LABELS: Record<ESyncChangeCategory, string> = {
     [ESyncChangeCategory.VOTED_INTERNET]: "Voted via Internet",
     [ESyncChangeCategory.VOTED_OTHER_CHANNEL]: "Voted via other channel",
-    [ESyncChangeCategory.DISABLED]: "Voter disabled",
+    [ESyncChangeCategory.DISABLED_DELETE_CALL]: "Voter disabled",
     [ESyncChangeCategory.DELETION_REVERTED]: "Deletion reverted",
     [ESyncChangeCategory.PROFILE_UPDATE]: "Profile update",
     [ESyncChangeCategory.VOTER_ADDED]: "Voter added",
@@ -21,7 +21,7 @@ export const CATEGORY_COLORS: Record<
 > = {
     [ESyncChangeCategory.VOTED_INTERNET]: "info",
     [ESyncChangeCategory.VOTED_OTHER_CHANNEL]: "warning",
-    [ESyncChangeCategory.DISABLED]: "warning",
+    [ESyncChangeCategory.DISABLED_DELETE_CALL]: "warning",
     [ESyncChangeCategory.DELETION_REVERTED]: "info",
     [ESyncChangeCategory.PROFILE_UPDATE]: "default",
     [ESyncChangeCategory.VOTER_ADDED]: "success",
@@ -34,5 +34,5 @@ export const CATEGORY_COLORS: Record<
 export const HIGHLIGHTED_CATEGORIES = new Set<ESyncChangeCategory>([
     ESyncChangeCategory.VOTED_INTERNET,
     ESyncChangeCategory.VOTED_OTHER_CHANNEL,
-    ESyncChangeCategory.DISABLED,
+    ESyncChangeCategory.DISABLED_DELETE_CALL,
 ])
