@@ -86,6 +86,54 @@ impl Message {
             None,
         )
     }
+    /// Records a third-party voter registry reconciliation run event (patch
+    /// generation or applying the Sequent-side diff) — see
+    /// `StatementBody::ExternalReconciliation` and
+    /// DatafixReconciliationImplementationPlan.md section 10 (D10). Named for
+    /// the general capability, not the specific integration (Datafix) that
+    /// first needed it.
+    /// Unlike most `Message::*_message` constructors, this calls [`Self::sign`]
+    /// directly instead of [`Self::from_body`] so `artifact` (the JSON of
+    /// old/new values applied, for a `ChangesApplied` entry) can be carried —
+    /// `from_body` always signs with `artifact: None`.
+    #[instrument(skip_all, err)]
+    pub fn external_reconciliation_message(
+        event_id: EventIdString,
+        kind: ExternalReconciliationKind,
+        sequence: ExternalReconciliationSequenceString,
+        generated_at: ExternalReconciliationGeneratedAtString,
+        input_hash: ExternalReconciliationInputHashString,
+        output_hash: ExternalReconciliationOutputHashString,
+        artifact: Option<Vec<u8>>,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ExternalReconciliation(
+            event_id.clone(),
+            kind,
+            sequence,
+            generated_at,
+            input_hash,
+            output_hash,
+        );
+        let head = StatementHead::from_body(event_id, &body);
+        let statement = Statement::new(head, body);
+
+        Message::sign(
+            statement,
+            artifact,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None, /* election_id: a reconciliation run is event-wide, not tied to one election */
+            None, /* area_id */
+            None, /* ballot_id */
+        )
+    }
+
     pub fn cast_vote_message(
         event: EventIdString,
         election: ElectionIdString,
