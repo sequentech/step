@@ -93,6 +93,9 @@ import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
+export const VOTED_CHANNEL = "voted-channel"
+export const DISABLE_COMMENT = "disable-comment"
+const ATTR_RESET_VALUE = "NONE"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -219,6 +222,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         key="has_voted"
                         source={"has_voted"}
                         label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
+                    />
+                )
+                filters.push(
+                    <TextInput
+                        key={VOTED_CHANNEL}
+                        source={`attributes.${VOTED_CHANNEL}`}
+                        label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
                     />
                 )
             }
@@ -879,6 +889,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
+    // Datafix voter edits are handled asynchronously by a task; show a progress
+    // widget for it. Non-Datafix edits return no task, so this is not called.
+    const handleEditUserTask = (taskExecutionId: string) => {
+        const currWidget = addWidget(ETasksExecution.EDIT_USER, undefined)
+        setWidgetTaskId(currWidget.identifier, taskExecutionId, refresh)
+    }
+
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
@@ -898,6 +915,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
             if (attr.name === AUTHORIZED_ELECTION_IDS) return null
+            if (attr.name === DISABLE_COMMENT) return null
+            if (attr.name === VOTED_CHANNEL) return null
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
@@ -1092,6 +1111,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         {renderFields(listFields.attributesFields)}
                         {electionEventId && (
                             <FunctionField<IUser>
+                                source={`attributes['${VOTED_CHANNEL}']`}
+                                label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
+                                render={(record) => {
+                                    const values = record?.attributes?.[VOTED_CHANNEL]
+                                    const channel = Array.isArray(values)
+                                        ? values[values.length - 1]
+                                        : values
+                                    return channel && channel !== ATTR_RESET_VALUE ? channel : "-"
+                                }}
+                            />
+                        )}
+                        {electionEventId && (
+                            <FunctionField<IUser>
+                                source={`attributes['${DISABLE_COMMENT}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.disable-comment")
+                                )}
+                                render={(record) => {
+                                    const values = record?.attributes?.[DISABLE_COMMENT]
+                                    const comment = Array.isArray(values)
+                                        ? values[values.length - 1]
+                                        : values
+                                    return comment && comment !== ATTR_RESET_VALUE ? comment : "-"
+                                }}
+                            />
+                        )}
+                        {electionEventId && (
+                            <FunctionField<IUser>
                                 source="has_voted"
                                 label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                                 render={(record, source) => {
@@ -1203,6 +1250,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
                     record={userRecord}
+                    onTaskLaunched={handleEditUserTask}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openSendTemplate} onClose={handleClose}>

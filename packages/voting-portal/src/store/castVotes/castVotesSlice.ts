@@ -5,6 +5,12 @@ import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {isUndefined} from "@sequentech/ui-core"
 
+export enum CastVoteStatus {
+    IN_PROGRESS = "in-progress",
+    VALID = "valid",
+    DISCARDED = "discarded",
+}
+
 export interface ICastVote {
     id: string
     tenant_id: string
@@ -18,6 +24,7 @@ export interface ICastVote {
     cast_ballot_signature?: string | null
     voter_id_string?: string | null
     election_event_id: string
+    status?: CastVoteStatus | null
 }
 
 export interface CastVoteState {
@@ -38,6 +45,14 @@ export const castVotesSlice = createSlice({
                 if (!castVote.election_id) {
                     continue
                 }
+
+                if (castVote.status === CastVoteStatus.DISCARDED) {
+                    state[castVote.election_id] = (state[castVote.election_id] || []).filter(
+                        (cv) => castVote.id !== cv.id
+                    )
+                    continue
+                }
+
                 state[castVote.election_id] = [
                     ...(state[castVote.election_id] || []).filter((cv) => castVote.id !== cv.id),
                     castVote,

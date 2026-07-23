@@ -29,7 +29,7 @@ import {useLocation, useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
+import {canVoteSomeElection, CastVoteStatus} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
@@ -47,14 +47,13 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
+import {GetCastVotesQuery, GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
-import {GetCastVotesQuery} from "../gql/graphql"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 
@@ -171,7 +170,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         (item) => item.status.voting_status === EVotingStatus.OPEN
     )
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
         skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
     })
 
@@ -184,7 +183,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             const numAllowedRevotes = election?.num_allowed_revotes ?? 1
             const electionCastVotes =
                 castVotes?.sequent_backend_cast_vote.filter(
-                    (castVote) => castVote.election_id === electionId
+                    (castVote) =>
+                        castVote.election_id === electionId &&
+                        castVote.status !== CastVoteStatus.DISCARDED
                 ) ?? []
             console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
             if (numAllowedRevotes === 0) {
