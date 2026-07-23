@@ -4,19 +4,17 @@
 
 use anyhow::Result;
 
-use crate::Hasher;
-use cryptography::utils::hash::Hasher as HasherTrait;
 use crate::messages::artifact::Configuration;
+use crate::Hasher;
 use cryptography::context::Context;
+use cryptography::utils::hash::Hasher as HasherTrait;
 use cryptography::utils::serialization::VSerializable;
 use cryptography::VSerializable as VSer;
 use sha3::Digest;
 
 pub const MAX_TRUSTEES: usize = 8;
-pub const MAX_CIPHERTEXT_WIDTH: usize = 8; 
+pub const MAX_CIPHERTEXT_WIDTH: usize = 8;
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
-pub const VERIFIER_INDEX: usize = 2000;
-pub const NULL_TRUSTEE: usize = 1001;
 
 // Hash type: using 64-byte SHA3-512 output
 pub type Hash = crate::CryptographicHash;
@@ -51,35 +49,11 @@ impl std::fmt::Debug for ConfigurationHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
-pub struct ChannelHash(pub Hash);
-impl std::fmt::Debug for ChannelHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ChannelHash({})", dbg_hash(&self.0))
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
-pub struct ChannelsHashes(pub THashes);
-impl std::fmt::Debug for ChannelsHashes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ChannelsHashes({})", dbg_hashes(&self.0))
-    }
-}
-
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VSer)]
 pub struct SharesHash(pub Hash);
 impl std::fmt::Debug for SharesHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SharesHash({})", dbg_hash(&self.0))
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
-pub struct SharesHashes(pub THashes);
-impl std::fmt::Debug for SharesHashes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SharesHashes({})", dbg_hashes(&self.0))
     }
 }
 
@@ -112,22 +86,6 @@ impl std::fmt::Debug for DecryptionFactorsHash {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, VSer)]
-pub struct DecryptionFactorsHashes(pub THashes);
-impl std::fmt::Debug for DecryptionFactorsHashes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DecryptionFactorsHashes({})", dbg_hashes(&self.0))
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
-pub struct MixingHashes(pub THashes);
-impl std::fmt::Debug for MixingHashes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MixingHashes({})", dbg_hashes(&self.0))
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct PlaintextsHash(pub Hash);
 impl std::fmt::Debug for PlaintextsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -144,21 +102,12 @@ pub type TrusteePosition = usize;
 // 1-based
 pub type Threshold = usize;
 pub type TrusteeCount = usize;
-// 1-based: the elements of the array are 1-based trustee positions
-pub type TrusteeSet = [usize; MAX_TRUSTEES];
 
 // 1-based trustee index of a message sender (see crates/braid/v0.6_spec.md §4.3)
 pub type TrusteeIndex = usize;
 
-// 1-based, the position in the mixing chain (note this is not the same as the
-// position of the mixing trustee, since active trustees are set by the ballots artifact)
-pub type MixNumber = usize;
-
-pub type BatchNumber = u64;
 // Seconds elapsed since the std::time::UNIX_EPOCH
 pub type Timestamp = u64;
-
-pub type THashes = [Hash; MAX_TRUSTEES];
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
@@ -166,15 +115,4 @@ pub type THashes = [Hash; MAX_TRUSTEES];
 
 fn dbg_hash(h: &Hash) -> String {
     hex::encode(h)[0..10].to_string()
-}
-fn dbg_hashes<const N: usize>(hs: &[Hash; N]) -> String {
-    let zero = zero_hash();
-    hs.map(|h| {
-        if h == zero {
-            "-".to_string()
-        } else {
-            hex::encode(h)[0..10].to_string()
-        }
-    })
-    .join(" ")
 }

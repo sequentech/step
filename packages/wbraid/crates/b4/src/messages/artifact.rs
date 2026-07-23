@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use crate::messages::newtypes::{BatchNumber, PROTOCOL_MANAGER_INDEX};
+use crate::messages::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::Hasher;
 use cryptography::utils::hash::Hasher as HasherTrait;
 
@@ -110,23 +110,6 @@ impl<C: Context> Configuration<C> {
         } else {
             self.trustees.iter().position(|t| t == trustee_pk)
         }
-    }
-
-    /// Legacy (pre-v0.6) Fiat–Shamir domain prefix, keyed on the numeric
-    /// `Configuration.id` + `batch`. Used only by the reference `protocol::action`
-    /// path; the v0.6 runtime instead binds transcripts to `cfg_hash` (§3.3) via
-    /// `runtime::domain_label` and never calls this. Retained until the legacy
-    /// path is dropped from the build.
-    pub fn label(&self, batch: BatchNumber, suffix: String) -> Vec<u8> {
-        let mut ret = vec![];
-        ret.extend(self.id.to_le_bytes());
-        ret.extend(batch.to_le_bytes());
-        // platform-independent value (cannot use usize as it may differ)
-        let suffix_len = suffix.len() as u64;
-        ret.extend(suffix_len.to_le_bytes());
-        ret.extend(suffix.as_bytes());
-
-        ret
     }
 }
 
