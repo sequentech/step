@@ -65,7 +65,6 @@
 //! | [`board`] | board client + [`Transport`](board::transport::Transport) / [`Persistence`](board::persistence::Persistence) seams; the b4 board union | §6, §8 |
 //! | [`session`] | one trustee bound to one board client; the update-first driver | §6 |
 //! | [`protocol`] | const-generic dispatch macros for the ciphertext width `W` | §10.3 |
-//! | [`util`] | small shared helpers | — |
 //! | [`native`] | native-only: logging + the test harnesses | §2 |
 //! | `wasm` (feature `wasm-core`) | wasm bindings + the interactive emulator | §2 (M3) |
 //!
@@ -86,7 +85,6 @@ pub mod messages;
 pub mod protocol;
 pub mod runtime;
 pub mod session;
-pub mod util;
 
 // Platform-specific modules
 #[cfg(feature = "native")]

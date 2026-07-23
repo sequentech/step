@@ -15,8 +15,6 @@ use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::dkgd::recipient::DecryptionFactor;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
-use cryptography::utils::symm;
-use cryptography::zkp::schnorr::SchnorrProof;
 use cryptography::zkp::shuffle::ShuffleProof;
 use cryptography::VSerializable as VSer;
 use sha3::Digest;
@@ -28,10 +26,9 @@ pub struct Configuration<C: Context> {
     pub trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
     pub threshold: usize,
     pub ciphertext_width: usize,
-    /// Per-trustee share-encryption public keys (v0.6), one element per entry in
-    /// `trustees` and in the same order. Peers encrypt DKG shares to these keys,
-    /// replacing the former per-trustee `Channel` + symmetric key. Empty on the
-    /// legacy (pre-v0.6) path, which still uses `Channel` messages.
+    /// Per-trustee share-encryption public keys, one element per entry in
+    /// `trustees` and in the same order. Peers encrypt DKG shares to these keys
+    /// (§9.4).
     pub share_encryption_keys: Vec<C::Element>,
     pub phantom: PhantomData<C>,
 }
@@ -78,7 +75,7 @@ impl<C: Context> Configuration<C> {
     /// `keys` must have one entry per trustee, in the same order as `trustees`.
     /// The public side lives on the board inside the `Configuration`; each
     /// trustee holds the matching secret scalar out of band (supplied at
-    /// construction). Replaces the legacy `Channel` share-transport keys.
+    /// construction).
     pub fn with_share_encryption_keys(mut self, keys: Vec<C::Element>) -> Configuration<C> {
         assert_eq!(
             keys.len(),
@@ -111,58 +108,6 @@ impl<C: Context> Configuration<C> {
             self.trustees.iter().position(|t| t == trustee_pk)
         }
     }
-}
-
-pub struct Channel<C: Context> {
-    // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
-    pub channel_pk: C::Element,
-    pub pk_proof: SchnorrProof<C>,
-    pub encrypted_channel_sk: symm::EncryptionData,
-}
-
-impl<C: Context> VSerializable for Channel<C> {
-    fn ser(&self) -> Vec<u8> {
-        (&self.channel_pk, &self.pk_proof, &self.encrypted_channel_sk).ser()
-    }
-}
-
-impl<C: Context> VDeserializable for Channel<C> {
-    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
-        let (channel_pk, pk_proof, encrypted_channel_sk) =
-            <(C::Element, SchnorrProof<C>, symm::EncryptionData)>::deser(buffer)?;
-        Ok(Channel {
-            channel_pk,
-            pk_proof,
-            encrypted_channel_sk,
-        })
-    }
-}
-
-impl<C: Context> Channel<C> {
-    pub fn new(
-        channel_pk: C::Element,
-        pk_proof: SchnorrProof<C>,
-        encrypted_channel_sk: symm::EncryptionData,
-    ) -> Channel<C> {
-        Channel {
-            channel_pk,
-            pk_proof,
-            encrypted_channel_sk,
-        }
-    }
-}
-
-/// Share data downloaded by trustees into removable media.
-///
-/// The encrypted private key in the Channel serves to
-/// decrypt the shares sent to the trustee.
-///
-/// Strictly speaking this is not an artifact posted to
-/// bulletin board, but we define it here anyway.
-#[derive(VSer)]
-pub struct TrusteeShareData<C: Context> {
-    pub channel: Channel<C>,
-    pub shares: Vec<Shares<C>>,
 }
 
 #[derive(Debug, VSer)]
@@ -289,12 +234,6 @@ impl<C: Context> std::fmt::Debug for Configuration<C> {
             self.protocol_manager,
             self.threshold
         )
-    }
-}
-
-impl<C: Context> std::fmt::Debug for Channel<C> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "channel_pk={:?},", self.channel_pk,)
     }
 }
 

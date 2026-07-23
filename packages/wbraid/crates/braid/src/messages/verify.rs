@@ -33,11 +33,11 @@ use crate::messages::predicate::{
 
 /// Verify the signature and reconstruct the datalog predicate (plus the body for
 /// bodied types). See §3.4:
-/// 1. `out_hash = H(body)` over the received body bytes;
+/// 1. `body_hash = H(body)` over the received body bytes;
 /// 2. deserialize the head selected by `message_type`;
-/// 3. re-assemble `signed_bytes = statement_bytes(head, out_hash)`;
+/// 3. re-assemble `signed_bytes = statement_bytes(head, body_hash)`;
 /// 4. verify the signature under the sender's key from `configuration`;
-/// 5. project head + sender + out_hash to the predicate.
+/// 5. project head + sender + body_hash to the predicate.
 ///
 /// Covers the 7 message-derived predicate types. `Configuration` is NOT handled
 /// here — its predicate (`ConfigurationValid`) additionally needs the body's
@@ -81,13 +81,13 @@ pub fn verify<C: Context>(
         )),
         MessageType::Shares => {
             let body = require_body(message)?;
-            let out_hash = b4::hash_bytes(body);
+            let body_hash = b4::hash_bytes(body);
             let head = SharesHead::deser(&message.head)
                 .map_err(|e| anyhow!("Shares head deserialization failed: {e:?}"))?;
-            message.check_signature(verifier, &statement_bytes(&head, Some(&out_hash)))?;
+            message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
             let predicate = Shares {
                 configuration: head.configuration,
-                shares: SharesHash(out_hash),
+                shares: SharesHash(body_hash),
                 sender,
             }
             .into();
@@ -95,13 +95,13 @@ pub fn verify<C: Context>(
         }
         MessageType::PublicKey => {
             let body = require_body(message)?;
-            let out_hash = b4::hash_bytes(body);
+            let body_hash = b4::hash_bytes(body);
             let head = PublicKeyHead::deser(&message.head)
                 .map_err(|e| anyhow!("PublicKey head deserialization failed: {e:?}"))?;
-            message.check_signature(verifier, &statement_bytes(&head, Some(&out_hash)))?;
+            message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
             let predicate = PublicKey {
                 configuration: head.configuration,
-                public_key: PublicKeyHash(out_hash),
+                public_key: PublicKeyHash(body_hash),
                 sender,
             }
             .into();
@@ -112,14 +112,14 @@ pub fn verify<C: Context>(
                 return Err(anyhow!("Ballots must be signed by the protocol manager"));
             }
             let body = require_body(message)?;
-            let out_hash = b4::hash_bytes(body);
+            let body_hash = b4::hash_bytes(body);
             let head = BallotsHead::deser(&message.head)
                 .map_err(|e| anyhow!("Ballots head deserialization failed: {e:?}"))?;
-            message.check_signature(verifier, &statement_bytes(&head, Some(&out_hash)))?;
+            message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
             let predicate = Ballots {
                 configuration: head.configuration,
                 public_key: head.public_key,
-                ciphertexts: CiphertextsHash(out_hash),
+                ciphertexts: CiphertextsHash(body_hash),
                 trustees: head.trustees,
             }
             .into();
@@ -127,15 +127,15 @@ pub fn verify<C: Context>(
         }
         MessageType::Mix => {
             let body = require_body(message)?;
-            let out_hash = b4::hash_bytes(body);
+            let body_hash = b4::hash_bytes(body);
             let head = MixHead::deser(&message.head)
                 .map_err(|e| anyhow!("Mix head deserialization failed: {e:?}"))?;
-            message.check_signature(verifier, &statement_bytes(&head, Some(&out_hash)))?;
+            message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
             let predicate = Mix {
                 configuration: head.configuration,
                 public_key: head.public_key,
                 input: head.input,
-                output: CiphertextsHash(out_hash),
+                output: CiphertextsHash(body_hash),
                 sender,
             }
             .into();
@@ -160,15 +160,15 @@ pub fn verify<C: Context>(
         }
         MessageType::PartialDecryptions => {
             let body = require_body(message)?;
-            let out_hash = b4::hash_bytes(body);
+            let body_hash = b4::hash_bytes(body);
             let head = PartialDecryptionsHead::deser(&message.head)
                 .map_err(|e| anyhow!("PartialDecryptions head deserialization failed: {e:?}"))?;
-            message.check_signature(verifier, &statement_bytes(&head, Some(&out_hash)))?;
+            message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
             let predicate = PartialDecryptions {
                 configuration: head.configuration,
                 public_key: head.public_key,
                 ciphertexts: head.ciphertexts,
-                decryptions: DecryptionFactorsHash(out_hash),
+                decryptions: DecryptionFactorsHash(body_hash),
                 sender,
             }
             .into();
@@ -176,15 +176,15 @@ pub fn verify<C: Context>(
         }
         MessageType::Plaintexts => {
             let body = require_body(message)?;
-            let out_hash = b4::hash_bytes(body);
+            let body_hash = b4::hash_bytes(body);
             let head = PlaintextsHead::deser(&message.head)
                 .map_err(|e| anyhow!("Plaintexts head deserialization failed: {e:?}"))?;
-            message.check_signature(verifier, &statement_bytes(&head, Some(&out_hash)))?;
+            message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
             let predicate = Plaintexts {
                 configuration: head.configuration,
                 public_key: head.public_key,
                 ciphertexts: head.ciphertexts,
-                plaintexts: PlaintextsHash(out_hash),
+                plaintexts: PlaintextsHash(body_hash),
                 sender,
             }
             .into();

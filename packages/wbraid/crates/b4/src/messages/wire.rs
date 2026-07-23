@@ -14,13 +14,13 @@
 //!
 //! Head layout (the §4.4 pin) follows one rule for every type:
 //!
-//! > `head = predicate − sender − out_hash + date`
+//! > `head = predicate − sender − body_hash + date`
 //!
 //! i.e. a head carries exactly the predicate's context fields (its **in** hashes
 //! and any parameters such as `trustees`), MINUS the `sender` (bound by the
-//! verifying key) and MINUS the `out_hash` (recomputed as `H(body)`), PLUS the
+//! verifying key) and MINUS the `body_hash` (recomputed as `H(body)`), PLUS the
 //! wire-only `date`. Reconstructing the predicate (`into_predicate`) reverses
-//! this: `predicate = head (drop date) + sender + out_hash`.
+//! this: `predicate = head (drop date) + sender + body_hash`.
 //!
 //! [`MessageType::MixSignature`] is the one **bodyless** type: its content is the
 //! signature itself, so it has no body and no out hash — both of its endpoint
@@ -98,8 +98,8 @@ impl VDeserializable for MessageType {
 // Heads
 //
 // Each head = the predicate's context fields (in-hashes + params) + `date`,
-// with the out-hash (H(body)) and the sender omitted. `into_predicate` rebuilds
-// the predicate from (head − date) + sender + out_hash.
+// with the body hash (H(body)) and the sender omitted. `into_predicate` rebuilds
+// the predicate from (head − date) + sender + body_hash.
 ///////////////////////////////////////////////////////////////////////////
 
 /// Head of a `Configuration` message. The body is the `Configuration` artifact
@@ -233,11 +233,11 @@ impl<C: Context> std::fmt::Debug for WireMessage<C> {
 
 /// Serialize the transient Statement that is signed and verified (§3.3): the
 /// serialized `head` followed by `H(body)` when present. For bodyless messages
-/// (`MixSignature`) there is no `out_hash`, so the statement is the head alone.
-pub fn statement_bytes<H: VSerializable>(head: &H, out_hash: Option<&Hash>) -> Vec<u8> {
+/// (`MixSignature`) there is no `body_hash`, so the statement is the head alone.
+pub fn statement_bytes<H: VSerializable>(head: &H, body_hash: Option<&Hash>) -> Vec<u8> {
     let mut bytes = head.ser();
-    if let Some(out_hash) = out_hash {
-        bytes.extend(out_hash.ser());
+    if let Some(body_hash) = body_hash {
+        bytes.extend(body_hash.ser());
     }
     bytes
 }
@@ -292,9 +292,9 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = ConfigurationHead { date };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             manager,
             MessageType::Configuration,
@@ -312,12 +312,12 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = SharesHead {
             date,
             configuration,
         };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             signer,
             MessageType::Shares,
@@ -335,12 +335,12 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = PublicKeyHead {
             date,
             configuration,
         };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             signer,
             MessageType::PublicKey,
@@ -361,14 +361,14 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = BallotsHead {
             date,
             configuration,
             public_key,
             trustees,
         };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             manager,
             MessageType::Ballots,
@@ -389,14 +389,14 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = MixHead {
             date,
             configuration,
             public_key,
             input,
         };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             signer,
             MessageType::Mix,
@@ -438,14 +438,14 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = PartialDecryptionsHead {
             date,
             configuration,
             public_key,
             ciphertexts,
         };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             signer,
             MessageType::PartialDecryptions,
@@ -466,14 +466,14 @@ impl<C: Context> WireMessage<C> {
         body: &B,
     ) -> WireMessage<C> {
         let body_bytes = body.ser();
-        let out_hash = hash(&body_bytes);
+        let body_hash = hash(&body_bytes);
         let head = PlaintextsHead {
             date,
             configuration,
             public_key,
             ciphertexts,
         };
-        let signed = statement_bytes(&head, Some(&out_hash));
+        let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
             signer,
             MessageType::Plaintexts,
@@ -510,12 +510,12 @@ impl<C: Context> WireMessage<C> {
             ));
         }
 
-        let out_hash = hash(body);
+        let body_hash = hash(body);
         let head = ConfigurationHead::deser(&self.head)
             .map_err(|e| anyhow!("Configuration head deserialization failed: {e:?}"))?;
         self.check_signature(
             &configuration.protocol_manager,
-            &statement_bytes(&head, Some(&out_hash)),
+            &statement_bytes(&head, Some(&body_hash)),
         )?;
 
         Ok(configuration)
