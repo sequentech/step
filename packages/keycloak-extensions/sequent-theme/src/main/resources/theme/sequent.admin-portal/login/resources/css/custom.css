@@ -688,7 +688,7 @@ button#resend-otp-btn:hover {
     box-sizing: border-box;
     flex: 1 1 var(--segment-width);
     min-width: var(--segment-width);
-    max-width: calc(var(--segment-width) + 16px);
+    max-width: none;
     padding-left: 6px;
     padding-right: 6px;
     text-align: center;

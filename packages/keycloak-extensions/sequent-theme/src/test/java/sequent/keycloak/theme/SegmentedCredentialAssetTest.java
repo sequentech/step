@@ -18,6 +18,9 @@ class SegmentedCredentialAssetTest {
       Path.of(
           "src/main/resources/theme/sequent.admin-portal/login/resources/js/segmented-credential.js");
 
+  private static final Path STYLES =
+      Path.of("src/main/resources/theme/sequent.admin-portal/login/resources/css/custom.css");
+
   @Test
   void segmentsArePresentationOnlyAndSubmitThroughThePasswordField() throws IOException {
     String script = Files.readString(SCRIPT);
@@ -38,5 +41,14 @@ class SegmentedCredentialAssetTest {
     assertTrue(script.contains("const MAX_TOTAL_SIZE = 64"));
     assertTrue(script.contains("if (!layout)"));
     assertTrue(script.contains("setupVisibilityToggle([realInput]"));
+  }
+
+  @Test
+  void segmentsExpandAcrossTheAvailableInputWidth() throws IOException {
+    String styles = Files.readString(STYLES);
+
+    assertTrue(styles.contains(".segmented-credential__segment {"));
+    assertTrue(styles.contains("max-width: none;"));
+    assertFalse(styles.contains("max-width: calc(var(--segment-width) + 16px);"));
   }
 }
