@@ -78,4 +78,22 @@ describe("SelectElection", () => {
         expect(markup).toContain(legacyFormat(ELECTION_DATES.first_started_at))
         expect(markup).not.toContain("CUSTOM_DATE")
     })
+
+    it("exposes stable class names for the election results action", () => {
+        const markup = renderToStaticMarkup(
+            <ThemeProvider theme={theme}>
+                <SelectElection
+                    isActive={false}
+                    isOpen={false}
+                    title="Executive Board"
+                    hasVoted
+                    resultsUrl="https://results.example/election"
+                    isStarted
+                />
+            </ThemeProvider>
+        )
+
+        expect(markup).toContain("results-button")
+        expect(markup).toContain("election-results-button")
+    })
 })

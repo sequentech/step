@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
@@ -78,6 +79,7 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
@@ -803,6 +805,35 @@ async fn map_plaintext_data(
             TallyExecutionStatus::IN_PROGRESS.to_string()
         );
         return Ok(None);
+    }
+
+    // Refuse to tally while a contest area has a vote whose Datafix outcome is
+    // unresolved. Those votes are not countable, so proceeding would silently
+    // under-count the area.
+    let tenant_uuid = parse_uuid_v4(&tenant_id).with_context(|| "Error parsing tenant_id")?;
+    let election_event_uuid =
+        parse_uuid_v4(&election_event_id).with_context(|| "Error parsing election_event_id")?;
+    for contest in &tally_session_contest {
+        let election_uuid =
+            parse_uuid_v4(&contest.election_id).with_context(|| "Error parsing election_id")?;
+        let area_uuid = parse_uuid_v4(&contest.area_id).with_context(|| "Error parsing area_id")?;
+        let unresolved_count = count_unresolved_cast_votes(
+            hasura_transaction,
+            &tenant_uuid,
+            &election_event_uuid,
+            &election_uuid,
+            &area_uuid,
+        )
+        .await?;
+        if unresolved_count > 0 {
+            return Err(anyhow!(
+                "Refusing to tally election {} area {} for event {election_event_id}: \
+                 {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
+                contest.election_id,
+                contest.area_id,
+            )
+            .into());
+        }
     }
 
     let last_message_id: i64 = tally_session_execution.current_message_id as i64;

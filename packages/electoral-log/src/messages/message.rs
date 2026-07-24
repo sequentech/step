@@ -12,6 +12,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
+use tracing::instrument;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
@@ -52,6 +53,39 @@ impl fmt::Display for Message {
 }
 
 impl Message {
+    #[instrument(skip_all, err)]
+    pub fn external_api_request_message(
+        event_id: EventIdString,
+        election_id: ElectionIdString,
+        sd: &SigningData,
+        voter_id: Option<String>,
+        voter_username: Option<String>,
+        direction: ExtApiRequestDirection,
+        api_name: ExtApiName,
+        operation: String,
+    ) -> Result<Self> {
+        let subject = ExternalApiSubject {
+            user_id: voter_id.clone(),
+            username: voter_username.clone(),
+        };
+        let body = StatementBody::ExternalApiRequest(
+            event_id.clone(),
+            subject,
+            direction,
+            api_name,
+            operation,
+        );
+        Self::from_body(
+            event_id,
+            body,
+            sd,
+            voter_id.clone(),
+            voter_username.clone(), /* username */
+            election_id.0,
+            None,
+            None,
+        )
+    }
     pub fn cast_vote_message(
         event: EventIdString,
         election: ElectionIdString,

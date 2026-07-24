@@ -173,8 +173,7 @@ pub fn edit_voter(
     if response.status().is_success() {
         let response_body: Response<edit_user::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            let user_data = data.edit_user;
-            if let Some(id) = user_data.id {
+            if let Some(id) = data.edit_user.user.and_then(|user| user.id) {
                 Ok(id)
             } else {
                 Err(Box::from("failed generating id"))
