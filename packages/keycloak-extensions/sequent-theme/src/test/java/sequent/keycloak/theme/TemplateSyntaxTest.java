@@ -26,7 +26,7 @@ class TemplateSyntaxTest {
   private static void assertParses(Path path) throws IOException {
     Configuration configuration = new Configuration(Configuration.VERSION_2_3_34);
     configuration.setOutputFormat(HTMLOutputFormat.INSTANCE);
-    configuration.setAutoEscapingPolicy(Configuration.FORCE_AUTO_ESCAPING_POLICY);
+    configuration.setAutoEscapingPolicy(Configuration.ENABLE_IF_SUPPORTED_AUTO_ESCAPING_POLICY);
     try (Reader reader = Files.newBufferedReader(path)) {
       new Template(path.getFileName().toString(), reader, configuration);
     }
