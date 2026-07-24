@@ -20,6 +20,7 @@ import {
 } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
 import {useTranslation} from "react-i18next"
+import {ATTR_RESET_VALUE} from "@/types/keycloak"
 import {DropFile} from "@sequentech/ui-essentials"
 import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SyncDiffTable} from "./SyncDiffTable"
@@ -135,9 +136,11 @@ const formatFieldValue = (value: unknown): string => {
     }
     if (value !== null && typeof value === "object") {
         const entries = Object.entries(value as Record<string, string>)
-        return entries.length > 0 ? entries.map(([key, val]) => `${key}=${val}`).join(", ") : "NONE"
+        return entries.length > 0
+            ? entries.map(([key, val]) => `${key}=${val}`).join(", ")
+            : ATTR_RESET_VALUE
     }
-    return value == null ? "NONE" : String(value)
+    return value == null ? ATTR_RESET_VALUE : String(value)
 }
 
 const describeField = (field: RawFieldValue, t: TranslateFn): FieldDisplay => {
@@ -145,7 +148,11 @@ const describeField = (field: RawFieldValue, t: TranslateFn): FieldDisplay => {
     if (!entry) {
         // `null` when the change (e.g. a CountyMun mismatch row failure)
         // has no corresponding field at all - the Reason column explains it.
-        return {label: t("reconciliation.table.rowLabel"), oldValue: "NONE", newValue: "NONE"}
+        return {
+            label: t("reconciliation.table.rowLabel"),
+            oldValue: ATTR_RESET_VALUE,
+            newValue: ATTR_RESET_VALUE,
+        }
     }
     const [variantName, tuple] = entry as [string, [unknown, unknown]]
     const [oldRaw, newRaw] = tuple

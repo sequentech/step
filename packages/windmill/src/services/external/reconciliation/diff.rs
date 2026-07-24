@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::external::datafix_types::{
-    DatafixReconciliationField, ParsedDatafixReconciliationRow,
+    DatafixReconciliationField, ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
 };
 use crate::services::external::types::{
     ReconciliationChangeCategory, ReconciliationPatchSource, ReconciliationPatchTarget,
@@ -11,8 +11,8 @@ use crate::services::external::types::{
 };
 use crate::services::users::VoterSnapshot;
 use sequent_core::types::keycloak::{
-    DATE_OF_BIRTH, DISABLE_COMMENT, DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL,
-    VOTED_CHANNEL,
+    ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT, DISABLE_REASON_DELETE_CALL,
+    DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -161,20 +161,20 @@ fn classify_file_row(
     let mut items = Vec::new();
 
     // A) Sequent holds a valid Internet ballot; Datafix says NONE.
-    if row.channel == "NONE" && snapshot.has_valid_internet_vote {
+    if row.channel == ATTR_RESET_VALUE && snapshot.has_valid_internet_vote {
         items.push(diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                 row.channel.clone(),
-                "INTERNET".to_string(),
+                FILE_CHANNEL_INTERNET.to_string(),
             )),
             ReconciliationChangeCategory::VOTED_INTERNET,
         ));
     }
 
     // B) Datafix reports another channel Sequent doesn't have recorded.
-    if row.channel != "NONE"
-        && row.channel != "INTERNET"
+    if row.channel != ATTR_RESET_VALUE
+        && row.channel != FILE_CHANNEL_INTERNET
         && snapshot.voted_channel.as_deref() != Some(row.channel.as_str())
     {
         if snapshot.has_valid_internet_vote {
@@ -184,7 +184,10 @@ fn classify_file_row(
                 voter_username: row.voter_id.clone(),
                 target: ReconciliationPatchTarget::Sequent(Some(
                     SequentReconciliationField::KeycloakUA(
-                        HashMap::from([(VOTED_CHANNEL.to_string(), "INTERNET".to_string())]),
+                        HashMap::from([(
+                            VOTED_CHANNEL.to_string(),
+                            FILE_CHANNEL_INTERNET.to_string(),
+                        )]),
                         HashMap::from([(VOTED_CHANNEL.to_string(), row.channel.clone())]),
                     ),
                 )),
@@ -200,7 +203,7 @@ fn classify_file_row(
                 &row.voter_id,
                 ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                     row.channel.clone(),
-                    "INTERNET".to_string(),
+                    FILE_CHANNEL_INTERNET.to_string(),
                 )),
                 ReconciliationChangeCategory::VOTED_INTERNET,
             ));
@@ -211,7 +214,13 @@ fn classify_file_row(
             items.push(diff_item(
                 &row.voter_id,
                 ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                    HashMap::from([(VOTED_CHANNEL.to_string(), "NONE".to_string())]),
+                    HashMap::from([(
+                        VOTED_CHANNEL.to_string(),
+                        snapshot
+                            .voted_channel
+                            .clone()
+                            .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
+                    )]),
                     HashMap::from([
                         (VOTED_CHANNEL.to_string(), row.channel.clone()),
                         (
@@ -244,7 +253,7 @@ fn classify_file_row(
                 snapshot
                     .area_name
                     .clone()
-                    .unwrap_or_else(|| "NONE".to_string()),
+                    .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
                 file_area_name.clone(),
             ))),
             ReconciliationChangeCategory::PROFILE_UPDATE,
@@ -256,7 +265,7 @@ fn classify_file_row(
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(
                     DATE_OF_BIRTH.to_string(),
-                    snapshot.dob.clone().unwrap_or_else(|| "NONE".to_string()),
+                    snapshot.dob.clone().unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
                 )]),
                 HashMap::from([(DATE_OF_BIRTH.to_string(), row.dob.clone())]),
             ))),
@@ -288,7 +297,7 @@ fn classify_file_row(
             items.push(diff_item(
                 &row.voter_id,
                 ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                    HashMap::from([(DISABLE_COMMENT.to_string(), "NONE".to_string())]),
+                    HashMap::from([(DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string())]),
                     HashMap::from([(
                         DISABLE_COMMENT.to_string(),
                         DISABLE_REASON_DELETE_CALL.to_string(),
@@ -320,7 +329,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
         diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::AreaName(
-                "NONE".to_string(),
+                ATTR_RESET_VALUE.to_string(),
                 file_area_name,
             ))),
             ReconciliationChangeCategory::VOTER_ADDED,
@@ -328,7 +337,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
         diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                HashMap::from([(DATE_OF_BIRTH.to_string(), "NONE".to_string())]),
+                HashMap::from([(DATE_OF_BIRTH.to_string(), ATTR_RESET_VALUE.to_string())]),
                 HashMap::from([(DATE_OF_BIRTH.to_string(), row.dob.clone())]),
             ))),
             ReconciliationChangeCategory::VOTER_ADDED,
@@ -336,7 +345,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
         diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                HashMap::from([(VOTED_CHANNEL.to_string(), "NONE".to_string())]),
+                HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())]),
                 HashMap::from([(VOTED_CHANNEL.to_string(), row.channel.clone())]),
             ))),
             ReconciliationChangeCategory::VOTER_ADDED,
@@ -358,24 +367,24 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
 fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<DiffItem> {
     let fields = [
         DatafixReconciliationField::Ward(
-            "NONE".to_string(),
+            ATTR_RESET_VALUE.to_string(),
             snapshot
                 .area_name
                 .clone()
-                .unwrap_or_else(|| "NONE".to_string()),
+                .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
         ),
         DatafixReconciliationField::DoB(
-            "NONE".to_string(),
-            snapshot.dob.clone().unwrap_or_else(|| "NONE".to_string()),
+            ATTR_RESET_VALUE.to_string(),
+            snapshot.dob.clone().unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
         ),
         DatafixReconciliationField::Channel(
-            "NONE".to_string(),
+            ATTR_RESET_VALUE.to_string(),
             snapshot
                 .voted_channel
                 .clone()
-                .unwrap_or_else(|| "NONE".to_string()),
+                .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
         ),
-        DatafixReconciliationField::Deleted("NONE".to_string(), "false".to_string()),
+        DatafixReconciliationField::Deleted(ATTR_RESET_VALUE.to_string(), "false".to_string()),
     ];
     fields
         .into_iter()
@@ -443,7 +452,7 @@ fn classify_disabled_voter(
                         snapshot
                             .disable_comment
                             .clone()
-                            .unwrap_or_else(|| "NONE".to_string()),
+                            .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
                     )]),
                     HashMap::from([(
                         DISABLE_COMMENT.to_string(),
@@ -479,11 +488,17 @@ fn composed_area_name(row: &ParsedDatafixReconciliationRow) -> String {
     use crate::services::external::datafix_types::VoterInformationBody;
     use crate::services::external::utils::compose_area_name;
 
+    // The file's own "no value" sentinel (`ATTR_RESET_VALUE`) must not be
+    // concatenated into the composed name as a literal segment — translate it
+    // to `None` first so `compose_area_name`'s own empty-value handling
+    // (built for the inbound API's `Option<String>` contract) omits it.
+    let optional_field = |value: &str| (value != ATTR_RESET_VALUE).then(|| value.to_string());
+
     compose_area_name(&VoterInformationBody {
         voter_id: row.voter_id.clone(),
         ward: row.ward.clone(),
-        schoolboard: Some(row.school_support_code.clone()),
-        poll: Some(row.poll.clone()),
+        schoolboard: optional_field(&row.school_support_code),
+        poll: optional_field(&row.poll),
         birthdate: None,
         enabled: None,
     })
@@ -526,7 +541,7 @@ mod tests {
 
     #[test]
     fn county_mun_mismatch_is_a_row_failure() {
-        let mut bad_row = row("voter-1", "NONE", "false");
+        let mut bad_row = row("voter-1", ATTR_RESET_VALUE, "false");
         bad_row.county_mun = "0099".to_string();
         let items = classify_file_row(&bad_row, Some(&enabled_snapshot()), &datafix_source("0014"));
         assert_eq!(items.len(), 1);
@@ -536,7 +551,7 @@ mod tests {
 
     #[test]
     fn county_mun_mismatch_is_ignored_when_deleted() {
-        let mut bad_row = row("voter-1", "NONE", "true");
+        let mut bad_row = row("voter-1", ATTR_RESET_VALUE, "true");
         bad_row.county_mun = "0099".to_string();
         let items = classify_file_row(&bad_row, Some(&enabled_snapshot()), &datafix_source("0014"));
         assert!(items
@@ -551,7 +566,7 @@ mod tests {
             ..enabled_snapshot()
         };
         let items = classify_file_row(
-            &row("voter-1", "NONE", "false"),
+            &row("voter-1", ATTR_RESET_VALUE, "false"),
             Some(&snapshot),
             &datafix_source("0014"),
         );
@@ -563,8 +578,8 @@ mod tests {
         assert_eq!(
             items[0].target,
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
-                "NONE".to_string(),
-                "INTERNET".to_string()
+                ATTR_RESET_VALUE.to_string(),
+                FILE_CHANNEL_INTERNET.to_string()
             ))
         );
     }
@@ -601,6 +616,34 @@ mod tests {
     }
 
     #[test]
+    fn other_channel_wins_and_keeps_the_voters_prior_channel_as_the_old_value() {
+        // A voter already recorded with some channel (not the one the file now
+        // reports) must not show "NONE" as the diff's old value — only a
+        // voter with no prior channel at all should.
+        let snapshot = VoterSnapshot {
+            voted_channel: Some("PHONE".to_string()),
+            ..enabled_snapshot()
+        };
+        let items = classify_file_row(
+            &row("voter-1", "PAPER", "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
+        let keycloak_field = items
+            .iter()
+            .find_map(|item| match item.target.sequent_field() {
+                Some(field @ SequentReconciliationField::KeycloakUA(..)) => Some(field),
+                _ => None,
+            })
+            .expect("one item carries the Keycloak attributes");
+        let SequentReconciliationField::KeycloakUA(old, new) = keycloak_field else {
+            unreachable!("matched above");
+        };
+        assert_eq!(old.get(VOTED_CHANNEL), Some(&"PHONE".to_string()));
+        assert_eq!(new.get(VOTED_CHANNEL), Some(&"PAPER".to_string()));
+    }
+
+    #[test]
     fn other_channel_on_a_valid_internet_ballot_produces_a_failure_and_a_correction() {
         let snapshot = VoterSnapshot {
             has_valid_internet_vote: true,
@@ -620,7 +663,7 @@ mod tests {
                 && item.target
                     == ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                         "PAPER".to_string(),
-                        "INTERNET".to_string(),
+                        FILE_CHANNEL_INTERNET.to_string(),
                     ))
         }));
     }
@@ -628,7 +671,7 @@ mod tests {
     #[test]
     fn deleted_true_disables_a_voter_who_has_not_voted() {
         let items = classify_file_row(
-            &row("voter-1", "NONE", "true"),
+            &row("voter-1", ATTR_RESET_VALUE, "true"),
             Some(&enabled_snapshot()),
             &datafix_source("0014"),
         );
@@ -648,7 +691,7 @@ mod tests {
             ..enabled_snapshot()
         };
         let items = classify_file_row(
-            &row("voter-1", "NONE", "true"),
+            &row("voter-1", ATTR_RESET_VALUE, "true"),
             Some(&snapshot),
             &datafix_source("0014"),
         );
@@ -668,7 +711,7 @@ mod tests {
     #[test]
     fn unknown_voter_is_added_to_sequent_with_none_old_values() {
         let items = classify_file_row(
-            &row("voter-1", "NONE", "false"),
+            &row("voter-1", ATTR_RESET_VALUE, "false"),
             None,
             &datafix_source("0014"),
         );
@@ -684,7 +727,7 @@ mod tests {
             .expect("one item carries the area name");
         assert!(matches!(
             area_item,
-            SequentReconciliationField::AreaName(old, _) if old == "NONE"
+            SequentReconciliationField::AreaName(old, _) if old == ATTR_RESET_VALUE
         ));
         assert!(items.iter().any(|item| {
             item.target
@@ -702,7 +745,7 @@ mod tests {
             ..enabled_snapshot()
         };
         let items = classify_file_row(
-            &row("voter-1", "NONE", "true"),
+            &row("voter-1", ATTR_RESET_VALUE, "true"),
             Some(&snapshot),
             &datafix_source("0014"),
         );
@@ -717,7 +760,7 @@ mod tests {
             ..enabled_snapshot()
         };
         let items = classify_file_row(
-            &row("voter-1", "NONE", "false"),
+            &row("voter-1", ATTR_RESET_VALUE, "false"),
             Some(&snapshot),
             &datafix_source("0014"),
         );
@@ -771,7 +814,7 @@ mod tests {
             ..enabled_snapshot()
         };
         let items = classify_file_row(
-            &row("voter-1", "NONE", "true"),
+            &row("voter-1", ATTR_RESET_VALUE, "true"),
             Some(&snapshot),
             &datafix_source("0014"),
         );
@@ -789,5 +832,19 @@ mod tests {
             .iter()
             .all(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED));
         assert!(items.iter().all(|item| item.target.is_datafix()));
+    }
+
+    #[test]
+    fn composed_area_name_omits_the_files_none_sentinel() {
+        // The file's own "NONE" sentinel for an absent SchoolSupportCode/Poll
+        // must not end up as a literal "-NONE-" segment in the composed name.
+        let mut file_row = row("voter-1", ATTR_RESET_VALUE, "false");
+        assert_eq!(composed_area_name(&file_row), "01-P-000");
+
+        file_row.school_support_code = ATTR_RESET_VALUE.to_string();
+        assert_eq!(composed_area_name(&file_row), "01-000");
+
+        file_row.poll = ATTR_RESET_VALUE.to_string();
+        assert_eq!(composed_area_name(&file_row), "01");
     }
 }

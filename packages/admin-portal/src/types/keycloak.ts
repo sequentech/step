@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/** Sentinel value for a cleared/unset Keycloak user attribute — mirrors the
+ * backend's `sequent_core::types::keycloak::ATTR_RESET_VALUE`. */
+export const ATTR_RESET_VALUE = "NONE"
+
 export enum IPermissions {
     ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",

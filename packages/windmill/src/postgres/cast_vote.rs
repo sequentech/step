@@ -483,7 +483,10 @@ pub async fn get_usernames_with_valid_cast_vote(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_id, &election_event_id])
+        .query(
+            &statement,
+            &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?],
+        )
         .await?;
 
     Ok(rows

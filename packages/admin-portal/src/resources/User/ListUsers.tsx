@@ -60,7 +60,7 @@ import {
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
-import {IPermissions} from "@/types/keycloak"
+import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -97,7 +97,6 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
-const ATTR_RESET_VALUE = "NONE"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM

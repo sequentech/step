@@ -10,11 +10,12 @@
 //! per the "Patch Files Format" spec.
 
 use crate::services::external::datafix_types::{
-    DatafixReconciliationField, ParsedDatafixReconciliationRow,
+    DatafixReconciliationField, ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
 };
 use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchTarget};
 use anyhow::Result;
+use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use tracing::instrument;
@@ -73,7 +74,7 @@ pub fn build_external_patch_csv(
                 None => {
                     let value = file_row
                         .and_then(|row| row.field_value(name))
-                        .unwrap_or("NONE");
+                        .unwrap_or(ATTR_RESET_VALUE);
                     vec![value.to_string(), value.to_string()]
                 }
             })
@@ -142,7 +143,7 @@ mod tests {
             ward: "01".to_string(),
             poll: "000".to_string(),
             school_support_code: "P".to_string(),
-            channel: "NONE".to_string(),
+            channel: ATTR_RESET_VALUE.to_string(),
             deleted: "false".to_string(),
         }
     }
@@ -164,8 +165,8 @@ mod tests {
         let items = vec![item(
             "v1",
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
-                "NONE".to_string(),
-                "INTERNET".to_string(),
+                ATTR_RESET_VALUE.to_string(),
+                FILE_CHANNEL_INTERNET.to_string(),
             )),
         )];
         let csv = build_external_patch_csv(&items, &HashMap::new(), 5, 1781780700).unwrap();
@@ -186,8 +187,8 @@ mod tests {
         let items = vec![item(
             "v1",
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
-                "NONE".to_string(),
-                "INTERNET".to_string(),
+                ATTR_RESET_VALUE.to_string(),
+                FILE_CHANNEL_INTERNET.to_string(),
             )),
         )];
         let file_rows = HashMap::from([("v1".to_string(), file_row("v1"))]);
@@ -207,7 +208,7 @@ mod tests {
         let items = vec![item(
             "v2",
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Ward(
-                "NONE".to_string(),
+                ATTR_RESET_VALUE.to_string(),
                 "01-P-000".to_string(),
             )),
         )];

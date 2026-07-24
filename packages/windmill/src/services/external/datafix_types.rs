@@ -308,6 +308,13 @@ pub struct SoapRequestData<'a> {
 // `super::types` instead — they're not Datafix-specific wire shapes.
 // =======================================================================
 
+/// The reconciliation file format's own value for an Internet vote in the
+/// `Channel` column — always uppercase per the "Accepted Values" spec, and
+/// distinct from Keycloak's stored `VOTED_CHANNEL_INTERNET_VALUE` ("Internet"):
+/// `VoterSnapshot::voted_channel` is itself uppercased specifically so it can
+/// be compared directly against this and against a file row's own `channel`.
+pub const FILE_CHANNEL_INTERNET: &str = "INTERNET";
+
 /// One column of the "Patch Files Format" `_old`/`_new` pair contract,
 /// carrying that pair directly (`old`, `new`) instead of leaving it to a
 /// separate `old_value`/`new_value` on `DiffItem` — a field and its own
