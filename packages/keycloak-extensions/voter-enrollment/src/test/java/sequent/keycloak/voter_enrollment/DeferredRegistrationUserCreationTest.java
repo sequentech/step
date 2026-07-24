@@ -23,31 +23,41 @@ class DeferredRegistrationUserCreationTest {
   private static final String CUSTOM_HIDDEN_ATTRIBUTE = "customHidden";
 
   @Test
-  void segmentedCredentialIsEnabledOnlyForLoginModeAndRealmPolicy() {
+  void structuredCredentialIsEnabledOnlyForLoginModeAndRealmPolicy() {
     assertTrue(
-        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+        DeferredRegistrationUserCreation.isStructuredCredentialLogin(
             DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+            true,
             Map.of(
                 DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
-                DeferredRegistrationUserCreation.SEGMENTED_NUMERIC_POLICY)));
+                DeferredRegistrationUserCreation.STRUCTURED_POLICY)));
     assertFalse(
-        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+        DeferredRegistrationUserCreation.isStructuredCredentialLogin(
             DeferredRegistrationUserCreation.FormMode.REGISTRATION.getValue(),
+            true,
             Map.of(
                 DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
-                DeferredRegistrationUserCreation.SEGMENTED_NUMERIC_POLICY)));
+                DeferredRegistrationUserCreation.STRUCTURED_POLICY)));
     assertFalse(
-        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+        DeferredRegistrationUserCreation.isStructuredCredentialLogin(
             DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+            true,
             Map.of(
                 DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
                 "standard")));
     assertFalse(
-        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
-            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(), Map.of()));
+        DeferredRegistrationUserCreation.isStructuredCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(), true, Map.of()));
     assertFalse(
-        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
-            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(), null));
+        DeferredRegistrationUserCreation.isStructuredCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(), true, null));
+    assertFalse(
+        DeferredRegistrationUserCreation.isStructuredCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+            false,
+            Map.of(
+                DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
+                DeferredRegistrationUserCreation.STRUCTURED_POLICY)));
   }
 
   @Test

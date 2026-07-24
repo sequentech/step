@@ -42,11 +42,11 @@ pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
-pub const REALM_ATTR_CREDENTIAL_SEGMENT_LAYOUT: &str =
-    "credential-segment-layout";
-pub const MAX_CREDENTIAL_SEGMENT_GROUPS: usize = 8;
-pub const MAX_CREDENTIAL_SEGMENT_SIZE: usize = 12;
-pub const MAX_CREDENTIAL_SEGMENT_TOTAL: usize = 64;
+pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
+    "credential-input-pattern";
+pub const MAX_CREDENTIAL_PATTERN_GROUPS: usize = 8;
+pub const MAX_CREDENTIAL_PATTERN_GROUP_SIZE: usize = 12;
+pub const MAX_CREDENTIAL_PATTERN_TOTAL_SIZE: usize = 64;
 pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
 
 #[allow(non_camel_case_types)]
@@ -67,9 +67,9 @@ pub enum CredentialInputPolicy {
     #[strum(serialize = "standard")]
     #[serde(rename = "standard")]
     STANDARD,
-    #[strum(serialize = "segmented-numeric")]
-    #[serde(rename = "segmented-numeric")]
-    SEGMENTED_NUMERIC,
+    #[strum(serialize = "structured")]
+    #[serde(rename = "structured")]
+    STRUCTURED,
 }
 
 /// Default client ID used by the IVR for system-level interactions.

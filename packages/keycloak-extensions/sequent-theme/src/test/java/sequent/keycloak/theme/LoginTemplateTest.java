@@ -18,17 +18,20 @@ class LoginTemplateTest {
       Path.of("src/main/resources/theme/sequent.voting-portal/login/login.ftl");
 
   @Test
-  void segmentedCredentialIsOptInAndConfigurable() throws IOException {
+  void structuredCredentialIsOptInAndConfigurable() throws IOException {
     String template = Files.readString(LOGIN_TEMPLATE);
 
     assertTrue(
         template.contains(
-            "<#assign segmentedCredential = (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>"));
-    assertTrue(template.contains("data-segmented-credential"));
-    assertTrue(template.contains("realm.attributes['credential-segment-layout']!'4-4-4-4'"));
+            "<#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>"));
+    assertTrue(template.contains("data-structured-credential"));
+    assertTrue(
+        template.contains("realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'"));
     assertFalse(template.contains("?html"));
-    assertTrue(template.contains("msg(\"segmentedCredentialError\")"));
-    assertTrue(template.contains("src=\"${url.resourcesPath}/js/segmented-credential.js\""));
+    assertTrue(template.contains("msg(\"structuredCredentialError\")"));
+    assertTrue(template.contains("src=\"${url.resourcesPath}/js/structured-credential.js\""));
+    assertFalse(template.contains("segmentedCredential"));
+    assertFalse(template.contains("credential-segment-layout"));
   }
 
   @Test
@@ -39,17 +42,17 @@ class LoginTemplateTest {
     assertTrue(template.contains("autocomplete=\"off\""));
     assertFalse(template.contains("autocomplete=\"current-password\""));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/passwordVisibility.js\""));
-    assertTrue(template.contains("<#if segmentedCredential>"));
+    assertTrue(template.contains("<#if structuredCredential>"));
     assertTrue(template.contains("<#else>"));
   }
 
   @Test
-  void segmentedCredentialDoesNotMaskOperationalGlobalErrors() throws IOException {
+  void structuredCredentialDoesNotMaskOperationalGlobalErrors() throws IOException {
     String template = Files.readString(LOGIN_TEMPLATE);
 
     assertFalse(template.contains("credentialGlobalError"));
     assertTrue(
         template.contains(
-            "<#assign segmentedCredentialHasError = segmentedCredential && credentialFieldError>"));
+            "<#assign structuredCredentialHasError = structuredCredential && credentialFieldError>"));
   }
 }

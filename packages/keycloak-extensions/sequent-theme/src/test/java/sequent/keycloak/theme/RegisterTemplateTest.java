@@ -32,18 +32,26 @@ class RegisterTemplateTest {
   }
 
   @Test
-  void segmentedCredentialIsRestrictedToDeferredLoginMode() throws IOException {
+  void structuredCredentialIsRestrictedToDeferredLoginMode() throws IOException {
     String template = Files.readString(REGISTER_TEMPLATE);
 
     assertTrue(
         template.contains(
-            "<#assign segmentedCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>"));
-    assertTrue(template.contains("data-segmented-credential"));
-    assertTrue(template.contains("realm.attributes['credential-segment-layout']!'4-4-4-4'"));
+            "<#assign structuredCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'structured'>"));
+    assertTrue(template.contains("data-structured-credential"));
+    assertTrue(
+        template.contains("realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'"));
     assertFalse(template.contains("?html"));
-    assertTrue(template.contains("msg(\"segmentedCredentialError\")"));
-    assertTrue(template.contains("src=\"${url.resourcesPath}/js/segmented-credential.js\""));
-    assertTrue(template.contains("<#if segmentedCredentialLogin>"));
+    assertTrue(template.contains("msg(\"structuredCredentialError\")"));
+    assertTrue(template.contains("src=\"${url.resourcesPath}/js/structured-credential.js\""));
+    assertTrue(template.contains("<#if structuredCredentialLogin>"));
+    assertTrue(template.contains("<#if structuredCredentialLogin>autocomplete=\"off\""));
+    assertTrue(
+        template.contains(
+            "displayMessage=messagesPerField.exists('global') displayRequiredFields=true"));
+    assertFalse(template.contains("credentialGlobalError"));
+    assertFalse(template.contains("segmentedCredential"));
+    assertFalse(template.contains("credential-segment-layout"));
   }
 
   @Test

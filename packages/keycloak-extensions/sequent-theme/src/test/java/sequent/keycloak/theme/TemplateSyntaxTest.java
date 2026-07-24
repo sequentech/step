@@ -18,7 +18,7 @@ class TemplateSyntaxTest {
   private static final Path THEME_ROOT = Path.of("src/main/resources/theme");
 
   @Test
-  void segmentedCredentialTemplatesParseWithHtmlAutoEscaping() throws IOException {
+  void structuredCredentialTemplatesParseWithHtmlAutoEscaping() throws IOException {
     assertParses(THEME_ROOT.resolve("sequent.voting-portal/login/login.ftl"));
     assertParses(THEME_ROOT.resolve("sequent.admin-portal/login/register.ftl"));
   }
