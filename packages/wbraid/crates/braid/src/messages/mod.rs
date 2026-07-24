@@ -2,20 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The trustee's verified-message layer (v0.6).
+//! The complete protocol message stack (v0.6).
 //!
-//! This is the braid-side counterpart to `b4::messages`. b4 owns the wire
-//! *format* — the [`WireMessage`](b4::messages::wire::WireMessage) structure,
-//! the per-type heads, signing, and the `statement_bytes` byte layout — plus the
-//! availability-only bulletin-board server. braid owns the *interpretation*: it
-//! checks signatures against the configuration and reconstructs the datalog
-//! [`Predicate`](predicate::Predicate)s that drive the protocol.
+//! This module holds every layer of the protocol's message model:
 //!
+//! - [`newtypes`]: content-addressed hash wrappers and index types.
+//! - [`artifact`]: the `Configuration` artifact and related domain types.
+//! - [`wire`]: the [`ProtocolMessage`](wire::ProtocolMessage) structure, per-type
+//!   heads, signing, and the `statement_bytes` byte layout.
+//! - [`sender`]: the sender/signer identity types.
+//! - [`protocol_manager`]: protocol-manager identity and key management.
 //! - [`predicate`]: the typed, content-addressed statements (the datalog EDB)
 //!   and the slot/collision logic (§4.2, §5.1).
-//! - [`verify`]: the trust boundary — `WireMessage` -> `Predicate` (§3.4).
+//! - [`verify`]: the trust boundary — `ProtocolMessage` → `Predicate` (§3.4).
 //! - [`store`]: the in-memory message store, the pure core of the board client
 //!   and the source of the datalog EDB (§6.1).
+
+pub mod newtypes;
+pub mod artifact;
+pub mod sender;
+pub mod protocol_manager;
+pub mod wire;
 
 pub mod predicate;
 pub mod store;

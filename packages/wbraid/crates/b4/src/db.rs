@@ -18,7 +18,7 @@ use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use std::env;
 use std::path::PathBuf;
 
-use crate::api_types::{ContentType, Message};
+use crate::api_types::{ContentType, MessageBlob};
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -194,14 +194,14 @@ pub async fn insert_message(
     Ok(result.last_insert_rowid())
 }
 
-/// Build the API `Message` from a stored row.
+/// Build the API `MessageBlob` from a stored row.
 fn row_to_message(
     id: i64,
     content_type: String,
     inline_data: Option<Vec<u8>>,
     s3_key: Option<String>,
     version: String,
-) -> Message {
+) -> MessageBlob {
     let content_type = match content_type.as_str() {
         "s3" => ContentType::S3 {
             key: s3_key.unwrap_or_default(),
@@ -212,14 +212,18 @@ fn row_to_message(
         },
     };
 
-    Message {
+    MessageBlob {
         id: id.to_string(),
         content_type,
         version,
     }
 }
 
-pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result<Option<Message>> {
+pub async fn get_message(
+    pool: &SqlitePool,
+    board_name: &str,
+    id: i64,
+) -> Result<Option<MessageBlob>> {
     validate_board_name(board_name)?;
 
     let row = sqlx::query_as::<_, (i64, String, Option<Vec<u8>>, Option<String>, String)>(
@@ -236,7 +240,7 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
 }
 
 /// All messages on a board, in insertion (`id`) order.
-pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Message>> {
+pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<MessageBlob>> {
     validate_board_name(board_name)?;
 
     let rows = sqlx::query_as::<_, (i64, String, Option<Vec<u8>>, Option<String>, String)>(
@@ -262,7 +266,7 @@ pub async fn get_messages_after(
     board_name: &str,
     last_id: i64,
     limit: i64,
-) -> Result<(Vec<Message>, bool)> {
+) -> Result<(Vec<MessageBlob>, bool)> {
     validate_board_name(board_name)?;
 
     // Fetch limit + 1 to detect if there are more messages.
@@ -276,7 +280,7 @@ pub async fn get_messages_after(
     .await?;
 
     let truncated = rows.len() > limit as usize;
-    let messages: Vec<Message> = rows
+    let messages: Vec<MessageBlob> = rows
         .into_iter()
         .take(limit as usize)
         .map(|(id, content_type, inline_data, s3_key, version)| {

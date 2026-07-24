@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod api_types;
-pub mod messages;
 
 // Native-only modules
 #[cfg(feature = "native")]
@@ -15,7 +14,8 @@ pub mod s3;
 #[cfg(feature = "native")]
 pub mod state;
 
-use crate::messages::newtypes::Timestamp;
+/// Seconds elapsed since `std::time::UNIX_EPOCH`.
+pub type Timestamp = u64;
 use cryptography::utils::hash::Hasher as HasherTrait;
 
 #[cfg(feature = "native")]

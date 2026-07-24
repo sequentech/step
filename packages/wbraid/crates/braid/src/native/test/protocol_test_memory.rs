@@ -30,12 +30,12 @@ use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::VDeserializable;
 use cryptography::utils::signatures::SignatureScheme;
 
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use b4::messages::newtypes::{
+use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use crate::messages::newtypes::{
     ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
-use b4::messages::protocol_manager::ProtocolManager;
-use b4::messages::wire::{MessageType, WireMessage};
+use crate::messages::protocol_manager::ProtocolManager;
+use crate::messages::wire::{MessageType, ProtocolMessage};
 
 use crate::board::persistence::NoOpPersistence;
 use crate::board::transport::{MemoryBoard, MemoryTransport};
@@ -114,7 +114,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     )
     .with_share_encryption_keys(share_enc_keys);
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
-    let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+    let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 
     // --- the shared in-memory board (mock b4), seeded with the Configuration ---
     let board = MemoryBoard::<C>::new();
@@ -161,7 +161,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     let encrypted: Vec<Ciphertext<C, W>> =
         plaintexts_in.par_iter().map(|p| pk.encrypt(p)).collect();
     let ballots = Ballots::<C, W>::new(encrypted);
-    let ballots_message = WireMessage::<C>::ballots(
+    let ballots_message = ProtocolMessage::<C>::ballots(
         &pm,
         DATE,
         cfg_hash,
@@ -209,14 +209,14 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
 /// back (async). A round that produces nothing is the fixpoint. Because it is
 /// update-first, a trustee's own output only takes effect once it loops back on
 /// the next round's update. The parallel `step` also exercises the concurrent use
-/// of `SessionTrustee`/`WireMessage` that the deployed mixnet relies on.
+/// of `SessionTrustee`/`ProtocolMessage` that the deployed mixnet relies on.
 async fn drive<C: Context>(sessions: &mut [MemorySession<C>]) -> Result<()> {
     for _ in 0..MAX_ROUNDS {
         for session in sessions.iter_mut() {
             session.update().await?;
         }
 
-        let produced: Vec<Vec<WireMessage<C>>> = sessions
+        let produced: Vec<Vec<ProtocolMessage<C>>> = sessions
             .par_iter()
             .map(|session| session.step())
             .collect::<Result<_>>()?;

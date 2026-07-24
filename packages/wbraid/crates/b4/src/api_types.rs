@@ -2,18 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! HTTP API types for the bulletin board service
+//! HTTP API types for the bulletin board service.
 //!
 //! This module defines all request/response types used in the HTTP API,
-//! including message handling, board operations, and S3 integration.
+//! including blob storage, board operations, and S3 integration.
+//!
+//! [`MessageBlob`] is b4's storage metadata for an opaque byte sequence, not a
+//! protocol message. b4 never interprets the contents of the blobs it stores.
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 
-/// Maximum size for inline message storage (set to 0 to force all messages to S3 for testing)
+/// Maximum size for inline blob storage (set to 0 to force all blobs to S3 for testing)
 pub const MAX_INLINE_MESSAGE_SIZE: usize = 0; // Was: 1024 * 1024 (1MB)
 
-/// A message stored in the bulletin board.
+/// A blob stored in the bulletin board.
 ///
 /// b4 is a dumb, board-agnostic blob store (§8): it keeps only the opaque
 /// content, the autoincrement `id` (per-board order), and the `version` string
@@ -22,13 +25,13 @@ pub const MAX_INLINE_MESSAGE_SIZE: usize = 0; // Was: 1024 * 1024 (1MB)
 /// only in datalog `collides()`, §5) and no ops metadata (timestamp/size — a
 /// future diagnostics concern, §12).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Message {
+pub struct MessageBlob {
     pub id: String,
     pub content_type: ContentType,
     pub version: String,
 }
 
-/// Content storage type for messages
+/// Content storage type for blobs
 #[derive(Debug, Clone)]
 pub enum ContentType {
     /// Message data stored inline in the database
@@ -119,31 +122,31 @@ pub struct ConfirmMessageResponse {
     pub success: bool,
 }
 
-/// Response from getting a single message
+/// Response from getting a single blob
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GetMessageResponse {
-    pub message: Message,
+pub struct GetBlobResponse {
+    pub message: MessageBlob,
     pub download_url: Option<String>,
 }
 
-/// Response from listing messages (metadata only)
+/// Response from listing blobs (metadata only)
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ListMessagesResponse {
-    pub messages: Vec<Message>,
+pub struct ListBlobsResponse {
+    pub messages: Vec<MessageBlob>,
 }
 
-/// Message with pre-signed download URL for S3 content
+/// Blob with pre-signed download URL for S3 content
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MessageWithUrl {
+pub struct MessageBlobWithUrl {
     #[serde(flatten)]
-    pub message: Message,
+    pub message: MessageBlob,
     pub download_url: Option<String>,
 }
 
-/// Response from getting messages (includes download URLs for immediate use)
+/// Response from getting blobs (includes download URLs for immediate use)
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GetMessagesResponse {
-    pub messages: Vec<MessageWithUrl>,
+pub struct GetBlobsResponse {
+    pub messages: Vec<MessageBlobWithUrl>,
 }
 
 // Multi-board (multiplexing) API types were removed for v0.6 (§8): the board
@@ -173,9 +176,9 @@ pub struct CreateBoardRequest {
     pub name: String,
 }
 
-/// Query parameters for getting messages
+/// Query parameters for getting blobs
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GetMessagesQuery {
+pub struct GetBlobsQuery {
     pub last_id: Option<i64>,
     pub limit: Option<i64>,
 }

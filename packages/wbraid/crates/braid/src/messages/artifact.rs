@@ -6,9 +6,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use crate::messages::newtypes::PROTOCOL_MANAGER_INDEX;
-use crate::Hasher;
-use cryptography::utils::hash::Hasher as HasherTrait;
+use super::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
@@ -17,7 +15,6 @@ use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 use cryptography::zkp::shuffle::ShuffleProof;
 use cryptography::VSerializable as VSer;
-use sha3::Digest;
 
 #[derive(VSer)]
 pub struct Configuration<C: Context> {
@@ -91,11 +88,10 @@ impl<C: Context> Configuration<C> {
             HashSet::from_iter(self.trustees.clone());
 
         (unique.len() == self.trustees.len())
-            && (self.trustees.len() > 1
-                && self.trustees.len() <= crate::messages::newtypes::MAX_TRUSTEES)
+            && (self.trustees.len() > 1 && self.trustees.len() <= super::newtypes::MAX_TRUSTEES)
             && (self.threshold > 1 && self.threshold <= self.trustees.len())
             && (self.ciphertext_width >= 1
-                && self.ciphertext_width <= crate::messages::newtypes::MAX_CIPHERTEXT_WIDTH)
+                && self.ciphertext_width <= super::newtypes::MAX_CIPHERTEXT_WIDTH)
     }
 
     pub fn get_trustee_position(
@@ -223,9 +219,7 @@ pub struct Plaintexts<C: Context, const W: usize>(pub Vec<[C::Element; W]>);
 impl<C: Context> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bytes = self.ser();
-        let mut hasher = Hasher::hasher();
-        hasher.update(&bytes);
-        let hashed = hasher.finalize();
+        let hashed = b4::hash_bytes(&bytes);
         write!(
             f,
             "hash={:?}, trustees={:?}, pm={:?}, threshold={}",

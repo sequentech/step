@@ -21,7 +21,7 @@ use anyhow::Result;
 
 use cryptography::context::Context;
 
-use b4::messages::wire::WireMessage;
+use crate::messages::wire::ProtocolMessage;
 
 use crate::board::persistence::Persistence;
 use crate::board::transport::Transport;
@@ -46,13 +46,13 @@ impl<C: Context, T: Transport<C>, P: Persistence> Session<C, T, P> {
 
     /// Phase 2: run inference over the current view and produce this trustee's
     /// next messages. Pure and side-effect-free — nothing is posted or stored.
-    pub fn step(&self) -> Result<Vec<WireMessage<C>>> {
+    pub fn step(&self) -> Result<Vec<ProtocolMessage<C>>> {
         self.trustee.step(self.client.view())
     }
 
     /// Phase 3: post the produced messages to b4 (no local effect until they loop
     /// back on the next `update`).
-    pub async fn post(&mut self, messages: Vec<WireMessage<C>>) -> Result<()> {
+    pub async fn post(&mut self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
         self.client.post(messages).await
     }
 

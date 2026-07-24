@@ -32,12 +32,12 @@ use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::VDeserializable;
 use cryptography::utils::signatures::SignatureScheme;
 
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use b4::messages::newtypes::{
+use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use crate::messages::newtypes::{
     ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
-use b4::messages::protocol_manager::ProtocolManager;
-use b4::messages::wire::{MessageType, WireMessage};
+use crate::messages::protocol_manager::ProtocolManager;
+use crate::messages::wire::{MessageType, ProtocolMessage};
 
 use crate::board::persistence::{NoOpPersistence, Persistence};
 use crate::board::transport::{MemoryBoard, MemoryTransport, Transport};
@@ -109,7 +109,7 @@ async fn run_with_width<C: Context, const W: usize>(
     )
     .with_share_encryption_keys(share_enc_keys);
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
-    let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+    let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 
     // The trustees are pure components, built once and reused across the DKG and
     // every tally phase (only the board client changes, §8.2).
@@ -168,7 +168,7 @@ async fn run_with_width<C: Context, const W: usize>(
         let encrypted: Vec<Ciphertext<C, W>> =
             plaintexts_in.par_iter().map(|p| pk.encrypt(p)).collect();
         let ballots = Ballots::<C, W>::new(encrypted);
-        let ballots_message = WireMessage::<C>::ballots(
+        let ballots_message = ProtocolMessage::<C>::ballots(
             &pm,
             DATE,
             cfg_hash,
@@ -249,7 +249,7 @@ where
             client.update().await?;
         }
 
-        let produced: Vec<Vec<WireMessage<C>>> = trustees
+        let produced: Vec<Vec<ProtocolMessage<C>>> = trustees
             .par_iter()
             .zip(clients.par_iter())
             .map(|(trustee, client)| trustee.step(client.view()))

@@ -15,7 +15,7 @@
 //!    derive the enabled [`Action`]s;
 //! 3. **execute** each action — the cryptography ported from the old
 //!    `protocol::action` modules, minus channels/symmetric wrapping/batches
-//!    (§9.4) — producing signed [`WireMessage`]s, which are returned (never
+//!    (§9.4) — producing signed [`ProtocolMessage`]s, which are returned (never
 //!    stored or posted here).
 //!
 //! Per the loop-back rule (§6) the trustee never advances on its own output: a
@@ -34,15 +34,15 @@ use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 
-use b4::messages::artifact::{
+use crate::messages::artifact::{
     Ballots, Configuration, DkgPublicKey, Mix, PartialDecryption, Plaintexts, Shares,
 };
-use b4::messages::message::Signer;
-use b4::messages::newtypes::{
+use crate::messages::newtypes::{
     CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PublicKeyHash, SharesHash,
     Timestamp, TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
-use b4::messages::wire::WireMessage;
+use crate::messages::sender::Signer;
+use crate::messages::wire::ProtocolMessage;
 
 use crate::datalog::{self, Action, MixSource};
 use crate::messages::predicate::ConfigurationValid;
@@ -126,7 +126,7 @@ impl<C: Context> SessionTrustee<C> {
     ///
     /// The EDB is the board-sourced predicates plus this trustee's own
     /// `ConfigurationValid` fact (§9.7), which only it can compute.
-    pub fn step(&self, view: &MessageStore<C>) -> Result<Vec<WireMessage<C>>> {
+    pub fn step(&self, view: &MessageStore<C>) -> Result<Vec<ProtocolMessage<C>>> {
         let mut predicates = view.get_predicates();
         predicates.push(self.configuration_valid.clone().into());
 
@@ -140,7 +140,7 @@ impl<C: Context> SessionTrustee<C> {
     }
 
     /// Execute a single datalog-derived action, producing the message(s) to post.
-    fn execute(&self, action: &Action, view: &MessageStore<C>) -> Result<Vec<WireMessage<C>>> {
+    fn execute(&self, action: &Action, view: &MessageStore<C>) -> Result<Vec<ProtocolMessage<C>>> {
         match action {
             Action::ComputeShares(cfg, self_index) => self.compute_shares(view, cfg, *self_index),
             Action::ComputePublicKey(cfg, shares_hashes, self_index) => {
@@ -195,7 +195,7 @@ impl<C: Context> SessionTrustee<C> {
         view: &MessageStore<C>,
         cfg_hash: &ConfigurationHash,
         _self_index: TrusteeIndex,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::dealer::Dealer;
 
         let cfg = view.configuration();
@@ -228,7 +228,7 @@ impl<C: Context> SessionTrustee<C> {
                 commitments: dealer_shares.checking_values.to_vec(),
                 encrypted_shares,
             };
-            let message = WireMessage::<C>::shares(self, WIRE_DATE, *cfg_hash, &shares);
+            let message = ProtocolMessage::<C>::shares(self, WIRE_DATE, *cfg_hash, &shares);
             Ok(vec![message])
         })
     }
@@ -245,7 +245,7 @@ impl<C: Context> SessionTrustee<C> {
         cfg_hash: &ConfigurationHash,
         shares_hashes: &[SharesHash],
         self_index: TrusteeIndex,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::dealer::VerifiableShare;
         use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
 
@@ -302,7 +302,7 @@ impl<C: Context> SessionTrustee<C> {
             }
 
             let public_key = DkgPublicKey::<C>::new(joint_pk, verification_keys);
-            let message = WireMessage::<C>::public_key(self, WIRE_DATE, *cfg_hash, &public_key);
+            let message = ProtocolMessage::<C>::public_key(self, WIRE_DATE, *cfg_hash, &public_key);
             Ok(vec![message])
         })
     }
@@ -358,7 +358,7 @@ impl<C: Context> SessionTrustee<C> {
         source: &MixSource,
         input_hash: &CiphertextsHash,
         _self_index: TrusteeIndex,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::cryptosystem::elgamal::PublicKey;
         use cryptography::zkp::shuffle::Shuffler;
 
@@ -376,14 +376,8 @@ impl<C: Context> SessionTrustee<C> {
             // An empty input yields a null mix: no shuffle, no proof (§8).
             if input_ciphertexts.is_empty() {
                 let mix = Mix::<C, W>::null();
-                let message = WireMessage::<C>::mix(
-                    self,
-                    WIRE_DATE,
-                    *cfg_hash,
-                    *pk_hash,
-                    *input_hash,
-                    &mix,
-                );
+                let message =
+                    ProtocolMessage::<C>::mix(self, WIRE_DATE, *cfg_hash, *pk_hash, *input_hash, &mix);
                 return Ok(vec![message]);
             }
 
@@ -399,7 +393,7 @@ impl<C: Context> SessionTrustee<C> {
 
             let mix = Mix::new(shuffled, proof);
             let message =
-                WireMessage::<C>::mix(self, WIRE_DATE, *cfg_hash, *pk_hash, *input_hash, &mix);
+                ProtocolMessage::<C>::mix(self, WIRE_DATE, *cfg_hash, *pk_hash, *input_hash, &mix);
             Ok(vec![message])
         })
     }
@@ -419,7 +413,7 @@ impl<C: Context> SessionTrustee<C> {
         input_hash: &CiphertextsHash,
         output_hash: &CiphertextsHash,
         _self_index: TrusteeIndex,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::cryptosystem::elgamal::PublicKey;
         use cryptography::zkp::shuffle::Shuffler;
 
@@ -446,7 +440,7 @@ impl<C: Context> SessionTrustee<C> {
                 if !mix.ciphertexts.is_empty() || mix.proof.is_some() {
                     return Err(anyhow!("null mix must have empty output and no proof"));
                 }
-                let message = WireMessage::<C>::mix_signature(
+                let message = ProtocolMessage::<C>::mix_signature(
                     self,
                     WIRE_DATE,
                     *cfg_hash,
@@ -477,7 +471,7 @@ impl<C: Context> SessionTrustee<C> {
                 ));
             }
 
-            let message = WireMessage::<C>::mix_signature(
+            let message = ProtocolMessage::<C>::mix_signature(
                 self,
                 WIRE_DATE,
                 *cfg_hash,
@@ -503,7 +497,7 @@ impl<C: Context> SessionTrustee<C> {
         ciphertexts_hash: &CiphertextsHash,
         shares_hashes: &[SharesHash],
         self_index: TrusteeIndex,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::traits::groups::GroupScalar;
 
         let cfg = view.configuration();
@@ -571,7 +565,7 @@ impl<C: Context> SessionTrustee<C> {
         self_index: TrusteeIndex,
         secret: &C::Scalar,
         verification_key: &C::Element,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::recipient::{DkgCiphertext, ParticipantPosition, Recipient};
 
         let label = domain_label(cfg_hash, "decryption proof");
@@ -596,7 +590,7 @@ impl<C: Context> SessionTrustee<C> {
             .map_err(|e| anyhow!("failed to compute decryption factors: {:?}", e))?;
 
         let partial_decryption = PartialDecryption::new(dfactors.factors);
-        let message = WireMessage::<C>::partial_decryptions(
+        let message = ProtocolMessage::<C>::partial_decryptions(
             self,
             WIRE_DATE,
             *cfg_hash,
@@ -621,7 +615,7 @@ impl<C: Context> SessionTrustee<C> {
         ciphertexts_hash: &CiphertextsHash,
         decryptions_hashes: &[DecryptionFactorsHash],
         _self_index: TrusteeIndex,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
@@ -661,7 +655,7 @@ impl<C: Context> SessionTrustee<C> {
         ciphertexts_hash: &CiphertextsHash,
         decryptions_hashes: &[DecryptionFactorsHash],
         dkg_pk: &DkgPublicKey<C>,
-    ) -> Result<Vec<WireMessage<C>>> {
+    ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::recipient::{
             combine, DecryptionFactors, DkgCiphertext, ParticipantPosition,
         };
@@ -707,7 +701,7 @@ impl<C: Context> SessionTrustee<C> {
             .map_err(|e| anyhow!("failed to combine decryption factors: {:?}", e))?;
 
         let plaintexts = Plaintexts::<C, W>(plaintexts);
-        let message = WireMessage::<C>::plaintexts(
+        let message = ProtocolMessage::<C>::plaintexts(
             self,
             WIRE_DATE,
             *cfg_hash,

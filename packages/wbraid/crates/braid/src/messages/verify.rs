@@ -3,28 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Verification (§3.4 of `crates/braid/v0.6_spec.md`): the trustee-side
-//! projection of a signed [`WireMessage`] onto a datalog [`Predicate`].
+//! projection of a signed [`ProtocolMessage`] onto a datalog [`Predicate`].
 //!
-//! This is the trust boundary. b4 owns the wire *format* (the [`WireMessage`]
-//! structure, the per-type heads, signing, and the `statement_bytes` byte
-//! layout); braid owns the *interpretation* — checking the signature against the
-//! configuration and reconstructing the [`Predicate`] that feeds the datalog.
-//! `Configuration` messages are the exception: they are accepted at construction
-//! (§9.8) via [`WireMessage::verify_configuration`], which stays in b4 because it
-//! yields a [`Configuration`], not a predicate.
+//! This is the trust boundary. The wire layer owns the *format* (the
+//! [`ProtocolMessage`] structure, the per-type heads, signing, and the
+//! `statement_bytes` byte layout); this module owns the *interpretation* —
+//! checking the signature against the configuration and reconstructing the
+//! [`Predicate`] that feeds the datalog. `Configuration` messages are the
+//! exception: they are accepted at construction (§9.8) via
+//! [`ProtocolMessage::verify_configuration`], which stays in the wire layer
+//! because it yields a [`Configuration`], not a predicate.
 
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 use cryptography::utils::serialization::VDeserializable;
 
-use b4::messages::artifact::Configuration;
-use b4::messages::newtypes::{
-    CiphertextsHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash, SharesHash, TrusteeIndex,
-    PROTOCOL_MANAGER_INDEX,
+use super::artifact::Configuration;
+use super::newtypes::{
+    CiphertextsHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash, SharesHash,
+    TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
-use b4::messages::wire::{
+use super::wire::{
     statement_bytes, BallotsHead, MessageType, MixHead, MixSignatureHead, PartialDecryptionsHead,
-    PlaintextsHead, PublicKeyHead, SharesHead, WireMessage,
+    PlaintextsHead, ProtocolMessage, PublicKeyHead, SharesHead,
 };
 
 use crate::messages::predicate::{
@@ -43,13 +44,13 @@ use crate::messages::predicate::{
 /// here — its predicate (`ConfigurationValid`) additionally needs the body's
 /// threshold/trustee_count and this trustee's `self_index`, so it is assembled by
 /// the board client / SessionTrustee at construction (§9.8), via
-/// [`WireMessage::verify_configuration`].
+/// [`ProtocolMessage::verify_configuration`].
 ///
 /// The cfg-domain check (`predicate.configuration == our cfg_hash`) is NOT done
 /// here — it is the datalog's single enforcement point (§7.3), so this function
 /// stays purely signature + reconstruction.
 pub fn verify<C: Context>(
-    message: &WireMessage<C>,
+    message: &ProtocolMessage<C>,
     configuration: &Configuration<C>,
 ) -> Result<(Predicate, Option<Vec<u8>>)> {
     let position = configuration
@@ -194,7 +195,7 @@ pub fn verify<C: Context>(
 }
 
 /// Body bytes for a bodied message, or an error if absent.
-fn require_body<C: Context>(message: &WireMessage<C>) -> Result<&Vec<u8>> {
+fn require_body<C: Context>(message: &ProtocolMessage<C>) -> Result<&Vec<u8>> {
     message
         .body
         .as_ref()

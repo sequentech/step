@@ -31,8 +31,8 @@ use anyhow::{bail, Result};
 
 use cryptography::context::Context;
 
-use b4::messages::artifact::Configuration;
-use b4::messages::wire::WireMessage;
+use crate::messages::artifact::Configuration;
+use crate::messages::wire::ProtocolMessage;
 
 use crate::messages::predicate::Predicate;
 use crate::messages::store::MessageStore;
@@ -151,7 +151,7 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
 
     /// Verify a fetched message, run the anti-rewrite boundary check, then persist
     /// its digest and admit it to the store (§6.2–6.3).
-    async fn admit(&mut self, message: &WireMessage<C>) -> Result<()> {
+    async fn admit(&mut self, message: &ProtocolMessage<C>) -> Result<()> {
         let (predicate, body) = verify(message, self.store.configuration())?;
         // Anti-rewrite boundary check (§6.3): a freshly fetched predicate must never
         // collide with one already committed. Signatures were just re-verified by
@@ -174,7 +174,7 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
 
     /// Post messages to b4. Per the loop-back rule they take no local effect here;
     /// they become visible only after a subsequent [`update`](Self::update).
-    pub async fn post(&mut self, messages: Vec<WireMessage<C>>) -> Result<()> {
+    pub async fn post(&mut self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
         self.transport.post(messages).await
     }
 
@@ -206,10 +206,10 @@ mod tests {
     use cryptography::cryptosystem::elgamal::KeyPair;
     use cryptography::utils::signatures::SignatureScheme;
 
-    use b4::messages::artifact::Configuration;
-    use b4::messages::newtypes::{zero_hash, ConfigurationHash, PublicKeyHash};
-    use b4::messages::protocol_manager::ProtocolManager;
-    use b4::messages::wire::WireMessage;
+    use crate::messages::artifact::Configuration;
+    use crate::messages::newtypes::{zero_hash, ConfigurationHash, PublicKeyHash};
+    use crate::messages::protocol_manager::ProtocolManager;
+    use crate::messages::wire::ProtocolMessage;
 
     use crate::board::persistence::{NoOpPersistence, SqlitePersistence};
     use crate::board::transport::{MemoryBoard, MemoryTransport};
@@ -217,7 +217,7 @@ mod tests {
     use crate::messages::predicate::Predicate;
     use crate::runtime::SessionTrustee;
 
-    const DATE: b4::messages::newtypes::Timestamp = 0;
+    const DATE: crate::messages::newtypes::Timestamp = 0;
 
     /// A minimal manager + `n`-trustee configuration for board-client tests.
     struct Setup<C: Context> {
@@ -225,7 +225,7 @@ mod tests {
         signing_keys: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer>,
         cfg: Configuration<C>,
         cfg_hash: ConfigurationHash,
-        cfg_message: WireMessage<C>,
+        cfg_message: ProtocolMessage<C>,
     }
 
     fn setup<C: Context>(n: usize) -> Result<Setup<C>> {
@@ -251,7 +251,7 @@ mod tests {
         )
         .with_share_encryption_keys(share_enc_keys);
         let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
-        let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+        let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
         Ok(Setup {
             pm,
             signing_keys,
@@ -303,7 +303,7 @@ mod tests {
         )
         .with_share_encryption_keys(share_enc_keys);
         let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
-        let cfg_message = WireMessage::<C>::configuration(&pm, DATE, &cfg);
+        let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 
         let board = MemoryBoard::<C>::new();
         board.push(cfg_message);
@@ -321,7 +321,7 @@ mod tests {
                 client.configuration(),
             )?;
             let mut client = client;
-            let shares = WireMessage::<C>::shares(&trustee, DATE, cfg_hash, &vec![1u8, 2, 3]);
+            let shares = ProtocolMessage::<C>::shares(&trustee, DATE, cfg_hash, &vec![1u8, 2, 3]);
             client.post(vec![shares]).await?;
             client.update().await?;
             trustee
@@ -330,7 +330,7 @@ mod tests {
 
         // --- b4 is asked to rewrite the slot: a colliding Shares from the same
         //     trustee with a different body appears on the board ---
-        let colliding = WireMessage::<C>::shares(&trustee, DATE, cfg_hash, &vec![4u8, 5, 6]);
+        let colliding = ProtocolMessage::<C>::shares(&trustee, DATE, cfg_hash, &vec![4u8, 5, 6]);
         board.push(colliding);
 
         // --- restart: reopen persistence, reconnect, update must halt ---
@@ -370,7 +370,7 @@ mod tests {
         // Parent (DKG) board: Configuration + a Shares from trustee 1.
         let parent_board = MemoryBoard::<C>::new();
         parent_board.push(cfg_message);
-        parent_board.push(WireMessage::<C>::shares(
+        parent_board.push(ProtocolMessage::<C>::shares(
             &trustee1,
             DATE,
             cfg_hash,
@@ -380,7 +380,7 @@ mod tests {
         // Child (tally) board: a Ballots from the manager (dummy body — verify only
         // hashes it and checks the manager signature).
         let child_board = MemoryBoard::<C>::new();
-        child_board.push(WireMessage::<C>::ballots(
+        child_board.push(ProtocolMessage::<C>::ballots(
             &pm,
             DATE,
             cfg_hash,
@@ -412,7 +412,7 @@ mod tests {
 
         // A post targets the child board only.
         client
-            .post(vec![WireMessage::<C>::shares(
+            .post(vec![ProtocolMessage::<C>::shares(
                 &trustee1,
                 DATE,
                 cfg_hash,
@@ -454,7 +454,7 @@ mod tests {
 
         let parent_board = MemoryBoard::<C>::new();
         parent_board.push(cfg_message);
-        parent_board.push(WireMessage::<C>::shares(
+        parent_board.push(ProtocolMessage::<C>::shares(
             &trustee1,
             DATE,
             cfg_hash,
@@ -472,7 +472,7 @@ mod tests {
         };
 
         // b4 rewrites the DKG history: a colliding Shares (different body) appears.
-        parent_board.push(WireMessage::<C>::shares(
+        parent_board.push(ProtocolMessage::<C>::shares(
             &trustee1,
             DATE,
             cfg_hash,

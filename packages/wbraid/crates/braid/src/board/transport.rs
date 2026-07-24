@@ -18,7 +18,7 @@ use async_trait::async_trait;
 
 use cryptography::context::Context;
 
-use b4::messages::wire::{MessageType, WireMessage};
+use crate::messages::wire::{MessageType, ProtocolMessage};
 
 /// b4 transport: fetch the board's Configuration + protocol messages, post new
 /// ones.
@@ -32,18 +32,18 @@ use b4::messages::wire::{MessageType, WireMessage};
 #[async_trait(?Send)]
 pub trait Transport<C: Context> {
     /// The board's `Configuration` message (consumed once at construction, §9.8).
-    async fn fetch_configuration(&self) -> Result<WireMessage<C>>;
+    async fn fetch_configuration(&self) -> Result<ProtocolMessage<C>>;
     /// All protocol (non-`Configuration`) messages currently on the board.
-    async fn fetch(&self) -> Result<Vec<WireMessage<C>>>;
+    async fn fetch(&self) -> Result<Vec<ProtocolMessage<C>>>;
     /// Post messages to the board.
-    async fn post(&self, messages: Vec<WireMessage<C>>) -> Result<()>;
+    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()>;
 }
 
 /// In-memory stand-in for b4 (M1 + tests): an ordered, shared message log. Every
 /// trustee's [`MemoryTransport`] points at one shared `MemoryBoard`; the harness
 /// seeds the `Configuration` and posts the manager's `Ballots` directly.
 pub struct MemoryBoard<C: Context> {
-    messages: Mutex<Vec<WireMessage<C>>>,
+    messages: Mutex<Vec<ProtocolMessage<C>>>,
 }
 
 impl<C: Context> MemoryBoard<C> {
@@ -56,17 +56,17 @@ impl<C: Context> MemoryBoard<C> {
 
     /// Append a message directly (used by the harness to seed the Configuration
     /// and post the manager's Ballots).
-    pub fn push(&self, message: WireMessage<C>) {
+    pub fn push(&self, message: ProtocolMessage<C>) {
         self.lock().push(message);
     }
 
     /// A copy of every message currently on the board (used by the harness to
     /// read off results).
-    pub fn snapshot(&self) -> Vec<WireMessage<C>> {
+    pub fn snapshot(&self) -> Vec<ProtocolMessage<C>> {
         self.lock().clone()
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, Vec<WireMessage<C>>> {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Vec<ProtocolMessage<C>>> {
         self.messages.lock().expect("MemoryBoard mutex poisoned")
     }
 }
@@ -94,7 +94,7 @@ impl<C: Context> Clone for MemoryTransport<C> {
 
 #[async_trait(?Send)]
 impl<C: Context> Transport<C> for MemoryTransport<C> {
-    async fn fetch_configuration(&self) -> Result<WireMessage<C>> {
+    async fn fetch_configuration(&self) -> Result<ProtocolMessage<C>> {
         self.board
             .snapshot()
             .into_iter()
@@ -102,7 +102,7 @@ impl<C: Context> Transport<C> for MemoryTransport<C> {
             .ok_or_else(|| anyhow!("board has no Configuration message"))
     }
 
-    async fn fetch(&self) -> Result<Vec<WireMessage<C>>> {
+    async fn fetch(&self) -> Result<Vec<ProtocolMessage<C>>> {
         Ok(self
             .board
             .snapshot()
@@ -111,7 +111,7 @@ impl<C: Context> Transport<C> for MemoryTransport<C> {
             .collect())
     }
 
-    async fn post(&self, messages: Vec<WireMessage<C>>) -> Result<()> {
+    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
         self.board.lock().extend(messages);
         Ok(())
     }

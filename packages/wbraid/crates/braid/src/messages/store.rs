@@ -27,11 +27,11 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 
-use b4::messages::artifact::Configuration;
-use b4::messages::newtypes::{
+use super::artifact::Configuration;
+use super::newtypes::{
     CiphertextsHash, DecryptionFactorsHash, PublicKeyHash, SharesHash, TrusteeIndex,
 };
-use b4::messages::wire::WireMessage;
+use super::wire::ProtocolMessage;
 
 use crate::messages::predicate::{
     Ballots, Mix, MixSignature, PartialDecryptions, Plaintexts, Predicate, PublicKey, Shares,
@@ -59,7 +59,7 @@ impl<C: Context> MessageStore<C> {
     /// Identity-agnostic about the local trustee: no `self_pk` is needed. The
     /// board client is the acceptance boundary — a store cannot exist without an
     /// accepted configuration.
-    pub fn from_configuration_message(message: &WireMessage<C>) -> Result<Self> {
+    pub fn from_configuration_message(message: &ProtocolMessage<C>) -> Result<Self> {
         let configuration = message.verify_configuration()?;
         Ok(Self {
             configuration,

@@ -23,7 +23,7 @@ use cryptography::utils::error::Error;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::VSerializable as VSer;
 
-use b4::messages::newtypes::{
+use super::newtypes::{
     CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash,
     SharesHash, Threshold, TrusteeCount, TrusteeIndex,
 };
@@ -296,7 +296,7 @@ impl VDeserializable for Predicate {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use b4::messages::newtypes::zero_hash;
+    use crate::messages::newtypes::zero_hash;
 
     fn sample_predicates() -> Vec<Predicate> {
         let cfg = ConfigurationHash(zero_hash());

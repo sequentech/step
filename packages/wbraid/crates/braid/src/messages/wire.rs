@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Wire types: the on-the-network form of a message and the per-type "heads".
+//! Protocol message: the signed, typed unit of protocol communication.
 //!
-//! §3.1 of `crates/braid/v0.6_spec.md`: a [`WireMessage`] carries `sender`,
+//! §3.1 of `crates/braid/v0.6_spec.md`: a [`ProtocolMessage`] carries `sender`,
 //! `signature`, a `message_type` discriminant, a serialized **head**, and an
-//! optional serialized **body**. The head holds the wire-only metadata (`date`)
-//! plus the message's **in** hashes (references to other messages' bodies); the
-//! body is the bulk artifact. The **out** hash (`H(body)`) is NOT on the wire —
-//! the verifier recomputes it from the received body bytes and assembles the
-//! signed Statement as `head + H(body)` (§3.4).
+//! optional serialized **body**. The head holds the protocol-message-only
+//! metadata (`date`) plus the message's **in** hashes (references to other
+//! messages' bodies); the body is the bulk artifact. The **out** hash (`H(body)`)
+//! is NOT on the protocol message — the verifier recomputes it from the received
+//! body bytes and assembles the signed Statement as `head + H(body)` (§3.4).
 //!
 //! Head layout (the §4.4 pin) follows one rule for every type:
 //!
@@ -19,8 +19,9 @@
 //! i.e. a head carries exactly the predicate's context fields (its **in** hashes
 //! and any parameters such as `trustees`), MINUS the `sender` (bound by the
 //! verifying key) and MINUS the `body_hash` (recomputed as `H(body)`), PLUS the
-//! wire-only `date`. Reconstructing the predicate (`into_predicate`) reverses
-//! this: `predicate = head (drop date) + sender + body_hash`.
+//! protocol-message-only `date`. Reconstructing the predicate
+//! (`into_predicate`) reverses this:
+//! `predicate = head (drop date) + sender + body_hash`.
 //!
 //! [`MessageType::MixSignature`] is the one **bodyless** type: its content is the
 //! signature itself, so it has no body and no out hash — both of its endpoint
@@ -33,21 +34,22 @@ use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 use cryptography::VSerializable as VSer;
 
-use crate::messages::artifact::Configuration;
-use crate::messages::message::{Sender, Signer};
-use crate::messages::newtypes::{
+use super::artifact::Configuration;
+use super::newtypes::{
     CiphertextsHash, ConfigurationHash, Hash, PublicKeyHash, Timestamp, TrusteeIndex,
 };
+use super::sender::{Sender, Signer};
 
 ///////////////////////////////////////////////////////////////////////////
 // Message type discriminant
 ///////////////////////////////////////////////////////////////////////////
 
-/// The wire `type` field (§3.1): selects the concrete head/body structs.
+/// The protocol message `type` field (§3.1): selects the concrete head/body
+/// structs.
 ///
-/// Note this is the WIRE/message type, distinct from the datalog [`Predicate`]:
-/// a `Configuration` message maps to the derived `ConfigurationValid` predicate
-/// (§9.8), while the other seven map one-to-one.
+/// Note this is the protocol message type, distinct from the datalog
+/// [`Predicate`]: a `Configuration` message maps to the derived
+/// `ConfigurationValid` predicate (§9.8), while the other seven map one-to-one.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum MessageType {
@@ -182,15 +184,16 @@ pub struct PlaintextsHead {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// WireMessage
+// ProtocolMessage
 ///////////////////////////////////////////////////////////////////////////
 
-/// The single on-the-wire structure (§3.1). `head` is the serialized head struct
-/// selected by `message_type`; `body` is the serialized bulk artifact (absent for
-/// the bodyless [`MessageType::MixSignature`]). Both `head` and `body` are
-/// length-delimited fields, so `body` is a clean slice hashed directly.
+/// The single protocol message structure (§3.1). `head` is the serialized head
+/// struct selected by `message_type`; `body` is the serialized bulk artifact
+/// (absent for the bodyless [`MessageType::MixSignature`]). Both `head` and
+/// `body` are length-delimited fields, so `body` is a clean slice hashed
+/// directly.
 #[derive(VSer)]
-pub struct WireMessage<C: Context> {
+pub struct ProtocolMessage<C: Context> {
     pub sender: Sender<C>,
     pub signature: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signature,
     pub message_type: MessageType,
@@ -198,9 +201,9 @@ pub struct WireMessage<C: Context> {
     pub body: Option<Vec<u8>>,
 }
 
-impl<C: Context> Clone for WireMessage<C> {
+impl<C: Context> Clone for ProtocolMessage<C> {
     fn clone(&self) -> Self {
-        WireMessage {
+        ProtocolMessage {
             sender: self.sender.clone(),
             signature: self.signature.clone(),
             message_type: self.message_type.clone(),
@@ -210,11 +213,11 @@ impl<C: Context> Clone for WireMessage<C> {
     }
 }
 
-impl<C: Context> std::fmt::Debug for WireMessage<C> {
+impl<C: Context> std::fmt::Debug for ProtocolMessage<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "WireMessage{{ sender={:?} type={:?} has_body={} }}",
+            "ProtocolMessage{{ sender={:?} type={:?} has_body={} }}",
             self.sender.name,
             self.message_type,
             self.body.is_some()
@@ -245,7 +248,7 @@ pub fn statement_bytes<H: VSerializable>(head: &H, body_hash: Option<&Hash>) -> 
 /// `H(bytes)` under the protocol hash (§3.4), over the given (received, or
 /// freshly serialized) bytes.
 fn hash(bytes: &[u8]) -> Hash {
-    crate::hash_bytes(bytes)
+    b4::hash_bytes(bytes)
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -253,20 +256,20 @@ fn hash(bytes: &[u8]) -> Hash {
 //
 // One per message type. Each builds the head, serializes and hashes the body,
 // signs `statement_bytes(head, H(body))` (or `statement_bytes(head, None)` for
-// the bodyless MixSignature), and returns the WireMessage. The signer supplies
-// the signing key + name; its public side becomes `sender.pk`, which binds the
-// sender (§3.3), so `sender` is never in the signed bytes.
+// the bodyless MixSignature), and returns the ProtocolMessage. The signer
+// supplies the signing key + name; its public side becomes `sender.pk`, which
+// binds the sender (§3.3), so `sender` is never in the signed bytes.
 ///////////////////////////////////////////////////////////////////////////
 
-impl<C: Context> WireMessage<C> {
-    /// Low-level: sign `signed_bytes` with `signer` and assemble the WireMessage.
+impl<C: Context> ProtocolMessage<C> {
+    /// Low-level: sign `signed_bytes` with `signer` and assemble the ProtocolMessage.
     fn sign_wire<S: Signer<C>>(
         signer: &S,
         message_type: MessageType,
         head: Vec<u8>,
         signed_bytes: &[u8],
         body: Option<Vec<u8>>,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         use cryptography::utils::signatures::Signer as CryptoSigner;
 
         let sk = signer.get_signing_key();
@@ -274,7 +277,7 @@ impl<C: Context> WireMessage<C> {
         let pk = C::SignatureScheme::verifying_key(sk);
         let sender = Sender::new(signer.get_name(), pk);
 
-        WireMessage {
+        ProtocolMessage {
             sender,
             signature,
             message_type,
@@ -285,12 +288,12 @@ impl<C: Context> WireMessage<C> {
 
     /// `Configuration` (manager self-signed). Special: it is accepted and
     /// verified at construction (§9.8), so there is no matching `verify` arm —
-    /// [`WireMessage::verify`] rejects [`MessageType::Configuration`].
+    /// [`ProtocolMessage::verify`] rejects [`MessageType::Configuration`].
     pub fn configuration<S: Signer<C>, B: VSerializable>(
         manager: &S,
         date: Timestamp,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = ConfigurationHead { date };
@@ -310,7 +313,7 @@ impl<C: Context> WireMessage<C> {
         date: Timestamp,
         configuration: ConfigurationHash,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = SharesHead {
@@ -333,7 +336,7 @@ impl<C: Context> WireMessage<C> {
         date: Timestamp,
         configuration: ConfigurationHash,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = PublicKeyHead {
@@ -359,7 +362,7 @@ impl<C: Context> WireMessage<C> {
         public_key: PublicKeyHash,
         trustees: Vec<TrusteeIndex>,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = BallotsHead {
@@ -387,7 +390,7 @@ impl<C: Context> WireMessage<C> {
         public_key: PublicKeyHash,
         input: CiphertextsHash,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = MixHead {
@@ -415,7 +418,7 @@ impl<C: Context> WireMessage<C> {
         public_key: PublicKeyHash,
         input: CiphertextsHash,
         output: CiphertextsHash,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let head = MixSignatureHead {
             date,
             configuration,
@@ -436,7 +439,7 @@ impl<C: Context> WireMessage<C> {
         public_key: PublicKeyHash,
         ciphertexts: CiphertextsHash,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = PartialDecryptionsHead {
@@ -464,7 +467,7 @@ impl<C: Context> WireMessage<C> {
         public_key: PublicKeyHash,
         ciphertexts: CiphertextsHash,
         body: &B,
-    ) -> WireMessage<C> {
+    ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
         let body_hash = hash(&body_bytes);
         let head = PlaintextsHead {

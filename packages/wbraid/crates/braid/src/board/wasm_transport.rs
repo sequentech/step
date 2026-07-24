@@ -10,7 +10,7 @@
 //! inline → `confirm`), a full fetch-all each update, and the §10.1 version
 //! exact-match at the boundary — only the HTTP mechanism differs (`web_sys`
 //! `fetch` + `JsFuture` instead of `reqwest`). b4 is a dumb opaque store (§8), so
-//! this client (de)serializes `WireMessage<C>` itself; verification happens later
+/// this client (de)serializes `ProtocolMessage<C>` itself; verification happens later
 //! in the board client.
 //!
 //! The `fetch` futures are `!Send`, which is why the [`Transport`] seam is `?Send`
@@ -26,10 +26,10 @@ use cryptography::context::Context;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
 use b4::api_types::{
-    ConfirmMessageRequest, ContentType, CreateBoardRequest, GetMessagesResponse,
+    ConfirmMessageRequest, ContentType, CreateBoardRequest, GetBlobsResponse,
     InitiateMessageRequest, InitiateMessageResponse,
 };
-use b4::messages::wire::{MessageType, WireMessage};
+use crate::messages::wire::{MessageType, ProtocolMessage};
 
 use super::transport::Transport;
 
@@ -75,7 +75,7 @@ impl WasmHttpTransport {
         let json = JsFuture::from(resp.json().map_err(js_err)?)
             .await
             .map_err(js_err)?;
-        let body: GetMessagesResponse = serde_wasm_bindgen::from_value(json)
+        let body: GetBlobsResponse = serde_wasm_bindgen::from_value(json)
             .map_err(|e| anyhow!("failed to parse messages response: {e}"))?;
 
         let expected_version = b4::get_schema_version();
@@ -167,9 +167,9 @@ impl WasmHttpTransport {
 
 #[async_trait(?Send)]
 impl<C: Context> Transport<C> for WasmHttpTransport {
-    async fn fetch_configuration(&self) -> Result<WireMessage<C>> {
+    async fn fetch_configuration(&self) -> Result<ProtocolMessage<C>> {
         for bytes in self.fetch_raw().await? {
-            let wm = WireMessage::<C>::deser(&bytes)
+            let wm = ProtocolMessage::<C>::deser(&bytes)
                 .map_err(|e| anyhow!("failed to deserialize wire message: {:?}", e))?;
             if wm.message_type == MessageType::Configuration {
                 return Ok(wm);
@@ -178,10 +178,10 @@ impl<C: Context> Transport<C> for WasmHttpTransport {
         bail!("board {} has no Configuration message", self.board)
     }
 
-    async fn fetch(&self) -> Result<Vec<WireMessage<C>>> {
+    async fn fetch(&self) -> Result<Vec<ProtocolMessage<C>>> {
         let mut out = Vec::new();
         for bytes in self.fetch_raw().await? {
-            let wm = WireMessage::<C>::deser(&bytes)
+            let wm = ProtocolMessage::<C>::deser(&bytes)
                 .map_err(|e| anyhow!("failed to deserialize wire message: {:?}", e))?;
             if wm.message_type != MessageType::Configuration {
                 out.push(wm);
@@ -190,7 +190,7 @@ impl<C: Context> Transport<C> for WasmHttpTransport {
         Ok(out)
     }
 
-    async fn post(&self, messages: Vec<WireMessage<C>>) -> Result<()> {
+    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
         for message in &messages {
             self.post_bytes(message.ser()).await?;
         }

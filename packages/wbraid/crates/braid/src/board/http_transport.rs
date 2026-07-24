@@ -8,21 +8,20 @@
 //! Posting uses b4's two-step flow (`initiate` → S3 `PUT` or inline → `confirm`);
 //! fetching pulls all of a board's messages and, for S3-backed bodies, downloads
 //! them via the presigned URL b4 returns. b4 is a dumb opaque store (§8), so this
-//! client (de)serializes `WireMessage<C>` itself and enforces the version
-//! exact-match at the boundary (§10.1). Verification happens later in the board
-//! client — the transport only moves bytes.
-
+/// this client (de)serializes `ProtocolMessage<C>` itself and enforces the version
+/// exact-match at the boundary (§10.1). Verification happens later in the board
+/// client — the transport only moves bytes.
 use anyhow::{anyhow, bail, Result};
 use async_trait::async_trait;
 
 use cryptography::context::Context;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
+use crate::messages::wire::{MessageType, ProtocolMessage};
 use b4::api_types::{
-    ConfirmMessageRequest, ContentType, CreateBoardRequest, GetMessagesResponse,
+    ConfirmMessageRequest, ContentType, CreateBoardRequest, GetBlobsResponse,
     InitiateMessageRequest, InitiateMessageResponse,
 };
-use b4::messages::wire::{MessageType, WireMessage};
 
 use super::transport::Transport;
 
@@ -69,7 +68,7 @@ impl HttpTransport {
         if !resp.status().is_success() {
             bail!("failed to fetch messages: HTTP {}", resp.status());
         }
-        let body: GetMessagesResponse = resp.json().await?;
+        let body: GetBlobsResponse = resp.json().await?;
 
         let expected_version = b4::get_schema_version();
         let mut out = Vec::with_capacity(body.messages.len());
@@ -164,9 +163,9 @@ impl HttpTransport {
 
 #[async_trait(?Send)]
 impl<C: Context> Transport<C> for HttpTransport {
-    async fn fetch_configuration(&self) -> Result<WireMessage<C>> {
+    async fn fetch_configuration(&self) -> Result<ProtocolMessage<C>> {
         for bytes in self.fetch_raw().await? {
-            let wm = WireMessage::<C>::deser(&bytes)
+            let wm = ProtocolMessage::<C>::deser(&bytes)
                 .map_err(|e| anyhow!("failed to deserialize wire message: {:?}", e))?;
             if wm.message_type == MessageType::Configuration {
                 return Ok(wm);
@@ -175,10 +174,10 @@ impl<C: Context> Transport<C> for HttpTransport {
         bail!("board {} has no Configuration message", self.board)
     }
 
-    async fn fetch(&self) -> Result<Vec<WireMessage<C>>> {
+    async fn fetch(&self) -> Result<Vec<ProtocolMessage<C>>> {
         let mut out = Vec::new();
         for bytes in self.fetch_raw().await? {
-            let wm = WireMessage::<C>::deser(&bytes)
+            let wm = ProtocolMessage::<C>::deser(&bytes)
                 .map_err(|e| anyhow!("failed to deserialize wire message: {:?}", e))?;
             if wm.message_type != MessageType::Configuration {
                 out.push(wm);
@@ -187,7 +186,7 @@ impl<C: Context> Transport<C> for HttpTransport {
         Ok(out)
     }
 
-    async fn post(&self, messages: Vec<WireMessage<C>>) -> Result<()> {
+    async fn post(&self, messages: Vec<ProtocolMessage<C>>) -> Result<()> {
         for message in &messages {
             self.post_bytes(message.ser()).await?;
         }

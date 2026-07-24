@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::messages::message;
+use super::sender;
 use cryptography::context::Context;
 use cryptography::utils::signatures::SignatureScheme;
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,7 @@ impl<C: Context> ProtocolManager<C> {
     }
 }
 
-impl<C: Context> message::Signer<C> for ProtocolManager<C> {
+impl<C: Context> sender::Signer<C> for ProtocolManager<C> {
     fn get_signing_key(&self) -> &<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer {
         &self.signing_key
     }
@@ -51,8 +51,8 @@ pub struct ProtocolManagerConfig {
 }
 impl ProtocolManagerConfig {
     pub fn from<C: Context>(pm: &ProtocolManager<C>) -> ProtocolManagerConfig {
+        use base64::{engine::general_purpose, Engine as _};
         use cryptography::utils::serialization::VSerializable;
-        use base64::{Engine as _, engine::general_purpose};
         let sk_bytes = pm.signing_key.ser();
         let sk_string = general_purpose::STANDARD.encode(&sk_bytes);
 
@@ -60,9 +60,11 @@ impl ProtocolManagerConfig {
             signing_key: sk_string,
         }
     }
-    pub fn get_signing_key<C: Context>(&self) -> anyhow::Result<<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer> {
+    pub fn get_signing_key<C: Context>(
+        &self,
+    ) -> anyhow::Result<<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer> {
+        use base64::{engine::general_purpose, Engine as _};
         use cryptography::utils::serialization::VDeserializable;
-        use base64::{Engine as _, engine::general_purpose};
         let sk_bytes = general_purpose::STANDARD.decode(&self.signing_key)?;
         let sk = <<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer>::deser(&sk_bytes)?;
 

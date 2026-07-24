@@ -20,9 +20,8 @@ use uuid::Uuid;
 
 use crate::api_types::{
     BoardResponse, BoardsListResponse, ConfirmMessageRequest, ConfirmMessageResponse, ContentType,
-    CreateBoardRequest, GetMessageResponse, GetMessagesQuery, GetMessagesResponse,
-    InitiateMessageRequest, InitiateMessageResponse, ListMessagesResponse, MessageWithUrl,
-    MAX_INLINE_MESSAGE_SIZE,
+    CreateBoardRequest, GetBlobResponse, GetBlobsQuery, GetBlobsResponse, InitiateMessageRequest,
+    InitiateMessageResponse, ListBlobsResponse, MessageBlobWithUrl, MAX_INLINE_MESSAGE_SIZE,
 };
 
 use crate::{db, s3, state::AppState};
@@ -192,7 +191,7 @@ pub async fn confirm_message(
 pub async fn get_message(
     State(state): State<AppState>,
     Path((board_name, id)): Path<(String, String)>,
-) -> Result<Json<GetMessageResponse>, StatusCode> {
+) -> Result<Json<GetBlobResponse>, StatusCode> {
     let id_num: i64 = id.parse().map_err(|_| {
         tracing::error!("Invalid message ID: {}", id);
         StatusCode::BAD_REQUEST
@@ -208,7 +207,7 @@ pub async fn get_message(
 
     let download_url = s3_download_url(&state, &message.content_type).await?;
 
-    Ok(Json(GetMessageResponse {
+    Ok(Json(GetBlobResponse {
         message,
         download_url,
     }))
@@ -217,30 +216,30 @@ pub async fn get_message(
 pub async fn list_messages(
     State(state): State<AppState>,
     Path(board_name): Path<String>,
-    Query(query): Query<GetMessagesQuery>,
-) -> Result<Json<ListMessagesResponse>, StatusCode> {
+    Query(query): Query<GetBlobsQuery>,
+) -> Result<Json<ListBlobsResponse>, StatusCode> {
     let messages = fetch_board_messages(&state, &board_name, &query).await?;
-    Ok(Json(ListMessagesResponse { messages }))
+    Ok(Json(ListBlobsResponse { messages }))
 }
 
 pub async fn get_messages(
     State(state): State<AppState>,
     Path(board_name): Path<String>,
-    Query(query): Query<GetMessagesQuery>,
-) -> Result<Json<GetMessagesResponse>, StatusCode> {
+    Query(query): Query<GetBlobsQuery>,
+) -> Result<Json<GetBlobsResponse>, StatusCode> {
     let messages = fetch_board_messages(&state, &board_name, &query).await?;
 
     let mut enriched = Vec::with_capacity(messages.len());
     for message in messages {
         let download_url = s3_download_url(&state, &message.content_type).await?;
-        enriched.push(MessageWithUrl {
+        enriched.push(MessageBlobWithUrl {
             message,
             download_url,
         });
     }
 
     tracing::info!("get_messages: returning {} messages", enriched.len());
-    Ok(Json(GetMessagesResponse { messages: enriched }))
+    Ok(Json(GetBlobsResponse { messages: enriched }))
 }
 
 /// Fetch a board's messages, honouring the optional `last_id` incremental cursor
@@ -248,8 +247,8 @@ pub async fn get_messages(
 async fn fetch_board_messages(
     state: &AppState,
     board_name: &str,
-    query: &GetMessagesQuery,
-) -> Result<Vec<crate::api_types::Message>, StatusCode> {
+    query: &GetBlobsQuery,
+) -> Result<Vec<crate::api_types::MessageBlob>, StatusCode> {
     if let Some(last_id) = query.last_id {
         let limit = query.limit.unwrap_or(100).min(1000);
         let (messages, _truncated) = db::get_messages_after(&state.db, board_name, last_id, limit)

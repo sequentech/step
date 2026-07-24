@@ -26,7 +26,7 @@
 //! - **Dependencies:** the `cryptography` crate (`vsc`) supplies the cryptographic
 //!   primitives the action layer calls (groups, ElGamal, shuffle proofs, DKG,
 //!   signatures, serialization); the `b4` crate supplies the message/artifact
-//!   types and the wire format ([`b4::messages`]).
+//!   types and the wire format ([`messages`]).
 //!
 //! ## The update-first cycle (§6)
 //!
@@ -37,13 +37,13 @@
 //! ```text
 //! b4 --messages--> BoardClient --> SessionTrustee --> datalog --> actions --> BoardClient --messages--> b4
 //!                  verify ->        pure step,         brain:      run crypto,   build + sign
-//!                  predicate,       holds keys         predicates  width W       WireMessages
+//!                  predicate,       holds keys         predicates  width W       ProtocolMessages
 //!                  anti-rewrite,                       -> actions
 //!                  persist, store
 //! ```
 //!
 //! - [`BoardClient`](board::BoardClient) is the only slot / `collides()`-aware
-//!   layer: it verifies each [`WireMessage`](b4::messages::wire::WireMessage) into
+//!   layer: it verifies each [`ProtocolMessage`](messages::wire::ProtocolMessage) into
 //!   a [`Predicate`](messages::predicate::Predicate) (+ body), runs the anti-rewrite
 //!   check against its persisted commitments (§6.2–§6.3), and owns the
 //!   [`MessageStore`](messages::store::MessageStore) (§5, §8).
@@ -59,7 +59,7 @@
 //!
 //! | Module | Role | Spec |
 //! |---|---|---|
-//! | [`messages`] | verify WireMessages -> predicates; the store (datalog EDB) | §3–§5 |
+//! | [`messages`] | verify ProtocolMessages -> predicates; the store (datalog EDB) | §3–§5 |
 //! | [`datalog`] | the brain: predicates -> actions, or HALT | §7 |
 //! | [`runtime`] | [`SessionTrustee`](runtime::SessionTrustee): the pure step + the action/crypto layer | §7.5, §9 |
 //! | [`board`] | board client + [`Transport`](board::transport::Transport) / [`Persistence`](board::persistence::Persistence) seams; the b4 board union | §6, §8 |

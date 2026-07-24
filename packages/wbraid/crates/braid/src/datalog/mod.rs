@@ -40,7 +40,7 @@ pub mod mix;
 pub mod types {
     use super::accumulator::AccumulatorSet;
 
-    pub use b4::messages::newtypes::{
+    pub use crate::messages::newtypes::{
         CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash,
         SharesHash, Threshold, TrusteeCount, TrusteeIndex,
     };
@@ -244,8 +244,8 @@ pub mod composed {
 mod tests {
     use super::composed::run;
     use super::Action;
+    use crate::messages::newtypes::{zero_hash, ConfigurationHash};
     use crate::messages::predicate::{ConfigurationValid, Predicate};
-    use b4::messages::newtypes::{zero_hash, ConfigurationHash};
 
     /// A lone `ConfigurationValid` predicate should make the trustee compute its
     /// DKG shares: the first action of the protocol.

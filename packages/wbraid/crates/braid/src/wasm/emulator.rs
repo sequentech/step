@@ -55,10 +55,10 @@ use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use b4::messages::newtypes::{ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex};
-use b4::messages::protocol_manager::ProtocolManager;
-use b4::messages::wire::{MessageType, WireMessage};
+use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use crate::messages::newtypes::{ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex};
+use crate::messages::protocol_manager::ProtocolManager;
+use crate::messages::wire::{MessageType, ProtocolMessage};
 
 use crate::board::persistence::IndexedDbPersistence;
 use crate::board::transport::Transport;
@@ -70,11 +70,7 @@ use crate::runtime::SessionTrustee;
 /// Wire `date` for every emulator message (§3.1 — timestamps are wire-only).
 const DATE: Timestamp = 0;
 
-/// The maximum committee size the dispatch macros monomorphize for. Mirrors
-/// `b4::messages::newtypes::MAX_TRUSTEES` — kept as a local constant only
-/// because importing from `b4` would pull the full crate path into the wasm
-/// bindings for a single numeric literal.
-const MAX_TRUSTEES: usize = b4::messages::newtypes::MAX_TRUSTEES;
+use crate::messages::newtypes::MAX_TRUSTEES;
 
 /// The context's signature scheme (Ed25519) and its signing-key type.
 type Sig = <RistrettoCtx as Context>::SignatureScheme;
@@ -190,7 +186,7 @@ fn build_trustees(committee: &Committee) -> Result<Vec<SessionTrustee<RistrettoC
 ///////////////////////////////////////////////////////////////////////////
 
 /// The body of the first message of `kind` in `messages`, if any.
-fn find_body<C: Context>(messages: &[WireMessage<C>], kind: MessageType) -> Option<&Vec<u8>> {
+fn find_body<C: Context>(messages: &[ProtocolMessage<C>], kind: MessageType) -> Option<&Vec<u8>> {
     messages
         .iter()
         .find(|m| m.message_type == kind)
@@ -206,7 +202,7 @@ fn encrypt_ballots<C: Context, const W: usize>(
     mixing_trustees: Vec<TrusteeIndex>,
     pm: &ProtocolManager<C>,
     cfg_hash: ConfigurationHash,
-) -> Result<(WireMessage<C>, HashSet<Vec<u8>>)> {
+) -> Result<(ProtocolMessage<C>, HashSet<Vec<u8>>)> {
     let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
         .map_err(|e| anyhow!("deserialize public key: {:?}", e))?;
     let pk_hash = PublicKeyHash(b4::hash_bytes(pk_body));
@@ -220,7 +216,8 @@ fn encrypt_ballots<C: Context, const W: usize>(
     let expected: HashSet<Vec<u8>> = plaintexts_in.iter().map(|p| p.ser()).collect();
 
     let ballots = Ballots::<C, W>::new(encrypted);
-    let message = WireMessage::<C>::ballots(pm, DATE, cfg_hash, pk_hash, mixing_trustees, &ballots);
+    let message =
+        ProtocolMessage::<C>::ballots(pm, DATE, cfg_hash, pk_hash, mixing_trustees, &ballots);
     Ok((message, expected))
 }
 
@@ -603,7 +600,7 @@ impl Emulator {
                 .await
                 .map_err(js)?;
             let cfg_message =
-                WireMessage::<RistrettoCtx>::configuration(&committee.pm, DATE, &committee.cfg);
+                ProtocolMessage::<RistrettoCtx>::configuration(&committee.pm, DATE, &committee.cfg);
             let manager = WasmHttpTransport::new(&b4_url, &parent_board);
             Transport::<RistrettoCtx>::post(&manager, vec![cfg_message])
                 .await

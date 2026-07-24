@@ -16,14 +16,14 @@
 //!
 //! Ported from the vs_lift `ascent_logic::utils` module.
 
-use b4::messages::newtypes::TrusteeIndex;
+use crate::messages::newtypes::TrusteeIndex;
 use std::collections::BTreeSet;
 
 /// Capacity of the backing array. Trustee indices are 1-based (§4.3), so the
 /// array must hold `MAX_TRUSTEES + 1` slots (slot `0` is unused). This ties the
 /// accumulator to the system-wide trustee limit rather than an independent
 /// constant.
-const ACCUMULATOR_CAPACITY: usize = b4::messages::newtypes::MAX_TRUSTEES + 1;
+const ACCUMULATOR_CAPACITY: usize = crate::messages::newtypes::MAX_TRUSTEES + 1;
 
 /// Fixed-capacity set keyed by trustee index, enforcing uniqueness invariants.
 ///

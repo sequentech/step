@@ -4,26 +4,23 @@
 
 use anyhow::Result;
 
-use crate::messages::artifact::Configuration;
-use crate::Hasher;
+use super::artifact::Configuration;
 use cryptography::context::Context;
-use cryptography::utils::hash::Hasher as HasherTrait;
 use cryptography::utils::serialization::VSerializable;
 use cryptography::VSerializable as VSer;
-use sha3::Digest;
 
 pub const MAX_TRUSTEES: usize = 8;
 pub const MAX_CIPHERTEXT_WIDTH: usize = 8;
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
 
 // Hash type: using 64-byte SHA3-512 output
-pub type Hash = crate::CryptographicHash;
+pub type Hash = b4::CryptographicHash;
 
-/// Zero hash constant for comparisons
+/// Zero hash constant for comparisons and tests.
 #[inline]
 pub fn zero_hash() -> Hash {
-    use sha3::digest::array::Array;
-    Array([0u8; 64])
+    // A 64-byte all-zero GenericArray, without importing sha3 directly.
+    Default::default()
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -38,9 +35,7 @@ impl ConfigurationHash {
         configuration: &Configuration<C>,
     ) -> Result<ConfigurationHash> {
         let bytes = configuration.ser();
-        let mut hasher = Hasher::hasher();
-        hasher.update(&bytes);
-        Ok(ConfigurationHash(hasher.finalize()))
+        Ok(ConfigurationHash(b4::hash_bytes(&bytes)))
     }
 }
 impl std::fmt::Debug for ConfigurationHash {
