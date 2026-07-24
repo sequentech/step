@@ -102,9 +102,8 @@ never panic or mis-verify — a natural fuzzing surface.
 ## 4. Static analysis & linting  [CANDIDATE / hygiene]
 
 Baseline `clippy` (ideally `-D warnings` in CI) and a warning-clean `cargo doc`.
-Known backlog to clear first: a few pre-existing `rustdoc::broken_intra_doc_links`
-warnings (in `accumulator`, `store`, the HTTP test harnesses) and a benign
-`dead_code` (`util::dbg_hash`). Consider `cargo-deny` (licenses/advisories) given
+The pre-existing `dead_code` and `broken_intra_doc_links` backlog was cleared during
+the legacy retirement pass; a fresh audit may surface new items. Consider `cargo-deny` (licenses/advisories) given
 the dependency surface.
 
 ## 5. Verified / audited dependencies  [CANDIDATE — not yet assessed]

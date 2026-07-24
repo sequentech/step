@@ -48,10 +48,10 @@ use crate::datalog::{self, Action, MixSource};
 use crate::messages::predicate::ConfigurationValid;
 use crate::messages::store::MessageStore;
 
-/// Wire `date` used for all M1 messages. The timestamp is wire-only metadata
-/// (§3.1) and plays no part in verification or the datalog, so a fixed value is
-/// sufficient for the in-memory harness; a real clock is an M2 concern.
-const M1_TIMESTAMP: Timestamp = 0;
+/// Wire `date` stamped on every message this trustee produces. Timestamps are
+/// purely informational (§10.2) — nothing in the protocol consumes them — so a
+/// fixed placeholder is correct, not merely expedient.
+const WIRE_DATE: Timestamp = 0;
 
 /// A trustee driving a single board through the v0.6 protocol.
 ///
@@ -228,7 +228,7 @@ impl<C: Context> SessionTrustee<C> {
                 commitments: dealer_shares.checking_values.to_vec(),
                 encrypted_shares,
             };
-            let message = WireMessage::<C>::shares(self, M1_TIMESTAMP, *cfg_hash, &shares);
+            let message = WireMessage::<C>::shares(self, WIRE_DATE, *cfg_hash, &shares);
             Ok(vec![message])
         })
     }
@@ -302,7 +302,7 @@ impl<C: Context> SessionTrustee<C> {
             }
 
             let public_key = DkgPublicKey::<C>::new(joint_pk, verification_keys);
-            let message = WireMessage::<C>::public_key(self, M1_TIMESTAMP, *cfg_hash, &public_key);
+            let message = WireMessage::<C>::public_key(self, WIRE_DATE, *cfg_hash, &public_key);
             Ok(vec![message])
         })
     }
@@ -378,7 +378,7 @@ impl<C: Context> SessionTrustee<C> {
                 let mix = Mix::<C, W>::null();
                 let message = WireMessage::<C>::mix(
                     self,
-                    M1_TIMESTAMP,
+                    WIRE_DATE,
                     *cfg_hash,
                     *pk_hash,
                     *input_hash,
@@ -399,7 +399,7 @@ impl<C: Context> SessionTrustee<C> {
 
             let mix = Mix::new(shuffled, proof);
             let message =
-                WireMessage::<C>::mix(self, M1_TIMESTAMP, *cfg_hash, *pk_hash, *input_hash, &mix);
+                WireMessage::<C>::mix(self, WIRE_DATE, *cfg_hash, *pk_hash, *input_hash, &mix);
             Ok(vec![message])
         })
     }
@@ -448,7 +448,7 @@ impl<C: Context> SessionTrustee<C> {
                 }
                 let message = WireMessage::<C>::mix_signature(
                     self,
-                    M1_TIMESTAMP,
+                    WIRE_DATE,
                     *cfg_hash,
                     *pk_hash,
                     *input_hash,
@@ -479,7 +479,7 @@ impl<C: Context> SessionTrustee<C> {
 
             let message = WireMessage::<C>::mix_signature(
                 self,
-                M1_TIMESTAMP,
+                WIRE_DATE,
                 *cfg_hash,
                 *pk_hash,
                 *input_hash,
@@ -598,7 +598,7 @@ impl<C: Context> SessionTrustee<C> {
         let partial_decryption = PartialDecryption::new(dfactors.factors);
         let message = WireMessage::<C>::partial_decryptions(
             self,
-            M1_TIMESTAMP,
+            WIRE_DATE,
             *cfg_hash,
             *pk_hash,
             *ciphertexts_hash,
@@ -709,7 +709,7 @@ impl<C: Context> SessionTrustee<C> {
         let plaintexts = Plaintexts::<C, W>(plaintexts);
         let message = WireMessage::<C>::plaintexts(
             self,
-            M1_TIMESTAMP,
+            WIRE_DATE,
             *cfg_hash,
             *pk_hash,
             *ciphertexts_hash,

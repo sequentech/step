@@ -70,8 +70,11 @@ use crate::runtime::SessionTrustee;
 /// Wire `date` for every emulator message (§3.1 — timestamps are wire-only).
 const DATE: Timestamp = 0;
 
-/// The maximum committee size the dispatch macros monomorphize for.
-const MAX_TRUSTEES: usize = 8;
+/// The maximum committee size the dispatch macros monomorphize for. Mirrors
+/// `b4::messages::newtypes::MAX_TRUSTEES` — kept as a local constant only
+/// because importing from `b4` would pull the full crate path into the wasm
+/// bindings for a single numeric literal.
+const MAX_TRUSTEES: usize = b4::messages::newtypes::MAX_TRUSTEES;
 
 /// The context's signature scheme (Ed25519) and its signing-key type.
 type Sig = <RistrettoCtx as Context>::SignatureScheme;

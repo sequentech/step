@@ -59,8 +59,10 @@ impl Persistence for NoOpPersistence {
 /// check (§6.3); persistence only supplies the durable committed set.
 ///
 /// rusqlite's `Connection` is `Send` but not `Sync`, so it is wrapped in a
-/// `Mutex` to satisfy the `Send + Sync` bound on [`Persistence`]. The calls are
-/// synchronous and never hold the lock across an `.await`.
+/// `Mutex`. The [`Persistence`] trait itself is `?Send`, but the native test
+/// harnesses share `&BoardClient` across rayon threads, which requires the
+/// concrete persistence type to be `Sync`. The `Mutex` satisfies that bound;
+/// the calls are synchronous and never hold the lock across an `.await`.
 #[cfg(feature = "native")]
 pub struct SqlitePersistence {
     conn: std::sync::Mutex<rusqlite::Connection>,

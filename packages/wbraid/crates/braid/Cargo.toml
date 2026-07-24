@@ -17,10 +17,8 @@ rand = "0.9"
 
 vsc = { path="../vsc", optional = true }
 b4 = { path="../b4", optional = true, default-features = false }
-crepe = "0.1"
 ascent = { version = "0.8", default-features = false, features = ["wasm-bindgen"] }
 enum_dispatch = "0.3.13"
-strum = { version = "0.27", features = ["derive"] }
 
 # Native-only dependencies
 rayon = { version = "1.5", optional = true }
@@ -87,7 +85,6 @@ log = "0.4"
 tracing = "0.1"
 tracing-log = "0.2"
 tracing-attributes = "0.1"
-rustc-hash = "2.0"
 cfg-if = "1.0"
 
 # Native-only shared dependencies

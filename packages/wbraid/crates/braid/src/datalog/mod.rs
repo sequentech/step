@@ -42,7 +42,7 @@ pub mod types {
 
     pub use b4::messages::newtypes::{
         CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash,
-        SharesHash, TrusteeCount, TrusteeIndex,
+        SharesHash, Threshold, TrusteeCount, TrusteeIndex,
     };
 
     /// Configuration hash (vs_lift `CfgHash`).
@@ -166,7 +166,7 @@ ascent::ascent_source! { prelude:
 
     // The executing trustee accepts the given configuration (hash) as valid,
     // with the given threshold, trustee count, and its own trustee index.
-    relation configuration_valid(CfgHash, TrusteeCount, TrusteeCount, TrusteeIndex);
+    relation configuration_valid(CfgHash, Threshold, TrusteeCount, TrusteeIndex);
 
     // Map the bootstrapping ConfigurationValid predicate to the configuration_valid fact.
     configuration_valid(c.configuration, c.threshold, c.trustee_count, c.self_index) <--
