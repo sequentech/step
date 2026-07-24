@@ -51,4 +51,15 @@ class SegmentedCredentialAssetTest {
     assertTrue(styles.contains("max-width: none;"));
     assertFalse(styles.contains("max-width: calc(var(--segment-width) + 16px);"));
   }
+
+  @Test
+  void segmentAndToggleGapsUseTheSameResponsiveSpacing() throws IOException {
+    String styles = Files.readString(STYLES);
+
+    assertTrue(styles.contains("--segmented-credential-gap: 8px;"));
+    assertTrue(styles.contains("--segmented-credential-gap: 6px;"));
+    assertTrue(styles.contains("gap: var(--segmented-credential-gap);"));
+    assertTrue(styles.contains("[data-segmented-credential-toggle]"));
+    assertTrue(styles.contains("margin-left: 0;"));
+  }
 }

@@ -673,14 +673,21 @@ button#resend-otp-btn:hover {
 /* Segmented numeric credentials are progressively rendered around the ordinary
    password input when enabled by realm attributes. */
 [data-segmented-credential][data-segmented-credential-enhanced="true"] {
+    --segmented-credential-gap: 8px;
+
     align-items: stretch;
+    gap: var(--segmented-credential-gap);
+}
+
+[data-segmented-credential][data-segmented-credential-enhanced="true"] [data-segmented-credential-toggle] {
+    margin-left: 0;
 }
 
 .segmented-credential {
     display: flex;
     flex: 1 1 auto;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--segmented-credential-gap);
     min-width: 0;
 }
 
@@ -704,8 +711,8 @@ button#resend-otp-btn:hover {
 }
 
 @media (max-width: 480px) {
-    .segmented-credential {
-        gap: 6px;
+    [data-segmented-credential][data-segmented-credential-enhanced="true"] {
+        --segmented-credential-gap: 6px;
     }
 
     .segmented-credential__segment {
