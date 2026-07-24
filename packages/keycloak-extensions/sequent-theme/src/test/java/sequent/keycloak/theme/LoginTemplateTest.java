@@ -39,8 +39,15 @@ class LoginTemplateTest {
     String template = Files.readString(LOGIN_TEMPLATE);
 
     assertTrue(template.contains("name=\"password\" type=\"password\""));
-    assertTrue(template.contains("autocomplete=\"off\""));
-    assertFalse(template.contains("autocomplete=\"current-password\""));
+    assertTrue(
+        template.contains("autocomplete=\"<#if structuredCredential>username<#else>off</#if>\""));
+    assertTrue(
+        template.contains(
+            "autocomplete=\"<#if structuredCredential>current-password<#else>off</#if>\""));
+    assertTrue(
+        template.contains(
+            "<#if structuredCredentialHasError || credentialFieldError>aria-invalid=\"true\"</#if>"));
+    assertFalse(template.contains("aria-invalid=\"<#if"));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/passwordVisibility.js\""));
     assertTrue(template.contains("<#if structuredCredential>"));
     assertTrue(template.contains("<#else>"));

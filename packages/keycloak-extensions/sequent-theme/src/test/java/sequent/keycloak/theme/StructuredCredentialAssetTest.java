@@ -28,6 +28,9 @@ class StructuredCredentialAssetTest {
     assertTrue(script.contains("document.createElement(\"input\")"));
     assertTrue(script.contains("displayInput.inputMode = \"numeric\""));
     assertTrue(script.contains("displayInput.type = \"text\""));
+    assertTrue(script.contains("displayInput.autocomplete = \"current-password\""));
+    assertTrue(script.contains("usernameInput.autocomplete = \"username\""));
+    assertTrue(script.contains("displayInput.setAttribute(\"aria-required\", \"true\")"));
     assertTrue(script.contains("realInput.value = digits.map"));
     assertTrue(script.contains("realInput.type = \"hidden\""));
     assertTrue(script.contains("prefilledValue.length <= pattern.totalSize"));
@@ -77,8 +80,13 @@ class StructuredCredentialAssetTest {
             "[data-structured-credential][data-structured-credential-enhanced=\"true\"]"));
     assertTrue(styles.contains(".structured-credential__input"));
     assertTrue(styles.contains("[data-structured-credential-toggle]"));
-    assertTrue(styles.contains("line-height: 44px"));
+    assertTrue(styles.contains("border: 1px solid var(--pf-global--palette--black-500)"));
+    assertTrue(styles.contains("line-height: 24px"));
+    assertTrue(styles.contains("padding-block: 10px"));
+    assertTrue(styles.contains("[data-structured-credential-toggle]:focus-visible"));
+    assertTrue(styles.contains("@media (forced-colors: active)"));
     assertTrue(styles.contains("[data-structured-credential-toggle]::after"));
+    assertFalse(styles.contains("line-height: 44px"));
     assertFalse(styles.contains(".segmented-credential__segment"));
     assertFalse(styles.contains("--segmented-credential-gap"));
   }

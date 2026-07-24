@@ -20,8 +20,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <div class="${properties.kcFormGroupClass!}">
                             <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
-                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="off"
-                                   aria-invalid="<#if structuredCredentialHasError || credentialFieldError>true</#if>"
+                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
+                                   <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
                             />
 
                             <#if credentialFieldError && !structuredCredential>
@@ -44,9 +44,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                              data-hint-id="structured-credential-hint"
                              data-error-id="structured-credential-error"</#if>>
                             <input tabindex="3" id="password" class="${properties.kcInputClass!}" name="password" type="password"
-                                   autocomplete="off"
+                                   autocomplete="<#if structuredCredential>current-password<#else>off</#if>"
                                    <#if structuredCredential>aria-describedby="structured-credential-hint structured-credential-error"</#if>
-                                   aria-invalid="<#if structuredCredentialHasError || credentialFieldError>true</#if>"
+                                   <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
                             />
                             <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
                                     aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if> tabindex="4"

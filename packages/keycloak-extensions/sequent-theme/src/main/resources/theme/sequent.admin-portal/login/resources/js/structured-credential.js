@@ -145,11 +145,14 @@ if (container) {
     displayInput.className = `${realInput.className} structured-credential__input`;
     displayInput.type = "text";
     displayInput.inputMode = "numeric";
-    displayInput.autocomplete = "off";
+    displayInput.autocomplete = "current-password";
     displayInput.autocapitalize = "none";
     displayInput.spellcheck = false;
     displayInput.tabIndex = originalTabIndex;
     displayInput.setAttribute("aria-required", "true");
+    if (usernameInput) {
+      usernameInput.autocomplete = "username";
+    }
     if (label) {
       displayInput.setAttribute("aria-labelledby", label.id);
     }

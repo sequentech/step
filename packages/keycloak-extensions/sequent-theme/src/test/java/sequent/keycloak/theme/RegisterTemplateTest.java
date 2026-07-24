@@ -45,7 +45,14 @@ class RegisterTemplateTest {
     assertTrue(template.contains("msg(\"structuredCredentialError\")"));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/structured-credential.js\""));
     assertTrue(template.contains("<#if structuredCredentialLogin>"));
-    assertTrue(template.contains("<#if structuredCredentialLogin>autocomplete=\"off\""));
+    assertTrue(
+        template.contains("<#if structuredCredentialLogin>autocomplete=\"current-password\""));
+    assertTrue(
+        template.contains(
+            "<#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>aria-invalid=\"true\"</#if>"));
+    assertFalse(
+        template.contains(
+            "aria-invalid=\"<#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>true</#if>\""));
     assertTrue(
         template.contains(
             "displayMessage=messagesPerField.exists('global') displayRequiredFields=true"));

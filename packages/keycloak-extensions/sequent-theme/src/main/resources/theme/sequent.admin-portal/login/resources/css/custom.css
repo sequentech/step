@@ -674,7 +674,7 @@ button#resend-otp-btn:hover {
 [data-structured-credential][data-structured-credential-enhanced="true"] {
     align-items: center;
     background: var(--pf-global--BackgroundColor--100);
-    border: 1px solid var(--pf-global--palette--black-200);
+    border: 1px solid var(--pf-global--palette--black-500);
     border-radius: 4px;
     display: flex;
     overflow: hidden;
@@ -692,15 +692,16 @@ button#resend-otp-btn:hover {
     border: 0;
     border-radius: 0;
     box-shadow: none;
+    box-sizing: border-box;
     caret-color: transparent;
     direction: ltr;
     flex: 1 1 auto;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     height: 44px;
     letter-spacing: 0.08em;
-    line-height: 44px;
+    line-height: 24px;
     min-width: 0;
-    padding-block: 0;
+    padding-block: 10px;
 }
 
 [data-structured-credential][data-structured-credential-enhanced="true"]
@@ -723,6 +724,12 @@ button#resend-otp-btn:hover {
     min-height: 44px;
     min-width: 44px;
     padding: 0;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle]:focus-visible {
+    outline: 2px solid var(--pf-global--primary-color--100);
+    outline-offset: -4px;
 }
 
 [data-structured-credential][data-structured-credential-enhanced="true"]
@@ -750,4 +757,17 @@ button#resend-otp-btn:hover {
     position: absolute;
     white-space: nowrap;
     width: 1px;
+}
+
+@media (forced-colors: active) {
+    [data-structured-credential][data-structured-credential-enhanced="true"]:focus-within {
+        box-shadow: none;
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+    }
+
+    [data-structured-credential][data-structured-credential-enhanced="true"]
+        [data-structured-credential-toggle]:focus-visible {
+        outline-color: Highlight;
+    }
 }

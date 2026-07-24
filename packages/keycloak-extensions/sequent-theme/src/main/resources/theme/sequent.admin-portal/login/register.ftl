@@ -57,9 +57,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                                          data-hint-id="structured-credential-hint"
                                          data-error-id="structured-credential-error"</#if>>
                                         <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
-                                               <#if structuredCredentialLogin>autocomplete="off"<#else>autocomplete="new-password"</#if>
+                                               <#if structuredCredentialLogin>autocomplete="current-password"<#else>autocomplete="new-password"</#if>
                                                <#if structuredCredentialLogin>aria-describedby="structured-credential-hint structured-credential-error"</#if>
-                                               aria-invalid="<#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>true</#if>"
+                                               <#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>aria-invalid="true"</#if>
                                         />
                                         <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredentialLogin>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
                                                 aria-controls="password" <#if structuredCredentialLogin>data-structured-credential-toggle<#else>data-password-toggle</#if>

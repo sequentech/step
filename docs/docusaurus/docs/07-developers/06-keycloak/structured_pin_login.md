@@ -72,6 +72,29 @@ the one ordinary `password` form value without separators. Incomplete input is
 blocked in the browser and focuses the first incomplete group. Invalid input,
 leading zeroes, and paste never change the Keycloak credential type.
 
+## Accessibility
+
+The structured control is designed and tested against WCAG 2.1 Level AA for
+the component and both supported flows. It retains native textbox and button
+semantics, associates the visible PIN label and hint with the textbox, exposes
+required and invalid states, and announces group progress and validation
+errors. Incomplete submission focuses the first incomplete group. Username and
+PIN inputs expose the standard `username` and `current-password` purposes.
+
+Every interaction is keyboard-operable. Tab order is PIN textbox, visibility
+button, and then the remaining form controls; Left, Right, Home, End,
+Backspace, Delete, typing, paste, reveal, and submission do not require a
+pointer or keystroke timing. The field and visibility button have distinct
+visible focus states, including in forced-colors mode.
+
+Normal text and icons meet their applicable contrast thresholds. The authored
+field border and focus/error states have at least 3:1 contrast against the
+field background, while text has at least 4.5:1. The 44 CSS-pixel visibility
+target exceeds WCAG 2.1 Level AA and also meets its Level AAA target-size
+criterion. The control is tested within a 320 CSS-pixel layout (the WCAG 2.1
+reflow width) and with the WCAG text-spacing overrides, without loss of content
+or functionality.
+
 ## Supported login forms
 
 The policy applies to both:
