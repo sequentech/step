@@ -143,9 +143,11 @@ const basqueTranslation: TranslationType = {
                     externalDiffTitle: "Kanpoko diff-a",
                     sequentDiffTitle: "Sequent diff-a",
                     downloadExternalPatch: "Deskargatu kanpoko adabakia",
+                    externalDiffCaption:
+                        "Deskargatu adabakia eta eman ezazu kanpoko sistemari tresna honetatik kanpo. Adabakia aplikatu eta hurrengo bat-egite fitxategia sortu ondoren, sakatu 'Atzera' eta jaregin fitxategi hori - 'Aplikatu' gaitzen da taula hau hutsik dagoenean.",
                     noExternalDifferences: "Ez dago desberdintasunik kanpoko aldean.",
                     sequentDiffCaption:
-                        "Zuzenean Sequent-i aplikatzen zaio - hauetarako ez da adabaki-fitxategirik sortzen.",
+                        "Aplikatu aldaketak zuzenean Sequent-i 'Aplikatu' sakatuz - hauetarako ez da adabaki-fitxategirik sortzen.",
                     noSequentDifferences: "Ez dago desberdintasunik Sequent aldean.",
                 },
                 applying: {

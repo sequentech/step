@@ -142,9 +142,11 @@ const catalanTranslation: TranslationType = {
                     externalDiffTitle: "Diff extern",
                     sequentDiffTitle: "Diff de Sequent",
                     downloadExternalPatch: "Descarregar pedaç extern",
+                    externalDiffCaption:
+                        "Descarrega el pedaç i lliura'l al sistema extern fora d'aquesta eina. Un cop l'apliqui i generi el següent fitxer de reconciliació, fes clic a 'Enrere' i deixa anar aquest fitxer - 'Aplicar' s'habilita quan aquesta taula estigui buida.",
                     noExternalDifferences: "No hi ha diferències del costat extern.",
                     sequentDiffCaption:
-                        "S'aplica directament a Sequent - no es genera cap fitxer de pedaç per aquests.",
+                        "Aplica els canvis directament a Sequent fent clic a 'Aplicar' - no es genera cap fitxer de pedaç per aquests.",
                     noSequentDifferences: "No hi ha diferències del costat de Sequent.",
                 },
                 applying: {

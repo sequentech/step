@@ -541,7 +541,9 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                             alignItems="center"
                                         >
                                             <Typography variant="subtitle1">
-                                                {t("reconciliation.wizard.review.externalDiffTitle")}
+                                                {t(
+                                                    "reconciliation.wizard.review.externalDiffTitle"
+                                                )}
                                                 {datafixRows.length > 0 &&
                                                     ` (${datafixRows.length})`}
                                             </Typography>
@@ -562,6 +564,13 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                                     </Button>
                                                 )}
                                         </Stack>
+                                        {datafixRows.length > 0 && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                {t(
+                                                    "reconciliation.wizard.review.externalDiffCaption"
+                                                )}
+                                            </Typography>
+                                        )}
                                         <SyncDiffTable
                                             rows={datafixRows}
                                             emptyMessage={t(

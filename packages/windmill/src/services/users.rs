@@ -45,6 +45,11 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 #[derive(Debug, Clone)]
 pub struct VoterSnapshot {
     pub username: String,
+    /// Keycloak's own internal user id (`user_entity.id`) — same value
+    /// `cast_vote.voter_id_string` carries, so this is what actually matches
+    /// against `get_voter_ids_with_valid_cast_vote`'s result; `username` is a
+    /// separate, mutable-in-theory identifier not safe to key that lookup on.
+    pub voter_id_string: String,
     pub enabled: bool,
     /// The voter's resolved area name (`WARD-SCHOOLBOARD-POLL`, uppercased —
     /// see `reconciliation::snapshot`), `None` if their `area-id` attribute
@@ -87,6 +92,7 @@ pub async fn fetch_realm_voter_snapshots_page(
         .prepare(
             r#"
                 SELECT
+                    u.id AS voter_id_string,
                     u.username,
                     u.enabled,
                     json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
@@ -124,6 +130,7 @@ fn voter_snapshot_row_to_snapshot(
     row: Row,
     areas_by_id: &HashMap<String, String>,
 ) -> Option<VoterSnapshot> {
+    let voter_id_string: String = row.get("voter_id_string");
     let username: String = row.get("username");
     let enabled: bool = row.get("enabled");
     let attributes: Option<serde_json::Value> = row.get("attributes");
@@ -141,11 +148,12 @@ fn voter_snapshot_row_to_snapshot(
 
     Some(VoterSnapshot {
         username,
+        voter_id_string,
         enabled,
         area_name,
         dob: attr(DATE_OF_BIRTH),
         voted_channel: attr(VOTED_CHANNEL),
-        has_valid_internet_vote: false, // filled in by the caller from get_usernames_with_valid_cast_vote
+        has_valid_internet_vote: false, // filled in by the caller from get_voter_ids_with_valid_cast_vote
         disable_comment: attr(DISABLE_COMMENT),
     })
 }

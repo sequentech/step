@@ -460,11 +460,12 @@ pub async fn get_cast_votes(
     Ok(cast_votes)
 }
 
-/// Precomputes the set of usernames with a `valid` cast vote for the event —
-/// small enough (bounded by turnout, not roll size) to fetch in one query,
-/// unlike a realm-wide user scan.
+/// Precomputes the set of voter ids (`cast_vote.voter_id_string` — Keycloak's
+/// own `user_entity.id`, not the username) with a `valid` cast vote for the
+/// event — small enough (bounded by turnout, not roll size) to fetch in one
+/// query, unlike a realm-wide user scan.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_usernames_with_valid_cast_vote(
+pub async fn get_voter_ids_with_valid_cast_vote(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -485,7 +486,10 @@ pub async fn get_usernames_with_valid_cast_vote(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
-            &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?],
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
         )
         .await?;
 

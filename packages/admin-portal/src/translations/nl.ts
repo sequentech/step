@@ -143,9 +143,11 @@ const dutchTranslation: TranslationType = {
                     externalDiffTitle: "Externe diff",
                     sequentDiffTitle: "Sequent-diff",
                     downloadExternalPatch: "Externe patch downloaden",
+                    externalDiffCaption:
+                        "Download de patch en lever deze buiten deze tool aan het externe systeem. Zodra het de patch toepast en het volgende reconciliatiebestand produceert, klik op 'Terug' en sleep dat bestand hierheen - 'Toepassen' wordt geactiveerd zodra deze tabel leeg is.",
                     noExternalDifferences: "Geen verschillen aan de externe zijde.",
                     sequentDiffCaption:
-                        "Wordt direct op Sequent toegepast - hiervoor wordt geen patchbestand gegenereerd.",
+                        "Pas wijzigingen direct toe op Sequent door op 'Toepassen' te klikken - hiervoor wordt geen patchbestand gegenereerd.",
                     noSequentDifferences: "Geen verschillen aan de Sequent-zijde.",
                 },
                 applying: {

@@ -141,9 +141,11 @@ const englishTranslation = {
                     externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
                     downloadExternalPatch: "Download external patch",
+                    externalDiffCaption:
+                        "Download the patch and deliver it to the external system outside this tool. Once it applies the patch and produces the next reconciliation file, click 'Back' and drop that file in - 'Apply' unlocks once this table is empty.",
                     noExternalDifferences: "No external-side differences.",
                     sequentDiffCaption:
-                        "Applied directly to Sequent - no patch file is generated for these.",
+                        "Apply changes directly to Sequent by clicking 'Apply' - no patch file is generated for these.",
                     noSequentDifferences: "No Sequent-side differences.",
                 },
                 applying: {

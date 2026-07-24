@@ -143,9 +143,11 @@ const tagalogTranslation: TranslationType = {
                     externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
                     downloadExternalPatch: "I-download ang external patch",
+                    externalDiffCaption:
+                        "I-download ang patch at ibigay ito sa external system sa labas ng tool na ito. Kapag na-apply na nito ang patch at nagawa ang susunod na reconciliation file, i-click ang 'Bumalik' at i-drop ang file na iyon - mag-e-enable ang 'I-apply' kapag walang laman ang table na ito.",
                     noExternalDifferences: "Walang pagkakaiba sa external side.",
                     sequentDiffCaption:
-                        "Direktang inilalapat sa Sequent - walang ginagawang patch file para dito.",
+                        "I-apply ang mga pagbabago nang direkta sa Sequent sa pamamagitan ng pag-click sa 'I-apply' - walang ginagawang patch file para dito.",
                     noSequentDifferences: "Walang pagkakaiba sa Sequent side.",
                 },
                 applying: {

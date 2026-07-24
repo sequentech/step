@@ -142,9 +142,11 @@ const frenchTranslation: TranslationType = {
                     externalDiffTitle: "Diff externe",
                     sequentDiffTitle: "Diff Sequent",
                     downloadExternalPatch: "Télécharger le correctif externe",
+                    externalDiffCaption:
+                        "Téléchargez le correctif et remettez-le au système externe en dehors de cet outil. Une fois qu'il l'applique et produit le fichier de réconciliation suivant, cliquez sur 'Retour' et déposez ce fichier - 'Appliquer' se débloque une fois ce tableau vide.",
                     noExternalDifferences: "Aucune différence côté externe.",
                     sequentDiffCaption:
-                        "Appliqué directement à Sequent - aucun fichier de correctif n'est généré pour ceux-ci.",
+                        "Appliquez les changements directement à Sequent en cliquant sur 'Appliquer' - aucun fichier de correctif n'est généré pour ceux-ci.",
                     noSequentDifferences: "Aucune différence côté Sequent.",
                 },
                 applying: {

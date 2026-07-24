@@ -538,6 +538,7 @@ mod tests {
     fn enabled_snapshot() -> VoterSnapshot {
         VoterSnapshot {
             username: "voter-1".to_string(),
+            voter_id_string: "voter-1-id".to_string(),
             enabled: true,
             area_name: Some("01-P-000".to_string()),
             dob: Some("1990-01-01".to_string()),

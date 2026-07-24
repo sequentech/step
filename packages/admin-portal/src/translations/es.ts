@@ -142,9 +142,11 @@ const spanishTranslation: TranslationType = {
                     externalDiffTitle: "Diff externo",
                     sequentDiffTitle: "Diff de Sequent",
                     downloadExternalPatch: "Descargar parche externo",
+                    externalDiffCaption:
+                        "Descarga el parche y entrégaselo al sistema externo fuera de esta herramienta. Cuando lo aplique y genere el siguiente archivo de reconciliación, haz clic en 'Atrás' y suelta ese archivo - 'Aplicar' se habilita cuando esta tabla esté vacía.",
                     noExternalDifferences: "No hay diferencias del lado externo.",
                     sequentDiffCaption:
-                        "Se aplica directamente a Sequent - no se genera archivo de parche para estos.",
+                        "Aplica los cambios directamente a Sequent haciendo clic en 'Aplicar' - no se genera archivo de parche para estos.",
                     noSequentDifferences: "No hay diferencias del lado de Sequent.",
                 },
                 applying: {

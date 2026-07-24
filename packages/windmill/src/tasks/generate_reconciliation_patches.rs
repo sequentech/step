@@ -15,7 +15,7 @@
 //! even though it also computes the diff, not just the patch.
 
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::get_usernames_with_valid_cast_vote;
+use crate::postgres::cast_vote::get_voter_ids_with_valid_cast_vote;
 use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
@@ -183,7 +183,7 @@ async fn run_generate_reconciliation_patches(
     .filter_map(|area| area.name.map(|name| (area.id, name)))
     .collect();
 
-    let valid_voters = get_usernames_with_valid_cast_vote(
+    let valid_voters = get_voter_ids_with_valid_cast_vote(
         &hasura_transaction,
         &body.tenant_id,
         &body.election_event_id,
@@ -207,7 +207,7 @@ async fn run_generate_reconciliation_patches(
             break;
         }
         for snapshot in page.iter_mut() {
-            snapshot.has_valid_internet_vote = valid_voters.contains(&snapshot.username);
+            snapshot.has_valid_internet_vote = valid_voters.contains(&snapshot.voter_id_string);
         }
         after_username = page.last().map(|snapshot| snapshot.username.clone());
         all_items.extend(diff_snapshot_page(
