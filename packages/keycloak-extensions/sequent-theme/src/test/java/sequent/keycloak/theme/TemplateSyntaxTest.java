@@ -4,6 +4,7 @@
 
 package sequent.keycloak.theme;
 
+import freemarker.core.HTMLOutputFormat;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import java.io.IOException;
@@ -24,6 +25,7 @@ class TemplateSyntaxTest {
 
   private static void assertParses(Path path) throws IOException {
     Configuration configuration = new Configuration(Configuration.VERSION_2_3_34);
+    configuration.setOutputFormat(HTMLOutputFormat.INSTANCE);
     try (Reader reader = Files.newBufferedReader(path)) {
       new Template(path.getFileName().toString(), reader, configuration);
     }
