@@ -52,8 +52,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
                                     <div class="${properties.kcInputGroup!}"<#if segmentedCredentialLogin>
                                          data-segmented-credential
-                                         data-segment-layout="${(realm.attributes['credential-segment-layout']!'4-4-4-4')?html}"
-                                         data-group-label="${msg('segmentedCredentialGroupLabel')?html}"
+                                         data-segment-layout="${realm.attributes['credential-segment-layout']!'4-4-4-4'}"
+                                         data-group-label="${msg('segmentedCredentialGroupLabel')}"
                                          data-label-id="segmented-credential-label"
                                          data-hint-id="segmented-credential-hint"
                                          data-error-id="segmented-credential-error"</#if>>

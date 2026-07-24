@@ -26,6 +26,7 @@ class LoginTemplateTest {
             "<#assign segmentedCredential = (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>"));
     assertTrue(template.contains("data-segmented-credential"));
     assertTrue(template.contains("realm.attributes['credential-segment-layout']!'4-4-4-4'"));
+    assertFalse(template.contains("?html"));
     assertTrue(template.contains("msg(\"segmentedCredentialError\")"));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/segmented-credential.js\""));
   }

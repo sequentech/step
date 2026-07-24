@@ -4,6 +4,7 @@
 
 package sequent.keycloak.theme;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -39,6 +40,7 @@ class RegisterTemplateTest {
             "<#assign segmentedCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>"));
     assertTrue(template.contains("data-segmented-credential"));
     assertTrue(template.contains("realm.attributes['credential-segment-layout']!'4-4-4-4'"));
+    assertFalse(template.contains("?html"));
     assertTrue(template.contains("msg(\"segmentedCredentialError\")"));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/segmented-credential.js\""));
     assertTrue(template.contains("<#if segmentedCredentialLogin>"));
