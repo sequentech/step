@@ -90,6 +90,20 @@ class DeferredRegistrationUserCreationTest {
   }
 
   @Test
+  void removeCredentialValuesSanitizesValidationFormData() {
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(RegistrationPage.FIELD_USERNAME, "voter");
+    formData.add(RegistrationPage.FIELD_PASSWORD, "12345678");
+    formData.add(RegistrationPage.FIELD_PASSWORD_CONFIRM, "12345678");
+
+    DeferredRegistrationUserCreation.removeCredentialValues(formData);
+
+    assertTrue(formData.containsKey(RegistrationPage.FIELD_USERNAME));
+    assertFalse(formData.containsKey(RegistrationPage.FIELD_PASSWORD));
+    assertFalse(formData.containsKey(RegistrationPage.FIELD_PASSWORD_CONFIRM));
+  }
+
+  @Test
   void hiddenProfileAttributesDefaultToLocale() {
     assertEquals(
         Set.of(UserModel.LOCALE),

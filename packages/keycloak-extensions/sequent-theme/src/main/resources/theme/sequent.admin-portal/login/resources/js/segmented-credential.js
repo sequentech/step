@@ -159,6 +159,7 @@ if (container) {
       segmentInput.autocomplete = "off";
       segmentInput.autocapitalize = "none";
       segmentInput.spellcheck = false;
+      segmentInput.tabIndex = realInput.tabIndex;
       segmentInput.maxLength = size;
       segmentInput.pattern = "[0-9]*";
       segmentInput.setAttribute("aria-required", "true");

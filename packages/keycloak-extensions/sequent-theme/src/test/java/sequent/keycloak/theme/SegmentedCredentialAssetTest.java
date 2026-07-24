@@ -25,6 +25,7 @@ class SegmentedCredentialAssetTest {
     assertTrue(script.contains("realInput.value = segmentInputs.map"));
     assertTrue(script.contains("segmentInput.inputMode = \"numeric\""));
     assertTrue(script.contains("segmentInput.type = \"password\""));
+    assertTrue(script.contains("segmentInput.tabIndex = realInput.tabIndex"));
     assertFalse(script.contains("segmentInput.name"));
   }
 

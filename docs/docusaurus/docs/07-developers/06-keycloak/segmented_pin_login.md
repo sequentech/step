@@ -60,7 +60,8 @@ The segmented fields accept ASCII digits only. They are presentation-only and
 have no form names. On submit, the browser concatenates them into the one
 ordinary `password` form value. Authentication failures use the same generic
 message for an unknown username, incorrect PIN, disabled voter, lockout, or
-expired credential.
+expired credential. Operational errors that require a different action, such
+as a failed reCAPTCHA challenge, retain their specific message.
 
 ## Password policy and provisioning
 

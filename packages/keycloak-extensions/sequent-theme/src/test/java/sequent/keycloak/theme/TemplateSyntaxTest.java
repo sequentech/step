@@ -25,6 +25,8 @@ class TemplateSyntaxTest {
 
   private static void assertParses(Path path) throws IOException {
     Configuration configuration = new Configuration(Configuration.VERSION_2_3_34);
+    // These settings parse the theme's legacy manual escaping syntax; this is not a runtime
+    // auto-escaping test.
     configuration.setOutputFormat(HTMLOutputFormat.INSTANCE);
     configuration.setAutoEscapingPolicy(Configuration.DISABLE_AUTO_ESCAPING_POLICY);
     try (Reader reader = Files.newBufferedReader(path)) {

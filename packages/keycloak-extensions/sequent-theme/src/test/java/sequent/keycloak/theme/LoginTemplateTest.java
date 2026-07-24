@@ -4,6 +4,7 @@
 
 package sequent.keycloak.theme;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -34,8 +35,20 @@ class LoginTemplateTest {
     String template = Files.readString(LOGIN_TEMPLATE);
 
     assertTrue(template.contains("name=\"password\" type=\"password\""));
+    assertTrue(template.contains("autocomplete=\"off\""));
+    assertFalse(template.contains("autocomplete=\"current-password\""));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/passwordVisibility.js\""));
     assertTrue(template.contains("<#if segmentedCredential>"));
     assertTrue(template.contains("<#else>"));
+  }
+
+  @Test
+  void segmentedCredentialDoesNotMaskOperationalGlobalErrors() throws IOException {
+    String template = Files.readString(LOGIN_TEMPLATE);
+
+    assertFalse(template.contains("credentialGlobalError"));
+    assertTrue(
+        template.contains(
+            "<#assign segmentedCredentialHasError = segmentedCredential && credentialFieldError>"));
   }
 }

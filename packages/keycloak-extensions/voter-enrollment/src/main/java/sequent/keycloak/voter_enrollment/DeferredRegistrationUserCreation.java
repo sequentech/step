@@ -341,8 +341,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(
             Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
         List<FormMessage> errors = new ArrayList<>();
-        errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
+        errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE, sessionId));
         reportValidationError(context, formData, errors, segmentedCredentialLogin);
+        return;
       }
     }
 
@@ -422,8 +423,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           context.error(Errors.INVALID_REGISTRATION);
         }
       }
-      formData.remove(RegistrationPage.FIELD_PASSWORD);
-      formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
       reportValidationError(context, formData, errors, segmentedCredentialLogin);
       return;
     }
@@ -495,15 +494,20 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       MultivaluedMap<String, String> formData,
       List<FormMessage> errors,
       boolean segmentedCredentialLogin) {
+    removeCredentialValues(formData);
+
     if (!segmentedCredentialLogin) {
       context.validationError(formData, errors);
       return;
     }
 
-    formData.remove(RegistrationPage.FIELD_PASSWORD);
-    formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
     context.excludeOtherErrors();
     context.validationError(formData, List.of(new FormMessage(null, SEGMENTED_CREDENTIAL_ERROR)));
+  }
+
+  static void removeCredentialValues(MultivaluedMap<String, String> formData) {
+    formData.remove(RegistrationPage.FIELD_PASSWORD);
+    formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
   }
 
   private Optional<String> checkUniqueAttributes(
@@ -872,10 +876,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD));
       context.error(PASSWORD_NOT_MATCHED);
     }
-
-    // Remove password from form data for security
-    formData.remove(RegistrationPage.FIELD_PASSWORD);
-    formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
     reportValidationError(context, formData, errors, segmentedCredentialLogin);
     return false;

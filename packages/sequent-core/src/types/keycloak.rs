@@ -44,7 +44,6 @@ pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
 pub const REALM_ATTR_CREDENTIAL_SEGMENT_LAYOUT: &str =
     "credential-segment-layout";
-pub const DEFAULT_CREDENTIAL_SEGMENT_LAYOUT: &str = "4-4-4-4";
 pub const MAX_CREDENTIAL_SEGMENT_GROUPS: usize = 8;
 pub const MAX_CREDENTIAL_SEGMENT_SIZE: usize = 12;
 pub const MAX_CREDENTIAL_SEGMENT_TOTAL: usize = 64;

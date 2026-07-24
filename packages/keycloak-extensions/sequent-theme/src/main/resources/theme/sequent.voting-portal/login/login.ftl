@@ -7,9 +7,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <#assign segmentedCredential = (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
-<#assign credentialGlobalError = message?has_content && message.type == 'error'>
-<#assign segmentedCredentialHasError = segmentedCredential && (credentialFieldError || credentialGlobalError)>
-<@layout.registrationLayout displayMessage=!credentialFieldError && !(segmentedCredential && credentialGlobalError) displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
+<#assign segmentedCredentialHasError = segmentedCredential && credentialFieldError>
+<@layout.registrationLayout displayMessage=!credentialFieldError displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
@@ -45,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                              data-hint-id="segmented-credential-hint"
                              data-error-id="segmented-credential-error"</#if>>
                             <input tabindex="3" id="password" class="${properties.kcInputClass!}" name="password" type="password"
-                                   autocomplete="current-password"
+                                   autocomplete="off"
                                    <#if segmentedCredential>aria-describedby="segmented-credential-hint segmented-credential-error"</#if>
                                    aria-invalid="<#if segmentedCredentialHasError || credentialFieldError>true</#if>"
                             />
@@ -60,7 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
                         <#if segmentedCredential>
                             <div id="segmented-credential-hint" class="segmented-credential__hint">${msg("segmentedCredentialHint")}</div>
-                            <span id="segmented-credential-error" data-segmented-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert" aria-live="assertive"<#if !segmentedCredentialHasError> hidden</#if>>
+                            <span id="segmented-credential-error" data-segmented-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert"<#if !segmentedCredentialHasError> hidden</#if>>
                                 ${msg("segmentedCredentialError")}
                             </span>
                         <#elseif usernameHidden?? && credentialFieldError>

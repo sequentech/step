@@ -73,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
                                     <#if segmentedCredentialLogin>
                                         <div id="segmented-credential-hint" class="segmented-credential__hint">${msg("segmentedCredentialHint")}</div>
-                                        <span id="segmented-credential-error" data-segmented-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert" aria-live="assertive"<#if !segmentedCredentialHasError> hidden</#if>>
+                                        <span id="segmented-credential-error" data-segmented-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert"<#if !segmentedCredentialHasError> hidden</#if>>
                                             ${msg("segmentedCredentialError")}
                                         </span>
                                     </#if>
