@@ -63,8 +63,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
   public static final String PASSWORD_REQUIRED = "password-required";
   public static final String FORM_MODE = "form-mode";
-  public static final String CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE =
-      "credential-input-policy";
+  public static final String CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE = "credential-input-policy";
   public static final String SEGMENTED_NUMERIC_POLICY = "segmented-numeric";
   public static final String SEGMENTED_CREDENTIAL_ERROR = "segmentedCredentialError";
   public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE =
@@ -220,8 +219,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(INVALID_EMAIL);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
-        reportValidationError(
-            context, formData, errors, segmentedCredentialLogin);
+        reportValidationError(context, formData, errors, segmentedCredentialLogin);
         return;
       }
     } catch (ValidationException pve) {
@@ -265,8 +263,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           context.error(INVALID_REGISTRATION);
         }
         log.info(errors);
-        reportValidationError(
-            context, formData, errors, segmentedCredentialLogin);
+        reportValidationError(context, formData, errors, segmentedCredentialLogin);
         return;
       }
     }
@@ -284,32 +281,24 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
-        reportValidationError(
-            context, formData, errors, segmentedCredentialLogin);
+        reportValidationError(context, formData, errors, segmentedCredentialLogin);
         return;
       }
 
       if (formMode.equals(FormMode.LOGIN.getValue())) {
         context
             .getAuthenticationSession()
-            .setAuthNote(
-                AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME,
-                user.getUsername());
+            .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, user.getUsername());
 
         // Validate password in LOGIN mode
         if (passwordRequired) {
-          if (!validatePasswordForLogin(
-              context, user, formData, segmentedCredentialLogin)) {
+          if (!validatePasswordForLogin(context, user, formData, segmentedCredentialLogin)) {
             return;
           }
 
           // Check password expiration after successful password validation
           if (!checkPasswordExpiration(
-              context,
-              user,
-              formData,
-              configMap,
-              segmentedCredentialLogin)) {
+              context, user, formData, configMap, segmentedCredentialLogin)) {
             return;
           }
         }
@@ -336,8 +325,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-        reportValidationError(
-            context, formData, errors, segmentedCredentialLogin);
+        reportValidationError(context, formData, errors, segmentedCredentialLogin);
         return;
       }
 
@@ -354,8 +342,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-        reportValidationError(
-            context, formData, errors, segmentedCredentialLogin);
+        reportValidationError(context, formData, errors, segmentedCredentialLogin);
       }
     }
 
@@ -420,8 +407,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
               originalKey, originalValue, confirmValue);
           context.error(INVALID_INPUT);
           errors.add(new FormMessage(formKey, "invalidConfirmationValue"));
-          reportValidationError(
-              context, formData, errors, segmentedCredentialLogin);
+          reportValidationError(context, formData, errors, segmentedCredentialLogin);
         }
       }
     }
@@ -438,8 +424,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       }
       formData.remove(RegistrationPage.FIELD_PASSWORD);
       formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-      reportValidationError(
-          context, formData, errors, segmentedCredentialLogin);
+      reportValidationError(context, formData, errors, segmentedCredentialLogin);
       return;
     }
 
@@ -494,8 +479,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return null;
   }
 
-  static boolean isSegmentedCredentialLogin(
-      String formMode, Map<String, String> realmAttributes) {
+  static boolean isSegmentedCredentialLogin(String formMode, Map<String, String> realmAttributes) {
     return FormMode.LOGIN.getValue().equals(formMode)
         && realmAttributes != null
         && SEGMENTED_NUMERIC_POLICY.equals(
@@ -519,9 +503,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     formData.remove(RegistrationPage.FIELD_PASSWORD);
     formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
     context.excludeOtherErrors();
-    context.validationError(
-        formData,
-        List.of(new FormMessage(null, SEGMENTED_CREDENTIAL_ERROR)));
+    context.validationError(formData, List.of(new FormMessage(null, SEGMENTED_CREDENTIAL_ERROR)));
   }
 
   private Optional<String> checkUniqueAttributes(
@@ -841,8 +823,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Check for empty password
     if (password == null || password.isEmpty()) {
       log.info("validatePasswordForLogin: empty password");
-      return handleBadPassword(
-          context, user, formData, true, segmentedCredentialLogin);
+      return handleBadPassword(context, user, formData, true, segmentedCredentialLogin);
     }
 
     // Check for brute force protection
@@ -858,8 +839,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return true;
     } else {
       log.info("validatePasswordForLogin: password invalid");
-      return handleBadPassword(
-          context, user, formData, false, segmentedCredentialLogin);
+      return handleBadPassword(context, user, formData, false, segmentedCredentialLogin);
     }
   }
 
@@ -897,8 +877,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     formData.remove(RegistrationPage.FIELD_PASSWORD);
     formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-    reportValidationError(
-        context, formData, errors, segmentedCredentialLogin);
+    reportValidationError(context, formData, errors, segmentedCredentialLogin);
     return false;
   }
 
@@ -917,9 +896,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
    * @return true if user is disabled by brute force, false otherwise
    */
   private boolean isDisabledByBruteForce(
-      ValidationContext context,
-      UserModel user,
-      boolean segmentedCredentialLogin) {
+      ValidationContext context, UserModel user, boolean segmentedCredentialLogin) {
     RealmModel realm = context.getRealm();
 
     // Check if brute force protection is enabled
@@ -957,8 +934,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       formData.remove(RegistrationPage.FIELD_PASSWORD);
       formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-      reportValidationError(
-          context, formData, errors, segmentedCredentialLogin);
+      reportValidationError(context, formData, errors, segmentedCredentialLogin);
       return true;
     }
 
@@ -1025,8 +1001,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         formData.remove(RegistrationPage.FIELD_PASSWORD);
         formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-        reportValidationError(
-            context, formData, errors, segmentedCredentialLogin);
+        reportValidationError(context, formData, errors, segmentedCredentialLogin);
         return false;
       }
 

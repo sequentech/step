@@ -40,9 +40,7 @@ class RegisterTemplateTest {
     assertTrue(template.contains("data-segmented-credential"));
     assertTrue(template.contains("realm.attributes['credential-segment-layout']!'4-4-4-4'"));
     assertTrue(template.contains("msg(\"segmentedCredentialError\")"));
-    assertTrue(
-        template.contains(
-            "src=\"${url.resourcesPath}/js/segmented-credential.js\""));
+    assertTrue(template.contains("src=\"${url.resourcesPath}/js/segmented-credential.js\""));
     assertTrue(template.contains("<#if segmentedCredentialLogin>"));
   }
 
