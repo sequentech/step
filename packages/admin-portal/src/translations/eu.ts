@@ -128,6 +128,7 @@ const basqueTranslation: TranslationType = {
             },
             wizard: {
                 title: "Kanpoko bat-egite sinkronizazioa",
+                subtitle: "Sinkronizatu bozkatzaileen zerrenda kanpoko sistemarekin",
                 drop: {
                     description:
                         "Jaregin kanpoko sistemak sortutako bat-egite fitxategia - bi diffak (kanpoko aldea eta Sequent aldea) automatikoki kalkulatzen dira eta taula bereizietan erakusten dira.",
@@ -137,7 +138,7 @@ const basqueTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - {{sequence}} sekuentzia, {{generatedAt}} sortua",
                     rowFailuresWarning:
-                        "{{count}} errenkadak ustekabeko CountyMun bat dute (edo beste-kanal-batetik-bozkatuaren babesa) eta bi diffetatik kanpo geratzen dira - errenkada-errore gisa jakinaraziko dira aplikatu ondoren.",
+                        "{{count}} errenkadak ustekabeko CountyMun bat edo beste-kanal-batetik-bozkatuaren babesa dute, eta bi diffetatik kanpo geratzen dira - ikusi xehetasunak behean.",
                     noDifferences:
                         "Ez dago desberdintasunik - bi sistemak jada sinkronizatuta daude.",
                     externalDiffTitle: "Kanpoko diff-a",
@@ -153,7 +154,7 @@ const basqueTranslation: TranslationType = {
                 applying: {
                     inProgress: "Sequent aldeko aldaketak aplikatzen...",
                     rowFailures:
-                        "{{count}} errenkadak huts egin dute aplikatzean - zuzendu eskuz; bestela, hurrengo bat-egite fitxategiak desberdintasun bera adieraziko du.",
+                        "{{count}} errenkada bat-egite honetatik kanpo geratu dira eta eskuzko jarraipena behar dute - ikusi xehetasunak behean.",
                     success: "Sequent aldeko aldaketa guztiak ondo aplikatu dira.",
                 },
                 actions: {

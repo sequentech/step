@@ -128,6 +128,7 @@ const frenchTranslation: TranslationType = {
             },
             wizard: {
                 title: "Synchronisation de réconciliation externe",
+                subtitle: "Synchronisez la liste des électeurs avec le système externe",
                 drop: {
                     description:
                         "Déposez le fichier de réconciliation généré par le système externe - les deux diffs (côté externe et côté Sequent) sont calculés automatiquement et affichés dans des tableaux séparés.",
@@ -137,7 +138,7 @@ const frenchTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - Séquence {{sequence}}, généré {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} ligne(s) ont un CountyMun inattendu (ou la protection voté-par-un-autre-canal) et sont exclues des deux diffs - elles sont signalées comme échecs de ligne une fois appliquées.",
+                        "{{count}} ligne(s) ont un CountyMun inattendu ou la protection voté-par-un-autre-canal, et sont exclues des deux diffs - voir les détails ci-dessous.",
                     noDifferences: "Aucune différence - les deux systèmes sont déjà synchronisés.",
                     externalDiffTitle: "Diff externe",
                     sequentDiffTitle: "Diff Sequent",
@@ -152,7 +153,7 @@ const frenchTranslation: TranslationType = {
                 applying: {
                     inProgress: "Application des changements côté Sequent...",
                     rowFailures:
-                        "{{count}} ligne(s) n'ont pas pu être appliquées - corrigez-les manuellement ; le prochain fichier de réconciliation signalera la même différence sinon.",
+                        "{{count}} ligne(s) ont été exclues de ce cycle et nécessitent un suivi manuel - voir les détails ci-dessous.",
                     success: "Tous les changements côté Sequent ont été appliqués avec succès.",
                 },
                 actions: {

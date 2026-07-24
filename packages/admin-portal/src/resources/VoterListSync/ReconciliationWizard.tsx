@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useCallback, useEffect, useMemo, useState} from "react"
 import {useMutation, useQuery} from "@apollo/client"
 import {
     Alert,
@@ -14,11 +14,10 @@ import {
     DialogContent,
     DialogTitle,
     Divider,
-    IconButton,
+    Drawer,
     Stack,
     Typography,
 } from "@mui/material"
-import CloseIcon from "@mui/icons-material/Close"
 import {useTranslation} from "react-i18next"
 import {ATTR_RESET_VALUE} from "@/types/keycloak"
 import {DropFile} from "@sequentech/ui-essentials"
@@ -29,6 +28,9 @@ import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {ESyncChangeCategory, SyncDiffRow} from "./types"
 import {HIGHLIGHTED_CATEGORIES} from "./constants"
 import {formatGeneratedAt} from "./utils"
+import ElectionHeader from "@/components/ElectionHeader"
+import {DrawerStyles} from "@/components/styles/DrawerStyles"
+import {ImportStyles} from "@/components/election-event/import-data/ImportScreen"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -57,8 +59,8 @@ const POLL_INTERVAL_MS = 3000
  * — not a separate `old_value`/`new_value` on the item, since a field is
  * never meaningful apart from its own old/new values. `null` when the change
  * (e.g. a CountyMun mismatch row failure) has no corresponding field at all.
- * See `describeField` below for how this is turned back into a flat
- * label/oldValue/newValue for display.
+ * See `describeFields` below for how this is turned back into flat
+ * label/oldValue/newValue rows for display.
  */
 type RawFieldValue = Record<string, unknown> | null
 
@@ -140,42 +142,59 @@ interface FieldDisplay {
 }
 
 /** Renders a single old/new element: booleans as "true"/"false" (`Enabled`),
- * a Keycloak attribute bag as "key=value" pairs (`KeycloakUA`), otherwise the
- * value as-is (every other field is already a plain string). */
+ * otherwise the value as-is (every other field, including each individual
+ * `KeycloakUA` attribute, is already a plain string). */
 const formatFieldValue = (value: unknown): string => {
     if (typeof value === "boolean") {
         return value ? "true" : "false"
     }
-    if (value !== null && typeof value === "object") {
-        const entries = Object.entries(value as Record<string, string>)
-        return entries.length > 0
-            ? entries.map(([key, val]) => `${key}=${val}`).join(", ")
-            : ATTR_RESET_VALUE
-    }
     return value == null ? ATTR_RESET_VALUE : String(value)
 }
 
-const describeField = (field: RawFieldValue, t: TranslateFn): FieldDisplay => {
+/**
+ * `KeycloakUA`'s `(old, new)` pair is a bag of Keycloak attributes, not a
+ * single field - e.g. "voted via other channel" writes `voted-channel` and
+ * `disable-comment` together in one atomic Keycloak edit (see
+ * `reconciliation::diff` in windmill), so `new` can carry a key `old` never
+ * had. Splitting into one row per attribute key (the union of both bags'
+ * keys, each looked up independently) is what keeps that case readable:
+ * joining the bags into a single row instead mismatches keys against values
+ * whenever the two sides don't share the exact same key set.
+ */
+const describeFields = (field: RawFieldValue, t: TranslateFn): FieldDisplay[] => {
     const entry = field ? Object.entries(field)[0] : undefined
     if (!entry) {
         // `null` when the change (e.g. a CountyMun mismatch row failure)
         // has no corresponding field at all - the Reason column explains it.
-        return {
-            label: t("reconciliation.table.rowLabel"),
-            oldValue: ATTR_RESET_VALUE,
-            newValue: ATTR_RESET_VALUE,
-        }
+        return [
+            {
+                label: t("reconciliation.table.rowLabel"),
+                oldValue: ATTR_RESET_VALUE,
+                newValue: ATTR_RESET_VALUE,
+            },
+        ]
     }
     const [variantName, tuple] = entry as [string, [unknown, unknown]]
     const [oldRaw, newRaw] = tuple
-    // KeycloakUA carries a bag of Keycloak attributes rather than a single
-    // field - label by the attribute(s) actually being written instead of
-    // the generic variant name.
-    const label =
-        variantName === "KeycloakUA" && newRaw && typeof newRaw === "object"
-            ? Object.keys(newRaw as Record<string, string>).join(", ") || variantName
-            : variantName
-    return {label, oldValue: formatFieldValue(oldRaw), newValue: formatFieldValue(newRaw)}
+
+    if (variantName === "KeycloakUA") {
+        const oldBag = (oldRaw ?? {}) as Record<string, string>
+        const newBag = (newRaw ?? {}) as Record<string, string>
+        const keys = Array.from(new Set([...Object.keys(oldBag), ...Object.keys(newBag)]))
+        return keys.map((key) => ({
+            label: t(`usersAndRolesScreen.users.fields.${key}`, key),
+            oldValue: formatFieldValue(oldBag[key] ?? null),
+            newValue: formatFieldValue(newBag[key] ?? null),
+        }))
+    }
+
+    return [
+        {
+            label: variantName,
+            oldValue: formatFieldValue(oldRaw),
+            newValue: formatFieldValue(newRaw),
+        },
+    ]
 }
 
 const toRows = (
@@ -187,37 +206,39 @@ const toRows = (
         .filter(
             (item) => item.target === target && item.category !== ESyncChangeCategory.ROW_FAILURE
         )
-        .map((item, index) => {
-            const {label, oldValue, newValue} = describeField(item.field ?? null, t)
-            return {
-                id: `${item.voter_username}:${label}:${index}`,
-                voterId: item.voter_username,
-                field: label,
-                label,
-                oldValue,
-                newValue,
-                category: item.category,
-                target: item.target,
-            }
-        })
+        .flatMap((item, index) =>
+            describeFields(item.field ?? null, t).map(
+                ({label, oldValue, newValue}, fieldIndex) => ({
+                    id: `${item.voter_username}:${label}:${index}:${fieldIndex}`,
+                    voterId: item.voter_username,
+                    field: label,
+                    label,
+                    oldValue,
+                    newValue,
+                    category: item.category,
+                    target: item.target,
+                })
+            )
+        )
 
 const toRowFailures = (items: RawDiffItem[], t: TranslateFn): SyncDiffRow[] =>
     items
         .filter((item) => item.category === ESyncChangeCategory.ROW_FAILURE)
-        .map((item, index) => {
-            const {label, oldValue, newValue} = describeField(item.field ?? null, t)
-            return {
-                id: `failure:${item.voter_username}:${index}`,
-                voterId: item.voter_username,
-                field: label,
-                label,
-                oldValue,
-                newValue,
-                category: item.category,
-                target: item.target,
-                failureReason: item.failure_reason ?? undefined,
-            }
-        })
+        .flatMap((item, index) =>
+            describeFields(item.field ?? null, t).map(
+                ({label, oldValue, newValue}, fieldIndex) => ({
+                    id: `failure:${item.voter_username}:${index}:${fieldIndex}`,
+                    voterId: item.voter_username,
+                    field: label,
+                    label,
+                    oldValue,
+                    newValue,
+                    category: item.category,
+                    target: item.target,
+                    failureReason: item.failure_reason ?? undefined,
+                })
+            )
+        )
 
 /**
  * Reconciliation wizard: Drop the reconciliation file, both diffs (external-side, Sequent-side) are
@@ -350,7 +371,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
         }
     }, [step, applyStatus, t])
 
-    const reset = () => {
+    const reset = useCallback(() => {
         setStep("drop")
         setFileName(null)
         setErrorMessage(null)
@@ -358,7 +379,19 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
         setEnvelope(null)
         setGenerateTaskId(null)
         setApplyTaskId(null)
-    }
+        setConfirmOpen(false)
+        setDownloadingDocumentId(null)
+    }, [])
+
+    // The wizard stays mounted across open/close (the parent only flips
+    // `open`), so without this a closed-then-reopened wizard would still
+    // show whatever step it was left on - the "done" screen from a prior
+    // round, or a stale diff from a round closed before applying.
+    useEffect(() => {
+        if (open) {
+            reset()
+        }
+    }, [open, reset])
 
     const handleFiles = async (files: FileList) => {
         const file = files[0]
@@ -450,233 +483,259 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     }
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" scroll="paper">
-            <DialogTitle>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6">{t("reconciliation.wizard.title")}</Typography>
-                    <IconButton
-                        onClick={onClose}
-                        size="small"
-                        aria-label={t("reconciliation.wizard.actions.close")}
-                    >
-                        <CloseIcon fontSize="small" />
-                    </IconButton>
-                </Stack>
-            </DialogTitle>
-            <DialogContent
-                dividers
-                sx={{
-                    // "drop"/"processing"/"applying" never have enough content
-                    // to need scrolling - only "review"'s data grids do. Left
-                    // as auto-overflow always, the CircularProgress/
-                    // LinearProgress spinners' continuous animation makes
-                    // Chromium keep re-flashing this container's scrollbar
-                    // indicator even though nothing actually overflows.
-                    overflowY: step === "review" ? "auto" : "hidden",
-                }}
-            >
-                <Stack spacing={3}>
-                    {(step === "drop" || step === "processing") && (
-                        <>
-                            <Typography color="text.secondary">
-                                {t("reconciliation.wizard.drop.description")}
-                            </Typography>
-                            {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-                            {step === "drop" ? (
-                                <DropFile
-                                    handleFiles={handleFiles}
-                                    accept=".csv"
-                                    formatLabel={t("reconciliation.wizard.drop.fileFormatLabel")}
-                                />
-                            ) : (
-                                <Stack direction="row" spacing={2} alignItems="center">
-                                    <CircularProgress size={20} />
-                                    <Typography>
-                                        {t("reconciliation.wizard.drop.uploading", {fileName})}
-                                    </Typography>
-                                </Stack>
-                            )}
-                        </>
-                    )}
-
-                    {step === "review" && envelope && (
-                        <>
-                            <Box
-                                sx={{
-                                    border: "1px solid",
-                                    borderColor: "divider",
-                                    borderRadius: 1,
-                                    p: 1.5,
-                                }}
-                            >
-                                <Typography variant="body2" color="text.secondary">
-                                    {t("reconciliation.wizard.review.fileSummary", {
-                                        fileName,
-                                        sequence: envelope.sequence,
-                                        generatedAt: formatGeneratedAt(envelope.generated_at),
-                                    })}
-                                </Typography>
-                            </Box>
-
-                            {rowFailures.length > 0 && (
-                                <Alert severity="warning">
-                                    {t("reconciliation.wizard.review.rowFailuresWarning", {
-                                        count: rowFailures.length,
-                                    })}
-                                </Alert>
-                            )}
-
-                            {datafixRows.length === 0 && sequentRows.length === 0 ? (
-                                <Alert severity="success">
-                                    {t("reconciliation.wizard.review.noDifferences")}
-                                </Alert>
-                            ) : (
+        <>
+            <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{sx: {width: "30%"}}}>
+                <Box sx={{padding: "16px"}}>
+                    <ElectionHeader
+                        title="reconciliation.wizard.title"
+                        subtitle="reconciliation.wizard.subtitle"
+                    />
+                    <DrawerStyles.Wrapper>
+                        <Stack spacing={3}>
+                            {(step === "drop" || step === "processing") && (
                                 <>
-                                    <CategorySummary counts={summary} />
-
-                                    <Stack spacing={1}>
-                                        <Stack
-                                            direction="row"
-                                            justifyContent="space-between"
-                                            alignItems="center"
-                                        >
-                                            <Typography variant="subtitle1">
-                                                {t(
-                                                    "reconciliation.wizard.review.externalDiffTitle"
-                                                )}
-                                                {datafixRows.length > 0 &&
-                                                    ` (${datafixRows.length})`}
-                                            </Typography>
-                                            {datafixRows.length > 0 &&
-                                                envelope.external_patch_document_id && (
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        onClick={() =>
-                                                            setDownloadingDocumentId(
-                                                                envelope.external_patch_document_id
-                                                            )
-                                                        }
-                                                    >
-                                                        {t(
-                                                            "reconciliation.wizard.review.downloadExternalPatch"
-                                                        )}
-                                                    </Button>
-                                                )}
-                                        </Stack>
-                                        {datafixRows.length > 0 && (
-                                            <Typography variant="caption" color="text.secondary">
-                                                {t(
-                                                    "reconciliation.wizard.review.externalDiffCaption"
-                                                )}
-                                            </Typography>
-                                        )}
-                                        <SyncDiffTable
-                                            rows={datafixRows}
-                                            emptyMessage={t(
-                                                "reconciliation.wizard.review.noExternalDifferences"
+                                    <Typography color="text.secondary">
+                                        {t("reconciliation.wizard.drop.description")}
+                                    </Typography>
+                                    {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+                                    {step === "drop" ? (
+                                        <DropFile
+                                            handleFiles={handleFiles}
+                                            accept=".csv"
+                                            formatLabel={t(
+                                                "reconciliation.wizard.drop.fileFormatLabel"
                                             )}
                                         />
-                                    </Stack>
-
-                                    <Divider />
-
-                                    <Stack spacing={1}>
-                                        <Typography variant="subtitle1">
-                                            {t("reconciliation.wizard.review.sequentDiffTitle")}
-                                            {sequentRows.length > 0 && ` (${sequentRows.length})`}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            {t("reconciliation.wizard.review.sequentDiffCaption")}
-                                        </Typography>
-                                        <SyncDiffTable
-                                            rows={sequentRows}
-                                            emptyMessage={t(
-                                                "reconciliation.wizard.review.noSequentDifferences"
-                                            )}
-                                        />
-                                    </Stack>
-                                </>
-                            )}
-                        </>
-                    )}
-
-                    {(step === "applying" || step === "done") && (
-                        <Stack spacing={2}>
-                            {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-                            {step === "applying" && (
-                                <Stack direction="row" spacing={2} alignItems="center">
-                                    <CircularProgress size={20} />
-                                    <Typography>
-                                        {t("reconciliation.wizard.applying.inProgress")}
-                                    </Typography>
-                                </Stack>
-                            )}
-                            {step === "done" && !errorMessage && (
-                                <>
-                                    {rowFailures.length > 0 ? (
-                                        <Alert severity="warning">
-                                            {t("reconciliation.wizard.applying.rowFailures", {
-                                                count: rowFailures.length,
-                                            })}
-                                        </Alert>
                                     ) : (
-                                        <Alert severity="success">
-                                            {t("reconciliation.wizard.applying.success")}
-                                        </Alert>
+                                        <Stack direction="row" spacing={2} alignItems="center">
+                                            <CircularProgress size={20} />
+                                            <Typography>
+                                                {t("reconciliation.wizard.drop.uploading", {
+                                                    fileName,
+                                                })}
+                                            </Typography>
+                                        </Stack>
                                     )}
                                 </>
                             )}
+
+                            {step === "review" && envelope && (
+                                <>
+                                    <Box
+                                        sx={{
+                                            border: "1px solid",
+                                            borderColor: "divider",
+                                            borderRadius: 1,
+                                            p: 1.5,
+                                        }}
+                                    >
+                                        <Typography variant="body2" color="text.secondary">
+                                            {t("reconciliation.wizard.review.fileSummary", {
+                                                fileName,
+                                                sequence: envelope.sequence,
+                                                generatedAt: formatGeneratedAt(
+                                                    envelope.generated_at
+                                                ),
+                                            })}
+                                        </Typography>
+                                    </Box>
+
+                                    {rowFailures.length > 0 && (
+                                        <Stack spacing={1}>
+                                            <Alert severity="warning">
+                                                {t(
+                                                    "reconciliation.wizard.review.rowFailuresWarning",
+                                                    {count: rowFailures.length}
+                                                )}
+                                            </Alert>
+                                            <SyncDiffTable rows={rowFailures} />
+                                        </Stack>
+                                    )}
+
+                                    {datafixRows.length === 0 && sequentRows.length === 0 ? (
+                                        <Alert severity="success">
+                                            {t("reconciliation.wizard.review.noDifferences")}
+                                        </Alert>
+                                    ) : (
+                                        <>
+                                            <CategorySummary counts={summary} />
+
+                                            <Stack spacing={1}>
+                                                <Stack
+                                                    direction="row"
+                                                    justifyContent="space-between"
+                                                    alignItems="center"
+                                                >
+                                                    <Typography variant="subtitle1">
+                                                        {t(
+                                                            "reconciliation.wizard.review.externalDiffTitle"
+                                                        )}
+                                                        {datafixRows.length > 0 &&
+                                                            ` (${datafixRows.length})`}
+                                                    </Typography>
+                                                    {datafixRows.length > 0 &&
+                                                        envelope.external_patch_document_id && (
+                                                            <Button
+                                                                size="small"
+                                                                variant="outlined"
+                                                                onClick={() =>
+                                                                    setDownloadingDocumentId(
+                                                                        envelope.external_patch_document_id
+                                                                    )
+                                                                }
+                                                            >
+                                                                {t(
+                                                                    "reconciliation.wizard.review.downloadExternalPatch"
+                                                                )}
+                                                            </Button>
+                                                        )}
+                                                </Stack>
+                                                {datafixRows.length > 0 && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        {t(
+                                                            "reconciliation.wizard.review.externalDiffCaption"
+                                                        )}
+                                                    </Typography>
+                                                )}
+                                                <SyncDiffTable
+                                                    rows={datafixRows}
+                                                    emptyMessage={t(
+                                                        "reconciliation.wizard.review.noExternalDifferences"
+                                                    )}
+                                                />
+                                            </Stack>
+
+                                            <Divider />
+
+                                            <Stack spacing={1}>
+                                                <Typography variant="subtitle1">
+                                                    {t(
+                                                        "reconciliation.wizard.review.sequentDiffTitle"
+                                                    )}
+                                                    {sequentRows.length > 0 &&
+                                                        ` (${sequentRows.length})`}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {t(
+                                                        "reconciliation.wizard.review.sequentDiffCaption"
+                                                    )}
+                                                </Typography>
+                                                <SyncDiffTable
+                                                    rows={sequentRows}
+                                                    emptyMessage={t(
+                                                        "reconciliation.wizard.review.noSequentDifferences"
+                                                    )}
+                                                />
+                                            </Stack>
+                                        </>
+                                    )}
+                                </>
+                            )}
+
+                            {(step === "applying" || step === "done") && (
+                                <Stack spacing={2}>
+                                    {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+                                    {step === "applying" && (
+                                        <Stack direction="row" spacing={2} alignItems="center">
+                                            <CircularProgress size={20} />
+                                            <Typography>
+                                                {t("reconciliation.wizard.applying.inProgress")}
+                                            </Typography>
+                                        </Stack>
+                                    )}
+                                    {step === "done" && !errorMessage && (
+                                        <>
+                                            {rowFailures.length > 0 ? (
+                                                <Stack spacing={1}>
+                                                    <Alert severity="warning">
+                                                        {t(
+                                                            "reconciliation.wizard.applying.rowFailures",
+                                                            {count: rowFailures.length}
+                                                        )}
+                                                    </Alert>
+                                                    <SyncDiffTable rows={rowFailures} />
+                                                </Stack>
+                                            ) : (
+                                                <Alert severity="success">
+                                                    {t("reconciliation.wizard.applying.success")}
+                                                </Alert>
+                                            )}
+                                        </>
+                                    )}
+                                </Stack>
+                            )}
+
+                            {downloadingDocumentId && (
+                                <DownloadDocument
+                                    documentId={downloadingDocumentId}
+                                    electionEventId={electionEventId}
+                                    fileName={`external-reconciliation-${downloadingDocumentId}.csv`}
+                                    onDownload={() => setDownloadingDocumentId(null)}
+                                />
+                            )}
                         </Stack>
-                    )}
 
-                    {downloadingDocumentId && (
-                        <DownloadDocument
-                            documentId={downloadingDocumentId}
-                            electionEventId={electionEventId}
-                            fileName={`external-reconciliation-${downloadingDocumentId}.csv`}
-                            onDownload={() => setDownloadingDocumentId(null)}
-                        />
-                    )}
-                </Stack>
-            </DialogContent>
-
-            <DialogActions sx={{justifyContent: "space-between", px: 3, py: 2}}>
-                {(step === "drop" || step === "processing") && (
-                    <Button onClick={onClose} disabled={step === "processing"}>
-                        {t("reconciliation.wizard.actions.cancel")}
-                    </Button>
-                )}
-                {step === "review" && (
-                    <>
-                        <Button onClick={reset}>{t("reconciliation.wizard.actions.back")}</Button>
-                        <Button
-                            variant="contained"
-                            disabled={!isClean}
-                            onClick={() =>
-                                sequentRows.length > 0 ? setConfirmOpen(true) : handleApply()
-                            }
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginTop: "16px",
+                            }}
                         >
-                            {sequentRows.length > 0
-                                ? t("reconciliation.wizard.actions.apply")
-                                : t("reconciliation.wizard.actions.next")}
-                        </Button>
-                    </>
-                )}
-                {step === "applying" && (
-                    <Button disabled>{t("reconciliation.wizard.actions.back")}</Button>
-                )}
-                {step === "done" && (
-                    <>
-                        <Button onClick={reset}>
-                            {t("reconciliation.wizard.actions.startOver")}
-                        </Button>
-                        <Button variant="contained" onClick={onClose}>
-                            {t("reconciliation.wizard.actions.close")}
-                        </Button>
-                    </>
-                )}
-            </DialogActions>
+                            {(step === "drop" || step === "processing") && (
+                                <ImportStyles.CancelButton
+                                    onClick={onClose}
+                                    disabled={step === "processing"}
+                                >
+                                    {t("reconciliation.wizard.actions.cancel")}
+                                </ImportStyles.CancelButton>
+                            )}
+                            {step === "review" && (
+                                <>
+                                    <ImportStyles.CancelButton onClick={reset}>
+                                        {t("reconciliation.wizard.actions.back")}
+                                    </ImportStyles.CancelButton>
+                                    <ImportStyles.ImportButton
+                                        disabled={!isClean}
+                                        onClick={() =>
+                                            sequentRows.length > 0
+                                                ? setConfirmOpen(true)
+                                                : handleApply()
+                                        }
+                                    >
+                                        {sequentRows.length > 0
+                                            ? t("reconciliation.wizard.actions.apply")
+                                            : t("reconciliation.wizard.actions.next")}
+                                    </ImportStyles.ImportButton>
+                                </>
+                            )}
+                            {step === "applying" && (
+                                <ImportStyles.CancelButton disabled>
+                                    {t("reconciliation.wizard.actions.back")}
+                                </ImportStyles.CancelButton>
+                            )}
+                            {step === "done" && (
+                                <>
+                                    <ImportStyles.CancelButton onClick={reset}>
+                                        {t("reconciliation.wizard.actions.startOver")}
+                                    </ImportStyles.CancelButton>
+                                    <ImportStyles.ImportButton onClick={onClose}>
+                                        {t("reconciliation.wizard.actions.close")}
+                                    </ImportStyles.ImportButton>
+                                </>
+                            )}
+                        </Box>
+                    </DrawerStyles.Wrapper>
+                </Box>
+            </Drawer>
 
             <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
                 <DialogTitle>{t("reconciliation.wizard.confirm.title")}</DialogTitle>
@@ -712,7 +771,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Dialog>
+        </>
     )
 }
 

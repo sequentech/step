@@ -128,6 +128,7 @@ const galegoTranslation: TranslationType = {
             },
             wizard: {
                 title: "Sincronización de reconciliación externa",
+                subtitle: "Sincroniza a lista de votantes co sistema externo",
                 drop: {
                     description:
                         "Solta o ficheiro de reconciliación xerado polo sistema externo - ambos os diffs (lado externo e lado Sequent) calcúlanse automaticamente e móstranse en táboas separadas.",
@@ -137,7 +138,7 @@ const galegoTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - Secuencia {{sequence}}, xerado {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} fila(s) teñen un CountyMun inesperado (ou a protección de votado-por-outra-canle) e quedan excluídas de ambos os diffs - repórtanse como erros de fila unha vez aplicado.",
+                        "{{count}} fila(s) teñen un CountyMun inesperado ou a protección de votado-por-outra-canle, e quedan excluídas de ambos os diffs - ver detalles abaixo.",
                     noDifferences: "Non hai diferenzas - ambos os sistemas xa están sincronizados.",
                     externalDiffTitle: "Diff externo",
                     sequentDiffTitle: "Diff de Sequent",
@@ -152,7 +153,7 @@ const galegoTranslation: TranslationType = {
                 applying: {
                     inProgress: "Aplicando os cambios do lado de Sequent...",
                     rowFailures:
-                        "{{count}} fila(s) fallaron ao aplicarse - corríxeas manualmente; o vindeiro ficheiro de reconciliación sinalará a mesma diferenza se non.",
+                        "{{count}} fila(s) quedaron excluídas desta ronda e precisan seguimento manual - ver detalles abaixo.",
                     success: "Todos os cambios do lado de Sequent aplicáronse correctamente.",
                 },
                 actions: {

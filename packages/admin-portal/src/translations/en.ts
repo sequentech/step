@@ -127,6 +127,7 @@ const englishTranslation = {
             },
             wizard: {
                 title: "External reconciliation sync",
+                subtitle: "Synchronize the voter list with the external system",
                 drop: {
                     description:
                         "Drop the reconciliation file the external system produced - both diffs (external-side and Sequent-side) are calculated automatically and shown in separate tables.",
@@ -136,7 +137,7 @@ const englishTranslation = {
                 review: {
                     fileSummary: "{{fileName}} - Sequence {{sequence}}, generated {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} row(s) have an unexpected CountyMun (or a voted-via-other-channel guard) and are excluded from both diffs - reported as row failures once applied.",
+                        "{{count}} row(s) have an unexpected CountyMun or a voted-via-other-channel guard, and are excluded from both diffs - see below for details.",
                     noDifferences: "No differences - the two systems are already in sync.",
                     externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
@@ -151,7 +152,7 @@ const englishTranslation = {
                 applying: {
                     inProgress: "Applying Sequent-side changes...",
                     rowFailures:
-                        "{{count}} row(s) failed to apply - fix manually; the next reconciliation file will point out the same diff otherwise.",
+                        "{{count}} row(s) were excluded from this round and need manual follow-up - see below for details.",
                     success: "All Sequent-side changes applied successfully.",
                 },
                 actions: {

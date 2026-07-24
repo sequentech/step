@@ -128,6 +128,7 @@ const tagalogTranslation: TranslationType = {
             },
             wizard: {
                 title: "Pag-sync ng External Reconciliation",
+                subtitle: "I-sync ang listahan ng botante sa external system",
                 drop: {
                     description:
                         "I-drop ang reconciliation file na ginawa ng external system - awtomatikong kinakalkula at ipinapakita sa magkahiwalay na tables ang parehong diffs (external side at Sequent side).",
@@ -138,7 +139,7 @@ const tagalogTranslation: TranslationType = {
                     fileSummary:
                         "{{fileName}} - Sequence {{sequence}}, ginawa noong {{generatedAt}}",
                     rowFailuresWarning:
-                        "May hindi inaasahang CountyMun ang {{count}} row(s) (o ang voted-via-other-channel guard) at hindi kasama sa parehong diffs - iri-report ang mga ito bilang row failures kapag na-apply na.",
+                        "May hindi inaasahang CountyMun o voted-via-other-channel guard ang {{count}} row(s), at hindi kasama sa parehong diffs - tingnan ang mga detalye sa ibaba.",
                     noDifferences: "Walang pagkakaiba - naka-sync na ang dalawang sistema.",
                     externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
@@ -153,7 +154,7 @@ const tagalogTranslation: TranslationType = {
                 applying: {
                     inProgress: "Inilalapat ang mga pagbabago sa Sequent side...",
                     rowFailures:
-                        "Hindi na-apply ang {{count}} row(s) - ayusin nang manu-mano; kung hindi, ituturo ng susunod na reconciliation file ang parehong pagkakaiba.",
+                        "Hindi kasama ang {{count}} row(s) sa round na ito at kailangan ng manual na follow-up - tingnan ang mga detalye sa ibaba.",
                     success: "Matagumpay na nailapat ang lahat ng pagbabago sa Sequent side.",
                 },
                 actions: {

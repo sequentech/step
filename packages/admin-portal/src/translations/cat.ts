@@ -128,6 +128,7 @@ const catalanTranslation: TranslationType = {
             },
             wizard: {
                 title: "Sincronització de reconciliació externa",
+                subtitle: "Sincronitza la llista de votants amb el sistema extern",
                 drop: {
                     description:
                         "Deixa anar el fitxer de reconciliació generat pel sistema extern - ambdós diffs (costat extern i costat Sequent) es calculen automàticament i es mostren en taules separades.",
@@ -137,7 +138,7 @@ const catalanTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - Seqüència {{sequence}}, generat {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} fila(es) tenen un CountyMun inesperat (o la protecció de votat-per-un-altre-canal) i queden excloses d'ambdós diffs - es reporten com a errors de fila un cop aplicat.",
+                        "{{count}} fila(es) tenen un CountyMun inesperat o la protecció de votat-per-un-altre-canal, i queden excloses d'ambdós diffs - vegeu els detalls a continuació.",
                     noDifferences: "No hi ha diferències - ambdós sistemes ja estan sincronitzats.",
                     externalDiffTitle: "Diff extern",
                     sequentDiffTitle: "Diff de Sequent",
@@ -152,7 +153,7 @@ const catalanTranslation: TranslationType = {
                 applying: {
                     inProgress: "Aplicant els canvis del costat de Sequent...",
                     rowFailures:
-                        "{{count}} fila(es) han fallat en aplicar-se - corregeix-les manualment; el proper fitxer de reconciliació assenyalarà la mateixa diferència si no.",
+                        "{{count}} fila(es) han quedat excloses d'aquesta ronda i necessiten seguiment manual - vegeu els detalls a continuació.",
                     success: "Tots els canvis del costat de Sequent s'han aplicat correctament.",
                 },
                 actions: {

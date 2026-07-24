@@ -128,6 +128,7 @@ const dutchTranslation: TranslationType = {
             },
             wizard: {
                 title: "Externe reconciliatiesynchronisatie",
+                subtitle: "Synchroniseer de kiezerslijst met het externe systeem",
                 drop: {
                     description:
                         "Sleep het door het externe systeem gegenereerde reconciliatiebestand hierheen - beide diffs (externe zijde en Sequent-zijde) worden automatisch berekend en in aparte tabellen weergegeven.",
@@ -138,7 +139,7 @@ const dutchTranslation: TranslationType = {
                     fileSummary:
                         "{{fileName}} - Sequentie {{sequence}}, gegenereerd {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} rij(en) hebben een onverwachte CountyMun (of de bescherming tegen gestemd-via-ander-kanaal) en zijn uitgesloten van beide diffs - deze worden na toepassing gerapporteerd als rijfouten.",
+                        "{{count}} rij(en) hebben een onverwachte CountyMun of de bescherming tegen gestemd-via-ander-kanaal, en zijn uitgesloten van beide diffs - zie details hieronder.",
                     noDifferences: "Geen verschillen - beide systemen zijn al gesynchroniseerd.",
                     externalDiffTitle: "Externe diff",
                     sequentDiffTitle: "Sequent-diff",
@@ -153,7 +154,7 @@ const dutchTranslation: TranslationType = {
                 applying: {
                     inProgress: "Wijzigingen aan de Sequent-zijde worden toegepast...",
                     rowFailures:
-                        "{{count}} rij(en) konden niet worden toegepast - corrigeer deze handmatig; anders wijst het volgende reconciliatiebestand op hetzelfde verschil.",
+                        "{{count}} rij(en) zijn uitgesloten van deze ronde en vereisen handmatige opvolging - zie details hieronder.",
                     success: "Alle wijzigingen aan de Sequent-zijde zijn succesvol toegepast.",
                 },
                 actions: {
