@@ -5,23 +5,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
+<#assign segmentedCredential = (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>
+<#assign credentialFieldError = messagesPerField.existsError('username','password')>
+<#assign credentialGlobalError = message?has_content && message.type == 'error'>
+<#assign segmentedCredentialHasError = segmentedCredential && (credentialFieldError || credentialGlobalError)>
+<@layout.registrationLayout displayMessage=!credentialFieldError && !(segmentedCredential && credentialGlobalError) displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
         <div id="kc-form">
           <div id="kc-form-wrapper">
             <#if realm.password>
-                <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
+                <form id="kc-form-login" <#if !segmentedCredential>onsubmit="login.disabled = true; return true;"</#if> action="${url.loginAction}" method="post">
                     <#if !usernameHidden??>
                         <div class="${properties.kcFormGroupClass!}">
                             <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
                             <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="off"
-                                   aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                   aria-invalid="<#if segmentedCredentialHasError || credentialFieldError>true</#if>"
                             />
 
-                            <#if messagesPerField.existsError('username','password')>
+                            <#if credentialFieldError && !segmentedCredential>
                                 <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
                                         ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
                                 </span>
@@ -31,22 +35,35 @@ SPDX-License-Identifier: AGPL-3.0-only
                     </#if>
 
                     <div class="${properties.kcFormGroupClass!}">
-                        <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label>
+                        <label id="segmented-credential-label" for="password" class="${properties.kcLabelClass!}"><#if segmentedCredential>${msg("segmentedCredentialLabel")}<#else>${msg("password")}</#if></label>
 
-                        <div class="${properties.kcInputGroup!}">
+                        <div class="${properties.kcInputGroup!}"<#if segmentedCredential>
+                             data-segmented-credential
+                             data-segment-layout="${(realm.attributes['credential-segment-layout']!'4-4-4-4')?html}"
+                             data-group-label="${msg('segmentedCredentialGroupLabel')?html}"
+                             data-label-id="segmented-credential-label"
+                             data-hint-id="segmented-credential-hint"
+                             data-error-id="segmented-credential-error"</#if>>
                             <input tabindex="3" id="password" class="${properties.kcInputClass!}" name="password" type="password"
-                                    autocomplete="off"
-                                   aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                   autocomplete="current-password"
+                                   <#if segmentedCredential>aria-describedby="segmented-credential-hint segmented-credential-error"</#if>
+                                   aria-invalid="<#if segmentedCredentialHasError || credentialFieldError>true</#if>"
                             />
-                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg("showPassword")}"
-                                    aria-controls="password" data-password-toggle tabindex="4"
+                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if segmentedCredential>${msg('showSegmentedCredential')}<#else>${msg('showPassword')}</#if>"
+                                    aria-controls="password" <#if segmentedCredential>data-segmented-credential-toggle<#else>data-password-toggle</#if> tabindex="4"
                                     data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                    data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                    data-label-show="<#if segmentedCredential>${msg('showSegmentedCredential')}<#else>${msg('showPassword')}</#if>"
+                                    data-label-hide="<#if segmentedCredential>${msg('hideSegmentedCredential')}<#else>${msg('hidePassword')}</#if>">
                                 <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
                             </button>
                         </div>
 
-                        <#if usernameHidden?? && messagesPerField.existsError('username','password')>
+                        <#if segmentedCredential>
+                            <div id="segmented-credential-hint" class="segmented-credential__hint">${msg("segmentedCredentialHint")}</div>
+                            <span id="segmented-credential-error" data-segmented-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert" aria-live="assertive"<#if !segmentedCredentialHasError> hidden</#if>>
+                                ${msg("segmentedCredentialError")}
+                            </span>
+                        <#elseif usernameHidden?? && credentialFieldError>
                             <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
                                     ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
                             </span>
@@ -113,7 +130,11 @@ SPDX-License-Identifier: AGPL-3.0-only
             </#if>
             </div>
         </div>
-        <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
+        <#if segmentedCredential>
+            <script type="module" src="${url.resourcesPath}/js/segmented-credential.js"></script>
+        <#else>
+            <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
+        </#if>
     <#elseif section = "info" >
         <#if realm.password && realm.registrationAllowed && !registrationDisabled??>
             <div id="kc-registration-container">

@@ -4,6 +4,9 @@
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
+    CredentialInputPolicy, MAX_CREDENTIAL_SEGMENT_GROUPS,
+    MAX_CREDENTIAL_SEGMENT_SIZE, MAX_CREDENTIAL_SEGMENT_TOTAL,
+    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_CREDENTIAL_SEGMENT_LAYOUT,
     REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
     REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
@@ -140,6 +143,18 @@ pub fn validate_realm_attributes(
 
 fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
     match key {
+        REALM_ATTR_CREDENTIAL_INPUT_POLICY => {
+            if CredentialInputPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_CREDENTIAL_SEGMENT_LAYOUT => {
+            if !is_valid_credential_segment_layout(value) {
+                bail!(
+                    "Realm attribute {key} must contain 1 to {MAX_CREDENTIAL_SEGMENT_GROUPS} dash-separated group sizes between 1 and {MAX_CREDENTIAL_SEGMENT_SIZE}, with no more than {MAX_CREDENTIAL_SEGMENT_TOTAL} digits in total"
+                );
+            }
+        }
         REALM_ATTR_SMARTLINK_ENABLED => {
             if bool::from_str(value).is_err() {
                 bail!("Realm attribute {key} must be 'true' or 'false'");
@@ -173,6 +188,37 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
         _ => {}
     }
     Ok(())
+}
+
+fn is_valid_credential_segment_layout(value: &str) -> bool {
+    let groups = value.split('-').collect::<Vec<_>>();
+    if groups.is_empty() || groups.len() > MAX_CREDENTIAL_SEGMENT_GROUPS {
+        return false;
+    }
+
+    let mut total = 0;
+    for group in groups {
+        if group.is_empty()
+            || group.starts_with('0')
+            || !group.bytes().all(|byte| byte.is_ascii_digit())
+        {
+            return false;
+        }
+
+        let Ok(size) = group.parse::<usize>() else {
+            return false;
+        };
+        if size == 0 || size > MAX_CREDENTIAL_SEGMENT_SIZE {
+            return false;
+        }
+
+        total += size;
+        if total > MAX_CREDENTIAL_SEGMENT_TOTAL {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn redacted_attributes(
@@ -217,6 +263,8 @@ mod tests {
     fn validate_realm_attributes_accepts_generic_names() {
         let attributes = attributes(&[
             ("acr.loa.map", "{}"),
+            ("credential-input-policy", "segmented-numeric"),
+            ("credential-segment-layout", "4-4-4-4"),
             ("smart-link-enabled", "true"),
             ("smart-link-timeout-secs", "90"),
             ("smart-link-clock-skew-secs", "5"),
@@ -224,6 +272,65 @@ mod tests {
         ]);
 
         assert!(validate_realm_attributes(&attributes).is_ok());
+    }
+
+    #[test]
+    fn validate_realm_attributes_accepts_credential_input_configuration() {
+        for (policy, layout) in [
+            ("standard", "4-4-4-4"),
+            ("segmented-numeric", "3-3"),
+            ("segmented-numeric", "2-4-2"),
+            ("segmented-numeric", "8-8-8-8-8-8-8-8"),
+        ] {
+            assert!(
+                validate_realm_attributes(&attributes(&[
+                    ("credential-input-policy", policy),
+                    ("credential-segment-layout", layout),
+                ]))
+                .is_ok(),
+                "expected policy={policy:?}, layout={layout:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_rejects_invalid_credential_input_policy() {
+        for value in ["true", "segmented", "numeric", "STANDARD"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-policy",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-input-policy={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_rejects_invalid_credential_segment_layout() {
+        for value in [
+            "0-4",
+            "4-0",
+            "01-4",
+            "4--4",
+            "4-",
+            "-4",
+            "four-four",
+            "13",
+            "8-8-8-8-8-8-8-8-1",
+            "9-9-9-9-9-9-9-9",
+            "４-４",
+        ] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-segment-layout",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-segment-layout={value:?} to be rejected"
+            );
+        }
     }
 
     #[test]

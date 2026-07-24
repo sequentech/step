@@ -10,7 +10,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "user-profile-commons.ftl" as userProfileCommons>
 <#import "register-commons.ftl" as registerCommons>
 <#include "intl-tel-input.ftl">
-<@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true displaySocialProviders=(formMode?? && formMode = 'LOGIN' && (social.providers)?has_content); section>
+<#assign loginMode = formMode?? && formMode == 'LOGIN'>
+<#assign passwordRequired = passwordRequired!false>
+<#assign segmentedCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'segmented-numeric'>
+<#assign credentialFieldError = messagesPerField.existsError('username','password')>
+<#assign credentialGlobalError = message?has_content && message.type == 'error'>
+<#assign segmentedCredentialHasError = segmentedCredentialLogin && (credentialFieldError || credentialGlobalError)>
+<@layout.registrationLayout displayMessage=messagesPerField.exists('global') && !(segmentedCredentialLogin && credentialGlobalError) displayRequiredFields=true displaySocialProviders=(formMode?? && formMode = 'LOGIN' && (social.providers)?has_content); section>
     <#if section = "header">
         <#if formMode?? && formMode = 'LOGIN'>
             ${msg('loginTitle',(realm.displayName!''))}
@@ -36,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
                             <div class="${properties.kcFormGroupClass!}">
                                 <div class="${properties.kcLabelWrapperClass!}">
-                                    <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
+                                    <label id="segmented-credential-label" for="password" class="${properties.kcLabelClass!}"><#if segmentedCredentialLogin>${msg("segmentedCredentialLabel")}<#else>${msg("password")}</#if></label> *
                                 </div>
                                 <div class="${properties.kcInputWrapperClass!}">
                                     <#--  You can add a custom passwordHelperTextBefore to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
@@ -44,18 +50,33 @@ SPDX-License-Identifier: AGPL-3.0-only
                                         <div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextBefore))?no_esc}</div>
                                     </#if>
 
-                                    <div class="${properties.kcInputGroup!}">
+                                    <div class="${properties.kcInputGroup!}"<#if segmentedCredentialLogin>
+                                         data-segmented-credential
+                                         data-segment-layout="${(realm.attributes['credential-segment-layout']!'4-4-4-4')?html}"
+                                         data-group-label="${msg('segmentedCredentialGroupLabel')?html}"
+                                         data-label-id="segmented-credential-label"
+                                         data-hint-id="segmented-credential-hint"
+                                         data-error-id="segmented-credential-error"</#if>>
                                         <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
-                                               autocomplete="new-password"
-                                               aria-invalid="<#if messagesPerField.existsError('password','password-confirm')>true</#if>"
+                                               <#if segmentedCredentialLogin>autocomplete="current-password"<#else>autocomplete="new-password"</#if>
+                                               <#if segmentedCredentialLogin>aria-describedby="segmented-credential-hint segmented-credential-error"</#if>
+                                               aria-invalid="<#if segmentedCredentialHasError || messagesPerField.existsError('password','password-confirm')>true</#if>"
                                         />
-                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
-                                                aria-controls="password"  data-password-toggle
+                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if segmentedCredentialLogin>${msg('showSegmentedCredential')}<#else>${msg('showPassword')}</#if>"
+                                                aria-controls="password" <#if segmentedCredentialLogin>data-segmented-credential-toggle<#else>data-password-toggle</#if>
                                                 data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                                data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                                data-label-show="<#if segmentedCredentialLogin>${msg('showSegmentedCredential')}<#else>${msg('showPassword')}</#if>"
+                                                data-label-hide="<#if segmentedCredentialLogin>${msg('hideSegmentedCredential')}<#else>${msg('hidePassword')}</#if>">
                                             <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
                                         </button>
                                     </div>
+
+                                    <#if segmentedCredentialLogin>
+                                        <div id="segmented-credential-hint" class="segmented-credential__hint">${msg("segmentedCredentialHint")}</div>
+                                        <span id="segmented-credential-error" data-segmented-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert" aria-live="assertive"<#if !segmentedCredentialHasError> hidden</#if>>
+                                            ${msg("segmentedCredentialError")}
+                                        </span>
+                                    </#if>
 
                                     <#--  You can add a password strength bar if passwordStrengthBar is set to either username or email depending on realm.registrationEmailAsUsername settings to add a strength bar -->
                                     <#if attribute.annotations.passwordStrengthBar?? && formMode?? && (formMode!"REGISTRATION") != "LOGIN">
@@ -66,7 +87,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                         </div>
                                     </#if>
 
-                                    <#if messagesPerField.existsError('password')>
+                                    <#if messagesPerField.existsError('password') && !segmentedCredentialLogin>
                                         <span id="input-error-password" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 		                                ${kcSanitize(messagesPerField.get('password'))?no_esc}
 		                            </span>
@@ -141,7 +162,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </div>
             </div>
         </form>
-        <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
+        <#if segmentedCredentialLogin>
+            <script type="module" src="${url.resourcesPath}/js/segmented-credential.js"></script>
+        <#else>
+            <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
+        </#if>
 
         <#--  Adding intel-tel-input  -->
         <#--  https://github.com/jackocnr/intl-tel-input/tree/master  -->

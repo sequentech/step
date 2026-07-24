@@ -26,6 +26,7 @@ import org.keycloak.authentication.FormAction;
 import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
+import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
@@ -62,6 +63,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
   public static final String PASSWORD_REQUIRED = "password-required";
   public static final String FORM_MODE = "form-mode";
+  public static final String CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE =
+      "credential-input-policy";
+  public static final String SEGMENTED_NUMERIC_POLICY = "segmented-numeric";
+  public static final String SEGMENTED_CREDENTIAL_ERROR = "segmentedCredentialError";
   public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE =
       "password-expiration-user-attribute";
   public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT =
@@ -175,6 +180,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
     final String formMode = configMap.get(FORM_MODE);
+    final boolean segmentedCredentialLogin =
+        isSegmentedCredentialLogin(formMode, context.getRealm().getAttributes());
     final String verifiedAttributeId =
         Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
     boolean passwordRequired =
@@ -213,7 +220,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(INVALID_EMAIL);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
-        context.validationError(formData, errors);
+        reportValidationError(
+            context, formData, errors, segmentedCredentialLogin);
         return;
       }
     } catch (ValidationException pve) {
@@ -257,7 +265,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           context.error(INVALID_REGISTRATION);
         }
         log.info(errors);
-        context.validationError(formData, errors);
+        reportValidationError(
+            context, formData, errors, segmentedCredentialLogin);
         return;
       }
     }
@@ -275,19 +284,32 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
-        context.validationError(formData, errors);
+        reportValidationError(
+            context, formData, errors, segmentedCredentialLogin);
         return;
       }
 
       if (formMode.equals(FormMode.LOGIN.getValue())) {
+        context
+            .getAuthenticationSession()
+            .setAuthNote(
+                AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME,
+                user.getUsername());
+
         // Validate password in LOGIN mode
         if (passwordRequired) {
-          if (!validatePasswordForLogin(context, user, formData)) {
+          if (!validatePasswordForLogin(
+              context, user, formData, segmentedCredentialLogin)) {
             return;
           }
 
           // Check password expiration after successful password validation
-          if (!checkPasswordExpiration(context, user, formData, configMap)) {
+          if (!checkPasswordExpiration(
+              context,
+              user,
+              formData,
+              configMap,
+              segmentedCredentialLogin)) {
             return;
           }
         }
@@ -314,7 +336,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET + ": " + unsetAttributesChecked.get());
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-        context.validationError(formData, errors);
+        reportValidationError(
+            context, formData, errors, segmentedCredentialLogin);
         return;
       }
 
@@ -331,7 +354,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             Utils.ERROR_USER_ATTRIBUTES_NOT_UNIQUE + ": " + uniqueAttributesChecked.get());
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET, sessionId));
-        context.validationError(formData, errors);
+        reportValidationError(
+            context, formData, errors, segmentedCredentialLogin);
       }
     }
 
@@ -340,7 +364,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
 
     // Validate password if it's required for the form.
-    if (passwordRequired) {
+    if (passwordRequired && shouldValidatePasswordCreationPolicy(formMode)) {
       String password = formData.getFirst(RegistrationPage.FIELD_PASSWORD);
       String passwordConfirm = formData.getFirst(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
@@ -396,7 +420,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
               originalKey, originalValue, confirmValue);
           context.error(INVALID_INPUT);
           errors.add(new FormMessage(formKey, "invalidConfirmationValue"));
-          context.validationError(formData, errors);
+          reportValidationError(
+              context, formData, errors, segmentedCredentialLogin);
         }
       }
     }
@@ -413,7 +438,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       }
       formData.remove(RegistrationPage.FIELD_PASSWORD);
       formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-      context.validationError(formData, errors);
+      reportValidationError(
+          context, formData, errors, segmentedCredentialLogin);
       return;
     }
 
@@ -466,6 +492,36 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
 
     return null;
+  }
+
+  static boolean isSegmentedCredentialLogin(
+      String formMode, Map<String, String> realmAttributes) {
+    return FormMode.LOGIN.getValue().equals(formMode)
+        && realmAttributes != null
+        && SEGMENTED_NUMERIC_POLICY.equals(
+            realmAttributes.get(CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE));
+  }
+
+  static boolean shouldValidatePasswordCreationPolicy(String formMode) {
+    return !FormMode.LOGIN.getValue().equals(formMode);
+  }
+
+  private void reportValidationError(
+      ValidationContext context,
+      MultivaluedMap<String, String> formData,
+      List<FormMessage> errors,
+      boolean segmentedCredentialLogin) {
+    if (!segmentedCredentialLogin) {
+      context.validationError(formData, errors);
+      return;
+    }
+
+    formData.remove(RegistrationPage.FIELD_PASSWORD);
+    formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
+    context.excludeOtherErrors();
+    context.validationError(
+        formData,
+        List.of(new FormMessage(null, SEGMENTED_CREDENTIAL_ERROR)));
   }
 
   private Optional<String> checkUniqueAttributes(
@@ -757,22 +813,40 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
    * @param context the validation context
    * @param user the user model
    * @param formData the form data containing the password
+   * @param segmentedCredentialLogin whether login errors must use the generic PIN message
    * @return true if password is valid, false otherwise
    */
   private boolean validatePasswordForLogin(
-      ValidationContext context, UserModel user, MultivaluedMap<String, String> formData) {
+      ValidationContext context,
+      UserModel user,
+      MultivaluedMap<String, String> formData,
+      boolean segmentedCredentialLogin) {
     log.info("validatePasswordForLogin: start");
 
     String password = formData.getFirst(CredentialRepresentation.PASSWORD);
 
+    if (!user.isEnabled()) {
+      log.info("validatePasswordForLogin: user disabled");
+      context.getEvent().user(user);
+      context.getEvent().error(Errors.USER_DISABLED);
+      context.error(Errors.USER_DISABLED);
+      reportValidationError(
+          context,
+          formData,
+          List.of(new FormMessage(null, Messages.INVALID_USER)),
+          segmentedCredentialLogin);
+      return false;
+    }
+
     // Check for empty password
     if (password == null || password.isEmpty()) {
       log.info("validatePasswordForLogin: empty password");
-      return handleBadPassword(context, user, formData, true);
+      return handleBadPassword(
+          context, user, formData, true, segmentedCredentialLogin);
     }
 
     // Check for brute force protection
-    if (isDisabledByBruteForce(context, user)) {
+    if (isDisabledByBruteForce(context, user, segmentedCredentialLogin)) {
       log.info("validatePasswordForLogin: user disabled by brute force");
       return false;
     }
@@ -784,7 +858,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return true;
     } else {
       log.info("validatePasswordForLogin: password invalid");
-      return handleBadPassword(context, user, formData, false);
+      return handleBadPassword(
+          context, user, formData, false, segmentedCredentialLogin);
     }
   }
 
@@ -795,13 +870,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
    * @param user the user model
    * @param formData the form data
    * @param isEmptyPassword whether the password was empty
+   * @param segmentedCredentialLogin whether login errors must use the generic PIN message
    * @return always false
    */
   private boolean handleBadPassword(
       ValidationContext context,
       UserModel user,
       MultivaluedMap<String, String> formData,
-      boolean isEmptyPassword) {
+      boolean isEmptyPassword,
+      boolean segmentedCredentialLogin) {
     log.info("handleBadPassword: isEmptyPassword=" + isEmptyPassword);
 
     context.getEvent().user(user);
@@ -820,7 +897,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     formData.remove(RegistrationPage.FIELD_PASSWORD);
     formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-    context.validationError(formData, errors);
+    reportValidationError(
+        context, formData, errors, segmentedCredentialLogin);
     return false;
   }
 
@@ -835,9 +913,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
    *
    * @param context the validation context
    * @param user the user model
+   * @param segmentedCredentialLogin whether login errors must use the generic PIN message
    * @return true if user is disabled by brute force, false otherwise
    */
-  private boolean isDisabledByBruteForce(ValidationContext context, UserModel user) {
+  private boolean isDisabledByBruteForce(
+      ValidationContext context,
+      UserModel user,
+      boolean segmentedCredentialLogin) {
     RealmModel realm = context.getRealm();
 
     // Check if brute force protection is enabled
@@ -856,7 +938,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return false;
     }
 
-    // Check if user is temporarily or permanently disabled
+    // Permanent disablement is handled before password validation. Check the
+    // brute-force protector for temporary disablement here.
     boolean isDisabled = protector.isTemporarilyDisabled(session, realm, user);
 
     if (isDisabled) {
@@ -874,7 +957,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       formData.remove(RegistrationPage.FIELD_PASSWORD);
       formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-      context.validationError(formData, errors);
+      reportValidationError(
+          context, formData, errors, segmentedCredentialLogin);
       return true;
     }
 
@@ -889,13 +973,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
    * @param user the user model
    * @param formData the form data
    * @param configMap the authenticator configuration map
+   * @param segmentedCredentialLogin whether login errors must use the generic PIN message
    * @return true if password is not expired or expiration is not configured, false if expired
    */
   private boolean checkPasswordExpiration(
       ValidationContext context,
       UserModel user,
       MultivaluedMap<String, String> formData,
-      Map<String, String> configMap) {
+      Map<String, String> configMap,
+      boolean segmentedCredentialLogin) {
     log.info("checkPasswordExpiration: start");
 
     // Get the password expiration user attribute name from configuration
@@ -939,7 +1025,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         formData.remove(RegistrationPage.FIELD_PASSWORD);
         formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-        context.validationError(formData, errors);
+        reportValidationError(
+            context, formData, errors, segmentedCredentialLogin);
         return false;
       }
 

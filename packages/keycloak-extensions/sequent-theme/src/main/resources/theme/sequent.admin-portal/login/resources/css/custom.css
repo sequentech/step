@@ -669,3 +669,47 @@ button#resend-otp-btn:hover {
     text-decoration: none;
     color: inherit;
 }
+
+/* Segmented numeric credentials are progressively rendered around the ordinary
+   password input when enabled by realm attributes. */
+[data-segmented-credential][data-segmented-credential-enhanced="true"] {
+    align-items: stretch;
+}
+
+.segmented-credential {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.segmented-credential__segment {
+    box-sizing: border-box;
+    flex: 1 1 var(--segment-width);
+    min-width: var(--segment-width);
+    max-width: calc(var(--segment-width) + 16px);
+    padding-left: 6px;
+    padding-right: 6px;
+    text-align: center;
+    letter-spacing: 0.12em;
+}
+
+.segmented-credential__hint {
+    margin-top: 6px;
+}
+
+[data-segmented-credential-error][hidden] {
+    display: none;
+}
+
+@media (max-width: 480px) {
+    .segmented-credential {
+        gap: 6px;
+    }
+
+    .segmented-credential__segment {
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+}

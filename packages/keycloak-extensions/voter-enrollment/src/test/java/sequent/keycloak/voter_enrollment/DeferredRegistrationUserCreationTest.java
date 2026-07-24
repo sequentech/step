@@ -23,6 +23,44 @@ class DeferredRegistrationUserCreationTest {
   private static final String CUSTOM_HIDDEN_ATTRIBUTE = "customHidden";
 
   @Test
+  void segmentedCredentialIsEnabledOnlyForLoginModeAndRealmPolicy() {
+    assertTrue(
+        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+            Map.of(
+                DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
+                DeferredRegistrationUserCreation.SEGMENTED_NUMERIC_POLICY)));
+    assertFalse(
+        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.REGISTRATION.getValue(),
+            Map.of(
+                DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
+                DeferredRegistrationUserCreation.SEGMENTED_NUMERIC_POLICY)));
+    assertFalse(
+        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+            Map.of(
+                DeferredRegistrationUserCreation.CREDENTIAL_INPUT_POLICY_REALM_ATTRIBUTE,
+                "standard")));
+    assertFalse(
+        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(), Map.of()));
+    assertFalse(
+        DeferredRegistrationUserCreation.isSegmentedCredentialLogin(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(), null));
+  }
+
+  @Test
+  void passwordCreationPolicyIsNotAppliedInLoginMode() {
+    assertFalse(
+        DeferredRegistrationUserCreation.shouldValidatePasswordCreationPolicy(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue()));
+    assertTrue(
+        DeferredRegistrationUserCreation.shouldValidatePasswordCreationPolicy(
+            DeferredRegistrationUserCreation.FormMode.REGISTRATION.getValue()));
+  }
+
+  @Test
   void normalizeFormParametersRemovesHiddenAndSensitiveFields() throws Exception {
     MultivaluedMap<String, String> formParams = new MultivaluedHashMap<>();
     formParams.add(RegistrationPage.FIELD_PASSWORD, "password");
