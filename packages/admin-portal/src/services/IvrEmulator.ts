@@ -1,7 +1,8 @@
-import loadIvrWasm, {welcome} from "./generated/ivr_emulator_wasm"
+import loadIvrWasm, {IvrEmulatorDriver} from "./generated/ivr_emulator_wasm"
 
-const api = {welcome}
+const api = {IvrEmulatorDriver}
 export type IvrEmulatorApi = typeof api
+export type {IvrEmulatorDriver, Action, PromptInfo} from "./generated/ivr_emulator_wasm"
 let initPromise: Promise<IvrEmulatorApi> | null = null
 
 export class IvrEmulatorError extends Error {

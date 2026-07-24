@@ -1,7 +1,7 @@
 import React, {createContext, useContext, useEffect, useState} from "react"
 import {IvrEmulatorApi, IvrEmulatorError, loadIvrEmulator} from "@/services/IvrEmulator"
 
-export enum IvrStatus {
+export enum IvrApiStatus {
     UNAVAILABLE = "unavailable",
     LOADING = "loading",
     READY = "ready",
@@ -9,26 +9,26 @@ export enum IvrStatus {
 }
 
 export interface IvrEmulatorContextType {
-    status: IvrStatus
+    status: IvrApiStatus
     api?: IvrEmulatorApi
 }
 export const IvrEmulatorContext = createContext<IvrEmulatorContextType | undefined>(undefined)
 export const IvrEmulatorContextProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const [status, setStatus] = useState<IvrStatus>(IvrStatus.LOADING)
+    const [status, setStatus] = useState<IvrApiStatus>(IvrApiStatus.LOADING)
     const [api, setApi] = useState<IvrEmulatorApi | undefined>(undefined)
     const url = "/wasm/ivr_emulator_wasm_bg.wasm"
 
     useEffect(() => {
         loadIvrEmulator(url)
             ?.then((resolvedApi) => {
-                setStatus(IvrStatus.READY)
+                setStatus(IvrApiStatus.READY)
                 setApi(resolvedApi)
             })
             .catch((e) => {
                 if (e instanceof IvrEmulatorError && e.operation === "fetch") {
-                    setStatus(IvrStatus.UNAVAILABLE)
+                    setStatus(IvrApiStatus.UNAVAILABLE)
                 } else {
-                    setStatus(IvrStatus.ERROR)
+                    setStatus(IvrApiStatus.ERROR)
                 }
             })
     }, [])
