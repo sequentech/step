@@ -151,7 +151,6 @@ const englishTranslation = {
                     rowFailures:
                         "{{count}} row(s) failed to apply - fix manually; the next reconciliation file will point out the same diff otherwise.",
                     success: "All Sequent-side changes applied successfully.",
-                    downloadRowFailures: "Download row failures report",
                 },
                 actions: {
                     cancel: "Cancel",

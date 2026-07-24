@@ -153,7 +153,6 @@ const tagalogTranslation: TranslationType = {
                     rowFailures:
                         "Hindi na-apply ang {{count}} row(s) - ayusin nang manu-mano; kung hindi, ituturo ng susunod na reconciliation file ang parehong pagkakaiba.",
                     success: "Matagumpay na nailapat ang lahat ng pagbabago sa Sequent side.",
-                    downloadRowFailures: "I-download ang row failures report",
                 },
                 actions: {
                     cancel: "I-cancel",

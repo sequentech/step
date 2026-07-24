@@ -16,7 +16,7 @@ use sequent_core::types::keycloak::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use tracing::instrument;
+use tracing::{info, instrument};
 
 /// One (voter, field) change destined for either the Datafix patch or a
 /// direct Sequent apply. Never persisted on its own — always as part of a
@@ -265,7 +265,10 @@ fn classify_file_row(
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(
                     DATE_OF_BIRTH.to_string(),
-                    snapshot.dob.clone().unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
+                    snapshot
+                        .dob
+                        .clone()
+                        .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
                 )]),
                 HashMap::from([(DATE_OF_BIRTH.to_string(), row.dob.clone())]),
             ))),
@@ -375,7 +378,10 @@ fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<Diff
         ),
         DatafixReconciliationField::DoB(
             ATTR_RESET_VALUE.to_string(),
-            snapshot.dob.clone().unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
+            snapshot
+                .dob
+                .clone()
+                .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
         ),
         DatafixReconciliationField::Channel(
             ATTR_RESET_VALUE.to_string(),
@@ -494,14 +500,16 @@ fn composed_area_name(row: &ParsedDatafixReconciliationRow) -> String {
     // (built for the inbound API's `Option<String>` contract) omits it.
     let optional_field = |value: &str| (value != ATTR_RESET_VALUE).then(|| value.to_string());
 
-    compose_area_name(&VoterInformationBody {
+    let composed_area = compose_area_name(&VoterInformationBody {
         voter_id: row.voter_id.clone(),
         ward: row.ward.clone(),
         schoolboard: optional_field(&row.school_support_code),
         poll: optional_field(&row.poll),
         birthdate: None,
         enabled: None,
-    })
+    });
+    info!(%composed_area, "Composed area name from file row");
+    composed_area
 }
 
 #[cfg(test)]

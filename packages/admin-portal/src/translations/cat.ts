@@ -152,7 +152,6 @@ const catalanTranslation: TranslationType = {
                     rowFailures:
                         "{{count}} fila(es) han fallat en aplicar-se - corregeix-les manualment; el proper fitxer de reconciliació assenyalarà la mateixa diferència si no.",
                     success: "Tots els canvis del costat de Sequent s'han aplicat correctament.",
-                    downloadRowFailures: "Descarregar informe d'errors de fila",
                 },
                 actions: {
                     cancel: "Cancel·lar",

@@ -152,7 +152,6 @@ const spanishTranslation: TranslationType = {
                     rowFailures:
                         "{{count}} fila(s) fallaron al aplicarse - corrígelas manualmente; el próximo archivo de reconciliación señalará la misma diferencia si no.",
                     success: "Todos los cambios del lado de Sequent se aplicaron correctamente.",
-                    downloadRowFailures: "Descargar informe de fallos de fila",
                 },
                 actions: {
                     cancel: "Cancelar",

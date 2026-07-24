@@ -152,7 +152,6 @@ const frenchTranslation: TranslationType = {
                     rowFailures:
                         "{{count}} ligne(s) n'ont pas pu être appliquées - corrigez-les manuellement ; le prochain fichier de réconciliation signalera la même différence sinon.",
                     success: "Tous les changements côté Sequent ont été appliqués avec succès.",
-                    downloadRowFailures: "Télécharger le rapport d'échecs de ligne",
                 },
                 actions: {
                     cancel: "Annuler",

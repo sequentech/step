@@ -7,31 +7,32 @@
 //! produced, not recomputed (spec: "calculated in the first diff, not
 //! recalculated"). Per-voter atomic; failures are collected and reported at
 //! the end rather than aborting (spec, "Implementation Requirements"). There
-//! is no `datafix_reconciliation_import` row to mutate — the outcome is
-//! reported via the row-failures document and a single electoral log entry,
-//! not written back onto anything.
+//! is no `datafix_reconciliation_import` row to mutate, and no downloadable
+//! row-failures document either — the outcome is reported straight into the
+//! task_execution's own logs (see `apply_reconciliation_patch` below) and a
+//! single electoral log entry, not written back onto anything else.
 
 use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
+use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
 use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationDiff};
-use crate::services::external::reconciliation::patch::build_row_failures_csv;
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
 use crate::services::external::utils::bump_datafix_last_applied_sequence;
 use crate::services::protocol_manager::get_event_board;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::serialize_tasks_logs::append_general_log;
+use crate::services::tasks_execution::{update, update_fail};
 use crate::types::error::{Error, Result};
 use celery::error::TaskError;
 use electoral_log::messages::newtypes::ExternalReconciliationKind;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::Write;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -50,12 +51,15 @@ pub struct ApplyReconciliationPatchBody {
 }
 
 /// Applies every `target = Sequent` item of the round `diff_document_id`
-/// points to, one voter at a time, per-row atomic. Always completes the
-/// task_execution as `SUCCESS` even if some voters failed — row failures are
-/// a normal, expected outcome reported in the result, not a task failure
-/// (spec: "a row failure does not abort the process"); the task_execution
-/// only fails on a genuine infrastructure error (e.g. cannot load the diff at
-/// all).
+/// points to, one voter at a time, per-row atomic (spec: "a row failure does
+/// not abort the process" — every voter is still attempted). Row failures are
+/// reported directly in the task_execution's own logs rather than a
+/// downloadable document: a line stating how many rows applied, one line per
+/// failed voter naming it and the reason, and a closing summary line. Any row
+/// failure marks the task_execution `FAILED` (not `SUCCESS`) so it's visible
+/// wherever task executions are surfaced, same as a genuine infrastructure
+/// error (e.g. cannot load the diff at all) — the two are distinguished by
+/// the logged detail, not by status.
 #[instrument(
     skip_all,
     fields(
@@ -72,9 +76,43 @@ pub async fn apply_reconciliation_patch(
     task_execution: TasksExecution,
 ) -> Result<()> {
     match run_apply_reconciliation_patch(&body).await {
-        Ok((failure_count, document_id)) => {
-            info!("Reconciliation apply completed with {failure_count} row failure(s)");
-            update_complete(&task_execution, document_id).await.ok();
+        Ok((applied_count, row_failures)) => {
+            info!(
+                "Reconciliation apply completed: {applied_count} row(s) applied, {} row failure(s)",
+                row_failures.len()
+            );
+
+            let mut logs = task_execution.logs.clone();
+            logs = append_task_log(&logs, &format!("Applied {applied_count} row(s)."));
+            for (voter_username, reason) in &row_failures {
+                logs = append_task_log(
+                    &logs,
+                    &format!("Row failed for voter {voter_username}: {reason}"),
+                );
+            }
+
+            let (status, closing_message) = if row_failures.is_empty() {
+                (
+                    TasksExecutionStatus::SUCCESS,
+                    "Task completed successfully".to_string(),
+                )
+            } else {
+                (
+                    TasksExecutionStatus::FAILED,
+                    format!("Error: {} row(s) failed to apply.", row_failures.len()),
+                )
+            };
+            logs = append_task_log(&logs, &closing_message);
+
+            update(
+                &task_execution.tenant_id,
+                &task_execution.id,
+                status,
+                logs.unwrap_or_else(|| serde_json::Value::Array(vec![])),
+                None,
+            )
+            .await
+            .ok();
             Ok(())
         }
         Err(message) => {
@@ -84,10 +122,22 @@ pub async fn apply_reconciliation_patch(
     }
 }
 
+/// Appends one log line to `current_logs`, same shape `update_complete`/
+/// `update_fail` write — but callable multiple times before a single terminal
+/// `update`, since this task has more than one line to add (the applied
+/// count, then one per row failure) instead of the single summary message
+/// those two helpers are built for.
+fn append_task_log(
+    current_logs: &Option<serde_json::Value>,
+    message: &str,
+) -> Option<serde_json::Value> {
+    serde_json::to_value(append_general_log(current_logs, message)).ok()
+}
+
 #[instrument(skip(body), err)]
 async fn run_apply_reconciliation_patch(
     body: &ApplyReconciliationPatchBody,
-) -> std::result::Result<(usize, Option<String>), String> {
+) -> std::result::Result<(usize, Vec<(String, String)>), String> {
     let mut hasura_client = get_hasura_pool()
         .await
         .get()
@@ -178,6 +228,7 @@ async fn run_apply_reconciliation_patch(
 
     let mut row_failures: Vec<(String, String)> = Vec::new();
     let mut applied_items: Vec<DiffItem> = Vec::new();
+    let mut applied_voters_count: usize = 0;
 
     for (voter_username, indices) in &indices_by_voter {
         let voter_items: Vec<DiffItem> = indices
@@ -203,7 +254,10 @@ async fn run_apply_reconciliation_patch(
         .await;
 
         match outcome {
-            Ok(VoterApplyOutcome::Applied) => applied_items.extend(voter_items),
+            Ok(VoterApplyOutcome::Applied) => {
+                applied_voters_count += 1;
+                applied_items.extend(voter_items)
+            }
             Ok(VoterApplyOutcome::Failed { reason }) => {
                 row_failures.push((voter_username.clone(), reason))
             }
@@ -243,31 +297,6 @@ async fn run_apply_reconciliation_patch(
         }
     }
 
-    let mut row_failures_document_id = None;
-    if !row_failures.is_empty() {
-        let csv = build_row_failures_csv(&row_failures);
-        let file_name = format!("apply_row_failures_seq{}.csv", envelope.sequence);
-        let mut temp_file = tempfile::NamedTempFile::new()
-            .map_err(|err| format!("Error creating temp file: {err}"))?;
-        temp_file
-            .write_all(csv.as_bytes())
-            .map_err(|err| format!("Error writing row failures CSV: {err}"))?;
-        let uploaded = upload_and_return_document(
-            &hasura_transaction,
-            temp_file.path().to_str().unwrap_or_default(),
-            csv.len() as u64,
-            "text/csv",
-            &body.tenant_id,
-            Some(body.election_event_id.clone()),
-            &file_name,
-            None,
-            false,
-        )
-        .await
-        .map_err(|err| format!("Error uploading row failures report: {err:?}"))?;
-        row_failures_document_id = Some(uploaded.id);
-    }
-
     if let ReconciliationPatchSource::Datafix { .. } = &body.source {
         bump_datafix_last_applied_sequence(
             &hasura_transaction,
@@ -284,7 +313,7 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error committing transaction: {err}"))?;
 
-    Ok((row_failures.len(), row_failures_document_id))
+    Ok((applied_voters_count, row_failures))
 }
 
 /// Downloads a `Document` and deserializes its content as JSON — shared by

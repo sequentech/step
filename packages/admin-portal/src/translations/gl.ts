@@ -152,7 +152,6 @@ const galegoTranslation: TranslationType = {
                     rowFailures:
                         "{{count}} fila(s) fallaron ao aplicarse - corríxeas manualmente; o vindeiro ficheiro de reconciliación sinalará a mesma diferenza se non.",
                     success: "Todos os cambios do lado de Sequent aplicáronse correctamente.",
-                    downloadRowFailures: "Descargar informe de erros de fila",
                 },
                 actions: {
                     cancel: "Cancelar",

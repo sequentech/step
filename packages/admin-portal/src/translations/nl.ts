@@ -153,7 +153,6 @@ const dutchTranslation: TranslationType = {
                     rowFailures:
                         "{{count}} rij(en) konden niet worden toegepast - corrigeer deze handmatig; anders wijst het volgende reconciliatiebestand op hetzelfde verschil.",
                     success: "Alle wijzigingen aan de Sequent-zijde zijn succesvol toegepast.",
-                    downloadRowFailures: "Rapport met rijfouten downloaden",
                 },
                 actions: {
                     cancel: "Annuleren",

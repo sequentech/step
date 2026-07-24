@@ -84,9 +84,29 @@ interface ReconciliationDiffEnvelope {
     items: RawDiffItem[]
 }
 
+/**
+ * Counts distinct voters per category, not rows: a single voter's change can
+ * fan out into several `SyncDiffRow`s (e.g. a new voter is 4 rows - area,
+ * DoB, channel, enabled - all tagged `VOTER_ADDED`), so counting rows would
+ * multiply-count that one voter under every category with more than one
+ * field per voter.
+ */
+const countsByCategory = (rows: SyncDiffRow[]): Partial<Record<ESyncChangeCategory, number>> => {
+    const votersByCategory = new Map<ESyncChangeCategory, Set<string>>()
+    rows.forEach((row) => {
+        const voters = votersByCategory.get(row.category) ?? new Set<string>()
+        voters.add(row.voterId)
+        votersByCategory.set(row.category, voters)
+    })
+    const counts: Partial<Record<ESyncChangeCategory, number>> = {}
+    votersByCategory.forEach((voters, category) => {
+        counts[category] = voters.size
+    })
+    return counts
+}
+
 const summarizeForConfirmation = (rows: SyncDiffRow[], t: TranslateFn): string => {
-    const counts = new Map<ESyncChangeCategory, number>()
-    rows.forEach((row) => counts.set(row.category, (counts.get(row.category) ?? 0) + 1))
+    const counts = countsByCategory(rows)
 
     const phrases = [
         [
@@ -101,7 +121,7 @@ const summarizeForConfirmation = (rows: SyncDiffRow[], t: TranslateFn): string =
 
     const parts = phrases
         .map(([category, key]) => {
-            const count = counts.get(category) ?? 0
+            const count = counts[category] ?? 0
             return count > 0 ? t(key, {count}) : null
         })
         .filter((part): part is string => part !== null)
@@ -109,14 +129,6 @@ const summarizeForConfirmation = (rows: SyncDiffRow[], t: TranslateFn): string =
     return parts.length > 0
         ? t("reconciliation.wizard.summary.prefix", {parts: parts.join(", ")})
         : t("reconciliation.wizard.summary.empty")
-}
-
-const countsByCategory = (rows: SyncDiffRow[]): Partial<Record<ESyncChangeCategory, number>> => {
-    const counts: Partial<Record<ESyncChangeCategory, number>> = {}
-    rows.forEach((row) => {
-        counts[row.category] = (counts[row.category] ?? 0) + 1
-    })
-    return counts
 }
 
 /** Flat label/oldValue/newValue the table actually renders, derived from a
@@ -303,28 +315,40 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     const generateStatus = generateTaskData?.sequent_backend_tasks_execution?.[0]?.execution_status
     const generateDocumentId =
         generateTaskData?.sequent_backend_tasks_execution?.[0]?.annotations?.document_id
-    if (
-        step === "processing" &&
-        generateStatus === ETaskExecutionStatus.SUCCESS &&
-        generateDocumentId
-    ) {
-        setDiffDocumentId(generateDocumentId)
-        // Stays on "processing" until the effect above finishes fetching and
-        // parsing the envelope document, then moves to "review" itself.
-    } else if (step === "processing" && generateStatus === ETaskExecutionStatus.FAILED) {
-        setErrorMessage(t("reconciliation.wizard.notifications.generateFailed"))
-        setStep("drop")
-    }
+
+    // Runs as an effect (not inline during render) so it fires once per
+    // status/document transition instead of on every render - calling the
+    // setters unconditionally during render never stops re-triggering itself
+    // since `step` only changes once the envelope effect above finishes,
+    // which React reports as "Too many re-renders".
+    useEffect(() => {
+        if (step !== "processing") {
+            return
+        }
+        if (generateStatus === ETaskExecutionStatus.SUCCESS && generateDocumentId) {
+            setDiffDocumentId(generateDocumentId)
+            // Stays on "processing" until the effect above finishes fetching
+            // and parsing the envelope document, then moves to "review"
+            // itself.
+        } else if (generateStatus === ETaskExecutionStatus.FAILED) {
+            setErrorMessage(t("reconciliation.wizard.notifications.generateFailed"))
+            setStep("drop")
+        }
+    }, [step, generateStatus, generateDocumentId, t])
 
     const applyStatus = applyTaskData?.sequent_backend_tasks_execution?.[0]?.execution_status
-    const rowFailuresDocumentId =
-        applyTaskData?.sequent_backend_tasks_execution?.[0]?.annotations?.document_id
-    if (step === "applying" && applyStatus === ETaskExecutionStatus.SUCCESS) {
-        setStep("done")
-    } else if (step === "applying" && applyStatus === ETaskExecutionStatus.FAILED) {
-        setErrorMessage(t("reconciliation.wizard.notifications.applyFailed"))
-        setStep("done")
-    }
+
+    useEffect(() => {
+        if (step !== "applying") {
+            return
+        }
+        if (applyStatus === ETaskExecutionStatus.SUCCESS) {
+            setStep("done")
+        } else if (applyStatus === ETaskExecutionStatus.FAILED) {
+            setErrorMessage(t("reconciliation.wizard.notifications.applyFailed"))
+            setStep("done")
+        }
+    }, [step, applyStatus, t])
 
     const reset = () => {
         setStep("drop")
@@ -439,7 +463,18 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                     </IconButton>
                 </Stack>
             </DialogTitle>
-            <DialogContent dividers>
+            <DialogContent
+                dividers
+                sx={{
+                    // "drop"/"processing"/"applying" never have enough content
+                    // to need scrolling - only "review"'s data grids do. Left
+                    // as auto-overflow always, the CircularProgress/
+                    // LinearProgress spinners' continuous animation makes
+                    // Chromium keep re-flashing this container's scrollbar
+                    // indicator even though nothing actually overflows.
+                    overflowY: step === "review" ? "auto" : "hidden",
+                }}
+            >
                 <Stack spacing={3}>
                     {(step === "drop" || step === "processing") && (
                         <>
@@ -580,18 +615,6 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                         <Alert severity="success">
                                             {t("reconciliation.wizard.applying.success")}
                                         </Alert>
-                                    )}
-                                    {rowFailuresDocumentId && (
-                                        <Button
-                                            sx={{alignSelf: "flex-start"}}
-                                            onClick={() =>
-                                                setDownloadingDocumentId(rowFailuresDocumentId)
-                                            }
-                                        >
-                                            {t(
-                                                "reconciliation.wizard.applying.downloadRowFailures"
-                                            )}
-                                        </Button>
                                     )}
                                 </>
                             )}

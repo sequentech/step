@@ -24,7 +24,7 @@
 //! path — this module re-validates the same underlying condition
 //! (`has_valid_cast_vote`) directly instead.
 
-use crate::postgres::area::get_event_areas;
+use crate::postgres::area::get_area_id_from_event_by_name;
 use crate::postgres::cast_vote::has_valid_cast_vote;
 use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::ReconciliationChangeCategory;
@@ -36,10 +36,11 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::types::hasura::core::Area;
 use sequent_core::types::keycloak::{User, AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::collections::HashMap;
 use std::env;
-use tracing::{error, instrument};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 
 /// Outcome of applying one voter's queued changes.
@@ -386,20 +387,17 @@ async fn resolve_area_attribute(
     items: &[DiffItem],
     attributes: &mut HashMap<String, Vec<String>>,
 ) -> Result<()> {
+    info!("Resolving area attribute for voter changes: {items:?}");
     let Some(area_name) = items
         .iter()
         .find_map(|item| item.target.sequent_field()?.new_area_name())
     else {
         return Ok(());
     };
-
-    let areas = get_event_areas(hasura_transaction, tenant_id, election_event_id).await?;
-    if let Some(area_id) = areas
-        .into_iter()
-        .find(|area| area.name.as_deref() == Some(area_name))
-        .map(|area| area.id)
-    {
-        attributes.insert(AREA_ID_ATTR_NAME.to_string(), vec![area_id]);
-    }
+    info!("Resolving area name {area_name:?} to area-id for voter changes");
+    let area_id =
+        get_area_id_from_event_by_name(hasura_transaction, tenant_id, election_event_id, area_name)
+            .await?;
+    attributes.insert(AREA_ID_ATTR_NAME.to_string(), vec![area_id]);
     Ok(())
 }

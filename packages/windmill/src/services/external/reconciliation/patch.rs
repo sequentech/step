@@ -100,18 +100,6 @@ pub fn build_sequent_patch_json(items: &[DiffItem]) -> Result<Vec<u8>> {
     Ok(serde_json::to_vec(&sequent_items)?)
 }
 
-/// Serializes row failures (both diff-time `ROW_FAILURE` items and any
-/// apply-time failures collected while applying) into the downloadable "row
-/// failures report" CSV.
-#[instrument(skip(rows))]
-pub fn build_row_failures_csv(rows: &[(String, String)]) -> String {
-    let mut lines = vec!["VoterID,Reason".to_string()];
-    for (voter_username, reason) in rows {
-        lines.push(format!("{voter_username},\"{}\"", reason.replace('"', "'")));
-    }
-    lines.join("\n")
-}
-
 #[instrument(skip_all)]
 pub fn sha256_hex(content: &str) -> String {
     let mut hasher = Sha256::new();

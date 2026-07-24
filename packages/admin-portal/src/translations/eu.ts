@@ -153,7 +153,6 @@ const basqueTranslation: TranslationType = {
                     rowFailures:
                         "{{count}} errenkadak huts egin dute aplikatzean - zuzendu eskuz; bestela, hurrengo bat-egite fitxategiak desberdintasun bera adieraziko du.",
                     success: "Sequent aldeko aldaketa guztiak ondo aplikatu dira.",
-                    downloadRowFailures: "Deskargatu errenkada-erroreen txostena",
                 },
                 actions: {
                     cancel: "Ezeztatu",
