@@ -1125,7 +1125,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
-                        {electionEventId && (
+                        {electionEventId && showVoterListSync && (
                             <FunctionField<IUser>
                                 source={`attributes['${DISABLE_COMMENT}']`}
                                 label={String(
