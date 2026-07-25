@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Structured PIN login | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2909/docs/developers/keycloak/structured_pin_login"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Structured PIN login | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2909/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2909/docs/developers/keycloak/structured_pin_login"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2909/docs/developers/keycloak/structured_pin_login" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2909/docs/developers/keycloak/structured_pin_login" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Structured PIN login","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2909/docs/developers/keycloak/structured_pin_login"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2909/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2909/assets/js/runtime~main.4e5c52f6.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2909/assets/js/runtime~main.7aed8a7c.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2909/assets/js/main.2b04d7f9.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -47,7 +47,9 @@ visibility button reveals or hides every entered digit.</p>
 first or last group. Typing after selecting a group replaces it, and completing
 a group advances to the next one. Paste accepts ASCII digits with optional
 hyphens or ASCII whitespace. Copy, cut, and drop are disabled so the displayed
-mask cannot leak or desynchronize the submitted value.</p>
+mask cannot leak or desynchronize the submitted value.
+Rejected paste is left unapplied and announced through the control&#x27;s polite
+status region.</p>
 <p>The visible control has no form name. On submit, its digit model is copied into
 the one ordinary <code>password</code> form value without separators. Incomplete input is
 blocked in the browser and focuses the first incomplete group. Invalid input,
@@ -85,13 +87,17 @@ creation-policy validation. A deferred LOGIN form with
 <p>Authentication failures use the same generic message for an unknown username,
 incorrect PIN, disabled voter, lockout, or expired credential. Operational
 errors that require a different action, such as a failed reCAPTCHA challenge,
-retain their specific message.</p>
+retain their specific message.
+Early password failures perform Keycloak&#x27;s configured dummy hash so user lookup,
+disabled-user, empty-password, and temporary-lockout paths do not omit the
+realm&#x27;s password-hashing cost.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="password-policy-and-provisioning">Password policy and provisioning<a href="#password-policy-and-provisioning" class="hash-link" aria-label="Direct link to Password policy and provisioning" title="Direct link to Password policy and provisioning" translate="no">​</a></h2>
 <p>Configure a numeric-compatible Keycloak password policy for realms that create
 PIN credentials, for example <code>length(16) and maxLength(16)</code> for
 <code>dddd-dddd-dddd-dddd</code>. Password policies are creation-time rules; the deferred
 LOGIN flow does not re-apply them after Keycloak has validated an existing
-credential. Credential imports that supply password hashes may bypass
+credential. This applies to every deferred LOGIN form, whether its presentation
+is <code>standard</code> or <code>structured</code>. Credential imports that supply password hashes may bypass
 creation-time policy checks, so provisioning must validate the configured
 length and format.</p>
 <p>Keep Keycloak brute-force protection enabled. The deferred LOGIN flow records
@@ -104,6 +110,7 @@ failure counting and lockout behavior.</p>
 <li class=""><code>structuredCredentialHint</code></li>
 <li class=""><code>structuredCredentialError</code></li>
 <li class=""><code>structuredCredentialGroupStatus</code></li>
+<li class=""><code>structuredCredentialPasteError</code></li>
 <li class=""><code>showStructuredCredential</code></li>
 <li class=""><code>hideStructuredCredential</code></li>
 </ul>
