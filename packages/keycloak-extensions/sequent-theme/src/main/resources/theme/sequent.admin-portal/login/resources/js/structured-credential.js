@@ -131,6 +131,7 @@ if (container) {
     const initialValue =
       prefilledValue && prefilledValue.length <= pattern.totalSize ? prefilledValue : "";
     const hadServerError = Boolean(error && !error.hidden);
+    const defaultErrorMessage = error?.textContent || "";
     const originalTabIndex = realInput.tabIndex;
     const displayInput = document.createElement("input");
     const status = document.createElement("span");
@@ -142,6 +143,8 @@ if (container) {
     let revealTimer = null;
     let submitting = false;
     let activeSubmitter = null;
+    let credentialFormatInvalid = false;
+    let hiddenClearPending = false;
 
     for (let index = 0; index < initialValue.length; index += 1) {
       digits[index] = initialValue[index];
@@ -251,6 +254,7 @@ if (container) {
     const clearError = () => {
       if (error) {
         error.hidden = true;
+        error.textContent = defaultErrorMessage;
       }
       displayInput.removeAttribute("aria-invalid");
       if (usernameInput) {
@@ -259,12 +263,26 @@ if (container) {
       delete container.dataset.structuredCredentialInvalid;
     };
 
-    const showError = () => {
+    const showError = (message = defaultErrorMessage) => {
       if (error) {
+        error.textContent = message;
         error.hidden = false;
+      } else {
+        status.textContent = message;
       }
       displayInput.setAttribute("aria-invalid", "true");
       container.dataset.structuredCredentialInvalid = "true";
+    };
+
+    const clearCredentialError = () => {
+      credentialFormatInvalid = false;
+      hiddenClearPending = false;
+      clearError();
+    };
+
+    const showFormatError = () => {
+      credentialFormatInvalid = true;
+      showError(formatErrorMessage);
     };
 
     const revealDigit = (index) => {
@@ -333,7 +351,7 @@ if (container) {
       }
 
       syncPassword();
-      clearError();
+      clearCredentialError();
       render();
     };
 
@@ -366,17 +384,13 @@ if (container) {
         .every((digit) => digit !== null);
       revealDigit(lastEntered);
       syncPassword();
-      clearError();
+      clearCredentialError();
       render();
       return true;
     };
 
     const announcePasteError = () => {
       status.textContent = pasteErrorMessage;
-    };
-
-    const announceFormatError = () => {
-      status.textContent = formatErrorMessage;
     };
 
     const deleteBackward = () => {
@@ -411,7 +425,7 @@ if (container) {
       }
       clearReveal();
       syncPassword();
-      clearError();
+      clearCredentialError();
       render();
     };
 
@@ -420,7 +434,7 @@ if (container) {
       replaceGroupOnNextDigit = false;
       clearReveal();
       syncPassword();
-      clearError();
+      clearCredentialError();
       render();
     };
 
@@ -501,7 +515,7 @@ if (container) {
           !pasteFromActiveGroup(replacement)
         ) {
           render();
-          announceFormatError();
+          showFormatError();
         }
         return;
       }
@@ -540,22 +554,36 @@ if (container) {
       );
     };
 
-    const reconcileHiddenAutofill = () => {
+    const reconcileHiddenAutofill = (duringSubmit = false) => {
       const suppliedValue = realInput.value;
       const currentValue = digits.map((digit) => digit || "").join("");
       if (suppliedValue === currentValue) {
+        if (!duringSubmit && hiddenClearPending && currentValue.length === pattern.totalSize) {
+          clearCredentialError();
+        }
         return false;
       }
-      if (!suppliedValue || !importHiddenAutofill()) {
-        syncPassword();
-        announceFormatError();
+      if (!suppliedValue) {
+        if (currentValue) {
+          credentialFormatInvalid = true;
+          hiddenClearPending = true;
+        }
+        return duringSubmit;
+      }
+      if (!importHiddenAutofill()) {
+        if (!hiddenClearPending) {
+          syncPassword();
+        }
+        if (!duringSubmit) {
+          showFormatError();
+        }
         return true;
       }
       return false;
     };
 
-    realInput.addEventListener("input", reconcileHiddenAutofill);
-    realInput.addEventListener("change", reconcileHiddenAutofill);
+    realInput.addEventListener("input", () => reconcileHiddenAutofill());
+    realInput.addEventListener("change", () => reconcileHiddenAutofill());
 
     activeGroup = firstIncompleteGroup();
     container.insertBefore(displayInput, realInput);
@@ -625,25 +653,25 @@ if (container) {
           render();
           invalidReplacement = true;
         } else {
-          invalidReplacement = reconcileHiddenAutofill();
+          invalidReplacement = reconcileHiddenAutofill(true);
         }
-        syncPassword();
         const incomplete = pattern.groups.findIndex((group) =>
           digits.slice(group.digitStart, groupEnd(group)).some((digit) => digit === null),
         );
-        if (incomplete !== -1 || invalidReplacement) {
+        if (incomplete !== -1 || invalidReplacement || credentialFormatInvalid) {
           event.preventDefault();
           event.stopImmediatePropagation();
-          if (incomplete !== -1) {
-            showError();
-          }
           displayInput.focus();
           selectGroup(incomplete !== -1 ? incomplete : activeGroup);
-          if (invalidReplacement) {
-            announceFormatError();
+          if (invalidReplacement || credentialFormatInvalid) {
+            showFormatError();
+          } else {
+            showError();
           }
           return;
         }
+
+        syncPassword();
 
         if (submitting) {
           event.preventDefault();
@@ -651,7 +679,11 @@ if (container) {
           return;
         }
         submitting = true;
-        activeSubmitter = event.submitter && "disabled" in event.submitter ? event.submitter : null;
+        activeSubmitter =
+          event.submitter instanceof HTMLButtonElement ||
+          event.submitter instanceof HTMLInputElement
+            ? event.submitter
+            : null;
         window.setTimeout(() => {
           if (event.defaultPrevented) {
             resetSubmission();
@@ -665,7 +697,10 @@ if (container) {
 
     form.addEventListener("input", (event) => {
       if (event.target === usernameInput) {
-        clearError();
+        usernameInput.removeAttribute("aria-invalid");
+        if (!credentialFormatInvalid) {
+          clearError();
+        }
       }
     });
   }

@@ -151,17 +151,28 @@ test("plain input events and late hidden-field autofill are synchronized", () =>
   assert.match(display.value, /^\*{4}-\*{3}1$/);
 });
 
-test("invalid hidden-field autofill is rejected, restored, and announced", () => {
-  const { dom, real, status } = setup();
+test("invalid hidden-field autofill is rejected, restored, and shown", () => {
+  const { display, dom, error, form, real, submit } = setup();
+  paste(dom, display, "1234-5678");
   real.value = "123";
+  real.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   real.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
 
-  assert.equal(real.value, "");
-  assert.equal(status.textContent, "Format rejected");
+  assert.equal(real.value, "12345678");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+
+  const username = form.querySelector('input[name="username"]');
+  username.value = "another-voter";
+  username.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  assert.equal(error.hidden, false);
+  assert.equal(username.hasAttribute("aria-invalid"), false);
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
 });
 
-test("null-data typing is blocked while invalid replacement input gets a generic error", () => {
-  const { display, dom, status } = setup();
+test("invalid visible replacement shows format error and editing restores the generic error", () => {
+  const { display, dom, error, form, submit } = setup();
   const insertion = new dom.window.InputEvent("beforeinput", {
     bubbles: true,
     cancelable: true,
@@ -170,12 +181,20 @@ test("null-data typing is blocked while invalid replacement input gets a generic
   });
   assert.equal(display.dispatchEvent(insertion), false);
   assert.equal(display.value, "dddd-dddd");
-  assert.notEqual(status.textContent, "Paste rejected");
+  assert.equal(error.hidden, true);
 
   display.value = "not a PIN";
   display.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   assert.equal(display.value, "dddd-dddd");
-  assert.equal(status.textContent, "Format rejected");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+
+  typeDigit(dom, display, "1");
+  assert.equal(error.hidden, true);
+  assert.equal(error.textContent, "Wrong credential");
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Wrong credential");
 });
 
 test("eventless password-manager values are reconciled on submit", () => {
@@ -186,33 +205,88 @@ test("eventless password-manager values are reconciled on submit", () => {
   assert.equal(real.value, "12345678");
 });
 
-test("eventless malformed hidden autofill is restored and announced on submit", () => {
-  const { dom, form, real, status, submit } = setup();
+test("eventless malformed hidden autofill is restored and shown on submit", () => {
+  const { display, dom, error, form, real, submit } = setup();
+  paste(dom, display, "1234-5678");
   real.value = "invalid";
 
   assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(real.value, "12345678");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+});
+
+test("paired hidden clear events remain pending and cannot submit the stale PIN", () => {
+  const { display, dom, error, form, real, submit } = setup();
+  paste(dom, display, "1234-5678");
+  real.value = "";
+  real.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  real.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+
   assert.equal(real.value, "");
-  assert.equal(status.textContent, "Format rejected");
+  assert.equal(error.hidden, true);
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(real.value, "");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+  real.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+});
+
+test("password-manager clear then same valid fill resolves the pending invalid state", () => {
+  const { display, dom, error, form, real, submit } = setup();
+  paste(dom, display, "1234-5678");
+  real.value = "";
+  real.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  real.value = "12345678";
+  real.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+
+  assert.equal(real.value, "12345678");
+  assert.equal(error.hidden, true);
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), true);
+});
+
+test("clear then malformed paired events cannot submit the stale PIN", () => {
+  const { display, dom, error, form, real, submit } = setup();
+  paste(dom, display, "1234-5678");
+  real.value = "";
+  real.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  real.value = "invalid";
+  real.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  real.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+
+  assert.equal(real.value, "invalid");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(real.value, "invalid");
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
 });
 
 test("eventless hidden-field clearing cannot submit a previously complete credential", () => {
-  const { display, dom, form, real, status, submit } = setup();
+  const { display, dom, error, form, real, submit } = setup();
   paste(dom, display, "1234-5678");
   real.value = "";
 
   assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
-  assert.equal(real.value, "12345678");
-  assert.equal(status.textContent, "Format rejected");
+  assert.equal(real.value, "");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
 });
 
-test("eventless malformed visible replacement is restored and announced on submit", () => {
-  const { display, dom, form, real, status, submit } = setup();
+test("eventless malformed visible replacement is restored and shown on submit", () => {
+  const { display, dom, error, form, real, submit } = setup();
+  paste(dom, display, "1234-5678");
   display.value = "invalid";
 
   assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
-  assert.equal(display.value, "dddd-dddd");
-  assert.equal(real.value, "");
-  assert.equal(status.textContent, "Format rejected");
+  assert.notEqual(display.value, "invalid");
+  assert.equal(real.value, "12345678");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Format rejected");
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
 });
 
 test("paste distributes a complete credential and announces rejected values", () => {

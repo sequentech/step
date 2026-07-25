@@ -229,6 +229,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
         if (loginMode && passwordRequired) {
+          // User lookup and event-detail serialization already ran; keep failure timing aligned.
           performDummyHash(context);
         }
         reportValidationError(context, formData, errors, structuredCredentialLogin);
@@ -276,6 +277,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         }
         log.info(errors);
         if (loginMode && passwordRequired) {
+          // User lookup and event-detail serialization already ran; keep failure timing aligned.
           performDummyHash(context);
         }
         reportValidationError(context, formData, errors, structuredCredentialLogin);

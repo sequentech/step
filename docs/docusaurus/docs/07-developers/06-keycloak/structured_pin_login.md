@@ -69,7 +69,10 @@ mask cannot leak or desynchronize the submitted value.
 Rejected paste is left unapplied and announced through the control's polite
 status region.
 Rejected browser replacement or autofill values use a separate, neutral format
-message so assistive technology does not describe them as paste operations.
+message. The message is shown in the credential error area and announced by its
+alert role, so both sighted voters and assistive-technology users receive the
+same explanation. Submission remains blocked until the voter makes a valid PIN
+edit, import, or deletion; editing only the username cannot submit a stale PIN.
 
 The visible control has no form name. On submit, its digit model is copied into
 the one ordinary `password` form value without separators. Incomplete input is
