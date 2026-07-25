@@ -29,6 +29,7 @@ import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.common.util.Time;
+import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
@@ -36,6 +37,7 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
@@ -179,12 +181,19 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     final String unsetAttributes = configMap.get(UNSET_ATTRIBUTES);
     final String uniqueAttributes = configMap.get(UNIQUE_ATTRIBUTES);
     final String formMode = configMap.get(FORM_MODE);
+    final boolean loginMode = FormMode.LOGIN.getValue().equals(formMode);
     final boolean passwordRequired =
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
     final boolean structuredCredentialLogin =
         isStructuredCredentialLogin(formMode, passwordRequired, context.getRealm().getAttributes());
     final String verifiedAttributeId =
         Optional.ofNullable(configMap.get(UNIQUE_ATTRIBUTES)).orElse(VERIFIED_DEFAULT_ID);
+
+    if (loginMode) {
+      context
+          .getAuthenticationSession()
+          .removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
+    }
 
     // Parse attributes lists
     List<String> searchAttributesList = parseAttributesList(searchAttributes);
@@ -219,6 +228,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error(INVALID_EMAIL);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(RegistrationPage.FIELD_EMAIL, Messages.INVALID_EMAIL));
+        if (loginMode && passwordRequired) {
+          performDummyHash(context);
+        }
         reportValidationError(context, formData, errors, structuredCredentialLogin);
         return;
       }
@@ -263,6 +275,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           context.error(INVALID_REGISTRATION);
         }
         log.info(errors);
+        if (loginMode && passwordRequired) {
+          performDummyHash(context);
+        }
         reportValidationError(context, formData, errors, structuredCredentialLogin);
         return;
       }
@@ -278,6 +293,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
           log.errorv(
               "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
         }
+        if (loginMode && passwordRequired) {
+          performDummyHash(context);
+        }
         context.error(Utils.ERROR_MESSAGE_USER_NOT_FOUND);
         List<FormMessage> errors = new ArrayList<>();
         errors.add(new FormMessage(null, Utils.ERROR_USER_NOT_FOUND, sessionId));
@@ -285,16 +303,19 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         return;
       }
 
-      if (formMode.equals(FormMode.LOGIN.getValue())) {
-        context
-            .getAuthenticationSession()
-            .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, user.getUsername());
-
+      if (loginMode) {
         // Validate password in LOGIN mode
         if (passwordRequired) {
+          context
+              .getAuthenticationSession()
+              .setAuthNote(
+                  AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, user.getUsername());
           if (!validatePasswordForLogin(context, user, formData, structuredCredentialLogin)) {
             return;
           }
+          context
+              .getAuthenticationSession()
+              .removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
 
           // Check password expiration after successful password validation
           if (!checkPasswordExpiration(
@@ -511,6 +532,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   static void removeCredentialValues(MultivaluedMap<String, String> formData) {
     formData.remove(RegistrationPage.FIELD_PASSWORD);
     formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
+  }
+
+  /**
+   * Performs the same dummy password hash as Keycloak's username/password authenticator.
+   *
+   * <p>{@code AuthenticatorUtils.dummyHash} only accepts an {@code AuthenticationFlowContext}, so
+   * deferred registration login needs the equivalent operation for its {@code ValidationContext}.
+   */
+  static void performDummyHash(ValidationContext context) {
+    PasswordPolicy policy = context.getRealm().getPasswordPolicy();
+    PasswordHashProvider provider;
+    if (policy != null && policy.getHashAlgorithm() != null) {
+      provider =
+          context.getSession().getProvider(PasswordHashProvider.class, policy.getHashAlgorithm());
+    } else {
+      provider = context.getSession().getProvider(PasswordHashProvider.class);
+    }
+    int iterations = policy == null ? -1 : policy.getHashIterations();
+    provider.encodedCredential("SlightlyLongerDummyPassword", iterations);
   }
 
   private Optional<String> checkUniqueAttributes(
@@ -817,13 +857,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     if (!user.isEnabled()) {
       log.info("validatePasswordForLogin: user disabled");
+      performDummyHash(context);
       context.getEvent().user(user);
       context.getEvent().error(Errors.USER_DISABLED);
-      context.error(Errors.USER_DISABLED);
+      context.error(PASSWORD_NOT_MATCHED);
       reportValidationError(
           context,
           formData,
-          List.of(new FormMessage(null, Messages.INVALID_USER)),
+          List.of(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD)),
           structuredCredentialLogin);
       return false;
     }
@@ -831,6 +872,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Check for empty password
     if (password == null || password.isEmpty()) {
       log.info("validatePasswordForLogin: empty password");
+      performDummyHash(context);
       return handleBadPassword(context, user, formData, true, structuredCredentialLogin);
     }
 
@@ -929,6 +971,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       log.infov(
           "isDisabledByBruteForce: user {0} is disabled by brute force protection",
           user.getUsername());
+      performDummyHash(context);
       context.getEvent().user(user);
       context.getEvent().error(Errors.USER_TEMPORARILY_DISABLED);
 
@@ -937,8 +980,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       context.error(Messages.INVALID_USER);
 
       MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
-      formData.remove(RegistrationPage.FIELD_PASSWORD);
-      formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
       reportValidationError(context, formData, errors, structuredCredentialLogin);
       return true;
@@ -1005,9 +1046,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         context.error("Password has expired");
 
         // Remove password from form data for security
-        formData.remove(RegistrationPage.FIELD_PASSWORD);
-        formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-
         reportValidationError(context, formData, errors, structuredCredentialLogin);
         return false;
       }
