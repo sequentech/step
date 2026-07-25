@@ -535,21 +535,35 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   /**
-   * Performs the same dummy password hash as Keycloak's username/password authenticator.
+   * Performs the equivalent dummy password hash to Keycloak's username/password authenticator.
    *
    * <p>{@code AuthenticatorUtils.dummyHash} only accepts an {@code AuthenticationFlowContext}, so
    * deferred registration login needs the equivalent operation for its {@code ValidationContext}.
+   * If a configured named provider is unavailable, the default provider supplies a best-effort
+   * dummy hash rather than turning an authentication failure into a server error.
    */
   static void performDummyHash(ValidationContext context) {
     PasswordPolicy policy = context.getRealm().getPasswordPolicy();
     PasswordHashProvider provider;
+    int iterations;
     if (policy != null && policy.getHashAlgorithm() != null) {
       provider =
           context.getSession().getProvider(PasswordHashProvider.class, policy.getHashAlgorithm());
+      iterations = policy.getHashIterations();
+      if (provider == null) {
+        log.warnv(
+            "Password hash provider {0} is unavailable; using the default provider for dummy hashing",
+            policy.getHashAlgorithm());
+        provider = context.getSession().getProvider(PasswordHashProvider.class);
+        iterations = -1;
+      }
     } else {
       provider = context.getSession().getProvider(PasswordHashProvider.class);
+      iterations = policy == null ? -1 : policy.getHashIterations();
     }
-    int iterations = policy == null ? -1 : policy.getHashIterations();
+    if (provider == null) {
+      throw new IllegalStateException("No password hash provider is available for dummy hashing");
+    }
     provider.encodedCredential("SlightlyLongerDummyPassword", iterations);
   }
 

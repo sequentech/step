@@ -5,6 +5,7 @@ package sequent.keycloak.voter_enrollment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -138,6 +139,67 @@ class DeferredRegistrationUserCreationTest {
   }
 
   @Test
+  void dummyHashFallsBackWhenTheConfiguredProviderIsUnavailable() {
+    ValidationContext context = mock(ValidationContext.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    PasswordPolicy policy = mock(PasswordPolicy.class);
+    PasswordHashProvider provider = mock(PasswordHashProvider.class);
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getPasswordPolicy()).thenReturn(policy);
+    when(policy.getHashAlgorithm()).thenReturn("missing-provider");
+    when(policy.getHashIterations()).thenReturn(12345);
+    when(session.getProvider(PasswordHashProvider.class, "missing-provider")).thenReturn(null);
+    when(session.getProvider(PasswordHashProvider.class)).thenReturn(provider);
+
+    DeferredRegistrationUserCreation.performDummyHash(context);
+
+    verify(session).getProvider(PasswordHashProvider.class, "missing-provider");
+    verify(provider).encodedCredential("SlightlyLongerDummyPassword", -1);
+  }
+
+  @Test
+  void dummyHashUsesPolicyIterationsWithTheDefaultProvider() {
+    ValidationContext context = mock(ValidationContext.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    PasswordPolicy policy = mock(PasswordPolicy.class);
+    PasswordHashProvider provider = mock(PasswordHashProvider.class);
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getPasswordPolicy()).thenReturn(policy);
+    when(policy.getHashAlgorithm()).thenReturn(null);
+    when(policy.getHashIterations()).thenReturn(31000);
+    when(session.getProvider(PasswordHashProvider.class)).thenReturn(provider);
+
+    DeferredRegistrationUserCreation.performDummyHash(context);
+
+    verify(provider).encodedCredential("SlightlyLongerDummyPassword", 31000);
+  }
+
+  @Test
+  void dummyHashFailsExplicitlyWhenNoProviderIsAvailable() {
+    ValidationContext context = mock(ValidationContext.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    PasswordPolicy policy = mock(PasswordPolicy.class);
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getPasswordPolicy()).thenReturn(policy);
+    when(policy.getHashAlgorithm()).thenReturn("missing-provider");
+    when(session.getProvider(PasswordHashProvider.class, "missing-provider")).thenReturn(null);
+    when(session.getProvider(PasswordHashProvider.class)).thenReturn(null);
+
+    IllegalStateException error =
+        assertThrows(
+            IllegalStateException.class,
+            () -> DeferredRegistrationUserCreation.performDummyHash(context));
+
+    assertEquals("No password hash provider is available for dummy hashing", error.getMessage());
+  }
+
+  @Test
   void loginAttemptStateIsResetAndEarlyProfileErrorsUseDummyHash() {
     ValidationContext context = mock(ValidationContext.class);
     AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
@@ -193,6 +255,65 @@ class DeferredRegistrationUserCreationTest {
     verify(authenticationSession, never())
         .setAuthNote(eq(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME), any());
     verify(provider, times(2)).encodedCredential("SlightlyLongerDummyPassword", -1);
+  }
+
+  @Test
+  void failedLoginCredentialRetainsAttemptedUsernameForBruteForceAccounting() {
+    ValidationContext context = mock(ValidationContext.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    HttpRequest request = mock(HttpRequest.class);
+    EventBuilder event = mock(EventBuilder.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+    UserProfile profile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+    UserModel user = mock(UserModel.class);
+    SubjectCredentialManager credentialManager = mock(SubjectCredentialManager.class);
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(UserModel.USERNAME, "voter");
+    formData.add(RegistrationPage.FIELD_PASSWORD, "wrong-pin");
+
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig())
+        .thenReturn(
+            Map.of(
+                DeferredRegistrationUserCreation.SEARCH_ATTRIBUTES,
+                UserModel.USERNAME,
+                DeferredRegistrationUserCreation.FORM_MODE,
+                DeferredRegistrationUserCreation.FormMode.LOGIN.getValue(),
+                DeferredRegistrationUserCreation.PASSWORD_REQUIRED,
+                "true"));
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    when(realm.getAttributes()).thenReturn(Map.of());
+    when(realm.isRegistrationEmailAsUsername()).thenReturn(false);
+    when(realm.isBruteForceProtected()).thenReturn(false);
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getDecodedFormParameters()).thenReturn(formData);
+    when(context.getEvent()).thenReturn(event);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(session.getAttribute("UP_REGISTER")).thenReturn(profile);
+    when(profile.getAttributes()).thenReturn(attributes);
+    when(attributes.getFirst(UserModel.EMAIL)).thenReturn(null);
+    when(user.isEnabled()).thenReturn(true);
+    when(user.getUsername()).thenReturn("voter");
+    when(user.credentialManager()).thenReturn(credentialManager);
+    when(credentialManager.isValid(any(CredentialInput.class))).thenReturn(false);
+
+    try (MockedStatic<Utils> utils = mockStatic(Utils.class)) {
+      utils
+          .when(() -> Utils.lookupUserByFormData(context, List.of(UserModel.USERNAME), formData))
+          .thenReturn(user);
+
+      new DeferredRegistrationUserCreation().validate(context);
+    }
+
+    verify(authenticationSession, times(1))
+        .removeAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
+    verify(authenticationSession)
+        .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, "voter");
+    verify(context, never()).success();
   }
 
   @Test
