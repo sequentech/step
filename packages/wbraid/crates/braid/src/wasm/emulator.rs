@@ -56,7 +56,9 @@ use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use crate::messages::newtypes::{ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex};
+use crate::messages::newtypes::{
+    hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex,
+};
 use crate::messages::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
 
@@ -205,7 +207,7 @@ fn encrypt_ballots<C: Context, const W: usize>(
 ) -> Result<(ProtocolMessage<C>, HashSet<Vec<u8>>)> {
     let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
         .map_err(|e| anyhow!("deserialize public key: {:?}", e))?;
-    let pk_hash = PublicKeyHash(b4::hash_bytes(pk_body));
+    let pk_hash = PublicKeyHash(hash_bytes(pk_body));
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
 
     let mut enc_rng = C::get_rng();
@@ -796,7 +798,7 @@ impl Emulator {
                 kind: format!("{:?}", m.message_type),
                 sender: m.sender.name.clone(),
                 digest: match &m.body {
-                    Some(body) => hex::encode(&b4::hash_bytes(body)[..])
+                    Some(body) => hex::encode(&hash_bytes(body)[..])
                         .chars()
                         .take(12)
                         .collect(),

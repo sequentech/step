@@ -219,7 +219,7 @@ pub struct Plaintexts<C: Context, const W: usize>(pub Vec<[C::Element; W]>);
 impl<C: Context> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bytes = self.ser();
-        let hashed = b4::hash_bytes(&bytes);
+        let hashed = super::newtypes::hash_bytes(&bytes);
         write!(
             f,
             "hash={:?}, trustees={:?}, pm={:?}, threshold={}",

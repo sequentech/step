@@ -10,7 +10,7 @@
 //! inline → `confirm`), a full fetch-all each update, and the §10.1 version
 //! exact-match at the boundary — only the HTTP mechanism differs (`web_sys`
 //! `fetch` + `JsFuture` instead of `reqwest`). b4 is a dumb opaque store (§8), so
-/// this client (de)serializes `ProtocolMessage<C>` itself; verification happens later
+//! this client (de)serializes `ProtocolMessage<C>` itself; verification happens later
 //! in the board client.
 //!
 //! The `fetch` futures are `!Send`, which is why the [`Transport`] seam is `?Send`
@@ -25,11 +25,11 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 use cryptography::context::Context;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
+use crate::messages::wire::{MessageType, ProtocolMessage};
 use b4::api_types::{
     ConfirmMessageRequest, ContentType, CreateBoardRequest, GetBlobsResponse,
     InitiateMessageRequest, InitiateMessageResponse,
 };
-use crate::messages::wire::{MessageType, ProtocolMessage};
 
 use super::transport::Transport;
 

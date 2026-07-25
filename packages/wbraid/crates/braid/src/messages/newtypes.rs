@@ -13,8 +13,28 @@ pub const MAX_TRUSTEES: usize = 8;
 pub const MAX_CIPHERTEXT_WIDTH: usize = 8;
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
 
-// Hash type: using 64-byte SHA3-512 output
-pub type Hash = b4::CryptographicHash;
+use cryptography::utils::hash::Hasher as HasherTrait;
+
+/// The hasher instance as defined by the cryptography library (SHA3-512).
+pub type Hasher = cryptography::context::CryptographicHasher;
+
+/// The 64-byte hash output type (SHA3-512).
+pub type CryptographicHash = sha3::digest::Output<Hasher>;
+
+/// Shorthand used throughout the protocol types.
+pub type Hash = CryptographicHash;
+
+/// Hash bytes to produce a [`CryptographicHash`] (§3.4).
+///
+/// Uses the library's global default hasher rather than threading through a
+/// `Context`, because the output type is a fixed protocol format that must not
+/// vary per context instantiation.
+pub fn hash_bytes(bytes: &[u8]) -> CryptographicHash {
+    use sha3::Digest;
+    let mut hasher = Hasher::hasher();
+    hasher.update(bytes);
+    hasher.finalize()
+}
 
 /// Zero hash constant for comparisons and tests.
 #[inline]
@@ -35,7 +55,7 @@ impl ConfigurationHash {
         configuration: &Configuration<C>,
     ) -> Result<ConfigurationHash> {
         let bytes = configuration.ser();
-        Ok(ConfigurationHash(b4::hash_bytes(&bytes)))
+        Ok(ConfigurationHash(hash_bytes(&bytes)))
     }
 }
 impl std::fmt::Debug for ConfigurationHash {

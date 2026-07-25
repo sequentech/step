@@ -248,7 +248,7 @@ pub fn statement_bytes<H: VSerializable>(head: &H, body_hash: Option<&Hash>) -> 
 /// `H(bytes)` under the protocol hash (§3.4), over the given (received, or
 /// freshly serialized) bytes.
 fn hash(bytes: &[u8]) -> Hash {
-    b4::hash_bytes(bytes)
+    super::newtypes::hash_bytes(bytes)
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -13,27 +13,17 @@ path = "src/main.rs"
 
 [features]
 default = ["native"]
-wasm-core = ["vsc/wasm", "dep:js-sys"]
+wasm-core = ["dep:js-sys"]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
 
 [dependencies]
-vsc = { path = "../vsc" }
+
 tokio = { workspace = true, optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# Cryptography dependencies
-# sha3 = "0.10"
-sha3 = "0.11"
-
-# Message types dependencies
-strum = { version = "0.27", features = ["derive"] }
-enum_dispatch = "0.3.13"
-hex = "0.4"
 base64 = "0.22"
-log = "0.4"
-cfg-if = "1.0"
 
 # Web framework
 axum = { version = "0.7", optional = true }

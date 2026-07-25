@@ -28,7 +28,7 @@ use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
 use crate::messages::newtypes::{
-    ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
+    hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
 use crate::messages::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
@@ -142,7 +142,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
         .ok_or_else(|| anyhow!("DKG did not produce a public key"))?;
     let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
         .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
-    let pk_hash = PublicKeyHash(b4::hash_bytes(pk_body));
+    let pk_hash = PublicKeyHash(hash_bytes(pk_body));
 
     // --- manager encrypts a batch of plaintexts and posts the ballots ---
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());

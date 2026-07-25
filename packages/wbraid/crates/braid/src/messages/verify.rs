@@ -20,7 +20,7 @@ use cryptography::utils::serialization::VDeserializable;
 
 use super::artifact::Configuration;
 use super::newtypes::{
-    CiphertextsHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash, SharesHash,
+    hash_bytes, CiphertextsHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash, SharesHash,
     TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
 use super::wire::{
@@ -82,7 +82,7 @@ pub fn verify<C: Context>(
         )),
         MessageType::Shares => {
             let body = require_body(message)?;
-            let body_hash = b4::hash_bytes(body);
+            let body_hash = hash_bytes(body);
             let head = SharesHead::deser(&message.head)
                 .map_err(|e| anyhow!("Shares head deserialization failed: {e:?}"))?;
             message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
@@ -96,7 +96,7 @@ pub fn verify<C: Context>(
         }
         MessageType::PublicKey => {
             let body = require_body(message)?;
-            let body_hash = b4::hash_bytes(body);
+            let body_hash = hash_bytes(body);
             let head = PublicKeyHead::deser(&message.head)
                 .map_err(|e| anyhow!("PublicKey head deserialization failed: {e:?}"))?;
             message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
@@ -113,7 +113,7 @@ pub fn verify<C: Context>(
                 return Err(anyhow!("Ballots must be signed by the protocol manager"));
             }
             let body = require_body(message)?;
-            let body_hash = b4::hash_bytes(body);
+            let body_hash = hash_bytes(body);
             let head = BallotsHead::deser(&message.head)
                 .map_err(|e| anyhow!("Ballots head deserialization failed: {e:?}"))?;
             message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
@@ -128,7 +128,7 @@ pub fn verify<C: Context>(
         }
         MessageType::Mix => {
             let body = require_body(message)?;
-            let body_hash = b4::hash_bytes(body);
+            let body_hash = hash_bytes(body);
             let head = MixHead::deser(&message.head)
                 .map_err(|e| anyhow!("Mix head deserialization failed: {e:?}"))?;
             message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
@@ -161,7 +161,7 @@ pub fn verify<C: Context>(
         }
         MessageType::PartialDecryptions => {
             let body = require_body(message)?;
-            let body_hash = b4::hash_bytes(body);
+            let body_hash = hash_bytes(body);
             let head = PartialDecryptionsHead::deser(&message.head)
                 .map_err(|e| anyhow!("PartialDecryptions head deserialization failed: {e:?}"))?;
             message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
@@ -177,7 +177,7 @@ pub fn verify<C: Context>(
         }
         MessageType::Plaintexts => {
             let body = require_body(message)?;
-            let body_hash = b4::hash_bytes(body);
+            let body_hash = hash_bytes(body);
             let head = PlaintextsHead::deser(&message.head)
                 .map_err(|e| anyhow!("Plaintexts head deserialization failed: {e:?}"))?;
             message.check_signature(verifier, &statement_bytes(&head, Some(&body_hash)))?;
