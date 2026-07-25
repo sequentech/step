@@ -9,6 +9,7 @@
       "ui-essentials",
       "voting-portal",
       "admin-portal",
+      "keycloak-extensions/sequent-theme",
       "ballot-verifier",
       "results-portal"
     ],

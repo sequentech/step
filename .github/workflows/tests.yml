@@ -103,7 +103,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        package: [ui-core, ui-essentials]
+        package: [ui-core, ui-essentials, keycloak-extensions/sequent-theme]
       fail-fast: false
     steps:
       - name: Check out code

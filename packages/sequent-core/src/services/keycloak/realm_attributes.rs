@@ -4,6 +4,9 @@
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
+    CredentialInputPolicy, MAX_CREDENTIAL_PATTERN_GROUPS,
+    MAX_CREDENTIAL_PATTERN_GROUP_SIZE, MAX_CREDENTIAL_PATTERN_TOTAL_SIZE,
+    REALM_ATTR_CREDENTIAL_INPUT_PATTERN, REALM_ATTR_CREDENTIAL_INPUT_POLICY,
     REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
     REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
@@ -140,6 +143,18 @@ pub fn validate_realm_attributes(
 
 fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
     match key {
+        REALM_ATTR_CREDENTIAL_INPUT_POLICY => {
+            if CredentialInputPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_CREDENTIAL_INPUT_PATTERN => {
+            if !is_valid_credential_input_pattern(value) {
+                bail!(
+                    "Realm attribute {key} must contain 1 to {MAX_CREDENTIAL_PATTERN_GROUPS} dash-separated groups of 1 to {MAX_CREDENTIAL_PATTERN_GROUP_SIZE} 'd' digit tokens, with no more than {MAX_CREDENTIAL_PATTERN_TOTAL_SIZE} digits in total"
+                );
+            }
+        }
         REALM_ATTR_SMARTLINK_ENABLED => {
             if bool::from_str(value).is_err() {
                 bail!("Realm attribute {key} must be 'true' or 'false'");
@@ -173,6 +188,32 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
         _ => {}
     }
     Ok(())
+}
+
+fn is_valid_credential_input_pattern(value: &str) -> bool {
+    let groups = value.split('-').collect::<Vec<_>>();
+    if groups.len() > MAX_CREDENTIAL_PATTERN_GROUPS {
+        return false;
+    }
+
+    let mut total = 0;
+    for group in groups {
+        if group.is_empty() || !group.bytes().all(|byte| byte == b'd') {
+            return false;
+        }
+
+        let size = group.len();
+        if size > MAX_CREDENTIAL_PATTERN_GROUP_SIZE {
+            return false;
+        }
+
+        total += size;
+        if total > MAX_CREDENTIAL_PATTERN_TOTAL_SIZE {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub fn redacted_attributes(
@@ -217,6 +258,8 @@ mod tests {
     fn validate_realm_attributes_accepts_generic_names() {
         let attributes = attributes(&[
             ("acr.loa.map", "{}"),
+            ("credential-input-policy", "structured"),
+            ("credential-input-pattern", "dddd-dddd-dddd-dddd"),
             ("smart-link-enabled", "true"),
             ("smart-link-timeout-secs", "90"),
             ("smart-link-clock-skew-secs", "5"),
@@ -224,6 +267,66 @@ mod tests {
         ]);
 
         assert!(validate_realm_attributes(&attributes).is_ok());
+    }
+
+    #[test]
+    fn validate_realm_attributes_accepts_credential_input_configuration() {
+        for (policy, pattern) in [
+            ("standard", "dddd-dddd-dddd-dddd"),
+            ("structured", "ddd-ddd"),
+            ("structured", "dd-dddd-dd"),
+            ("structured", "dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd"),
+        ] {
+            assert!(
+                validate_realm_attributes(&attributes(&[
+                    ("credential-input-policy", policy),
+                    ("credential-input-pattern", pattern),
+                ]))
+                .is_ok(),
+                "expected policy={policy:?}, pattern={pattern:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_rejects_invalid_credential_input_policy() {
+        for value in ["true", "segmented-numeric", "numeric", "STANDARD"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-policy",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-input-policy={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_rejects_invalid_credential_input_pattern() {
+        for value in [
+            "4-4",
+            "dddd--dddd",
+            "dddd-",
+            "-dddd",
+            "dddd_dddd",
+            "dddd?",
+            "dddd*",
+            "DDDD",
+            "ddddddddddddd",
+            "dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dd",
+            "dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd",
+            "ｄｄｄｄ-ｄｄｄｄ",
+        ] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-input-pattern",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-input-pattern={value:?} to be rejected"
+            );
+        }
     }
 
     #[test]
