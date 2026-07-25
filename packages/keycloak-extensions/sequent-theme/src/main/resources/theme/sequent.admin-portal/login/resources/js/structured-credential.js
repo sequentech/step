@@ -125,6 +125,8 @@ if (container) {
       container.dataset.groupStatus || "PIN group {0} of {1}, {2} of {3} digits entered";
     const pasteErrorMessage =
       container.dataset.pasteError || "The pasted value does not match the PIN format.";
+    const formatErrorMessage =
+      container.dataset.formatError || "The entered value does not match the PIN format.";
     const prefilledValue = onlyAsciiDigits(realInput.value);
     const initialValue =
       prefilledValue && prefilledValue.length <= pattern.totalSize ? prefilledValue : "";
@@ -139,6 +141,7 @@ if (container) {
     let revealedIndex = -1;
     let revealTimer = null;
     let submitting = false;
+    let activeSubmitter = null;
 
     for (let index = 0; index < initialValue.length; index += 1) {
       digits[index] = initialValue[index];
@@ -372,6 +375,10 @@ if (container) {
       status.textContent = pasteErrorMessage;
     };
 
+    const announceFormatError = () => {
+      status.textContent = formatErrorMessage;
+    };
+
     const deleteBackward = () => {
       const group = pattern.groups[activeGroup];
       const groupIsEmpty = digits
@@ -467,9 +474,12 @@ if (container) {
         return;
       }
       if (event.inputType.startsWith("insert")) {
-        // Password managers and browser autofill commonly provide no event.data.
-        // Let the browser populate the display input, then validate it in `input`.
+        // Browser autofill uses replacement input without exposing the value here.
+        // Other null-data insertions must not be allowed to overwrite the mask.
         if (event.data == null) {
+          if (event.inputType !== "insertReplacementText") {
+            event.preventDefault();
+          }
           return;
         }
         event.preventDefault();
@@ -491,7 +501,7 @@ if (container) {
           !pasteFromActiveGroup(replacement)
         ) {
           render();
-          announcePasteError();
+          announceFormatError();
         }
         return;
       }
@@ -530,8 +540,22 @@ if (container) {
       );
     };
 
-    realInput.addEventListener("input", importHiddenAutofill);
-    realInput.addEventListener("change", importHiddenAutofill);
+    const reconcileHiddenAutofill = () => {
+      const suppliedValue = realInput.value;
+      const currentValue = digits.map((digit) => digit || "").join("");
+      if (suppliedValue === currentValue) {
+        return false;
+      }
+      if (!suppliedValue || !importHiddenAutofill()) {
+        syncPassword();
+        announceFormatError();
+        return true;
+      }
+      return false;
+    };
+
+    realInput.addEventListener("input", reconcileHiddenAutofill);
+    realInput.addEventListener("change", reconcileHiddenAutofill);
 
     activeGroup = firstIncompleteGroup();
     container.insertBefore(displayInput, realInput);
@@ -570,6 +594,15 @@ if (container) {
     });
     window.addEventListener("pagehide", hideCredential);
 
+    const resetSubmission = () => {
+      submitting = false;
+      if (activeSubmitter) {
+        activeSubmitter.disabled = false;
+        activeSubmitter = null;
+      }
+    };
+    window.addEventListener("pageshow", resetSubmission);
+
     syncPassword();
     render();
     if (hadServerError) {
@@ -579,22 +612,36 @@ if (container) {
     form.addEventListener(
       "submit",
       (event) => {
-        const visibleAutofill = pastedDigits(displayInput.value);
-        if (visibleAutofill && visibleAutofill.length === pattern.totalSize) {
+        const visibleReplacement = displayInput.value !== displayValue();
+        const visibleAutofill = visibleReplacement ? pastedDigits(displayInput.value) : null;
+        let invalidReplacement = false;
+        if (
+          visibleReplacement &&
+          visibleAutofill &&
+          visibleAutofill.length === pattern.totalSize
+        ) {
           pasteFromActiveGroup(visibleAutofill);
+        } else if (visibleReplacement) {
+          render();
+          invalidReplacement = true;
         } else {
-          importHiddenAutofill();
+          invalidReplacement = reconcileHiddenAutofill();
         }
         syncPassword();
         const incomplete = pattern.groups.findIndex((group) =>
           digits.slice(group.digitStart, groupEnd(group)).some((digit) => digit === null),
         );
-        if (incomplete !== -1) {
+        if (incomplete !== -1 || invalidReplacement) {
           event.preventDefault();
           event.stopImmediatePropagation();
-          showError();
+          if (incomplete !== -1) {
+            showError();
+          }
           displayInput.focus();
-          selectGroup(incomplete);
+          selectGroup(incomplete !== -1 ? incomplete : activeGroup);
+          if (invalidReplacement) {
+            announceFormatError();
+          }
           return;
         }
 
@@ -604,6 +651,14 @@ if (container) {
           return;
         }
         submitting = true;
+        activeSubmitter = event.submitter && "disabled" in event.submitter ? event.submitter : null;
+        window.setTimeout(() => {
+          if (event.defaultPrevented) {
+            resetSubmission();
+          } else if (submitting && activeSubmitter) {
+            activeSubmitter.disabled = true;
+          }
+        }, 0);
       },
       true,
     );

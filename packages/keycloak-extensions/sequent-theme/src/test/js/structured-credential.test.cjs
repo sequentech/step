@@ -26,6 +26,7 @@ const setup = ({ pattern = "dddd-dddd", password = "" } = {}) => {
              data-credential-pattern="${pattern}"
              data-group-status="Group {0}/{1}: {2}/{3}"
              data-paste-error="Paste rejected"
+             data-format-error="Format rejected"
              data-label-id="pin-label"
              data-hint-id="pin-hint"
              data-error-id="pin-error">
@@ -150,12 +151,68 @@ test("plain input events and late hidden-field autofill are synchronized", () =>
   assert.match(display.value, /^\*{4}-\*{3}1$/);
 });
 
+test("invalid hidden-field autofill is rejected, restored, and announced", () => {
+  const { dom, real, status } = setup();
+  real.value = "123";
+  real.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+
+  assert.equal(real.value, "");
+  assert.equal(status.textContent, "Format rejected");
+});
+
+test("null-data typing is blocked while invalid replacement input gets a generic error", () => {
+  const { display, dom, status } = setup();
+  const insertion = new dom.window.InputEvent("beforeinput", {
+    bubbles: true,
+    cancelable: true,
+    data: null,
+    inputType: "insertText",
+  });
+  assert.equal(display.dispatchEvent(insertion), false);
+  assert.equal(display.value, "dddd-dddd");
+  assert.notEqual(status.textContent, "Paste rejected");
+
+  display.value = "not a PIN";
+  display.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  assert.equal(display.value, "dddd-dddd");
+  assert.equal(status.textContent, "Format rejected");
+});
+
 test("eventless password-manager values are reconciled on submit", () => {
   const { dom, form, real, submit } = setup();
   real.value = "12345678";
 
   assert.equal(form.dispatchEvent(submitEvent(dom, submit)), true);
   assert.equal(real.value, "12345678");
+});
+
+test("eventless malformed hidden autofill is restored and announced on submit", () => {
+  const { dom, form, real, status, submit } = setup();
+  real.value = "invalid";
+
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(real.value, "");
+  assert.equal(status.textContent, "Format rejected");
+});
+
+test("eventless hidden-field clearing cannot submit a previously complete credential", () => {
+  const { display, dom, form, real, status, submit } = setup();
+  paste(dom, display, "1234-5678");
+  real.value = "";
+
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(real.value, "12345678");
+  assert.equal(status.textContent, "Format rejected");
+});
+
+test("eventless malformed visible replacement is restored and announced on submit", () => {
+  const { display, dom, form, real, status, submit } = setup();
+  display.value = "invalid";
+
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  assert.equal(display.value, "dddd-dddd");
+  assert.equal(real.value, "");
+  assert.equal(status.textContent, "Format rejected");
 });
 
 test("paste distributes a complete credential and announces rejected values", () => {
@@ -251,7 +308,7 @@ test("unrelated field edits retain errors and a one-digit pattern remains valid"
   assert.equal(real.value, "7");
 });
 
-test("incomplete submit is blocked and complete submit uses a re-entry guard", () => {
+test("incomplete submit is blocked and complete submit resets after bfcache restoration", async () => {
   const { display, dom, error, form, real, submit } = setup();
   for (const digit of "1234") {
     typeDigit(dom, display, digit);
@@ -269,4 +326,31 @@ test("incomplete submit is blocked and complete submit uses a re-entry guard", (
   const duplicate = submitEvent(dom, submit);
   assert.equal(form.dispatchEvent(duplicate), false);
   assert.equal(submit.disabled, false);
+
+  await new Promise((resolve) => dom.window.setTimeout(resolve, 0));
+  assert.equal(submit.disabled, true);
+  dom.window.dispatchEvent(new dom.window.Event("pageshow"));
+  assert.equal(submit.disabled, false);
+
+  const restored = submitEvent(dom, submit);
+  assert.equal(form.dispatchEvent(restored), true);
+});
+
+test("later submit cancellation releases the re-entry guard and leaves feedback enabled", async () => {
+  const { display, dom, form, submit } = setup();
+  paste(dom, display, "1234-5678");
+  let cancellations = 0;
+  form.addEventListener("submit", (event) => {
+    cancellations += 1;
+    event.preventDefault();
+  });
+
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  await new Promise((resolve) => dom.window.setTimeout(resolve, 0));
+  assert.equal(submit.disabled, false);
+
+  assert.equal(form.dispatchEvent(submitEvent(dom, submit)), false);
+  await new Promise((resolve) => dom.window.setTimeout(resolve, 0));
+  assert.equal(submit.disabled, false);
+  assert.equal(cancellations, 2);
 });

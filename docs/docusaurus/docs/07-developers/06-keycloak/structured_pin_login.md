@@ -68,6 +68,8 @@ hyphens or ASCII whitespace. Copy, cut, and drop are disabled so the displayed
 mask cannot leak or desynchronize the submitted value.
 Rejected paste is left unapplied and announced through the control's polite
 status region.
+Rejected browser replacement or autofill values use a separate, neutral format
+message so assistive technology does not describe them as paste operations.
 
 The visible control has no form name. On submit, its digit model is copied into
 the one ordinary `password` form value without separators. Incomplete input is
@@ -142,6 +144,7 @@ The theme supplies defaults for these message keys:
 - `structuredCredentialError`
 - `structuredCredentialGroupStatus`
 - `structuredCredentialPasteError`
+- `structuredCredentialFormatError`
 - `showStructuredCredential`
 - `hideStructuredCredential`
 

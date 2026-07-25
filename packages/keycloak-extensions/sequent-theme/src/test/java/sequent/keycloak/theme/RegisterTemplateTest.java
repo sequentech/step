@@ -44,6 +44,8 @@ class RegisterTemplateTest {
     assertFalse(template.contains("?html"));
     assertTrue(template.contains("msg(\"structuredCredentialError\")"));
     assertTrue(template.contains("data-paste-error=\"${msg('structuredCredentialPasteError')}\""));
+    assertTrue(
+        template.contains("data-format-error=\"${msg('structuredCredentialFormatError')}\""));
     assertTrue(template.contains("<#if structuredCredentialLogin>inputmode=\"numeric\"</#if>"));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/structured-credential.js\""));
     assertTrue(template.contains("<#if structuredCredentialLogin>"));

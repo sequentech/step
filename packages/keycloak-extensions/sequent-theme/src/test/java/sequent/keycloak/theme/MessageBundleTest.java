@@ -5,12 +5,14 @@
 package sequent.keycloak.theme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,16 @@ class MessageBundleTest {
     assertEquals(
         "Le nom d'utilisateur ou le code PIN est incorrect.",
         format(messages, "structuredCredentialError", locale));
+  }
+
+  @Test
+  void everyLocalePreservesAllGroupStatusPlaceholders() throws IOException {
+    for (String language : List.of("ca", "en", "es", "eu", "fr", "gl", "nl", "tl")) {
+      String status = load(language).getProperty("structuredCredentialGroupStatus");
+      for (int index = 0; index < 4; index += 1) {
+        assertTrue(status.contains("{" + index + "}"), language + " is missing {" + index + "}");
+      }
+    }
   }
 
   private static Properties load(String language) throws IOException {

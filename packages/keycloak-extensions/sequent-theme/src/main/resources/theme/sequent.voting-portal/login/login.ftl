@@ -41,6 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                              data-credential-pattern="${realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'}"
                              data-group-status="${msg('structuredCredentialGroupStatus')}"
                              data-paste-error="${msg('structuredCredentialPasteError')}"
+                             data-format-error="${msg('structuredCredentialFormatError')}"
                              data-label-id="structured-credential-label"
                              data-hint-id="structured-credential-hint"
                              data-error-id="structured-credential-error"</#if>>

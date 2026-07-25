@@ -57,6 +57,7 @@ class TemplateSyntaxTest {
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
+    assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
     assertFalse(html.contains("<img src=x onerror=alert(1)>"));
     assertFalse(html.contains("data-credential-pattern=\"dddd\" onfocus="));
   }
@@ -102,6 +103,7 @@ class TemplateSyntaxTest {
     assertTrue(html.contains("data-credential-pattern=\"dddd&quot; onfocus=&quot;alert(1)\""));
     assertTrue(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
     assertTrue(html.contains("data-paste-error=\"paste&quot; onfocus=&quot;alert(2)\""));
+    assertTrue(html.contains("data-format-error=\"format&quot; onfocus=&quot;alert(3)\""));
     assertTrue(html.contains("inputmode=\"numeric\""));
     assertFalse(html.contains("data-credential-pattern=\"dddd\" onfocus="));
   }
@@ -130,6 +132,9 @@ class TemplateSyntaxTest {
           }
           if ("structuredCredentialPasteError".equals(key)) {
             return "paste\" onfocus=\"alert(2)";
+          }
+          if ("structuredCredentialFormatError".equals(key)) {
+            return "format\" onfocus=\"alert(3)";
           }
           return key;
         };
