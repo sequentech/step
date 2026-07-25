@@ -53,11 +53,13 @@ SPDX-License-Identifier: AGPL-3.0-only
                                          data-structured-credential
                                          data-credential-pattern="${realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'}"
                                          data-group-status="${msg('structuredCredentialGroupStatus')}"
+                                         data-paste-error="${msg('structuredCredentialPasteError')}"
                                          data-label-id="structured-credential-label"
                                          data-hint-id="structured-credential-hint"
                                          data-error-id="structured-credential-error"</#if>>
                                         <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
                                                <#if structuredCredentialLogin>autocomplete="current-password"<#else>autocomplete="new-password"</#if>
+                                               <#if structuredCredentialLogin>inputmode="numeric"</#if>
                                                <#if structuredCredentialLogin>aria-describedby="structured-credential-hint structured-credential-error"</#if>
                                                <#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>aria-invalid="true"</#if>
                                         />

@@ -192,7 +192,7 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
 
 fn is_valid_credential_input_pattern(value: &str) -> bool {
     let groups = value.split('-').collect::<Vec<_>>();
-    if groups.is_empty() || groups.len() > MAX_CREDENTIAL_PATTERN_GROUPS {
+    if groups.len() > MAX_CREDENTIAL_PATTERN_GROUPS {
         return false;
     }
 

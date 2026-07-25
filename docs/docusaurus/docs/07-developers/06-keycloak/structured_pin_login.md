@@ -66,6 +66,8 @@ first or last group. Typing after selecting a group replaces it, and completing
 a group advances to the next one. Paste accepts ASCII digits with optional
 hyphens or ASCII whitespace. Copy, cut, and drop are disabled so the displayed
 mask cannot leak or desynchronize the submitted value.
+Rejected paste is left unapplied and announced through the control's polite
+status region.
 
 The visible control has no form name. On submit, its digit model is copied into
 the one ordinary `password` form value without separators. Incomplete input is
@@ -112,6 +114,9 @@ Authentication failures use the same generic message for an unknown username,
 incorrect PIN, disabled voter, lockout, or expired credential. Operational
 errors that require a different action, such as a failed reCAPTCHA challenge,
 retain their specific message.
+Early password failures perform Keycloak's configured dummy hash so user lookup,
+disabled-user, empty-password, and temporary-lockout paths do not omit the
+realm's password-hashing cost.
 
 ## Password policy and provisioning
 
@@ -119,7 +124,8 @@ Configure a numeric-compatible Keycloak password policy for realms that create
 PIN credentials, for example `length(16) and maxLength(16)` for
 `dddd-dddd-dddd-dddd`. Password policies are creation-time rules; the deferred
 LOGIN flow does not re-apply them after Keycloak has validated an existing
-credential. Credential imports that supply password hashes may bypass
+credential. This applies to every deferred LOGIN form, whether its presentation
+is `standard` or `structured`. Credential imports that supply password hashes may bypass
 creation-time policy checks, so provisioning must validate the configured
 length and format.
 
@@ -135,6 +141,7 @@ The theme supplies defaults for these message keys:
 - `structuredCredentialHint`
 - `structuredCredentialError`
 - `structuredCredentialGroupStatus`
+- `structuredCredentialPasteError`
 - `showStructuredCredential`
 - `hideStructuredCredential`
 

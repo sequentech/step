@@ -123,6 +123,8 @@ if (container) {
     const errorId = container.dataset.errorId || "";
     const groupStatusTemplate =
       container.dataset.groupStatus || "PIN group {0} of {1}, {2} of {3} digits entered";
+    const pasteErrorMessage =
+      container.dataset.pasteError || "The pasted value does not match the PIN format.";
     const prefilledValue = onlyAsciiDigits(realInput.value);
     const initialValue =
       prefilledValue && prefilledValue.length <= pattern.totalSize ? prefilledValue : "";
@@ -136,6 +138,7 @@ if (container) {
     let passwordVisible = false;
     let revealedIndex = -1;
     let revealTimer = null;
+    let submitting = false;
 
     for (let index = 0; index < initialValue.length; index += 1) {
       digits[index] = initialValue[index];
@@ -297,8 +300,8 @@ if (container) {
         (digit, index) => index >= group.digitStart && index < groupEnd(group) && digit === null,
       );
       if (target === -1) {
-        clearGroup(activeGroup);
-        target = group.digitStart;
+        render();
+        return;
       }
 
       let lastEntered = -1;
@@ -334,7 +337,7 @@ if (container) {
     const pasteFromActiveGroup = (value) => {
       const start = value.length === pattern.totalSize ? 0 : pattern.groups[activeGroup].digitStart;
       if (value.length > pattern.totalSize - start) {
-        return;
+        return false;
       }
 
       const lastEntered = start + value.length - 1;
@@ -362,6 +365,11 @@ if (container) {
       syncPassword();
       clearError();
       render();
+      return true;
+    };
+
+    const announcePasteError = () => {
+      status.textContent = pasteErrorMessage;
     };
 
     const deleteBackward = () => {
@@ -459,8 +467,13 @@ if (container) {
         return;
       }
       if (event.inputType.startsWith("insert")) {
+        // Password managers and browser autofill commonly provide no event.data.
+        // Let the browser populate the display input, then validate it in `input`.
+        if (event.data == null) {
+          return;
+        }
         event.preventDefault();
-        const value = onlyAsciiDigits(event.data || "");
+        const value = onlyAsciiDigits(event.data);
         if (value) {
           enterDigits(value);
         }
@@ -470,7 +483,20 @@ if (container) {
     });
 
     displayInput.addEventListener("input", (event) => {
-      const value = onlyAsciiDigits(event.data || "");
+      if (event.data == null) {
+        const replacement = pastedDigits(displayInput.value);
+        if (
+          !replacement ||
+          replacement.length !== pattern.totalSize ||
+          !pasteFromActiveGroup(replacement)
+        ) {
+          render();
+          announcePasteError();
+        }
+        return;
+      }
+
+      const value = onlyAsciiDigits(event.data);
       if (value) {
         enterDigits(value);
       } else {
@@ -481,8 +507,8 @@ if (container) {
     displayInput.addEventListener("paste", (event) => {
       event.preventDefault();
       const value = pastedDigits(event.clipboardData?.getData("text") || "");
-      if (value) {
-        pasteFromActiveGroup(value);
+      if (!value || !pasteFromActiveGroup(value)) {
+        announcePasteError();
       }
     });
     displayInput.addEventListener("copy", (event) => event.preventDefault());
@@ -492,6 +518,20 @@ if (container) {
       clearReveal();
       render();
     });
+
+    const importHiddenAutofill = () => {
+      const value = onlyAsciiDigits(realInput.value);
+      const currentValue = digits.map((digit) => digit || "").join("");
+      return Boolean(
+        value &&
+          value.length === pattern.totalSize &&
+          value !== currentValue &&
+          pasteFromActiveGroup(value),
+      );
+    };
+
+    realInput.addEventListener("input", importHiddenAutofill);
+    realInput.addEventListener("change", importHiddenAutofill);
 
     activeGroup = firstIncompleteGroup();
     container.insertBefore(displayInput, realInput);
@@ -539,6 +579,12 @@ if (container) {
     form.addEventListener(
       "submit",
       (event) => {
+        const visibleAutofill = pastedDigits(displayInput.value);
+        if (visibleAutofill && visibleAutofill.length === pattern.totalSize) {
+          pasteFromActiveGroup(visibleAutofill);
+        } else {
+          importHiddenAutofill();
+        }
         syncPassword();
         const incomplete = pattern.groups.findIndex((group) =>
           digits.slice(group.digitStart, groupEnd(group)).some((digit) => digit === null),
@@ -552,9 +598,12 @@ if (container) {
           return;
         }
 
-        if (event.submitter) {
-          event.submitter.disabled = true;
+        if (submitting) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
         }
+        submitting = true;
       },
       true,
     );

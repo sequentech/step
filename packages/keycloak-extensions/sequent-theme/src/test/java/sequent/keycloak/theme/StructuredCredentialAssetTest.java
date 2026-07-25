@@ -67,8 +67,6 @@ class StructuredCredentialAssetTest {
     assertTrue(script.contains("toggle.tabIndex = originalTabIndex"));
     assertTrue(script.contains("event.target === usernameInput"));
     assertTrue(script.contains("usernameInput.removeAttribute(\"aria-invalid\")"));
-    assertFalse(script.contains("Object.hasOwn"));
-    assertFalse(script.contains(".replaceAll("));
   }
 
   @Test

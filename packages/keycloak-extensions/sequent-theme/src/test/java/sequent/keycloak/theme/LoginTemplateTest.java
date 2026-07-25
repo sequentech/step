@@ -29,6 +29,8 @@ class LoginTemplateTest {
         template.contains("realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'"));
     assertFalse(template.contains("?html"));
     assertTrue(template.contains("msg(\"structuredCredentialError\")"));
+    assertTrue(template.contains("data-paste-error=\"${msg('structuredCredentialPasteError')}\""));
+    assertTrue(template.contains("<#if structuredCredential>inputmode=\"numeric\"</#if>"));
     assertTrue(template.contains("src=\"${url.resourcesPath}/js/structured-credential.js\""));
     assertFalse(template.contains("segmentedCredential"));
     assertFalse(template.contains("credential-segment-layout"));
