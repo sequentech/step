@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use strum_macros::{Display, EnumString};
 
 /// A voter can be disabled:
 ///
@@ -40,7 +41,36 @@ pub const LAST_NAME: &str = "lastName";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
+pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
+pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
+    "credential-input-pattern";
+pub const MAX_CREDENTIAL_PATTERN_GROUPS: usize = 8;
+pub const MAX_CREDENTIAL_PATTERN_GROUP_SIZE: usize = 12;
+pub const MAX_CREDENTIAL_PATTERN_TOTAL_SIZE: usize = 64;
 pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum CredentialInputPolicy {
+    #[default]
+    #[strum(serialize = "standard")]
+    #[serde(rename = "standard")]
+    STANDARD,
+    #[strum(serialize = "structured")]
+    #[serde(rename = "structured")]
+    STRUCTURED,
+}
 
 /// Default client ID used by the IVR for system-level interactions.
 pub const DEFAULT_IVR_SERVICE_CLIENT_ID: &str = "ivr-service";
