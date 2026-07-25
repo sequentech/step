@@ -48,6 +48,34 @@ pub const DEFAULT_IVR_SERVICE_CLIENT_ID: &str = "ivr-service";
 ///  Can't be changed as `authorize_voter_election` depends on its fixed value.
 pub const IVR_VOTING_CLIENT_ID: &str = "ivr-voting";
 
+/// Smart Link (external HMAC SSO) realm attributes.
+///
+/// These configure the Keycloak `election` realm resource that validates
+/// externally generated HMAC auth-tokens. The attribute names MUST stay in sync
+/// with the constants in the Keycloak extension `HmacSmartLink.java`.
+///
+/// Smart Link is disabled unless `smart-link-enabled` is `true`. When enabled,
+/// the shared secret is the symmetric key the external application uses to sign
+/// auth-tokens; it must match the value configured on the external side.
+pub const REALM_ATTR_SMARTLINK_ENABLED: &str = "smart-link-enabled";
+pub const REALM_ATTR_SMARTLINK_SHARED_SECRET: &str = "smart-link-shared-secret";
+/// Seconds an auth-token stays valid after its embedded timestamp (default 90).
+pub const REALM_ATTR_SMARTLINK_TIMEOUT_SECS: &str = "smart-link-timeout-secs";
+/// Tolerance, in seconds, for the token being slightly ahead of Keycloak's
+/// clock (default 5). Future-dated tokens beyond this are rejected.
+pub const REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS: &str =
+    "smart-link-clock-skew-secs";
+/// OIDC client the voter is logged into (default `voting-portal`).
+pub const REALM_ATTR_SMARTLINK_CLIENT_ID: &str = "smart-link-client-id";
+/// Comma-separated request/user attributes that must match after HMAC validation.
+pub const REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES: &str =
+    "smart-link-required-attributes";
+
+/// Maximum accepted length of the Smart Link shared secret.
+pub const SMARTLINK_SHARED_SECRET_MAX_LEN: usize = 1000;
+/// Maximum accepted length of the comma-separated Smart Link required attributes.
+pub const SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN: usize = 1000;
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {
     pub id: Option<String>,

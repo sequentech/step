@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+**
+
+!Dockerfile.keycloak
+!keycloak-extensions
+!keycloak-extensions/**
+
+**/target
+**/target/**
+**/build.log
+**/dependency-reduced-pom.xml
