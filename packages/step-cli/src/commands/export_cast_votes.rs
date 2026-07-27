@@ -103,24 +103,24 @@ impl ExportCastVotes {
             let message: &Message = &Message::strand_deserialize(&electoral_log_message.message)
                 .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
 
-            if let StatementBody::CastVote(
-                election_id_string,
-                pseudonym_hash,
-                cast_vote_hash,
-                _voter_ip,
-                _voter_country,
-            ) = &message.statement.body
+            let (election_id_string, pseudonym_hash, cast_vote_hash) = match &message.statement.body
             {
-                writer
-                    .serialize(Record {
-                        created: electoral_log_message.created,
-                        election_id: election_id_string.clone(),
-                        hash_voter_id: hex::encode(pseudonym_hash.0.clone().to_inner()),
-                        ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
-                        area_id: electoral_log_message.area_id.clone(),
-                    })
-                    .map_err(|error| anyhow!("Failed to write row {}", error))?;
+                StatementBody::CastVote(election_id, pseudonym, cast_vote, _, _)
+                | StatementBody::CastVoteWithChannel(election_id, pseudonym, cast_vote, _, _, _) => {
+                    (election_id, pseudonym, cast_vote)
+                }
+                _ => continue,
             };
+
+            writer
+                .serialize(Record {
+                    created: electoral_log_message.created,
+                    election_id: election_id_string.clone(),
+                    hash_voter_id: hex::encode(pseudonym_hash.0.clone().to_inner()),
+                    ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
+                    area_id: electoral_log_message.area_id.clone(),
+                })
+                .map_err(|error| anyhow!("Failed to write row {}", error))?;
         }
 
         writer

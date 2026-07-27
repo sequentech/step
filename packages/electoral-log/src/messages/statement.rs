@@ -48,6 +48,11 @@ impl StatementHead {
                 description: "Inserted cast vote.".to_string(),
                 ..default_head
             },
+            StatementBody::CastVoteWithChannel(_, _, _, _, _, _) => StatementHead {
+                kind: StatementType::CastVote,
+                description: "Inserted cast vote.".to_string(),
+                ..default_head
+            },
             StatementBody::CastVoteError(_, _, _, _, _) => StatementHead {
                 kind: StatementType::CastVoteError,
                 log_type: StatementLogType::ERROR,
@@ -373,6 +378,17 @@ pub enum StatementBody {
         ExtApiName,
         String,
     ),
+    /// Cast-vote statement carrying its source channel. This separate,
+    /// append-only variant keeps existing Borsh-encoded `CastVote` messages
+    /// deserializable.
+    CastVoteWithChannel(
+        ElectionIdString,
+        PseudonymHash,
+        CastVoteHash,
+        VoterIpString,
+        VoterCountryString,
+        VotingChannelString,
+    ),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -481,11 +497,35 @@ mod tests {
             ExtApiName::Datafix,
             String::new(),
         );
+        let cast_vote_with_channel = StatementBody::CastVoteWithChannel(
+            ElectionIdString(None),
+            PseudonymHash::new([0; 64]),
+            CastVoteHash::new([0; 64]),
+            VoterIpString(String::new()),
+            VoterCountryString(String::new()),
+            VotingChannelString(String::new()),
+        );
 
         assert_eq!(borsh::to_vec(&election_publish).unwrap()[0], 2);
         assert_eq!(borsh::to_vec(&certificate).unwrap()[0], 23);
         assert_eq!(borsh::to_vec(&phone).unwrap()[0], 24);
-        assert_eq!(borsh::to_vec(&external).unwrap()[0], 25);
+        assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
+        assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 27);
+    }
+
+    #[test]
+    fn legacy_cast_vote_body_remains_deserializable() {
+        let legacy = StatementBody::CastVote(
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+        );
+
+        let bytes = borsh::to_vec(&legacy).unwrap();
+        let decoded: StatementBody = borsh::from_slice(&bytes).unwrap();
+        assert!(matches!(decoded, StatementBody::CastVote(_, _, _, _, _)));
     }
 
     #[test]

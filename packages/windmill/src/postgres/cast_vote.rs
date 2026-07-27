@@ -4,12 +4,25 @@
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::json;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+fn cast_vote_annotations(
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
+    voting_channel: VotingStatusChannel,
+) -> Value {
+    json!({
+        "ip": voter_ip,
+        "country": voter_country,
+        "voting_channel": voting_channel.to_string(),
+    })
+}
 
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
@@ -24,6 +37,7 @@ pub async fn insert_cast_vote(
     cast_ballot_signature: &[u8],
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    voting_channel: VotingStatusChannel,
     initial_status: CastVoteStatus,
 ) -> Result<CastVote> {
     let status = initial_status.to_string();
@@ -66,10 +80,7 @@ pub async fn insert_cast_vote(
         )
         .await?;
 
-    let annotations: Value = json!({
-        "ip": voter_ip,
-        "country": voter_country,
-    });
+    let annotations = cast_vote_annotations(voter_ip, voter_country, voting_channel);
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -99,6 +110,24 @@ pub async fn insert_cast_vote(
         Ok(cast_votes[0].clone())
     } else {
         Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cast_vote_annotations_include_voting_channel() {
+        let annotations = cast_vote_annotations(
+            &Some("203.0.113.1".to_string()),
+            &Some("CO".to_string()),
+            VotingStatusChannel::TELEPHONE,
+        );
+
+        assert_eq!(annotations["ip"], "203.0.113.1");
+        assert_eq!(annotations["country"], "CO");
+        assert_eq!(annotations["voting_channel"], "TELEPHONE");
     }
 }
 

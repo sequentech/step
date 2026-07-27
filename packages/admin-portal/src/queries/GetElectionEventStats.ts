@@ -21,6 +21,10 @@ export const GET_ELECTION_EVENT_STATS = gql`
         ) {
             total_eligible_voters
             total_distinct_voters
+            voters_by_channel {
+                channel
+                count
+            }
             total_areas
             total_elections
             votes_per_day {

@@ -6,18 +6,7 @@ import React from "react"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "./Charts"
 import {useTranslation} from "react-i18next"
-
-export enum VotingChanel {
-    Online = "Online",
-    Paper = "Paper",
-    Telephone = "Telephone",
-    Postal = "Postal",
-}
-
-export interface TotalVotersRow {
-    count: number
-    channel: VotingChanel
-}
+import {TotalVotersRow} from "./votersByChannelData"
 
 interface VotersByChannelProps {
     data: TotalVotersRow[]
@@ -30,7 +19,7 @@ export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, he
 
     const state: Props = {
         options: {
-            labels: data.map((item) => item.channel.toString()),
+            labels: data.map((item) => String(t(`common.channel.${item.channel}`))),
             plotOptions: {
                 pie: {
                     donut: {

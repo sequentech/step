@@ -94,12 +94,19 @@ impl Message {
         sd: &SigningData,
         ip: VoterIpString,
         country: VoterCountryString,
+        voting_channel: VotingChannelString,
         voter_id: Option<String>,
         voter_username: Option<String>,
         area_id: String,
     ) -> Result<Self> {
-        let body =
-            StatementBody::CastVote(election.clone(), pseudonym_h, vote_h.clone(), ip, country);
+        let body = StatementBody::CastVoteWithChannel(
+            election.clone(),
+            pseudonym_h,
+            vote_h.clone(),
+            ip,
+            country,
+            voting_channel,
+        );
         let ballot_id: String = vote_h
             .0
             .into_inner()

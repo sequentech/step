@@ -14,12 +14,13 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::cast_votes::{
-    get_count_votes_per_day, get_top_count_votes_by_ip, CastVoteCountByIp,
-    CastVotesPerDay, ListCastVotesByIpFilter,
+    get_count_distinct_voters_by_channel, get_count_votes_per_day,
+    get_top_count_votes_by_ip, CastVoteCountByIp, CastVotesPerDay,
+    ListCastVotesByIpFilter, VotersByChannel,
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::election_event_statistics::{
-    get_count_areas, get_count_distinct_voters, get_count_elections,
+    get_count_areas, get_count_elections,
 };
 use windmill::services::users::count_keycloak_enabled_users;
 
@@ -35,6 +36,7 @@ pub struct ElectionEventStatsInput {
 pub struct ElectionEventStatsOutput {
     total_eligible_voters: i64,
     total_distinct_voters: i64,
+    voters_by_channel: Vec<VotersByChannel>,
     total_areas: i64,
     total_elections: i64,
     votes_per_day: Vec<CastVotesPerDay>,
@@ -84,18 +86,6 @@ pub async fn get_election_event_stats(
             )
         })?;
 
-    let total_distinct_voters: i64 = get_count_distinct_voters(
-        &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error retrieving total_distinct_voters: {err}"),
-        )
-    })?;
     let total_elections: i64 = get_count_elections(
         &hasura_transaction,
         &tenant_id.as_str(),
@@ -108,6 +98,22 @@ pub async fn get_election_event_stats(
             format!("Error retrieving total_elections: {err}"),
         )
     })?;
+
+    let voters_by_channel = get_count_distinct_voters_by_channel(
+        &hasura_transaction,
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        None,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving voters_by_channel: {err}"),
+        )
+    })?;
+    let total_distinct_voters: i64 =
+        voters_by_channel.iter().map(|item| item.count).sum();
 
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,
@@ -149,6 +155,7 @@ pub async fn get_election_event_stats(
 
     Ok(Json(ElectionEventStatsOutput {
         total_distinct_voters,
+        voters_by_channel,
         total_areas,
         total_eligible_voters: total_eligible_voters.into(),
         total_elections: total_elections.into(),

@@ -325,11 +325,13 @@ impl ElectoralLog {
         voter_id: String,
         voter_username: Option<String>,
         area_id: String,
+        voting_channel: String,
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
         let country = VoterCountryString(voter_country);
+        let voting_channel = VotingChannelString(voting_channel);
 
         let message = Message::cast_vote_message(
             event,
@@ -339,6 +341,7 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
+            voting_channel,
             Some(voter_id.clone()),
             voter_username.clone(),
             area_id,

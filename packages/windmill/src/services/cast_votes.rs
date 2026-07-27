@@ -276,6 +276,79 @@ impl TryFrom<Row> for CastVotesPerDay {
     }
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct VotersByChannel {
+    pub channel: String,
+    pub count: i64,
+}
+
+impl TryFrom<Row> for VotersByChannel {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(VotersByChannel {
+            channel: item.try_get("channel")?,
+            count: item.try_get("count")?,
+        })
+    }
+}
+
+/// Counts each voter once under the channel of their latest valid vote.
+/// Votes created before the channel annotation was introduced are online.
+#[instrument(skip(transaction), err)]
+pub async fn get_count_distinct_voters_by_channel(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<Vec<VotersByChannel>> {
+    let election_id = election_id.map(parse_uuid_v4).transpose()?;
+    let status = CastVoteStatus::Valid.to_string();
+    let statement = transaction
+        .prepare(
+            r#"
+            WITH latest_valid_votes AS (
+                SELECT DISTINCT ON (voter_id_string)
+                    voter_id_string,
+                    COALESCE(annotations->>'voting_channel', 'ONLINE') AS channel
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    status = $3 AND
+                    voter_id_string IS NOT NULL AND
+                    ($4::UUID IS NULL OR election_id = $4)
+                ORDER BY
+                    voter_id_string,
+                    created_at DESC NULLS LAST,
+                    id DESC
+            )
+            SELECT
+                channel,
+                COUNT(*) AS count
+            FROM latest_valid_votes
+            GROUP BY channel
+            ORDER BY channel;
+            "#,
+        )
+        .await?;
+
+    transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &status,
+                &election_id,
+            ],
+        )
+        .await?
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect()
+}
+
 #[instrument(err)]
 pub async fn count_cast_votes_election(
     hasura_transaction: &Transaction<'_>,

@@ -188,7 +188,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<CastVote, CastVoteError> {
+) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
     let lock = PgLock::acquire(
         datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
         Uuid::new_v4().to_string(),
@@ -489,7 +489,7 @@ pub async fn try_insert_cast_vote(
     .await;
 
     match result {
-        Ok(inserted_cast_vote) => {
+        Ok((inserted_cast_vote, effective_voting_channel)) => {
             let username = match username {
                 Ok(username) => username,
                 Err(err) => {
@@ -545,6 +545,7 @@ pub async fn try_insert_cast_vote(
                     voter_id.to_string(),
                     username.clone(),
                     area_id.to_string().clone(),
+                    effective_voting_channel.to_string(),
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -744,7 +745,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<CastVote, CastVoteError> {
+) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
     let tenant_uuid = parse_uuid_v4(ids.tenant_id)
@@ -756,7 +757,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
     let area_uuid = parse_uuid_v4(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
-    let (check_status, check_previous_votes) = try_join!(
+    let (effective_voting_channel, _check_previous_votes) = try_join!(
         // Check status is the most expensive call here, it takes around 2/3 of the time of the whole insert_cast_vote
         check_status(
             ids.tenant_id,
@@ -801,6 +802,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
         voter_ip,
         voter_country,
+        effective_voting_channel,
         initial_status,
     );
 
@@ -822,7 +824,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .await
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
-    Ok(cast_vote)
+    Ok((cast_vote, effective_voting_channel))
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
@@ -870,7 +872,7 @@ async fn check_status(
     auth_time: &Option<i64>,
     voting_channel: VotingStatusChannel,
     is_early_voting_area: bool,
-) -> Result<(), CastVoteError> {
+) -> Result<VotingStatusChannel, CastVoteError> {
     if election_event.is_archived {
         return Err(CastVoteError::CheckStatusFailed(
             "Election event is archived".to_string(),
@@ -993,6 +995,7 @@ async fn check_status(
         && voting_channel == VotingStatusChannel::ONLINE
         && current_voting_status != VotingStatus::PAUSED;
     let grace_period_duration = Duration::seconds(grace_period_secs as i64);
+    let mut effective_voting_channel = voting_channel;
 
     // We can only calculate grace period if there's a close date
     if let Some(close_date_esq_event) = close_date_esq_event_opt {
@@ -1032,7 +1035,6 @@ async fn check_status(
                 ));
             }
         }
-
     // if there's no closing date, election needs to be open to cast a vote
     } else {
         let allow_early_voting = is_early_voting_area
@@ -1057,6 +1059,7 @@ async fn check_status(
         match current_voting_status {
             VotingStatus::NOT_STARTED if allow_early_voting => {
                 debug!("Allowing early voting for election id {election_id}");
+                effective_voting_channel = VotingStatusChannel::EARLY_VOTING;
             }
             VotingStatus::NOT_STARTED | VotingStatus::PAUSED => {
                 return Err(CastVoteError::CheckStatusFailed(
@@ -1076,7 +1079,7 @@ async fn check_status(
             }
         };
     }
-    Ok(())
+    Ok(effective_voting_channel)
 }
 
 #[instrument(skip_all, err)]
