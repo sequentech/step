@@ -70,7 +70,7 @@ import {
 } from "@/gql/graphql"
 import {IPermissions} from "@/types/keycloak"
 import {downloadUrl} from "@sequentech/ui-core"
-import {DropFile} from "@sequentech/ui-essentials"
+import {DropFile, VotingChannel} from "@sequentech/ui-essentials"
 import {LIST_USERS} from "@/queries/GetUsers"
 import {
     ETallySheetImportChangeType,
@@ -78,7 +78,8 @@ import {
     ETallySheetImportReviewDecision,
     ETallySheetImportSourceFormat,
     ETallySheetImportStatus,
-    EVotingChannel,
+    IN_PERSON_TALLY_SHEET_CHANNEL,
+    TallySheetVotingChannel,
 } from "@/types/TallySheets"
 
 type GetUploadUrlData = GetUploadUrlMutation
@@ -96,7 +97,7 @@ interface TallySheetImportSummary {
 interface TallySheetImportValidationError {
     code: string
     message: string
-    channel?: EVotingChannel | null
+    channel?: TallySheetVotingChannel | null
     area_name?: string | null
     contest_external_id?: string | null
     candidate_external_id?: string | null
@@ -104,7 +105,7 @@ interface TallySheetImportValidationError {
 }
 
 interface TallySheetImportPreviewItem {
-    channel: EVotingChannel
+    channel: TallySheetVotingChannel
     area_id: string
     area_name: string
     contest_id: string
@@ -121,7 +122,7 @@ interface TallySheetImportPreviewItem {
 interface TallySheetImportPreview {
     document_id: string
     source_format: ETallySheetImportSourceFormat
-    selected_channel: EVotingChannel
+    selected_channel: TallySheetVotingChannel
     summary: TallySheetImportSummary
     items: TallySheetImportPreviewItem[]
     validation_errors: TallySheetImportValidationError[]
@@ -155,7 +156,7 @@ type TallySheetImportVariables = Omit<
     "sourceFormat" | "selectedChannel"
 > & {
     sourceFormat: ETallySheetImportSourceFormat
-    selectedChannel: EVotingChannel
+    selectedChannel: TallySheetVotingChannel
 }
 
 type ReviewTallySheetImportVariables = Omit<ReviewTallySheetImportMutationVariables, "decision"> & {
@@ -186,7 +187,7 @@ interface TallySheetImportRecord {
     source_document_id: string
     source_file_name?: string | null
     source_format: ETallySheetImportSourceFormat
-    selected_channel: EVotingChannel
+    selected_channel: TallySheetVotingChannel
     status: ETallySheetImportStatus
     source_sha256?: string | null
     created_at?: string | null
@@ -202,7 +203,7 @@ interface TallySheetImportItemRecord {
     election_id: string
     area_id: string
     contest_id: string
-    channel: EVotingChannel
+    channel: TallySheetVotingChannel
     generated_tally_sheet_id?: string | null
     baseline_approved_tally_sheet_id?: string | null
     baseline_approved_version?: number | null
@@ -259,7 +260,9 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
     const [sourceFormat, setSourceFormat] = useState<ETallySheetImportSourceFormat>(
         ETallySheetImportSourceFormat.ESS_ENHANCED_XML
     )
-    const [selectedChannel, setSelectedChannel] = useState<EVotingChannel>(EVotingChannel.PAPER)
+    const [selectedChannel, setSelectedChannel] = useState<TallySheetVotingChannel>(
+        VotingChannel.PAPER
+    )
     const [preview, setPreview] = useState<TallySheetImportPreview | null>(null)
     const [isWorking, setIsWorking] = useState(false)
     const [pendingDetailImportId, setPendingDetailImportId] = useState<string | null>(null)
@@ -706,19 +709,21 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                                 label={String(t("tallySheetImport.fields.channel"))}
                                 value={selectedChannel}
                                 onChange={(event: SelectChangeEvent) => {
-                                    setSelectedChannel(event.target.value as EVotingChannel)
+                                    setSelectedChannel(
+                                        event.target.value as TallySheetVotingChannel
+                                    )
                                     setUploadedDocumentId(null)
                                     setUploadedSourceSha256(null)
                                     setPreview(null)
                                 }}
                             >
-                                <MenuItem value={EVotingChannel.PAPER}>
+                                <MenuItem value={VotingChannel.PAPER}>
                                     {t("tallySheetImport.channel.PAPER")}
                                 </MenuItem>
-                                <MenuItem value={EVotingChannel.POSTAL}>
+                                <MenuItem value={VotingChannel.POSTAL}>
                                     {t("tallySheetImport.channel.POSTAL")}
                                 </MenuItem>
-                                <MenuItem value={EVotingChannel.IN_PERSON}>
+                                <MenuItem value={IN_PERSON_TALLY_SHEET_CHANNEL}>
                                     {t("tallySheetImport.channel.IN_PERSON")}
                                 </MenuItem>
                             </Select>

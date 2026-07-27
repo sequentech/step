@@ -19,7 +19,7 @@ export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, he
 
     const state: Props = {
         options: {
-            labels: data.map((item) => String(t(`common.channel.${item.channel}`))),
+            labels: data.map((item) => String(t(`common.channel.${item.channel.toLowerCase()}`))),
             plotOptions: {
                 pie: {
                     donut: {

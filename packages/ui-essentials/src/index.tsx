@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+export {VotingChannel} from "./types/VotingChannel"
 export {default as useTemplate} from "./useTemplate"
 export {default as theme, adminTheme} from "./services/theme"
 export {default as Header, HeaderErrorVariant} from "./components/Header/Header"

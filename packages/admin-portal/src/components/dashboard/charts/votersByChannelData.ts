@@ -2,36 +2,33 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export enum VotingChanel {
-    Online = "online",
-    Kiosk = "kiosk",
-    EarlyVoting = "early_voting",
-    Telephone = "telephone",
-}
+import {VotingChannel} from "@sequentech/ui-essentials"
 
 export interface PersistedVotersByChannel {
     channel: string
     count: number
 }
 
+const castVoteChannels = [
+    VotingChannel.ONLINE,
+    VotingChannel.KIOSK,
+    VotingChannel.EARLY_VOTING,
+    VotingChannel.TELEPHONE,
+] as const
+
+export type CastVoteChannel = (typeof castVoteChannels)[number]
+
 export interface TotalVotersRow {
     count: number
-    channel: VotingChanel
+    channel: CastVoteChannel
 }
-
-const persistedChannels: Array<[string, VotingChanel]> = [
-    ["ONLINE", VotingChanel.Online],
-    ["KIOSK", VotingChanel.Kiosk],
-    ["EARLY_VOTING", VotingChanel.EarlyVoting],
-    ["TELEPHONE", VotingChanel.Telephone],
-]
 
 export const toVotersByChannelRows = (
     data: ReadonlyArray<PersistedVotersByChannel> | null | undefined
 ): TotalVotersRow[] => {
     const counts = new Map(data?.map(({channel, count}) => [channel, count]) ?? [])
-    return persistedChannels.map(([persistedChannel, channel]) => ({
+    return castVoteChannels.map((channel) => ({
         channel,
-        count: counts.get(persistedChannel) ?? 0,
+        count: counts.get(channel) ?? 0,
     }))
 }
