@@ -226,11 +226,12 @@ const EmulatorInterface: React.FC<{
     const {t} = useTranslation()
     const [prompts, setPrompts] = useState<[number, PromptInfo][]>([])
     const emulator = useRef<IvrEmulatorDriver | undefined>(undefined)
+    const toDispose = useRef(new WeakSet<IvrEmulatorDriver>())
+    const inFlight = useRef(new WeakSet<IvrEmulatorDriver>())
     const [expectedInput, setExpectedInput] = useState<ExpectedInput | undefined>()
     const [status, setStatus] = useState<Status>("Disconnected")
     const [error, setError] = useState<string>("")
     const [input, setInput] = useState<string>("")
-    const [executing, setExecuting] = useState<boolean>(false)
     const nextLogId = useRef(0)
 
     const addPrompt = (prompt: PromptInfo) => {
@@ -263,38 +264,65 @@ const EmulatorInterface: React.FC<{
         }
     }
 
-    const sendTimeout = async () => {
-        if (!emulator.current) {
+    const sendTimeout = () => {
+        const current = emulator.current
+        if (!current) {
             console.warn("Attempted to sendTimeout without an active emulator")
             return
         }
-        emulator.current.send_timeout()
-        runEmulator(emulator.current)
+        if (inFlight.current.has(current)) {
+            return
+        }
+
+        current.send_timeout()
+        runEmulator(current)
     }
 
-    const sendInput = async () => {
-        if (!emulator.current) {
+    const sendInput = () => {
+        const current = emulator.current
+        if (!current) {
             console.warn("Attempted to sendInput without an active emulator")
             return
         }
-        emulator.current.send_input(input)
-        runEmulator(emulator.current)
+        if (inFlight.current.has(current)) {
+            return
+        }
+
+        current.send_input(input)
+        runEmulator(current)
         setInput("")
     }
 
+    const releaseDisposed = (disposed: IvrEmulatorDriver): void => {
+        if (!toDispose.current.has(disposed) || inFlight.current.has(disposed)) {
+            return
+        }
+        console.log("Releasing disposed emulator")
+        toDispose.current.delete(disposed)
+        disposed.free()
+    }
+
+    // disposeEmulator must not be called again after the emulator has been released.
     const disposeEmulator = (disposed: IvrEmulatorDriver): void => {
-        console.info("Disposing the emulator")
+        console.debug("Disposing emulator")
         if (emulator.current === disposed) {
             emulator.current = undefined
-            console.info("Cleared current emulator")
+            console.debug("Cleared current emulator")
         }
-        disposed.free()
+        toDispose.current.add(disposed)
+        releaseDisposed(disposed)
     }
 
     const executeEmulatorLoop = async (emulator: IvrEmulatorDriver) => {
         while (true) {
             changeStatus("Running")
             const action = await emulator.execute(true)
+
+            // If disposal was requested while we were executing the wasm,
+            //  like the component being unmounted, free the resources and stop working.
+            if (toDispose.current.has(emulator)) {
+                return
+            }
             switch (action.type) {
                 case "Prompt":
                     addPrompt(action.prompt)
@@ -316,22 +344,34 @@ const EmulatorInterface: React.FC<{
     }
 
     const runEmulator = (emulator: IvrEmulatorDriver) => {
-        if (executing) {
+        if (inFlight.current.has(emulator)) {
             return
         }
 
-        setExecuting(true)
+        inFlight.current.add(emulator)
         executeEmulatorLoop(emulator)
             .catch((e) => {
                 console.error("Failed to execute the emulator", e)
-                setError(`${e}`)
+                if (!toDispose.current.has(emulator)) {
+                    setError(`${e}`)
+                    disposeEmulator(emulator)
+                }
             })
-            .finally(() => setExecuting(false))
+            .finally(() => {
+                inFlight.current.delete(emulator)
+                releaseDisposed(emulator)
+            })
     }
 
     useEffect(() => {
         setStatus("Ready")
         startSession(config)
+
+        return () => {
+            if (emulator.current) {
+                disposeEmulator(emulator.current)
+            }
+        }
     }, [])
 
     return (
