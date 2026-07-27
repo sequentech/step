@@ -14,6 +14,11 @@ pub fn get_schema_version() -> String {
     "1".to_string()
 }
 
+/// Version 2 adds the append-only `CastVoteWithChannel` statement body.
+pub fn get_cast_vote_channel_schema_version() -> String {
+    "2".to_string()
+}
+
 pub fn timestamp() -> Timestamp {
     let start = SystemTime::now();
     let since_the_epoch = start

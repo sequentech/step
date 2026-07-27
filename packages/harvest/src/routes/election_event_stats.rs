@@ -86,19 +86,6 @@ pub async fn get_election_event_stats(
             )
         })?;
 
-    let total_elections: i64 = get_count_elections(
-        &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-    )
-    .await
-    .map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error retrieving total_elections: {err}"),
-        )
-    })?;
-
     let voters_by_channel = get_count_distinct_voters_by_channel(
         &hasura_transaction,
         tenant_id.as_str(),
@@ -114,6 +101,19 @@ pub async fn get_election_event_stats(
     })?;
     let total_distinct_voters: i64 =
         voters_by_channel.iter().map(|item| item.count).sum();
+
+    let total_elections: i64 = get_count_elections(
+        &hasura_transaction,
+        &tenant_id.as_str(),
+        &input.election_event_id.as_str(),
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error retrieving total_elections: {err}"),
+        )
+    })?;
 
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,

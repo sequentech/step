@@ -862,6 +862,25 @@ async fn get_electoral_log(
     Ok((electoral_log?, sk.clone()))
 }
 
+fn effective_voting_channel_for_status(
+    voting_channel: VotingStatusChannel,
+    is_early_voting_area: bool,
+    election_status: &ElectionStatus,
+) -> VotingStatusChannel {
+    let allow_early_voting = voting_channel == VotingStatusChannel::ONLINE
+        && is_early_voting_area
+        && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+            == VotingStatus::OPEN
+        && election_status.status_by_channel(VotingStatusChannel::ONLINE)
+            == VotingStatus::NOT_STARTED;
+
+    if allow_early_voting {
+        VotingStatusChannel::EARLY_VOTING
+    } else {
+        voting_channel
+    }
+}
+
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -932,26 +951,6 @@ async fn check_status(
     )
     .unwrap_or(Default::default());
 
-    if VotingStatusChannel::ONLINE != voting_channel.clone() {
-        dates.end_date = None;
-    }
-
-    let close_date_esq_event_opt: Option<DateTime<Local>> =
-        if let Some(end_date_str) = dates.end_date {
-            match ISO8601::to_date(&end_date_str) {
-                Ok(close_date) => {
-                    info!("Parsed end_date: {}", close_date);
-                    Some(close_date)
-                }
-                Err(err) => {
-                    info!("Failed to parse end_date: {}", err);
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
     let election_status: ElectionStatus = election
         .status
         .clone()
@@ -978,8 +977,37 @@ async fn check_status(
         )));
     }
 
-    let current_voting_status = election_status.status_by_channel(voting_channel);
-    let dates_by_channel = election_status.dates_by_channel(voting_channel);
+    let effective_voting_channel =
+        effective_voting_channel_for_status(voting_channel, is_early_voting_area, &election_status);
+    if effective_voting_channel != voting_channel {
+        debug!("Allowing early voting for election id {election_id}");
+    }
+
+    // Scheduled end dates and grace periods apply only to online voting. An
+    // online request accepted through an early-voting area is evaluated using
+    // the early-voting channel even when an online end date is configured.
+    if effective_voting_channel != VotingStatusChannel::ONLINE {
+        dates.end_date = None;
+    }
+
+    let close_date_esq_event_opt: Option<DateTime<Local>> =
+        if let Some(end_date_str) = dates.end_date {
+            match ISO8601::to_date(&end_date_str) {
+                Ok(close_date) => {
+                    info!("Parsed end_date: {}", close_date);
+                    Some(close_date)
+                }
+                Err(err) => {
+                    info!("Failed to parse end_date: {}", err);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+    let current_voting_status = election_status.status_by_channel(effective_voting_channel);
+    let dates_by_channel = election_status.dates_by_channel(effective_voting_channel);
 
     // calculate if we need to apply the grace period
     let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
@@ -992,10 +1020,9 @@ async fn check_status(
     // 2. Voting Channel is ONLINE
     // 3. Current Voting Status is not PAUSED
     let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
-        && voting_channel == VotingStatusChannel::ONLINE
+        && effective_voting_channel == VotingStatusChannel::ONLINE
         && current_voting_status != VotingStatus::PAUSED;
     let grace_period_duration = Duration::seconds(grace_period_secs as i64);
-    let mut effective_voting_channel = voting_channel;
 
     // We can only calculate grace period if there's a close date
     if let Some(close_date_esq_event) = close_date_esq_event_opt {
@@ -1037,12 +1064,6 @@ async fn check_status(
         }
     // if there's no closing date, election needs to be open to cast a vote
     } else {
-        let allow_early_voting = is_early_voting_area
-            && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
-                == VotingStatus::OPEN
-            && election_status.status_by_channel(VotingStatusChannel::ONLINE)
-                == VotingStatus::NOT_STARTED;
-
         let last_stopped_at = dates_by_channel
             .last_stopped_at
             .map(|val| val.with_timezone(&Local));
@@ -1057,13 +1078,9 @@ async fn check_status(
         };
 
         match current_voting_status {
-            VotingStatus::NOT_STARTED if allow_early_voting => {
-                debug!("Allowing early voting for election id {election_id}");
-                effective_voting_channel = VotingStatusChannel::EARLY_VOTING;
-            }
             VotingStatus::NOT_STARTED | VotingStatus::PAUSED => {
                 return Err(CastVoteError::CheckStatusFailed(
-                    format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
+                    format!("Voting Status for voting_channel={effective_voting_channel:?} is {current_voting_status:?}"),
                 ));
             }
             VotingStatus::OPEN => {
@@ -1233,5 +1250,41 @@ mod tests {
             initial_cast_vote_status(&election_event(Some(annotations))),
             Err(CastVoteError::InvalidDatafixConfiguration(_))
         ));
+    }
+
+    #[test]
+    fn online_votes_in_open_early_voting_areas_use_early_voting_channel() {
+        let election_status = ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::OPEN,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            effective_voting_channel_for_status(
+                VotingStatusChannel::ONLINE,
+                true,
+                &election_status,
+            ),
+            VotingStatusChannel::EARLY_VOTING
+        );
+    }
+
+    #[test]
+    fn early_voting_area_does_not_overwrite_transport_channels() {
+        let election_status = ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+            kiosk_voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::OPEN,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
+            ..Default::default()
+        };
+
+        for channel in [VotingStatusChannel::KIOSK, VotingStatusChannel::TELEPHONE] {
+            assert_eq!(
+                effective_voting_channel_for_status(channel, true, &election_status,),
+                channel
+            );
+        }
     }
 }

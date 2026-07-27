@@ -2,19 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {toVotersByChannelRows} from "./votersByChannelData"
+import {OTHER_VOTING_CHANNEL, toVotersByChannelRows} from "./votersByChannelData"
 
 // Admin Portal's Jest setup is CommonJS and cannot load ui-essentials' ESM bundle.
-jest.mock("@sequentech/ui-essentials", () => ({
-    VotingChannel: {
-        ONLINE: "ONLINE",
-        KIOSK: "KIOSK",
-        EARLY_VOTING: "EARLY_VOTING",
-        TELEPHONE: "TELEPHONE",
-        PAPER: "PAPER",
-        POSTAL: "POSTAL",
-    },
-}))
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        VotingChannel: {
+            ONLINE: "ONLINE",
+            KIOSK: "KIOSK",
+            EARLY_VOTING: "EARLY_VOTING",
+            TELEPHONE: "TELEPHONE",
+            PAPER: "PAPER",
+            POSTAL: "POSTAL",
+        },
+    }),
+    {virtual: true}
+)
 
 describe("toVotersByChannelRows", () => {
     it("maps persisted channel counts and fills absent channels with zero", () => {
@@ -28,6 +32,22 @@ describe("toVotersByChannelRows", () => {
             {channel: "KIOSK", count: 0},
             {channel: "EARLY_VOTING", count: 0},
             {channel: "TELEPHONE", count: 3},
+        ])
+    })
+
+    it("groups unexpected persisted channels without losing voters", () => {
+        expect(
+            toVotersByChannelRows([
+                {channel: "ONLINE", count: 2},
+                {channel: "PAPER", count: 3},
+                {channel: "FUTURE_CHANNEL", count: 4},
+            ])
+        ).toEqual([
+            {channel: "ONLINE", count: 2},
+            {channel: "KIOSK", count: 0},
+            {channel: "EARLY_VOTING", count: 0},
+            {channel: "TELEPHONE", count: 0},
+            {channel: OTHER_VOTING_CHANNEL, count: 7},
         ])
     })
 })

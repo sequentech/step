@@ -302,22 +302,39 @@ pub async fn get_count_distinct_voters_by_channel(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<Vec<VotersByChannel>> {
-    let election_id = election_id.map(parse_uuid_v4).transpose()?;
-    let status = CastVoteStatus::Valid.to_string();
-    let statement = transaction
-        .prepare(
-            r#"
+    get_count_distinct_voters_by_channel_from_relation(
+        transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        "sequent_backend.cast_vote",
+    )
+    .await
+}
+
+fn count_distinct_voters_by_channel_sql(
+    cast_vote_relation: &str,
+    filter_by_election: bool,
+) -> String {
+    let election_filter = if filter_by_election {
+        "AND election_id = $4"
+    } else {
+        ""
+    };
+
+    format!(
+        r#"
             WITH latest_valid_votes AS (
                 SELECT DISTINCT ON (voter_id_string)
                     voter_id_string,
                     COALESCE(annotations->>'voting_channel', 'ONLINE') AS channel
-                FROM sequent_backend.cast_vote
+                FROM {cast_vote_relation}
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     status = $3 AND
-                    voter_id_string IS NOT NULL AND
-                    ($4::UUID IS NULL OR election_id = $4)
+                    voter_id_string IS NOT NULL
+                    {election_filter}
                 ORDER BY
                     voter_id_string,
                     created_at DESC NULLS LAST,
@@ -329,24 +346,41 @@ pub async fn get_count_distinct_voters_by_channel(
             FROM latest_valid_votes
             GROUP BY channel
             ORDER BY channel;
-            "#,
-        )
-        .await?;
+            "#
+    )
+}
 
-    transaction
-        .query(
-            &statement,
-            &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-                &status,
-                &election_id,
-            ],
-        )
-        .await?
-        .into_iter()
-        .map(TryInto::try_into)
-        .collect()
+async fn get_count_distinct_voters_by_channel_from_relation(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    cast_vote_relation: &str,
+) -> Result<Vec<VotersByChannel>> {
+    let election_id = election_id.map(parse_uuid_v4).transpose()?;
+    let status = CastVoteStatus::Valid.to_string();
+    let sql = count_distinct_voters_by_channel_sql(cast_vote_relation, election_id.is_some());
+    let statement = transaction.prepare(&sql).await?;
+
+    let tenant_id = parse_uuid_v4(tenant_id)?;
+    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let rows = match election_id {
+        Some(election_id) => {
+            transaction
+                .query(
+                    &statement,
+                    &[&tenant_id, &election_event_id, &status, &election_id],
+                )
+                .await?
+        }
+        None => {
+            transaction
+                .query(&statement, &[&tenant_id, &election_event_id, &status])
+                .await?
+        }
+    };
+
+    rows.into_iter().map(TryInto::try_into).collect()
 }
 
 #[instrument(err)]
@@ -907,4 +941,96 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::database::generate_hasura_pool;
+
+    const TENANT_ID: &str = "10000000-0000-4000-8000-000000000001";
+    const ELECTION_EVENT_ID: &str = "10000000-0000-4000-8000-000000000002";
+    const ELECTION_ID: &str = "10000000-0000-4000-8000-000000000003";
+
+    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<String, i64> {
+        rows.into_iter()
+            .map(|row| (row.channel, row.count))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote() {
+        let pool = generate_hasura_pool().await.unwrap();
+        let mut client = pool.get().await.unwrap();
+        let transaction = client.transaction().await.unwrap();
+
+        transaction
+            .batch_execute(
+                r#"
+                CREATE TEMP TABLE cast_vote_stats_test (
+                    id UUID PRIMARY KEY,
+                    tenant_id UUID NOT NULL,
+                    election_event_id UUID NOT NULL,
+                    election_id UUID NOT NULL,
+                    voter_id_string TEXT,
+                    status TEXT NOT NULL,
+                    annotations JSONB,
+                    created_at TIMESTAMPTZ
+                );
+
+                INSERT INTO cast_vote_stats_test (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    voter_id_string,
+                    status,
+                    annotations,
+                    created_at
+                ) VALUES
+                    ('10000000-0000-4000-8000-000000000010', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'legacy-voter', 'valid', '{}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'revoting-voter', 'valid', '{"voting_channel":"KIOSK"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000012', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'revoting-voter', 'valid', '{"voting_channel":"TELEPHONE"}', '2026-01-02T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'discarded-revote-voter', 'valid', '{"voting_channel":"KIOSK"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000014', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'discarded-revote-voter', 'discarded', '{"voting_channel":"TELEPHONE"}', '2026-01-02T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000015', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000004', 'second-election-voter', 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000016', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', NULL, 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000017', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'other-tenant-voter', 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z');
+                "#,
+            )
+            .await
+            .unwrap();
+
+        let event_counts = counts_by_channel(
+            get_count_distinct_voters_by_channel_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                None,
+                "pg_temp.cast_vote_stats_test",
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(event_counts.get("ONLINE"), Some(&2));
+        assert_eq!(event_counts.get("KIOSK"), Some(&1));
+        assert_eq!(event_counts.get("TELEPHONE"), Some(&1));
+
+        let election_counts = counts_by_channel(
+            get_count_distinct_voters_by_channel_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                Some(ELECTION_ID),
+                "pg_temp.cast_vote_stats_test",
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(election_counts.get("ONLINE"), Some(&1));
+        assert_eq!(election_counts.get("KIOSK"), Some(&1));
+        assert_eq!(election_counts.get("TELEPHONE"), Some(&1));
+
+        transaction.rollback().await.unwrap();
+    }
 }

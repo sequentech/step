@@ -14,16 +14,32 @@ jobs:
     name: Run Rust tests
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    services:
+      postgres:
+        image: ${{ matrix.service == 'windmill' && 'postgres:16' || '' }}
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 3322:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       matrix:
         include:
           #- service: braid # these take too long!
+          - service: electoral-log
           - service: harvest
           - service: strand
           - service: immu-board
           - service: immudb-rs
           - service: sequent-core
             extra: --features keycloak,default_features
+          - service: step-cli
           - service: velvet
           - service: windmill
             build_jobs: 2
@@ -76,13 +92,13 @@ jobs:
           PROTOC: "/usr/bin/protoc"
           KEYCLOAK_DB__USER: "test"
           KEYCLOAK_DB__PASSWORD: "test"
-          KEYCLOAK_DB__HOST: "test"
+          KEYCLOAK_DB__HOST: "127.0.0.1"
           KEYCLOAK_DB__PORT: "3322"
           KEYCLOAK_DB__DBNAME: "test"
           KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
           HASURA_DB__USER: "test"
           HASURA_DB__PASSWORD: "test"
-          HASURA_DB__HOST: "test"
+          HASURA_DB__HOST: "127.0.0.1"
           HASURA_DB__PORT: "3322"
           HASURA_DB__DBNAME: "test"
           HASURA_DB__MANAGER__RECYCLING_METHOD: "Verified"
@@ -103,7 +119,11 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        package: [ui-core, ui-essentials]
+        include:
+          - package: ui-core
+          - package: ui-essentials
+          - package: admin-portal
+            test_args: votersByChannelData.test.ts --runInBand
       fail-fast: false
     steps:
       - name: Check out code
@@ -121,7 +141,7 @@ jobs:
         working-directory: packages
 
       - name: Run ${{ matrix.package }} tests
-        run: yarn --cwd ./${{ matrix.package }} test
+        run: yarn --cwd ./${{ matrix.package }} test ${{ matrix.test_args }}
         working-directory: packages
 
   # ===========================================================================

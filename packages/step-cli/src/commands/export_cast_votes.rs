@@ -11,9 +11,10 @@ use clap::Args;
 use colored::Colorize;
 use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
-use electoral_log::messages::newtypes::ElectionIdString;
+use electoral_log::messages::newtypes::{CastVoteHash, ElectionIdString, PseudonymHash};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{BoardClient, ElectoralLogVarCharColumn, SqlCompOperators};
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;
@@ -32,6 +33,36 @@ struct Record {
     area_id: Option<String>,
     hash_voter_id: String,
     ballot_id: String,
+    voting_channel: String,
+}
+
+struct CastVoteExportFields<'a> {
+    election_id: &'a ElectionIdString,
+    pseudonym_hash: &'a PseudonymHash,
+    cast_vote_hash: &'a CastVoteHash,
+    voting_channel: String,
+}
+
+fn cast_vote_export_fields(body: &StatementBody) -> Option<CastVoteExportFields<'_>> {
+    match body {
+        StatementBody::CastVote(election_id, pseudonym, cast_vote, _, _) => {
+            Some(CastVoteExportFields {
+                election_id,
+                pseudonym_hash: pseudonym,
+                cast_vote_hash: cast_vote,
+                voting_channel: VotingStatusChannel::ONLINE.to_string(),
+            })
+        }
+        StatementBody::CastVoteWithChannel(election_id, pseudonym, cast_vote, _, _, channel) => {
+            Some(CastVoteExportFields {
+                election_id,
+                pseudonym_hash: pseudonym,
+                cast_vote_hash: cast_vote,
+                voting_channel: channel.0.clone(),
+            })
+        }
+        _ => None,
+    }
 }
 
 #[derive(Args)]
@@ -103,22 +134,20 @@ impl ExportCastVotes {
             let message: &Message = &Message::strand_deserialize(&electoral_log_message.message)
                 .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
 
-            let (election_id_string, pseudonym_hash, cast_vote_hash) = match &message.statement.body
-            {
-                StatementBody::CastVote(election_id, pseudonym, cast_vote, _, _)
-                | StatementBody::CastVoteWithChannel(election_id, pseudonym, cast_vote, _, _, _) => {
-                    (election_id, pseudonym, cast_vote)
-                }
-                _ => continue,
+            let Some(fields) = cast_vote_export_fields(&message.statement.body) else {
+                continue;
             };
 
             writer
                 .serialize(Record {
                     created: electoral_log_message.created,
-                    election_id: election_id_string.clone(),
-                    hash_voter_id: hex::encode(pseudonym_hash.0.clone().to_inner()),
-                    ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
+                    election_id: fields.election_id.clone(),
+                    hash_voter_id: hex::encode(fields.pseudonym_hash.0.clone().to_inner()),
+                    ballot_id: hex::encode(shorten_hash(
+                        &fields.cast_vote_hash.0.clone().to_inner(),
+                    )),
                     area_id: electoral_log_message.area_id.clone(),
+                    voting_channel: fields.voting_channel,
                 })
                 .map_err(|error| anyhow!("Failed to write row {}", error))?;
         }
@@ -128,5 +157,48 @@ impl ExportCastVotes {
             .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use electoral_log::messages::newtypes::{
+        VoterCountryString, VoterIpString, VotingChannelString,
+    };
+
+    fn cast_vote_body() -> StatementBody {
+        StatementBody::CastVote(
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+        )
+    }
+
+    #[test]
+    fn legacy_cast_votes_export_as_online() {
+        let body = cast_vote_body();
+        let fields = cast_vote_export_fields(&body).unwrap();
+
+        assert_eq!(fields.voting_channel, "ONLINE");
+        assert_eq!(fields.election_id.0.as_deref(), Some("election-id"));
+    }
+
+    #[test]
+    fn channel_aware_cast_votes_export_the_stored_channel() {
+        let body = StatementBody::CastVoteWithChannel(
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            VotingChannelString("TELEPHONE".to_string()),
+        );
+        let fields = cast_vote_export_fields(&body).unwrap();
+
+        assert_eq!(fields.voting_channel, "TELEPHONE");
+        assert_eq!(fields.election_id.0.as_deref(), Some("election-id"));
     }
 }
