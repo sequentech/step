@@ -176,7 +176,7 @@ const ConfigForm: React.FC<{
     )
 }
 
-const PromptLine: React.FC<{prompt: PromptInfo}> = ({prompt}) => {
+const PromptLine: React.FC<{key: number; prompt: PromptInfo}> = ({key, prompt}) => {
     const promptBody = useMemo(() => {
         // Strip off the root ssml tag.
         return prompt.prompt_text.replace(/^<speak>/, "").replace(/<\/speak>$/, "")
@@ -189,7 +189,10 @@ const PromptLine: React.FC<{prompt: PromptInfo}> = ({prompt}) => {
     }, [prompt])
 
     return (
-        <Box sx={{display: "grid", gridTemplateColumns: "3ch minmax(0, 1fr)", columnGap: 1}}>
+        <Box
+            key={key}
+            sx={{display: "grid", gridTemplateColumns: "3ch minmax(0, 1fr)", columnGap: 1}}
+        >
             <Box
                 title={langTitle}
                 sx={{whiteSpace: "nowrap", borderRight: 1, borderColor: "divider", pr: 1}}
@@ -208,16 +211,19 @@ const EmulatorInterface: React.FC<{
     config: EmulatorConfig
     onStatusChange?: (status: Status) => void
 }> = ({api, config, onStatusChange}) => {
-    const [prompts, setPrompts] = useState<PromptInfo[]>([])
+    const [prompts, setPrompts] = useState<[number, PromptInfo][]>([])
     const emulator = useRef<IvrEmulatorDriver | undefined>(undefined)
     const [expectedInput, setExpectedInput] = useState<ExpectedInput | undefined>()
-    const addPrompt = (prompt: PromptInfo) => {
-        setPrompts([...prompts, prompt])
-    }
     const [status, setStatus] = useState<Status>("Disconnected")
     const [error, setError] = useState<string>("")
     const [input, setInput] = useState<string>("")
     const [executing, setExecuting] = useState<boolean>(false)
+    const nextLogId = useRef(0)
+
+    const addPrompt = (prompt: PromptInfo) => {
+        let key = nextLogId.current++
+        setPrompts((current) => [...current, [key, prompt]])
+    }
 
     const canSendInput = useMemo<boolean>(
         () => status === "ExpectingInput" && Boolean(input.trim()),
@@ -320,8 +326,8 @@ const EmulatorInterface: React.FC<{
             {status === "Disconnected" ? <Alert severity="info">Disconnected</Alert> : null}
 
             <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
-                {prompts.map((prompt) => (
-                    <PromptLine prompt={prompt} />
+                {prompts.map(([key, prompt]) => (
+                    <PromptLine key={key} prompt={prompt} />
                 ))}
             </Paper>
 
