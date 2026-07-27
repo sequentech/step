@@ -266,6 +266,7 @@ const EmulatorInterface: React.FC<{
         }
         emulator.current.send_input(input)
         runEmulator(emulator.current)
+        setInput("")
     }
 
     const disposeEmulator = (disposed: IvrEmulatorDriver): void => {
