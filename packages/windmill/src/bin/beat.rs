@@ -1,5 +1,4 @@
 #![allow(non_upper_case_globals)]
-#![feature(result_flattening)]
 #![recursion_limit = "256"]
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>

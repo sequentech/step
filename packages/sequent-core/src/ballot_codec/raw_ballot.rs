@@ -55,9 +55,16 @@ impl RawBallotCodec for Contest {
         let base_bits = (char_map.base() as f64).log2().ceil() as i32;
 
         if remaining_bits > 0 {
-            Ok(remaining_bits.div_ceil(base_bits))
+            // div_ceil: round up for positive numbers
+            Ok((remaining_bits as u32).div_ceil(base_bits as u32) as i32)
         } else {
-            Ok(remaining_bits.div_floor(base_bits))
+            // div_floor: round toward negative infinity for negative numbers
+            Ok((remaining_bits / base_bits)
+                - if remaining_bits % base_bits != 0 {
+                    1
+                } else {
+                    0
+                })
         }
     }
 
