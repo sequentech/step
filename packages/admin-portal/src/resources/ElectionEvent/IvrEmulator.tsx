@@ -338,7 +338,7 @@ const EmulatorInterface: React.FC<{
         <Box sx={{display: "flex-col", gap: 1}}>
             {error ? <Alert severity="error">{error}</Alert> : null}
             {status === "Disconnected" ? (
-                <Alert severity="info">t("electionEventScreen.ivr.emulator.disconnected")</Alert>
+                <Alert severity="info">{t("electionEventScreen.ivr.emulator.disconnected")}</Alert>
             ) : null}
 
             <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
