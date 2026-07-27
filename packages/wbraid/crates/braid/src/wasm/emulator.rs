@@ -62,12 +62,12 @@ use crate::messages::newtypes::{
 use crate::messages::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
 
-use crate::board::persistence::IndexedDbPersistence;
 use crate::board::transport::Transport;
-use crate::board::wasm_transport::WasmHttpTransport;
 use crate::board::BoardClient;
 use crate::messages::predicate::Predicate;
 use crate::runtime::SessionTrustee;
+use crate::wasm::persistence::IndexedDbPersistence;
+use crate::wasm::transport::WasmHttpTransport;
 
 /// Wire `date` for every emulator message (§3.1 — timestamps are wire-only).
 const DATE: Timestamp = 0;

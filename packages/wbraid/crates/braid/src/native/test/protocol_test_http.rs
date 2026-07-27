@@ -33,10 +33,10 @@ use crate::messages::newtypes::{
 use crate::messages::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
 
-use crate::board::http_transport::HttpTransport;
 use crate::board::persistence::NoOpPersistence;
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
+use crate::native::http_transport::HttpTransport;
 use crate::runtime::SessionTrustee;
 use crate::session::Session;
 

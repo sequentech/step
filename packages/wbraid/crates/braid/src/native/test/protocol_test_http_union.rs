@@ -37,11 +37,12 @@ use crate::messages::newtypes::{
 use crate::messages::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
 
-use crate::board::http_transport::HttpTransport;
-use crate::board::persistence::{Persistence, SqlitePersistence};
+use crate::board::persistence::Persistence;
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
 use crate::messages::predicate::Predicate;
+use crate::native::http_transport::HttpTransport;
+use crate::native::persistence::SqlitePersistence;
 use crate::runtime::SessionTrustee;
 
 /// b4 server endpoint the test drives against (must be running, with S3).

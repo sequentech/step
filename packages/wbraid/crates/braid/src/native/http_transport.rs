@@ -8,9 +8,10 @@
 //! Posting uses b4's two-step flow (`initiate` → S3 `PUT` or inline → `confirm`);
 //! fetching pulls all of a board's messages and, for S3-backed bodies, downloads
 //! them via the presigned URL b4 returns. b4 is a dumb opaque store (§8), so this
-/// this client (de)serializes `ProtocolMessage<C>` itself and enforces the version
-/// exact-match at the boundary (§10.1). Verification happens later in the board
-/// client — the transport only moves bytes.
+//! client (de)serializes `ProtocolMessage<C>` itself and enforces the version
+//! exact-match at the boundary (§10.1). Verification happens later in the board
+//! client — the transport only moves bytes.
+
 use anyhow::{anyhow, bail, Result};
 use async_trait::async_trait;
 
@@ -23,7 +24,7 @@ use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse,
 };
 
-use super::transport::Transport;
+use crate::board::transport::Transport;
 
 /// HTTP client for a single b4 board. Not parameterized by `C`: it moves opaque
 /// bytes, and the `Transport<C>` impl (de)serializes per `C`.

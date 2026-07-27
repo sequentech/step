@@ -5,7 +5,7 @@
 //! Browser HTTP+S3 transport (§8, M3): the wasm-side client that talks to a live
 //! b4 over the browser `fetch` API, implementing [`Transport`].
 //!
-//! This is the wasm counterpart of the native [`HttpTransport`](super::http_transport):
+//! This is the wasm counterpart of the native [`HttpTransport`](crate::native::http_transport):
 //! the protocol logic is identical — the two-step post (`initiate` → S3 `PUT` or
 //! inline → `confirm`), a full fetch-all each update, and the §10.1 version
 //! exact-match at the boundary — only the HTTP mechanism differs (`web_sys`
@@ -31,7 +31,7 @@ use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse,
 };
 
-use super::transport::Transport;
+use crate::board::transport::Transport;
 
 /// Browser `fetch` client for a single b4 board. Not parameterized by `C`: it
 /// moves opaque bytes, and the `Transport<C>` impl (de)serializes per `C`.

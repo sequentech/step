@@ -14,8 +14,12 @@
 //! they need no atomics / SharedArrayBuffer.
 
 pub mod emulator;
+pub mod persistence;
+pub mod transport;
 
 use wasm_bindgen::prelude::*;
+
+use crate::messages::newtypes::Timestamp;
 
 /// Module-load hook: route Rust panics to the browser console. Idempotent.
 #[wasm_bindgen(start)]
@@ -28,3 +32,12 @@ pub fn wasm_init() {
 // page must start once via `initThreadPool` before heavy compute.
 #[cfg(feature = "wasm")]
 pub use wasm_bindgen_rayon::init_thread_pool as initThreadPool;
+
+/// The current wall-clock time as a [`Timestamp`] (seconds since Unix epoch),
+/// via `js_sys::Date`.
+///
+/// Used to stamp the informational `date` field on outgoing protocol messages
+/// (§10.2). The timestamp plays no part in verification or the datalog.
+pub fn timestamp() -> Timestamp {
+    (js_sys::Date::now() / 1000.0) as u64
+}
