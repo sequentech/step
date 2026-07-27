@@ -335,11 +335,8 @@ const EmulatorInterface: React.FC<{
     }, [])
 
     return (
-        <Box sx={{display: "flex-col", gap: 1}}>
+        <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
             {error ? <Alert severity="error">{error}</Alert> : null}
-            {status === "Disconnected" ? (
-                <Alert severity="info">{t("electionEventScreen.ivr.emulator.disconnected")}</Alert>
-            ) : null}
 
             <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
                 {prompts.map(([key, prompt]) => (
@@ -347,55 +344,66 @@ const EmulatorInterface: React.FC<{
                 ))}
             </Paper>
 
-            <Box sx={{display: "flex", gap: 1}}>
-                <form
-                    style={{width: "100%"}}
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                        canSendInput && sendInput()
-                    }}
-                >
-                    <TextField
-                        value={input}
-                        onChange={(e) => setInput(e.target.value.replace(/[^0-9*#]/g, ""))}
-                        slotProps={{
-                            htmlInput: {pattern: "[0-9*#]*", maxLength: expectedInput?.max_digits},
+            {status !== "Disconnected" ? (
+                <Box sx={{display: "flex", gap: 1}}>
+                    <form
+                        style={{width: "100%"}}
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                            canSendInput && sendInput()
                         }}
-                        disabled={!expectedInput}
-                        autoFocus
-                        sx={{fontFamily: "monospace"}}
-                        placeholder={t("electionEventScreen.ivr.emulator.inputPlaceholder", {
-                            maxDigits: expectedInput?.max_digits ?? "",
-                            validInputs: expectedInput?.valid_inputs ?? "",
-                            timeout: expectedInput?.timeout ?? 0,
-                        })}
-                    />
-                </form>
-                <div
-                    style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        gap: theme.spacing(1),
-                        padding: `${theme.spacing(2)} 0px ${theme.spacing(2)} 0px`,
-                    }}
-                >
-                    <Button
-                        title={t("electionEventScreen.ivr.emulator.sendTimeout")}
-                        onClick={sendTimeout}
-                        disabled={status !== "ExpectingInput"}
                     >
-                        <TimerIcon />
-                    </Button>
-                    <Button
-                        title={t("electionEventScreen.ivr.emulator.sendDtmf")}
-                        variant="outlined"
-                        onClick={sendInput}
-                        disabled={!canSendInput}
+                        <TextField
+                            value={input}
+                            onChange={(e) => setInput(e.target.value.replace(/[^0-9*#]/g, ""))}
+                            slotProps={{
+                                htmlInput: {
+                                    pattern: "[0-9*#]*",
+                                    maxLength: expectedInput?.max_digits,
+                                },
+                            }}
+                            disabled={!expectedInput}
+                            autoFocus
+                            sx={{fontFamily: "monospace"}}
+                            placeholder={t("electionEventScreen.ivr.emulator.inputPlaceholder", {
+                                maxDigits: expectedInput?.max_digits ?? "",
+                                validInputs: expectedInput?.valid_inputs ?? "",
+                                timeout: expectedInput?.timeout ?? 0,
+                            })}
+                        />
+                    </form>
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "row",
+                            gap: theme.spacing(1),
+                            padding: `${theme.spacing(2)} 0px ${theme.spacing(2)} 0px`,
+                        }}
                     >
-                        <DialpadIcon />
-                    </Button>
-                </div>
-            </Box>
+                        <Button
+                            title={t("electionEventScreen.ivr.emulator.sendTimeout")}
+                            onClick={sendTimeout}
+                            disabled={status !== "ExpectingInput"}
+                        >
+                            <TimerIcon />
+                        </Button>
+                        <Button
+                            title={t("electionEventScreen.ivr.emulator.sendDtmf")}
+                            variant="outlined"
+                            onClick={sendInput}
+                            disabled={!canSendInput}
+                        >
+                            <DialpadIcon />
+                        </Button>
+                    </div>
+                </Box>
+            ) : null}
+
+            {status === "Disconnected" ? (
+                <ElectionHeaderStyles.SubTitle sx={{fontStyle: "italic"}}>
+                    {t("electionEventScreen.ivr.emulator.disconnected")}
+                </ElectionHeaderStyles.SubTitle>
+            ) : null}
         </Box>
     )
 }
