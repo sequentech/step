@@ -176,6 +176,33 @@ const ConfigForm: React.FC<{
     )
 }
 
+const PromptLine: React.FC<{prompt: PromptInfo}> = ({prompt}) => {
+    const promptBody = useMemo(() => {
+        // Strip off the root ssml tag.
+        return prompt.prompt_text.replace(/^<speak>/, "").replace(/<\/speak>$/, "")
+    }, [prompt])
+    const lang = useMemo(() => {
+        return prompt.language.slice(0, 2).toUpperCase()
+    }, [prompt])
+    const langTitle = useMemo(() => {
+        return `${prompt.language}, ${prompt.voice_id}`
+    }, [prompt])
+
+    return (
+        <Box sx={{display: "grid", gridTemplateColumns: "3ch minmax(0, 1fr)", columnGap: 1}}>
+            <Box
+                title={langTitle}
+                sx={{whiteSpace: "nowrap", borderRight: 1, borderColor: "divider", pr: 1}}
+            >
+                {lang}
+            </Box>
+            <Box sx={{minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>
+                {promptBody}
+            </Box>
+        </Box>
+    )
+}
+
 const EmulatorInterface: React.FC<{
     api: IvrEmulatorApi
     config: EmulatorConfig
@@ -292,11 +319,9 @@ const EmulatorInterface: React.FC<{
             {error ? <Alert severity="error">{error}</Alert> : null}
             {status === "Disconnected" ? <Alert severity="info">Disconnected</Alert> : null}
 
-            <Paper variant="outlined">
+            <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
                 {prompts.map((prompt) => (
-                    <Box component="div" sx={{fontFamily: "monospace"}}>
-                        {prompt.prompt_text},{prompt.language},{prompt.voice_id}
-                    </Box>
+                    <PromptLine prompt={prompt} />
                 ))}
             </Paper>
 
