@@ -61,10 +61,9 @@ const ConfigFormBody: React.FC<{
             //  when constructing the map.
             sort: {field: "created_at", order: "ASC"},
             filter: {
-                "tenant_id": electionEvent.tenant_id,
-                "election_event_id": electionEvent.id,
-                "area_id": areaId,
-                "deleted_at@_is_null": null,
+                tenant_id: electionEvent.tenant_id,
+                election_event_id: electionEvent.id,
+                area_id: areaId,
             },
         },
         {
@@ -78,7 +77,8 @@ const ConfigFormBody: React.FC<{
                 if (
                     style.election_id &&
                     typeof style.election_id === "string" &&
-                    style.ballot_eml
+                    style.ballot_eml &&
+                    !style.deleted_at
                 ) {
                     return [[style.election_id, style.ballot_eml]]
                 } else {
@@ -88,39 +88,33 @@ const ConfigFormBody: React.FC<{
         )
     }, [rawBallotStyles])
 
-    const {data: rawElections} = useGetList<Sequent_Backend_Election>(
-        "sequent_backend_election",
-        {
-            pagination: {page: 1, perPage: 300},
-            sort: {field: "name", order: "DESC"},
-            filter: {
-                "tenant_id": electionEvent.tenant_id,
-                "election_event_id": electionEvent.id,
-                "id@_in": Array.from(availableBallotStyles.keys()),
-            },
+    const {data: rawElections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 300},
+        sort: {field: "name", order: "DESC"},
+        filter: {
+            tenant_id: electionEvent.tenant_id,
+            election_event_id: electionEvent.id,
         },
-        {
-            enabled: availableBallotStyles.size > 0,
-        }
-    )
+    })
 
     const electionChoices = useMemo<{id: string; name: string}[]>(
         () =>
             rawElections
-                ?.map((e) => ({
+                ?.filter((e) => availableBallotStyles.has(e.id))
+                .map((e) => ({
                     id: e.id,
                     name: aliasRenderer(e),
                 }))
                 .sort((a, b) => a.name.localeCompare(b.name)) ?? [],
-        [rawElections]
+        [rawElections, availableBallotStyles]
     )
 
-    const selectedBallotStyles = useMemo<Map<string, string>>(() => {
+    const resolvedBallotStyles = useMemo<Map<string, string>>(() => {
         let filtered = availableBallotStyles
             .entries()
             .filter(([electionId, _style]) => electionIds.includes(electionId))
         return new Map(filtered)
-    }, [availableBallotStyles, electionIds])
+    }, [electionIds, availableBallotStyles])
 
     const generateConfig = (data: ConfigFormValues): EmulatorConfig => {
         return {
@@ -129,9 +123,9 @@ const ConfigFormBody: React.FC<{
             caller_number: CALLER_NUMBER,
             contact_id: generateContactId(),
             blacklisted_numbers: data.blacklistCaller ? [CALLER_NUMBER] : [],
-            open_elections: Array.from(selectedBallotStyles.keys()),
+            open_elections: Array.from(resolvedBallotStyles.keys()),
             election_event: JSON.stringify(electionEvent),
-            ballot_styles: Array.from(selectedBallotStyles.values()),
+            ballot_styles: Array.from(resolvedBallotStyles.values()),
         }
     }
 
