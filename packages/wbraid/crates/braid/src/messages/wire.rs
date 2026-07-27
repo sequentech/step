@@ -27,6 +27,15 @@
 //! signature itself, so it has no body and no out hash — both of its endpoint
 //! hashes (`input`, `output`) are in-hashes carried by the head.
 
+/// The schema version of the [`ProtocolMessage`] wire format (§10.1).
+///
+/// Stamped on every outgoing message and checked on every fetch; a mismatch
+/// between a b4 instance and a trustee is a hard error — no backward
+/// compatibility. One bump per format change.
+pub fn schema_version() -> String {
+    "1".to_string()
+}
+
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 use cryptography::utils::error::Error;

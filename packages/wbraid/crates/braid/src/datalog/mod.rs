@@ -16,7 +16,7 @@
 //!    vs_lift `Message` enum, and the input-mapping rules destructure the
 //!    named-field predicate structs (§7.2);
 //! 2. the untyped `type X = CryptographicHash` aliases become the distinct,
-//!    type-safe newtypes from `b4::messages::newtypes` (aliased in [`types`]
+//!    type-safe newtypes from `crate::messages::newtypes` (aliased in [`types`]
 //!    purely as local shorthand for the rule templates);
 //! 3. the `#[cfg(test)] mod stateright` model-checking harnesses are dropped —
 //!    only the inference rules are ported.
@@ -34,7 +34,7 @@ pub mod mix;
 ///
 /// The vs_lift rules were written against a family of `type … = CryptographicHash`
 /// aliases; porting them verbatim would lose type safety. Here each alias points
-/// at a *distinct* newtype from `b4::messages::newtypes`, so the rules keep their
+/// at a *distinct* newtype from `crate::messages::newtypes`, so the rules keep their
 /// original spelling while gaining compile-time type separation between, say, a
 /// configuration hash and a public-key hash.
 pub mod types {

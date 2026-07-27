@@ -167,7 +167,6 @@ wasm-core = [
     "dep:serde-wasm-bindgen",
     "dep:bincode",
     "dep:b4",
-    "b4/wasm-core",
 ]
 
 # Full browser build = wasm-core + the `wasm-bindgen-rayon` thread pool for

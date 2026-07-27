@@ -25,7 +25,7 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 use cryptography::context::Context;
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 
-use crate::messages::wire::{MessageType, ProtocolMessage};
+use crate::messages::wire::{schema_version, MessageType, ProtocolMessage};
 use b4::api_types::{
     ConfirmMessageRequest, ContentType, CreateBoardRequest, GetBlobsResponse,
     InitiateMessageRequest, InitiateMessageResponse,
@@ -78,7 +78,7 @@ impl WasmHttpTransport {
         let body: GetBlobsResponse = serde_wasm_bindgen::from_value(json)
             .map_err(|e| anyhow!("failed to parse messages response: {e}"))?;
 
-        let expected_version = b4::get_schema_version();
+        let expected_version = schema_version();
         let mut out = Vec::with_capacity(body.messages.len());
         for m in body.messages {
             if m.message.version != expected_version {
@@ -110,7 +110,7 @@ impl WasmHttpTransport {
     /// Post one message's bytes via the two-step flow (initiate → S3 PUT or
     /// inline → confirm).
     async fn post_bytes(&self, bytes: Vec<u8>) -> Result<()> {
-        let version = b4::get_schema_version();
+        let version = schema_version();
 
         let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, self.board);
         let init_body = serde_json::to_string(&InitiateMessageRequest { size: bytes.len() })?;

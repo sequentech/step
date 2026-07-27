@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [features]
 default = ["native"]
-wasm-core = ["dep:js-sys"]
+
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
 
 [dependencies]
@@ -43,5 +43,3 @@ chrono = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# WASM dependencies
-js-sys = { version = "0.3", optional = true }

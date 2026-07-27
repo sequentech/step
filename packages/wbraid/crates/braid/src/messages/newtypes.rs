@@ -124,6 +124,25 @@ pub type TrusteeIndex = usize;
 // Seconds elapsed since the std::time::UNIX_EPOCH
 pub type Timestamp = u64;
 
+/// The current wall-clock time as a [`Timestamp`] (seconds since Unix epoch).
+///
+/// Used to stamp the informational `date` field on outgoing protocol messages
+/// (§10.2). The timestamp plays no part in verification or the datalog.
+#[cfg(feature = "native")]
+pub fn timestamp() -> Timestamp {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock before Unix epoch")
+        .as_secs()
+}
+
+/// Wasm wall-clock via `js_sys::Date`.
+#[cfg(feature = "wasm-core")]
+pub fn timestamp() -> Timestamp {
+    (js_sys::Date::now() / 1000.0) as u64
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Debug
 ///////////////////////////////////////////////////////////////////////////
