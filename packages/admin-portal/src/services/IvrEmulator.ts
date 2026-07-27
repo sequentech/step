@@ -1,4 +1,4 @@
-import loadIvrWasm, {IvrEmulatorDriver} from "./generated/ivr_emulator_wasm"
+import loadIvrWasm, {WasmConfig, IvrEmulatorDriver} from "./generated/ivr_emulator_wasm"
 
 const api = {IvrEmulatorDriver}
 export type IvrEmulatorApi = typeof api
@@ -42,7 +42,11 @@ export const loadIvrEmulator = (wasmUrl: string): Promise<IvrEmulatorApi> | null
         initPromise ??= fetchWasm(wasmUrl)
             .then(async (moduleResp) => {
                 try {
-                    await loadIvrWasm({module_or_path: moduleResp})
+                    let ivrWasm = await loadIvrWasm({module_or_path: moduleResp})
+                    let config: WasmConfig = {
+                        logging: localStorage.getItem("sq.ivr-emulator.logging") ?? undefined,
+                    }
+                    ivrWasm.init(config)
                 } catch (cause) {
                     throw new IvrEmulatorError("load", "failed to load the wasm", {cause})
                 }
