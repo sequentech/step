@@ -567,6 +567,35 @@ const dutchTranslation: TranslationType = {
                     noFilterMatch: "Geen vermeldingen komen overeen met de opgegeven filters",
                     phoneRequired: "Telefoonnummer is verplicht",
                 },
+                emulator: {
+                    infoMsg:
+                        "Selecteer een gebied en de gewenste verkiezingen om de IVR-sessie te doorlopen.",
+                    apiStatus: {
+                        unavailable: "Het emulatorsysteem is niet beschikbaar in uw omgeving",
+                        loading: "Het emulatorsysteem wordt geladen",
+                        error: "Fout bij het laden van het emulatorsysteem",
+                    },
+                    hints: {
+                        title: "Tips",
+                        publishRequired:
+                            "Wijzigingen aan verkiezingen, verkiezingsonderdelen of kandidaten moeten eerst worden gepubliceerd voordat ze beschikbaar zijn. Alleen de meest recent gepubliceerde stembiljetstijlen voor het overeenkomstige gebied worden in de emulator gebruikt.",
+                        eventChangesImmediate:
+                            "Wijzigingen aan het verkiezingsevenement, zoals de IVR-configuratie of aangepaste prompts, zijn direct beschikbaar nadat de emulatorsessie opnieuw is gestart.",
+                        credentials: 'De geldige kiezer-ID en pincode zijn "123" en "123".',
+                    },
+                    sendDtmf: "DTMF-invoer verzenden",
+                    sendTimeout: "Time-out verzenden",
+                    disconnected: "Verbinding verbroken",
+                    startSession: "Nieuwe sessie starten",
+                    endSession: "Sessie beëindigen",
+                    noStylesFound:
+                        "Geen gepubliceerde stembiljetstijlen gevonden die overeenkomen met uw selecties",
+                    inputPlaceholder:
+                        "Voer uw invoer in (maximaal aantal cijfers={{maxDigits}}, geldige invoer={{validInputs}}, time-out={{timeout}} sec.)",
+                    blacklistCaller: "Beller blokkeren",
+                    elections: "Verkiezingen",
+                    area: "Gebied",
+                },
             },
             stats: {
                 elegibleVoters: "Stemgerechtigde Kiezers",

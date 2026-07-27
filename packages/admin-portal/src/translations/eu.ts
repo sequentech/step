@@ -569,6 +569,35 @@ const basqueTranslation: TranslationType = {
                     noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
                 },
+                emulator: {
+                    infoMsg:
+                        "Hautatu eremu bat eta nahi dituzun hauteskundeak IVR saioa probatzeko.",
+                    apiStatus: {
+                        unavailable: "Emuladore-sistema ez dago erabilgarri zure ingurunean",
+                        loading: "Emuladore-sistema kargatzen",
+                        error: "Errorea emuladore-sistema kargatzean",
+                    },
+                    hints: {
+                        title: "Aholkuak",
+                        publishRequired:
+                            "Hauteskundeetan, lehiaketetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
+                        eventChangesImmediate:
+                            "Hauteskunde-ekitaldian egindako aldaketak, hala nola IVR konfigurazioa edo mezuen gainidazketak, berehala egongo dira erabilgarri emuladorearen saioa berrabiaraztean.",
+                        credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
+                    },
+                    sendDtmf: "Bidali DTMF sarrera",
+                    sendTimeout: "Bidali denbora-muga",
+                    disconnected: "Deskonektatuta",
+                    startSession: "Hasi saio berria",
+                    endSession: "Amaitu saioa",
+                    noStylesFound:
+                        "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
+                    inputPlaceholder:
+                        "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    blacklistCaller: "Blokeatu deitzailea",
+                    elections: "Hauteskundeak",
+                    area: "Eremua",
+                },
             },
             stats: {
                 elegibleVoters: "Bozkatzaile Eskudunak",

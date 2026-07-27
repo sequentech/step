@@ -4,7 +4,7 @@
 import React, {useEffect, useMemo, useRef, useState} from "react"
 import {BooleanInput, useGetList, useRecordContext} from "react-admin"
 import {FormProvider, useForm} from "react-hook-form"
-import {Alert, Box, Button, Stack, TextField} from "@mui/material"
+import {Alert, AlertTitle, Box, Button, Stack, TextField} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     Sequent_Backend_Ballot_Style,
@@ -47,6 +47,7 @@ const ConfigFormBody: React.FC<{
     electionEvent: Sequent_Backend_Election_Event
     onStartSession: (config: EmulatorConfig) => void
 }> = ({electionEvent, onStartSession}) => {
+    const {t} = useTranslation()
     const aliasRenderer = useAliasRenderer()
     const {control, getValues} = useFormContext<ConfigFormValues>()
 
@@ -135,25 +136,36 @@ const ConfigFormBody: React.FC<{
     }
 
     return (
-        <Box gap={1}>
-            <Stack gap={0}>
+        <Box gap={1} sx={{"& .MuiFormHelperText-root": {display: "none"}}}>
+            <Stack>
                 <SelectArea
                     tenantId={electionEvent.tenant_id}
                     electionEventId={electionEvent.id}
                     source="areaId"
-                    label="Area"
+                    label={t("electionEventScreen.ivr.emulator.area")}
                 />
                 <FormStyles.AutocompleteArrayInput
-                    label="Elections"
+                    label={t("electionEventScreen.ivr.emulator.elections")}
                     choices={electionChoices}
                     source="electionIds"
                 />
-                <BooleanInput label="Blacklist caller" source="blacklistCaller" />
-                Resolved {selectedBallotStyles.size} ballot styles for the selected area and
-                elections
+                <BooleanInput
+                    label={t("electionEventScreen.ivr.emulator.blacklistCaller")}
+                    source="blacklistCaller"
+                />
+                {resolvedBallotStyles.size < 1 ? (
+                    <Alert severity="warning">
+                        {t("electionEventScreen.ivr.emulator.noStylesFound")}
+                    </Alert>
+                ) : null}
             </Stack>
-            <Button variant="contained" onClick={onSubmit} disabled={selectedBallotStyles.size < 1}>
-                Start new session
+            <Button
+                sx={{marginLeft: "auto"}}
+                variant="contained"
+                onClick={onSubmit}
+                disabled={resolvedBallotStyles.size < 1}
+            >
+                {t("electionEventScreen.ivr.emulator.startSession")}
             </Button>
         </Box>
     )
@@ -211,6 +223,7 @@ const EmulatorInterface: React.FC<{
     config: EmulatorConfig
     onStatusChange?: (status: Status) => void
 }> = ({api, config, onStatusChange}) => {
+    const {t} = useTranslation()
     const [prompts, setPrompts] = useState<[number, PromptInfo][]>([])
     const emulator = useRef<IvrEmulatorDriver | undefined>(undefined)
     const [expectedInput, setExpectedInput] = useState<ExpectedInput | undefined>()
@@ -324,7 +337,9 @@ const EmulatorInterface: React.FC<{
     return (
         <Box sx={{display: "flex-col", gap: 1}}>
             {error ? <Alert severity="error">{error}</Alert> : null}
-            {status === "Disconnected" ? <Alert severity="info">Disconnected</Alert> : null}
+            {status === "Disconnected" ? (
+                <Alert severity="info">t("electionEventScreen.ivr.emulator.disconnected")</Alert>
+            ) : null}
 
             <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
                 {prompts.map(([key, prompt]) => (
@@ -333,18 +348,29 @@ const EmulatorInterface: React.FC<{
             </Paper>
 
             <Box sx={{display: "flex", gap: 1}}>
-                <TextField
-                    value={input}
-                    onChange={(e) => setInput(e.target.value.replace(/[^0-9*#]/g, ""))}
-                    slotProps={{
-                        htmlInput: {pattern: "[0-9*#]*", maxLength: expectedInput?.max_digits},
+                <form
+                    style={{width: "100%"}}
+                    onSubmit={(e) => {
+                        e.preventDefault()
+                        canSendInput && sendInput()
                     }}
-                    onKeyDown={sendInput}
-                    disabled={!canSendInput}
-                    autoFocus
-                    sx={{fontFamily: "monospace"}}
-                    placeholder={`Enter your input (max digis=${expectedInput?.max_digits ?? ""}, valid inputs=${expectedInput?.valid_inputs ?? ""}, timeout=${expectedInput?.timeout ?? 0}s)`}
-                />
+                >
+                    <TextField
+                        value={input}
+                        onChange={(e) => setInput(e.target.value.replace(/[^0-9*#]/g, ""))}
+                        slotProps={{
+                            htmlInput: {pattern: "[0-9*#]*", maxLength: expectedInput?.max_digits},
+                        }}
+                        disabled={!expectedInput}
+                        autoFocus
+                        sx={{fontFamily: "monospace"}}
+                        placeholder={t("electionEventScreen.ivr.emulator.inputPlaceholder", {
+                            maxDigits: expectedInput?.max_digits ?? "",
+                            validInputs: expectedInput?.valid_inputs ?? "",
+                            timeout: expectedInput?.timeout ?? 0,
+                        })}
+                    />
+                </form>
                 <div
                     style={{
                         display: "flex",
@@ -353,10 +379,19 @@ const EmulatorInterface: React.FC<{
                         padding: `${theme.spacing(2)} 0px ${theme.spacing(2)} 0px`,
                     }}
                 >
-                    <Button onClick={sendTimeout} disabled={status !== "ExpectingInput"}>
+                    <Button
+                        title={t("electionEventScreen.ivr.emulator.sendTimeout")}
+                        onClick={sendTimeout}
+                        disabled={status !== "ExpectingInput"}
+                    >
                         <TimerIcon />
                     </Button>
-                    <Button variant="outlined" onClick={sendInput} disabled={!canSendInput}>
+                    <Button
+                        title={t("electionEventScreen.ivr.emulator.sendDtmf")}
+                        variant="outlined"
+                        onClick={sendInput}
+                        disabled={!canSendInput}
+                    >
                         <DialpadIcon />
                     </Button>
                 </div>
@@ -377,15 +412,23 @@ export const IvrEmulator: React.FC = () => {
             case IvrApiStatus.UNAVAILABLE:
                 return (
                     <Alert severity="warning">
-                        The emulator system is not available in your environment
+                        {t("electionEventScreen.ivr.emulator.apiStatus.unavailable")}
                     </Alert>
                 )
             case IvrApiStatus.LOADING:
-                return <Alert severity="info">Loading the emulator system...</Alert>
+                return (
+                    <Alert severity="info">
+                        {t("electionEventScreen.ivr.emulator.apiStatus.loading")}
+                    </Alert>
+                )
             case IvrApiStatus.ERROR:
-                return <Alert severity="error">Error loading the emulator</Alert>
+                return (
+                    <Alert severity="error">
+                        {t("electionEventScreen.ivr.emulator.apiStatus.error")}
+                    </Alert>
+                )
             case IvrApiStatus.READY:
-                return <Alert severity="success">The emulator system is loaded and ready</Alert>
+                return null
         }
     }, [apiStatus])
 
@@ -401,26 +444,52 @@ export const IvrEmulator: React.FC = () => {
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
             <ElectionHeaderStyles.SubTitle>
-                Select an area and desired elections to experience the IVR session.
+                {t("electionEventScreen.ivr.emulator.infoMsg")}
             </ElectionHeaderStyles.SubTitle>
 
             <div>
                 {statusAlert}
-                {record && !emulatorStatus ? (
-                    <ConfigForm electionEvent={record} onStartSession={onStartSession} />
-                ) : null}
-                {api && config ? (
-                    <div>
-                        <EmulatorInterface
-                            api={api}
-                            config={config}
-                            onStatusChange={setEmulatorStatus}
-                        />
+                {api ? (
+                    <>
+                        <Alert severity="info">
+                            <AlertTitle>
+                                {t("electionEventScreen.ivr.emulator.hints.title")}
+                            </AlertTitle>
+                            <Box component="ul">
+                                <li>
+                                    {t("electionEventScreen.ivr.emulator.hints.publishRequired")}
+                                </li>
+                                <li>
+                                    {t(
+                                        "electionEventScreen.ivr.emulator.hints.eventChangesImmediate"
+                                    )}
+                                </li>
+                                <li>{t("electionEventScreen.ivr.emulator.hints.credentials")}</li>
+                            </Box>
+                        </Alert>
+                        {record && !emulatorStatus ? (
+                            <ConfigForm electionEvent={record} onStartSession={onStartSession} />
+                        ) : null}
+                        {api && config && emulatorStatus && record ? (
+                            <div>
+                                <EmulatorInterface
+                                    api={api}
+                                    config={config}
+                                    onStatusChange={(status) =>
+                                        emulatorStatus && setEmulatorStatus(status)
+                                    }
+                                />
 
-                        <Button variant="contained" onClick={() => setEmulatorStatus(undefined)}>
-                            Close
-                        </Button>
-                    </div>
+                                <Button
+                                    sx={{marginLeft: "auto"}}
+                                    variant="contained"
+                                    onClick={() => setEmulatorStatus(undefined)}
+                                >
+                                    {t("electionEventScreen.ivr.emulator.endSession")}
+                                </Button>
+                            </div>
+                        ) : null}
+                    </>
                 ) : null}
             </div>
         </Box>
