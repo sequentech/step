@@ -378,9 +378,9 @@ impl ElectoralLog {
                 area_id,
             )?
         };
-        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
-            "Error converting cast-vote Message into ElectoralLogMessage"
-        })?;
+        let board_message: ElectoralLogMessage = (&message)
+            .try_into()
+            .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
