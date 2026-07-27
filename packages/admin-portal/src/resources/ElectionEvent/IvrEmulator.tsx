@@ -188,7 +188,7 @@ const ConfigForm: React.FC<{
     )
 }
 
-const PromptLine: React.FC<{key: number; prompt: PromptInfo}> = ({key, prompt}) => {
+const PromptLine: React.FC<{id: number; prompt: PromptInfo}> = ({id, prompt}) => {
     const promptBody = useMemo(() => {
         // Strip off the root ssml tag.
         return prompt.prompt_text.replace(/^<speak>/, "").replace(/<\/speak>$/, "")
@@ -202,7 +202,7 @@ const PromptLine: React.FC<{key: number; prompt: PromptInfo}> = ({key, prompt}) 
 
     return (
         <Box
-            key={key}
+            key={id}
             sx={{display: "grid", gridTemplateColumns: "3ch minmax(0, 1fr)", columnGap: 1}}
         >
             <Box
@@ -234,8 +234,8 @@ const EmulatorInterface: React.FC<{
     const nextLogId = useRef(0)
 
     const addPrompt = (prompt: PromptInfo) => {
-        let key = nextLogId.current++
-        setPrompts((current) => [...current, [key, prompt]])
+        let id = nextLogId.current++
+        setPrompts((current) => [...current, [id, prompt]])
     }
 
     const canSendInput = useMemo<boolean>(
@@ -339,8 +339,8 @@ const EmulatorInterface: React.FC<{
             {error ? <Alert severity="error">{error}</Alert> : null}
 
             <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
-                {prompts.map(([key, prompt]) => (
-                    <PromptLine key={key} prompt={prompt} />
+                {prompts.map(([id, prompt]) => (
+                    <PromptLine id={id} prompt={prompt} />
                 ))}
             </Paper>
 
