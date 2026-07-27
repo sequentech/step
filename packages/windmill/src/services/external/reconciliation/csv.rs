@@ -12,6 +12,8 @@
 use crate::services::external::datafix_types::ParsedDatafixReconciliationRow;
 use crate::services::external::types::ReconciliationFileMeta;
 use ::csv::ReaderBuilder;
+use std::io::{BufRead, BufReader, Read};
+use std::path::Path;
 use tracing::instrument;
 
 /// A row that failed to parse, kept by (1-indexed, header-exclusive) line
@@ -90,6 +92,70 @@ pub fn parse_reconciliation_rows(
         }
     }
     (rows, errors)
+}
+
+/// Incrementally reads reconciliation rows in fixed-size batches, the
+/// streaming counterpart to `parse_reconciliation_rows` — so a 100k+-row
+/// file's rows are never all resident in memory at once, only whichever
+/// batch is currently being processed. Stops at the first malformed row
+/// rather than collecting every error across the whole file: nothing this
+/// pipeline does is applied to voter data until a later, separate step, so
+/// discovering a bad row late just wastes the processing done so far, it
+/// doesn't risk anything being half-applied.
+pub struct ReconciliationRowBatches<R: Read> {
+    reader: ::csv::Reader<R>,
+    next_line: usize,
+}
+
+impl<R: Read> ReconciliationRowBatches<R> {
+    /// `body` must already be positioned past the `#META` line, at the CSV
+    /// header.
+    pub fn new(body: R) -> Self {
+        Self {
+            reader: ReaderBuilder::new().has_headers(true).from_reader(body),
+            next_line: 1,
+        }
+    }
+
+    /// Reads up to `batch_size` rows. An empty result (with no error) means
+    /// the file is exhausted.
+    pub fn next_batch(
+        &mut self,
+        batch_size: usize,
+    ) -> std::result::Result<Vec<ParsedDatafixReconciliationRow>, RowParseError> {
+        let mut rows = Vec::with_capacity(batch_size);
+        let mut records = self.reader.deserialize::<ParsedDatafixReconciliationRow>();
+        for _ in 0..batch_size {
+            match records.next() {
+                Some(Ok(row)) => {
+                    rows.push(row);
+                    self.next_line += 1;
+                }
+                Some(Err(err)) => {
+                    return Err(RowParseError {
+                        line: self.next_line,
+                        message: err.to_string(),
+                    });
+                }
+                None => break,
+            }
+        }
+        Ok(rows)
+    }
+}
+
+impl ReconciliationRowBatches<BufReader<std::fs::File>> {
+    /// Opens `path` and skips exactly one line — the `#META` line, already
+    /// parsed and validated separately by the caller (via `parse_meta_line`
+    /// against the same file's bytes) before this is ever called — to
+    /// position the reader at the CSV header.
+    pub fn open(path: &Path) -> std::io::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        let mut reader = BufReader::new(file);
+        let mut discarded_meta_line = String::new();
+        reader.read_line(&mut discarded_meta_line)?;
+        Ok(Self::new(reader))
+    }
 }
 
 #[cfg(test)]

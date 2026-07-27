@@ -19,6 +19,7 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
+use crate::services::external::reconciliation::bulk_create::apply_voters_added_bulk;
 use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationDiff};
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
 use crate::services::external::utils::bump_datafix_last_applied_sequence;
@@ -227,10 +228,17 @@ async fn run_apply_reconciliation_patch(
         .map_err(|err| format!("Error starting Keycloak transaction: {err}"))?;
 
     let mut row_failures: Vec<(String, String)> = Vec::new();
-    let mut applied_items: Vec<DiffItem> = Vec::new();
     let mut applied_voters_count: usize = 0;
 
-    for (voter_username, indices) in &indices_by_voter {
+    // VOTER_ADDED voters — the dominant category by volume whenever the
+    // realm is badly out of sync with the file — are bulk-created via
+    // direct writes to Keycloak's own tables instead of one Admin API call
+    // each (see bulk_create's module doc for why this is necessary at
+    // scale). Every other category still goes through the sequential
+    // per-voter Admin API path below, unchanged.
+    let mut voters_added: HashMap<String, Vec<DiffItem>> = HashMap::new();
+    let mut other_voters: HashMap<String, Vec<usize>> = HashMap::new();
+    for (voter_username, indices) in indices_by_voter {
         let voter_items: Vec<DiffItem> = indices
             .iter()
             .map(|&index| sequent_items[index].clone())
@@ -241,6 +249,40 @@ async fn run_apply_reconciliation_patch(
         {
             continue; // never applied - excluded at generate time already, defensive only
         }
+        if voter_items
+            .first()
+            .is_some_and(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED)
+        {
+            voters_added.insert(voter_username, voter_items);
+        } else {
+            other_voters.insert(voter_username, indices);
+        }
+    }
+
+    if !voters_added.is_empty() {
+        let voter_group_name = std::env::var("KEYCLOAK_VOTER_GROUP_NAME")
+            .map_err(|err| format!("Error getting env var KEYCLOAK_VOTER_GROUP_NAME: {err:?}"))?;
+        let voters_added_count = voters_added.len();
+        let (bulk_applied, bulk_failures) = apply_voters_added_bulk(
+            &hasura_transaction,
+            &keycloak_transaction,
+            &body.tenant_id,
+            &body.election_event_id,
+            &realm,
+            &voter_group_name,
+            &voters_added,
+        )
+        .await
+        .map_err(|err| format!("Error bulk-creating added voters: {err:?}"))?;
+        applied_voters_count += voters_added_count - bulk_failures.len();
+        row_failures.extend(bulk_failures);
+    }
+
+    for (voter_username, indices) in &other_voters {
+        let voter_items: Vec<DiffItem> = indices
+            .iter()
+            .map(|&index| sequent_items[index].clone())
+            .collect();
 
         let outcome = apply_voter_changes(
             &hasura_transaction,
@@ -256,7 +298,6 @@ async fn run_apply_reconciliation_patch(
         match outcome {
             Ok(VoterApplyOutcome::Applied) => {
                 applied_voters_count += 1;
-                applied_items.extend(voter_items)
             }
             Ok(VoterApplyOutcome::Failed { reason }) => {
                 row_failures.push((voter_username.clone(), reason))
@@ -265,10 +306,8 @@ async fn run_apply_reconciliation_patch(
         }
     }
 
-    // Electoral log: one "changes applied" run-level entry, carrying every
-    // applied voter's old/new values as the artifact - not one entry per
-    // voter, since the spec asks for "a log" per run.
-    if !applied_items.is_empty() {
+    // Electoral log: one "changes applied" run-level entry.
+    if applied_voters_count > 0 {
         let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
         let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
         if let Ok(electoral_log) = ElectoralLog::new(
@@ -279,7 +318,6 @@ async fn run_apply_reconciliation_patch(
         )
         .await
         {
-            let artifact = serde_json::to_vec(&applied_items).ok();
             electoral_log
                 .post_external_reconciliation(
                     body.election_event_id.clone(),
@@ -288,7 +326,7 @@ async fn run_apply_reconciliation_patch(
                     envelope.generated_at,
                     envelope.source_sha256.clone(),
                     None,
-                    artifact,
+                    None,
                     None,
                     None,
                 )
@@ -307,6 +345,11 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error bumping datafix_last_applied_sequence: {err:?}"))?;
     }
+
+    keycloak_transaction
+        .commit()
+        .await
+        .map_err(|err| format!("Error committing Keycloak transaction: {err}"))?;
 
     hasura_transaction
         .commit()

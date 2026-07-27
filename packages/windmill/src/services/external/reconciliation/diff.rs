@@ -69,49 +69,45 @@ pub struct ReconciliationDiff {
     pub items: Vec<DiffItem>,
 }
 
-/// Runs the full two-pass diff described above against one page of the
-/// snapshot stream (see `users::fetch_realm_voter_snapshots_page`).
-/// `file_rows_by_username` should hold every parsed file row, indexed by
-/// `VoterID`, so each page can be compared in a single lookup pass;
-/// `seen_usernames` is threaded through across pages so the caller can run
-/// the reverse pass (D, a voter Sequent has that the file doesn't) once the
-/// last page comes back empty. `source` carries whatever config the file's
-/// own origin needs for classification (for Datafix, its `CountyMun`, from
-/// the event's own `VoterviewRequest::county_mun`).
-#[instrument(skip_all, fields(page_size = snapshots_page.len()))]
-pub fn diff_snapshot_page(
-    snapshots_page: &[VoterSnapshot],
-    file_rows_by_username: &HashMap<String, ParsedDatafixReconciliationRow>,
+/// Runs the forward pass for one batch of file rows (see
+/// `services::external::reconciliation::csv::ReconciliationRowBatches`):
+/// classifies each row against its Sequent snapshot, if this batch's
+/// `fetch_realm_voter_snapshots_by_usernames` call found one —
+/// `snapshots_by_username` holds only this batch's matches, not the whole
+/// realm, so a missing entry means this file row's voter doesn't exist in
+/// Sequent at all (D, forward direction, handled inside `classify_file_row`
+/// same as before). `source` carries whatever config the file's own origin
+/// needs for classification (for Datafix, its `CountyMun`, from the event's
+/// own `VoterviewRequest::county_mun`).
+#[instrument(skip_all, fields(batch_size = file_rows.len()))]
+pub fn diff_file_row_batch(
+    file_rows: &[ParsedDatafixReconciliationRow],
+    snapshots_by_username: &HashMap<String, VoterSnapshot>,
     source: &ReconciliationPatchSource,
-    seen_usernames: &mut HashSet<String>,
 ) -> Vec<DiffItem> {
-    let mut items = Vec::new();
-    for snapshot in snapshots_page {
-        let Some(row) = file_rows_by_username.get(&snapshot.username) else {
-            // Voter not in the file at all — handled by the reverse pass once
-            // the whole snapshot stream (not just this page) has been walked,
-            // since "not seen anywhere in the file" can only be known then.
-            continue;
-        };
-        seen_usernames.insert(snapshot.username.clone());
-        items.extend(classify_file_row(row, Some(snapshot), source));
-    }
-    items
+    file_rows
+        .iter()
+        .flat_map(|row| classify_file_row(row, snapshots_by_username.get(&row.voter_id), source))
+        .collect()
 }
 
-/// D, reverse direction, run once after the full snapshot stream is
-/// exhausted: every file row whose `VoterID` was never matched to a snapshot
-/// (source D, forward direction — the file has a voter Sequent doesn't).
-#[instrument(skip_all)]
-pub fn diff_unmatched_file_rows(
-    file_rows_by_username: &HashMap<String, ParsedDatafixReconciliationRow>,
-    seen_usernames: &HashSet<String>,
-    source: &ReconciliationPatchSource,
+/// D, reverse direction, run against one page of Sequent's own voter walk
+/// (`users::fetch_realm_voter_snapshots_page`) after every batch of the file
+/// has been scanned, so `all_file_usernames` (every `VoterID` seen across
+/// every batch) is complete: an enabled voter whose username was never seen
+/// in the file at all is reported into the Datafix patch via
+/// `voter_missing_from_file`. Disabled voters need no report here — if
+/// Sequent already considers them gone, there's nothing for Datafix to
+/// catch up on regardless of whether the file mentions them.
+#[instrument(skip_all, fields(page_size = snapshots_page.len()))]
+pub fn diff_unmatched_sequent_voters(
+    snapshots_page: &[VoterSnapshot],
+    all_file_usernames: &HashSet<String>,
 ) -> Vec<DiffItem> {
-    file_rows_by_username
+    snapshots_page
         .iter()
-        .filter(|(username, _)| !seen_usernames.contains(*username))
-        .flat_map(|(_, row)| classify_file_row(row, None, source))
+        .filter(|snapshot| snapshot.enabled && !all_file_usernames.contains(&snapshot.username))
+        .flat_map(|snapshot| voter_missing_from_file(&snapshot.username, snapshot))
         .collect()
 }
 

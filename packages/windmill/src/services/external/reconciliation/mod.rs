@@ -14,6 +14,7 @@
 //! re-implemented rather than reused — see `apply`'s module doc.
 
 pub mod apply;
+pub mod bulk_create;
 pub mod csv;
 pub mod diff;
 pub mod patch;

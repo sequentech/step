@@ -125,6 +125,53 @@ pub async fn fetch_realm_voter_snapshots_page(
         .collect())
 }
 
+/// Batch-fetches the snapshots for exactly the usernames named in
+/// `usernames` (typically one reconciliation-file batch's worth of
+/// `VoterID`s), in a single round trip via `= ANY($2)` — the file-driven
+/// counterpart to `fetch_realm_voter_snapshots_page`'s Sequent-driven
+/// pagination, so reconciliation never needs the whole file's rows resident
+/// in memory to look voters up. A username with no matching row simply
+/// isn't present in the result; the caller treats that as "this file row's
+/// voter doesn't exist in Sequent" (D, forward direction).
+#[instrument(skip(keycloak_transaction, areas_by_id, usernames), err)]
+pub async fn fetch_realm_voter_snapshots_by_usernames(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    usernames: &[String],
+    areas_by_id: &HashMap<String, String>,
+) -> Result<Vec<VoterSnapshot>> {
+    if usernames.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+                SELECT
+                    u.id AS voter_id_string,
+                    u.username,
+                    u.enabled,
+                    json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
+                FROM user_entity u
+                INNER JOIN realm AS ra ON ra.id = u.realm_id
+                LEFT JOIN user_attribute ua ON ua.user_id = u.id
+                WHERE ra.name = $1
+                    AND u.username = ANY($2)
+                GROUP BY u.id, u.username, u.enabled
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &[&realm, &usernames])
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| voter_snapshot_row_to_snapshot(row, areas_by_id))
+        .collect())
+}
+
 #[instrument(skip(row, areas_by_id))]
 fn voter_snapshot_row_to_snapshot(
     row: Row,
