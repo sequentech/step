@@ -663,9 +663,9 @@ mod tests {
     #[test]
     fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
         let signing_data = SigningData::new(
-            StrandSignatureSk::generate()?,
+            StrandSignatureSk::r#gen()?,
             "admin",
-            StrandSignatureSk::generate()?,
+            StrandSignatureSk::r#gen()?,
         );
         let details = ResultsPublicationDetails {
             publication_id: ResultsPublicationIdString("publication-id".to_string()),
@@ -700,9 +700,9 @@ mod tests {
     #[test]
     fn only_channel_aware_cast_votes_use_schema_version_two() -> Result<()> {
         let signing_data = SigningData::new(
-            StrandSignatureSk::generate()?,
+            StrandSignatureSk::r#gen()?,
             "windmill",
-            StrandSignatureSk::generate()?,
+            StrandSignatureSk::r#gen()?,
         );
         let legacy = Message::cast_vote_message(
             EventIdString("event-id".to_string()),
