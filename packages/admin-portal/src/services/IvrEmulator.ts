@@ -18,6 +18,9 @@ export class IvrEmulatorError extends Error {
         options?: ErrorOptions
     ) {
         super(`Ivr emulator "${operation}" failed: ${msg}`, options)
+
+        this.name = new.target.name
+        Object.setPrototypeOf(this, new.target.prototype)
     }
 }
 
@@ -60,7 +63,7 @@ const fetchShim = async (url: URL): Promise<IvrWasmModule> => {
             url.href
         )) as IvrWasmModule
     } catch (cause) {
-        throw new IvrEmulatorError("load", `import of js shim failed from ${url}`, {cause})
+        throw new IvrEmulatorError("fetch", `import of js shim failed from ${url}`, {cause})
     }
 }
 
