@@ -7,12 +7,7 @@ export interface PersistedVotersByChannel {
     count: number
 }
 
-const castVoteChannels = [
-    "ONLINE",
-    "KIOSK",
-    "EARLY_VOTING",
-    "TELEPHONE",
-] as const
+const castVoteChannels = ["ONLINE", "KIOSK", "EARLY_VOTING", "TELEPHONE"] as const
 
 export type CastVoteChannel = (typeof castVoteChannels)[number]
 export const OTHER_VOTING_CHANNEL = "OTHER" as const
