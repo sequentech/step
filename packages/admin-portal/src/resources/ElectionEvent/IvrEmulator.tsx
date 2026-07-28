@@ -319,7 +319,8 @@ const EmulatorInterface: React.FC<{
             const action = await emulator.execute(true)
 
             // If disposal was requested while we were executing the wasm,
-            //  like the component being unmounted, free the resources and stop working.
+            //  such as the component being unmounted, stop working
+            //  and allow releasing the emulator with its normal flow (the finally block).
             if (toDispose.current.has(emulator)) {
                 return
             }
