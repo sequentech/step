@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
 use super::sql_utils::escape_sql_literal;
+use crate::postgres::cast_vote::{
+    count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
+};
 use crate::services::datafix::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
@@ -284,25 +287,6 @@ pub struct VotersByChannel {
     pub count: i64,
 }
 
-#[derive(Clone, Copy)]
-enum CastVoteRelation {
-    Production,
-    #[cfg(test)]
-    StatisticsTest,
-}
-
-impl CastVoteRelation {
-    /// PostgreSQL identifiers cannot be query parameters, so the relation name
-    /// is selected from this closed set before being interpolated into SQL.
-    fn sql_identifier(self) -> &'static str {
-        match self {
-            Self::Production => "sequent_backend.cast_vote",
-            #[cfg(test)]
-            Self::StatisticsTest => "pg_temp.cast_vote_stats_test",
-        }
-    }
-}
-
 impl TryFrom<Row> for VotersByChannel {
     type Error = anyhow::Error;
 
@@ -333,45 +317,6 @@ pub async fn get_count_distinct_voters_by_channel(
     .await
 }
 
-fn count_distinct_voters_by_channel_sql(
-    cast_vote_relation: CastVoteRelation,
-    filter_by_election: bool,
-) -> String {
-    let election_filter = if filter_by_election {
-        "AND election_id = $4"
-    } else {
-        ""
-    };
-
-    let cast_vote_relation = cast_vote_relation.sql_identifier();
-    format!(
-        r#"
-            WITH latest_valid_votes AS (
-                SELECT DISTINCT ON (voter_id_string)
-                    voter_id_string,
-                    COALESCE(annotations->>'voting_channel', 'ONLINE') AS channel
-                FROM {cast_vote_relation}
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2 AND
-                    status = $3 AND
-                    voter_id_string IS NOT NULL
-                    {election_filter}
-                ORDER BY
-                    voter_id_string,
-                    created_at DESC NULLS LAST,
-                    id DESC
-            )
-            SELECT
-                channel,
-                COUNT(*) AS count
-            FROM latest_valid_votes
-            GROUP BY channel
-            ORDER BY channel;
-            "#
-    )
-}
-
 async fn get_count_distinct_voters_by_channel_from_relation(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -381,7 +326,8 @@ async fn get_count_distinct_voters_by_channel_from_relation(
 ) -> Result<Vec<VotersByChannel>> {
     let election_id = election_id.map(parse_uuid_v4).transpose()?;
     let status = CastVoteStatus::Valid.to_string();
-    let sql = count_distinct_voters_by_channel_sql(cast_vote_relation, election_id.is_some());
+    let sql =
+        count_distinct_voters_by_channel_query(cast_vote_relation, election_id.is_some());
     let statement = transaction.prepare(&sql).await?;
 
     let tenant_id = parse_uuid_v4(tenant_id)?;
@@ -497,44 +443,7 @@ async fn get_count_votes_per_day_from_relation(
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
-    let cast_vote_relation = cast_vote_relation.sql_identifier();
-    let sql = format!(
-        r#"
-            WITH date_series AS (
-                SELECT
-                    (t.day)::date AS day
-                FROM 
-                    generate_series(
-                        $3::date,
-                        $4::date,
-                        interval '1 day'
-                    ) AS t(day)
-            )
-            SELECT
-                ds.day,
-                COALESCE(v.annotations->>'voting_channel', 'ONLINE') AS channel,
-                COUNT(v.id) AS day_count
-            FROM
-                date_series ds
-            LEFT JOIN {cast_vote_relation} v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
-                AND v.tenant_id = $1
-                AND v.election_event_id = $2
-                AND (v.election_id = $6 OR $6 IS NULL)
-                AND v.status = $7
-            WHERE
-                (
-                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
-                    DATE(v.created_at AT TIME ZONE $5) <= $4
-                )
-                OR v.created_at IS NULL
-            GROUP BY
-                ds.day,
-                COALESCE(v.annotations->>'voting_channel', 'ONLINE')
-            ORDER BY
-                ds.day,
-                channel;
-            "#
-    );
+    let sql = count_votes_per_day_query(cast_vote_relation);
     let total_areas_statement = transaction.prepare(&sql).await?;
 
     let rows: Vec<Row> = transaction
