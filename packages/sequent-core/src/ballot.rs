@@ -2577,6 +2577,44 @@ impl ElectionStatus {
     }
 }
 
+/// Selects how multi-contest ballots (`ContestEncryptionPolicy::MULTIPLE_CONTESTS`)
+/// lay out each contest's choice slots in the mixed-radix encoding.
+///
+/// This is resolved once per election when its ballot styles are generated,
+/// and persisted on `BallotStyle` so that encoding and decoding always agree,
+/// independently of the contest presentation's `over_vote_policy` at the
+/// time either happens.
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum MultiContestEncodingMode {
+    /// One choice slot per `contest.max_votes`. Cannot represent a
+    /// selection with more choices than `max_votes`.
+    #[strum(serialize = "legacy")]
+    #[serde(rename = "legacy")]
+    #[default]
+    LEGACY,
+    /// One choice slot per ordinary (non-marker) candidate, so contests
+    /// whose over-vote policy allows exceeding `max_votes` can still be
+    /// encoded. `max_votes` is still used for overvote validation.
+    #[strum(serialize = "expanded-capacity")]
+    #[serde(rename = "expanded-capacity")]
+    EXPANDED_CAPACITY,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -2604,6 +2642,9 @@ pub struct BallotStyle {
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
     pub area_annotations: Option<AreaAnnotations>,
+    /// Absent on ballot styles generated before this field existed, which
+    /// must be treated as `MultiContestEncodingMode::LEGACY`.
+    pub multi_contest_encoding_mode: Option<MultiContestEncodingMode>,
 }
 
 #[derive(

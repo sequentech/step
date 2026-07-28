@@ -6,7 +6,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
-use sequent_core::ballot::Contest;
+use sequent_core::ballot::{Contest, MultiContestEncodingMode};
 use sequent_core::ballot_codec::multi_ballot::{
     BallotChoices, DecodedBallotChoices, MultiBallotCodecContext,
 };
@@ -73,9 +73,15 @@ impl DecodeMCBallots {
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
-                    let context =
-                        MultiBallotCodecContext::new(contests, include_decline_to_vote)
-                            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                    // TODO(meta-12619): thread the ballot style's persisted
+                    // MultiContestEncodingMode through instead of always
+                    // decoding as LEGACY.
+                    let context = MultiBallotCodecContext::new(
+                        contests,
+                        include_decline_to_vote,
+                        MultiContestEncodingMode::LEGACY,
+                    )
+                    .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
                     codec_context.get_or_insert(context)
                 }
             };

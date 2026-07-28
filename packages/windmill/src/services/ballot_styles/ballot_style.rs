@@ -129,6 +129,11 @@ pub async fn create_ballot_style_postgres(
         area_contests_map,
     )?;
 
+    // Passed to create_ballot_style so it can resolve the election-wide
+    // MultiContestEncodingMode from every contest in the election, not just
+    // the subset of contests this particular area shows.
+    let all_election_event_contests: Vec<Contest> = contests_map.values().cloned().collect();
+
     for (election_id, contest_ids) in election_contest_map.into_iter() {
         let election = elections_map
             .get(&election_id)
@@ -176,6 +181,7 @@ pub async fn create_ballot_style_postgres(
             election_event.clone(),
             election.clone(),
             contests.clone(),
+            &all_election_event_contests,
             candidates.clone(),
             election_dates.clone(),
             public_key.clone(),

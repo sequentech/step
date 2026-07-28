@@ -5,7 +5,7 @@
 use crate::ballot::{
     self, AreaAnnotations, AreaPresentation, CandidatePresentation,
     ContestPresentation, ElectionEventPresentation, ElectionPresentation,
-    I18nContent, StringifiedPeriodDates, TieBreakingPolicy,
+    EOverVotePolicy, I18nContent, StringifiedPeriodDates, TieBreakingPolicy,
     WeightedVotingPolicy,
 };
 
@@ -42,9 +42,14 @@ pub fn create_ballot_style(
     election_event: hasura_types::ElectionEvent, // Election Event
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
-    candidates: Vec<hasura_types::Candidate>,    // Candidate
-    election_dates: StringifiedPeriodDates,      // Election Dates
-    public_key: Option<String>,                  // public key
+    // Every contest belonging to this election, regardless of which area's
+    // ballot style is being built. Used only to resolve the election-wide
+    // MultiContestEncodingMode, so that mode never depends on which subset
+    // of contests a given area happens to show.
+    all_election_contests: &[hasura_types::Contest],
+    candidates: Vec<hasura_types::Candidate>, // Candidate
+    election_dates: StringifiedPeriodDates,   // Election Dates
+    public_key: Option<String>,               // public key
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
         .clone()
@@ -111,6 +116,12 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
+    let multi_contest_encoding_mode = resolve_multi_contest_encoding_mode(
+        all_election_contests
+            .iter()
+            .filter(|contest| contest.election_id == election.id),
+    )?;
+
     let area_annotations = area.clone().read_annotations()?;
     let area_presentation: AreaPresentation = area
         .presentation
@@ -150,7 +161,36 @@ pub fn create_ballot_style(
         election_event_annotations: Some(election_event_annotations),
         election_annotations: Some(election_annotations),
         area_annotations,
+        multi_contest_encoding_mode: Some(multi_contest_encoding_mode),
     })
+}
+
+/// Resolves the election-wide `MultiContestEncodingMode`: if any contest in
+/// the election has an `over_vote_policy` that allows exceeding `max_votes`
+/// (`allowed`, `allowed-with-msg`, or `allowed-with-msg-and-alert`), every
+/// contest in every area's ballot style for this election is encoded with
+/// `EXPANDED_CAPACITY`, so the same contest is never encoded two different
+/// ways depending on which area's ballot style is generated first.
+fn resolve_multi_contest_encoding_mode<'a>(
+    election_contests: impl IntoIterator<Item = &'a hasura_types::Contest>,
+) -> Result<ballot::MultiContestEncodingMode> {
+    for contest in election_contests {
+        let contest_presentation = contest
+            .presentation
+            .clone()
+            .map(|presentation_value| deserialize_value(presentation_value))
+            .unwrap_or(Ok(ContestPresentation::new()))?;
+
+        if matches!(
+            contest_presentation.over_vote_policy.unwrap_or_default(),
+            EOverVotePolicy::ALLOWED
+                | EOverVotePolicy::ALLOWED_WITH_MSG
+                | EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT
+        ) {
+            return Ok(ballot::MultiContestEncodingMode::EXPANDED_CAPACITY);
+        }
+    }
+    Ok(ballot::MultiContestEncodingMode::LEGACY)
 }
 
 fn create_contest(

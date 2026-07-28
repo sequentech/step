@@ -8,7 +8,7 @@ use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{
     AreaPresentation, BallotStyle, Candidate, Contest, DeclineToVotePolicy,
-    EUnderVotePolicy,
+    EUnderVotePolicy, MultiContestEncodingMode,
 };
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
@@ -69,9 +69,16 @@ pub struct MultiBallotCodecContext<'a> {
 impl<'a> MultiBallotCodecContext<'a> {
     /// Validates the contest configurations and precomputes the constants
     /// used to encode and decode multi-contest ballots.
+    ///
+    /// `mode` is the ballot style's persisted `MultiContestEncodingMode`,
+    /// applied uniformly to every contest: it must be resolved once per
+    /// election (see `BallotStyle::multi_contest_encoding_mode`), not
+    /// derived from each contest's own `over_vote_policy`, so that encoding
+    /// and decoding always agree regardless of when either happens.
     pub fn new(
         contests: &'a [Contest],
         include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
     ) -> Result<Self, String> {
         // The order of the contests is computed sorting by id.
         // The selections must be encoded to and decoded from a ballot
@@ -88,7 +95,7 @@ impl<'a> MultiBallotCodecContext<'a> {
 
         let mut contest_contexts = Vec::with_capacity(sorted_contests.len());
         for contest in sorted_contests {
-            let context = ContestCodecContext::new(contest)?;
+            let mut context = ContestCodecContext::new(contest)?;
 
             // Compact encoding only supports plurality
             if contest.get_counting_algorithm()
@@ -109,8 +116,11 @@ impl<'a> MultiBallotCodecContext<'a> {
                 bases.push(2);
             }
 
-            let max_selections = contest.max_votes;
-            for _ in 1..=max_selections {
+            if mode == MultiContestEncodingMode::EXPANDED_CAPACITY {
+                context.vote_slot_count =
+                    context.sorted_normal_candidates.len();
+            }
+            for _ in 0..context.vote_slot_count {
                 // + 1: include the unset value.
                 bases.push(num_valid_candidates + 1);
             }
@@ -369,8 +379,11 @@ impl BallotChoices {
             );
         }
 
-        let context =
-            MultiBallotCodecContext::new(&contests, include_decline_to_vote)?;
+        let context = MultiBallotCodecContext::new(
+            &contests,
+            include_decline_to_vote,
+            config.multi_contest_encoding_mode.unwrap_or_default(),
+        )?;
         let bases = context.bases.clone();
         let mut choices: Vec<u64> = vec![];
 
@@ -565,6 +578,7 @@ impl BallotChoices {
             &bigint,
             &style.contests,
             style.decline_to_vote_enabled(),
+            style.multi_contest_encoding_mode.unwrap_or_default(),
             None,
         )
     }
@@ -576,10 +590,14 @@ impl BallotChoices {
         bigint: &BigUint,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
-        let context =
-            MultiBallotCodecContext::new(contests, include_decline_to_vote)?;
+        let context = MultiBallotCodecContext::new(
+            contests,
+            include_decline_to_vote,
+            mode,
+        )?;
 
         Self::decode_from_bigint_with_context(
             &context,
@@ -949,9 +967,13 @@ impl BallotChoices {
     pub fn get_bases(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
     ) -> Result<Vec<u64>, String> {
-        let context =
-            MultiBallotCodecContext::new(contests, include_decline_to_vote)?;
+        let context = MultiBallotCodecContext::new(
+            contests,
+            include_decline_to_vote,
+            mode,
+        )?;
 
         Ok(context.bases)
     }
@@ -987,9 +1009,13 @@ impl BallotChoices {
         bigint: &BigUint,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
     ) -> Result<RawBallotContest, String> {
-        let context =
-            MultiBallotCodecContext::new(contests, include_decline_to_vote)?;
+        let context = MultiBallotCodecContext::new(
+            contests,
+            include_decline_to_vote,
+            mode,
+        )?;
 
         Self::bigint_to_raw_ballot_with_context(&context, bigint)
     }
@@ -1054,8 +1080,9 @@ impl BallotChoices {
     pub fn maximum_size_bytes(
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
     ) -> Result<usize, String> {
-        let bases = Self::get_bases(contests, include_decline_to_vote)?;
+        let bases = Self::get_bases(contests, include_decline_to_vote, mode)?;
 
         let choices: Vec<u64> = bases.iter().map(|b| b - 1).collect();
 
@@ -2149,8 +2176,12 @@ mod tests {
         let contest_b = test_contest("b", 5, 1);
         let contests = vec![contest_b, contest_a];
 
-        let bases = BallotChoices::get_bases(&contests, false)
-            .expect("get_bases should succeed");
+        let bases = BallotChoices::get_bases(
+            &contests,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
 
         // per-contest flag + max_votes slots for each contest, sorted by id
         assert_eq!(bases.len(), 5);
@@ -2160,8 +2191,12 @@ mod tests {
         assert_eq!(bases[3], 2);
         assert_eq!(bases[4], 6);
 
-        let bases = BallotChoices::get_bases(&contests, true)
-            .expect("get_bases should succeed");
+        let bases = BallotChoices::get_bases(
+            &contests,
+            true,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
 
         assert_eq!(bases.len(), 6);
         assert_eq!(bases[0], 2);
@@ -2240,6 +2275,7 @@ mod tests {
         let max_bytes = BallotChoices::maximum_size_bytes(
             &style.contests,
             style.decline_to_vote_enabled(),
+            style.multi_contest_encoding_mode.unwrap_or_default(),
         )
         .unwrap();
         assert!(max_bytes <= 30);
@@ -2591,6 +2627,7 @@ mod tests {
             election_event_annotations: None,
             election_annotations: None,
             area_annotations: None,
+            multi_contest_encoding_mode: None,
         }
     }
 
