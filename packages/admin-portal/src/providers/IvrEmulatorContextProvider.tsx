@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useEffect, useState} from "react"
 import {IvrEmulatorApi, IvrEmulatorError, loadIvrEmulator} from "@/services/IvrEmulator"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export enum IvrApiStatus {
     UNAVAILABLE = "unavailable",
@@ -12,11 +13,15 @@ export interface IvrEmulatorContextType {
     status: IvrApiStatus
     api?: IvrEmulatorApi
 }
+
 export const IvrEmulatorContext = createContext<IvrEmulatorContextType | undefined>(undefined)
 export const IvrEmulatorContextProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
     const [status, setStatus] = useState<IvrApiStatus>(IvrApiStatus.LOADING)
     const [api, setApi] = useState<IvrEmulatorApi | undefined>(undefined)
-    const url = "/wasm/ivr_emulator_wasm"
+    const {globalSettings} = useContext(SettingsContext)
+    const url = globalSettings.IVR_EMULATOR_BASE_URL
+        ? globalSettings.IVR_EMULATOR_BASE_URL
+        : "/wasm/ivr_emulator_wasm"
 
     useEffect(() => {
         loadIvrEmulator(url)
