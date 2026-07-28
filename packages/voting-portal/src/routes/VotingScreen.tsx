@@ -225,6 +225,8 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         let selectionState: BallotSelection = []
         try {
             if (isMultiContest) {
+                console.log("ballotSelectionState: ", ballotSelectionState)
+                console.log("ballotStyle: ", ballotStyle.ballot_eml)
                 selectionState = interpretMultiContestSelection(
                     ballotSelectionState,
                     ballotStyle.ballot_eml

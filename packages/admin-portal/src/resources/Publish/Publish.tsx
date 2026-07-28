@@ -59,6 +59,10 @@ enum ViewMode {
     List,
 }
 
+interface IBallotPublicationAnnotations {
+    generation_error?: string
+}
+
 type TPublish = {
     electionId?: string
     electionEventId: string
@@ -411,9 +415,30 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             getPublishChanges,
         ])
 
+        // Surfaces ballot style generation failures (e.g. exceeding the
+        // ballot size limit) instead of polling forever for is_generated.
+        useEffect(() => {
+            const generationError = (
+                ballotPublication?.annotations as IBallotPublicationAnnotations | undefined
+            )?.generation_error
+
+            if (generationError) {
+                notify(t("publish.dialog.error_capacity", {message: generationError}), {
+                    type: "error",
+                })
+                handleSetPublishStatus(PublishStatus.Void)
+                setViewMode(ViewMode.List)
+                setBallotPublicationId(null)
+            }
+        }, [ballotPublication, notify, t, handleSetPublishStatus])
+
         // Used in order to make sure new generated publications are viewed when task completes
         useEffect(() => {
-            if (ballotPublication && ballotPublication.is_generated === false) {
+            const generationError = (
+                ballotPublication?.annotations as IBallotPublicationAnnotations | undefined
+            )?.generation_error
+
+            if (ballotPublication && ballotPublication.is_generated === false && !generationError) {
                 const intervalId = setInterval(() => {
                     refetch()
                 }, globalSettings.QUERY_POLL_INTERVAL_MS)

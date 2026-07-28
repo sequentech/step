@@ -1036,6 +1036,9 @@ impl BallotChoices {
         Ok(values)
     }
 
+    /// Payload limit enforced by `vec::encode_vec_to_array`.
+    pub const MAX_SIZE_BYTES: usize = 29;
+
     /// Compute an upper bound on the number of bytes needed
     /// to encode a multi contest ballot with given contests.
     ///

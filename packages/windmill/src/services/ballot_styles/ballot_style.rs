@@ -5,7 +5,8 @@
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{
-    get_ballot_publication_by_id, update_ballot_publication_status,
+    get_ballot_publication_by_id, record_ballot_publication_generation_error,
+    update_ballot_publication_status,
 };
 use crate::postgres::ballot_style::insert_ballot_style;
 use crate::postgres::candidate::export_candidates;
@@ -23,7 +24,8 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
-use sequent_core::ballot::ElectionEventPresentation;
+use sequent_core::ballot::{ContestEncryptionPolicy, ElectionEventPresentation};
+use sequent_core::ballot_codec::multi_ballot::BallotChoices;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
@@ -184,6 +186,31 @@ pub async fn create_ballot_style_postgres(
             election_dates.clone(),
             public_key.clone(),
         )?;
+
+        let is_multi_contest = election_dto
+            .election_event_presentation
+            .as_ref()
+            .and_then(|presentation| presentation.contest_encryption_policy)
+            == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
+
+        if is_multi_contest {
+            let max_bytes = BallotChoices::maximum_size_bytes(
+                &election_dto.contests,
+                election_dto.decline_to_vote_enabled(),
+                election_dto.multi_contest_encoding_mode.unwrap_or_default(),
+            )?;
+
+            if max_bytes > BallotChoices::MAX_SIZE_BYTES {
+                return Err(Error::String(format!(
+                    "Ballot style for election {} in area {} needs {} bytes, exceeding the {}-byte ballot size limit. Reduce the number of candidates or contests, or adjust over-vote policies.",
+                    election.id,
+                    area.id,
+                    max_bytes,
+                    BallotChoices::MAX_SIZE_BYTES
+                )));
+            }
+        }
+
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
         let _created_ballot_style = insert_ballot_style(
             transaction,
@@ -257,6 +284,41 @@ pub async fn update_election_event_ballot_styles(
         ISO8601::now() + Duration::seconds(60),
     )
     .await?;
+
+    let result =
+        generate_election_event_ballot_styles(tenant_id, election_event_id, ballot_publication_id)
+            .await;
+
+    // Recorded on its own connection so it survives the rollback of the
+    // (uncommitted) transaction used by generate_election_event_ballot_styles.
+    if let Err(error) = &result {
+        if let Err(record_error) = record_ballot_publication_generation_error(
+            tenant_id,
+            election_event_id,
+            ballot_publication_id,
+            &error.to_string(),
+        )
+        .await
+        {
+            event!(
+                Level::WARN,
+                "Failed to record ballot publication generation error: {record_error}"
+            );
+        }
+    }
+
+    let lock_result = lock.release().await;
+    match result {
+        Err(error) => Err(error),
+        Ok(()) => lock_result,
+    }
+}
+
+async fn generate_election_event_ballot_styles(
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+) -> AnyhowResult<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -356,6 +418,5 @@ pub async fn update_election_event_ballot_styles(
     create_public_election_event_config_file(&transaction, tenant_id, &election_event).await?;
 
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
-    lock.release().await?;
     Ok(())
 }
