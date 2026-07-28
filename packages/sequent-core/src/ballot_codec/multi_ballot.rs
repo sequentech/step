@@ -338,31 +338,13 @@ impl BallotChoices {
         vec::encode_vec_to_array(&bytes)
     }
 
-    /// Encode this multi-ballot into a mixed radix representation
+    /// Encode this multi-ballot into a mixed radix representation.
     ///
-    /// The following conditions will return an error:
-    ///
-    /// * The plaintexts for a given contest were not found.
-    /// * The length of a contest choice vector was greater than
-    ///   contest.max_votes.
-    /// * The set choices (!=0) for a contest had duplicates.
-    /// * A choice id in a given contest choice vector was invalid.
-    ///
-    /// The resulting encoded choice vector is a
-    /// contiguous list of contest choices groups, each of
-    /// size contest.max_votes. An alternative implementation
-    /// could add explicit separators between contest choice
-    /// groups.
-    ///
-    /// Returns the encoded ballot, with n sets of contest choices
-    /// each of size contest.max_votes, plus one invalid flag and, when the
-    /// contest has an explicit blank candidate, one blank flag per contest.
-    /// When decline-to-vote is enabled, a ballot-level invalid flag is also
-    /// included.
-    /// The total number of choices is:
-    /// sum(contest.max_votes) + contests.len()
-    /// + contests_with_explicit_blank.len()
-    /// + (1 if decline-to-vote is enabled else 0).
+    /// The resulting choice vector is a contiguous list of per-contest
+    /// groups, each of size `vote_slot_count` (= `max_votes` in `LEGACY`
+    /// mode, or the candidate count in `EXPANDED_CAPACITY` mode), plus one
+    /// invalid flag and, when configured, one blank flag per contest, plus
+    /// a ballot-level invalid flag when decline-to-vote is enabled.
     fn encode_to_raw_ballot(
         &self,
         config: &BallotStyle,
@@ -433,20 +415,14 @@ impl BallotChoices {
         Ok(RawBallotContest { bases, choices })
     }
 
-    /// Encodes one contest in the ballot
-    ///
-    /// Returns a choice vector of length contest.max_votes,
-    /// which the caller will append to the overall ballot choice vector.
+    /// Encodes one contest into a choice vector of length
+    /// context.vote_slot_count.
     fn encode_contest(
         &self,
         context: &ContestCodecContext,
         plaintext: &ContestChoices,
     ) -> Result<Vec<u64>, String> {
-        let max_votes: usize = context
-            .contest
-            .max_votes
-            .try_into()
-            .map_err(|_| format!("u64 conversion on contest max_votes"))?;
+        let vote_slot_count = context.vote_slot_count;
 
         let choices_order = match self.counting_algorithm.is_preferential() {
             true => {
@@ -476,14 +452,14 @@ impl BallotChoices {
             normal_choices.push(choice);
         }
 
-        if normal_choices.len() > max_votes {
+        if normal_choices.len() > vote_slot_count {
             return Err(format!(
-                "Plaintext vector contained more than max_votes elements ({} > {})", normal_choices.len(), max_votes
+                "Plaintext vector contained more than max_votes elements ({} > {})", normal_choices.len(), vote_slot_count
             ));
         }
 
         // We set all values as unset (0) by default
-        let mut contest_choices = vec![0u64; max_votes];
+        let mut contest_choices = vec![0u64; vote_slot_count];
         let mut marked = 0;
         for p in &normal_choices {
             let position = context
@@ -516,7 +492,7 @@ impl BallotChoices {
             contest_choices[marked] = mark;
             marked += 1;
 
-            if marked == max_votes {
+            if marked == vote_slot_count {
                 break;
             }
         }
@@ -555,11 +531,8 @@ impl BallotChoices {
     /// policies, are reported in the decoded contest's invalid errors or
     /// alerts.
     ///
-    /// The decoding processes the choices vector as a
-    /// contiguous list of contest choices groups, each of
-    /// size contest.max_votes. An alternative implementation
-    /// could add explicit separators between contest choice
-    /// groups.
+    /// The decoding processes the choices vector as a contiguous list of
+    /// contest choices groups, each of size vote_slot_count.
     ///
     /// Returns the decoded ballot. Because this is a multi
     /// contest ballot, it will have n ContestChoices and
@@ -624,6 +597,7 @@ impl BallotChoices {
         raw_ballot: &RawBallotContest,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
         // The contest configurations are validated inside the decode loop
@@ -634,6 +608,13 @@ impl BallotChoices {
         let contest_contexts: Vec<ContestCodecContext> = sorted_contests
             .into_iter()
             .map(ContestCodecContext::new_unchecked)
+            .map(|mut context| {
+                if mode == MultiContestEncodingMode::EXPANDED_CAPACITY {
+                    context.vote_slot_count =
+                        context.sorted_normal_candidates.len();
+                }
+                context
+            })
             .collect();
 
         Self::decode_sorted_contexts(
@@ -679,15 +660,11 @@ impl BallotChoices {
         let mut contest_choices: Vec<DecodedContestChoices> = vec![];
         let choices = &raw_ballot.choices;
 
-        // Each contest contributes max_votes slots plus one invalid flag and,
-        // when configured, one explicit blank flag.
-        let expected_vote_slots = contest_contexts
+        // Each contest contributes vote_slot_count slots plus one invalid
+        // flag and, when configured, one explicit blank flag.
+        let expected_vote_slots: usize = contest_contexts
             .iter()
-            .fold(0, |a, b| a + b.contest.max_votes);
-        let expected_vote_slots: usize =
-            expected_vote_slots.try_into().map_err(|_| {
-                format!("i64 -> usize conversion on contest max_votes")
-            })?;
+            .fold(0, |a, b| a + b.vote_slot_count);
 
         let expected_blank_slots = contest_contexts
             .iter()
@@ -696,9 +673,9 @@ impl BallotChoices {
             })
             .count();
 
-        // One per-contest invalid flag per contest, optional per-contest blank
-        // flags, and max_votes slots per contest.
-        // When decline-to-vote is enabled, a ballot-level invalid flag is also present.
+        // One per-contest invalid flag, optional per-contest blank flags, and
+        // vote_slot_count slots per contest, plus a ballot-level invalid flag
+        // when decline-to-vote is enabled.
         let expected_choices = expected_vote_slots
             + contest_contexts.len()
             + expected_blank_slots
@@ -739,10 +716,6 @@ impl BallotChoices {
                     false
                 };
 
-            let max_votes: usize =
-                contest_context.contest.max_votes.try_into().map_err(|_| {
-                    format!("i64 -> usize conversion on contest max_votes")
-                })?;
             if validate_contest_configurations {
                 validate_contest_configuration(contest_context.contest)?;
             }
@@ -753,7 +726,7 @@ impl BallotChoices {
                 contest_is_explicit_blank,
                 is_explicit_invalid,
             )?;
-            choice_index += max_votes;
+            choice_index += contest_context.vote_slot_count;
             contest_choices.push(next);
         }
 
@@ -778,7 +751,7 @@ impl BallotChoices {
     /// Decodes one contest in the ballot
     ///
     /// Returns a ContestChoice for the choices slice argument,
-    /// which will be read up to position contest.max_votes. This
+    /// which will be read up to position context.vote_slot_count. This
     /// ContestChoice will be added to the overall DecodedBallotChoices.
     /// Values set to 0 (unset) will not return a ContestChoice.
     /// It is the responsibility of the caller to advance the choice slice
@@ -809,12 +782,8 @@ impl BallotChoices {
         // position in the non-marker candidate list, sorted by id.
         let sorted_candidates = &context.sorted_normal_candidates;
 
-        let max_votes: usize = contest.max_votes.try_into().map_err(|_| {
-            format!("i64 -> usize conversion on contest max_votes")
-        })?;
-
         let mut next_choices = vec![];
-        for i in 0..max_votes {
+        for i in 0..context.vote_slot_count {
             let next = choices[i];
             let next = usize::try_from(next).map_err(|_| {
                 format!("u64 -> usize conversion on plaintext choice")
@@ -935,10 +904,9 @@ impl BallotChoices {
     // used in the single-contest implementation (which has
     // one boolean slot per candidate).
     //
-    // In this sparse encoding the number of bases and
-    // choices is equal to the maximum number of votes, contest.max_votes.
-    // Each of these will optionally contain a selected
-    // candidate. The slot's base is
+    // In this sparse encoding the number of bases and choices per contest
+    // is vote_slot_count. Each slot optionally holds a selected candidate;
+    // the slot's base is
     //
     // number of candidates + 1, such that
     //
@@ -1287,8 +1255,14 @@ mod tests {
         assert_eq!(raw.bases, vec![2, 2, 3, 3]);
         assert_eq!(raw.choices, vec![0, 1, 0, 0]);
 
-        let decoded = BallotChoices::decode(&raw, &style.contests, false, None)
-            .expect("decoding should succeed");
+        let decoded = BallotChoices::decode(
+            &raw,
+            &style.contests,
+            false,
+            style.multi_contest_encoding_mode.unwrap_or_default(),
+            None,
+        )
+        .expect("decoding should succeed");
         assert_eq!(decoded.choices.len(), 1);
         assert_eq!(
             decoded.choices[0].choices,
@@ -1319,8 +1293,14 @@ mod tests {
         assert_eq!(raw.bases, vec![2, 2]);
         assert_eq!(raw.choices, vec![1, 0]);
 
-        let decoded = BallotChoices::decode(&raw, &style.contests, false, None)
-            .expect("decoding should succeed");
+        let decoded = BallotChoices::decode(
+            &raw,
+            &style.contests,
+            false,
+            style.multi_contest_encoding_mode.unwrap_or_default(),
+            None,
+        )
+        .expect("decoding should succeed");
         assert_eq!(decoded.choices.len(), 1);
         assert!(decoded.choices[0].is_explicit_invalid);
         assert_eq!(
