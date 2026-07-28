@@ -18,13 +18,28 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::str::FromStr;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strum_macros::{Display, EnumString};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_util::io::StreamReader;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Display, EnumString, PartialEq, Eq)]
+pub enum CastVoteStatus {
+    #[serde(rename = "in-progress")]
+    #[strum(serialize = "in-progress")]
+    InProgress,
+    #[serde(rename = "valid")]
+    #[strum(serialize = "valid")]
+    Valid,
+    #[serde(rename = "discarded")]
+    #[strum(serialize = "discarded")]
+    Discarded,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVote {
@@ -39,6 +54,7 @@ pub struct CastVote {
     pub election_event_id: String,
     pub ballot_id: Option<String>,
     pub cast_ballot_signature: Option<Vec<u8>>,
+    pub status: CastVoteStatus,
 }
 
 impl TryFrom<Row> for CastVote {
@@ -60,11 +76,24 @@ impl TryFrom<Row> for CastVote {
             voter_id_string: item.try_get("voter_id_string")?,
             election_event_id: item.try_get::<_, Uuid>("election_event_id")?.to_string(),
             ballot_id: item.try_get("ballot_id")?,
+            status: CastVoteStatus::from_str(&item.try_get::<_, String>("status")?)
+                .map_err(|err| anyhow!("Invalid cast vote status: {err}"))?,
         })
     }
 }
 
-#[instrument(err)]
+/// Minimal identity of an `in-progress` cast vote, used to enqueue Datafix
+/// processing without loading full ballot content just to schedule the work.
+#[derive(Debug)]
+pub struct InProgressCastVote {
+    pub id: String,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub election_id: Uuid,
+    pub voter_id: String,
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -83,6 +112,7 @@ pub async fn find_area_ballots(
     let election_event_id = escape_sql_literal(election_event_id);
     let area_id = escape_sql_literal(area_id);
     let election_id = escape_sql_literal(election_id);
+    let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
@@ -93,7 +123,8 @@ pub async fn find_area_ballots(
                         tenant_id = '{tenant_id}' AND
                         election_event_id = '{election_event_id}' AND
                         area_id = '{area_id}' AND
-                        election_id = '{election_id}'
+                        election_id = '{election_id}' AND
+                        status = '{status}'
                     ORDER BY election_id, voter_id_string, created_at DESC
                 "#
     );
@@ -124,6 +155,91 @@ pub async fn find_area_ballots(
     writer.flush().await?;
 
     Ok(())
+}
+
+/// Votes younger than this are skipped by the review beat: their
+/// process_cast_vote task published directly by harvest is normally still in
+/// flight, so re-enqueueing them would only produce redundant PgLock skips.
+const IN_PROGRESS_ENQUEUE_GRACE_SECS: f64 = 90.0;
+
+/// Returns a batch of `in-progress` cast votes using keyset pagination on
+/// `(tenant_id, election_event_id, election_id, voter_id_string)`: pass the
+/// last returned identity as `after` to
+/// fetch the next batch (offset pagination is unsafe while workers update
+/// statuses). `status` is inlined as a literal so the planner can match the
+/// partial index `idx_cast_vote_in_progress`. `DISTINCT ON` keeps only the
+/// newest vote per voter; older stacked re-votes drain on later beat cycles.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_in_progress_cast_votes_batch(
+    hasura_transaction: &Transaction<'_>,
+    limit: i64,
+    after: Option<(Uuid, Uuid, Uuid, String)>,
+) -> Result<Option<Vec<InProgressCastVote>>> {
+    let (after_tenant_id, after_event_id, after_election_id, after_voter_id) = match after {
+        Some((tenant_id, event_id, election_id, voter_id)) => (
+            Some(tenant_id),
+            Some(event_id),
+            Some(election_id),
+            Some(voter_id),
+        ),
+        None => (None, None, None, None),
+    };
+    let in_progress_status = CastVoteStatus::InProgress.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                    SELECT DISTINCT ON (tenant_id, election_event_id, election_id, voter_id_string)
+                        id,
+                        tenant_id,
+                        election_event_id,
+                        election_id,
+                        voter_id_string
+                    FROM "sequent_backend".cast_vote cv
+                    WHERE
+                        cv.status = $6 AND
+                        cv.election_id IS NOT NULL AND
+                        cv.voter_id_string IS NOT NULL AND
+                        cv.created_at < NOW() - make_interval(secs => $7) AND
+                        ($1::UUID IS NULL OR
+                            (cv.tenant_id, cv.election_event_id, cv.election_id, cv.voter_id_string) >
+                            ($1::UUID, $2::UUID, $3::UUID, $4::VARCHAR))
+                    ORDER BY cv.tenant_id, cv.election_event_id, cv.election_id, cv.voter_id_string, cv.created_at DESC
+                    LIMIT $5
+                "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &after_tenant_id,
+                &after_event_id,
+                &after_election_id,
+                &after_voter_id,
+                &limit,
+                &in_progress_status,
+                &IN_PROGRESS_ENQUEUE_GRACE_SECS,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the CastVote query: {}", err))?;
+
+    let cast_votes = rows
+        .into_iter()
+        .map(|row| {
+            Ok(InProgressCastVote {
+                id: row.try_get::<_, Uuid>("id")?.to_string(),
+                tenant_id: row.try_get("tenant_id")?,
+                election_event_id: row.try_get("election_event_id")?,
+                election_id: row.try_get("election_id")?,
+                voter_id: row.try_get("voter_id_string")?,
+            })
+        })
+        .collect::<Result<Vec<InProgressCastVote>>>()?;
+    match cast_votes.is_empty() {
+        true => Ok(None),
+        false => Ok(Some(cast_votes)),
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -177,7 +293,7 @@ pub async fn count_cast_votes_election(
         Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
         None => "".to_string(),
     };
-
+    let status = CastVoteStatus::Valid.to_string();
     let statement_str = format!(
         r#"
             SELECT el.id AS election_id, COUNT(DISTINCT cv.voter_id_string) AS cast_votes
@@ -185,6 +301,7 @@ pub async fn count_cast_votes_election(
             LEFT JOIN (
                 SELECT DISTINCT election_id, voter_id_string
                 FROM sequent_backend.cast_vote
+                WHERE status = $3
             ) cv ON el.id = cv.election_id
             WHERE
                 el.tenant_id = $1 AND
@@ -198,7 +315,7 @@ pub async fn count_cast_votes_election(
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .query(&statement, &[&tenant_uuid, &election_event_uuid, &status])
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
     let count_data = rows
@@ -227,6 +344,7 @@ pub async fn get_count_votes_per_day(
         Some(ref election_id_r) => Some(parse_uuid_v4(election_id_r.as_str())?),
         None => None,
     };
+    let status = CastVoteStatus::Valid.to_string();
     let total_areas_statement = transaction
         .prepare(
             format!(
@@ -258,6 +376,7 @@ pub async fn get_count_votes_per_day(
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
                 AND (v.election_id = $6 OR $6 IS NULL)
+                AND v.status = $7
             WHERE
                 (
                     DATE(v.created_at AT TIME ZONE $5) >= $3 AND
@@ -282,6 +401,7 @@ pub async fn get_count_votes_per_day(
                 &end_date_naive,
                 &user_timezone,
                 &election_uuid,
+                &status,
             ],
         )
         .await?;
@@ -336,7 +456,7 @@ pub async fn get_users_with_vote_info(
     if user_ids.is_empty() {
         return Ok(vec![]);
     }
-
+    let discarded_status = CastVoteStatus::Discarded.to_string();
     let vote_info_statement = hasura_transaction
         .prepare(
             r#"
@@ -351,6 +471,7 @@ pub async fn get_users_with_vote_info(
             AND v.election_event_id = $2::uuid
             AND v.voter_id_string   = ANY($3::text[])
             AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
+            AND v.status <> $5
         GROUP BY
             v.voter_id_string, v.election_id
         "#,
@@ -365,6 +486,7 @@ pub async fn get_users_with_vote_info(
                 &election_event_uuid,
                 &user_ids,
                 &election_uuid,
+                &discarded_status,
             ],
         )
         .await
@@ -497,7 +619,7 @@ pub async fn get_top_count_votes_by_ip(
     } else {
         None
     };
-
+    let status = CastVoteStatus::Valid.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -505,8 +627,8 @@ pub async fn get_top_count_votes_by_ip(
                 ROW_NUMBER() OVER (ORDER BY vote_count DESC) AS id,
                 *
             FROM (
-                SELECT 
-                    cv.annotations->>'ip' AS ip,         
+                SELECT
+                    cv.annotations->>'ip' AS ip,
                     cv.annotations->>'country' AS country,
                     array_agg(COALESCE(cv.voter_id_string, '')) AS voters_id,
                     cv.election_id,
@@ -514,15 +636,16 @@ pub async fn get_top_count_votes_by_ip(
                     e.presentation AS election_presentation
                 FROM sequent_backend.cast_vote cv
                 JOIN sequent_backend.election e ON cv.election_id = e.id
-                WHERE 
+                WHERE
                     cv.tenant_id = $1
                     AND cv.election_event_id = $2
-                    AND cv.annotations ? 'ip'                
-                    AND cv.annotations ? 'country'    
+                    AND cv.annotations ? 'ip'
+                    AND cv.annotations ? 'country'
                     AND ($3::VARCHAR IS NULL OR cv.annotations->>'ip' ILIKE $3)
                     AND ($4::VARCHAR IS NULL OR cv.annotations->>'country' ILIKE $4)
                     AND ($5::UUID IS NULL OR cv.election_id = $5)
-                GROUP BY 
+                    AND cv.status = $8
+                GROUP BY
                     cv.annotations->>'ip',
                     cv.annotations->>'country',
                     cv.election_id,
@@ -546,6 +669,7 @@ pub async fn get_top_count_votes_by_ip(
                 &election_id_pattern,
                 &query_limit,
                 &query_offset,
+                &status,
             ],
         )
         .await
@@ -578,6 +702,7 @@ pub async fn count_ballots_by_election(
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let status = CastVoteStatus::Valid.to_string();
 
     // Prepare and execute the statement
     let statement = hasura_transaction
@@ -590,7 +715,8 @@ pub async fn count_ballots_by_election(
                     WHERE
                         tenant_id = $1 AND
                         election_event_id = $2 AND
-                        election_id = $3
+                        election_id = $3 AND
+                        status = $4
                     ORDER BY voter_id_string, area_id, created_at DESC
                 ) AS latest_votes
             "#,
@@ -600,7 +726,7 @@ pub async fn count_ballots_by_election(
     let row = hasura_transaction
         .query_one(
             &statement,
-            &[&tenant_uuid, &election_event_uuid, &election_uuid],
+            &[&tenant_uuid, &election_event_uuid, &election_uuid, &status],
         )
         .await
         .map_err(|err| anyhow!("Error running the count query: {}", err))?;
@@ -626,6 +752,7 @@ pub async fn count_ballots_by_area_id(
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid =
         parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let status = CastVoteStatus::Valid.to_string();
 
     let statement = hasura_transaction
         .prepare(
@@ -638,7 +765,8 @@ pub async fn count_ballots_by_area_id(
                         tenant_id = $1 AND
                         election_event_id = $2 AND
                         election_id = $3 AND
-                        area_id = $4
+                        area_id = $4 AND
+                        status = $5
                     ORDER BY voter_id_string, area_id, created_at DESC
                 ) AS latest_votes
             "#,
@@ -653,6 +781,7 @@ pub async fn count_ballots_by_area_id(
                 &election_event_uuid,
                 &election_uuid,
                 &area_uuid,
+                &status,
             ],
         )
         .await
@@ -680,7 +809,7 @@ pub async fn count_cast_votes_election_event(
         Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
         None => "".to_string(),
     };
-
+    let status = CastVoteStatus::Valid.to_string();
     let statement_str = format!(
         r#"
             SELECT COUNT(DISTINCT cv.voter_id_string) AS voter_count
@@ -688,6 +817,7 @@ pub async fn count_cast_votes_election_event(
             JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
             WHERE 
                 cv.voter_id_string IS NOT NULL AND
+                cv.status = $3 AND
                 el.tenant_id = $1 AND 
                 el.election_event_id = $2
                 {test_elections_clause};
@@ -697,7 +827,7 @@ pub async fn count_cast_votes_election_event(
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
 
     let rows: Row = hasura_transaction
-        .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
+        .query_one(&statement, &[&tenant_uuid, &election_event_uuid, &status])
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
 

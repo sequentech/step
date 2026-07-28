@@ -34,7 +34,11 @@ import {
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {selectElectionById, setElection, selectElectionIds} from "../store/elections/electionsSlice"
 import {AppDispatch} from "../store/store"
-import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
+import {
+    addCastVotes,
+    CastVoteStatus,
+    selectCastVotesByElectionId,
+} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client/react"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
@@ -438,7 +442,12 @@ const ElectionSelectionScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH || !isMaterialsActivated, // Skip query if in demo mode
     })
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+    const {
+        data: castVotes,
+        error: errorCastVote,
+        startPolling: startCastVotePolling,
+        stopPolling: stopCastVotePolling,
+    } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
         skip: globalSettings.DISABLE_AUTH,
     })
 
@@ -592,9 +601,25 @@ const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
-            dispatch(addCastVotes(castVotes.sequent_backend_cast_vote))
+            const castVoteList = castVotes.sequent_backend_cast_vote
+            dispatch(addCastVotes(castVoteList))
+
+            const hasUnresolvedCastVotes = castVoteList.some(
+                (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
+            )
+            if (hasUnresolvedCastVotes) {
+                startCastVotePolling(globalSettings.QUERY_POLL_INTERVAL_MS)
+            } else {
+                stopCastVotePolling()
+            }
         }
-    }, [castVotes, dispatch])
+    }, [
+        castVotes,
+        dispatch,
+        globalSettings.QUERY_POLL_INTERVAL_MS,
+        startCastVotePolling,
+        stopCastVotePolling,
+    ])
 
     useEffect(() => {
         const skipPolicy =

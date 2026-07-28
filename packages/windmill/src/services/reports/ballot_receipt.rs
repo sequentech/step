@@ -4,6 +4,7 @@
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
+use crate::services::cast_votes::CastVoteStatus;
 use crate::services::temp_path::*;
 
 use anyhow::{anyhow, Context, Result};
@@ -139,6 +140,11 @@ impl TemplateRenderer for BallotTemplate {
             &election_event_uuid,
             &ballot_uui,
             voter_id,
+            &[
+                CastVoteStatus::InProgress,
+                CastVoteStatus::Valid,
+                CastVoteStatus::Discarded,
+            ],
         )
         .await?;
 

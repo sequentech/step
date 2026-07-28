@@ -32,7 +32,6 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     CreateUserMutation,
     DeleteUserRoleMutation,
-    EditUsersInput,
     ListUserRolesQuery,
     Sequent_Backend_Cast_Vote,
     Sequent_Backend_Election,
@@ -62,9 +61,9 @@ import {InputContainerStyle, InputLabelStyle, PasswordInputStyle} from "./EditPa
 import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
-import debounce from "lodash/debounce"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {VOTED_CHANNEL} from "./ListUsers"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
 
@@ -89,40 +88,36 @@ const getAttributeStringValue = (value: string | string[] | null | undefined): s
     return value ?? ""
 }
 
-interface DateAttributeInputProps {
+interface AttributeTextInputProps {
     disabled: boolean
     label: string
     onCommit: (value: string) => void
     required: boolean
     value: string | string[] | null | undefined
+    type?: string
 }
 
-const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
+// Uncontrolled by design: the DOM owns the value while the user types, so a
+// re-render triggered by anything else can never fight the input over its
+// current text. The parent's attribute value is only read on mount (via
+// defaultValue/key) and only written back on blur.
+const AttributeTextInput: React.FC<AttributeTextInputProps> = ({
     disabled,
     label,
     onCommit,
     required,
     value,
+    type,
 }) => {
     const normalizedValue = getAttributeStringValue(value)
-    const [draftValue, setDraftValue] = useState(normalizedValue)
-    const [isFocused, setIsFocused] = useState(false)
-
-    useEffect(() => {
-        if (!isFocused) {
-            setDraftValue(normalizedValue)
-        }
-    }, [isFocused, normalizedValue])
 
     return (
         <FormStyles.TextField
-            type="date"
+            key={normalizedValue}
+            type={type}
             label={label}
-            value={draftValue}
-            onChange={(event) => setDraftValue(event.target.value)}
-            onFocus={() => setIsFocused(true)}
+            defaultValue={normalizedValue}
             onBlur={(event) => {
-                setIsFocused(false)
                 if (event.target.value !== normalizedValue) {
                     onCommit(event.target.value)
                 }
@@ -130,7 +125,7 @@ const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
             disabled={disabled}
             required={required}
             fullWidth
-            InputLabelProps={{shrink: true}}
+            InputLabelProps={type === "date" ? {shrink: true} : undefined}
         />
     )
 }
@@ -210,6 +205,16 @@ const convertRecordToUser = (record: RaRecord<Identifier>): IUser => {
     return user
 }
 
+// Datafix voter edits are deferred to a task; the mutation then returns a
+// task_execution instead of the edited user, which the caller surfaces as a
+// progress widget.
+interface EditUserMutationResult {
+    edit_user: {
+        user?: IUser | null
+        task_execution?: {id: string} | null
+    }
+}
+
 interface EditUserFormProps {
     id?: string
     electionEventId?: string
@@ -219,6 +224,7 @@ interface EditUserFormProps {
     userAttributes: UserProfileAttribute[]
     createMode?: boolean
     record?: RaRecord<Identifier>
+    onTaskLaunched?: (taskExecutionId: string) => void
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = ({
@@ -230,6 +236,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     userAttributes,
     createMode = false,
     record,
+    onTaskLaunched,
 }) => {
     const {t} = useTranslation()
     const reviewI18nContext = electionEventId ? "voters" : "users"
@@ -254,7 +261,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const notify = useNotify()
     const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
-    const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const [edit_user] = useMutation<EditUserMutationResult>(EDIT_USER)
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
     const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
@@ -544,7 +551,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleConfirmChanges = async () => {
         try {
-            await handleEditUser()
+            const result = await handleEditUser()
 
             const baselineRoleIds = baselineRoleIdsRef.current
             const rolesToRemove = baselineRoleIds.filter(
@@ -576,7 +583,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             if (authContext.userId === user?.id) {
                 authContext.updateTokenAndPermissionLabels()
             }
-            notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            // Datafix edits run as a task: surface it so ListUsers can show
+            // the progress widget, and let the widget report the outcome
+            // instead of a premature success toast. Non-Datafix edits return
+            // no task and are done synchronously here.
+            const taskExecutionId = result?.data?.edit_user?.task_execution?.id
+            if (taskExecutionId) {
+                onTaskLaunched?.(taskExecutionId)
+            } else {
+                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            }
             refresh()
             close?.()
         } catch (error) {
@@ -604,27 +620,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         setUser(updatedUser)
     }
-
-    const handleAttrChange =
-        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
-            debouncedHandleChange(attrName, value)
-        }
-
-    const debouncedHandleChange = useCallback(
-        debounce((name: string, value: string) => {
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...(prev?.attributes ?? {}),
-                        [name]: [value],
-                    },
-                }
-            })
-        }, 300),
-        [user, equalToPassword]
-    )
 
     const handleDateChange = (attrName: string) => (value: string) => {
         setUser((prev) => {
@@ -726,6 +721,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
+            if (attr.name === VOTED_CHANNEL) {
+                return
+            }
             if (attr.name) {
                 const isCustomAttribute = !userBasicInfo.includes(attr.name)
                 const value = isCustomAttribute
@@ -843,8 +841,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.annotations?.inputType === "html5-date") {
                     return (
-                        <DateAttributeInput
+                        <AttributeTextInput
                             key={attr.name ?? index}
+                            type="date"
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                             value={value}
                             onCommit={handleDateChange(attr.name)}
@@ -938,11 +937,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 return (
                     <>
                         {isCustomAttribute ? (
-                            <FormStyles.TextField
+                            <AttributeTextInput
                                 key={index}
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 value={value}
-                                onChange={handleAttrChange(attr.name)}
+                                onCommit={(newValue) => {
+                                    const attrName = attr.name as string
+                                    setUser((prev) => ({
+                                        ...prev,
+                                        attributes: {
+                                            ...(prev?.attributes ?? {}),
+                                            [attrName]: [newValue],
+                                        },
+                                    }))
+                                }}
+                                required={isRequired}
                                 disabled={
                                     !(
                                         createMode ||

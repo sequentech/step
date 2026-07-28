@@ -1,0 +1,225 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: SonarQube Scan
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/**'
+concurrency:
+  group: sonarqube-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect Code Changes
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      java: ${{ steps.filter.outputs.java }}
+      javascript: ${{ steps.filter.outputs.javascript }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - added|modified: 'packages/**/*.rs'
+              - added|modified: 'packages/**/Cargo.toml'
+            java:
+              - added|modified: 'packages/**/*.java'
+              - added|modified: 'packages/**/pom.xml'
+            javascript:
+              - added|modified: 'packages/**/*.js'
+              - added|modified: 'packages/**/*.ts'
+              - added|modified: 'packages/**/*.jsx'
+              - added|modified: 'packages/**/*.tsx'
+              - added|modified: 'packages/**/package.json'
+
+  scan-rust:
+    name: Scan Rust Code
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.90.0'
+          components: clippy
+      - name: Install protobuf compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+      - name: Build Rust code
+        working-directory: packages
+        run: cargo build --workspace --release --exclude miru --exclude doc_renderer || true
+      - name: Generate Clippy report
+        working-directory: packages
+        run: cargo clippy --workspace --all-targets --all-features --release --exclude miru --exclude doc_renderer --message-format=json -- -D warnings > ../clippy-report.json || true
+      - name: SonarQube Scan for Rust
+        if: github.event_name == 'pull_request'
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-backend-rust
+            -Dsonar.sources=packages
+            -Dsonar.inclusions=**/*.rs
+            -Dsonar.exclusions=**/target/**
+            -Dsonar.rust.clippy.reportPaths=clippy-report.json
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+      - name: SonarQube Scan for Rust (branch/manual)
+        if: github.event_name != 'pull_request'
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-backend-rust
+            -Dsonar.sources=packages
+            -Dsonar.inclusions=**/*.rs
+            -Dsonar.exclusions=**/target/**
+            -Dsonar.rust.clippy.reportPaths=clippy-report.json
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.scm.revision=${{ github.sha }}
+
+  scan-javascript:
+    name: Scan JavaScript/TypeScript Code
+    needs: detect-changes
+    if: needs.detect-changes.outputs.javascript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: yarn
+          cache-dependency-path: packages/yarn.lock
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive --prefer-offline
+        working-directory: packages
+      - name: SonarQube Scan for JS/TS
+        if: github.event_name == 'pull_request'
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: packages
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-frontend
+            -Dsonar.sources=.
+            -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }}
+            -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }}
+            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+      - name: SonarQube Scan for JS/TS (branch/manual)
+        if: github.event_name != 'pull_request'
+        uses: sonarsource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needed for PR decoration
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: packages
+          args: >
+            -Dsonar.organization=sequentech
+            -Dsonar.projectKey=step-frontend
+            -Dsonar.sources=.
+            -Dsonar.inclusions=**/*.js,**/*.ts,**/*.jsx,**/*.tsx
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/rust/**,**/.storybook/**,**/nightwatch/**
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx,**/test/**
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.scm.revision=${{ github.sha }}
+
+  scan-java:
+    name: Scan Java Code
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+      - name: Ensure Maven
+        shell: bash
+        run: |
+          if command -v mvn >/dev/null 2>&1; then
+            echo "Maven already available: $(mvn -v | head -n 1)"
+            exit 0
+          fi
+
+          sudo mkdir -p /usr/share/man/man1
+          for attempt in 1 2 3; do
+            echo "Installing Maven (attempt $attempt/3)"
+            if sudo apt-get update && sudo apt-get install -y maven; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Failed to install Maven after 3 attempts."
+              exit 1
+            fi
+            sleep 15
+          done
+
+          mvn -v
+      - name: SonarQube Scan for Java
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar -f packages/keycloak-extensions/pom.xml
+           -Dsonar.host.url=https://sonarcloud.io 
+           -Dsonar.token=$SONAR_TOKEN 
+           -Dsonar.organization=sequentech 
+           -Dsonar.projectKey=step-keycloak-extensions 
+           -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} 
+           -Dsonar.pullrequest.branch=${{ github.event.pull_request.head.ref }} 
+           -Dsonar.pullrequest.base=${{ github.event.pull_request.base.ref }} 
+           -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+      - name: SonarQube Scan for Java (branch/manual)
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar -f packages/keycloak-extensions/pom.xml
+           -Dsonar.host.url=https://sonarcloud.io 
+           -Dsonar.token=$SONAR_TOKEN 
+           -Dsonar.organization=sequentech 
+           -Dsonar.projectKey=step-keycloak-extensions 
+           -Dsonar.branch.name=${{ github.ref_name }} 
+           -Dsonar.scm.revision=${{ github.sha }}

@@ -128,6 +128,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
+                EDIT_USER: "Editar votant",
                 IMPORT_CANDIDATES: "Importar candidats",
                 EXPORT_VOTERS: "Exportar votants",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
@@ -926,6 +927,8 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
+                    "voted-channel": "Canal de vot",
+                    "disable-comment": "Comentari de desactivació",
                     "username": "Nom d'Usuari",
                     "first_name": "Nom",
                     "last_name": "Cognom",

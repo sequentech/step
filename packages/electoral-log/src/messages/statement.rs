@@ -54,6 +54,27 @@ impl StatementHead {
                 description: "Error inserting cast vote.".to_string(),
                 ..default_head
             },
+            StatementBody::ExternalApiRequest(_, _, direction, _, operation) => {
+                // Keep the description short. The signed body retains the
+                // cast-vote identifier, bounded outcome classification, and
+                // template hash used for reconciliation.
+                let outcome = operation
+                    .rsplit_once("; ")
+                    .map(|(_, outcome)| outcome)
+                    .unwrap_or(operation)
+                    .split(':')
+                    .next()
+                    .unwrap_or_default()
+                    .split(" (")
+                    .next()
+                    .unwrap_or_default()
+                    .trim();
+                StatementHead {
+                    kind: StatementType::ExternalApiRequest,
+                    description: format!("{direction} request {outcome}."),
+                    ..default_head
+                }
+            }
             StatementBody::ElectionPublish(_, _) => StatementHead {
                 kind: StatementType::ElectionPublish,
                 description: "Election published.".to_string(),
@@ -343,6 +364,15 @@ pub enum StatementBody {
     CertificateAuthEvent(CertificateAuthEventAction, CertificateSubjectDnsString),
     PhoneBlacklistUpdated(PhoneE164String, PhoneBlacklistAction),
     ResultsPublicationAction(ResultsPublicationDetails),
+    /// Records an external request and binds its subject to the signed
+    /// statement rather than relying only on searchable message metadata.
+    ExternalApiRequest(
+        EventIdString,
+        ExternalApiSubject,
+        ExtApiRequestDirection,
+        ExtApiName,
+        String,
+    ),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -375,12 +405,137 @@ pub enum StatementType {
     CertificateAuthEvent,
     PhoneBlacklistUpdated,
     ResultsPublicationAction,
+    ExternalApiRequest,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
 pub enum StatementEventType {
     USER,
     SYSTEM,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn external_api_request_description(operation: &str) -> String {
+        let event_id = EventIdString("0609dd53-3c33-41cd-b2cd-0ffb39738d2d".to_string());
+        let body = StatementBody::ExternalApiRequest(
+            event_id.clone(),
+            ExternalApiSubject {
+                user_id: Some("voter-id".to_string()),
+                username: Some("voter-name".to_string()),
+            },
+            ExtApiRequestDirection::Outbound,
+            ExtApiName::Datafix,
+            operation.to_string(),
+        );
+        StatementHead::from_body(event_id, &body).description
+    }
+
+    #[test]
+    fn external_api_request_description_success() {
+        assert_eq!(
+            external_api_request_description("SetVoted Succeeded"),
+            "Outbound request SetVoted Succeeded."
+        );
+    }
+
+    #[test]
+    fn external_api_request_description_failure_without_detail() {
+        assert_eq!(
+            external_api_request_description("SetNotVoted Failed"),
+            "Outbound request SetNotVoted Failed."
+        );
+    }
+
+    #[test]
+    fn external_api_request_description_excludes_detail() {
+        assert_eq!(
+            external_api_request_description("SetNotVoted Failed: The voter has not voted."),
+            "Outbound request SetNotVoted Failed."
+        );
+    }
+
+    #[test]
+    fn statement_body_borsh_discriminants_are_append_only() {
+        let election_publish = StatementBody::ElectionPublish(
+            ElectionIdString(None),
+            BallotPublicationIdString(String::new()),
+        );
+        let certificate = StatementBody::CertificateAuthEvent(
+            CertificateAuthEventAction::Import,
+            CertificateSubjectDnsString(Vec::new()),
+        );
+        let phone = StatementBody::PhoneBlacklistUpdated(
+            PhoneE164String(String::new()),
+            PhoneBlacklistAction::CreateEntry,
+        );
+        let external = StatementBody::ExternalApiRequest(
+            EventIdString(String::new()),
+            ExternalApiSubject {
+                user_id: None,
+                username: None,
+            },
+            ExtApiRequestDirection::Outbound,
+            ExtApiName::Datafix,
+            String::new(),
+        );
+
+        assert_eq!(borsh::to_vec(&election_publish).unwrap()[0], 2);
+        assert_eq!(borsh::to_vec(&certificate).unwrap()[0], 23);
+        assert_eq!(borsh::to_vec(&phone).unwrap()[0], 24);
+        assert_eq!(borsh::to_vec(&external).unwrap()[0], 25);
+    }
+
+    #[test]
+    fn statement_type_borsh_discriminants_are_append_only() {
+        assert_eq!(
+            borsh::to_vec(&StatementType::ElectionPublish).unwrap()[0],
+            3
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::CertificateAuthEvent).unwrap()[0],
+            24
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::PhoneBlacklistUpdated).unwrap()[0],
+            25
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::ExternalApiRequest).unwrap()[0],
+            26
+        );
+    }
+
+    #[test]
+    fn external_api_subject_is_part_of_borsh_payload() {
+        let without_subject = StatementBody::ExternalApiRequest(
+            EventIdString("event".to_string()),
+            ExternalApiSubject {
+                user_id: None,
+                username: None,
+            },
+            ExtApiRequestDirection::Outbound,
+            ExtApiName::Datafix,
+            "SetVoted Succeeded".to_string(),
+        );
+        let with_subject = StatementBody::ExternalApiRequest(
+            EventIdString("event".to_string()),
+            ExternalApiSubject {
+                user_id: Some("voter-id".to_string()),
+                username: Some("voter-name".to_string()),
+            },
+            ExtApiRequestDirection::Outbound,
+            ExtApiName::Datafix,
+            "SetVoted Succeeded".to_string(),
+        );
+
+        assert_ne!(
+            borsh::to_vec(&without_subject).unwrap(),
+            borsh::to_vec(&with_subject).unwrap()
+        );
+    }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
