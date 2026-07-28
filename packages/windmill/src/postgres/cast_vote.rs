@@ -6,22 +6,29 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use serde_json::json;
-use serde_json::value::Value;
+use serde::Serialize;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+#[derive(Serialize)]
+struct CastVoteAnnotations<'a> {
+    ip: Option<&'a str>,
+    country: Option<&'a str>,
+    voting_channel: VotingStatusChannel,
+}
 
 fn cast_vote_annotations(
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
     voting_channel: VotingStatusChannel,
-) -> Value {
-    json!({
-        "ip": voter_ip,
-        "country": voter_country,
-        "voting_channel": voting_channel.to_string(),
-    })
+) -> Result<Value> {
+    Ok(serde_json::to_value(CastVoteAnnotations {
+        ip: voter_ip.as_deref(),
+        country: voter_country.as_deref(),
+        voting_channel,
+    })?)
 }
 
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
@@ -80,7 +87,7 @@ pub async fn insert_cast_vote(
         )
         .await?;
 
-    let annotations = cast_vote_annotations(voter_ip, voter_country, voting_channel);
+    let annotations = cast_vote_annotations(voter_ip, voter_country, voting_channel)?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -123,7 +130,8 @@ mod tests {
             &Some("203.0.113.1".to_string()),
             &Some("CO".to_string()),
             VotingStatusChannel::TELEPHONE,
-        );
+        )
+        .unwrap();
 
         assert_eq!(annotations["ip"], "203.0.113.1");
         assert_eq!(annotations["country"], "CO");
