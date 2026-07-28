@@ -16,10 +16,13 @@ interface VotersByChannelProps {
 
 export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, height}) => {
     const {t} = useTranslation()
+    const visibleData = data.filter(({count}) => count > 0)
 
     const state: Props = {
         options: {
-            labels: data.map((item) => String(t(`common.channel.${item.channel.toLowerCase()}`))),
+            labels: visibleData.map((item) =>
+                String(t(`common.channel.${item.channel.toLowerCase()}`))
+            ),
             plotOptions: {
                 pie: {
                     donut: {
@@ -34,7 +37,7 @@ export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, he
                 },
             },
         },
-        series: data.map((item) => item.count),
+        series: visibleData.map((item) => item.count),
     }
 
     return (

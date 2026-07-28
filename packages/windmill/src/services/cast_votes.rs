@@ -263,6 +263,7 @@ impl TryFrom<Row> for ElectionCastVotes {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVotesPerDay {
     pub day: String,
+    pub channel: String,
     pub day_count: i64,
 }
 
@@ -271,6 +272,7 @@ impl TryFrom<Row> for CastVotesPerDay {
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVotesPerDay {
             day: item.try_get::<_, chrono::NaiveDate>("day")?.to_string(),
+            channel: item.try_get("channel")?,
             day_count: item.try_get::<_, i64>("day_count")?,
         })
     }
@@ -463,6 +465,29 @@ pub async fn get_count_votes_per_day(
     election_id: Option<String>,
     user_timezone: &str,
 ) -> Result<Vec<CastVotesPerDay>> {
+    get_count_votes_per_day_from_relation(
+        transaction,
+        tenant_id,
+        election_event_id,
+        start_date,
+        end_date,
+        election_id,
+        user_timezone,
+        CastVoteRelation::Production,
+    )
+    .await
+}
+
+async fn get_count_votes_per_day_from_relation(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    start_date: &str,
+    end_date: &str,
+    election_id: Option<String>,
+    user_timezone: &str,
+    cast_vote_relation: CastVoteRelation,
+) -> Result<Vec<CastVotesPerDay>> {
     let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
         .with_context(|| "Error parsing start_date")?;
     let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
@@ -472,10 +497,9 @@ pub async fn get_count_votes_per_day(
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
-    let total_areas_statement = transaction
-        .prepare(
-            format!(
-                r#"
+    let cast_vote_relation = cast_vote_relation.sql_identifier();
+    let sql = format!(
+        r#"
             WITH date_series AS (
                 SELECT
                     (t.day)::date AS day
@@ -488,18 +512,11 @@ pub async fn get_count_votes_per_day(
             )
             SELECT
                 ds.day,
-                COALESCE(
-                    COUNT(
-                        CASE 
-                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
-                            ELSE NULL 
-                        END
-                    ), 
-                    0
-                ) AS day_count
+                COALESCE(v.annotations->>'voting_channel', 'ONLINE') AS channel,
+                COUNT(v.id) AS day_count
             FROM
                 date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
+            LEFT JOIN {cast_vote_relation} v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
                 AND (v.election_id = $6 OR $6 IS NULL)
@@ -510,13 +527,15 @@ pub async fn get_count_votes_per_day(
                     DATE(v.created_at AT TIME ZONE $5) <= $4
                 )
                 OR v.created_at IS NULL
-            GROUP BY ds.day
-            ORDER BY ds.day;
+            GROUP BY
+                ds.day,
+                COALESCE(v.annotations->>'voting_channel', 'ONLINE')
+            ORDER BY
+                ds.day,
+                channel;
             "#
-            )
-            .as_str(),
-        )
-        .await?;
+    );
+    let total_areas_statement = transaction.prepare(&sql).await?;
 
     let rows: Vec<Row> = transaction
         .query(
@@ -978,6 +997,14 @@ mod tests {
             .collect()
     }
 
+    fn counts_by_day_and_channel(
+        rows: Vec<CastVotesPerDay>,
+    ) -> HashMap<(String, String), i64> {
+        rows.into_iter()
+            .map(|row| ((row.day, row.channel), row.day_count))
+            .collect()
+    }
+
     #[tokio::test]
     #[ignore = "requires PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
     async fn voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote() {
@@ -1051,6 +1078,37 @@ mod tests {
         assert_eq!(election_counts.get("ONLINE"), Some(&1));
         assert_eq!(election_counts.get("KIOSK"), Some(&1));
         assert_eq!(election_counts.get("TELEPHONE"), Some(&1));
+
+        let votes_per_day = counts_by_day_and_channel(
+            get_count_votes_per_day_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                "2026-01-01",
+                "2026-01-03",
+                Some(ELECTION_ID.to_string()),
+                "UTC",
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-01".to_string(), "ONLINE".to_string())),
+            Some(&2)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-01".to_string(), "KIOSK".to_string())),
+            Some(&2)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-02".to_string(), "TELEPHONE".to_string())),
+            Some(&1)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-03".to_string(), "ONLINE".to_string())),
+            Some(&0)
+        );
 
         transaction.rollback().await.unwrap();
     }

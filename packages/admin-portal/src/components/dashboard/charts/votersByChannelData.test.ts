@@ -2,36 +2,32 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {OTHER_VOTING_CHANNEL, toVotersByChannelRows} from "./votersByChannelData"
+import {CastVoteChannel, toVotersByChannelRows} from "./votersByChannelData"
 
 describe("toVotersByChannelRows", () => {
-    it("maps persisted channel counts and fills absent channels with zero", () => {
+    it("maps only channels with voters", () => {
         expect(
             toVotersByChannelRows([
                 {channel: "ONLINE", count: 7},
                 {channel: "TELEPHONE", count: 3},
             ])
         ).toEqual([
-            {channel: "ONLINE", count: 7},
-            {channel: "KIOSK", count: 0},
-            {channel: "EARLY_VOTING", count: 0},
-            {channel: "TELEPHONE", count: 3},
+            {channel: CastVoteChannel.ONLINE, count: 7},
+            {channel: CastVoteChannel.TELEPHONE, count: 3},
         ])
     })
 
-    it("groups unexpected persisted channels without losing voters", () => {
+    it("does not expose unsupported channels", () => {
         expect(
             toVotersByChannelRows([
                 {channel: "ONLINE", count: 2},
                 {channel: "PAPER", count: 3},
                 {channel: "FUTURE_CHANNEL", count: 4},
             ])
-        ).toEqual([
-            {channel: "ONLINE", count: 2},
-            {channel: "KIOSK", count: 0},
-            {channel: "EARLY_VOTING", count: 0},
-            {channel: "TELEPHONE", count: 0},
-            {channel: OTHER_VOTING_CHANNEL, count: 7},
-        ])
+        ).toEqual([{channel: CastVoteChannel.ONLINE, count: 2}])
+    })
+
+    it("returns no legend rows when no channel has voters", () => {
+        expect(toVotersByChannelRows([])).toEqual([])
     })
 })

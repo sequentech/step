@@ -29,6 +29,7 @@ export const GET_ELECTION_EVENT_STATS = gql`
             total_elections
             votes_per_day {
                 day
+                channel
                 day_count
             }
         }

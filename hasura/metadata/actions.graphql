@@ -1134,6 +1134,7 @@ type GetPrivateKeyOutput {
 
 type CastVotesPerDay {
     day: date!
+    channel: String!
     day_count: Int!
 }
 
