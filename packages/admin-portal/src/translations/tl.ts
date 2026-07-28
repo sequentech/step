@@ -1430,6 +1430,7 @@ const tagalogTranslation: TranslationType = {
                 kiosk: "Kiosk",
                 early_voting: "Maagang pagboto",
                 telephone: "Pagboto sa Telepono",
+                other: "Iba pa",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",

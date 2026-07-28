@@ -8,7 +8,8 @@ import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
-import {VotersByChannel, VotingChanel} from "../charts/VotersByChannel"
+import {VotersByChannel} from "../charts/VotersByChannel"
+import {toVotersByChannelRows} from "../charts/votersByChannelData"
 import {useRecordContext} from "react-admin"
 import {CastVotesPerDay, GetElectionStatsQuery, Sequent_Backend_Election} from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -93,24 +94,7 @@ export default function DashboardElection() {
                         endDate={endDate}
                     />
                     <VotersByChannel
-                        data={[
-                            {
-                                channel: VotingChanel.Online,
-                                count: dataStats?.stats?.total_distinct_voters ?? 0,
-                            },
-                            {
-                                channel: VotingChanel.Paper,
-                                count: 0,
-                            },
-                            {
-                                channel: VotingChanel.Telephone,
-                                count: 0,
-                            },
-                            {
-                                channel: VotingChanel.Postal,
-                                count: 0,
-                            },
-                        ]}
+                        data={toVotersByChannelRows(dataStats?.stats?.voters_by_channel)}
                         width={cardWidth}
                         height={cardHeight}
                     />

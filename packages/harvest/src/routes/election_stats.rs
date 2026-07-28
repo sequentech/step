@@ -12,11 +12,11 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::cast_votes::{
-    get_count_votes_per_day, CastVotesPerDay,
+    get_count_distinct_voters_by_channel, get_count_votes_per_day,
+    CastVotesPerDay, VotersByChannel,
 };
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_statistics::get_count_areas;
-use windmill::services::election_statistics::get_count_distinct_voters;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionStatsInput {
@@ -30,6 +30,7 @@ pub struct ElectionStatsInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionStatsOutput {
     total_distinct_voters: i64,
+    voters_by_channel: Vec<VotersByChannel>,
     total_areas: i64,
     votes_per_day: Vec<CastVotesPerDay>,
 }
@@ -64,19 +65,22 @@ pub async fn get_election_stats(
             )
         })?;
 
-    let total_distinct_voters: i64 = get_count_distinct_voters(
+    let voters_by_channel = get_count_distinct_voters_by_channel(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-        &input.election_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        Some(input.election_id.as_str()),
     )
     .await
     .map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error retrieving total_distinct_voters: {err}"),
+            format!("Error retrieving voters_by_channel: {err}"),
         )
     })?;
+    let total_distinct_voters: i64 =
+        voters_by_channel.iter().map(|item| item.count).sum();
+
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,
         &tenant_id.as_str(),
@@ -110,6 +114,7 @@ pub async fn get_election_stats(
 
     Ok(Json(ElectionStatsOutput {
         total_distinct_voters,
+        voters_by_channel,
         total_areas,
         votes_per_day,
     }))
