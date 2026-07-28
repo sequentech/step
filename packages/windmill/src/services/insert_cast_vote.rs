@@ -188,7 +188,7 @@ async fn insert_datafix_cast_vote_locked<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<CastVote, CastVoteError> {
+) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
     let lock = PgLock::acquire(
         datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
         Uuid::new_v4().to_string(),
@@ -489,7 +489,7 @@ pub async fn try_insert_cast_vote(
     .await;
 
     match result {
-        Ok(inserted_cast_vote) => {
+        Ok((inserted_cast_vote, effective_voting_channel)) => {
             let username = match username {
                 Ok(username) => username,
                 Err(err) => {
@@ -545,6 +545,7 @@ pub async fn try_insert_cast_vote(
                     voter_id.to_string(),
                     username.clone(),
                     area_id.to_string().clone(),
+                    effective_voting_channel.to_string(),
                 )
                 .await;
             if let Err(log_err) = log_result {
@@ -744,7 +745,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
-) -> Result<CastVote, CastVoteError> {
+) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
     let tenant_uuid = parse_uuid_v4(ids.tenant_id)
@@ -756,7 +757,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
     let area_uuid = parse_uuid_v4(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
-    let (check_status, check_previous_votes) = try_join!(
+    let (effective_voting_channel, _check_previous_votes) = try_join!(
         // Check status is the most expensive call here, it takes around 2/3 of the time of the whole insert_cast_vote
         check_status(
             ids.tenant_id,
@@ -801,6 +802,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
         voter_ip,
         voter_country,
+        effective_voting_channel,
         initial_status,
     );
 
@@ -822,7 +824,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .await
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
-    Ok(cast_vote)
+    Ok((cast_vote, effective_voting_channel))
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
@@ -860,6 +862,149 @@ async fn get_electoral_log(
     Ok((electoral_log?, sk.clone()))
 }
 
+fn effective_voting_channel_for_status(
+    voting_channel: VotingStatusChannel,
+    is_early_voting_area: bool,
+    election_status: &ElectionStatus,
+) -> VotingStatusChannel {
+    let allow_early_voting = voting_channel == VotingStatusChannel::ONLINE
+        && is_early_voting_area
+        && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+            == VotingStatus::OPEN
+        && election_status.status_by_channel(VotingStatusChannel::ONLINE)
+            == VotingStatus::NOT_STARTED;
+
+    if allow_early_voting {
+        VotingStatusChannel::EARLY_VOTING
+    } else {
+        voting_channel
+    }
+}
+
+/// Applies the existing vote-acceptance policy after `check_status` has loaded
+/// the election state. The requested channel continues to drive status, date,
+/// and grace-period checks; the effective channel is derived only after the
+/// vote has passed those checks so channel persistence cannot broaden access.
+fn check_status_with_loaded_election(
+    now: DateTime<Local>,
+    auth_time_local: DateTime<Local>,
+    voting_channel: VotingStatusChannel,
+    is_early_voting_area: bool,
+    mut dates: VotingPeriodDates,
+    election_status: &ElectionStatus,
+    election_presentation: &ElectionPresentation,
+    election_id: &str,
+) -> Result<VotingStatusChannel, CastVoteError> {
+    if voting_channel != VotingStatusChannel::ONLINE {
+        dates.end_date = None;
+    }
+
+    let close_date_esq_event_opt: Option<DateTime<Local>> =
+        if let Some(end_date_str) = dates.end_date {
+            match ISO8601::to_date(&end_date_str) {
+                Ok(close_date) => {
+                    info!("Parsed end_date: {}", close_date);
+                    Some(close_date)
+                }
+                Err(err) => {
+                    info!("Failed to parse end_date: {}", err);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+    let current_voting_status = election_status.status_by_channel(voting_channel);
+    let dates_by_channel = election_status.dates_by_channel(voting_channel);
+    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
+    let grace_period_policy = election_presentation
+        .grace_period_policy
+        .clone()
+        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
+    let apply_grace_period = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
+        && voting_channel == VotingStatusChannel::ONLINE
+        && current_voting_status != VotingStatus::PAUSED;
+    let grace_period_duration = Duration::seconds(grace_period_secs as i64);
+
+    if let Some(close_date_esq_event) = close_date_esq_event_opt {
+        let close_date_plus_grace_period = close_date_esq_event + grace_period_duration;
+
+        if apply_grace_period {
+            if now > close_date_plus_grace_period || auth_time_local > close_date_esq_event {
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Cannot vote outside grace period".to_string(),
+                ));
+            }
+
+            if now <= close_date_esq_event && current_voting_status != VotingStatus::OPEN {
+                return Err(CastVoteError::CheckStatusFailed(
+                    format!("Election voting status is not open (={current_voting_status:?}) while voting before the closing date of the election"),
+                ));
+            }
+        } else {
+            if now > close_date_esq_event {
+                return Err(CastVoteError::CheckStatusFailed(
+                    "Election close date passed and grace period does not apply or is not set"
+                        .to_string(),
+                ));
+            }
+
+            if current_voting_status != VotingStatus::OPEN {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Election Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open and grace_period_policy does not apply or is not set"
+                )));
+            }
+        }
+    } else {
+        // Preserve the pre-ticket acceptance rule: this exception is only
+        // consulted when there is no configured online close date.
+        let allow_early_voting = is_early_voting_area
+            && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+                == VotingStatus::OPEN
+            && election_status.status_by_channel(VotingStatusChannel::ONLINE)
+                == VotingStatus::NOT_STARTED;
+        let last_stopped_at = dates_by_channel
+            .last_stopped_at
+            .map(|val| val.with_timezone(&Local));
+        let allow_grace_period_voting = match last_stopped_at {
+            Some(close_date) => {
+                apply_grace_period
+                    && now < close_date + grace_period_duration
+                    && auth_time_local < close_date
+            }
+            None => false,
+        };
+
+        match current_voting_status {
+            VotingStatus::NOT_STARTED if allow_early_voting => {}
+            VotingStatus::NOT_STARTED | VotingStatus::PAUSED => {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"
+                )));
+            }
+            VotingStatus::OPEN => {
+                debug!("Allowing cast vote for election id {election_id}");
+            }
+            VotingStatus::CLOSED if allow_grace_period_voting => {
+                info!("Allowing grace period vote at {now}");
+            }
+            VotingStatus::CLOSED => {
+                return Err(CastVoteError::CheckStatusFailed(format!(
+                    "Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"
+                )));
+            }
+        }
+    }
+
+    let effective_voting_channel =
+        effective_voting_channel_for_status(voting_channel, is_early_voting_area, election_status);
+    if effective_voting_channel != voting_channel {
+        debug!("Allowing early voting for election id {election_id}");
+    }
+    Ok(effective_voting_channel)
+}
+
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -870,7 +1015,7 @@ async fn check_status(
     auth_time: &Option<i64>,
     voting_channel: VotingStatusChannel,
     is_early_voting_area: bool,
-) -> Result<(), CastVoteError> {
+) -> Result<VotingStatusChannel, CastVoteError> {
     if election_event.is_archived {
         return Err(CastVoteError::CheckStatusFailed(
             "Election event is archived".to_string(),
@@ -922,33 +1067,13 @@ async fn check_status(
 
     // these dates are used to check by scheduled event date
     // (even if the even hasn't been executed)
-    let mut dates: VotingPeriodDates = generate_voting_period_dates(
+    let dates: VotingPeriodDates = generate_voting_period_dates(
         scheduled_events.clone(),
         &tenant_id,
         &election_event_id,
         Some(election_id),
     )
     .unwrap_or(Default::default());
-
-    if VotingStatusChannel::ONLINE != voting_channel.clone() {
-        dates.end_date = None;
-    }
-
-    let close_date_esq_event_opt: Option<DateTime<Local>> =
-        if let Some(end_date_str) = dates.end_date {
-            match ISO8601::to_date(&end_date_str) {
-                Ok(close_date) => {
-                    info!("Parsed end_date: {}", close_date);
-                    Some(close_date)
-                }
-                Err(err) => {
-                    info!("Failed to parse end_date: {}", err);
-                    None
-                }
-            }
-        } else {
-            None
-        };
 
     let election_status: ElectionStatus = election
         .status
@@ -976,107 +1101,16 @@ async fn check_status(
         )));
     }
 
-    let current_voting_status = election_status.status_by_channel(voting_channel);
-    let dates_by_channel = election_status.dates_by_channel(voting_channel);
-
-    // calculate if we need to apply the grace period
-    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
-    let grace_period_policy = election_presentation
-        .grace_period_policy
-        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
-
-    // We only apply the grace period if:
-    // 1. Grace period policy is not NO_GRACE_PERIOD
-    // 2. Voting Channel is ONLINE
-    // 3. Current Voting Status is not PAUSED
-    let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
-        && voting_channel == VotingStatusChannel::ONLINE
-        && current_voting_status != VotingStatus::PAUSED;
-    let grace_period_duration = Duration::seconds(grace_period_secs as i64);
-
-    // We can only calculate grace period if there's a close date
-    if let Some(close_date_esq_event) = close_date_esq_event_opt {
-        let close_date_plus_grace_period = close_date_esq_event + grace_period_duration;
-
-        if apply_grace_period {
-            // a voter cannot cast a vote after the grace period or if the voter
-            // authenticated after the closing date
-            if now > close_date_plus_grace_period || auth_time_local > close_date_esq_event {
-                return Err(CastVoteError::CheckStatusFailed(
-                    "Cannot vote outside grace period".to_string(),
-                ));
-            }
-
-            // if voting before the closing date, we don't apply the grace
-            // period so current voting status needs to be open
-            if now <= close_date_esq_event && current_voting_status != VotingStatus::OPEN {
-                return Err(CastVoteError::CheckStatusFailed(
-                    format!("Election voting status is not open (={current_voting_status:?}) while voting before the closing date of the election"),
-                ));
-            }
-        } else {
-            // if grace period does not apply and there's a closing date, to
-            // cast a vote you need to do it before the closing date
-            if now > close_date_esq_event {
-                return Err(CastVoteError::CheckStatusFailed(
-                    "Election close date passed and grace period does not apply or is not set"
-                        .to_string(),
-                ));
-            }
-
-            // if no grace period, election needs to be open to cast a vote
-            // period
-            if current_voting_status != VotingStatus::OPEN {
-                return Err(CastVoteError::CheckStatusFailed(
-                    format!("Election Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open and grace_period_policy does not apply or is not set"),
-                ));
-            }
-        }
-
-    // if there's no closing date, election needs to be open to cast a vote
-    } else {
-        let allow_early_voting = is_early_voting_area
-            && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
-                == VotingStatus::OPEN
-            && election_status.status_by_channel(VotingStatusChannel::ONLINE)
-                == VotingStatus::NOT_STARTED;
-
-        let last_stopped_at = dates_by_channel
-            .last_stopped_at
-            .map(|val| val.with_timezone(&Local));
-
-        let allow_grace_period_voting = match last_stopped_at {
-            Some(close_date) => {
-                apply_grace_period
-                    && (now < (close_date + grace_period_duration))
-                    && auth_time_local < close_date
-            }
-            None => false,
-        };
-
-        match current_voting_status {
-            VotingStatus::NOT_STARTED if allow_early_voting => {
-                debug!("Allowing early voting for election id {election_id}");
-            }
-            VotingStatus::NOT_STARTED | VotingStatus::PAUSED => {
-                return Err(CastVoteError::CheckStatusFailed(
-                    format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
-                ));
-            }
-            VotingStatus::OPEN => {
-                debug!("Allowing cast vote for election id {election_id}");
-            }
-            VotingStatus::CLOSED if allow_grace_period_voting => {
-                info!("Allowing grace period vote at {now}");
-            }
-            VotingStatus::CLOSED => {
-                return Err(CastVoteError::CheckStatusFailed(
-                    format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
-                ));
-            }
-        };
-    }
-    Ok(())
+    check_status_with_loaded_election(
+        now,
+        auth_time_local,
+        voting_channel,
+        is_early_voting_area,
+        dates,
+        &election_status,
+        &election_presentation,
+        election_id,
+    )
 }
 
 #[instrument(skip_all, err)]
@@ -1230,5 +1264,94 @@ mod tests {
             initial_cast_vote_status(&election_event(Some(annotations))),
             Err(CastVoteError::InvalidDatafixConfiguration(_))
         ));
+    }
+
+    #[test]
+    fn online_votes_in_open_early_voting_areas_use_early_voting_channel() {
+        let election_status = ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::OPEN,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            effective_voting_channel_for_status(
+                VotingStatusChannel::ONLINE,
+                true,
+                &election_status,
+            ),
+            VotingStatusChannel::EARLY_VOTING
+        );
+    }
+
+    #[test]
+    fn online_close_date_keeps_existing_status_rejection_for_early_voting_area() {
+        let election_status = ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::OPEN,
+            ..Default::default()
+        };
+        let now = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+        let auth_time = ISO8601::to_date("2026-01-01T11:00:00Z").unwrap();
+        let dates = VotingPeriodDates {
+            start_date: None,
+            end_date: Some("2026-01-02T00:00:00Z".to_string()),
+        };
+
+        let result = check_status_with_loaded_election(
+            now,
+            auth_time,
+            VotingStatusChannel::ONLINE,
+            true,
+            dates,
+            &election_status,
+            &ElectionPresentation::default(),
+            "election-id",
+        );
+
+        assert!(matches!(result, Err(CastVoteError::CheckStatusFailed(_))));
+    }
+
+    #[test]
+    fn accepted_early_vote_without_online_close_date_is_labelled_early_voting() {
+        let election_status = ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::OPEN,
+            ..Default::default()
+        };
+        let now = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+        let auth_time = ISO8601::to_date("2026-01-01T11:00:00Z").unwrap();
+
+        let channel = check_status_with_loaded_election(
+            now,
+            auth_time,
+            VotingStatusChannel::ONLINE,
+            true,
+            VotingPeriodDates::default(),
+            &election_status,
+            &ElectionPresentation::default(),
+            "election-id",
+        )
+        .unwrap();
+
+        assert_eq!(channel, VotingStatusChannel::EARLY_VOTING);
+    }
+
+    #[test]
+    fn early_voting_area_does_not_overwrite_transport_channels() {
+        let election_status = ElectionStatus {
+            voting_status: VotingStatus::NOT_STARTED,
+            kiosk_voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::OPEN,
+            telephone_voting_status: VotingStatus::NOT_STARTED,
+            ..Default::default()
+        };
+
+        for channel in [VotingStatusChannel::KIOSK, VotingStatusChannel::TELEPHONE] {
+            assert_eq!(
+                effective_voting_channel_for_status(channel, true, &election_status,),
+                channel
+            );
+        }
     }
 }

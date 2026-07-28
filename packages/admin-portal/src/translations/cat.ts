@@ -1439,6 +1439,7 @@ const catalanTranslation: TranslationType = {
                 kiosk: "Quiosc",
                 early_voting: "Votació anticipada",
                 telephone: "Votació telefònica",
+                other: "Altres",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
