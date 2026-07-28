@@ -43,7 +43,7 @@ pub(crate) fn count_distinct_voters_by_channel_query(
     filter_by_election: bool,
 ) -> String {
     let election_filter = if filter_by_election {
-        "AND election_id = $4"
+        "AND election_id = $5"
     } else {
         ""
     };
@@ -54,7 +54,7 @@ pub(crate) fn count_distinct_voters_by_channel_query(
             WITH latest_valid_votes AS (
                 SELECT DISTINCT ON (voter_id_string)
                     voter_id_string,
-                    COALESCE(annotations->>'voting_channel', 'ONLINE') AS channel
+                    COALESCE(annotations->>'voting_channel', $4) AS channel
                 FROM {cast_vote_relation}
                 WHERE
                     tenant_id = $1 AND
@@ -94,7 +94,7 @@ pub(crate) fn count_votes_per_day_query(cast_vote_relation: CastVoteRelation) ->
             )
             SELECT
                 ds.day,
-                COALESCE(v.annotations->>'voting_channel', 'ONLINE') AS channel,
+                COALESCE(v.annotations->>'voting_channel', $8) AS channel,
                 COUNT(v.id) AS day_count
             FROM
                 date_series ds
@@ -111,7 +111,7 @@ pub(crate) fn count_votes_per_day_query(cast_vote_relation: CastVoteRelation) ->
                 OR v.created_at IS NULL
             GROUP BY
                 ds.day,
-                COALESCE(v.annotations->>'voting_channel', 'ONLINE')
+                COALESCE(v.annotations->>'voting_channel', $8)
             ORDER BY
                 ds.day,
                 channel;

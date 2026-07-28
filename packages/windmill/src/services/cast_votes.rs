@@ -15,6 +15,7 @@ use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
@@ -326,6 +327,7 @@ async fn get_count_distinct_voters_by_channel_from_relation(
 ) -> Result<Vec<VotersByChannel>> {
     let election_id = election_id.map(parse_uuid_v4).transpose()?;
     let status = CastVoteStatus::Valid.to_string();
+    let default_channel = VotingStatusChannel::ONLINE.to_string();
     let sql = count_distinct_voters_by_channel_query(cast_vote_relation, election_id.is_some());
     let statement = transaction.prepare(&sql).await?;
 
@@ -336,13 +338,22 @@ async fn get_count_distinct_voters_by_channel_from_relation(
             transaction
                 .query(
                     &statement,
-                    &[&tenant_id, &election_event_id, &status, &election_id],
+                    &[
+                        &tenant_id,
+                        &election_event_id,
+                        &status,
+                        &default_channel,
+                        &election_id,
+                    ],
                 )
                 .await?
         }
         None => {
             transaction
-                .query(&statement, &[&tenant_id, &election_event_id, &status])
+                .query(
+                    &statement,
+                    &[&tenant_id, &election_event_id, &status, &default_channel],
+                )
                 .await?
         }
     };
@@ -442,6 +453,7 @@ async fn get_count_votes_per_day_from_relation(
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
+    let default_channel = VotingStatusChannel::ONLINE.to_string();
     let sql = count_votes_per_day_query(cast_vote_relation);
     let total_areas_statement = transaction.prepare(&sql).await?;
 
@@ -456,6 +468,7 @@ async fn get_count_votes_per_day_from_relation(
                 &user_timezone,
                 &election_uuid,
                 &status,
+                &default_channel,
             ],
         )
         .await?;
