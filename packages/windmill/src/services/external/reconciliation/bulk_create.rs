@@ -28,7 +28,7 @@ use crate::services::external::reconciliation::diff::DiffItem;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, DATE_OF_BIRTH, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
+    AREA_ID_ATTR_NAME, DATE_OF_BIRTH, DISABLE_COMMENT, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
 };
 use std::collections::{HashMap, HashSet};
 use tracing::{instrument, warn};
@@ -60,6 +60,7 @@ struct PendingVoterAdd {
     enabled: bool,
     date_of_birth: Option<String>,
     voted_channel: Option<String>,
+    disable_comment: Option<String>,
     area_name: Option<String>,
 }
 
@@ -70,6 +71,7 @@ fn extract_pending_voter_add(voter_username: &str, items: &[DiffItem]) -> Pendin
     let mut enabled = true;
     let mut date_of_birth = None;
     let mut voted_channel = None;
+    let mut disable_comment = None;
     let mut area_name = None;
 
     for item in items {
@@ -89,6 +91,9 @@ fn extract_pending_voter_add(voter_username: &str, items: &[DiffItem]) -> Pendin
             if let Some(channel) = attributes.get(VOTED_CHANNEL) {
                 voted_channel = Some(channel.clone());
             }
+            if let Some(comment) = attributes.get(DISABLE_COMMENT) {
+                disable_comment = Some(comment.clone());
+            }
         }
     }
 
@@ -97,6 +102,7 @@ fn extract_pending_voter_add(voter_username: &str, items: &[DiffItem]) -> Pendin
         enabled,
         date_of_birth,
         voted_channel,
+        disable_comment,
         area_name,
     }
 }
@@ -340,6 +346,9 @@ async fn insert_voter_batch(
         if let Some(channel) = &candidate.voted_channel {
             push_attr(VOTED_CHANNEL, channel.clone());
         }
+        if let Some(comment) = &candidate.disable_comment {
+            push_attr(DISABLE_COMMENT, comment.clone());
+        }
         if let Some(area_id) = area_id {
             push_attr(AREA_ID_ATTR_NAME, area_id.clone());
         }
@@ -407,4 +416,50 @@ async fn insert_voter_batch(
                 .map_err(anyhow::Error::from)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::external::types::{
+        ReconciliationChangeCategory, ReconciliationPatchTarget, SequentReconciliationField,
+    };
+    use sequent_core::types::keycloak::{ATTR_RESET_VALUE, DISABLE_REASON_MARKVOTED_CALL};
+
+    fn item(field: SequentReconciliationField) -> DiffItem {
+        DiffItem {
+            voter_username: "voter-1".to_string(),
+            target: ReconciliationPatchTarget::Sequent(Some(field)),
+            category: ReconciliationChangeCategory::VOTER_ADDED,
+            failure_reason: None,
+        }
+    }
+
+    #[test]
+    fn extraction_honours_disabled_channel_and_reason() {
+        let candidate = extract_pending_voter_add(
+            "voter-1",
+            &[
+                item(SequentReconciliationField::Enabled(false, false)),
+                item(SequentReconciliationField::KeycloakUA(
+                    HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())]),
+                    HashMap::from([(VOTED_CHANNEL.to_string(), "PAPER".to_string())]),
+                )),
+                item(SequentReconciliationField::KeycloakUA(
+                    HashMap::from([(DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string())]),
+                    HashMap::from([(
+                        DISABLE_COMMENT.to_string(),
+                        DISABLE_REASON_MARKVOTED_CALL.to_string(),
+                    )]),
+                )),
+            ],
+        );
+
+        assert!(!candidate.enabled);
+        assert_eq!(candidate.voted_channel.as_deref(), Some("PAPER"));
+        assert_eq!(
+            candidate.disable_comment.as_deref(),
+            Some(DISABLE_REASON_MARKVOTED_CALL)
+        );
+    }
 }

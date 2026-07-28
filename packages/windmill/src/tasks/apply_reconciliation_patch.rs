@@ -22,7 +22,7 @@ use crate::services::external::reconciliation::apply::{apply_voter_changes, Vote
 use crate::services::external::reconciliation::bulk_create::apply_voters_added_bulk;
 use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationDiff};
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
-use crate::services::external::utils::bump_datafix_last_applied_sequence;
+use crate::services::external::utils::set_datafix_reconciliation_state;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tasks_execution::{update, update_fail};
@@ -49,6 +49,7 @@ pub struct ApplyReconciliationPatchBody {
     /// client, for the safety checks below (staleness, external side clean).
     pub diff_document_id: String,
     pub applied_by_user_id: String,
+    pub applied_by_username: Option<String>,
 }
 
 /// Applies every `target = Sequent` item of the round `diff_document_id`
@@ -191,12 +192,31 @@ async fn run_apply_reconciliation_patch(
         // the frontend only calls apply when there's something outstanding to
         // apply in the first place, so an accidental retry here is a rare
         // double-click, not a normal path.
-        if envelope.sequence < datafix_annotations.last_applied_sequence {
-            return Err(format!(
-                "Reconciliation round Sequence {} is older than the current round ({})",
-                envelope.sequence, datafix_annotations.last_applied_sequence
-            ));
+        match datafix_annotations.last_applied_sequence {
+            Some(last_applied) if envelope.sequence < last_applied => {
+                return Err(format!(
+                    "Reconciliation round Sequence {} is older than the current round ({last_applied})",
+                    envelope.sequence
+                ));
+            }
+            Some(last_applied)
+                if envelope.sequence == last_applied
+                    && !datafix_annotations.last_apply_had_failures =>
+            {
+                return Err(format!(
+                    "Reconciliation round Sequence {} was already applied successfully; this envelope is diff-only",
+                    envelope.sequence
+                ));
+            }
+            _ => {}
         }
+    }
+
+    if !envelope.apply_allowed {
+        return Err(format!(
+            "Reconciliation round Sequence {} is a diff-only convergence check and cannot be applied",
+            envelope.sequence
+        ));
     }
 
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
@@ -227,8 +247,25 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error starting Keycloak transaction: {err}"))?;
 
-    let mut row_failures: Vec<(String, String)> = Vec::new();
+    // Generate-time failures are intentionally absent from the executable
+    // Sequent patch, but they are still outstanding failures for this round:
+    // surface them in the apply result and retain same-Sequence retry
+    // eligibility until a later run resolves them.
+    let mut row_failures: Vec<(String, String)> = envelope
+        .items
+        .iter()
+        .filter(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE)
+        .map(|item| {
+            (
+                item.voter_username.clone(),
+                item.failure_reason
+                    .clone()
+                    .unwrap_or_else(|| "Row was excluded while generating the diff".to_string()),
+            )
+        })
+        .collect();
     let mut applied_voters_count: usize = 0;
+    let mut applied_items: Vec<DiffItem> = Vec::new();
 
     // VOTER_ADDED voters — the dominant category by volume whenever the
     // realm is badly out of sync with the file — are bulk-created via
@@ -250,8 +287,8 @@ async fn run_apply_reconciliation_patch(
             continue; // never applied - excluded at generate time already, defensive only
         }
         if voter_items
-            .first()
-            .is_some_and(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED)
+            .iter()
+            .all(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED)
         {
             voters_added.insert(voter_username, voter_items);
         } else {
@@ -275,6 +312,7 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error bulk-creating added voters: {err:?}"))?;
         applied_voters_count += voters_added_count - bulk_failures.len();
+        applied_items.extend(bulk_applied);
         row_failures.extend(bulk_failures);
     }
 
@@ -298,6 +336,7 @@ async fn run_apply_reconciliation_patch(
         match outcome {
             Ok(VoterApplyOutcome::Applied) => {
                 applied_voters_count += 1;
+                applied_items.extend(voter_items);
             }
             Ok(VoterApplyOutcome::Failed { reason }) => {
                 row_failures.push((voter_username.clone(), reason))
@@ -306,44 +345,46 @@ async fn run_apply_reconciliation_patch(
         }
     }
 
-    // Electoral log: one "changes applied" run-level entry.
-    if applied_voters_count > 0 {
-        let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
-        let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
-        if let Ok(electoral_log) = ElectoralLog::new(
-            &hasura_transaction,
-            &body.tenant_id,
-            Some(&body.election_event_id),
-            &board_name,
+    // Electoral log: every apply attempt gets a run-level entry, including a
+    // run where every row failed. The artifact contains only old/new items
+    // that were actually applied.
+    let artifact = serde_json::to_vec(&applied_items)
+        .map_err(|err| format!("Error serializing reconciliation audit artifact: {err}"))?;
+    let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
+    let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
+    let electoral_log = ElectoralLog::new(
+        &hasura_transaction,
+        &body.tenant_id,
+        Some(&body.election_event_id),
+        &board_name,
+    )
+    .await
+    .map_err(|err| format!("Error initializing reconciliation electoral log: {err:?}"))?;
+    electoral_log
+        .post_external_reconciliation(
+            body.election_event_id.clone(),
+            ExternalReconciliationKind::ChangesApplied,
+            envelope.sequence,
+            envelope.generated_at,
+            envelope.source_sha256.clone(),
+            None,
+            Some(artifact),
+            Some(body.applied_by_user_id.clone()),
+            body.applied_by_username.clone(),
         )
         .await
-        {
-            electoral_log
-                .post_external_reconciliation(
-                    body.election_event_id.clone(),
-                    ExternalReconciliationKind::ChangesApplied,
-                    envelope.sequence,
-                    envelope.generated_at,
-                    envelope.source_sha256.clone(),
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-                .await
-                .ok();
-        }
-    }
+        .map_err(|err| format!("Error storing reconciliation electoral log: {err:?}"))?;
 
     if let ReconciliationPatchSource::Datafix { .. } = &body.source {
-        bump_datafix_last_applied_sequence(
+        set_datafix_reconciliation_state(
             &hasura_transaction,
             &body.tenant_id,
             &body.election_event_id,
             envelope.sequence,
+            !row_failures.is_empty(),
         )
         .await
-        .map_err(|err| format!("Error bumping datafix_last_applied_sequence: {err:?}"))?;
+        .map_err(|err| format!("Error storing Datafix reconciliation state: {err:?}"))?;
     }
 
     keycloak_transaction

@@ -33,6 +33,9 @@ pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
 /// registry integration would need its own independent sequence, not share
 /// this one.
 pub const DATAFIX_LAST_APPLIED_SEQUENCE_KEY: &str = "datafix:last_applied_sequence";
+/// Whether the most recent reconciliation apply had per-row failures. A true
+/// value permits retrying that same Sequence; a successful apply clears it.
+pub const DATAFIX_LAST_APPLY_HAD_FAILURES_KEY: &str = "datafix:last_apply_had_failures";
 /// Lifetime of the per-voter Datafix advisory lock. Must exceed the slowest
 /// VoterView round-trip so the lock outlives an in-flight SOAP call.
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
@@ -52,7 +55,7 @@ pub fn external_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_i
 pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => {
-            matches!(v.last(), Some(channel) if channel.eq(VOTED_CHANNEL_INTERNET_VALUE))
+            matches!(v.last(), Some(channel) if channel.eq_ignore_ascii_case(VOTED_CHANNEL_INTERNET_VALUE))
         }
         None => false,
     }
@@ -64,7 +67,7 @@ pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
 pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => {
-            matches!(v.last(), Some(channel) if channel != ATTR_RESET_VALUE && channel != VOTED_CHANNEL_INTERNET_VALUE && !channel.is_empty())
+            matches!(v.last(), Some(channel) if !channel.eq_ignore_ascii_case(ATTR_RESET_VALUE) && !channel.eq_ignore_ascii_case(VOTED_CHANNEL_INTERNET_VALUE) && !channel.is_empty())
         }
         None => false,
     }
@@ -258,19 +261,20 @@ pub fn datafix_annotations(election_event: &ElectionEvent) -> Result<Option<Data
         .map_err(|err| anyhow!("Invalid Datafix election event configuration: {err}"))
 }
 
-/// Bumps the event's `DATAFIX_LAST_APPLIED_SEQUENCE_KEY` annotation to
-/// `sequence`, but only forward: a retry at the same Sequence must not
-/// regress or redundantly rewrite it. Read-modify-write of the whole
+/// Stores the event's last applied Sequence and whether that apply had row
+/// failures. Same-Sequence writes update the retry flag; moving backwards is
+/// rejected. Read-modify-write of the whole
 /// `annotations` blob, matching every other annotation writer in this codebase (e.g.
 /// `update_election_event_sbei_users`) rather than a raw `jsonb_set`
 /// compare-and-swap — reconciliation apply is an infrequent, deliberate admin
 /// action, not a hot concurrent path.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn bump_datafix_last_applied_sequence(
+pub async fn set_datafix_reconciliation_state(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     sequence: i64,
+    had_failures: bool,
 ) -> Result<()> {
     let election_event =
         get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
@@ -280,17 +284,23 @@ pub async fn bump_datafix_last_applied_sequence(
         .ok_or_else(|| anyhow!("Missing election event annotations"))?;
     let mut annotations: Annotations = deserialize_value(annotations_value)?;
 
-    let current: i64 = annotations
+    let current: Option<i64> = annotations
         .get(DATAFIX_LAST_APPLIED_SEQUENCE_KEY)
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
-    if current >= sequence {
-        return Ok(());
+        .and_then(|value| value.parse().ok());
+    if current.is_some_and(|current| current > sequence) {
+        return Err(anyhow!(
+            "Cannot move Datafix reconciliation state backwards from Sequence {} to {sequence}",
+            current.unwrap_or_default()
+        ));
     }
 
     annotations.insert(
         DATAFIX_LAST_APPLIED_SEQUENCE_KEY.to_string(),
         sequence.to_string(),
+    );
+    annotations.insert(
+        DATAFIX_LAST_APPLY_HAD_FAILURES_KEY.to_string(),
+        had_failures.to_string(),
     );
     let annotations_value = serde_json::to_value(&annotations)?;
     update_election_event_annotations(

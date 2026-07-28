@@ -20,6 +20,7 @@ export enum ESyncChangeCategory {
     PROFILE_UPDATE = "PROFILE_UPDATE", // C: Ward/Poll/SchoolSupportCode/DoB changed
     VOTER_ADDED = "VOTER_ADDED", // D: voter missing on one side
     REENABLED = "REENABLED", // re-enabled after a Datafix delete-call disable is undone
+    VOTED_UNMARKED = "VOTED_UNMARKED", // file-driven equivalent of /unmark-voted
     ROW_FAILURE = "ROW_FAILURE", // CountyMun mismatch or the voted-other-channel guard
 }
 

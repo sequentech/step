@@ -82,8 +82,15 @@ interface RawDiffItem {
 interface ReconciliationDiffEnvelope {
     sequence: number
     generated_at: number
+    /** False for an equal-Sequence convergence check after a successful apply. */
+    apply_allowed: boolean
     external_patch_document_id: string | null
     items: RawDiffItem[]
+}
+
+interface TaskLog {
+    created_date: string
+    log_text: string
 }
 
 /**
@@ -117,6 +124,7 @@ const summarizeForConfirmation = (rows: SyncDiffRow[], t: TranslateFn): string =
         ],
         [ESyncChangeCategory.DISABLED_DELETE_CALL, "reconciliation.wizard.summary.disabled"],
         [ESyncChangeCategory.REENABLED, "reconciliation.wizard.summary.reenabled"],
+        [ESyncChangeCategory.VOTED_UNMARKED, "reconciliation.wizard.summary.votedUnmarked"],
         [ESyncChangeCategory.PROFILE_UPDATE, "reconciliation.wizard.summary.profileUpdated"],
         [ESyncChangeCategory.VOTER_ADDED, "reconciliation.wizard.summary.voterAdded"],
     ] as const
@@ -240,16 +248,56 @@ const toRowFailures = (items: RawDiffItem[], t: TranslateFn): SyncDiffRow[] =>
             )
         )
 
+const APPLY_ROW_FAILURE_PREFIX = "Row failed for voter "
+
+/** Converts apply-time per-voter failures from task logs into the same rows
+ * used for generate-time failures, so operators do not have to leave the
+ * wizard and inspect the task widget. */
+const taskLogsToRowFailures = (logs: unknown, t: TranslateFn): SyncDiffRow[] => {
+    if (!Array.isArray(logs)) {
+        return []
+    }
+
+    return (logs as TaskLog[]).flatMap((log, index) => {
+        if (
+            typeof log?.log_text !== "string" ||
+            !log.log_text.startsWith(APPLY_ROW_FAILURE_PREFIX)
+        ) {
+            return []
+        }
+        const detail = log.log_text.slice(APPLY_ROW_FAILURE_PREFIX.length)
+        const separator = detail.indexOf(": ")
+        if (separator < 0) {
+            return []
+        }
+        const voterId = detail.slice(0, separator)
+        const failureReason = detail.slice(separator + 2)
+        return [
+            {
+                id: `apply-failure:${voterId}:${index}`,
+                voterId,
+                field: t("reconciliation.table.rowLabel"),
+                label: t("reconciliation.table.rowLabel"),
+                oldValue: ATTR_RESET_VALUE,
+                newValue: ATTR_RESET_VALUE,
+                category: ESyncChangeCategory.ROW_FAILURE,
+                target: "sequent" as const,
+                failureReason,
+            },
+        ]
+    })
+}
+
 /**
  * Reconciliation wizard: Drop the reconciliation file, both diffs (external-side, Sequent-side) are
  * calculated at once and shown in separate tables. The external patch is
  * downloadable as soon as its diff is non-empty; Apply is disabled until that
  * diff is empty (clean import), then applies the Sequent-side diff directly -
  * there is no Sequent patch file to download (the Sequent-side items exist
- * only as an internal document apply_reconciliation_patch reads from). There
- * is no separate "convergence check" mode: re-checking an already-applied
- * Sequence just recomputes an empty Sequent-side diff, so "Next" naturally
- * has nothing to apply.
+ * only as an internal document apply_reconciliation_patch reads from).
+ * Re-importing an already successfully applied Sequence is an explicit
+ * diff-only convergence check: its envelope has `apply_allowed = false` and
+ * this wizard never calls the apply route for it.
  *
  * There is no `datafix_reconciliation_import` table: the whole diff is a
  * document referenced from the generate task_execution's own
@@ -285,7 +333,7 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     })
     const {data: applyTaskData} = useQuery(GET_TASK_BY_ID, {
         variables: {task_id: applyTaskId},
-        skip: !applyTaskId || step !== "applying",
+        skip: !applyTaskId,
         pollInterval: step === "applying" ? POLL_INTERVAL_MS : 0,
     })
 
@@ -319,6 +367,23 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     const datafixRows = useMemo(() => toRows(items, "datafix", t), [items, t])
     const sequentRows = useMemo(() => toRows(items, "sequent", t), [items, t])
     const rowFailures = useMemo(() => toRowFailures(items, t), [items, t])
+    const applyTaskLogs = applyTaskData?.sequent_backend_tasks_execution?.[0]?.logs
+    const applyRowFailures = useMemo(
+        () => taskLogsToRowFailures(applyTaskLogs, t),
+        [applyTaskLogs, t]
+    )
+    const finalRowFailures = useMemo(
+        () =>
+            Array.from(
+                new Map(
+                    [...rowFailures, ...applyRowFailures].map((row) => [
+                        `${row.voterId}:${row.failureReason ?? ""}`,
+                        row,
+                    ])
+                ).values()
+            ),
+        [rowFailures, applyRowFailures]
+    )
     const isClean = datafixRows.length === 0
     const summary = useMemo(
         () => countsByCategory([...datafixRows, ...sequentRows]),
@@ -452,10 +517,10 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
         }
         setConfirmOpen(false)
 
-        // Nothing to apply (a plain convergence re-check - see the module
-        // doc above): go straight to "done" without running the apply task
-        // at all, rather than kicking off a no-op Celery task.
-        if (sequentRows.length === 0) {
+        // A successful equal-Sequence retry is a diff-only convergence check
+        // and must not enqueue apply. A new round with no voter changes still
+        // does enqueue: that records its Sequence and run-level audit log.
+        if (!envelope?.apply_allowed) {
             setStep("done")
             return
         }
@@ -539,6 +604,15 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                             })}
                                         </Typography>
                                     </Box>
+
+                                    {!envelope.apply_allowed &&
+                                        (datafixRows.length > 0 || sequentRows.length > 0) && (
+                                            <Alert severity="warning">
+                                                {t(
+                                                    "reconciliation.wizard.review.diffOnlyDifferences"
+                                                )}
+                                            </Alert>
+                                        )}
 
                                     {rowFailures.length > 0 && (
                                         <Stack spacing={1}>
@@ -649,23 +723,23 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                             </Typography>
                                         </Stack>
                                     )}
-                                    {step === "done" && !errorMessage && (
+                                    {step === "done" && (
                                         <>
-                                            {rowFailures.length > 0 ? (
+                                            {finalRowFailures.length > 0 ? (
                                                 <Stack spacing={1}>
                                                     <Alert severity="warning">
                                                         {t(
                                                             "reconciliation.wizard.applying.rowFailures",
-                                                            {count: rowFailures.length}
+                                                            {count: finalRowFailures.length}
                                                         )}
                                                     </Alert>
-                                                    <SyncDiffTable rows={rowFailures} />
+                                                    <SyncDiffTable rows={finalRowFailures} />
                                                 </Stack>
-                                            ) : (
+                                            ) : !errorMessage ? (
                                                 <Alert severity="success">
                                                     {t("reconciliation.wizard.applying.success")}
                                                 </Alert>
-                                            )}
+                                            ) : null}
                                         </>
                                     )}
                                 </Stack>
@@ -704,7 +778,11 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                         {t("reconciliation.wizard.actions.back")}
                                     </ImportStyles.CancelButton>
                                     <ImportStyles.ImportButton
-                                        disabled={!isClean}
+                                        disabled={
+                                            !isClean ||
+                                            !envelope ||
+                                            (!envelope.apply_allowed && sequentRows.length > 0)
+                                        }
                                         onClick={() =>
                                             sequentRows.length > 0
                                                 ? setConfirmOpen(true)

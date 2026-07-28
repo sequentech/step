@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{
-    DATAFIX_ID_KEY, DATAFIX_LAST_APPLIED_SEQUENCE_KEY, DATAFIX_PSW_POLICY_KEY,
-    DATAFIX_VOTERVIEW_REQ_KEY,
+    DATAFIX_ID_KEY, DATAFIX_LAST_APPLIED_SEQUENCE_KEY, DATAFIX_LAST_APPLY_HAD_FAILURES_KEY,
+    DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY,
 };
 use anyhow::{anyhow, Result};
 use rand::{distr, Rng};
@@ -145,10 +145,13 @@ pub struct DatafixAnnotations {
     pub id: String,
     pub password_policy: PasswordPolicy,
     pub voterview_request: VoterviewRequest,
-    /// See `DATAFIX_LAST_APPLIED_SEQUENCE_KEY` — `0` if this event has never
-    /// had a reconciliation file applied, not an error like the three fields
-    /// above (which must already be configured for Datafix to work at all).
-    pub last_applied_sequence: i64,
+    /// See `DATAFIX_LAST_APPLIED_SEQUENCE_KEY`. `None` means no reconciliation
+    /// has ever been applied; this distinction is required because the
+    /// legitimate kickoff file uses `Sequence=0`.
+    pub last_applied_sequence: Option<i64>,
+    /// Whether the last apply finished with per-row failures. Only that state
+    /// permits another apply at the same Sequence.
+    pub last_apply_had_failures: bool,
 }
 
 #[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
@@ -231,16 +234,30 @@ impl ValidateAnnotations for ElectionEventDatafix {
             None => return Err(anyhow!("{DATAFIX_VOTERVIEW_REQ_KEY} not found")),
         };
 
-        let last_applied_sequence: i64 = annotations
+        let last_applied_sequence = annotations
             .get(DATAFIX_LAST_APPLIED_SEQUENCE_KEY)
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(0);
+            .map(|value| {
+                value.parse::<i64>().map_err(|err| {
+                    anyhow!("Invalid {DATAFIX_LAST_APPLIED_SEQUENCE_KEY} value '{value}': {err}")
+                })
+            })
+            .transpose()?;
+        let last_apply_had_failures = annotations
+            .get(DATAFIX_LAST_APPLY_HAD_FAILURES_KEY)
+            .map(|value| {
+                value.parse::<bool>().map_err(|err| {
+                    anyhow!("Invalid {DATAFIX_LAST_APPLY_HAD_FAILURES_KEY} value '{value}': {err}")
+                })
+            })
+            .transpose()?
+            .unwrap_or(false);
 
         Ok(DatafixAnnotations {
             id,
             password_policy,
             voterview_request,
             last_applied_sequence,
+            last_apply_had_failures,
         })
     }
 }
@@ -311,9 +328,28 @@ pub struct SoapRequestData<'a> {
 /// The reconciliation file format's own value for an Internet vote in the
 /// `Channel` column — always uppercase per the "Accepted Values" spec, and
 /// distinct from Keycloak's stored `VOTED_CHANNEL_INTERNET_VALUE` ("Internet"):
-/// `VoterSnapshot::voted_channel` is itself uppercased specifically so it can
-/// be compared directly against this and against a file row's own `channel`.
+/// comparisons and writes must cross the explicit mappings below.
 pub const FILE_CHANNEL_INTERNET: &str = "INTERNET";
+
+/// Converts the file contract's channel representation into the value stored
+/// in Keycloak. Other channels stay uppercase; only Sequent's historical
+/// Internet spelling differs.
+pub fn file_channel_to_keycloak(channel: &str) -> String {
+    if channel.eq_ignore_ascii_case(FILE_CHANNEL_INTERNET) {
+        sequent_core::types::keycloak::VOTED_CHANNEL_INTERNET_VALUE.to_string()
+    } else {
+        channel.to_uppercase()
+    }
+}
+
+/// Converts a Keycloak channel to the canonical reconciliation-file value.
+pub fn keycloak_channel_to_file(channel: &str) -> String {
+    channel.to_uppercase()
+}
+
+pub fn channels_equal(left: &str, right: &str) -> bool {
+    left.eq_ignore_ascii_case(right)
+}
 
 /// One column of the "Patch Files Format" `_old`/`_new` pair contract,
 /// carrying that pair directly (`old`, `new`) instead of leaving it to a
@@ -426,7 +462,10 @@ impl ParsedDatafixReconciliationRow {
 
 #[cfg(test)]
 mod tests {
-    use super::{DatafixErrorCode, DatafixResponse};
+    use super::{
+        channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixErrorCode,
+        DatafixResponse, FILE_CHANNEL_INTERNET,
+    };
     use rocket::http::Status;
 
     #[test]
@@ -509,5 +548,13 @@ mod tests {
             serde_json::to_value(&*body).unwrap(),
             serde_json::json!({"code": 200, "message": "OK"})
         );
+    }
+
+    #[test]
+    fn channel_boundaries_use_each_systems_canonical_spelling() {
+        assert!(channels_equal("Internet", FILE_CHANNEL_INTERNET));
+        assert_eq!(file_channel_to_keycloak(FILE_CHANNEL_INTERNET), "Internet");
+        assert_eq!(keycloak_channel_to_file("Internet"), FILE_CHANNEL_INTERNET);
+        assert_eq!(file_channel_to_keycloak("paper"), "PAPER");
     }
 }

@@ -35,7 +35,7 @@ use tracing::instrument;
 /// of order, so this only affects the file's own organization, not
 /// correctness.
 pub struct ExternalPatchCsvWriter<W: Write> {
-    writer: W,
+    writer: ::csv::Writer<W>,
     wrote_any_row: bool,
 }
 
@@ -46,11 +46,17 @@ impl<W: Write> ExternalPatchCsvWriter<W> {
             writer,
             "#META,Sequence={sequence},GeneratedAt={generated_at}"
         )?;
-        let header: Vec<String> = DatafixReconciliationField::NAMES
-            .iter()
-            .flat_map(|name| [format!("{name}_old"), format!("{name}_new")])
+        let header: Vec<String> = std::iter::once("VoterID".to_string())
+            .chain(
+                DatafixReconciliationField::NAMES
+                    .iter()
+                    .flat_map(|name| [format!("{name}_old"), format!("{name}_new")]),
+            )
             .collect();
-        writeln!(writer, "VoterID,{}", header.join(","))?;
+        let mut writer = ::csv::WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(writer);
+        writer.write_record(header)?;
         Ok(Self {
             writer,
             wrote_any_row: false,
@@ -96,7 +102,9 @@ impl<W: Write> ExternalPatchCsvWriter<W> {
                     }
                 })
                 .collect();
-            writeln!(self.writer, "{voter_username},{}", values.join(","))?;
+            self.writer.write_record(
+                std::iter::once(voter_username).chain(values.iter().map(String::as_str)),
+            )?;
             self.wrote_any_row = true;
         }
         Ok(())
@@ -105,8 +113,15 @@ impl<W: Write> ExternalPatchCsvWriter<W> {
     /// Returns the underlying writer if any row was ever written, `None`
     /// (matching "nothing to patch") otherwise — the caller decides whether
     /// a Datafix patch document exists at all based on this.
-    pub fn finish(self) -> Option<W> {
-        self.wrote_any_row.then_some(self.writer)
+    pub fn finish(mut self) -> std::io::Result<Option<W>> {
+        if !self.wrote_any_row {
+            return Ok(None);
+        }
+        self.writer.flush()?;
+        self.writer
+            .into_inner()
+            .map(Some)
+            .map_err(|error| error.into_error())
     }
 }
 
@@ -161,9 +176,9 @@ pub fn is_sequent_patch_item(item: &DiffItem) -> bool {
 }
 
 #[instrument(skip_all)]
-pub fn sha256_hex(content: &str) -> String {
+pub fn sha256_hex(content: &[u8]) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(content.as_bytes());
+    hasher.update(content);
     hex::encode(hasher.finalize())
 }
 
@@ -213,6 +228,8 @@ mod tests {
             .expect("writing to a Vec<u8> cannot fail");
         writer
             .finish()
+            .ok()
+            .flatten()
             .map(|buffer| String::from_utf8(buffer).expect("writer only emits valid UTF-8"))
     }
 
@@ -304,9 +321,27 @@ mod tests {
         let mut writer = ExternalPatchCsvWriter::start(Vec::new(), 5, 1781780700).unwrap();
         writer.write_batch(&batch_one, &HashMap::new()).unwrap();
         writer.write_batch(&batch_two, &HashMap::new()).unwrap();
-        let csv = String::from_utf8(writer.finish().unwrap()).unwrap();
+        let csv = String::from_utf8(writer.finish().unwrap().unwrap()).unwrap();
         assert!(csv.contains("v1,"));
         assert!(csv.contains("v2,"));
+    }
+
+    #[test]
+    fn external_patch_quotes_values_that_contain_csv_delimiters() {
+        let items = vec![item(
+            "v1",
+            ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                ATTR_RESET_VALUE.to_string(),
+                "PAPER,ASSISTED".to_string(),
+            )),
+        )];
+        let csv = write_csv(&items, &HashMap::new(), 5, 1781780700).unwrap();
+        assert!(csv.contains("\"PAPER,ASSISTED\""));
+
+        let body = csv.split_once('\n').unwrap().1;
+        let mut reader = ::csv::Reader::from_reader(body.as_bytes());
+        let record = reader.records().next().unwrap().unwrap();
+        assert_eq!(record.get(12), Some("PAPER,ASSISTED"));
     }
 
     #[test]
@@ -354,7 +389,7 @@ mod tests {
     #[test]
     fn sha256_hex_is_stable() {
         assert_eq!(
-            sha256_hex("hello"),
+            sha256_hex(b"hello"),
             "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
         );
     }

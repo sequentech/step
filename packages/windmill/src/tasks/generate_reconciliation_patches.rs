@@ -27,7 +27,7 @@
 //! run otherwise would.
 
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::get_voter_ids_with_valid_cast_vote;
+use crate::postgres::cast_vote::get_voter_cast_vote_states_for_event;
 use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
@@ -38,7 +38,8 @@ use crate::services::external::reconciliation::csv::{
     split_meta_and_csv, ReconciliationRowBatches,
 };
 use crate::services::external::reconciliation::diff::{
-    diff_file_row_batch, diff_unmatched_sequent_voters, DiffItem, ReconciliationDiff,
+    diff_file_row_batch, diff_unmatched_sequent_voters, index_datafix_area_fields,
+    DatafixAreaFieldsByName, DiffItem, ReconciliationDiff,
 };
 use crate::services::external::reconciliation::patch::{
     is_sequent_patch_item, sha256_hex, DiffItemArrayWriter, ExternalPatchCsvWriter,
@@ -73,6 +74,8 @@ pub struct GenerateReconciliationPatchesBody {
     pub tenant_id: String,
     pub election_event_id: String,
     pub source_document_id: String,
+    pub requested_by_user_id: String,
+    pub requested_by_username: Option<String>,
 }
 
 /// Computes both reconciliation diffs for one uploaded file and uploads the
@@ -142,7 +145,8 @@ async fn run_generate_reconciliation_patches(
     let file_bytes = std::fs::read(temp_file.path())
         .map_err(|err| format!("Error reading uploaded file: {err}"))?;
     let source_sha256 = hash_bytes(&file_bytes);
-    let (meta, _) = split_meta_and_csv(&file_bytes);
+    let (meta, _) = split_meta_and_csv(&file_bytes)
+        .map_err(|err| format!("Invalid reconciliation metadata: {err}"))?;
     drop(file_bytes);
 
     let election_event = get_election_event_by_id(
@@ -156,17 +160,11 @@ async fn run_generate_reconciliation_patches(
         .get_annotations()
         .map_err(|err| format!("Election event has no valid Datafix configuration: {err}"))?;
 
-    // Sequence gating (view-time rule, no mode flag): reject only if strictly
-    // less than the last-applied Sequence — a genuinely superseded file.
-    // Equal-to is always allowed, so a plain convergence re-check and a
-    // same-Sequence retry both just work with no special-casing.
-    if meta.sequence < datafix_annotations.last_applied_sequence {
-        hasura_transaction.commit().await.ok();
-        return Err(format!(
-            "Reconciliation file Sequence {} is not newer than the last applied Sequence {}",
-            meta.sequence, datafix_annotations.last_applied_sequence
-        ));
-    }
+    let apply_allowed = apply_permission_for_sequence(
+        meta.sequence,
+        datafix_annotations.last_applied_sequence,
+        datafix_annotations.last_apply_had_failures,
+    )?;
     checkpoint(
         task_execution,
         &format!("Sequence {} accepted; scanning the file.", meta.sequence),
@@ -177,6 +175,8 @@ async fn run_generate_reconciliation_patches(
         county_mun: datafix_annotations.voterview_request.county_mun.clone(),
     };
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
+    let voter_group_name = std::env::var("KEYCLOAK_VOTER_GROUP_NAME")
+        .map_err(|err| format!("Error getting env var KEYCLOAK_VOTER_GROUP_NAME: {err:?}"))?;
 
     let mut keycloak_client = get_keycloak_pool()
         .await
@@ -199,13 +199,13 @@ async fn run_generate_reconciliation_patches(
     .filter_map(|area| area.name.map(|name| (area.id, name)))
     .collect();
 
-    let valid_voters = get_voter_ids_with_valid_cast_vote(
+    let voter_cast_vote_states = get_voter_cast_vote_states_for_event(
         &hasura_transaction,
         &body.tenant_id,
         &body.election_event_id,
     )
     .await
-    .map_err(|err| format!("Error loading voters with a valid cast vote: {err:?}"))?;
+    .map_err(|err| format!("Error loading active voter ballot states: {err:?}"))?;
 
     // Three output documents, each written incrementally as batches are
     // processed below, instead of serialized once from one fully-materialized
@@ -261,16 +261,24 @@ async fn run_generate_reconciliation_patches(
     let mut file_reader = ReconciliationRowBatches::open(temp_file.path())
         .map_err(|err| format!("Error opening the reconciliation file for reading: {err}"))?;
     let mut all_file_usernames: HashSet<String> = HashSet::new();
+    let mut area_fields_by_name = DatafixAreaFieldsByName::new();
     let mut total_rows: usize = 0;
 
     loop {
         let file_rows = file_reader
             .next_batch(RECONCILIATION_BATCH_SIZE)
             .map_err(|err| {
-                format!(
-                    "Reconciliation file has a malformed row at line {}: {}",
-                    err.line, err.message
-                )
+                if err.line == 0 {
+                    format!(
+                        "Reconciliation file has an invalid CSV header: {}",
+                        err.message
+                    )
+                } else {
+                    format!(
+                        "Reconciliation file has a malformed row at line {}: {}",
+                        err.line, err.message
+                    )
+                }
             })?;
         if file_rows.is_empty() {
             break;
@@ -278,18 +286,29 @@ async fn run_generate_reconciliation_patches(
         total_rows += file_rows.len();
 
         let usernames: Vec<String> = file_rows.iter().map(|row| row.voter_id.clone()).collect();
-        all_file_usernames.extend(usernames.iter().cloned());
+        for username in &usernames {
+            if !all_file_usernames.insert(username.clone()) {
+                return Err(format!(
+                    "Reconciliation file contains duplicate VoterID '{username}'"
+                ));
+            }
+        }
+        index_datafix_area_fields(&mut area_fields_by_name, &file_rows);
 
         let mut snapshots = fetch_realm_voter_snapshots_by_usernames(
             &keycloak_transaction,
             &realm,
+            &voter_group_name,
             &usernames,
             &areas_by_id,
         )
         .await
         .map_err(|err| format!("Error fetching voter snapshots for a file batch: {err:?}"))?;
         for snapshot in snapshots.iter_mut() {
-            snapshot.has_valid_internet_vote = valid_voters.contains(&snapshot.voter_id_string);
+            if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id_string) {
+                snapshot.has_valid_internet_vote = state.has_valid_vote;
+                snapshot.has_unresolved_internet_vote = state.has_unresolved_vote;
+            }
         }
         let snapshots_by_username: HashMap<String, VoterSnapshot> = snapshots
             .into_iter()
@@ -318,9 +337,10 @@ async fn run_generate_reconciliation_patches(
     // `diff::diff_unmatched_sequent_voters`'s doc).
     let mut after_username: Option<String> = None;
     loop {
-        let page = fetch_realm_voter_snapshots_page(
+        let mut page = fetch_realm_voter_snapshots_page(
             &keycloak_transaction,
             &realm,
+            &voter_group_name,
             after_username.as_deref(),
             &areas_by_id,
         )
@@ -329,9 +349,20 @@ async fn run_generate_reconciliation_patches(
         if page.is_empty() {
             break;
         }
+        for snapshot in page.iter_mut() {
+            if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id_string) {
+                snapshot.has_valid_internet_vote = state.has_valid_vote;
+                snapshot.has_unresolved_internet_vote = state.has_unresolved_vote;
+            }
+        }
         after_username = page.last().map(|snapshot| snapshot.username.clone());
 
-        let reverse_items = diff_unmatched_sequent_voters(&page, &all_file_usernames);
+        let reverse_items = diff_unmatched_sequent_voters(
+            &page,
+            &all_file_usernames,
+            &source,
+            &area_fields_by_name,
+        );
         write_batch_to_all_outputs(
             &mut envelope_items_writer,
             &mut sequent_patch_writer,
@@ -372,14 +403,17 @@ async fn run_generate_reconciliation_patches(
     // only if non-empty.
     let mut external_patch_document_id = None;
     let mut external_patch_sha256 = None;
-    if let Some(external_patch_writer_inner) = external_patch_writer.finish() {
+    if let Some(external_patch_writer_inner) = external_patch_writer
+        .finish()
+        .map_err(|err| format!("Error finishing the Datafix patch: {err}"))?
+    {
         flush_writer(external_patch_writer_inner)
             .map_err(|err| format!("Error finishing the Datafix patch: {err}"))?;
         let csv_size = file_size(external_patch_temp.path())
             .map_err(|err| format!("Error sizing the Datafix patch: {err}"))?;
         let csv_bytes = std::fs::read(external_patch_temp.path())
             .map_err(|err| format!("Error reading back the Datafix patch for hashing: {err}"))?;
-        let hash = sha256_hex(&String::from_utf8_lossy(&csv_bytes));
+        let hash = sha256_hex(&csv_bytes);
         drop(csv_bytes);
         let file_name = format!("datafix_patch_seq{}.csv", meta.sequence);
         let uploaded_id = upload_document_from_temp_file(
@@ -417,6 +451,7 @@ async fn run_generate_reconciliation_patches(
         external_patch_document_id.as_deref(),
         external_patch_sha256.as_deref(),
         &sequent_patch_document_id,
+        apply_allowed,
     )
     .map_err(|err| format!("Error finishing the diff envelope: {err}"))?;
     flush_writer(envelope_writer_inner)
@@ -438,29 +473,28 @@ async fn run_generate_reconciliation_patches(
     // Electoral log: "patch generated" run-level entry.
     let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
-    if let Ok(electoral_log) = ElectoralLog::new(
+    let electoral_log = ElectoralLog::new(
         &hasura_transaction,
         &body.tenant_id,
         Some(&body.election_event_id),
         &board_name,
     )
     .await
-    {
-        electoral_log
-            .post_external_reconciliation(
-                body.election_event_id.clone(),
-                ExternalReconciliationKind::PatchGenerated,
-                meta.sequence,
-                meta.generated_at,
-                source_sha256.clone(),
-                external_patch_sha256.clone(),
-                None,
-                None,
-                None,
-            )
-            .await
-            .ok();
-    }
+    .map_err(|err| format!("Error initializing reconciliation electoral log: {err:?}"))?;
+    electoral_log
+        .post_external_reconciliation(
+            body.election_event_id.clone(),
+            ExternalReconciliationKind::PatchGenerated,
+            meta.sequence,
+            meta.generated_at,
+            source_sha256.clone(),
+            external_patch_sha256.clone(),
+            None,
+            Some(body.requested_by_user_id.clone()),
+            body.requested_by_username.clone(),
+        )
+        .await
+        .map_err(|err| format!("Error storing reconciliation electoral log: {err:?}"))?;
 
     hasura_transaction
         .commit()
@@ -468,6 +502,23 @@ async fn run_generate_reconciliation_patches(
         .map_err(|err| format!("Error committing transaction: {err}"))?;
 
     Ok(envelope_document_id)
+}
+
+/// Enforces the ticket's `<=` stale rule while preserving its two explicit
+/// equal-Sequence cases: row-failure retries may apply; successful rounds are
+/// generated only for a diff-only convergence check.
+fn apply_permission_for_sequence(
+    sequence: i64,
+    last_applied_sequence: Option<i64>,
+    last_apply_had_failures: bool,
+) -> std::result::Result<bool, String> {
+    match last_applied_sequence {
+        Some(last_applied) if sequence < last_applied => Err(format!(
+            "Reconciliation file Sequence {sequence} is older than the last applied Sequence {last_applied}"
+        )),
+        Some(last_applied) if sequence == last_applied => Ok(last_apply_had_failures),
+        _ => Ok(true),
+    }
 }
 
 /// Writes one batch's items into all three open output writers — the
@@ -514,6 +565,7 @@ fn write_envelope_tail<W: Write>(
     external_patch_document_id: Option<&str>,
     external_patch_sha256: Option<&str>,
     sequent_patch_document_id: &str,
+    apply_allowed: bool,
 ) -> std::io::Result<()> {
     write!(
         writer,
@@ -532,8 +584,8 @@ fn write_envelope_tail<W: Write>(
     )?;
     write!(
         writer,
-        "\"sequent_patch_document_id\":{}}}",
-        json_string(sequent_patch_document_id)
+        "\"sequent_patch_document_id\":{},\"apply_allowed\":{apply_allowed}}}",
+        json_string(sequent_patch_document_id),
     )?;
     Ok(())
 }
@@ -620,5 +672,19 @@ async fn checkpoint(task_execution: &mut TasksExecution, message: &str) {
     .await
     {
         tracing::warn!("Error persisting reconciliation checkpoint log: {err:?}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_permission_for_sequence;
+
+    #[test]
+    fn sequence_gate_distinguishes_retry_from_convergence_check() {
+        assert_eq!(apply_permission_for_sequence(0, None, false), Ok(true));
+        assert!(apply_permission_for_sequence(4, Some(5), true).is_err());
+        assert_eq!(apply_permission_for_sequence(5, Some(5), true), Ok(true));
+        assert_eq!(apply_permission_for_sequence(5, Some(5), false), Ok(false));
+        assert_eq!(apply_permission_for_sequence(6, Some(5), false), Ok(true));
     }
 }

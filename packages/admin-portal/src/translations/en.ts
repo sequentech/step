@@ -113,6 +113,7 @@ const englishTranslation = {
                 PROFILE_UPDATE: "Profile update",
                 VOTER_ADDED: "Voter added",
                 REENABLED: "Voter re-enabled",
+                VOTED_UNMARKED: "Voter unmarked as voted",
                 ROW_FAILURE: "Row failure",
             },
             table: {
@@ -137,8 +138,10 @@ const englishTranslation = {
                 review: {
                     fileSummary: "{{fileName}} - Sequence {{sequence}}, generated {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} row(s) have an unexpected CountyMun or a voted-via-other-channel guard, and are excluded from both diffs - see below for details.",
+                        "{{count}} row(s) could not be reconciled safely and are excluded from both diffs - see below for details.",
                     noDifferences: "No differences - the two systems are already in sync.",
+                    diffOnlyDifferences:
+                        "This is a convergence check for an already applied Sequence. Differences are shown for follow-up, but this round cannot be applied again.",
                     externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
                     downloadExternalPatch: "Download external patch",
@@ -174,6 +177,7 @@ const englishTranslation = {
                     votedOtherChannel: "marks {{count}} voter(s) as voted via other channels",
                     disabled: "disables {{count}} voter(s)",
                     reenabled: "re-enables {{count}} voter(s)",
+                    votedUnmarked: "unmarks {{count}} voter(s) as voted",
                     profileUpdated: "updates {{count}} profile(s)",
                     voterAdded: "adds {{count}} voter(s)",
                     prefix: "This will apply changes that {{parts}}.",

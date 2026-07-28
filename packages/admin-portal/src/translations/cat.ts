@@ -114,6 +114,7 @@ const catalanTranslation: TranslationType = {
                 PROFILE_UPDATE: "Perfil actualitzat",
                 VOTER_ADDED: "Votant afegit",
                 REENABLED: "Votant rehabilitat",
+                VOTED_UNMARKED: "Votant desmarcat com a votat",
                 ROW_FAILURE: "Error de fila",
             },
             table: {
@@ -138,8 +139,10 @@ const catalanTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - Seqüència {{sequence}}, generat {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} fila(es) tenen un CountyMun inesperat o la protecció de votat-per-un-altre-canal, i queden excloses d'ambdós diffs - vegeu els detalls a continuació.",
+                        "{{count}} fila(es) no s'han pogut reconciliar de manera segura i queden excloses d'ambdós diffs - vegeu els detalls a continuació.",
                     noDifferences: "No hi ha diferències - ambdós sistemes ja estan sincronitzats.",
+                    diffOnlyDifferences:
+                        "Aquesta és una comprovació de convergència d'una seqüència ja aplicada. Les diferències es mostren per fer-ne seguiment, però aquesta ronda no es pot tornar a aplicar.",
                     externalDiffTitle: "Diff extern",
                     sequentDiffTitle: "Diff de Sequent",
                     downloadExternalPatch: "Descarregar pedaç extern",
@@ -176,6 +179,7 @@ const catalanTranslation: TranslationType = {
                         "marca {{count}} votant(s) com a votat(s) per un altre canal",
                     disabled: "deshabilita {{count}} votant(s)",
                     reenabled: "rehabilita {{count}} votant(s)",
+                    votedUnmarked: "desmarca {{count}} votant(s) com a votat",
                     profileUpdated: "actualitza {{count}} perfil(s)",
                     voterAdded: "afegeix {{count}} votant(s)",
                     prefix: "Això aplicarà canvis que {{parts}}.",

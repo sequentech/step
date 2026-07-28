@@ -47,7 +47,7 @@ pub struct VoterSnapshot {
     pub username: String,
     /// Keycloak's own internal user id (`user_entity.id`) — same value
     /// `cast_vote.voter_id_string` carries, so this is what actually matches
-    /// against `get_voter_ids_with_valid_cast_vote`'s result; `username` is a
+    /// against the event-wide cast-vote state map; `username` is a
     /// separate, mutable-in-theory identifier not safe to key that lookup on.
     pub voter_id_string: String,
     pub enabled: bool,
@@ -56,19 +56,23 @@ pub struct VoterSnapshot {
     /// doesn't resolve to a known area (or is unset).
     pub area_name: Option<String>,
     pub dob: Option<String>,
-    /// Raw `voted-channel` attribute value, uppercased; `None` means not voted.
+    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
+    /// comparisons normalize this value explicitly at the boundary.
     pub voted_channel: Option<String>,
     pub has_valid_internet_vote: bool,
+    pub has_unresolved_internet_vote: bool,
     /// Raw `disable-comment` attribute value (`sequent_core::types::keycloak::DISABLE_COMMENT`),
     /// used by `diff.rs` to classify an already-disabled voter — see the
-    /// match block in `reconciliation::diff::classify_disabled_voter`.
+    /// classification rules in `reconciliation::diff::classify_file_row`.
     pub disable_comment: Option<String>,
 }
 
 const VOTER_SNAPSHOT_PAGE_SIZE: i64 = 5_000;
 
-/// One keyset-paginated page of the realm's users, ordered by username, with
-/// every attribute. `after_username` is the
+/// One keyset-paginated page of the realm's voter-group users, ordered by
+/// username, with every attribute. Restricting the query to the configured
+/// voter group prevents service accounts and administrators in the same
+/// realm from being emitted as Sequent-only voters. `after_username` is the
 /// last username of the previous page (`None` for the first page); an empty
 /// result means the scan is done.
 ///
@@ -85,6 +89,7 @@ const VOTER_SNAPSHOT_PAGE_SIZE: i64 = 5_000;
 pub async fn fetch_realm_voter_snapshots_page(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
+    voter_group_name: &str,
     after_username: Option<&str>,
     areas_by_id: &HashMap<String, String>,
 ) -> Result<Vec<VoterSnapshot>> {
@@ -98,12 +103,15 @@ pub async fn fetch_realm_voter_snapshots_page(
                     json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
                 FROM user_entity u
                 INNER JOIN realm AS ra ON ra.id = u.realm_id
+                INNER JOIN user_group_membership ugm ON ugm.user_id = u.id
+                INNER JOIN keycloak_group kg ON kg.id = ugm.group_id AND kg.realm_id = u.realm_id
                 LEFT JOIN user_attribute ua ON ua.user_id = u.id
                 WHERE ra.name = $1
-                    AND u.username > $2
+                    AND kg.name = $2
+                    AND u.username > $3
                 GROUP BY u.id, u.username, u.enabled
                 ORDER BY u.username
-                LIMIT $3
+                LIMIT $4
             "#,
         )
         .await?;
@@ -113,6 +121,7 @@ pub async fn fetch_realm_voter_snapshots_page(
             &statement,
             &[
                 &realm,
+                &voter_group_name,
                 &after_username.unwrap_or(""),
                 &VOTER_SNAPSHOT_PAGE_SIZE,
             ],
@@ -125,7 +134,7 @@ pub async fn fetch_realm_voter_snapshots_page(
         .collect())
 }
 
-/// Batch-fetches the snapshots for exactly the usernames named in
+/// Batch-fetches voter-group snapshots for exactly the usernames named in
 /// `usernames` (typically one reconciliation-file batch's worth of
 /// `VoterID`s), in a single round trip via `= ANY($2)` — the file-driven
 /// counterpart to `fetch_realm_voter_snapshots_page`'s Sequent-driven
@@ -137,6 +146,7 @@ pub async fn fetch_realm_voter_snapshots_page(
 pub async fn fetch_realm_voter_snapshots_by_usernames(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
+    voter_group_name: &str,
     usernames: &[String],
     areas_by_id: &HashMap<String, String>,
 ) -> Result<Vec<VoterSnapshot>> {
@@ -154,16 +164,19 @@ pub async fn fetch_realm_voter_snapshots_by_usernames(
                     json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
                 FROM user_entity u
                 INNER JOIN realm AS ra ON ra.id = u.realm_id
+                INNER JOIN user_group_membership ugm ON ugm.user_id = u.id
+                INNER JOIN keycloak_group kg ON kg.id = ugm.group_id AND kg.realm_id = u.realm_id
                 LEFT JOIN user_attribute ua ON ua.user_id = u.id
                 WHERE ra.name = $1
-                    AND u.username = ANY($2)
+                    AND kg.name = $2
+                    AND u.username = ANY($3)
                 GROUP BY u.id, u.username, u.enabled
             "#,
         )
         .await?;
 
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &[&realm, &usernames])
+        .query(&statement, &[&realm, &voter_group_name, &usernames])
         .await?;
 
     Ok(rows
@@ -200,7 +213,8 @@ fn voter_snapshot_row_to_snapshot(
         area_name,
         dob: attr(DATE_OF_BIRTH),
         voted_channel: attr(VOTED_CHANNEL),
-        has_valid_internet_vote: false, // filled in by the caller from get_voter_ids_with_valid_cast_vote
+        has_valid_internet_vote: false, // filled in by reconciliation's event-wide vote-state query
+        has_unresolved_internet_vote: false, // filled in by reconciliation's event-wide vote-state query
         disable_comment: attr(DISABLE_COMMENT),
     })
 }

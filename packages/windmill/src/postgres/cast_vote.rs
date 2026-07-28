@@ -7,7 +7,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::json;
 use serde_json::value::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -496,6 +496,60 @@ pub async fn get_voter_ids_with_valid_cast_vote(
     Ok(rows
         .into_iter()
         .filter_map(|row| row.get::<_, Option<String>>("voter_id_string"))
+        .collect())
+}
+
+/// Precomputes unresolved and valid ballot state for every voter with an
+/// active cast vote in an event. Reconciliation needs both states: an
+/// `in-progress` ballot is expected during a Datafix freeze and must never be
+/// mistaken for "not voted" merely because it is not valid yet.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_voter_cast_vote_states_for_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, VoterCastVoteState>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    voter_id_string,
+                    bool_or(status = 'in-progress') AS has_unresolved_vote,
+                    bool_or(status = 'valid') AS has_valid_vote
+                FROM sequent_backend.cast_vote
+                WHERE tenant_id = $1
+                    AND election_event_id = $2
+                    AND status IN ('in-progress', 'valid')
+                    AND voter_id_string IS NOT NULL
+                GROUP BY voter_id_string
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| {
+            row.get::<_, Option<String>>("voter_id_string")
+                .map(|voter_id| {
+                    (
+                        voter_id,
+                        VoterCastVoteState {
+                            has_unresolved_vote: row.get("has_unresolved_vote"),
+                            has_valid_vote: row.get("has_valid_vote"),
+                        },
+                    )
+                })
+        })
         .collect())
 }
 

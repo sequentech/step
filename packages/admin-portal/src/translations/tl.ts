@@ -114,6 +114,7 @@ const tagalogTranslation: TranslationType = {
                 PROFILE_UPDATE: "Na-update ang profile",
                 VOTER_ADDED: "Naidagdag ang botante",
                 REENABLED: "Na-enable muli ang botante",
+                VOTED_UNMARKED: "Inalis ang markang bumoto ang botante",
                 ROW_FAILURE: "Nabigo ang row",
             },
             table: {
@@ -139,8 +140,10 @@ const tagalogTranslation: TranslationType = {
                     fileSummary:
                         "{{fileName}} - Sequence {{sequence}}, ginawa noong {{generatedAt}}",
                     rowFailuresWarning:
-                        "May hindi inaasahang CountyMun o voted-via-other-channel guard ang {{count}} row(s), at hindi kasama sa parehong diffs - tingnan ang mga detalye sa ibaba.",
+                        "Hindi ligtas na ma-reconcile ang {{count}} row(s) at hindi kasama ang mga ito sa parehong diffs - tingnan ang mga detalye sa ibaba.",
                     noDifferences: "Walang pagkakaiba - naka-sync na ang dalawang sistema.",
+                    diffOnlyDifferences:
+                        "Convergence check ito para sa nailapat nang Sequence. Ipinapakita ang mga pagkakaiba para sa follow-up, ngunit hindi na maaaring ilapat muli ang round na ito.",
                     externalDiffTitle: "External diff",
                     sequentDiffTitle: "Sequent diff",
                     downloadExternalPatch: "I-download ang external patch",
@@ -177,6 +180,7 @@ const tagalogTranslation: TranslationType = {
                         "mina-mark ang {{count}} botante bilang bumoto sa ibang channel",
                     disabled: "dini-disable ang {{count}} botante",
                     reenabled: "ine-enable muli ang {{count}} botante",
+                    votedUnmarked: "inaalis ang markang bumoto sa {{count}} botante",
                     profileUpdated: "ina-update ang {{count}} profile",
                     voterAdded: "nagdadagdag ng {{count}} botante",
                     prefix: "Ilalapat nito ang mga pagbabagong {{parts}}.",

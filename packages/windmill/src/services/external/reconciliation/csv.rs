@@ -11,60 +11,132 @@
 
 use crate::services::external::datafix_types::ParsedDatafixReconciliationRow;
 use crate::services::external::types::ReconciliationFileMeta;
-use ::csv::ReaderBuilder;
+use ::csv::{ReaderBuilder, StringRecord};
+use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use tracing::instrument;
 
+const RECONCILIATION_HEADERS: [&str; 8] = [
+    "CountyMun",
+    "VoterID",
+    "DoB",
+    "Ward",
+    "Poll",
+    "SchoolSupportCode",
+    "Channel",
+    "Deleted",
+];
+
 /// A row that failed to parse, kept by (1-indexed, header-exclusive) line
-/// number so the operator can find it in the original file.
+/// number so the operator can find it in the original file. Line zero
+/// denotes an invalid or missing CSV header.
 #[derive(Debug, Clone)]
 pub struct RowParseError {
     pub line: usize,
     pub message: String,
 }
 
-/// Parses the `#META,Sequence=N,GeneratedAt=T` line. Missing/unparseable
-/// fields default to `0` rather than failing the whole file — the caller
-/// rejects on the `Sequence` check downstream, which gives a clearer error
-/// than a raw parse failure would.
+/// Parses the mandatory `#META,Sequence=N,GeneratedAt=T` line. Sequence zero
+/// is a legitimate kickoff value, so malformed or missing metadata must be
+/// rejected rather than silently mapped to zero.
 #[instrument(skip_all)]
-pub fn parse_meta_line(line: &str) -> ReconciliationFileMeta {
-    let mut sequence = 0i64;
-    let mut generated_at = 0i64;
-    for field in line
-        .trim()
-        .trim_start_matches("#META")
-        .trim_start_matches(',')
-        .split(',')
-    {
-        if let Some((key, value)) = field.split_once('=') {
-            match key {
-                "Sequence" => sequence = value.parse().unwrap_or(0),
-                "GeneratedAt" => generated_at = value.parse().unwrap_or(0),
-                _ => {}
+pub fn parse_meta_line(line: &str) -> Result<ReconciliationFileMeta, String> {
+    let line = line.trim_end_matches('\r');
+    let fields = line
+        .strip_prefix("#META,")
+        .ok_or_else(|| "the first line must start with '#META,'".to_string())?;
+    let mut sequence = None;
+    let mut generated_at = None;
+    let mut seen = HashSet::new();
+    for field in fields.split(',') {
+        let (key, value) = field
+            .split_once('=')
+            .ok_or_else(|| format!("invalid metadata field '{field}'"))?;
+        if !seen.insert(key) {
+            return Err(format!("duplicate metadata field '{key}'"));
+        }
+        match key {
+            "Sequence" => {
+                let parsed = value
+                    .parse::<i64>()
+                    .map_err(|_| format!("Sequence '{value}' is not an integer"))?;
+                if parsed < 0 {
+                    return Err("Sequence cannot be negative".to_string());
+                }
+                sequence = Some(parsed);
             }
+            "GeneratedAt" => {
+                let parsed = value
+                    .parse::<i64>()
+                    .map_err(|_| format!("GeneratedAt '{value}' is not an integer"))?;
+                if parsed < 0 {
+                    return Err("GeneratedAt cannot be negative".to_string());
+                }
+                generated_at = Some(parsed);
+            }
+            _ => return Err(format!("unknown metadata field '{key}'")),
         }
     }
-    ReconciliationFileMeta {
-        sequence,
-        generated_at,
-    }
+    Ok(ReconciliationFileMeta {
+        sequence: sequence.ok_or_else(|| "metadata is missing Sequence".to_string())?,
+        generated_at: generated_at.ok_or_else(|| "metadata is missing GeneratedAt".to_string())?,
+    })
 }
 
 /// Splits the raw file bytes into the `#META` line and the remaining CSV
 /// (header + rows), so callers don't need to know the file starts with a
 /// non-CSV comment line before handing the rest to a `csv::Reader`.
 #[instrument(skip(bytes))]
-pub fn split_meta_and_csv(bytes: &[u8]) -> (ReconciliationFileMeta, &[u8]) {
+pub fn split_meta_and_csv(bytes: &[u8]) -> Result<(ReconciliationFileMeta, &[u8]), String> {
     let text_len = bytes.len();
     let newline_pos = bytes.iter().position(|&byte| byte == b'\n');
     let (meta_line_bytes, rest) = match newline_pos {
         Some(pos) => (&bytes[..pos], &bytes[(pos + 1).min(text_len)..]),
-        None => (bytes, &bytes[text_len..]),
+        None => return Err("reconciliation file has no CSV body after #META".to_string()),
     };
-    let meta_line = String::from_utf8_lossy(meta_line_bytes);
-    (parse_meta_line(&meta_line), rest)
+    let meta_line = std::str::from_utf8(meta_line_bytes)
+        .map_err(|_| "#META line is not valid UTF-8".to_string())?;
+    Ok((parse_meta_line(meta_line)?, rest))
+}
+
+fn validate_row(row: &ParsedDatafixReconciliationRow) -> Result<(), String> {
+    let values = [
+        ("CountyMun", row.county_mun.as_str()),
+        ("VoterID", row.voter_id.as_str()),
+        ("DoB", row.dob.as_str()),
+        ("Ward", row.ward.as_str()),
+        ("Poll", row.poll.as_str()),
+        ("SchoolSupportCode", row.school_support_code.as_str()),
+        ("Channel", row.channel.as_str()),
+        ("Deleted", row.deleted.as_str()),
+    ];
+    for (name, value) in values {
+        if value.is_empty() {
+            return Err(format!("{name} cannot be empty; use NONE when unset"));
+        }
+        if value.trim() != value {
+            return Err(format!("{name} cannot have leading or trailing whitespace"));
+        }
+    }
+    if row.channel != row.channel.to_uppercase() {
+        return Err("Channel must be uppercase".to_string());
+    }
+    if !matches!(row.deleted.as_str(), "true" | "false") {
+        return Err("Deleted must be exactly 'true' or 'false'".to_string());
+    }
+    Ok(())
+}
+
+fn validate_headers(headers: &StringRecord) -> Result<(), String> {
+    if headers.iter().eq(RECONCILIATION_HEADERS) {
+        Ok(())
+    } else {
+        Err(format!(
+            "CSV header must be exactly: {}",
+            RECONCILIATION_HEADERS.join(",")
+        ))
+    }
 }
 
 /// Parses the reconciliation CSV body (everything after the `#META` line) into
@@ -79,12 +151,33 @@ pub fn parse_reconciliation_rows(
         .from_reader(csv_bytes);
     let mut rows = Vec::new();
     let mut errors = Vec::new();
+    match reader.headers() {
+        Ok(headers) => {
+            if let Err(message) = validate_headers(headers) {
+                errors.push(RowParseError { line: 0, message });
+                return (rows, errors);
+            }
+        }
+        Err(err) => {
+            errors.push(RowParseError {
+                line: 0,
+                message: err.to_string(),
+            });
+            return (rows, errors);
+        }
+    }
     for (index, record) in reader
         .deserialize::<ParsedDatafixReconciliationRow>()
         .enumerate()
     {
         match record {
-            Ok(row) => rows.push(row),
+            Ok(row) => match validate_row(&row) {
+                Ok(()) => rows.push(row),
+                Err(message) => errors.push(RowParseError {
+                    line: index + 1,
+                    message,
+                }),
+            },
             Err(err) => errors.push(RowParseError {
                 line: index + 1,
                 message: err.to_string(),
@@ -105,6 +198,7 @@ pub fn parse_reconciliation_rows(
 pub struct ReconciliationRowBatches<R: Read> {
     reader: ::csv::Reader<R>,
     next_line: usize,
+    headers_validated: bool,
 }
 
 impl<R: Read> ReconciliationRowBatches<R> {
@@ -114,6 +208,7 @@ impl<R: Read> ReconciliationRowBatches<R> {
         Self {
             reader: ReaderBuilder::new().has_headers(true).from_reader(body),
             next_line: 1,
+            headers_validated: false,
         }
     }
 
@@ -123,14 +218,30 @@ impl<R: Read> ReconciliationRowBatches<R> {
         &mut self,
         batch_size: usize,
     ) -> std::result::Result<Vec<ParsedDatafixReconciliationRow>, RowParseError> {
+        if !self.headers_validated {
+            let headers = self.reader.headers().map_err(|err| RowParseError {
+                line: 0,
+                message: err.to_string(),
+            })?;
+            validate_headers(headers).map_err(|message| RowParseError { line: 0, message })?;
+            self.headers_validated = true;
+        }
         let mut rows = Vec::with_capacity(batch_size);
         let mut records = self.reader.deserialize::<ParsedDatafixReconciliationRow>();
         for _ in 0..batch_size {
             match records.next() {
-                Some(Ok(row)) => {
-                    rows.push(row);
-                    self.next_line += 1;
-                }
+                Some(Ok(row)) => match validate_row(&row) {
+                    Ok(()) => {
+                        rows.push(row);
+                        self.next_line += 1;
+                    }
+                    Err(message) => {
+                        return Err(RowParseError {
+                            line: self.next_line,
+                            message,
+                        });
+                    }
+                },
                 Some(Err(err)) => {
                     return Err(RowParseError {
                         line: self.next_line,
@@ -164,29 +275,29 @@ mod tests {
 
     #[test]
     fn parses_sequence_and_generated_at() {
-        let meta = parse_meta_line("#META,Sequence=42,GeneratedAt=1781780700");
+        let meta = parse_meta_line("#META,Sequence=42,GeneratedAt=1781780700").unwrap();
         assert_eq!(meta.sequence, 42);
         assert_eq!(meta.generated_at, 1781780700);
     }
 
     #[test]
-    fn defaults_missing_fields_to_zero() {
-        let meta = parse_meta_line("#META");
-        assert_eq!(meta.sequence, 0);
-        assert_eq!(meta.generated_at, 0);
+    fn rejects_missing_meta_line_and_fields() {
+        assert!(parse_meta_line("CountyMun,VoterID").is_err());
+        assert!(parse_meta_line("#META,GeneratedAt=5").is_err());
+        assert!(parse_meta_line("#META,Sequence=0").is_err());
     }
 
     #[test]
-    fn defaults_unparseable_sequence_to_zero() {
-        let meta = parse_meta_line("#META,Sequence=not-a-number,GeneratedAt=5");
-        assert_eq!(meta.sequence, 0);
-        assert_eq!(meta.generated_at, 5);
+    fn rejects_unparseable_or_negative_metadata() {
+        assert!(parse_meta_line("#META,Sequence=not-a-number,GeneratedAt=5").is_err());
+        assert!(parse_meta_line("#META,Sequence=-1,GeneratedAt=5").is_err());
+        assert!(parse_meta_line("#META,Sequence=1,GeneratedAt=tomorrow").is_err());
     }
 
     #[test]
     fn splits_meta_line_from_csv_body() {
         let file = b"#META,Sequence=1,GeneratedAt=2\nCountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,000,P,NONE,false\n";
-        let (meta, csv_bytes) = split_meta_and_csv(file);
+        let (meta, csv_bytes) = split_meta_and_csv(file).unwrap();
         assert_eq!(meta.sequence, 1);
         let (rows, errors) = parse_reconciliation_rows(csv_bytes);
         assert!(errors.is_empty());
@@ -194,6 +305,36 @@ mod tests {
         assert_eq!(rows[0].voter_id, "17695");
         assert_eq!(rows[0].channel, "NONE");
         assert_eq!(rows[0].deleted, "false");
+    }
+
+    #[test]
+    fn rejects_a_plain_csv_without_meta_instead_of_swallowing_its_header() {
+        let file = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,000,P,NONE,false\n";
+        let error = split_meta_and_csv(file).unwrap_err();
+        assert!(error.contains("#META"));
+    }
+
+    #[test]
+    fn rejects_a_missing_or_reordered_header_even_when_there_are_no_rows() {
+        for csv_bytes in [
+            b"".as_slice(),
+            b"VoterID,CountyMun,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n".as_slice(),
+        ] {
+            let (rows, errors) = parse_reconciliation_rows(csv_bytes);
+            assert!(rows.is_empty());
+            assert_eq!(errors.len(), 1);
+            assert_eq!(errors[0].line, 0);
+        }
+    }
+
+    #[test]
+    fn rejects_non_uppercase_channels_and_noncanonical_booleans() {
+        let csv_bytes = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,000,P,Internet,false\n0014,17696,1963-05-23,04,000,P,NONE,FALSE\n";
+        let (rows, errors) = parse_reconciliation_rows(csv_bytes);
+        assert!(rows.is_empty());
+        assert_eq!(errors.len(), 2);
+        assert!(errors[0].message.contains("Channel must be uppercase"));
+        assert!(errors[1].message.contains("Deleted must be exactly"));
     }
 
     #[test]

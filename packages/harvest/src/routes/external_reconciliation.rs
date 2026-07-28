@@ -28,7 +28,9 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::documents::get_document_as_temp_file;
 use windmill::services::external::reconciliation::diff::ReconciliationDiff;
 use windmill::services::external::types::ReconciliationPatchSource;
-use windmill::services::tasks_execution::post as post_task_execution;
+use windmill::services::tasks_execution::{
+    post as post_task_execution, update_fail,
+};
 use windmill::tasks::apply_reconciliation_patch::{
     apply_reconciliation_patch, ApplyReconciliationPatchBody,
 };
@@ -101,15 +103,23 @@ pub async fn create_reconciliation_import(
         tenant_id: tenant_id.clone(),
         election_event_id: input.election_event_id.clone(),
         source_document_id: input.document_id.clone(),
+        requested_by_user_id: claims.hasura_claims.user_id.clone(),
+        requested_by_username: claims.name.clone(),
     };
 
     let celery_app = get_celery_app().await;
-    let _ = celery_app
+    if let Err(err) = celery_app
         .send_task(generate_reconciliation_patches::new(
             task_body,
             task_execution.clone(),
         ))
-        .await;
+        .await
+    {
+        let message =
+            format!("Failed to enqueue reconciliation generation: {err}");
+        update_fail(&task_execution, &message).await.ok();
+        return Err((Status::InternalServerError, message));
+    }
 
     Ok(Json(DatafixReconciliationTaskOutput { task_execution }))
 }
@@ -191,6 +201,13 @@ pub async fn apply_reconciliation_changes(
             "The external-side diff is not empty — apply the external patch and re-import first".to_string(),
         ));
     }
+    if !envelope.apply_allowed {
+        return Err((
+            Status::Conflict,
+            "This reconciliation envelope is a diff-only convergence check and cannot be applied"
+                .to_string(),
+        ));
+    }
 
     // Every reconciliation round today comes from Datafix — resolve its
     // `CountyMun` so the apply task can record the round's source (see
@@ -239,16 +256,22 @@ pub async fn apply_reconciliation_changes(
         election_event_id: input.election_event_id.clone(),
         source,
         diff_document_id: input.diff_document_id.clone(),
-        applied_by_user_id: executer_name,
+        applied_by_user_id: claims.hasura_claims.user_id.clone(),
+        applied_by_username: claims.name.clone(),
     };
 
     let celery_app = get_celery_app().await;
-    let _ = celery_app
+    if let Err(err) = celery_app
         .send_task(apply_reconciliation_patch::new(
             task_body,
             task_execution.clone(),
         ))
-        .await;
+        .await
+    {
+        let message = format!("Failed to enqueue reconciliation apply: {err}");
+        update_fail(&task_execution, &message).await.ok();
+        return Err((Status::InternalServerError, message));
+    }
 
     Ok(Json(DatafixReconciliationTaskOutput { task_execution }))
 }

@@ -39,8 +39,12 @@ pub enum ReconciliationChangeCategory {
     /// A voter Sequent disabled solely because of a Datafix `/delete-voter`
     /// call (`disable-comment = DISABLE_REASON_DELETE_CALL`) is re-enabled
     /// because the file no longer reports them `Deleted` — see the match
-    /// block in `reconciliation::diff::classify_disabled_voter`.
+    /// block in `reconciliation::diff::classify_file_row`.
     REENABLED,
+    /// Datafix reports `Channel=NONE` for a voter Sequent still records as
+    /// voted. Mirrors the real-time `/unmark-voted` outcome: clear the voted
+    /// channel and disable reason, then re-enable the voter.
+    VOTED_UNMARKED,
     /// Excluded from both diffs/patch: a `CountyMun` processing error, or the
     /// "voted via other channel but holds a valid Internet ballot" guard.
     ROW_FAILURE,

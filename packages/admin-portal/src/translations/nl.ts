@@ -114,6 +114,7 @@ const dutchTranslation: TranslationType = {
                 PROFILE_UPDATE: "Profiel bijgewerkt",
                 VOTER_ADDED: "Kiezer toegevoegd",
                 REENABLED: "Kiezer heractiveerd",
+                VOTED_UNMARKED: "Kiezer niet langer gemarkeerd als gestemd",
                 ROW_FAILURE: "Rijfout",
             },
             table: {
@@ -139,8 +140,10 @@ const dutchTranslation: TranslationType = {
                     fileSummary:
                         "{{fileName}} - Sequentie {{sequence}}, gegenereerd {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} rij(en) hebben een onverwachte CountyMun of de bescherming tegen gestemd-via-ander-kanaal, en zijn uitgesloten van beide diffs - zie details hieronder.",
+                        "{{count}} rij(en) konden niet veilig worden gereconcilieerd en zijn uitgesloten van beide diffs - zie details hieronder.",
                     noDifferences: "Geen verschillen - beide systemen zijn al gesynchroniseerd.",
+                    diffOnlyDifferences:
+                        "Dit is een convergentiecontrole voor een reeds toegepaste reeks. Verschillen worden ter opvolging getoond, maar deze ronde kan niet opnieuw worden toegepast.",
                     externalDiffTitle: "Externe diff",
                     sequentDiffTitle: "Sequent-diff",
                     downloadExternalPatch: "Externe patch downloaden",
@@ -177,6 +180,7 @@ const dutchTranslation: TranslationType = {
                         "markeert {{count}} kiezer(s) als gestemd via een ander kanaal",
                     disabled: "deactiveert {{count}} kiezer(s)",
                     reenabled: "heractiveert {{count}} kiezer(s)",
+                    votedUnmarked: "verwijdert de stemmarkering van {{count}} kiezer(s)",
                     profileUpdated: "werkt {{count}} profiel(en) bij",
                     voterAdded: "voegt {{count}} kiezer(s) toe",
                     prefix: "Dit past wijzigingen toe die {{parts}}.",

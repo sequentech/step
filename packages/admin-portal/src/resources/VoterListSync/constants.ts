@@ -15,6 +15,7 @@ export const CATEGORY_COLORS: Record<
     [ESyncChangeCategory.PROFILE_UPDATE]: "default",
     [ESyncChangeCategory.VOTER_ADDED]: "success",
     [ESyncChangeCategory.REENABLED]: "success",
+    [ESyncChangeCategory.VOTED_UNMARKED]: "warning",
     [ESyncChangeCategory.ROW_FAILURE]: "error",
 }
 
@@ -23,5 +24,6 @@ export const CATEGORY_COLORS: Record<
 export const HIGHLIGHTED_CATEGORIES = new Set<ESyncChangeCategory>([
     ESyncChangeCategory.VOTED_INTERNET,
     ESyncChangeCategory.VOTED_OTHER_CHANNEL,
+    ESyncChangeCategory.VOTED_UNMARKED,
     ESyncChangeCategory.DISABLED_DELETE_CALL,
 ])

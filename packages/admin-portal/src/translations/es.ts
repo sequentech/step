@@ -114,6 +114,7 @@ const spanishTranslation: TranslationType = {
                 PROFILE_UPDATE: "Perfil actualizado",
                 VOTER_ADDED: "Votante añadido",
                 REENABLED: "Votante rehabilitado",
+                VOTED_UNMARKED: "Votante desmarcado como votante",
                 ROW_FAILURE: "Fallo de fila",
             },
             table: {
@@ -138,8 +139,10 @@ const spanishTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - Secuencia {{sequence}}, generado {{generatedAt}}",
                     rowFailuresWarning:
-                        "{{count}} fila(s) tienen un CountyMun inesperado o la protección de votado-por-otro-canal, y quedan excluidas de ambos diffs - ver detalles abajo.",
+                        "{{count}} fila(s) no se pudieron reconciliar de forma segura y quedan excluidas de ambos diffs - ver detalles abajo.",
                     noDifferences: "No hay diferencias - ambos sistemas ya están sincronizados.",
+                    diffOnlyDifferences:
+                        "Esta es una comprobación de convergencia de una secuencia ya aplicada. Las diferencias se muestran para su seguimiento, pero esta ronda no se puede volver a aplicar.",
                     externalDiffTitle: "Diff externo",
                     sequentDiffTitle: "Diff de Sequent",
                     downloadExternalPatch: "Descargar parche externo",
@@ -175,6 +178,7 @@ const spanishTranslation: TranslationType = {
                     votedOtherChannel: "marca {{count}} votante(s) como votado(s) por otro canal",
                     disabled: "deshabilita {{count}} votante(s)",
                     reenabled: "rehabilita {{count}} votante(s)",
+                    votedUnmarked: "desmarca {{count}} votante(s) como votante",
                     profileUpdated: "actualiza {{count}} perfil(es)",
                     voterAdded: "añade {{count}} votante(s)",
                     prefix: "Esto aplicará cambios que {{parts}}.",

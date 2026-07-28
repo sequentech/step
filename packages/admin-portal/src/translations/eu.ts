@@ -114,6 +114,7 @@ const basqueTranslation: TranslationType = {
                 PROFILE_UPDATE: "Profila eguneratuta",
                 VOTER_ADDED: "Bozkatzailea gehituta",
                 REENABLED: "Bozkatzailea berriz gaituta",
+                VOTED_UNMARKED: "Bozkatzaileari boto-marka kendu zaio",
                 ROW_FAILURE: "Errenkada-errorea",
             },
             table: {
@@ -138,9 +139,11 @@ const basqueTranslation: TranslationType = {
                 review: {
                     fileSummary: "{{fileName}} - {{sequence}} sekuentzia, {{generatedAt}} sortua",
                     rowFailuresWarning:
-                        "{{count}} errenkadak ustekabeko CountyMun bat edo beste-kanal-batetik-bozkatuaren babesa dute, eta bi diffetatik kanpo geratzen dira - ikusi xehetasunak behean.",
+                        "{{count}} errenkada ezin izan dira modu seguruan bateratu eta bi diffetatik kanpo geratzen dira - ikusi xehetasunak behean.",
                     noDifferences:
                         "Ez dago desberdintasunik - bi sistemak jada sinkronizatuta daude.",
+                    diffOnlyDifferences:
+                        "Dagoeneko aplikatutako sekuentzia baten konbergentzia-egiaztapena da hau. Aldeak jarraipenerako erakusten dira, baina txanda hau ezin da berriro aplikatu.",
                     externalDiffTitle: "Kanpoko diff-a",
                     sequentDiffTitle: "Sequent diff-a",
                     downloadExternalPatch: "Deskargatu kanpoko adabakia",
@@ -177,6 +180,7 @@ const basqueTranslation: TranslationType = {
                         "{{count}} bozkatzaile beste kanal batetik bozkatu izana adierazten du",
                     disabled: "{{count}} bozkatzaile desgaitzen ditu",
                     reenabled: "{{count}} bozkatzaile berriz gaitzen ditu",
+                    votedUnmarked: "{{count}} bozkatzaileari boto-marka kentzen dio",
                     profileUpdated: "{{count}} profil eguneratzen ditu",
                     voterAdded: "{{count}} bozkatzaile gehitzen ditu",
                     prefix: "Honek {{parts}} dituzten aldaketak aplikatuko ditu.",

@@ -451,9 +451,9 @@ async fn run_datafix_voter_edit(
     discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
         .await
         .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
-    if let Err(err) = clear_voted_channel(ctx).await {
-        error!("Could not reset the voter's voted-channel attribute after discard: {err}");
-    }
+    clear_voted_channel(ctx).await.map_err(|err| {
+        format!("Could not reset the voter's voted-channel attribute after discard: {err}")
+    })?;
 
     if !plan.owes_set_not_voted {
         return Ok(());

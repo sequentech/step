@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::external::datafix_types::{
-    DatafixReconciliationField, ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
+    channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixReconciliationField,
+    ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
 };
 use crate::services::external::types::{
     ReconciliationChangeCategory, ReconciliationPatchSource, ReconciliationPatchTarget,
@@ -64,9 +65,53 @@ pub struct ReconciliationDiff {
     /// their own document (see `patch::build_sequent_patch_json`) so apply
     /// doesn't need to re-filter `items` below.
     pub sequent_patch_document_id: String,
+    /// False for an already-successful Sequence: the envelope is a diff-only
+    /// convergence check and must not be applied again. True for a new round
+    /// or a same-Sequence retry whose previous apply had row failures.
+    #[serde(default = "default_apply_allowed")]
+    pub apply_allowed: bool,
     /// Every item, both sides, including `ROW_FAILURE`s — what the review UI
     /// renders.
     pub items: Vec<DiffItem>,
+}
+
+fn default_apply_allowed() -> bool {
+    true
+}
+
+/// Original Datafix area columns indexed by Sequent's composed area name.
+/// The composed name is not generally reversible (components may contain
+/// hyphens and optional components are omitted), so the reverse voter pass
+/// learns this mapping from rows in the same reconciliation file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatafixAreaFields {
+    pub ward: String,
+    pub poll: String,
+    pub school_support_code: String,
+}
+
+pub type DatafixAreaFieldsByName = HashMap<String, Option<DatafixAreaFields>>;
+
+pub fn index_datafix_area_fields(
+    index: &mut DatafixAreaFieldsByName,
+    rows: &[ParsedDatafixReconciliationRow],
+) {
+    for row in rows {
+        let name = composed_area_name(row);
+        let fields = DatafixAreaFields {
+            ward: row.ward.clone(),
+            poll: row.poll.clone(),
+            school_support_code: row.school_support_code.clone(),
+        };
+        index
+            .entry(name)
+            .and_modify(|current| {
+                if current.as_ref() != Some(&fields) {
+                    *current = None;
+                }
+            })
+            .or_insert(Some(fields));
+    }
 }
 
 /// Runs the forward pass for one batch of file rows (see
@@ -103,11 +148,15 @@ pub fn diff_file_row_batch(
 pub fn diff_unmatched_sequent_voters(
     snapshots_page: &[VoterSnapshot],
     all_file_usernames: &HashSet<String>,
+    source: &ReconciliationPatchSource,
+    area_fields_by_name: &DatafixAreaFieldsByName,
 ) -> Vec<DiffItem> {
     snapshots_page
         .iter()
         .filter(|snapshot| snapshot.enabled && !all_file_usernames.contains(&snapshot.username))
-        .flat_map(|snapshot| voter_missing_from_file(&snapshot.username, snapshot))
+        .flat_map(|snapshot| {
+            voter_missing_from_file(&snapshot.username, snapshot, source, area_fields_by_name)
+        })
         .collect()
 }
 
@@ -143,21 +192,36 @@ fn classify_file_row(
     }
 
     let Some(snapshot) = snapshot else {
+        // A file cannot manufacture an Internet ballot for a voter Sequent
+        // does not even know. Correct Datafix first; the next clean file will
+        // add the voter with Channel=NONE.
+        if channels_equal(&row.channel, FILE_CHANNEL_INTERNET) {
+            return vec![diff_item(
+                &row.voter_id,
+                ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                    row.channel.clone(),
+                    ATTR_RESET_VALUE.to_string(),
+                )),
+                ReconciliationChangeCategory::VOTED_UNMARKED,
+            )];
+        }
         return voter_added_to_sequent(row);
     };
 
-    if !snapshot.enabled && !snapshot.has_valid_internet_vote {
-        // An already-disabled voter is reconciled on the Deleted field
-        // alone, keyed off why Sequent disabled them — see
-        // classify_disabled_voter below.
-        // Voter has not voted. If it had valid vote could not be disabled, because its vote is discarded then.
-        return classify_disabled_voter(row, snapshot);
-    }
-
     let mut items = Vec::new();
+    let file_says_none = channels_equal(&row.channel, ATTR_RESET_VALUE);
+    let file_says_internet = channels_equal(&row.channel, FILE_CHANNEL_INTERNET);
+    let stored_channel = snapshot
+        .voted_channel
+        .as_deref()
+        .unwrap_or(ATTR_RESET_VALUE);
+    let stored_disable_comment = snapshot
+        .disable_comment
+        .as_deref()
+        .unwrap_or(ATTR_RESET_VALUE);
 
     // A) Sequent holds a valid Internet ballot; Datafix says NONE.
-    if row.channel == ATTR_RESET_VALUE && snapshot.has_valid_internet_vote {
+    if file_says_none && snapshot.has_valid_internet_vote {
         items.push(diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
@@ -166,13 +230,60 @@ fn classify_file_row(
             )),
             ReconciliationChangeCategory::VOTED_INTERNET,
         ));
+    } else if file_says_none && snapshot.has_unresolved_internet_vote {
+        items.push(row_failure(
+            &row.voter_id,
+            "Voter has an in-progress Internet ballot; Channel=NONE cannot be reconciled until the ballot resolves",
+        ));
+    } else if file_says_none && !channels_equal(stored_channel, ATTR_RESET_VALUE) {
+        // File-driven equivalent of `/unmark-voted`.
+        items.push(diff_item(
+            &row.voter_id,
+            ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
+                HashMap::from([
+                    (VOTED_CHANNEL.to_string(), stored_channel.to_string()),
+                    (
+                        DISABLE_COMMENT.to_string(),
+                        stored_disable_comment.to_string(),
+                    ),
+                ]),
+                HashMap::from([
+                    (VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string()),
+                    (DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string()),
+                ]),
+            ))),
+            ReconciliationChangeCategory::VOTED_UNMARKED,
+        ));
+        if !snapshot.enabled && row.deleted != "true" {
+            items.push(diff_item(
+                &row.voter_id,
+                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                    false, true,
+                ))),
+                ReconciliationChangeCategory::VOTED_UNMARKED,
+            ));
+        }
+    } else if file_says_internet && snapshot.has_unresolved_internet_vote {
+        items.push(row_failure(
+            &row.voter_id,
+            "Voter has an in-progress Internet ballot; Channel=INTERNET cannot be confirmed until the ballot resolves",
+        ));
+    } else if file_says_internet && !snapshot.has_valid_internet_vote {
+        // The reverse half of source-of-truth A: Datafix cannot claim an
+        // Internet vote that Sequent has no active record of.
+        items.push(diff_item(
+            &row.voter_id,
+            ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                row.channel.clone(),
+                ATTR_RESET_VALUE.to_string(),
+            )),
+            ReconciliationChangeCategory::VOTED_UNMARKED,
+        ));
     }
 
-    // B) Datafix reports another channel Sequent doesn't have recorded.
-    if row.channel != ATTR_RESET_VALUE
-        && row.channel != FILE_CHANNEL_INTERNET
-        && snapshot.voted_channel.as_deref() != Some(row.channel.as_str())
-    {
+    // B) Datafix reports another channel. The same active-ballot guard used
+    // by the real-time API applies to both valid and in-progress ballots.
+    if !file_says_none && !file_says_internet {
         if snapshot.has_valid_internet_vote {
             // Exception: cannot resolve automatically — row failure now, and
             // Sequent still wins for the rest of the round (spec, example B).
@@ -180,10 +291,7 @@ fn classify_file_row(
                 voter_username: row.voter_id.clone(),
                 target: ReconciliationPatchTarget::Sequent(Some(
                     SequentReconciliationField::KeycloakUA(
-                        HashMap::from([(
-                            VOTED_CHANNEL.to_string(),
-                            FILE_CHANNEL_INTERNET.to_string(),
-                        )]),
+                        HashMap::from([(VOTED_CHANNEL.to_string(), stored_channel.to_string())]),
                         HashMap::from([(VOTED_CHANNEL.to_string(), row.channel.clone())]),
                     ),
                 )),
@@ -203,37 +311,56 @@ fn classify_file_row(
                 )),
                 ReconciliationChangeCategory::VOTED_INTERNET,
             ));
+        } else if snapshot.has_unresolved_internet_vote {
+            items.push(row_failure(
+                &row.voter_id,
+                &format!(
+                    "Voter has an in-progress Internet ballot; voted-via-other-channel ({}) cannot be applied until it resolves",
+                    row.channel
+                ),
+            ));
         } else {
             // Both the voted channel and why the voter is being disabled are
             // plain Keycloak attributes — carried together so `apply` writes
             // them in a single edit without knowing this came from Datafix.
-            items.push(diff_item(
-                &row.voter_id,
-                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                    HashMap::from([(
-                        VOTED_CHANNEL.to_string(),
-                        snapshot
-                            .voted_channel
-                            .clone()
-                            .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
-                    )]),
-                    HashMap::from([
-                        (VOTED_CHANNEL.to_string(), row.channel.clone()),
-                        (
-                            DISABLE_COMMENT.to_string(),
-                            DISABLE_REASON_MARKVOTED_CALL.to_string(),
+            if !channels_equal(stored_channel, &row.channel)
+                || stored_disable_comment != DISABLE_REASON_MARKVOTED_CALL
+            {
+                items.push(diff_item(
+                    &row.voter_id,
+                    ReconciliationPatchTarget::Sequent(Some(
+                        SequentReconciliationField::KeycloakUA(
+                            HashMap::from([
+                                (VOTED_CHANNEL.to_string(), stored_channel.to_string()),
+                                (
+                                    DISABLE_COMMENT.to_string(),
+                                    stored_disable_comment.to_string(),
+                                ),
+                            ]),
+                            HashMap::from([
+                                (
+                                    VOTED_CHANNEL.to_string(),
+                                    file_channel_to_keycloak(&row.channel),
+                                ),
+                                (
+                                    DISABLE_COMMENT.to_string(),
+                                    DISABLE_REASON_MARKVOTED_CALL.to_string(),
+                                ),
+                            ]),
                         ),
-                    ]),
-                ))),
-                ReconciliationChangeCategory::VOTED_OTHER_CHANNEL,
-            ));
-            items.push(diff_item(
-                &row.voter_id,
-                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                    true, false,
-                ))),
-                ReconciliationChangeCategory::VOTED_OTHER_CHANNEL,
-            ));
+                    )),
+                    ReconciliationChangeCategory::VOTED_OTHER_CHANNEL,
+                ));
+            }
+            if snapshot.enabled {
+                items.push(diff_item(
+                    &row.voter_id,
+                    ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                        true, false,
+                    ))),
+                    ReconciliationChangeCategory::VOTED_OTHER_CHANNEL,
+                ));
+            }
         }
     }
 
@@ -272,9 +399,9 @@ fn classify_file_row(
         ));
     }
 
-    // C) Deleted=true — Datafix wins, unless the voter has already voted via internet.
-    // (snapshot.enabled is guaranteed true here — the disabled case already
-    // returned via classify_disabled_voter above.)
+    // C) Deleted=true — Datafix wins unless an active Internet ballot makes
+    // the transition unsafe. Profile changes above still reconcile disabled
+    // voters in the same round.
     if row.deleted == "true" {
         if snapshot.has_valid_internet_vote {
             items.push(diff_item(
@@ -285,18 +412,28 @@ fn classify_file_row(
                 )),
                 ReconciliationChangeCategory::DELETION_REVERTED,
             ));
-        } else {
-            items.push(diff_item(
+        } else if snapshot.has_unresolved_internet_vote {
+            items.push(row_failure(
                 &row.voter_id,
-                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                    true, false,
-                ))),
-                ReconciliationChangeCategory::DISABLED_DELETE_CALL,
+                "Voter has an in-progress Internet ballot and cannot be deleted until it resolves",
             ));
+        } else if snapshot.enabled || stored_disable_comment != DISABLE_REASON_DELETE_CALL {
+            if snapshot.enabled {
+                items.push(diff_item(
+                    &row.voter_id,
+                    ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                        true, false,
+                    ))),
+                    ReconciliationChangeCategory::DISABLED_DELETE_CALL,
+                ));
+            }
             items.push(diff_item(
                 &row.voter_id,
                 ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                    HashMap::from([(DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string())]),
+                    HashMap::from([(
+                        DISABLE_COMMENT.to_string(),
+                        stored_disable_comment.to_string(),
+                    )]),
                     HashMap::from([(
                         DISABLE_COMMENT.to_string(),
                         DISABLE_REASON_DELETE_CALL.to_string(),
@@ -305,6 +442,34 @@ fn classify_file_row(
                 ReconciliationChangeCategory::DISABLED_DELETE_CALL,
             ));
         }
+    } else if !snapshot.enabled
+        && stored_disable_comment == DISABLE_REASON_DELETE_CALL
+        && file_says_none
+        && channels_equal(stored_channel, ATTR_RESET_VALUE)
+    {
+        items.push(diff_item(
+            &row.voter_id,
+            ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                false, true,
+            ))),
+            ReconciliationChangeCategory::REENABLED,
+        ));
+    }
+
+    // A row-level safety failure excludes every Sequent mutation for that
+    // voter in this round. Datafix corrections may remain (for example a
+    // valid Internet ballot correcting PAPER back to INTERNET), because the
+    // external patch must still move the source file toward convergence.
+    let failure_reasons: Vec<String> = items
+        .iter()
+        .filter(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE)
+        .filter_map(|item| item.failure_reason.clone())
+        .collect();
+    if !failure_reasons.is_empty() {
+        items.retain(|item| {
+            item.category != ReconciliationChangeCategory::ROW_FAILURE && item.target.is_datafix()
+        });
+        items.push(row_failure(&row.voter_id, &failure_reasons.join("; ")));
     }
 
     items
@@ -316,15 +481,22 @@ fn classify_file_row(
 /// `DiffItem` per `SequentReconciliationField`, all sharing `VOTER_ADDED`/
 /// `target = Sequent`. `CountyMun` has no Sequent equivalent, so unlike the
 /// `DatafixReconciliationField::NAMES` set used for the outbound patch CSV,
-/// this only covers the four fields Sequent itself understands. Note
-/// `apply::apply_voter_added` always creates the voter enabled regardless of
-/// the `Enabled` item's value here (pre-existing behavior, not this diff's
-/// concern) — it's still emitted for display parity with the other fields.
+/// this only covers the fields Sequent itself understands. The bulk apply
+/// path consumes the emitted `Enabled` and `disable-comment` values exactly,
+/// including file rows already marked deleted or voted via another channel.
 #[instrument(skip_all, fields(voter_username = %row.voter_id))]
 fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem> {
     let file_area_name = composed_area_name(row);
-    let file_enabled = row.deleted != "true";
-    vec![
+    let voted_other_channel = !channels_equal(&row.channel, ATTR_RESET_VALUE);
+    let file_enabled = row.deleted != "true" && !voted_other_channel;
+    let disable_comment = if row.deleted == "true" {
+        Some(DISABLE_REASON_DELETE_CALL)
+    } else if voted_other_channel {
+        Some(DISABLE_REASON_MARKVOTED_CALL)
+    } else {
+        None
+    };
+    let mut items = vec![
         diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::AreaName(
@@ -345,32 +517,66 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())]),
-                HashMap::from([(VOTED_CHANNEL.to_string(), row.channel.clone())]),
+                HashMap::from([(
+                    VOTED_CHANNEL.to_string(),
+                    file_channel_to_keycloak(&row.channel),
+                )]),
             ))),
             ReconciliationChangeCategory::VOTER_ADDED,
         ),
         diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                true,
+                false,
                 file_enabled,
             ))),
             ReconciliationChangeCategory::VOTER_ADDED,
         ),
-    ]
+    ];
+    if let Some(disable_comment) = disable_comment {
+        items.push(diff_item(
+            &row.voter_id,
+            ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
+                HashMap::from([(DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string())]),
+                HashMap::from([(DISABLE_COMMENT.to_string(), disable_comment.to_string())]),
+            ))),
+            ReconciliationChangeCategory::VOTER_ADDED,
+        ));
+    }
+    items
 }
 
 /// D, reverse direction: Sequent has an enabled voter the file doesn't
 /// mention at all — reported into the Datafix patch so their side adds it.
 #[instrument(skip_all)]
-fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<DiffItem> {
+fn voter_missing_from_file(
+    username: &str,
+    snapshot: &VoterSnapshot,
+    source: &ReconciliationPatchSource,
+    area_fields_by_name: &DatafixAreaFieldsByName,
+) -> Vec<DiffItem> {
+    let ReconciliationPatchSource::Datafix { county_mun } = source;
+    let Some(area_name) = snapshot.area_name.as_deref() else {
+        return vec![row_failure(
+            username,
+            "Sequent-only voter has no resolvable area; cannot build a complete Datafix add patch",
+        )];
+    };
+    let Some(Some(area_fields)) = area_fields_by_name.get(area_name) else {
+        return vec![row_failure(
+            username,
+            &format!(
+                "Cannot recover Ward/Poll/SchoolSupportCode for Sequent area '{area_name}' from this reconciliation file"
+            ),
+        )];
+    };
     let fields = [
-        DatafixReconciliationField::Ward(
+        DatafixReconciliationField::CountyMun(ATTR_RESET_VALUE.to_string(), county_mun.clone()),
+        DatafixReconciliationField::Ward(ATTR_RESET_VALUE.to_string(), area_fields.ward.clone()),
+        DatafixReconciliationField::Poll(ATTR_RESET_VALUE.to_string(), area_fields.poll.clone()),
+        DatafixReconciliationField::SchoolSupportCode(
             ATTR_RESET_VALUE.to_string(),
-            snapshot
-                .area_name
-                .clone()
-                .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
+            area_fields.school_support_code.clone(),
         ),
         DatafixReconciliationField::DoB(
             ATTR_RESET_VALUE.to_string(),
@@ -381,10 +587,15 @@ fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<Diff
         ),
         DatafixReconciliationField::Channel(
             ATTR_RESET_VALUE.to_string(),
-            snapshot
-                .voted_channel
-                .clone()
-                .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
+            if snapshot.has_valid_internet_vote {
+                FILE_CHANNEL_INTERNET.to_string()
+            } else {
+                snapshot
+                    .voted_channel
+                    .as_deref()
+                    .map(keycloak_channel_to_file)
+                    .unwrap_or_else(|| ATTR_RESET_VALUE.to_string())
+            },
         ),
         DatafixReconciliationField::Deleted(ATTR_RESET_VALUE.to_string(), "false".to_string()),
     ];
@@ -400,73 +611,6 @@ fn voter_missing_from_file(username: &str, snapshot: &VoterSnapshot) -> Vec<Diff
         .collect()
 }
 
-/// Reconciles the `Deleted` field for a voter Sequent already has disabled,
-/// based on *why* — read off `disable_comment`
-/// (`sequent_core::types::keycloak::DISABLE_COMMENT`) — rather than assuming
-/// every disabled voter should read as `Deleted=true`.
-#[instrument(skip_all, fields(voter_username = %row.voter_id))]
-fn classify_disabled_voter(
-    row: &ParsedDatafixReconciliationRow,
-    snapshot: &VoterSnapshot,
-) -> Vec<DiffItem> {
-    let thereis_deleted_call_comment = match snapshot.disable_comment.as_deref() {
-        Some(DISABLE_REASON_DELETE_CALL) => true,
-        // DISABLE_REASON_MARKVOTED_CALL, was disabled via update-voter api, or anything else (admin-disabled,
-        // typically the SetNotVoted release flow)
-        _ => false,
-    };
-    let is_file_deleted = row.deleted == "true";
-
-    if is_file_deleted == thereis_deleted_call_comment {
-        return vec![]; // already converged, nothing to reconcile
-    } else if !is_file_deleted && thereis_deleted_call_comment {
-        // File says false, Sequent has them disabled purely from a Datafix
-        // delete call with no vote involved — Datafix no longer considers
-        // them deleted, so re-enable to follow (guarded the same way an
-        // inbound re-enable is — reuse ensure_inbound_reenable_is_safe at
-        // apply time, see reconciliation::apply).
-        vec![diff_item(
-            &row.voter_id,
-            ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                false, true,
-            ))),
-            ReconciliationChangeCategory::REENABLED,
-        )]
-    } else {
-        // The other case: Sequent has them disabled for a reason other than
-        // a Datafix delete call but the file says Deleted=true (should be a DISABLE_REASON_DELETE_CALL).
-        // The options are: DISABLE_REASON_MARKVOTED_CALL, a DISABLE_REASON_DELETE_CALL that got overriden or lost, or any other admin-set disable reason (typically the SetNotVoted release flow).
-        // In either case leave it disabled because it already converges (Deleted=true means disabled (soft delete) in Sequent, so the voter is still present in the system and can be re-enabled later if needed).
-        // This case Datafix wins, although the voter is already disabled in Sequent, but we do it add the DISABLE_REASON_DELETE_CALL.
-        vec![
-            diff_item(
-                &row.voter_id,
-                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                    false, false,
-                ))),
-                ReconciliationChangeCategory::DISABLED_DELETE_CALL,
-            ),
-            diff_item(
-                &row.voter_id,
-                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                    HashMap::from([(
-                        DISABLE_COMMENT.to_string(),
-                        snapshot
-                            .disable_comment
-                            .clone()
-                            .unwrap_or_else(|| ATTR_RESET_VALUE.to_string()),
-                    )]),
-                    HashMap::from([(
-                        DISABLE_COMMENT.to_string(),
-                        DISABLE_REASON_DELETE_CALL.to_string(),
-                    )]),
-                ))),
-                ReconciliationChangeCategory::DISABLED_DELETE_CALL,
-            ),
-        ]
-    }
-}
-
 #[instrument(skip_all)]
 fn diff_item(
     voter_username: &str,
@@ -478,6 +622,16 @@ fn diff_item(
         target,
         category,
         failure_reason: None,
+    }
+}
+
+#[instrument(skip_all)]
+fn row_failure(voter_username: &str, reason: &str) -> DiffItem {
+    DiffItem {
+        voter_username: voter_username.to_string(),
+        target: ReconciliationPatchTarget::Sequent(None),
+        category: ReconciliationChangeCategory::ROW_FAILURE,
+        failure_reason: Some(reason.to_string()),
     }
 }
 
@@ -540,6 +694,7 @@ mod tests {
             dob: Some("1990-01-01".to_string()),
             voted_channel: None,
             has_valid_internet_vote: false,
+            has_unresolved_internet_vote: false,
             disable_comment: None,
         }
     }
@@ -737,7 +892,7 @@ mod tests {
         assert!(items.iter().any(|item| {
             item.target
                 == ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                    true, true,
+                    false, true,
                 )))
         }));
     }
@@ -794,17 +949,12 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert!(items
             .iter()
-            .all(|item| item.category == ReconciliationChangeCategory::DISABLED_DELETE_CALL));
-        assert!(items.iter().any(|item| {
-            item.target
-                == ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
-                    false, false,
-                )))
-        }));
+            .any(|item| { item.category == ReconciliationChangeCategory::DISABLED_DELETE_CALL }));
         let attributes_item = items
             .iter()
+            .filter(|item| item.category == ReconciliationChangeCategory::DISABLED_DELETE_CALL)
             .find_map(|item| item.target.sequent_field()?.new_keycloak_attributes())
-            .expect("one item carries the Keycloak attributes");
+            .expect("the delete item carries the Keycloak attributes");
         assert_eq!(
             attributes_item.get(DISABLE_COMMENT),
             Some(&DISABLE_REASON_DELETE_CALL.to_string())
@@ -823,7 +973,7 @@ mod tests {
             Some(&snapshot),
             &datafix_source("0014"),
         );
-        assert_eq!(items.len(), 2);
+        assert_eq!(items.len(), 1);
         assert!(items
             .iter()
             .all(|item| item.category == ReconciliationChangeCategory::DISABLED_DELETE_CALL));
@@ -831,12 +981,170 @@ mod tests {
 
     #[test]
     fn voter_missing_from_file_is_reported_externally() {
-        let items = voter_missing_from_file("voter-1", &enabled_snapshot());
-        assert_eq!(items.len(), 4);
+        let area_fields = HashMap::from([(
+            "01-P-000".to_string(),
+            Some(DatafixAreaFields {
+                ward: "01".to_string(),
+                poll: "000".to_string(),
+                school_support_code: "P".to_string(),
+            }),
+        )]);
+        let items = voter_missing_from_file(
+            "voter-1",
+            &enabled_snapshot(),
+            &datafix_source("0014"),
+            &area_fields,
+        );
+        assert_eq!(items.len(), 7);
         assert!(items
             .iter()
             .all(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED));
         assert!(items.iter().all(|item| item.target.is_datafix()));
+        assert!(items.iter().any(|item| {
+            item.target
+                == ReconciliationPatchTarget::Datafix(DatafixReconciliationField::CountyMun(
+                    ATTR_RESET_VALUE.to_string(),
+                    "0014".to_string(),
+                ))
+        }));
+        assert!(items.iter().any(|item| {
+            item.target
+                == ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Poll(
+                    ATTR_RESET_VALUE.to_string(),
+                    "000".to_string(),
+                ))
+        }));
+    }
+
+    #[test]
+    fn keycloak_internet_casing_converges_and_reverse_patch_is_uppercase() {
+        let snapshot = VoterSnapshot {
+            voted_channel: Some("Internet".to_string()),
+            ..enabled_snapshot()
+        };
+        let items = classify_file_row(
+            &row("voter-1", FILE_CHANNEL_INTERNET, "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].target,
+            ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                FILE_CHANNEL_INTERNET.to_string(),
+                ATTR_RESET_VALUE.to_string(),
+            ))
+        );
+
+        let area_fields = HashMap::from([(
+            "01-P-000".to_string(),
+            Some(DatafixAreaFields {
+                ward: "01".to_string(),
+                poll: "000".to_string(),
+                school_support_code: "P".to_string(),
+            }),
+        )]);
+        let reverse =
+            voter_missing_from_file("voter-1", &snapshot, &datafix_source("0014"), &area_fields);
+        assert!(reverse.iter().any(|item| {
+            item.target
+                == ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                    ATTR_RESET_VALUE.to_string(),
+                    FILE_CHANNEL_INTERNET.to_string(),
+                ))
+        }));
+    }
+
+    #[test]
+    fn file_none_unmarks_a_stored_non_internet_vote() {
+        let snapshot = VoterSnapshot {
+            enabled: false,
+            voted_channel: Some("PAPER".to_string()),
+            disable_comment: Some(DISABLE_REASON_MARKVOTED_CALL.to_string()),
+            ..enabled_snapshot()
+        };
+        let items = classify_file_row(
+            &row("voter-1", ATTR_RESET_VALUE, "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
+        assert_eq!(items.len(), 2);
+        assert!(items
+            .iter()
+            .all(|item| item.category == ReconciliationChangeCategory::VOTED_UNMARKED));
+        assert!(items.iter().any(|item| {
+            item.target
+                == ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                    false, true,
+                )))
+        }));
+    }
+
+    #[test]
+    fn file_internet_without_an_active_ballot_is_corrected_to_none() {
+        let items = classify_file_row(
+            &row("voter-1", FILE_CHANNEL_INTERNET, "false"),
+            Some(&enabled_snapshot()),
+            &datafix_source("0014"),
+        );
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].category,
+            ReconciliationChangeCategory::VOTED_UNMARKED
+        );
+        assert_eq!(
+            items[0].target,
+            ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                FILE_CHANNEL_INTERNET.to_string(),
+                ATTR_RESET_VALUE.to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn unresolved_internet_ballot_blocks_other_channel_and_deletion() {
+        let snapshot = VoterSnapshot {
+            has_unresolved_internet_vote: true,
+            ..enabled_snapshot()
+        };
+        for file_row in [
+            row("voter-1", "PAPER", "false"),
+            row("voter-1", ATTR_RESET_VALUE, "true"),
+            row("voter-1", FILE_CHANNEL_INTERNET, "false"),
+        ] {
+            let items = classify_file_row(&file_row, Some(&snapshot), &datafix_source("0014"));
+            assert!(items
+                .iter()
+                .any(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE));
+            assert!(items.iter().all(|item| {
+                item.category != ReconciliationChangeCategory::VOTED_OTHER_CHANNEL
+                    && item.category != ReconciliationChangeCategory::DISABLED_DELETE_CALL
+            }));
+        }
+    }
+
+    #[test]
+    fn a_new_other_channel_voter_is_created_disabled_with_keycloak_casing_and_reason() {
+        let items = classify_file_row(
+            &row("voter-1", "PAPER", "false"),
+            None,
+            &datafix_source("0014"),
+        );
+        assert_eq!(items.len(), 5);
+        assert!(items.iter().any(|item| {
+            item.target
+                == ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                    false, false,
+                )))
+        }));
+        assert!(items.iter().any(|item| {
+            item.target.sequent_field().is_some_and(|field| {
+                field.new_keycloak_attributes().is_some_and(|attributes| {
+                    attributes.get(DISABLE_COMMENT)
+                        == Some(&DISABLE_REASON_MARKVOTED_CALL.to_string())
+                })
+            })
+        }));
     }
 
     #[test]
