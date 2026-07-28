@@ -16,6 +16,7 @@ ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e
 
 # Start with a Maven base image to compile the 2FA authenticator
 FROM maven:3-amazoncorretto-17 AS spis-build
+RUN dnf install -y findutils && dnf clean all
 COPY ./keycloak-extensions/ /build/keycloak-extensions/
 WORKDIR /build/keycloak-extensions/
 RUN mvn clean package
