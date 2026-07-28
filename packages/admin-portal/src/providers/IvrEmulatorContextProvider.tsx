@@ -16,7 +16,7 @@ export const IvrEmulatorContext = createContext<IvrEmulatorContextType | undefin
 export const IvrEmulatorContextProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
     const [status, setStatus] = useState<IvrApiStatus>(IvrApiStatus.LOADING)
     const [api, setApi] = useState<IvrEmulatorApi | undefined>(undefined)
-    const url = "/wasm/ivr_emulator_wasm_bg.wasm"
+    const url = "/wasm/ivr_emulator_wasm"
 
     useEffect(() => {
         loadIvrEmulator(url)
