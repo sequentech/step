@@ -326,8 +326,7 @@ async fn get_count_distinct_voters_by_channel_from_relation(
 ) -> Result<Vec<VotersByChannel>> {
     let election_id = election_id.map(parse_uuid_v4).transpose()?;
     let status = CastVoteStatus::Valid.to_string();
-    let sql =
-        count_distinct_voters_by_channel_query(cast_vote_relation, election_id.is_some());
+    let sql = count_distinct_voters_by_channel_query(cast_vote_relation, election_id.is_some());
     let statement = transaction.prepare(&sql).await?;
 
     let tenant_id = parse_uuid_v4(tenant_id)?;
