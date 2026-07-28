@@ -430,7 +430,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-          - role: election-event-write
+          - role: keycloak-realm-attributes-write
     - name: encrypt_report
       definition:
           kind: synchronous
@@ -863,6 +863,20 @@ actions:
       permissions:
           - role: admin-user
       comment: list permissions
+    - name: get_realm_attributes
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-realm-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: keycloak-realm-attributes-read
     - name: get_private_key
       definition:
           kind: synchronous
@@ -1733,6 +1747,7 @@ custom_types:
         - name: CountUsersInput
     objects:
         - name: GetManualVerificationOutput
+        - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput
         - name: CreateKeysCeremonyOutput
         - name: GetPrivateKeyOutput

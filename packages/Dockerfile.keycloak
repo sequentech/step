@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
@@ -14,12 +16,35 @@
 ARG OID4VP_VERSION=0.6.2
 ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
 
-# Start with a Maven base image to compile the 2FA authenticator
+# Start with a Maven base image to compile the Keycloak provider extensions.
 FROM maven:3-amazoncorretto-17 AS spis-build
 RUN dnf install -y findutils && dnf clean all
-COPY ./keycloak-extensions/ /build/keycloak-extensions/
-WORKDIR /build/keycloak-extensions/
-RUN mvn clean package
+COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
+WORKDIR /build/context
+RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
+    set -eux; \
+    keycloak_extensions_dir=packages/keycloak-extensions; \
+    beyond_keycloak_extensions_dir=beyond/packages/keycloak-extensions; \
+    if [ -d /build/beyond-context/packages/keycloak-extensions ]; then \
+        mkdir -p beyond/packages; \
+        cp -a /build/beyond-context/packages/keycloak-extensions "${beyond_keycloak_extensions_dir}"; \
+    fi; \
+    find "${keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
+    if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
+        find "${beyond_keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
+    fi; \
+    mvn -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
+    cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
+    provider_dirs="${keycloak_extensions_dir}"; \
+    if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
+        provider_dirs="${provider_dirs} ${beyond_keycloak_extensions_dir}"; \
+    fi; \
+    find ${provider_dirs} \
+        -path '*/target/*.jar' \
+        ! -name 'original-*.jar' \
+        ! -name '*-tests.jar' \
+        -exec cp -t /build/keycloak-provider-jars/ {} +
 
 # Build the oid4vp extension from source (requires Java 21)
 FROM maven:3-amazoncorretto-21 AS oid4vp-build
@@ -33,7 +58,7 @@ RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
  && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
  && mvn -B clean package -DskipTests
 
-FROM quay.io/keycloak/keycloak:26.6.1 as builder
+FROM quay.io/keycloak/keycloak:26.6.1 AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
@@ -60,21 +85,11 @@ RUN keytool \
    -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
    -keystore conf/server.keystore
 
-# Copy the compiled authenticator SPIs into the Keycloak providers directory
+# Copy the compiled provider SPIs into the Keycloak providers directory
 # before calling `kc.sh build`
 COPY --chown=keycloak:keycloak \
    --from=spis-build \
-   /build/keycloak-extensions/voter-enrollment/target/sequent.voter-enrollment.jar \
-   /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
-   /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
-   /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \
-   /build/keycloak-extensions/ivr-config-provider/target/sequent.ivr-config-provider.jar \
-   /build/keycloak-extensions/dummy-email-sender-provider/target/sequent.dummy-email-sender-provider.jar \
-   /build/keycloak-extensions/aws-ses-email-sender-provider/target/sequent.aws-ses-email-sender-provider.jar \
-   /build/keycloak-extensions/sequent-theme/target/sequent.sequent-theme.jar \
-   /build/keycloak-extensions/custom-event-listener/target/sequent.custom-event-listener.jar \
-   /build/keycloak-extensions/url-truststore-provider/target/sequent.url-truststore-provider.jar \
-   /build/keycloak-extensions/idp-linking-authenticator/target/sequent.idp-linking-authenticator.jar \
+   /build/keycloak-provider-jars/ \
    /opt/keycloak/providers/
 
 COPY --chown=keycloak:keycloak \
@@ -86,7 +101,7 @@ RUN /opt/keycloak/bin/kc.sh build
 
 FROM quay.io/keycloak/keycloak:26.6.1
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
-COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
+COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
 ENV KC_DB=postgres
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]

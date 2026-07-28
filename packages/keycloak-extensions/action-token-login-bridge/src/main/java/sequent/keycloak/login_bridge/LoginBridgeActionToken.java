@@ -2,17 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-package sequent.keycloak.authenticator.smart_link;
+package sequent.keycloak.login_bridge;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.UUID;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.actiontoken.DefaultActionToken;
-import sequent.keycloak.authenticator.MFAMethodSelector;
 
-public class SmartLinkActionToken extends DefaultActionToken {
-  private static final Logger logger = Logger.getLogger(MFAMethodSelector.class);
+/** Internal action token used to complete a trusted external login in Keycloak. */
+public class LoginBridgeActionToken extends DefaultActionToken {
+  private static final Logger logger = Logger.getLogger(LoginBridgeActionToken.class);
 
+  /*
+   * Keep the original token type for compatibility with existing message Smart Link action tokens.
+   * The class name is neutral; the serialized action-token type remains the same.
+   */
   public static final String TOKEN_TYPE = "smart-link";
   private static final String JSON_FIELD_MARK_EMAIL_VERIFIED = "mark-email-verified";
   private static final String JSON_FIELD_REDIRECT_URI = "redirect-uri";
@@ -39,7 +43,7 @@ public class SmartLinkActionToken extends DefaultActionToken {
   @JsonProperty(value = JSON_FIELD_REMEMBER_ME)
   private Boolean rememberMe = false;
 
-  public SmartLinkActionToken(
+  public LoginBridgeActionToken(
       String userId,
       int expirationInSecs,
       String nonce,
@@ -61,11 +65,14 @@ public class SmartLinkActionToken extends DefaultActionToken {
     this.persistent = persistent;
   }
 
-  private SmartLinkActionToken() {
-    // we must have this private constructor for deserializer
+  private LoginBridgeActionToken() {
+    // Required by the action-token deserializer.
   }
 
   static UUID parseNonce(String nonce) {
+    if (nonce == null || nonce.isBlank()) {
+      return null;
+    }
     try {
       return UUID.fromString(nonce);
     } catch (Exception error) {

@@ -37,6 +37,7 @@ import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
 import org.keycloak.util.JsonSerialization;
+import sequent.keycloak.realm.RealmNames;
 
 /**
  * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
@@ -69,6 +70,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
   // User attribute name for area_id
   private static final String AREA_ID_ATTRIBUTE = "area_id";
+  static final String HASURA_CLAIMS = "https://hasura.io/jwt/claims";
+  static final String HASURA_ELECTION_EVENT_ID = "x-hasura-election-event-id";
 
   static {
     ProviderConfigProperty property;
@@ -144,11 +147,11 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     String electionEventId = null;
 
     try {
-      log.infov("Realm id: {0}", userSession.getRealm().getName());
-      String name = userSession.getRealm().getName();
-      String[] ids = name.replaceAll("tenant\\-", "").split("\\-event\\-");
-      tenantId = ids[0];
-      electionEventId = ids[1];
+      String realmName = userSession.getRealm().getName();
+      log.infov("Realm id: {0}", realmName);
+      var eventRealm = RealmNames.parseEventRealmName(realmName).orElseThrow();
+      tenantId = eventRealm.tenantId();
+      electionEventId = eventRealm.electionEventId();
       log.infov("Election Event id: {0}", electionEventId);
       log.infov("Tenant Id: {0}", tenantId);
       electionsExternalIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
@@ -237,6 +240,25 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       log.infov("Result: {0}", result);
       OIDCAttributeMapperHelper.mapClaim(token, mappingModel, result);
     }
+    putElectionEventIdClaim(token, electionEventId);
+  }
+
+  static void putElectionEventIdClaim(IDToken token, String electionEventId) {
+    Object existingClaims = token.getOtherClaims().get(HASURA_CLAIMS);
+    Map<String, Object> hasuraClaims;
+    if (existingClaims instanceof Map<?, ?> existingMap) {
+      hasuraClaims = new HashMap<>();
+      for (var entry : existingMap.entrySet()) {
+        if (entry.getKey() instanceof String key) {
+          hasuraClaims.put(key, entry.getValue());
+        }
+      }
+    } else {
+      hasuraClaims = new HashMap<>();
+    }
+
+    hasuraClaims.put(HASURA_ELECTION_EVENT_ID, electionEventId);
+    token.getOtherClaims().put(HASURA_CLAIMS, hasuraClaims);
   }
 
   public static ProtocolMapperModel createClaimMapper(

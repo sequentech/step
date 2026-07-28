@@ -155,6 +155,7 @@ async fn rocket() -> _ {
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
+                routes::realm_attributes::get_realm_attributes_route,
                 routes::realm_attributes::update_realm_attributes_route,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,

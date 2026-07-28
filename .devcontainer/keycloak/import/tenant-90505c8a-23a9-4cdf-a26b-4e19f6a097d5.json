@@ -735,6 +735,24 @@
         "attributes": {}
       },
       {
+        "id": "b79ac682-20f0-4d8b-88d3-e5f59f5627e1",
+        "name": "keycloak-realm-attributes-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a13e45b8-7bc8-4f86-bbe2-4b919f39ba9d",
+        "name": "keycloak-realm-attributes-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "d1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
         "name": "election-event-cas-tab",
         "description": "",
@@ -2357,6 +2375,8 @@
         "user-write",
         "election-event-write",
         "election-event-ivr-tab",
+        "keycloak-realm-attributes-read",
+        "keycloak-realm-attributes-write",
         "election-event-cas-tab",
         "ca-read",
         "ca-write",

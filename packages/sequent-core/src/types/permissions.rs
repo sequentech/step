@@ -23,6 +23,10 @@ pub enum Permissions {
     ELECTION_EVENT_READ,
     #[strum(serialize = "election-event-write")]
     ELECTION_EVENT_WRITE,
+    #[strum(serialize = "keycloak-realm-attributes-read")]
+    KEYCLOAK_REALM_ATTRIBUTES_READ,
+    #[strum(serialize = "keycloak-realm-attributes-write")]
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE,
     #[strum(serialize = "election-event-delete")]
     ELECTION_EVENT_DELETE,
     #[strum(serialize = "election-event-archive")]
