@@ -997,9 +997,7 @@ mod tests {
             .collect()
     }
 
-    fn counts_by_day_and_channel(
-        rows: Vec<CastVotesPerDay>,
-    ) -> HashMap<(String, String), i64> {
+    fn counts_by_day_and_channel(rows: Vec<CastVotesPerDay>) -> HashMap<(String, String), i64> {
         rows.into_iter()
             .map(|row| ((row.day, row.channel), row.day_count))
             .collect()
