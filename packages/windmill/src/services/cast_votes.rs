@@ -282,6 +282,25 @@ pub struct VotersByChannel {
     pub count: i64,
 }
 
+#[derive(Clone, Copy)]
+enum CastVoteRelation {
+    Production,
+    #[cfg(test)]
+    StatisticsTest,
+}
+
+impl CastVoteRelation {
+    /// PostgreSQL identifiers cannot be query parameters, so the relation name
+    /// is selected from this closed set before being interpolated into SQL.
+    fn sql_identifier(self) -> &'static str {
+        match self {
+            Self::Production => "sequent_backend.cast_vote",
+            #[cfg(test)]
+            Self::StatisticsTest => "pg_temp.cast_vote_stats_test",
+        }
+    }
+}
+
 impl TryFrom<Row> for VotersByChannel {
     type Error = anyhow::Error;
 
@@ -307,13 +326,13 @@ pub async fn get_count_distinct_voters_by_channel(
         tenant_id,
         election_event_id,
         election_id,
-        "sequent_backend.cast_vote",
+        CastVoteRelation::Production,
     )
     .await
 }
 
 fn count_distinct_voters_by_channel_sql(
-    cast_vote_relation: &str,
+    cast_vote_relation: CastVoteRelation,
     filter_by_election: bool,
 ) -> String {
     let election_filter = if filter_by_election {
@@ -322,6 +341,7 @@ fn count_distinct_voters_by_channel_sql(
         ""
     };
 
+    let cast_vote_relation = cast_vote_relation.sql_identifier();
     format!(
         r#"
             WITH latest_valid_votes AS (
@@ -355,7 +375,7 @@ async fn get_count_distinct_voters_by_channel_from_relation(
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<&str>,
-    cast_vote_relation: &str,
+    cast_vote_relation: CastVoteRelation,
 ) -> Result<Vec<VotersByChannel>> {
     let election_id = election_id.map(parse_uuid_v4).transpose()?;
     let status = CastVoteStatus::Valid.to_string();
@@ -959,6 +979,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
     async fn voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote() {
         let pool = generate_hasura_pool().await.unwrap();
         let mut client = pool.get().await.unwrap();
@@ -1007,7 +1028,7 @@ mod tests {
                 TENANT_ID,
                 ELECTION_EVENT_ID,
                 None,
-                "pg_temp.cast_vote_stats_test",
+                CastVoteRelation::StatisticsTest,
             )
             .await
             .unwrap(),
@@ -1022,7 +1043,7 @@ mod tests {
                 TENANT_ID,
                 ELECTION_EVENT_ID,
                 Some(ELECTION_ID),
-                "pg_temp.cast_vote_stats_test",
+                CastVoteRelation::StatisticsTest,
             )
             .await
             .unwrap(),

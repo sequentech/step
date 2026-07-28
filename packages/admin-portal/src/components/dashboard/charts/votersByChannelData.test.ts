@@ -4,22 +4,6 @@
 
 import {OTHER_VOTING_CHANNEL, toVotersByChannelRows} from "./votersByChannelData"
 
-// Admin Portal's Jest setup is CommonJS and cannot load ui-essentials' ESM bundle.
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        VotingChannel: {
-            ONLINE: "ONLINE",
-            KIOSK: "KIOSK",
-            EARLY_VOTING: "EARLY_VOTING",
-            TELEPHONE: "TELEPHONE",
-            PAPER: "PAPER",
-            POSTAL: "POSTAL",
-        },
-    }),
-    {virtual: true}
-)
-
 describe("toVotersByChannelRows", () => {
     it("maps persisted channel counts and fills absent channels with zero", () => {
         expect(

@@ -2,18 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {VotingChannel} from "@sequentech/ui-essentials"
-
 export interface PersistedVotersByChannel {
     channel: string
     count: number
 }
 
 const castVoteChannels = [
-    VotingChannel.ONLINE,
-    VotingChannel.KIOSK,
-    VotingChannel.EARLY_VOTING,
-    VotingChannel.TELEPHONE,
+    "ONLINE",
+    "KIOSK",
+    "EARLY_VOTING",
+    "TELEPHONE",
 ] as const
 
 export type CastVoteChannel = (typeof castVoteChannels)[number]

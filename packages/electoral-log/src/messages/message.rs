@@ -734,6 +734,10 @@ mod tests {
         let with_channel_row: ElectoralLogMessage = (&with_channel).try_into()?;
         assert_eq!(legacy_row.version, "1");
         assert_eq!(with_channel_row.version, "2");
+        assert_eq!(
+            with_channel.statement.head.description,
+            "Inserted cast vote. Voting channel: TELEPHONE."
+        );
         Ok(())
     }
 }

@@ -2,13 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {VotingChannel} from "@sequentech/ui-essentials"
-
-export const IN_PERSON_TALLY_SHEET_CHANNEL = "IN_PERSON" as const
-export type TallySheetVotingChannel =
-    | VotingChannel.PAPER
-    | VotingChannel.POSTAL
-    | typeof IN_PERSON_TALLY_SHEET_CHANNEL
+export enum EVotingChannel {
+    PAPER = "PAPER",
+    POSTAL = "POSTAL",
+    IN_PERSON = "IN_PERSON",
+}
 
 export enum EStatus {
     PENDING = "PENDING",

@@ -47,25 +47,6 @@ use tracing::{event, info, instrument, warn, Level};
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
-/// Reader-first rollout gate for electoral-log schema version 2. Leave this
-/// disabled until every Windmill, Harvest, step-cli, and external auditor
-/// reader has been upgraded to understand `CastVoteWithChannel`.
-pub const ENV_VAR_ELECTORAL_LOG_CAST_VOTE_CHANNEL: &str = "ELECTORAL_LOG_CAST_VOTE_CHANNEL_ENABLED";
-
-fn cast_vote_channel_log_enabled() -> bool {
-    cast_vote_channel_log_enabled_value(
-        std::env::var(ENV_VAR_ELECTORAL_LOG_CAST_VOTE_CHANNEL)
-            .ok()
-            .as_deref(),
-    )
-}
-
-fn cast_vote_channel_log_enabled_value(value: Option<&str>) -> bool {
-    value
-        .map(|value| matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
-        .unwrap_or(false)
-}
-
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
@@ -350,34 +331,19 @@ impl ElectoralLog {
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
         let country = VoterCountryString(voter_country);
-        let message = if cast_vote_channel_log_enabled() {
-            Message::cast_vote_with_channel_message(
-                event,
-                election,
-                pseudonym_h,
-                vote_h,
-                &self.sd,
-                ip,
-                country,
-                VotingChannelString(voting_channel),
-                Some(voter_id.clone()),
-                voter_username.clone(),
-                area_id,
-            )?
-        } else {
-            Message::cast_vote_message(
-                event,
-                election,
-                pseudonym_h,
-                vote_h,
-                &self.sd,
-                ip,
-                country,
-                Some(voter_id.clone()),
-                voter_username.clone(),
-                area_id,
-            )?
-        };
+        let message = Message::cast_vote_with_channel_message(
+            event,
+            election,
+            pseudonym_h,
+            vote_h,
+            &self.sd,
+            ip,
+            country,
+            VotingChannelString(voting_channel),
+            Some(voter_id.clone()),
+            voter_username.clone(),
+            area_id,
+        )?;
         let board_message: ElectoralLogMessage = (&message)
             .try_into()
             .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
@@ -1646,17 +1612,4 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 
     client.close_session().await?;
     Ok(aggregate.count as i64)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::cast_vote_channel_log_enabled_value;
-
-    #[test]
-    fn cast_vote_channel_log_requires_explicit_activation() {
-        assert!(!cast_vote_channel_log_enabled_value(None));
-        assert!(!cast_vote_channel_log_enabled_value(Some("false")));
-        assert!(cast_vote_channel_log_enabled_value(Some("true")));
-        assert!(cast_vote_channel_log_enabled_value(Some("1")));
-    }
 }

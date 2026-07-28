@@ -47,9 +47,12 @@ impl StatementHead {
                 description: "Inserted cast vote.".to_string(),
                 ..default_head
             },
-            StatementBody::CastVoteWithChannel(_, _, _, _, _, _) => StatementHead {
+            StatementBody::CastVoteWithChannel(_, _, _, _, _, channel) => StatementHead {
                 kind: StatementType::CastVote,
-                description: "Inserted cast vote.".to_string(),
+                description: format!(
+                    "Inserted cast vote. Voting channel: {channel}.",
+                    channel = channel.0
+                ),
                 ..default_head
             },
             StatementBody::CastVoteError(_, _, _, _, _) => StatementHead {

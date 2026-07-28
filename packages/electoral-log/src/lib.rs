@@ -14,7 +14,9 @@ pub fn get_schema_version() -> String {
     "1".to_string()
 }
 
-/// Version 2 adds the append-only `CastVoteWithChannel` statement body.
+/// Returns the minimum reader schema version required for a row containing the
+/// append-only `CastVoteWithChannel` body. The stored version is compatibility
+/// metadata for readers; it does not change the encoding of other statements.
 pub fn get_cast_vote_channel_schema_version() -> String {
     "2".to_string()
 }
