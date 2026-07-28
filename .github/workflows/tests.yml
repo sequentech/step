@@ -34,35 +34,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
         with:
-          toolchain: 1.96.0
-          components: rustfmt
-          targets: x86_64-unknown-linux-musl
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
-
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: packages/${{ matrix.service }}/target
-          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-${{ matrix.service }}-
-
-      - name: Install system dependencies
-        run: |
-            sudo apt-get update
-            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+          cargo-build-name: ${{ matrix.service }}
+          cargo-build-path: packages/${{ matrix.service }}/target
+          cargo-lock-path: packages/${{ matrix.service }}/Cargo.lock
 
       - name: Install Chrome
         run: |
@@ -135,41 +112,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
         with:
-          toolchain: 1.96.0
-          components: rustfmt
-          targets: x86_64-unknown-linux-musl
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
-
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: packages/windmill/target
-          key: ${{ runner.os }}-cargo-test-windmill-${{ hashFiles('packages/windmill/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-test-windmill-
-
-      - name: Install system dependencies
-        run: |
-            sudo apt-get update
-            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
-
-      - name: Install Chrome
-        run: |
-            sudo apt-get install -y wget
-            wget -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-            sudo apt-get install -y ./chrome.deb
+          cargo-build-name: windmill
+          cargo-build-path: packages/windmill/target
+          cargo-lock-path: packages/windmill/Cargo.lock
 
       - name: Run Windmill tests
         run: cargo test
