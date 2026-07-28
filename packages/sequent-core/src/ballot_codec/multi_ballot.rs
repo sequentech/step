@@ -70,11 +70,8 @@ impl<'a> MultiBallotCodecContext<'a> {
     /// Validates the contest configurations and precomputes the constants
     /// used to encode and decode multi-contest ballots.
     ///
-    /// `mode` is the ballot style's persisted `MultiContestEncodingMode`,
-    /// applied uniformly to every contest: it must be resolved once per
-    /// election (see `BallotStyle::multi_contest_encoding_mode`), not
-    /// derived from each contest's own `over_vote_policy`, so that encoding
-    /// and decoding always agree regardless of when either happens.
+    /// `mode` is the ballot style's persisted encoding mode, applied
+    /// uniformly, not derived per-contest.
     pub fn new(
         contests: &'a [Contest],
         include_decline_to_vote: bool,

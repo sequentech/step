@@ -73,9 +73,7 @@ impl DecodeMCBallots {
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
-                    // TODO(meta-12619): thread the ballot style's persisted
-                    // MultiContestEncodingMode through instead of always
-                    // decoding as LEGACY.
+                    // TODO(meta-12619): thread the real persisted mode through.
                     let context = MultiBallotCodecContext::new(
                         contests,
                         include_decline_to_vote,

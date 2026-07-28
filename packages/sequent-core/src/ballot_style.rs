@@ -42,10 +42,7 @@ pub fn create_ballot_style(
     election_event: hasura_types::ElectionEvent, // Election Event
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
-    // Every contest belonging to this election, regardless of which area's
-    // ballot style is being built. Used only to resolve the election-wide
-    // MultiContestEncodingMode, so that mode never depends on which subset
-    // of contests a given area happens to show.
+    // All contests in the election, for resolving the encoding mode.
     all_election_contests: &[hasura_types::Contest],
     candidates: Vec<hasura_types::Candidate>, // Candidate
     election_dates: StringifiedPeriodDates,   // Election Dates
@@ -116,11 +113,8 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    let multi_contest_encoding_mode = resolve_multi_contest_encoding_mode(
-        all_election_contests
-            .iter()
-            .filter(|contest| contest.election_id == election.id),
-    )?;
+    let multi_contest_encoding_mode =
+        resolve_multi_contest_encoding_mode(&election.id, all_election_contests)?;
 
     let area_annotations = area.clone().read_annotations()?;
     let area_presentation: AreaPresentation = area
@@ -165,16 +159,16 @@ pub fn create_ballot_style(
     })
 }
 
-/// Resolves the election-wide `MultiContestEncodingMode`: if any contest in
-/// the election has an `over_vote_policy` that allows exceeding `max_votes`
-/// (`allowed`, `allowed-with-msg`, or `allowed-with-msg-and-alert`), every
-/// contest in every area's ballot style for this election is encoded with
-/// `EXPANDED_CAPACITY`, so the same contest is never encoded two different
-/// ways depending on which area's ballot style is generated first.
-fn resolve_multi_contest_encoding_mode<'a>(
-    election_contests: impl IntoIterator<Item = &'a hasura_types::Contest>,
+/// `EXPANDED_CAPACITY` if any contest in the election allows over-voting,
+/// `LEGACY` otherwise. Election-wide so all areas agree.
+fn resolve_multi_contest_encoding_mode(
+    election_id: &str,
+    all_election_contests: &[hasura_types::Contest],
 ) -> Result<ballot::MultiContestEncodingMode> {
-    for contest in election_contests {
+    for contest in all_election_contests {
+        if contest.election_id != election_id {
+            continue;
+        }
         let contest_presentation = contest
             .presentation
             .clone()

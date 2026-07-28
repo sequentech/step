@@ -29,10 +29,8 @@ pub struct ContestCodecContext<'a> {
     /// Position of each non-marker candidate id in
     /// `sorted_normal_candidates`.
     pub normal_candidate_positions: HashMap<&'a str, usize>,
-    /// Number of choice slots this contest occupies in the multi-contest
-    /// sparse encoding. Defaults to `contest.max_votes`; widened by
-    /// `MultiBallotCodecContext::new` to `sorted_normal_candidates.len()`
-    /// for ballot styles using `MultiContestEncodingMode::EXPANDED_CAPACITY`.
+    /// Choice slots for this contest in the multi-contest encoding.
+    /// Defaults to `max_votes`; widened for `EXPANDED_CAPACITY` styles.
     /// Unused by the single-contest dense encoding.
     pub vote_slot_count: usize,
 }
@@ -106,10 +104,7 @@ impl<'a> ContestCodecContext<'a> {
                 .map(|(position, candidate)| (candidate.id.as_str(), position))
                 .collect();
 
-        // Legacy default; MultiBallotCodecContext::new widens this for
-        // contests using MultiContestEncodingMode::EXPANDED_CAPACITY. An
-        // out-of-range max_votes is left for the existing explicit
-        // conversions elsewhere to report.
+        // Legacy default; widened later for EXPANDED_CAPACITY styles.
         let vote_slot_count = usize::try_from(contest.max_votes).unwrap_or(0);
 
         ContestCodecContext {
