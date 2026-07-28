@@ -9,53 +9,53 @@ SPDX-PackageDownloadLocation = "https://github.com/sequentech"
 
 [[annotations]]
 path = [
-	"hasura/**",
-	".ackrc",
-	"packages/.ackrc",
-	"packages/.gitignore",
-	"packages/yarn.lock",
-	"packages/devenv.lock",
-	"packages/Cargo.lock",
-	"packages/Cargo.lock.copy",
-	".envrc",
-	".release-it.json",
-	".release-commit",
-	"devenv.lock",
-	"devenv.nix",
-	"graphql.schema.json",
-	"yarn.lock",
-	"packages/.ignore",
-	"packages/admin-portal/.ignore",
-	"packages/step-cli/.ignore",
-	"packages/ballot-verifier/.ignore",
-	"packages/braid/.ignore",
-	"packages/sequent-core/.ignore",
-	"packages/step-cli/src/graphql/**",
-	"packages/strand/.ignore",
-	"packages/ui-essentials/.ignore",
-	"packages/voting-portal/.ignore",
-	"packages/windmill/.ignore",
-	"packages/package.json",
-	"packages/admin-portal/graphql.schema.json",
-	"packages/admin-portal/logs/**",
-	"packages/admin-portal/tests_output/**",
-	"packages/voting-portal/graphql.schema.json",
-	"packages/voting-portal/logs/**",
-	"packages/voting-portal/src/gql/**",
-	"packages/voting-portal/tests_output/**",
-	"packages/voting-portal/reports/**",
-	"packages/windmill/src/graphql/**",
-	"packages/immudb-rs/proto/immudb/**",
-	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
-	"packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.3/**",
-	"packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper",
-	"docs/assets/**",
-	"docs/docusaurus/**",
-	".devcontainer/minio/public-assets/**",
-	".devcontainer/minio/certs.json",
-	"packages/orare/doc_renderer/assets/**",
-	"packages/windmill/external-bin/janitor/**.xlsx",
-	"packages/step-cli/rust-local-target/release/step-cli"
+    "hasura/**",
+    ".ackrc",
+    "packages/.ackrc",
+    "packages/.gitignore",
+    "packages/yarn.lock",
+    "packages/devenv.lock",
+    "packages/Cargo.lock",
+    "packages/Cargo.lock.copy",
+    ".envrc",
+    ".release-it.json",
+    ".release-commit",
+    "devenv.lock",
+    "devenv.nix",
+    "graphql.schema.json",
+    "yarn.lock",
+    "packages/.ignore",
+    "packages/admin-portal/.ignore",
+    "packages/step-cli/.ignore",
+    "packages/ballot-verifier/.ignore",
+    "packages/braid/.ignore",
+    "packages/sequent-core/.ignore",
+    "packages/step-cli/src/graphql/**",
+    "packages/strand/.ignore",
+    "packages/ui-essentials/.ignore",
+    "packages/voting-portal/.ignore",
+    "packages/windmill/.ignore",
+    "packages/package.json",
+    "packages/admin-portal/graphql.schema.json",
+    "packages/admin-portal/logs/**",
+    "packages/admin-portal/tests_output/**",
+    "packages/voting-portal/graphql.schema.json",
+    "packages/voting-portal/logs/**",
+    "packages/voting-portal/src/gql/**",
+    "packages/voting-portal/tests_output/**",
+    "packages/voting-portal/reports/**",
+    "packages/windmill/src/graphql/**",
+    "packages/immudb-rs/proto/immudb/**",
+    "packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
+    "packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.3/**",
+    "packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper",
+    "docs/assets/**",
+    "docs/docusaurus/**",
+    ".devcontainer/minio/public-assets/**",
+    ".devcontainer/minio/certs.json",
+    "packages/orare/doc_renderer/assets/**",
+    "packages/windmill/external-bin/janitor/**.xlsx",
+    "packages/step-cli/rust-local-target/release/step-cli"
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 Sequent Tech <legal@sequentech.io>"
@@ -75,8 +75,8 @@ SPDX-License-Identifier = "Apache-2.0"
 
 [[annotations]]
 path = [
-	"packages/admin-portal/public/intl-tel-input/**",
-	"packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/resources/intl-tel-input-23.3.2/**"
+    "packages/admin-portal/public/intl-tel-input/**",
+    "packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login/resources/intl-tel-input-23.3.2/**"
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2014-2016 Jack O'Connor"]
@@ -105,3 +105,9 @@ path = "packages/admin-portal/public/sql-wasm.wasm"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Sequent Tech <legal@sequentech.io>"]
 SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "packages/admin-portal/src/services/generated/ivr_emulator_wasm.d.ts"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["", "2026 Sequent Tech Inc <legal@sequentech.io>"]
+SPDX-License-Identifier = "AGPL-3.0-only"
