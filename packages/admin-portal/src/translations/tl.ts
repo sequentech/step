@@ -158,6 +158,8 @@ const tagalogTranslation: TranslationType = {
                     inProgress: "Inilalapat ang mga pagbabago sa Sequent side...",
                     rowFailures:
                         "Hindi kasama ang {{count}} row(s) sa round na ito at kailangan ng manual na follow-up - tingnan ang mga detalye sa ibaba.",
+                    rowFailuresTruncated:
+                        "Ipinapakita ang unang {{shown}} sa {{count}} row failure. Ayusin ang magkakaparehong sanhi at subukang muli upang makita ang mga natitirang failure.",
                     success: "Matagumpay na nailapat ang lahat ng pagbabago sa Sequent side.",
                 },
                 actions: {

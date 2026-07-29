@@ -201,7 +201,7 @@ impl<W: Write> DiffItemArrayWriter<W> {
 /// `ROW_FAILURE`: failures are not mutations, but carrying them in the same
 /// bounded stream lets apply report generate-time failures without loading
 /// the full review envelope into memory.
-pub fn is_sequent_patch_item(item: &DiffItem) -> bool {
+pub fn is_sequent_apply_stream_item(item: &DiffItem) -> bool {
     item.target.is_sequent()
 }
 
@@ -413,7 +413,7 @@ mod tests {
             .write_batch(
                 [&sequent_item, &row_failure, &datafix_item]
                     .into_iter()
-                    .filter(|item| is_sequent_patch_item(item)),
+                    .filter(|item| is_sequent_apply_stream_item(item)),
             )
             .unwrap();
         let bytes = writer.finish();

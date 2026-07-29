@@ -74,6 +74,21 @@ pub struct ReconciliationDiff {
     pub items: Vec<DiffItem>,
 }
 
+/// Immutable apply metadata projected from a [`ReconciliationDiff`]. The
+/// review-only `items` array is deliberately absent, so synchronous callers
+/// and the apply task can deserialize a large envelope without retaining the
+/// complete diff in memory.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ReconciliationApplyEnvelope {
+    pub sequence: i64,
+    pub generated_at: i64,
+    pub source_sha256: String,
+    pub external_patch_document_id: Option<String>,
+    pub sequent_patch_document_id: String,
+    #[serde(default = "default_apply_allowed")]
+    pub apply_allowed: bool,
+}
+
 fn default_apply_allowed() -> bool {
     true
 }

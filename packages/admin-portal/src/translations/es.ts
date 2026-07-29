@@ -157,6 +157,8 @@ const spanishTranslation: TranslationType = {
                     inProgress: "Aplicando cambios del lado de Sequent...",
                     rowFailures:
                         "{{count}} fila(s) quedaron excluidas de esta ronda y requieren seguimiento manual - ver detalles abajo.",
+                    rowFailuresTruncated:
+                        "Se muestran los primeros {{shown}} de {{count}} fallos de fila. Resuelve la causa común y vuelve a intentarlo para ver los fallos restantes.",
                     success: "Todos los cambios del lado de Sequent se aplicaron correctamente.",
                 },
                 actions: {

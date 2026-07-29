@@ -42,7 +42,7 @@ use crate::services::external::reconciliation::diff::{
     DatafixAreaFieldsByName, DiffItem, ReconciliationDiff,
 };
 use crate::services::external::reconciliation::patch::{
-    is_sequent_patch_item, sha256_hex, DiffItemArrayWriter, DiffItemNdjsonWriter,
+    is_sequent_apply_stream_item, sha256_hex, DiffItemArrayWriter, DiffItemNdjsonWriter,
     ExternalPatchCsvWriter,
 };
 use crate::services::external::types::ReconciliationPatchSource;
@@ -535,7 +535,7 @@ fn write_batch_to_all_outputs<EW: Write, SW: Write, CW: Write>(
         .write_batch(
             batch_items
                 .iter()
-                .filter(|item| is_sequent_patch_item(item)),
+                .filter(|item| is_sequent_apply_stream_item(item)),
         )
         .map_err(|err| format!("Error writing Sequent patch batch: {err:?}"))?;
 

@@ -157,6 +157,8 @@ const frenchTranslation: TranslationType = {
                     inProgress: "Application des changements côté Sequent...",
                     rowFailures:
                         "{{count}} ligne(s) ont été exclues de ce cycle et nécessitent un suivi manuel - voir les détails ci-dessous.",
+                    rowFailuresTruncated:
+                        "Affichage des {{shown}} premiers échecs de ligne sur {{count}}. Corrigez la cause commune et réessayez pour voir les échecs restants.",
                     success: "Tous les changements côté Sequent ont été appliqués avec succès.",
                 },
                 actions: {

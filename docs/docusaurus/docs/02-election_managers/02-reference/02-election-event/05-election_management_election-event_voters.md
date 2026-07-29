@@ -116,9 +116,17 @@ review beat to resolve the ballots, and retry the same `Sequence`. Apply-time
 snapshot validation prevents that retry from overwriting voter data changed in
 the meantime.
 
-Unmarking a voted channel only re-enables a voter when the corresponding
-`MarkVoted` operation disabled that voter. An independent administrator disable
-and its comment are preserved.
+Both the real-time `/unmark-voted` operation and file reconciliation clear the
+voted-channel marker. They only re-enable a voter when the corresponding
+`MarkVoted` operation owns the disable. An independent administrator disable
+and its comment are preserved, but the channel is still cleared so the voter
+does not remain permanently blocked in an unresolved Datafix state. The
+administrator can then decide separately whether the account should be
+re-enabled.
+
+The task result shows at most the first 1,000 apply-time row-failure details
+and always reports the complete failure count. Resolve the common cause and
+retry the same `Sequence` to reveal any remaining failures.
 
 #### Capacity validation
 

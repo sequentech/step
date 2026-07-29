@@ -93,6 +93,12 @@ interface ApplyTaskRowFailure {
     reason: string
 }
 
+interface ApplyTaskRowFailureSummary {
+    rows: SyncDiffRow[]
+    totalCount: number
+    truncated: boolean
+}
+
 /**
  * Counts distinct voters per category, not rows: a single voter's change can
  * fan out into several `SyncDiffRow`s (e.g. a new voter is 4 rows - area,
@@ -251,16 +257,20 @@ const toRowFailures = (items: RawDiffItem[], t: TranslateFn): SyncDiffRow[] =>
 /** Converts the backend's version-stable structured task result into the same
  * rows used for generate-time failures. Human task logs remain presentation
  * only and can be reworded without breaking this contract. */
-const taskAnnotationsToRowFailures = (annotations: unknown, t: TranslateFn): SyncDiffRow[] => {
+const taskAnnotationsToRowFailures = (
+    annotations: unknown,
+    t: TranslateFn
+): ApplyTaskRowFailureSummary => {
     if (!annotations || typeof annotations !== "object") {
-        return []
+        return {rows: [], totalCount: 0, truncated: false}
     }
-    const failures = (annotations as Record<string, unknown>).reconciliation_row_failures
+    const taskResult = annotations as Record<string, unknown>
+    const failures = taskResult.reconciliation_row_failures
     if (!Array.isArray(failures)) {
-        return []
+        return {rows: [], totalCount: 0, truncated: false}
     }
 
-    return failures.flatMap((failure, index) => {
+    const rows = failures.flatMap((failure, index) => {
         if (
             !failure ||
             typeof failure !== "object" ||
@@ -284,6 +294,16 @@ const taskAnnotationsToRowFailures = (annotations: unknown, t: TranslateFn): Syn
             },
         ]
     })
+    const annotatedTotal = taskResult.reconciliation_row_failure_count
+    const totalCount =
+        typeof annotatedTotal === "number" &&
+        Number.isSafeInteger(annotatedTotal) &&
+        annotatedTotal >= rows.length
+            ? annotatedTotal
+            : rows.length
+    const truncated =
+        taskResult.reconciliation_row_failures_truncated === true || totalCount > rows.length
+    return {rows, totalCount, truncated}
 }
 
 /**
@@ -366,10 +386,11 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     const sequentRows = useMemo(() => toRows(items, "sequent", t), [items, t])
     const rowFailures = useMemo(() => toRowFailures(items, t), [items, t])
     const applyTaskAnnotations = applyTaskData?.sequent_backend_tasks_execution?.[0]?.annotations
-    const applyRowFailures = useMemo(
+    const applyRowFailureSummary = useMemo(
         () => taskAnnotationsToRowFailures(applyTaskAnnotations, t),
         [applyTaskAnnotations, t]
     )
+    const applyRowFailures = applyRowFailureSummary.rows
     const finalRowFailures = useMemo(
         () =>
             Array.from(
@@ -382,6 +403,12 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
             ),
         [rowFailures, applyRowFailures]
     )
+    const finalRowFailureCount = Math.max(
+        finalRowFailures.length,
+        applyRowFailureSummary.totalCount
+    )
+    const finalRowFailuresTruncated =
+        applyRowFailureSummary.truncated && finalRowFailureCount > finalRowFailures.length
     const isClean = datafixRows.length === 0
     const summary = useMemo(
         () => countsByCategory([...datafixRows, ...sequentRows]),
@@ -733,14 +760,28 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
                                     )}
                                     {step === "done" && (
                                         <>
-                                            {finalRowFailures.length > 0 ? (
+                                            {finalRowFailureCount > 0 ? (
                                                 <Stack spacing={1}>
                                                     <Alert severity="warning">
                                                         {t(
                                                             "reconciliation.wizard.applying.rowFailures",
-                                                            {count: finalRowFailures.length}
+                                                            {count: finalRowFailureCount}
                                                         )}
                                                     </Alert>
+                                                    {finalRowFailuresTruncated && (
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                        >
+                                                            {t(
+                                                                "reconciliation.wizard.applying.rowFailuresTruncated",
+                                                                {
+                                                                    shown: finalRowFailures.length,
+                                                                    count: finalRowFailureCount,
+                                                                }
+                                                            )}
+                                                        </Typography>
+                                                    )}
                                                     <SyncDiffTable rows={finalRowFailures} />
                                                 </Stack>
                                             ) : !errorMessage ? (

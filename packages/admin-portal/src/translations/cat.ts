@@ -157,6 +157,8 @@ const catalanTranslation: TranslationType = {
                     inProgress: "Aplicant els canvis del costat de Sequent...",
                     rowFailures:
                         "{{count}} fila(es) han quedat excloses d'aquesta ronda i necessiten seguiment manual - vegeu els detalls a continuació.",
+                    rowFailuresTruncated:
+                        "Es mostren les primeres {{shown}} de {{count}} errades de fila. Resoleu la causa comuna i torneu-ho a provar per veure les errades restants.",
                     success: "Tots els canvis del costat de Sequent s'han aplicat correctament.",
                 },
                 actions: {

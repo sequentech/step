@@ -158,6 +158,8 @@ const basqueTranslation: TranslationType = {
                     inProgress: "Sequent aldeko aldaketak aplikatzen...",
                     rowFailures:
                         "{{count}} errenkada bat-egite honetatik kanpo geratu dira eta eskuzko jarraipena behar dute - ikusi xehetasunak behean.",
+                    rowFailuresTruncated:
+                        "{{count}} errenkada-hutsegiteetatik lehen {{shown}} erakusten dira. Ebatzi kausa komuna eta saiatu berriro gainerakoak ikusteko.",
                     success: "Sequent aldeko aldaketa guztiak ondo aplikatu dira.",
                 },
                 actions: {

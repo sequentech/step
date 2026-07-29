@@ -157,6 +157,8 @@ const galegoTranslation: TranslationType = {
                     inProgress: "Aplicando os cambios do lado de Sequent...",
                     rowFailures:
                         "{{count}} fila(s) quedaron excluídas desta ronda e precisan seguimento manual - ver detalles abaixo.",
+                    rowFailuresTruncated:
+                        "Amósanse os primeiros {{shown}} de {{count}} erros de fila. Resolve a causa común e téntao de novo para ver os erros restantes.",
                     success: "Todos os cambios do lado de Sequent aplicáronse correctamente.",
                 },
                 actions: {

@@ -156,6 +156,8 @@ const englishTranslation = {
                     inProgress: "Applying Sequent-side changes...",
                     rowFailures:
                         "{{count}} row(s) were excluded from this round and need manual follow-up - see below for details.",
+                    rowFailuresTruncated:
+                        "Showing the first {{shown}} of {{count}} row failures. Resolve the shared cause and retry to see any remaining failures.",
                     success: "All Sequent-side changes applied successfully.",
                 },
                 actions: {

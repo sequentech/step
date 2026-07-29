@@ -17,6 +17,8 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::BufReader;
 use tracing::instrument;
 use windmill::postgres::document::get_document;
 use windmill::postgres::election_event::{
@@ -26,7 +28,7 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::consolidation::eml_generator::ValidateAnnotations;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::documents::get_document_as_temp_file;
-use windmill::services::external::reconciliation::diff::ReconciliationDiff;
+use windmill::services::external::reconciliation::diff::ReconciliationApplyEnvelope;
 use windmill::services::external::types::ReconciliationPatchSource;
 use windmill::services::tasks_execution::{
     post as post_task_execution, update_fail,
@@ -181,14 +183,14 @@ pub async fn apply_reconciliation_changes(
     let temp_file = get_document_as_temp_file(&tenant_id, &document)
         .await
         .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
-    let bytes = std::fs::read(temp_file.path()).map_err(|err| {
+    let file = File::open(temp_file.path()).map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error reading reconciliation diff: {err}"),
+            format!("Error opening reconciliation diff: {err}"),
         )
     })?;
-    let envelope: ReconciliationDiff =
-        serde_json::from_slice(&bytes).map_err(|err| {
+    let envelope: ReconciliationApplyEnvelope =
+        serde_json::from_reader(BufReader::new(file)).map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error parsing reconciliation diff: {err}"),

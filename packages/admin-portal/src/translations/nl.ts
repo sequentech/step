@@ -158,6 +158,8 @@ const dutchTranslation: TranslationType = {
                     inProgress: "Wijzigingen aan de Sequent-zijde worden toegepast...",
                     rowFailures:
                         "{{count}} rij(en) zijn uitgesloten van deze ronde en vereisen handmatige opvolging - zie details hieronder.",
+                    rowFailuresTruncated:
+                        "De eerste {{shown}} van {{count}} rijfouten worden getoond. Los de gemeenschappelijke oorzaak op en probeer opnieuw om de resterende fouten te zien.",
                     success: "Alle wijzigingen aan de Sequent-zijde zijn succesvol toegepast.",
                 },
                 actions: {
