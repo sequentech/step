@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <div class="${properties.kcFormGroupClass!}">
                             <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
-                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
+                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
                                    <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
                             />
 

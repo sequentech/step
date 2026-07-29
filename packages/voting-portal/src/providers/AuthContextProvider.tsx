@@ -313,28 +313,20 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                         }
 
                         if (Object.keys(loginHints).length > 0) {
-                            window.location.assign(
-                                appendLoginHints(
-                                    keycloak.createRegisterUrl(registerOptions),
-                                    loginHints
-                                )
-                            )
+                            const registerUrl = await keycloak.createRegisterUrl(registerOptions)
+                            window.location.assign(appendLoginHints(registerUrl, loginHints))
                             return
                         }
 
                         return await keycloak.register(registerOptions)
                     } else {
                         if (Object.keys(loginHints).length > 0) {
-                            window.location.assign(
-                                appendLoginHints(
-                                    keycloak.createLoginUrl({
-                                        ...keycloakInitOptions,
-                                        // Stock username forms only understand the standard OIDC hint.
-                                        loginHint: loginHints.username,
-                                    }),
-                                    loginHints
-                                )
-                            )
+                            const loginUrl = await keycloak.createLoginUrl({
+                                ...keycloakInitOptions,
+                                // Stock username forms only understand the standard OIDC hint.
+                                loginHint: loginHints.username,
+                            })
+                            window.location.assign(appendLoginHints(loginUrl, loginHints))
                             return
                         }
 
