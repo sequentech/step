@@ -3,6 +3,8 @@ id: ballot_encoding
 title: Ballot Encoding Specification
 ---
 
+import MultiContestCapacityTable from '@site/src/components/MultiContestCapacityTable';
+
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
@@ -495,6 +497,18 @@ To decode a multi-contest ballot:
 A decoder must use the same encoding mode (Section 11.2) that was used to
 encode the ballot style, read from the persisted ballot style rather than
 re-derived, or it will misread the sparse ordinary-candidate positions.
+
+### 11.6 Illustrative capacity limits
+
+Contest segments compose multiplicatively, not additively (Section 11.4), so
+the number of contests needed to exceed the platform's `MAX_SIZE_BYTES` limit
+(29 bytes, Section 11.2) falls quickly as each contest's candidate count
+grows. The table below assumes single-choice (`max_votes = 1`)
+plurality-at-large contests with no decline-to-vote flag and no explicit
+blank markers — the smallest possible per-contest footprint of one explicit
+invalid bit plus one ordinary-candidate slot.
+
+<MultiContestCapacityTable />
 
 ## 12. Interoperability requirements
 
