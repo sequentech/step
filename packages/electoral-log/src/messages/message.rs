@@ -147,6 +147,61 @@ impl Message {
     ) -> Result<Self> {
         let body =
             StatementBody::CastVote(election.clone(), pseudonym_h, vote_h.clone(), ip, country);
+        Self::cast_vote_message_from_body(
+            event,
+            election,
+            vote_h,
+            body,
+            sd,
+            voter_id,
+            voter_username,
+            area_id,
+        )
+    }
+
+    pub fn cast_vote_with_channel_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        pseudonym_h: PseudonymHash,
+        vote_h: CastVoteHash,
+        sd: &SigningData,
+        ip: VoterIpString,
+        country: VoterCountryString,
+        voting_channel: VotingChannelString,
+        voter_id: Option<String>,
+        voter_username: Option<String>,
+        area_id: String,
+    ) -> Result<Self> {
+        let body = StatementBody::CastVoteWithChannel(
+            election.clone(),
+            pseudonym_h,
+            vote_h.clone(),
+            ip,
+            country,
+            voting_channel,
+        );
+        Self::cast_vote_message_from_body(
+            event,
+            election,
+            vote_h,
+            body,
+            sd,
+            voter_id,
+            voter_username,
+            area_id,
+        )
+    }
+
+    fn cast_vote_message_from_body(
+        event: EventIdString,
+        election: ElectionIdString,
+        vote_h: CastVoteHash,
+        body: StatementBody,
+        sd: &SigningData,
+        voter_id: Option<String>,
+        voter_username: Option<String>,
+        area_id: String,
+    ) -> Result<Self> {
         let ballot_id: String = vote_h
             .0
             .into_inner()
@@ -594,6 +649,13 @@ impl TryFrom<&Message> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
     fn try_from(message: &Message) -> Result<ElectoralLogMessage> {
+        let version = match &message.statement.body {
+            StatementBody::CastVoteWithChannel(_, _, _, _, _, _) => {
+                crate::get_cast_vote_channel_schema_version()
+            }
+            _ => crate::get_schema_version(),
+        };
+
         Ok(ElectoralLogMessage {
             id: 0,
             created: crate::timestamp() as i64,
@@ -601,7 +663,7 @@ impl TryFrom<&Message> for ElectoralLogMessage {
             statement_kind: message.statement.head.kind.to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
-            version: crate::get_schema_version(),
+            version,
             user_id: message.user_id.clone(),
             username: message.username.clone(),
             election_id: message.election_id.clone(),
@@ -648,9 +710,9 @@ mod tests {
     #[test]
     fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
         let signing_data = SigningData::new(
-            StrandSignatureSk::r#gen()?,
+            StrandSignatureSk::generate()?,
             "admin",
-            StrandSignatureSk::r#gen()?,
+            StrandSignatureSk::generate()?,
         );
         let details = ResultsPublicationDetails {
             publication_id: ResultsPublicationIdString("publication-id".to_string()),
@@ -679,6 +741,50 @@ mod tests {
                 ..
             })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn only_channel_aware_cast_votes_use_schema_version_two() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::generate()?,
+            "windmill",
+            StrandSignatureSk::generate()?,
+        );
+        let legacy = Message::cast_vote_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            None,
+            "area-id".to_string(),
+        )?;
+        let with_channel = Message::cast_vote_with_channel_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            VotingChannelString("TELEPHONE".to_string()),
+            Some("voter-id".to_string()),
+            None,
+            "area-id".to_string(),
+        )?;
+
+        let legacy_row: ElectoralLogMessage = (&legacy).try_into()?;
+        let with_channel_row: ElectoralLogMessage = (&with_channel).try_into()?;
+        assert_eq!(legacy_row.version, "1");
+        assert_eq!(with_channel_row.version, "2");
+        assert_eq!(
+            with_channel.statement.head.description,
+            "Inserted cast vote. Voting channel: TELEPHONE."
+        );
         Ok(())
     }
 }

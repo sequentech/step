@@ -1513,6 +1513,7 @@ const englishTranslation = {
                 kiosk: "Kiosk",
                 early_voting: "Early voting",
                 telephone: "Telephone voting",
+                other: "Other",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
