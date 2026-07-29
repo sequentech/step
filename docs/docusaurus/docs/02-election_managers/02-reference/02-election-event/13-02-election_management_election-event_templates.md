@@ -110,6 +110,23 @@ unrecognised value is treated as `IGNORE`, so a typo never prefills a field.
 Credential fields, unmanaged attributes, attributes the voter cannot write, and
 attributes rendered as hidden inputs are never prefilled, whatever the policy.
 
+The policy applies to registration forms once the **Sequent: Login hint
+registration prefill** action is part of the registration flow.
+
+#### Locking the username on the login page
+
+The login page is not rendered from the user profile, so it cannot read attribute
+annotations. Set the realm attribute `loginHintUsernamePolicy` to `READ_ONLY`
+(default `EDITABLE`) to render a prefilled username read-only. A username
+restored by *remember me* stays editable, so voters can still sign in as somebody
+else.
+
+This is a presentation-only lock: it stops a voter from editing the field by
+accident, but Keycloak still authenticates whichever username is submitted. That
+is the same guarantee as an unprefilled login page — the password decides which
+account is entered. Registration is different: there the value is stored, so
+`READ_ONLY` is enforced on the server as well.
+
 :::warning
 Prefilled values are convenience data, not verified identity claims. They never
 bypass authentication, registration validation, or required actions. `READ_ONLY`
