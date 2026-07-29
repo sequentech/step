@@ -39,7 +39,7 @@ use crate::services::external::reconciliation::csv::{
 };
 use crate::services::external::reconciliation::diff::{
     diff_file_row_batch, diff_unmatched_sequent_voters, index_datafix_area_fields,
-    DatafixAreaFieldsByName, DiffItem, ReconciliationDiff,
+    DatafixAreaFieldsByName, DiffItem,
 };
 use crate::services::external::reconciliation::patch::{
     is_sequent_apply_stream_item, sha256_hex, DiffItemArrayWriter, DiffItemNdjsonWriter,
@@ -230,8 +230,9 @@ async fn run_generate_reconciliation_patches(
     // `items` is written first (before `sequence`/`external_patch_document_id`/
     // etc., unlike `ReconciliationDiff`'s own field order) precisely so it
     // can be streamed before the fields that aren't known until the whole
-    // file has been scanned — field order has no bearing on how serde_json
-    // deserializes this back into `ReconciliationDiff`, which matches by name.
+    // file has been scanned. Field order has no bearing on the server-side
+    // readers deserializing the `ReconciliationApplyEnvelope` projection by
+    // name; the frontend likewise reads the envelope's named properties.
     envelope_writer
         .write_all(b"{\"items\":")
         .map_err(|err| format!("Error starting the diff envelope: {err}"))?;
@@ -674,7 +675,57 @@ async fn checkpoint(task_execution: &mut TasksExecution, message: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::apply_permission_for_sequence;
+    use super::{apply_permission_for_sequence, write_envelope_tail};
+    use crate::services::external::reconciliation::diff::{
+        DiffItem, ReconciliationApplyEnvelope, ReconciliationDiff,
+    };
+    use crate::services::external::reconciliation::patch::DiffItemArrayWriter;
+    use crate::services::external::types::{
+        ReconciliationChangeCategory, ReconciliationPatchTarget, SequentReconciliationField,
+    };
+    use std::io::Write;
+
+    #[allow(clippy::too_many_arguments)]
+    fn write_test_envelope(
+        items: &[DiffItem],
+        sequence: i64,
+        generated_at: i64,
+        source_sha256: &str,
+        external_patch_document_id: Option<&str>,
+        external_patch_sha256: Option<&str>,
+        sequent_patch_document_id: &str,
+        apply_allowed: bool,
+    ) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        buffer.write_all(b"{\"items\":").unwrap();
+        let mut items_writer = DiffItemArrayWriter::start(buffer).unwrap();
+        items_writer.write_batch(items.iter()).unwrap();
+        let mut buffer = items_writer.finish().unwrap();
+        write_envelope_tail(
+            &mut buffer,
+            sequence,
+            generated_at,
+            source_sha256,
+            external_patch_document_id,
+            external_patch_sha256,
+            sequent_patch_document_id,
+            apply_allowed,
+        )
+        .unwrap();
+        buffer
+    }
+
+    fn test_item(voter_username: &str, old_enabled: bool, new_enabled: bool) -> DiffItem {
+        DiffItem {
+            voter_username: voter_username.to_string(),
+            target: ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
+                old_enabled,
+                new_enabled,
+            ))),
+            category: ReconciliationChangeCategory::PROFILE_UPDATE,
+            failure_reason: None,
+        }
+    }
 
     #[test]
     fn sequence_gate_distinguishes_retry_from_convergence_check() {
@@ -683,5 +734,91 @@ mod tests {
         assert_eq!(apply_permission_for_sequence(5, Some(5), true), Ok(true));
         assert_eq!(apply_permission_for_sequence(5, Some(5), false), Ok(false));
         assert_eq!(apply_permission_for_sequence(6, Some(5), false), Ok(true));
+    }
+
+    #[test]
+    fn envelope_writer_round_trips_multiple_items_and_patch_metadata() {
+        let items = vec![
+            test_item("voter-1", true, false),
+            test_item("voter-2", false, true),
+        ];
+        let bytes = write_test_envelope(
+            &items,
+            7,
+            1_725_000_000,
+            "source-sha256",
+            Some("external-patch-document"),
+            Some("external-patch-sha256"),
+            "sequent-patch-document",
+            true,
+        );
+
+        let apply: ReconciliationApplyEnvelope = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(apply.sequence, 7);
+        assert_eq!(apply.generated_at, 1_725_000_000);
+        assert_eq!(apply.source_sha256, "source-sha256");
+        assert_eq!(
+            apply.external_patch_document_id.as_deref(),
+            Some("external-patch-document")
+        );
+        assert_eq!(apply.sequent_patch_document_id, "sequent-patch-document");
+        assert!(apply.apply_allowed);
+
+        let documented: ReconciliationDiff = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(documented.items, items);
+        assert_eq!(documented.sequence, 7);
+        assert_eq!(documented.generated_at, 1_725_000_000);
+        assert_eq!(documented.source_sha256, "source-sha256");
+        assert_eq!(
+            documented.external_patch_document_id.as_deref(),
+            Some("external-patch-document")
+        );
+        assert_eq!(
+            documented.external_patch_sha256.as_deref(),
+            Some("external-patch-sha256")
+        );
+        assert_eq!(
+            documented.sequent_patch_document_id,
+            "sequent-patch-document"
+        );
+        assert!(documented.apply_allowed);
+    }
+
+    #[test]
+    fn envelope_writer_round_trips_an_empty_diff_without_patch_metadata() {
+        let bytes = write_test_envelope(
+            &[],
+            8,
+            1_725_000_001,
+            "empty-source-sha256",
+            None,
+            None,
+            "empty-sequent-patch-document",
+            false,
+        );
+
+        let apply: ReconciliationApplyEnvelope = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(apply.sequence, 8);
+        assert_eq!(apply.generated_at, 1_725_000_001);
+        assert_eq!(apply.source_sha256, "empty-source-sha256");
+        assert_eq!(apply.external_patch_document_id, None);
+        assert_eq!(
+            apply.sequent_patch_document_id,
+            "empty-sequent-patch-document"
+        );
+        assert!(!apply.apply_allowed);
+
+        let documented: ReconciliationDiff = serde_json::from_slice(&bytes).unwrap();
+        assert!(documented.items.is_empty());
+        assert_eq!(documented.sequence, 8);
+        assert_eq!(documented.generated_at, 1_725_000_001);
+        assert_eq!(documented.source_sha256, "empty-source-sha256");
+        assert_eq!(documented.external_patch_document_id, None);
+        assert_eq!(documented.external_patch_sha256, None);
+        assert_eq!(
+            documented.sequent_patch_document_id,
+            "empty-sequent-patch-document"
+        );
+        assert!(!documented.apply_allowed);
     }
 }

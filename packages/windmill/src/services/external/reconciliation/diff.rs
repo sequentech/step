@@ -46,10 +46,10 @@ pub struct DiffItem {
 /// uploads once per round, referenced from `task_execution.annotations.document_id`.
 /// There is no `external_reconciliation_import` table or row of any kind — this
 /// document *is* the record. The frontend fetches and parses the whole thing
-/// to render both diff tables; `apply_reconciliation_patch` re-fetches and
-/// re-parses it server-side (never trusting client-supplied fields for the
-/// checks below) to find the Sequent patch document to apply and to
-/// re-validate the external side is clean.
+/// to render both diff tables. Server-side readers — the apply task and the
+/// Harvest apply route — deserialize its [`ReconciliationApplyEnvelope`]
+/// projection (never trusting client-supplied fields) to find the Sequent
+/// patch document and re-validate that the external side is clean.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReconciliationDiff {
     pub sequence: i64,
