@@ -316,6 +316,8 @@ classes:
 - more than one explicit invalid marker
 - more than one explicit blank marker
 - invalid voting bounds
+- a generated multi-contest ballot style whose maximum encoded size exceeds
+  the platform's fixed-size payload (Section 11.2)
 
 ### 9.2 Structural decoding errors
 
@@ -395,7 +397,42 @@ This codec is intended for:
 - one explicit blank flag per contest when the contest defines an explicit
   blank marker
 
-### 11.2 Layout
+### 11.2 Encoding mode
+
+Each ballot style persists an encoding mode that determines how many ordinary
+candidate slots (`vote_slot_count`) each contest reserves:
+
+- **`legacy`**: `vote_slot_count` equals `contest.max_votes`. A selection with
+  more ordinary candidates than `max_votes` cannot be encoded.
+- **`expanded-capacity`**: `vote_slot_count` equals the contest's number of
+  ordinary candidates, so a selection can include every ordinary candidate.
+
+The mode is resolved once per election, when its ballot styles are generated:
+`expanded-capacity` applies to every contest in the election if *any* contest
+in that election has an over-vote policy of `allowed`, `allowed-with-msg`, or
+`allowed-with-msg-and-alert` — the policies that let a voter select more than
+`max_votes` in the first place. Otherwise the election uses `legacy`.
+
+The mode must be resolved once and persisted on the ballot style, not
+re-derived from a contest's current over-vote policy at encode or decode
+time. Encoding and decoding of the same ballot style can happen far apart (a
+ballot may be decoded for tallying long after it was cast), so re-deriving the
+mode from live configuration risks disagreement between the encode-time and
+decode-time layouts if that configuration changes in between.
+
+Maximum-selections and overvote **validation** (Section 8.2) always uses
+`contest.max_votes`, independently of the encoding mode: `expanded-capacity`
+only widens what the codec can *represent*; it does not change what counts as
+a valid vote. A selection wider than `max_votes` is still reported as an
+overvote error — `expanded-capacity` only keeps that overvote from also being
+an encoding failure.
+
+Because a ballot style's total encoded size must still fit the platform's
+fixed-size encrypted payload, election publication must validate the maximum
+encoded size of every generated ballot style and reject publication if any
+contest's expanded slot count would exceed that limit.
+
+### 11.3 Layout
 
 The multi-contest representation is:
 
@@ -407,7 +444,7 @@ Each contest segment is encoded as:
 
 1. explicit invalid flag
 2. explicit blank flag, if the contest defines an explicit blank marker
-3. `max_votes` sparse ordinary-candidate positions
+3. `vote_slot_count` sparse ordinary-candidate positions (Section 11.2)
 
 The number of positions is therefore:
 
@@ -415,10 +452,10 @@ The number of positions is therefore:
 (1 if decline-to-vote is enabled else 0)
 + number_of_contests
 + number_of_contests_with_explicit_blank_markers
-+ sum(contest.max_votes)
++ sum(contest.vote_slot_count)
 ```
 
-### 11.3 Slot meaning
+### 11.4 Slot meaning
 
 The explicit invalid and explicit blank flags use base `2`.
 
@@ -434,15 +471,15 @@ Values are interpreted as:
 - `1..n` = selected candidate position plus one
 
 Unlike the single-contest codec, the multi-contest codec is **sparse**: it
-stores up to `max_votes` selected candidate references rather than one boolean
-slot per ordinary candidate.
+stores up to `vote_slot_count` selected candidate references rather than one
+boolean slot per ordinary candidate.
 
 Explicit invalid and explicit blank marker candidates are not part of the sparse
 ordinary-candidate positions. Selecting one of those marker candidates sets the
 corresponding bit instead, and decoding that bit reconstructs the marker
 candidate as selected.
 
-### 11.4 Decoding
+### 11.5 Decoding
 
 To decode a multi-contest ballot:
 
@@ -454,6 +491,10 @@ To decode a multi-contest ballot:
 5. reconstruct explicit invalid and explicit blank marker candidates from their
    bits
 6. apply the same semantic validation rules described earlier
+
+A decoder must use the same encoding mode (Section 11.2) that was used to
+encode the ballot style, read from the persisted ballot style rather than
+re-derived, or it will misread the sparse ordinary-candidate positions.
 
 ## 12. Interoperability requirements
 

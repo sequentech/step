@@ -1509,6 +1509,61 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_contest_expanded_capacity_allows_over_vote() {
+        let contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+                random_candidate("c".to_string(), "1".to_string()),
+                random_candidate("d".to_string(), "1".to_string()),
+                random_candidate("e".to_string(), "1".to_string()),
+            ],
+            0,
+            2,
+        );
+        // over_vote_policy defaults to ALLOWED (ContestPresentation::default()).
+        let selected_ids: Vec<String> =
+            contest.candidates[0..4].iter().map(|c| c.id.clone()).collect();
+        let mut style = test_ballot_style(vec![contest.clone()]);
+        style.multi_contest_encoding_mode = Some(MultiContestEncodingMode::EXPANDED_CAPACITY);
+        let decoded = decoded_vote_contest(&contest, false, &selected_ids);
+
+        let result = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect("expanded capacity should encode a selection past max_votes");
+
+        assert_eq!(result[0].choices.len(), 4);
+        assert!(has_invalid_error(&result[0], "errors.implicit.selectedMax"));
+        assert!(!has_invalid_alert(&result[0], "errors.implicit.selectedMax"));
+    }
+
+    #[test]
+    fn test_multi_contest_legacy_rejects_same_over_vote() {
+        let contest = random_contest(
+            "1".to_string(),
+            vec![
+                random_candidate("a".to_string(), "1".to_string()),
+                random_candidate("b".to_string(), "1".to_string()),
+                random_candidate("c".to_string(), "1".to_string()),
+                random_candidate("d".to_string(), "1".to_string()),
+                random_candidate("e".to_string(), "1".to_string()),
+            ],
+            0,
+            2,
+        );
+        let selected_ids: Vec<String> =
+            contest.candidates[0..4].iter().map(|c| c.id.clone()).collect();
+        // multi_contest_encoding_mode left unset (LEGACY), unlike the test above.
+        let style = test_ballot_style(vec![contest.clone()]);
+        let decoded = decoded_vote_contest(&contest, false, &selected_ids);
+
+        let err = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect_err("legacy mode should reject a selection past max_votes");
+
+        assert!(err.contains("max_votes"));
+    }
+
+    #[test]
     fn test_multi_contest_explicit_invalid_counts_towards_under_vote_alert() {
         let mut contest = random_contest(
             "1".to_string(),
