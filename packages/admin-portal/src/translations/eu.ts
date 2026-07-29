@@ -2113,6 +2113,7 @@ const basqueTranslation: TranslationType = {
                 ko: "Ezeztatu",
                 error: "Errorea bozketa argitalpena kargatzerakoan",
                 error_publish: "Errorea bozketa argitalpena argitaratzerakoan",
+                error_capacity: "Bozketa-estiloa sortzeak huts egin du: {{message}}",
                 error_status: "Errorea bozketa argitalpen egoera aldatzerakoan",
                 error_preview: "Errorea argitalpena aurreikusterakoan",
                 diff: "Aldaketa guztiak errendatzeak orria erantzunik gabe utzi dezake. Ziur zaude jarraitu nahi duzula?",

@@ -2116,6 +2116,7 @@ const spanishTranslation: TranslationType = {
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
+                error_capacity: "Fallo al generar el estilo de papeleta: {{message}}",
                 error_status: "Error al cambiar el estado de la publicación",
                 error_preview: "Error al obtener la vista previa de la publicación",
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
