@@ -76,6 +76,11 @@ public class MultiAttributePasswordDirectGrantAuthenticator
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
+    // Direct Grant currently gets a fresh authentication session per request, but clearing here
+    // keeps the resolver lifecycle consistent and prevents a future session-reuse path from
+    // inheriting an attributed user.
+    context.clearUser();
+
     AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
     List<String> mapsTos = Utils.getMultivalueString(authConfig, CONFIG_MAPS_TO, List.of());
     List<String> kinds = Utils.getMultivalueString(authConfig, CONFIG_KIND, List.of());

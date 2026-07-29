@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,8 +30,12 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.hash.PasswordHashProvider;
+import org.keycloak.events.EventBuilder;
+import org.keycloak.http.HttpRequest;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
@@ -41,6 +47,7 @@ import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
 import org.keycloak.userprofile.UserProfileProvider;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import sequent.keycloak.authenticator.forgot_password.MultiAttributeCredentialResolver.LockoutState;
@@ -1174,6 +1181,93 @@ class MultiAttributePasswordAuthenticatorTest {
         authenticator.collectSubmittedValues(session, List.of("dateOfBirth"), formData);
 
     assertNull(submitted.get("dateOfBirth"));
+  }
+
+  // ── Browser authentication-session user lifecycle ───────────────────────
+
+  @Test
+  void action_clearsStaleUserBeforeSettingResolvedUser() {
+    AuthenticationFlowContext context = mockActionContext();
+    UserModel resolvedUser = mock(UserModel.class);
+    MultiAttributePasswordAuthenticator actionAuthenticator =
+        actionAuthenticator(Resolution.success(resolvedUser), mock(Response.class));
+
+    actionAuthenticator.action(context);
+
+    InOrder inOrder = inOrder(context);
+    inOrder.verify(context).clearUser();
+    inOrder.verify(context).setUser(resolvedUser);
+    inOrder.verify(context).success();
+  }
+
+  @Test
+  void action_failureClearsAttributedUserAfterSignalingFailure() {
+    AuthenticationFlowContext context = mockActionContext();
+    UserModel attributableUser = mock(UserModel.class);
+    Response challengeResponse = mock(Response.class);
+    MultiAttributePasswordAuthenticator actionAuthenticator =
+        actionAuthenticator(Resolution.failureAttributedTo(attributableUser), challengeResponse);
+
+    actionAuthenticator.action(context);
+
+    InOrder inOrder = inOrder(context);
+    inOrder.verify(context).clearUser();
+    inOrder.verify(context).setUser(attributableUser);
+    inOrder
+        .verify(context)
+        .failureChallenge(
+            org.keycloak.authentication.AuthenticationFlowError.INVALID_CREDENTIALS,
+            challengeResponse);
+    inOrder.verify(context).clearUser();
+  }
+
+  private AuthenticationFlowContext mockActionContext() {
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    formData.add(MultiAttributePasswordAuthenticator.FIELD_PASSWORD, "pin");
+    when(context.getHttpRequest()).thenReturn(request);
+    when(request.getDecodedFormParameters()).thenReturn(formData);
+    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    when(authConfig.getConfig()).thenReturn(Map.of());
+    when(context.getSession()).thenReturn(session);
+    when(context.getRealm()).thenReturn(realm);
+    lenient().when(context.getEvent()).thenReturn(mock(EventBuilder.class));
+    return context;
+  }
+
+  private MultiAttributePasswordAuthenticator actionAuthenticator(
+      Resolution resolution, Response challengeResponse) {
+    return new MultiAttributePasswordAuthenticator() {
+      @Override
+      protected Map<String, String> collectSubmittedValues(
+          KeycloakSession session,
+          List<String> matchAttributes,
+          MultivaluedMap<String, String> formData) {
+        return Map.of();
+      }
+
+      @Override
+      protected Resolution resolveAuthenticatedUser(
+          KeycloakSession session,
+          RealmModel realm,
+          List<String> matchAttributes,
+          Map<String, String> submittedValues,
+          String password,
+          MultiAttributeCredentialResolver.ThrottleConfig throttleConfig,
+          MultiAttributeCredentialResolver.MatchPolicy matchPolicy) {
+        return resolution;
+      }
+
+      @Override
+      protected Response challenge(
+          AuthenticationFlowContext context,
+          MultivaluedMap<String, String> formData,
+          String error) {
+        return challengeResponse;
+      }
+    };
   }
 
   // ── Utils.normalizeDate ──────────────────────────────────────────────────

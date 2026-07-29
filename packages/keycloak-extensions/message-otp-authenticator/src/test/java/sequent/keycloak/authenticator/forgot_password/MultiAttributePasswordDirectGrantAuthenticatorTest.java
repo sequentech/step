@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -40,6 +41,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.managers.BruteForceProtector;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -132,8 +134,10 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
     authenticator.authenticate(context);
 
-    verify(context).setUser(user);
-    verify(context).success();
+    InOrder inOrder = inOrder(context);
+    inOrder.verify(context).clearUser();
+    inOrder.verify(context).setUser(user);
+    inOrder.verify(context).success();
     verify(context, never()).failure(any());
   }
 
@@ -174,9 +178,11 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
     // though the PIN was wrong - otherwise Keycloak's brute-force accounting
     // (DefaultAuthenticationFlow.processResult() -> AuthenticationProcessor.logFailure()) has no
     // user to attribute the failed attempt to, same as the stock ValidateUsername/ValidatePassword.
-    verify(context).setUser(user);
+    InOrder inOrder = inOrder(context);
+    inOrder.verify(context).clearUser();
+    inOrder.verify(context).setUser(user);
+    inOrder.verify(context).failure(any(), any());
     verify(context, never()).success();
-    verify(context).failure(any(), any());
   }
 
   @Test

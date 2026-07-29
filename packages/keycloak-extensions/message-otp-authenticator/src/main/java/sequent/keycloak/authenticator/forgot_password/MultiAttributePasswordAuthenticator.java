@@ -75,6 +75,12 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       return;
     }
 
+    // A browser authentication session survives failureChallenge(), so a retry may still carry
+    // the user attributed by the previous attempt. Clear it before resolving the new submission;
+    // otherwise setUser() rejects a different unique candidate as USER_CONFLICT, and failures
+    // without an attributable candidate can be charged to the stale account.
+    context.clearUser();
+
     List<String> matchAttributes =
         Utils.getMultivalueString(
             context.getAuthenticatorConfig(),
@@ -116,6 +122,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     context.getEvent().error(Errors.INVALID_USER_CREDENTIALS);
     Response challengeResponse = challenge(context, formData, Messages.INVALID_USER);
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
+    context.clearUser();
   }
 
   /**
@@ -137,6 +144,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 ? Messages.ACCOUNT_PERMANENTLY_DISABLED
                 : Messages.ACCOUNT_TEMPORARILY_DISABLED);
     context.forceChallenge(challengeResponse);
+    context.clearUser();
   }
 
   /**
