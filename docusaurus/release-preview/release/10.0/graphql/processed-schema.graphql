@@ -1151,6 +1151,10 @@ type mutation_root {
   ApplicationChangeStatus(body: ApplicationChangeStatusBody!): ApplicationChangeStatusOutput
   """Verify User Registration Application"""
   VerifyApplication(body: ApplicationVerifyBody!): String!
+  """
+  applies the Sequent-side reconciliation diff for an already-computed import
+  """
+  apply_external_reconciliation_changes(diff_document_id: String!, election_event_id: String!): taskOutput
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
@@ -1161,6 +1165,10 @@ type mutation_root {
   """create_ballot_receipt"""
   create_ballot_receipt(ballot_id: String!, ballot_tracker_url: String!, election_event_id: uuid!, election_id: uuid!, tenant_id: uuid!): createBallotReceiptOutput
   create_election(description: String, election_event_id: String!, external_id: String!, presentation: jsonb): CreateElectionOutput
+  """
+  uploads an external (i.e. Datafix) reconciliation file and kicks off the diff-calculation task
+  """
+  create_external_reconciliation_import(document_id: String!, election_event_id: String!): taskOutput
   """create keys ceremony"""
   create_keys_ceremony(object: CreateKeysCeremonyInput!): CreateKeysCeremonyOutput
   """create_new_tally_sheet"""
