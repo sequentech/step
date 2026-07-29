@@ -1523,14 +1523,19 @@ mod tests {
             2,
         );
         // over_vote_policy defaults to ALLOWED (ContestPresentation::default()).
-        let selected_ids: Vec<String> =
-            contest.candidates[0..4].iter().map(|c| c.id.clone()).collect();
+        let selected_ids: Vec<String> = contest.candidates[0..4]
+            .iter()
+            .map(|c| c.id.clone())
+            .collect();
         let mut style = test_ballot_style(vec![contest.clone()]);
-        style.multi_contest_encoding_mode = Some(MultiContestEncodingMode::EXPANDED_CAPACITY);
+        style.multi_contest_encoding_mode =
+            Some(MultiContestEncodingMode::EXPANDED_CAPACITY);
         let decoded = decoded_vote_contest(&contest, false, &selected_ids);
 
         let result = test_multi_contest_reencoding(&vec![decoded], &style)
-            .expect("expanded capacity should encode a selection past max_votes");
+            .expect(
+                "expanded capacity should encode a selection past max_votes",
+            );
 
         let selected: Vec<&str> = result[0]
             .choices
@@ -1543,7 +1548,10 @@ mod tests {
             .iter()
             .all(|id| selected.contains(&id.as_str())));
         assert!(has_invalid_error(&result[0], "errors.implicit.selectedMax"));
-        assert!(!has_invalid_alert(&result[0], "errors.implicit.selectedMax"));
+        assert!(!has_invalid_alert(
+            &result[0],
+            "errors.implicit.selectedMax"
+        ));
     }
 
     #[test]
@@ -1560,8 +1568,10 @@ mod tests {
             0,
             2,
         );
-        let selected_ids: Vec<String> =
-            contest.candidates[0..4].iter().map(|c| c.id.clone()).collect();
+        let selected_ids: Vec<String> = contest.candidates[0..4]
+            .iter()
+            .map(|c| c.id.clone())
+            .collect();
         // multi_contest_encoding_mode left unset (LEGACY), unlike the test above.
         let style = test_ballot_style(vec![contest.clone()]);
         let decoded = decoded_vote_contest(&contest, false, &selected_ids);

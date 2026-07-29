@@ -74,8 +74,9 @@ impl DecodeMCBallots {
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
-                    let context = MultiBallotCodecContext::new(contests, include_decline_to_vote, mode)
-                        .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                    let context =
+                        MultiBallotCodecContext::new(contests, include_decline_to_vote, mode)
+                            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
                     codec_context.get_or_insert(context)
                 }
             };

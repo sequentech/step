@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
-use crate::services::database::get_hasura_pool;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;

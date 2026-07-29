@@ -4,9 +4,9 @@
 
 use crate::ballot::{
     self, AreaAnnotations, AreaPresentation, CandidatePresentation,
-    ContestPresentation, ElectionEventPresentation, ElectionPresentation,
-    EOverVotePolicy, I18nContent, StringifiedPeriodDates, TieBreakingPolicy,
-    WeightedVotingPolicy,
+    ContestPresentation, EOverVotePolicy, ElectionEventPresentation,
+    ElectionPresentation, I18nContent, StringifiedPeriodDates,
+    TieBreakingPolicy, WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -113,8 +113,10 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    let multi_contest_encoding_mode =
-        resolve_multi_contest_encoding_mode(&election.id, all_election_contests)?;
+    let multi_contest_encoding_mode = resolve_multi_contest_encoding_mode(
+        &election.id,
+        all_election_contests,
+    )?;
 
     let area_annotations = area.clone().read_annotations()?;
     let area_presentation: AreaPresentation = area
