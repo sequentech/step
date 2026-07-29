@@ -25,6 +25,7 @@ pub mod export_tally_results;
 pub mod export_tasks_execution;
 pub mod export_template;
 pub mod export_tenant_config;
+pub mod external_reconciliation;
 pub mod fetch_document;
 pub mod generate_preview_url;
 pub mod get_certificate_authorities_pem;
