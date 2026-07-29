@@ -4,7 +4,7 @@
 
 //! Parses an uploaded reconciliation file, computes both diffs at once
 //! (spec: "Both diffs... are calculated at once"), and uploads three
-//! documents: the Sequent-patch JSON `apply_reconciliation_patch` later
+//! documents: the Sequent-patch NDJSON stream `apply_reconciliation_patch` later
 //! applies from, the downloadable Datafix patch CSV (only if that side is
 //! non-empty), and a "diff envelope" JSON referencing both plus every item —
 //! see `reconciliation::diff::ReconciliationDiff`. There is no
@@ -21,10 +21,10 @@
 //! Sequent voters are fetched in one round trip via
 //! `users::fetch_realm_voter_snapshots_by_usernames`, and each batch's
 //! resulting `DiffItem`s are written straight into the three open output
-//! files via `reconciliation::patch::DiffItemArrayWriter`/
-//! `ExternalPatchCsvWriter` — nothing here ever holds the whole diff (or the
-//! whole file) resident in memory at once, which a 100k+-row reconciliation
-//! run otherwise would.
+//! files via `reconciliation::patch::DiffItemArrayWriter`,
+//! `DiffItemNdjsonWriter`, and `ExternalPatchCsvWriter` — nothing here ever
+//! holds the whole diff (or the whole file) resident in memory at once, which
+//! a 100k+-row reconciliation run otherwise would.
 
 use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::get_voter_cast_vote_states_for_event;
@@ -42,7 +42,8 @@ use crate::services::external::reconciliation::diff::{
     DatafixAreaFieldsByName, DiffItem, ReconciliationDiff,
 };
 use crate::services::external::reconciliation::patch::{
-    is_sequent_patch_item, sha256_hex, DiffItemArrayWriter, ExternalPatchCsvWriter,
+    is_sequent_patch_item, sha256_hex, DiffItemArrayWriter, DiffItemNdjsonWriter,
+    ExternalPatchCsvWriter,
 };
 use crate::services::external::types::ReconciliationPatchSource;
 use crate::services::protocol_manager::get_event_board;
@@ -209,17 +210,15 @@ async fn run_generate_reconciliation_patches(
 
     // Three output documents, each written incrementally as batches are
     // processed below, instead of serialized once from one fully-materialized
-    // diff. `sequent_patch_writer`/`envelope_items_writer` share the exact
-    // same `DiffItemArrayWriter` type, just fed different filtered subsets of
-    // each batch (see `is_sequent_patch_item`).
+    // diff. The internal Sequent stream is NDJSON so apply can deserialize it
+    // one voter at a time; the review envelope remains a JSON object/array.
     let sequent_patch_temp = tempfile::NamedTempFile::new()
         .map_err(|err| format!("Error creating the Sequent patch temp file: {err}"))?;
-    let mut sequent_patch_writer = DiffItemArrayWriter::start(BufWriter::new(
+    let mut sequent_patch_writer = DiffItemNdjsonWriter::new(BufWriter::new(
         sequent_patch_temp
             .reopen()
             .map_err(|err| format!("Error reopening the Sequent patch temp file: {err}"))?,
-    ))
-    .map_err(|err| format!("Error starting the Sequent patch: {err}"))?;
+    ));
 
     let envelope_temp = tempfile::NamedTempFile::new()
         .map_err(|err| format!("Error creating the diff envelope temp file: {err}"))?;
@@ -375,9 +374,7 @@ async fn run_generate_reconciliation_patches(
 
     // Finish and upload the Sequent patch (always produced, never
     // downloadable, purely apply_reconciliation_patch's input).
-    let sequent_patch_writer_inner = sequent_patch_writer
-        .finish()
-        .map_err(|err| format!("Error finishing the Sequent patch: {err}"))?;
+    let sequent_patch_writer_inner = sequent_patch_writer.finish();
     flush_writer(sequent_patch_writer_inner)
         .map_err(|err| format!("Error finishing the Sequent patch: {err}"))?;
     let sequent_patch_size = file_size(sequent_patch_temp.path())
@@ -386,8 +383,8 @@ async fn run_generate_reconciliation_patches(
         &hasura_transaction,
         &body.tenant_id,
         &body.election_event_id,
-        &format!("sequent_patch_seq{}.json", meta.sequence),
-        "application/json",
+        &format!("sequent_patch_seq{}.ndjson", meta.sequence),
+        "application/x-ndjson",
         sequent_patch_size,
         sequent_patch_temp.path(),
     )
@@ -526,7 +523,7 @@ fn apply_permission_for_sequence(
 /// (Sequent-driven) passes above.
 fn write_batch_to_all_outputs<EW: Write, SW: Write, CW: Write>(
     envelope_items_writer: &mut DiffItemArrayWriter<EW>,
-    sequent_patch_writer: &mut DiffItemArrayWriter<SW>,
+    sequent_patch_writer: &mut DiffItemNdjsonWriter<SW>,
     external_patch_writer: &mut ExternalPatchCsvWriter<CW>,
     batch_items: &[DiffItem],
     file_rows: &[crate::services::external::datafix_types::ParsedDatafixReconciliationRow],

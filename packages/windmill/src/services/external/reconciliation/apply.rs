@@ -204,7 +204,10 @@ async fn apply_generic_voter_edit(
     user_id: &str,
     items: &[DiffItem],
 ) -> Result<VoterApplyOutcome> {
-    let (enabled, mut attributes) = keycloak_edit_from_items(items);
+    let (enabled, mut attributes) = match keycloak_edit_from_items(items) {
+        Ok(edit) => edit,
+        Err(reason) => return Ok(VoterApplyOutcome::Failed { reason }),
+    };
     resolve_area_attribute(
         hasura_transaction,
         tenant_id,
@@ -314,7 +317,9 @@ async fn validate_old_values(
 /// exactly as Keycloak expects, and derives the `enabled` transition from any
 /// `Enabled` item's new value. Purely mechanical: diff.rs already decided
 /// every value, this just collects them.
-fn keycloak_edit_from_items(items: &[DiffItem]) -> (Option<bool>, HashMap<String, Vec<String>>) {
+fn keycloak_edit_from_items(
+    items: &[DiffItem],
+) -> std::result::Result<(Option<bool>, HashMap<String, Vec<String>>), String> {
     let mut enabled = None;
     let mut attributes: HashMap<String, Vec<String>> = HashMap::new();
     for item in items {
@@ -322,15 +327,28 @@ fn keycloak_edit_from_items(items: &[DiffItem]) -> (Option<bool>, HashMap<String
             continue;
         };
         if let Some(new_enabled) = field.new_enabled() {
+            if enabled.is_some_and(|current| current != new_enabled) {
+                return Err(format!(
+                    "Conflicting reconciliation writes for enabled: both {} and {new_enabled}",
+                    enabled.expect("checked as Some above")
+                ));
+            }
             enabled = Some(new_enabled);
         }
         if let Some(keycloak_attributes) = field.new_keycloak_attributes() {
             for (key, value) in keycloak_attributes {
+                if let Some(current) = attributes.get(key).and_then(|values| values.last()) {
+                    if current != value {
+                        return Err(format!(
+                            "Conflicting reconciliation writes for Keycloak attribute '{key}': both '{current}' and '{value}'"
+                        ));
+                    }
+                }
                 attributes.insert(key.clone(), vec![value.clone()]);
             }
         }
     }
-    (enabled, attributes)
+    Ok((enabled, attributes))
 }
 
 /// Resolves any `AreaName` item's composed name to a Sequent `area-id` and
@@ -393,7 +411,7 @@ mod tests {
             )),
         ];
 
-        let (enabled, attributes) = keycloak_edit_from_items(&items);
+        let (enabled, attributes) = keycloak_edit_from_items(&items).unwrap();
         assert_eq!(enabled, Some(false));
         assert_eq!(
             attributes.get(DATE_OF_BIRTH),
@@ -403,5 +421,23 @@ mod tests {
             attributes.get(DISABLE_COMMENT),
             Some(&vec!["Disabled by reconciliation".to_string()])
         );
+    }
+
+    #[test]
+    fn rejects_conflicting_attribute_writes_instead_of_using_item_order() {
+        let items = vec![
+            item(SequentReconciliationField::KeycloakUA(
+                HashMap::new(),
+                HashMap::from([(DISABLE_COMMENT.to_string(), "MARKVOTED_CALL".to_string())]),
+            )),
+            item(SequentReconciliationField::KeycloakUA(
+                HashMap::new(),
+                HashMap::from([(DISABLE_COMMENT.to_string(), "DELETE_CALL".to_string())]),
+            )),
+        ];
+
+        let error = keycloak_edit_from_items(&items).unwrap_err();
+        assert!(error.contains("Conflicting reconciliation writes"));
+        assert!(error.contains(DISABLE_COMMENT));
     }
 }

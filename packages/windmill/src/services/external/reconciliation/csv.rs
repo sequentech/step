@@ -139,58 +139,10 @@ fn validate_headers(headers: &StringRecord) -> Result<(), String> {
     }
 }
 
-/// Parses the reconciliation CSV body (everything after the `#META` line) into
-/// typed rows, collecting per-row errors instead of aborting on the first bad
-/// row — mirrors `tally_sheet_import::csv::parse_canonical_csv`.
-#[instrument(skip(csv_bytes))]
-pub fn parse_reconciliation_rows(
-    csv_bytes: &[u8],
-) -> (Vec<ParsedDatafixReconciliationRow>, Vec<RowParseError>) {
-    let mut reader = ReaderBuilder::new()
-        .has_headers(true)
-        .from_reader(csv_bytes);
-    let mut rows = Vec::new();
-    let mut errors = Vec::new();
-    match reader.headers() {
-        Ok(headers) => {
-            if let Err(message) = validate_headers(headers) {
-                errors.push(RowParseError { line: 0, message });
-                return (rows, errors);
-            }
-        }
-        Err(err) => {
-            errors.push(RowParseError {
-                line: 0,
-                message: err.to_string(),
-            });
-            return (rows, errors);
-        }
-    }
-    for (index, record) in reader
-        .deserialize::<ParsedDatafixReconciliationRow>()
-        .enumerate()
-    {
-        match record {
-            Ok(row) => match validate_row(&row) {
-                Ok(()) => rows.push(row),
-                Err(message) => errors.push(RowParseError {
-                    line: index + 1,
-                    message,
-                }),
-            },
-            Err(err) => errors.push(RowParseError {
-                line: index + 1,
-                message: err.to_string(),
-            }),
-        }
-    }
-    (rows, errors)
-}
-
 /// Incrementally reads reconciliation rows in fixed-size batches, the
-/// streaming counterpart to `parse_reconciliation_rows` — so a 100k+-row
-/// file's rows are never all resident in memory at once, only whichever
-/// batch is currently being processed. Stops at the first malformed row
+/// production parser, so a 100k+-row file's rows are never all resident in
+/// memory at once, only whichever batch is currently being processed. Stops
+/// at the first malformed row
 /// rather than collecting every error across the whole file: nothing this
 /// pipeline does is applied to voter data until a later, separate step, so
 /// discovering a bad row late just wastes the processing done so far, it
@@ -273,6 +225,20 @@ impl ReconciliationRowBatches<BufReader<std::fs::File>> {
 mod tests {
     use super::*;
 
+    fn parse_all_streamed(
+        csv_bytes: &[u8],
+    ) -> std::result::Result<Vec<ParsedDatafixReconciliationRow>, RowParseError> {
+        let mut reader = ReconciliationRowBatches::new(csv_bytes);
+        let mut rows = Vec::new();
+        loop {
+            let batch = reader.next_batch(2)?;
+            if batch.is_empty() {
+                return Ok(rows);
+            }
+            rows.extend(batch);
+        }
+    }
+
     #[test]
     fn parses_sequence_and_generated_at() {
         let meta = parse_meta_line("#META,Sequence=42,GeneratedAt=1781780700").unwrap();
@@ -299,8 +265,7 @@ mod tests {
         let file = b"#META,Sequence=1,GeneratedAt=2\nCountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,000,P,NONE,false\n";
         let (meta, csv_bytes) = split_meta_and_csv(file).unwrap();
         assert_eq!(meta.sequence, 1);
-        let (rows, errors) = parse_reconciliation_rows(csv_bytes);
-        assert!(errors.is_empty());
+        let rows = parse_all_streamed(csv_bytes).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].voter_id, "17695");
         assert_eq!(rows[0].channel, "NONE");
@@ -320,31 +285,37 @@ mod tests {
             b"".as_slice(),
             b"VoterID,CountyMun,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n".as_slice(),
         ] {
-            let (rows, errors) = parse_reconciliation_rows(csv_bytes);
-            assert!(rows.is_empty());
-            assert_eq!(errors.len(), 1);
-            assert_eq!(errors[0].line, 0);
+            let error = parse_all_streamed(csv_bytes).unwrap_err();
+            assert_eq!(error.line, 0);
         }
     }
 
     #[test]
     fn rejects_non_uppercase_channels_and_noncanonical_booleans() {
-        let csv_bytes = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,000,P,Internet,false\n0014,17696,1963-05-23,04,000,P,NONE,FALSE\n";
-        let (rows, errors) = parse_reconciliation_rows(csv_bytes);
-        assert!(rows.is_empty());
-        assert_eq!(errors.len(), 2);
-        assert!(errors[0].message.contains("Channel must be uppercase"));
-        assert!(errors[1].message.contains("Deleted must be exactly"));
+        for (row, expected) in [
+            (
+                "0014,17695,1963-05-23,04,000,P,Internet,false",
+                "Channel must be uppercase",
+            ),
+            (
+                "0014,17696,1963-05-23,04,000,P,NONE,FALSE",
+                "Deleted must be exactly",
+            ),
+        ] {
+            let csv = format!(
+                "CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n{row}\n"
+            );
+            let error = parse_all_streamed(csv.as_bytes()).unwrap_err();
+            assert!(error.message.contains(expected));
+        }
     }
 
     #[test]
-    fn collects_malformed_rows_without_aborting_the_whole_file() {
-        // Second row is missing a column - csv::Reader flags a field-count
-        // mismatch as an error for that row only.
+    fn streaming_reader_stops_at_the_first_malformed_row() {
         let csv_bytes = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,000,P,NONE,false\n0014,79535,1948-04-06\n0014,68684,1978-02-28,03,000,P,NONE,false\n";
-        let (rows, errors) = parse_reconciliation_rows(csv_bytes);
-        assert_eq!(rows.len(), 2);
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].line, 2);
+        let mut reader = ReconciliationRowBatches::new(csv_bytes.as_slice());
+        assert_eq!(reader.next_batch(1).unwrap().len(), 1);
+        let error = reader.next_batch(1).unwrap_err();
+        assert_eq!(error.line, 2);
     }
 }

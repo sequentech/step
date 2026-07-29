@@ -21,10 +21,9 @@ use tracing::{info, instrument};
 
 /// One (voter, field) change destined for either the Datafix patch or a
 /// direct Sequent apply. Never persisted on its own — always as part of a
-/// `Vec<DiffItem>` inside one of the two documents `generate_reconciliation_patches`
+/// serialized into one of the two documents `generate_reconciliation_patches`
 /// uploads: the full `ReconciliationDiff` envelope (both sides, for review)
-/// and the Sequent-only patch document (`target = Sequent` items, what
-/// `apply_reconciliation_patch` actually applies). Each is written once and
+/// and the Sequent-side NDJSON apply stream. Each is written once and
 /// never mutated afterward, so unlike an earlier draft of this type there's
 /// no `apply_status` field here — the outcome of applying lives in the
 /// row-failures document and the electoral log artifact instead, not back on
@@ -61,9 +60,9 @@ pub struct ReconciliationDiff {
     /// own process hasn't converged yet.
     pub external_patch_document_id: Option<String>,
     pub external_patch_sha256: Option<String>,
-    /// The `target = Sequent`, non-`ROW_FAILURE` items, already serialized as
-    /// their own document (see `patch::build_sequent_patch_json`) so apply
-    /// doesn't need to re-filter `items` below.
+    /// Every `target = Sequent` item, serialized as an NDJSON stream so apply
+    /// can process one voter at a time. It includes `ROW_FAILURE` items for
+    /// structured reporting; those entries are never treated as mutations.
     pub sequent_patch_document_id: String,
     /// False for an already-successful Sequence: the envelope is a diff-only
     /// convergence check and must not be applied again. True for a new round
@@ -219,6 +218,14 @@ fn classify_file_row(
         .disable_comment
         .as_deref()
         .unwrap_or(ATTR_RESET_VALUE);
+    let unmarking_stored_channel = file_says_none
+        && !snapshot.has_valid_internet_vote
+        && !snapshot.has_unresolved_internet_vote
+        && !channels_equal(stored_channel, ATTR_RESET_VALUE);
+    let applying_other_channel = !file_says_none
+        && !file_says_internet
+        && !snapshot.has_valid_internet_vote
+        && !snapshot.has_unresolved_internet_vote;
 
     // A) Sequent holds a valid Internet ballot; Datafix says NONE.
     if file_says_none && snapshot.has_valid_internet_vote {
@@ -235,26 +242,45 @@ fn classify_file_row(
             &row.voter_id,
             "Voter has an in-progress Internet ballot; Channel=NONE cannot be reconciled until the ballot resolves",
         ));
-    } else if file_says_none && !channels_equal(stored_channel, ATTR_RESET_VALUE) {
-        // File-driven equivalent of `/unmark-voted`.
+    } else if unmarking_stored_channel {
+        // File-driven equivalent of `/unmark-voted`. Compute the final
+        // disable reason here, together with the channel reset, so a
+        // Deleted=true row never emits two competing writes to the same
+        // attribute. A manual/admin disable is not undone by an unmark: only
+        // MARKVOTED_CALL owns the enable transition and its comment.
+        let desired_disable_comment = if row.deleted == "true" {
+            DISABLE_REASON_DELETE_CALL
+        } else if !snapshot.enabled && stored_disable_comment != DISABLE_REASON_MARKVOTED_CALL {
+            stored_disable_comment
+        } else {
+            ATTR_RESET_VALUE
+        };
+        let mut old_attributes =
+            HashMap::from([(VOTED_CHANNEL.to_string(), stored_channel.to_string())]);
+        let mut new_attributes =
+            HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())]);
+        if desired_disable_comment != stored_disable_comment {
+            old_attributes.insert(
+                DISABLE_COMMENT.to_string(),
+                stored_disable_comment.to_string(),
+            );
+            new_attributes.insert(
+                DISABLE_COMMENT.to_string(),
+                desired_disable_comment.to_string(),
+            );
+        }
         items.push(diff_item(
             &row.voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                HashMap::from([
-                    (VOTED_CHANNEL.to_string(), stored_channel.to_string()),
-                    (
-                        DISABLE_COMMENT.to_string(),
-                        stored_disable_comment.to_string(),
-                    ),
-                ]),
-                HashMap::from([
-                    (VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string()),
-                    (DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string()),
-                ]),
+                old_attributes,
+                new_attributes,
             ))),
             ReconciliationChangeCategory::VOTED_UNMARKED,
         ));
-        if !snapshot.enabled && row.deleted != "true" {
+        if !snapshot.enabled
+            && row.deleted != "true"
+            && stored_disable_comment == DISABLE_REASON_MARKVOTED_CALL
+        {
             items.push(diff_item(
                 &row.voter_id,
                 ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
@@ -323,8 +349,16 @@ fn classify_file_row(
             // Both the voted channel and why the voter is being disabled are
             // plain Keycloak attributes — carried together so `apply` writes
             // them in a single edit without knowing this came from Datafix.
+            // Deleted=true takes precedence over MARKVOTED_CALL in the same
+            // canonical item so the delete block below has nothing to
+            // overwrite later.
+            let desired_disable_comment = if row.deleted == "true" {
+                DISABLE_REASON_DELETE_CALL
+            } else {
+                DISABLE_REASON_MARKVOTED_CALL
+            };
             if !channels_equal(stored_channel, &row.channel)
-                || stored_disable_comment != DISABLE_REASON_MARKVOTED_CALL
+                || stored_disable_comment != desired_disable_comment
             {
                 items.push(diff_item(
                     &row.voter_id,
@@ -344,7 +378,7 @@ fn classify_file_row(
                                 ),
                                 (
                                     DISABLE_COMMENT.to_string(),
-                                    DISABLE_REASON_MARKVOTED_CALL.to_string(),
+                                    desired_disable_comment.to_string(),
                                 ),
                             ]),
                         ),
@@ -417,8 +451,11 @@ fn classify_file_row(
                 &row.voter_id,
                 "Voter has an in-progress Internet ballot and cannot be deleted until it resolves",
             ));
-        } else if snapshot.enabled || stored_disable_comment != DISABLE_REASON_DELETE_CALL {
-            if snapshot.enabled {
+        } else {
+            // An authoritative non-Internet channel already emitted the
+            // same enabled=false transition; every other Deleted=true path
+            // gets it here exactly once.
+            if snapshot.enabled && !applying_other_channel {
                 items.push(diff_item(
                     &row.voter_id,
                     ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
@@ -427,20 +464,30 @@ fn classify_file_row(
                     ReconciliationChangeCategory::DISABLED_DELETE_CALL,
                 ));
             }
-            items.push(diff_item(
-                &row.voter_id,
-                ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
-                    HashMap::from([(
-                        DISABLE_COMMENT.to_string(),
-                        stored_disable_comment.to_string(),
-                    )]),
-                    HashMap::from([(
-                        DISABLE_COMMENT.to_string(),
-                        DISABLE_REASON_DELETE_CALL.to_string(),
-                    )]),
-                ))),
-                ReconciliationChangeCategory::DISABLED_DELETE_CALL,
-            ));
+            // Channel transitions in A/B already assigned DELETE_CALL as the
+            // canonical final reason. Do not emit a duplicate attribute
+            // write whose winner would otherwise depend on item ordering.
+            if !unmarking_stored_channel
+                && !applying_other_channel
+                && stored_disable_comment != DISABLE_REASON_DELETE_CALL
+            {
+                items.push(diff_item(
+                    &row.voter_id,
+                    ReconciliationPatchTarget::Sequent(Some(
+                        SequentReconciliationField::KeycloakUA(
+                            HashMap::from([(
+                                DISABLE_COMMENT.to_string(),
+                                stored_disable_comment.to_string(),
+                            )]),
+                            HashMap::from([(
+                                DISABLE_COMMENT.to_string(),
+                                DISABLE_REASON_DELETE_CALL.to_string(),
+                            )]),
+                        ),
+                    )),
+                    ReconciliationChangeCategory::DISABLED_DELETE_CALL,
+                ));
+            }
         }
     } else if !snapshot.enabled
         && stored_disable_comment == DISABLE_REASON_DELETE_CALL
@@ -946,15 +993,11 @@ mod tests {
             Some(&snapshot),
             &datafix_source("0014"),
         );
-        assert_eq!(items.len(), 2);
-        assert!(items
-            .iter()
-            .any(|item| { item.category == ReconciliationChangeCategory::DISABLED_DELETE_CALL }));
+        assert_eq!(items.len(), 1);
         let attributes_item = items
             .iter()
-            .filter(|item| item.category == ReconciliationChangeCategory::DISABLED_DELETE_CALL)
             .find_map(|item| item.target.sequent_field()?.new_keycloak_attributes())
-            .expect("the delete item carries the Keycloak attributes");
+            .expect("the canonical channel item carries the delete reason");
         assert_eq!(
             attributes_item.get(DISABLE_COMMENT),
             Some(&DISABLE_REASON_DELETE_CALL.to_string())
@@ -1078,6 +1121,104 @@ mod tests {
                     false, true,
                 )))
         }));
+    }
+
+    #[test]
+    fn unmark_and_delete_emit_one_canonical_disable_comment() {
+        let snapshot = VoterSnapshot {
+            enabled: false,
+            voted_channel: Some("PAPER".to_string()),
+            disable_comment: Some(DISABLE_REASON_MARKVOTED_CALL.to_string()),
+            ..enabled_snapshot()
+        };
+        let items = classify_file_row(
+            &row("voter-1", ATTR_RESET_VALUE, "true"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
+
+        assert_eq!(items.len(), 1);
+        let SequentReconciliationField::KeycloakUA(_, new_attributes) = items[0]
+            .target
+            .sequent_field()
+            .expect("unmark emits a Keycloak attribute change")
+        else {
+            panic!("expected Keycloak attributes");
+        };
+        assert_eq!(
+            new_attributes.get(VOTED_CHANNEL),
+            Some(&ATTR_RESET_VALUE.to_string())
+        );
+        assert_eq!(
+            new_attributes.get(DISABLE_COMMENT),
+            Some(&DISABLE_REASON_DELETE_CALL.to_string())
+        );
+    }
+
+    #[test]
+    fn unmark_preserves_an_existing_delete_reason_and_converges_in_one_round() {
+        let snapshot = VoterSnapshot {
+            enabled: false,
+            voted_channel: Some("PAPER".to_string()),
+            disable_comment: Some(DISABLE_REASON_DELETE_CALL.to_string()),
+            ..enabled_snapshot()
+        };
+        let file_row = row("voter-1", ATTR_RESET_VALUE, "true");
+        let items = classify_file_row(&file_row, Some(&snapshot), &datafix_source("0014"));
+
+        assert_eq!(items.len(), 1);
+        let SequentReconciliationField::KeycloakUA(_, new_attributes) = items[0]
+            .target
+            .sequent_field()
+            .expect("unmark emits a Keycloak attribute change")
+        else {
+            panic!("expected Keycloak attributes");
+        };
+        assert_eq!(
+            new_attributes,
+            &HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())])
+        );
+
+        let after_apply = VoterSnapshot {
+            voted_channel: Some(ATTR_RESET_VALUE.to_string()),
+            ..snapshot
+        };
+        assert!(
+            classify_file_row(&file_row, Some(&after_apply), &datafix_source("0014")).is_empty()
+        );
+    }
+
+    #[test]
+    fn unmark_does_not_enable_or_clear_an_admin_disabled_voter() {
+        let manual_reason = "Disabled manually";
+        let snapshot = VoterSnapshot {
+            enabled: false,
+            voted_channel: Some("PAPER".to_string()),
+            disable_comment: Some(manual_reason.to_string()),
+            ..enabled_snapshot()
+        };
+        let items = classify_file_row(
+            &row("voter-1", ATTR_RESET_VALUE, "false"),
+            Some(&snapshot),
+            &datafix_source("0014"),
+        );
+
+        assert_eq!(items.len(), 1);
+        let SequentReconciliationField::KeycloakUA(_, new_attributes) = items[0]
+            .target
+            .sequent_field()
+            .expect("unmark emits a Keycloak attribute change")
+        else {
+            panic!("expected Keycloak attributes");
+        };
+        assert_eq!(
+            new_attributes,
+            &HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())])
+        );
+        assert!(items.iter().all(|item| !matches!(
+            item.target.sequent_field(),
+            Some(SequentReconciliationField::Enabled(_, _))
+        )));
     }
 
     #[test]

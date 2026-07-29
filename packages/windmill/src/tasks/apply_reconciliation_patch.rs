@@ -20,12 +20,13 @@ use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
 use crate::services::external::reconciliation::bulk_create::apply_voters_added_bulk;
-use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationDiff};
+use crate::services::external::reconciliation::diff::DiffItem;
+use crate::services::external::reconciliation::patch::DiffItemArrayWriter;
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
 use crate::services::external::utils::set_datafix_reconciliation_state;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
-use crate::services::tasks_execution::{update, update_fail};
+use crate::services::tasks_execution::{update_fail, update_with_annotations};
 use crate::types::error::{Error, Result};
 use celery::error::TaskError;
 use electoral_log::messages::newtypes::ExternalReconciliationKind;
@@ -34,7 +35,11 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufReader, BufWriter, Write};
 use tracing::{info, instrument};
+
+const VOTER_ADD_APPLY_BATCH_SIZE: usize = 5_000;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ApplyReconciliationPatchBody {
@@ -52,16 +57,44 @@ pub struct ApplyReconciliationPatchBody {
     pub applied_by_username: Option<String>,
 }
 
+/// Apply needs only immutable round metadata. `items` is intentionally absent:
+/// serde discards that large review-only field while reading the envelope
+/// incrementally, and the executable NDJSON stream is consumed separately.
+#[derive(Deserialize)]
+struct ReconciliationApplyEnvelope {
+    sequence: i64,
+    generated_at: i64,
+    source_sha256: String,
+    external_patch_document_id: Option<String>,
+    sequent_patch_document_id: String,
+    #[serde(default = "default_apply_allowed")]
+    apply_allowed: bool,
+}
+
+fn default_apply_allowed() -> bool {
+    true
+}
+
+#[derive(Serialize)]
+struct ReconciliationTaskRowFailure {
+    voter_id: String,
+    reason: String,
+}
+
+#[derive(Serialize)]
+struct ApplyReconciliationTaskAnnotations {
+    document_id: Option<String>,
+    reconciliation_row_failures: Vec<ReconciliationTaskRowFailure>,
+}
+
 /// Applies every `target = Sequent` item of the round `diff_document_id`
 /// points to, one voter at a time, per-row atomic (spec: "a row failure does
 /// not abort the process" — every voter is still attempted). Row failures are
-/// reported directly in the task_execution's own logs rather than a
-/// downloadable document: a line stating how many rows applied, one line per
-/// failed voter naming it and the reason, and a closing summary line. Any row
-/// failure marks the task_execution `FAILED` (not `SUCCESS`) so it's visible
-/// wherever task executions are surfaced, same as a genuine infrastructure
-/// error (e.g. cannot load the diff at all) — the two are distinguished by
-/// the logged detail, not by status.
+/// reported as structured task annotations and rendered by the wizard. A
+/// completed per-row apply is `SUCCESS` even when some rows were safely
+/// rejected; `FAILED` is reserved for an infrastructure/orchestration error.
+/// Same-Sequence retry eligibility is tracked independently on the election
+/// event whenever the structured row-failure list is non-empty.
 #[instrument(
     skip_all,
     fields(
@@ -86,35 +119,39 @@ pub async fn apply_reconciliation_patch(
 
             let mut logs = task_execution.logs.clone();
             logs = append_task_log(&logs, &format!("Applied {applied_count} row(s)."));
-            for (voter_username, reason) in &row_failures {
-                logs = append_task_log(
-                    &logs,
-                    &format!("Row failed for voter {voter_username}: {reason}"),
-                );
-            }
-
-            let (status, closing_message) = if row_failures.is_empty() {
-                (
-                    TasksExecutionStatus::SUCCESS,
-                    "Task completed successfully".to_string(),
-                )
+            let closing_message = if row_failures.is_empty() {
+                "Task completed successfully".to_string()
             } else {
-                (
-                    TasksExecutionStatus::FAILED,
-                    format!("Error: {} row(s) failed to apply.", row_failures.len()),
+                format!(
+                    "Task completed with {} row failure(s). See the reconciliation result.",
+                    row_failures.len()
                 )
             };
             logs = append_task_log(&logs, &closing_message);
 
-            update(
+            let annotations = serde_json::to_value(ApplyReconciliationTaskAnnotations {
+                document_id: None,
+                reconciliation_row_failures: row_failures
+                    .into_iter()
+                    .map(|(voter_id, reason)| ReconciliationTaskRowFailure { voter_id, reason })
+                    .collect(),
+            })
+            .map_err(|err| {
+                Error::String(format!(
+                    "Error serializing reconciliation task result: {err}"
+                ))
+            })?;
+            update_with_annotations(
                 &task_execution.tenant_id,
                 &task_execution.id,
-                status,
+                TasksExecutionStatus::SUCCESS,
                 logs.unwrap_or_else(|| serde_json::Value::Array(vec![])),
-                None,
+                annotations,
             )
             .await
-            .ok();
+            .map_err(|err| {
+                Error::String(format!("Error storing reconciliation task result: {err}"))
+            })?;
             Ok(())
         }
         Err(message) => {
@@ -150,7 +187,7 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error starting Hasura transaction: {err}"))?;
 
-    let envelope: ReconciliationDiff = fetch_json_document(
+    let envelope: ReconciliationApplyEnvelope = fetch_json_document(
         &hasura_transaction,
         &body.tenant_id,
         &body.election_event_id,
@@ -220,22 +257,23 @@ async fn run_apply_reconciliation_patch(
     }
 
     let realm = get_event_realm(&body.tenant_id, &body.election_event_id);
-    let sequent_items: Vec<DiffItem> = fetch_json_document(
+    let patch_document = get_document(
         &hasura_transaction,
         &body.tenant_id,
-        &body.election_event_id,
+        Some(body.election_event_id.clone()),
         &envelope.sequent_patch_document_id,
     )
     .await
-    .map_err(|err| format!("Error loading the Sequent patch: {err:?}"))?;
-
-    let mut indices_by_voter: HashMap<String, Vec<usize>> = HashMap::new();
-    for (index, item) in sequent_items.iter().enumerate() {
-        indices_by_voter
-            .entry(item.voter_username.clone())
-            .or_default()
-            .push(index);
-    }
+    .map_err(|err| format!("Error loading the Sequent apply stream: {err:?}"))?
+    .ok_or_else(|| {
+        format!(
+            "Sequent apply stream document {} not found",
+            envelope.sequent_patch_document_id
+        )
+    })?;
+    let patch_temp = get_document_as_temp_file(&body.tenant_id, &patch_document)
+        .await
+        .map_err(|err| format!("Error downloading the Sequent apply stream: {err:?}"))?;
 
     let mut keycloak_client = get_keycloak_pool()
         .await
@@ -247,109 +285,97 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error starting Keycloak transaction: {err}"))?;
 
-    // Generate-time failures are intentionally absent from the executable
-    // Sequent patch, but they are still outstanding failures for this round:
-    // surface them in the apply result and retain same-Sequence retry
-    // eligibility until a later run resolves them.
-    let mut row_failures: Vec<(String, String)> = envelope
-        .items
-        .iter()
-        .filter(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE)
-        .map(|item| {
-            (
-                item.voter_username.clone(),
-                item.failure_reason
-                    .clone()
-                    .unwrap_or_else(|| "Row was excluded while generating the diff".to_string()),
-            )
-        })
-        .collect();
+    let voter_group_name = std::env::var("KEYCLOAK_VOTER_GROUP_NAME")
+        .map_err(|err| format!("Error getting env var KEYCLOAK_VOTER_GROUP_NAME: {err:?}"))?;
+    let mut row_failures: Vec<(String, String)> = Vec::new();
     let mut applied_voters_count: usize = 0;
-    let mut applied_items: Vec<DiffItem> = Vec::new();
+    let mut pending_voters_added: HashMap<String, Vec<DiffItem>> = HashMap::new();
 
-    // VOTER_ADDED voters — the dominant category by volume whenever the
-    // realm is badly out of sync with the file — are bulk-created via
-    // direct writes to Keycloak's own tables instead of one Admin API call
-    // each (see bulk_create's module doc for why this is necessary at
-    // scale). Every other category still goes through the sequential
-    // per-voter Admin API path below, unchanged.
-    let mut voters_added: HashMap<String, Vec<DiffItem>> = HashMap::new();
-    let mut other_voters: HashMap<String, Vec<usize>> = HashMap::new();
-    for (voter_username, indices) in indices_by_voter {
-        let voter_items: Vec<DiffItem> = indices
-            .iter()
-            .map(|&index| sequent_items[index].clone())
-            .collect();
-        if voter_items
-            .iter()
-            .any(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE)
+    // Applied old/new values are also streamed to disk. The electoral-log
+    // API ultimately needs one byte artifact, but no second Vec<DiffItem> is
+    // retained while the apply itself runs.
+    let audit_temp = tempfile::NamedTempFile::new()
+        .map_err(|err| format!("Error creating reconciliation audit artifact: {err}"))?;
+    let audit_file = audit_temp
+        .reopen()
+        .map_err(|err| format!("Error opening reconciliation audit artifact: {err}"))?;
+    let mut audit_writer = DiffItemArrayWriter::start(BufWriter::new(audit_file))
+        .map_err(|err| format!("Error starting reconciliation audit artifact: {err}"))?;
+
+    // The generator writes all items for a voter contiguously and writes
+    // each voter only once. Consume the NDJSON document in that same order,
+    // retaining only one existing voter or one bounded addition batch.
+    let patch_file = File::open(patch_temp.path())
+        .map_err(|err| format!("Error opening the Sequent apply stream: {err}"))?;
+    let stream =
+        serde_json::Deserializer::from_reader(BufReader::new(patch_file)).into_iter::<DiffItem>();
+    let mut current_voter: Option<String> = None;
+    let mut current_items: Vec<DiffItem> = Vec::new();
+    for item in stream {
+        let item = item.map_err(|err| format!("Invalid Sequent apply stream item: {err}"))?;
+        if current_voter.as_deref() != Some(item.voter_username.as_str())
+            && !current_items.is_empty()
         {
-            continue; // never applied - excluded at generate time already, defensive only
+            process_voter_group(
+                &hasura_transaction,
+                &keycloak_transaction,
+                body,
+                &realm,
+                &voter_group_name,
+                current_voter
+                    .take()
+                    .expect("a non-empty item group always has a voter"),
+                std::mem::take(&mut current_items),
+                &mut pending_voters_added,
+                &mut audit_writer,
+                &mut applied_voters_count,
+                &mut row_failures,
+            )
+            .await?;
         }
-        if voter_items
-            .iter()
-            .all(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED)
-        {
-            voters_added.insert(voter_username, voter_items);
-        } else {
-            other_voters.insert(voter_username, indices);
-        }
+        current_voter = Some(item.voter_username.clone());
+        current_items.push(item);
     }
-
-    if !voters_added.is_empty() {
-        let voter_group_name = std::env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .map_err(|err| format!("Error getting env var KEYCLOAK_VOTER_GROUP_NAME: {err:?}"))?;
-        let voters_added_count = voters_added.len();
-        let (bulk_applied, bulk_failures) = apply_voters_added_bulk(
+    if let Some(voter_username) = current_voter {
+        process_voter_group(
             &hasura_transaction,
             &keycloak_transaction,
-            &body.tenant_id,
-            &body.election_event_id,
+            body,
             &realm,
             &voter_group_name,
-            &voters_added,
-        )
-        .await
-        .map_err(|err| format!("Error bulk-creating added voters: {err:?}"))?;
-        applied_voters_count += voters_added_count - bulk_failures.len();
-        applied_items.extend(bulk_applied);
-        row_failures.extend(bulk_failures);
-    }
-
-    for (voter_username, indices) in &other_voters {
-        let voter_items: Vec<DiffItem> = indices
-            .iter()
-            .map(|&index| sequent_items[index].clone())
-            .collect();
-
-        let outcome = apply_voter_changes(
-            &hasura_transaction,
-            &keycloak_transaction,
-            &body.tenant_id,
-            &body.election_event_id,
-            &realm,
             voter_username,
-            &voter_items,
+            current_items,
+            &mut pending_voters_added,
+            &mut audit_writer,
+            &mut applied_voters_count,
+            &mut row_failures,
         )
-        .await;
-
-        match outcome {
-            Ok(VoterApplyOutcome::Applied) => {
-                applied_voters_count += 1;
-                applied_items.extend(voter_items);
-            }
-            Ok(VoterApplyOutcome::Failed { reason }) => {
-                row_failures.push((voter_username.clone(), reason))
-            }
-            Err(err) => row_failures.push((voter_username.clone(), format!("{err:?}"))),
-        }
+        .await?;
     }
+    flush_voters_added(
+        &hasura_transaction,
+        &keycloak_transaction,
+        body,
+        &realm,
+        &voter_group_name,
+        &mut pending_voters_added,
+        &mut audit_writer,
+        &mut applied_voters_count,
+        &mut row_failures,
+    )
+    .await?;
 
     // Electoral log: every apply attempt gets a run-level entry, including a
     // run where every row failed. The artifact contains only old/new items
     // that were actually applied.
-    let artifact = serde_json::to_vec(&applied_items)
-        .map_err(|err| format!("Error serializing reconciliation audit artifact: {err}"))?;
+    let mut audit_file = audit_writer
+        .finish()
+        .map_err(|err| format!("Error finishing reconciliation audit artifact: {err}"))?;
+    audit_file
+        .flush()
+        .map_err(|err| format!("Error flushing reconciliation audit artifact: {err}"))?;
+    let artifact = std::fs::read(audit_temp.path())
+        .map_err(|err| format!("Error reading reconciliation audit artifact: {err}"))?;
     let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
     let electoral_log = ElectoralLog::new(
@@ -400,6 +426,121 @@ async fn run_apply_reconciliation_patch(
     Ok((applied_voters_count, row_failures))
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn process_voter_group<W: Write>(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    keycloak_transaction: &deadpool_postgres::Transaction<'_>,
+    body: &ApplyReconciliationPatchBody,
+    realm: &str,
+    voter_group_name: &str,
+    voter_username: String,
+    voter_items: Vec<DiffItem>,
+    pending_voters_added: &mut HashMap<String, Vec<DiffItem>>,
+    audit_writer: &mut DiffItemArrayWriter<W>,
+    applied_voters_count: &mut usize,
+    row_failures: &mut Vec<(String, String)>,
+) -> std::result::Result<(), String> {
+    let generated_failures: Vec<String> = voter_items
+        .iter()
+        .filter(|item| item.category == ReconciliationChangeCategory::ROW_FAILURE)
+        .map(|item| {
+            item.failure_reason
+                .clone()
+                .unwrap_or_else(|| "Row was excluded while generating the diff".to_string())
+        })
+        .collect();
+    if !generated_failures.is_empty() {
+        row_failures.extend(
+            generated_failures
+                .into_iter()
+                .map(|reason| (voter_username.clone(), reason)),
+        );
+        return Ok(());
+    }
+
+    if voter_items
+        .iter()
+        .all(|item| item.category == ReconciliationChangeCategory::VOTER_ADDED)
+    {
+        pending_voters_added.insert(voter_username, voter_items);
+        if pending_voters_added.len() >= VOTER_ADD_APPLY_BATCH_SIZE {
+            flush_voters_added(
+                hasura_transaction,
+                keycloak_transaction,
+                body,
+                realm,
+                voter_group_name,
+                pending_voters_added,
+                audit_writer,
+                applied_voters_count,
+                row_failures,
+            )
+            .await?;
+        }
+        return Ok(());
+    }
+
+    match apply_voter_changes(
+        hasura_transaction,
+        keycloak_transaction,
+        &body.tenant_id,
+        &body.election_event_id,
+        realm,
+        &voter_username,
+        &voter_items,
+    )
+    .await
+    {
+        Ok(VoterApplyOutcome::Applied) => {
+            *applied_voters_count += 1;
+            audit_writer
+                .write_batch(voter_items.iter())
+                .map_err(|err| format!("Error writing reconciliation audit artifact: {err}"))?;
+        }
+        Ok(VoterApplyOutcome::Failed { reason }) => {
+            row_failures.push((voter_username, reason));
+        }
+        Err(err) => row_failures.push((voter_username, format!("{err:?}"))),
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn flush_voters_added<W: Write>(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    keycloak_transaction: &deadpool_postgres::Transaction<'_>,
+    body: &ApplyReconciliationPatchBody,
+    realm: &str,
+    voter_group_name: &str,
+    pending_voters_added: &mut HashMap<String, Vec<DiffItem>>,
+    audit_writer: &mut DiffItemArrayWriter<W>,
+    applied_voters_count: &mut usize,
+    row_failures: &mut Vec<(String, String)>,
+) -> std::result::Result<(), String> {
+    if pending_voters_added.is_empty() {
+        return Ok(());
+    }
+    let voters_added = std::mem::take(pending_voters_added);
+    let voters_added_count = voters_added.len();
+    let (bulk_applied, bulk_failures) = apply_voters_added_bulk(
+        hasura_transaction,
+        keycloak_transaction,
+        &body.tenant_id,
+        &body.election_event_id,
+        realm,
+        voter_group_name,
+        &voters_added,
+    )
+    .await
+    .map_err(|err| format!("Error bulk-creating added voters: {err:?}"))?;
+    *applied_voters_count += voters_added_count - bulk_failures.len();
+    audit_writer
+        .write_batch(bulk_applied.iter())
+        .map_err(|err| format!("Error writing reconciliation audit artifact: {err}"))?;
+    row_failures.extend(bulk_failures);
+    Ok(())
+}
+
 /// Downloads a `Document` and deserializes its content as JSON — shared by
 /// the diff-envelope and Sequent-patch reads above.
 #[instrument(skip(hasura_transaction), err)]
@@ -418,6 +559,48 @@ async fn fetch_json_document<T: serde::de::DeserializeOwned>(
     .await?
     .ok_or_else(|| anyhow::anyhow!("Document {document_id} not found"))?;
     let temp_file = get_document_as_temp_file(tenant_id, &document).await?;
-    let bytes = std::fs::read(temp_file.path())?;
-    Ok(serde_json::from_slice(&bytes)?)
+    let file = File::open(temp_file.path())?;
+    Ok(serde_json::from_reader(BufReader::new(file))?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_metadata_ignores_the_large_review_item_array() {
+        let json = r#"{
+            "items":[{"arbitrary":"review-only"}],
+            "sequence":7,
+            "generated_at":123,
+            "source_sha256":"abc",
+            "external_patch_document_id":null,
+            "sequent_patch_document_id":"stream-id",
+            "apply_allowed":true
+        }"#;
+        let envelope: ReconciliationApplyEnvelope = serde_json::from_str(json).unwrap();
+        assert_eq!(envelope.sequence, 7);
+        assert_eq!(envelope.sequent_patch_document_id, "stream-id");
+    }
+
+    #[test]
+    fn task_annotations_expose_version_stable_structured_row_failures() {
+        let annotations = serde_json::to_value(ApplyReconciliationTaskAnnotations {
+            document_id: None,
+            reconciliation_row_failures: vec![ReconciliationTaskRowFailure {
+                voter_id: "voter-1".to_string(),
+                reason: "stale snapshot".to_string(),
+            }],
+        })
+        .unwrap();
+
+        assert_eq!(
+            annotations["reconciliation_row_failures"][0]["voter_id"],
+            "voter-1"
+        );
+        assert_eq!(
+            annotations["reconciliation_row_failures"][0]["reason"],
+            "stale snapshot"
+        );
+    }
 }

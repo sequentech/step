@@ -7,7 +7,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::json;
 use serde_json::value::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -460,45 +460,6 @@ pub async fn get_cast_votes(
     Ok(cast_votes)
 }
 
-/// Precomputes the set of voter ids (`cast_vote.voter_id_string` — Keycloak's
-/// own `user_entity.id`, not the username) with a `valid` cast vote for the
-/// event — small enough (bounded by turnout, not roll size) to fetch in one
-/// query, unlike a realm-wide user scan.
-#[instrument(skip(hasura_transaction), err)]
-pub async fn get_voter_ids_with_valid_cast_vote(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<HashSet<String>> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                SELECT DISTINCT voter_id_string
-                FROM sequent_backend.cast_vote
-                WHERE tenant_id = $1
-                    AND election_event_id = $2
-                    AND status = 'valid'
-                    AND voter_id_string IS NOT NULL
-            "#,
-        )
-        .await?;
-
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
-            &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-            ],
-        )
-        .await?;
-
-    Ok(rows
-        .into_iter()
-        .filter_map(|row| row.get::<_, Option<String>>("voter_id_string"))
-        .collect())
-}
-
 /// Precomputes unresolved and valid ballot state for every voter with an
 /// active cast vote in an event. Reconciliation needs both states: an
 /// `in-progress` ballot is expected during a Datafix freeze and must never be
@@ -509,17 +470,19 @@ pub async fn get_voter_cast_vote_states_for_event(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<HashMap<String, VoterCastVoteState>> {
+    let unresolved_status = CastVoteStatus::InProgress.to_string();
+    let valid_status = CastVoteStatus::Valid.to_string();
     let statement = hasura_transaction
         .prepare(
             r#"
                 SELECT
                     voter_id_string,
-                    bool_or(status = 'in-progress') AS has_unresolved_vote,
-                    bool_or(status = 'valid') AS has_valid_vote
+                    bool_or(status = $3) AS has_unresolved_vote,
+                    bool_or(status = $4) AS has_valid_vote
                 FROM sequent_backend.cast_vote
                 WHERE tenant_id = $1
                     AND election_event_id = $2
-                    AND status IN ('in-progress', 'valid')
+                    AND status IN ($3, $4)
                     AND voter_id_string IS NOT NULL
                 GROUP BY voter_id_string
             "#,
@@ -532,6 +495,8 @@ pub async fn get_voter_cast_vote_states_for_event(
             &[
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
+                &unresolved_status,
+                &valid_status,
             ],
         )
         .await?;

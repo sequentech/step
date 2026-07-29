@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Builds the two documents `generate_reconciliation_patches` produces from
-//! the computed diff: the downloadable Datafix patch CSV, and the internal
-//! Sequent-patch JSON `apply_reconciliation_patch` later applies from. Unlike
+//! Builds the streamed documents `generate_reconciliation_patches` produces
+//! from the computed diff: the downloadable Datafix patch CSV, the review
+//! envelope's JSON item array, and the internal Sequent-patch NDJSON stream
+//! `apply_reconciliation_patch` later consumes. Unlike
 //! the diff itself (only the fields that changed), the CSV needs every
 //! `DatafixReconciliationField` present per voter regardless of which ones changed,
 //! per the "Patch Files Format" spec.
@@ -13,7 +14,7 @@ use crate::services::external::datafix_types::{
     DatafixReconciliationField, ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
 };
 use crate::services::external::reconciliation::diff::DiffItem;
-use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchTarget};
+use crate::services::external::types::ReconciliationPatchTarget;
 use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -126,14 +127,42 @@ impl<W: Write> ExternalPatchCsvWriter<W> {
 }
 
 /// Incrementally writes a JSON array of `DiffItem`s across many batches,
-/// without ever holding the whole array in memory at once. Reused for both
-/// the Sequent-patch document (fed only `target = Sequent`, non-`ROW_FAILURE`
-/// items — the *only* thing `apply_reconciliation_patch` reads to decide
-/// what to do; it never re-derives this list from the full diff) and the
-/// diff envelope's `items` field (fed every item, unfiltered).
+/// without ever holding the whole array in memory at once. Used for the diff
+/// envelope's `items` field and the apply audit artifact; the executable
+/// Sequent stream uses `DiffItemNdjsonWriter` below.
 pub struct DiffItemArrayWriter<W: Write> {
     writer: W,
     wrote_any: bool,
+}
+
+/// Incrementally writes the internal apply stream as newline-delimited JSON.
+/// Unlike a JSON array, NDJSON can be consumed one voter at a time with
+/// `serde_json::StreamDeserializer`, keeping apply memory bounded by one
+/// voter (or one bulk-create batch) instead of the complete patch.
+pub struct DiffItemNdjsonWriter<W: Write> {
+    writer: W,
+}
+
+impl<W: Write> DiffItemNdjsonWriter<W> {
+    pub fn new(writer: W) -> Self {
+        Self { writer }
+    }
+
+    #[instrument(skip_all, err)]
+    pub fn write_batch<'a>(
+        &mut self,
+        items: impl Iterator<Item = &'a DiffItem>,
+    ) -> anyhow::Result<()> {
+        for item in items {
+            serde_json::to_writer(&mut self.writer, item)?;
+            self.writer.write_all(b"\n")?;
+        }
+        Ok(())
+    }
+
+    pub fn finish(self) -> W {
+        self.writer
+    }
 }
 
 impl<W: Write> DiffItemArrayWriter<W> {
@@ -168,11 +197,12 @@ impl<W: Write> DiffItemArrayWriter<W> {
     }
 }
 
-/// The `target = Sequent`, non-`ROW_FAILURE` filter `DiffItemArrayWriter`
-/// applies when it's building the Sequent-patch document specifically
-/// (as opposed to the envelope's `items`, which gets every item unfiltered).
+/// The internal apply stream contains every Sequent-side item, including
+/// `ROW_FAILURE`: failures are not mutations, but carrying them in the same
+/// bounded stream lets apply report generate-time failures without loading
+/// the full review envelope into memory.
 pub fn is_sequent_patch_item(item: &DiffItem) -> bool {
-    item.target.is_sequent() && item.category != ReconciliationChangeCategory::ROW_FAILURE
+    item.target.is_sequent()
 }
 
 #[instrument(skip_all)]
@@ -345,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn diff_item_array_writer_produces_a_valid_filtered_json_array() {
+    fn diff_item_writers_produce_valid_array_and_stream_formats() {
         let sequent_item = item(
             "v1",
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::AreaName(
@@ -367,23 +397,36 @@ mod tests {
             )),
         );
 
-        // The Sequent-patch document only ever gets `target = Sequent`,
-        // non-ROW_FAILURE items — the same filter `is_sequent_patch_item`
-        // applies in the real pipeline.
+        // The review envelope remains a normal JSON array.
         let mut writer = DiffItemArrayWriter::start(Vec::new()).unwrap();
-        writer.write_batch([&sequent_item].into_iter()).unwrap();
+        writer
+            .write_batch([&sequent_item, &row_failure, &datafix_item].into_iter())
+            .unwrap();
+        let bytes = writer.finish().unwrap();
+        let parsed: Vec<DiffItem> = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(parsed.len(), 3);
+
+        // The internal apply document is NDJSON and carries generate-time
+        // row failures as structured, non-mutating stream entries.
+        let mut writer = DiffItemNdjsonWriter::new(Vec::new());
         writer
             .write_batch(
-                [&row_failure, &datafix_item]
+                [&sequent_item, &row_failure, &datafix_item]
                     .into_iter()
                     .filter(|item| is_sequent_patch_item(item)),
             )
             .unwrap();
-        let bytes = writer.finish().unwrap();
-
-        let parsed: Vec<DiffItem> = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(parsed.len(), 1);
+        let bytes = writer.finish();
+        let parsed: Vec<DiffItem> = serde_json::Deserializer::from_slice(&bytes)
+            .into_iter()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(parsed.len(), 2);
         assert_eq!(parsed[0].voter_username, "v1");
+        assert_eq!(
+            parsed[1].category,
+            ReconciliationChangeCategory::ROW_FAILURE
+        );
     }
 
     #[test]

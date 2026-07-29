@@ -88,9 +88,9 @@ interface ReconciliationDiffEnvelope {
     items: RawDiffItem[]
 }
 
-interface TaskLog {
-    created_date: string
-    log_text: string
+interface ApplyTaskRowFailure {
+    voter_id: string
+    reason: string
 }
 
 /**
@@ -248,30 +248,28 @@ const toRowFailures = (items: RawDiffItem[], t: TranslateFn): SyncDiffRow[] =>
             )
         )
 
-const APPLY_ROW_FAILURE_PREFIX = "Row failed for voter "
-
-/** Converts apply-time per-voter failures from task logs into the same rows
- * used for generate-time failures, so operators do not have to leave the
- * wizard and inspect the task widget. */
-const taskLogsToRowFailures = (logs: unknown, t: TranslateFn): SyncDiffRow[] => {
-    if (!Array.isArray(logs)) {
+/** Converts the backend's version-stable structured task result into the same
+ * rows used for generate-time failures. Human task logs remain presentation
+ * only and can be reworded without breaking this contract. */
+const taskAnnotationsToRowFailures = (annotations: unknown, t: TranslateFn): SyncDiffRow[] => {
+    if (!annotations || typeof annotations !== "object") {
+        return []
+    }
+    const failures = (annotations as Record<string, unknown>).reconciliation_row_failures
+    if (!Array.isArray(failures)) {
         return []
     }
 
-    return (logs as TaskLog[]).flatMap((log, index) => {
+    return failures.flatMap((failure, index) => {
         if (
-            typeof log?.log_text !== "string" ||
-            !log.log_text.startsWith(APPLY_ROW_FAILURE_PREFIX)
+            !failure ||
+            typeof failure !== "object" ||
+            typeof (failure as Partial<ApplyTaskRowFailure>).voter_id !== "string" ||
+            typeof (failure as Partial<ApplyTaskRowFailure>).reason !== "string"
         ) {
             return []
         }
-        const detail = log.log_text.slice(APPLY_ROW_FAILURE_PREFIX.length)
-        const separator = detail.indexOf(": ")
-        if (separator < 0) {
-            return []
-        }
-        const voterId = detail.slice(0, separator)
-        const failureReason = detail.slice(separator + 2)
+        const {voter_id: voterId, reason: failureReason} = failure as ApplyTaskRowFailure
         return [
             {
                 id: `apply-failure:${voterId}:${index}`,
@@ -367,10 +365,10 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
     const datafixRows = useMemo(() => toRows(items, "datafix", t), [items, t])
     const sequentRows = useMemo(() => toRows(items, "sequent", t), [items, t])
     const rowFailures = useMemo(() => toRowFailures(items, t), [items, t])
-    const applyTaskLogs = applyTaskData?.sequent_backend_tasks_execution?.[0]?.logs
+    const applyTaskAnnotations = applyTaskData?.sequent_backend_tasks_execution?.[0]?.annotations
     const applyRowFailures = useMemo(
-        () => taskLogsToRowFailures(applyTaskLogs, t),
-        [applyTaskLogs, t]
+        () => taskAnnotationsToRowFailures(applyTaskAnnotations, t),
+        [applyTaskAnnotations, t]
     )
     const finalRowFailures = useMemo(
         () =>
@@ -549,7 +547,17 @@ export const ReconciliationWizard: React.FC<ReconciliationWizardProps> = ({
 
     return (
         <>
-            <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{sx: {width: "30%"}}}>
+            <Drawer
+                anchor="right"
+                open={open}
+                onClose={onClose}
+                PaperProps={{
+                    sx: {
+                        width: {xs: "100vw", sm: "90vw", lg: "80vw"},
+                        maxWidth: "1440px",
+                    },
+                }}
+            >
                 <Box sx={{padding: "16px"}}>
                     <ElectionHeader
                         title="reconciliation.wizard.title"
