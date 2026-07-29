@@ -29,6 +29,9 @@ Configure each variable with a Voting Portal tenant/event URL. The stock registr
 realm must include the `login-hint-registration-prefill` action. The deferred realms
 must configure `prefill-parameters-policy` as `IGNORE` and `ACCEPT`, respectively.
 
+Per-attribute behaviour comes from the `loginHintPrefillPolicy` user profile
+annotation (`EDITABLE`, `READ_ONLY` or `IGNORE`, defaulting to `EDITABLE`).
+
 - `PREFILL_STOCK_LOGIN_URL`: Voting Portal `/login` URL using the stock username form
 - `PREFILL_STOCK_REGISTRATION_URL`: Voting Portal `/enroll` URL using stock registration
 - `PREFILL_REDIRECT_REGISTRATION_URL`: Voting Portal `/login` URL whose flow redirects to registration
