@@ -454,7 +454,7 @@ impl BallotChoices {
 
         if normal_choices.len() > vote_slot_count {
             return Err(format!(
-                "Plaintext vector contained more than max_votes elements ({} > {})", normal_choices.len(), vote_slot_count
+                "Plaintext vector contained more elements than the contest's vote slots ({} > {})", normal_choices.len(), vote_slot_count
             ));
         }
 
@@ -1560,7 +1560,7 @@ mod tests {
         let err = test_multi_contest_reencoding(&vec![decoded], &style)
             .expect_err("legacy mode should reject a selection past max_votes");
 
-        assert!(err.contains("max_votes"));
+        assert!(err.contains("vote slots"));
     }
 
     #[test]

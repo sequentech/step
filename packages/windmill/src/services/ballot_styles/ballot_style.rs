@@ -190,7 +190,7 @@ pub async fn create_ballot_style_postgres(
         let is_multi_contest = election_dto
             .election_event_presentation
             .as_ref()
-            .and_then(|presentation| presentation.contest_encryption_policy)
+            .and_then(|presentation| presentation.contest_encryption_policy.clone())
             == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
 
         if is_multi_contest {

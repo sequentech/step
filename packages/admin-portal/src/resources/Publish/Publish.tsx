@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
+import React, {ComponentType, useCallback, useContext, useEffect, useRef, useState} from "react"
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
@@ -417,12 +417,20 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         // Surfaces ballot style generation failures (e.g. exceeding the
         // ballot size limit) instead of polling forever for is_generated.
+        // The ref avoids notifying again when a refetch returns the same
+        // failed publication.
+        const notifiedGenerationErrorIdRef = useRef<Identifier | null>(null)
         useEffect(() => {
             const generationError = (
                 ballotPublication?.annotations as IBallotPublicationAnnotations | undefined
             )?.generation_error
 
-            if (generationError) {
+            if (
+                generationError &&
+                ballotPublication &&
+                notifiedGenerationErrorIdRef.current !== ballotPublication.id
+            ) {
+                notifiedGenerationErrorIdRef.current = ballotPublication.id
                 notify(t("publish.dialog.error_capacity", {message: generationError}), {
                     type: "error",
                 })

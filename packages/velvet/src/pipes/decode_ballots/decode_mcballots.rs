@@ -21,7 +21,7 @@ use std::io::BufRead;
 use std::path::Path;
 
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
@@ -151,10 +151,17 @@ impl Pipe for DecodeMCBallots {
                 // Resolved election-wide, so any ballot style for this
                 // election carries the same value; match by area_id anyway
                 // in case that ever stops being true.
-                let multi_contest_encoding_mode = election_input
+                let area_ballot_style = election_input
                     .ballot_styles
                     .iter()
-                    .find(|ballot_style| ballot_style.area_id == area_id.to_string())
+                    .find(|ballot_style| ballot_style.area_id == area_id.to_string());
+                if area_ballot_style.is_none() {
+                    warn!(
+                        "No ballot style found for area {} in election {}, falling back to the election's first ballot style",
+                        area_id, election_input.id
+                    );
+                }
+                let multi_contest_encoding_mode = area_ballot_style
                     .or_else(|| election_input.ballot_styles.first())
                     .and_then(|ballot_style| ballot_style.multi_contest_encoding_mode)
                     .unwrap_or_default();

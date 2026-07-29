@@ -168,7 +168,7 @@ pub async fn record_ballot_publication_generation_error(
             UPDATE
                 sequent_backend.ballot_publication
             SET
-                annotations = $4
+                annotations = COALESCE(annotations, '{}'::jsonb) || $4
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2 AND
