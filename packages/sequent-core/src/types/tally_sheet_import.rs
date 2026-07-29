@@ -4,6 +4,8 @@
 
 #![allow(non_camel_case_types)]
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum_macros::{Display, EnumString};
@@ -56,6 +58,11 @@ pub enum TallySheetImportReviewDecision {
     DISAPPROVE,
 }
 
+/// `message` is a pre-formatted English sentence kept for logs, CLI output,
+/// and any other non-translated context. `code` + `params` are what a UI
+/// should use to render a translated message (`t(code, params)`); `params`
+/// is empty for structural/parsing errors that don't reduce to a fixed set
+/// of translation keys (e.g. malformed CSV rows or XML).
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TallySheetImportValidationError {
     pub code: String,
@@ -65,6 +72,7 @@ pub struct TallySheetImportValidationError {
     pub contest_external_id: Option<String>,
     pub candidate_external_id: Option<String>,
     pub field: Option<String>,
+    pub params: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]

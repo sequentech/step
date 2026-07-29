@@ -45,7 +45,7 @@ use super::{
     diff::{classify_change, render_ballot_box_csv},
     errors::TallySheetImportError,
     hash::{hash_area_contest_results, hash_bytes},
-    validation::validate_import_content,
+    validation::{contest_max_marks_per_ballot, validate_import_content},
 };
 
 const DISPLAY_NAME_FALLBACK_LANG: &str = "en";
@@ -110,6 +110,13 @@ pub async fn preview_tally_sheet_import(
                 contest_external_id: Some(parsed_import.key.contest_external_id.clone()),
                 candidate_external_id: None,
                 field: Some("channel".to_string()),
+                params: HashMap::from([
+                    (
+                        "rowChannel".to_string(),
+                        parsed_import.key.channel.to_string(),
+                    ),
+                    ("selectedChannel".to_string(), selected_channel.to_string()),
+                ]),
             });
             continue;
         }
@@ -135,6 +142,7 @@ pub async fn preview_tally_sheet_import(
                     contest_external_id: Some(parsed_import.key.contest_external_id.clone()),
                     candidate_external_id: None,
                     field: None,
+                    params: HashMap::new(),
                 });
                 continue;
             }
@@ -145,6 +153,7 @@ pub async fn preview_tally_sheet_import(
             &parsed_import.key.area_name,
             &parsed_import.key.contest_external_id,
             &resolved.content,
+            contest_max_marks_per_ballot(&resolved.contest),
         ));
 
         let ballot_box_key = BallotBoxKey {

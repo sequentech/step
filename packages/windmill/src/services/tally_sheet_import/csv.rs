@@ -11,6 +11,7 @@ use sequent_core::types::tally_sheets::{
     AreaContestResults, CandidateResults, InvalidVotes, VotingChannel,
 };
 use serde::Deserialize;
+use serde_json::Value;
 use tracing::instrument;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -26,7 +27,7 @@ pub struct ParsedBallotBoxImport {
     pub content: AreaContestResults,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum CanonicalField {
     CandidateVotes,
     TotalBlankVotes,
@@ -35,6 +36,12 @@ enum CanonicalField {
     TotalValidVotes,
     TotalVotes,
     Census,
+    /// Any field name outside the fixed set above. Carried through as an
+    /// unvalidated `annotations` entry (no duplicate-row or
+    /// required-field checks) so source-specific extra data (e.g. ES&S's
+    /// `over_votes`/`under_votes`) — or fields added in the future — don't
+    /// need a parser change to flow through.
+    Annotation(String),
 }
 
 impl FromStr for CanonicalField {
@@ -49,7 +56,7 @@ impl FromStr for CanonicalField {
             "total_valid_votes" => Ok(Self::TotalValidVotes),
             "total_votes" => Ok(Self::TotalVotes),
             "census" => Ok(Self::Census),
-            _ => Err(()),
+            other => Ok(Self::Annotation(other.to_string())),
         }
     }
 }
@@ -73,6 +80,10 @@ struct BallotBoxAccumulator {
     total_blank_votes: Option<u64>,
     census: Option<u64>,
     candidate_results: HashMap<String, CandidateResults>,
+    /// Values from any field row outside the fixed scalar set, keyed by
+    /// field name. Last value wins for a repeated key — unlike the fixed
+    /// scalar fields, duplicates aren't treated as an error here.
+    annotations: HashMap<String, u64>,
 }
 
 #[instrument(skip_all)]
@@ -198,6 +209,17 @@ pub fn parse_canonical_csv(
             implicit_invalid: accumulator.implicit_invalid,
             explicit_invalid: accumulator.explicit_invalid,
         };
+        let annotations = if accumulator.annotations.is_empty() {
+            None
+        } else {
+            Some(Value::Object(
+                accumulator
+                    .annotations
+                    .into_iter()
+                    .map(|(name, value)| (name, Value::from(value)))
+                    .collect(),
+            ))
+        };
         imports.push(ParsedBallotBoxImport {
             key,
             content: AreaContestResults {
@@ -209,6 +231,7 @@ pub fn parse_canonical_csv(
                 total_blank_votes: accumulator.total_blank_votes,
                 census: accumulator.census,
                 candidate_results: accumulator.candidate_results,
+                annotations,
             },
         });
     }
@@ -303,6 +326,9 @@ fn apply_row(
         CanonicalField::Census => {
             set_scalar(validation_errors, key, row, &mut accumulator.census, value)
         }
+        CanonicalField::Annotation(name) => {
+            accumulator.annotations.insert(name, value);
+        }
     }
 }
 
@@ -370,6 +396,7 @@ fn error_for_row(
         contest_external_id,
         candidate_external_id,
         field,
+        params: HashMap::new(),
     }
 }
 

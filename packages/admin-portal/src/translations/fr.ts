@@ -2216,6 +2216,10 @@ const frenchTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
                 censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                totalInvalidDoesNotMatch:
+                    "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Le total des votes ({{totalVotes}}) doit être égal au total des votes valides ({{totalValidVotes}}) plus le total des votes invalides ({{totalInvalid}})",
             },
             label: {
                 area: "Zone",

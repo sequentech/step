@@ -24,10 +24,10 @@ use sequent_core::types::tally_sheets::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 use windmill::postgres::{
-    contest::get_contest_by_id,
+    contest::{export_contests, get_contest_by_id},
     document::get_document,
     election_event::get_election_event_by_id,
     tally_session::{
@@ -41,7 +41,7 @@ use windmill::services::{
     ceremonies::tally_ceremony::reset_tally_session_status_after_failed_recount_task,
     database::get_hasura_pool,
     documents::get_document_as_temp_file,
-    ess_xml_converter::convert_ess_enhanced_xml_to_csv,
+    ess_xml_converter::{convert_ess_enhanced_xml_to_csv, ContestVoteConfig},
     tally_sheet_import::{
         application::{
             create_tally_sheet_import as create_tally_sheet_import_service,
@@ -50,6 +50,7 @@ use windmill::services::{
         },
         errors::TallySheetImportError,
         hash::hash_bytes,
+        validation::contest_max_marks_per_ballot,
     },
 };
 use windmill::tasks::execute_tally_session::execute_tally_session;
@@ -95,18 +96,6 @@ pub async fn create_new_tally_sheet(
         vec![Permissions::TALLY_SHEET_CREATE],
     )?;
     let input = body.into_inner();
-    let validation_errors = validate_area_contest_results(&input.content);
-    if !validation_errors.is_empty() {
-        let messages = validation_errors
-            .into_iter()
-            .map(|error| format!("{}: {}", error.code, error.message))
-            .collect::<Vec<String>>()
-            .join("; ");
-        return Err((
-            Status::BadRequest,
-            format!("Invalid tally sheet content: {messages}"),
-        ));
-    }
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -134,6 +123,22 @@ pub async fn create_new_tally_sheet(
             format!("Contest {} not found ", input.contest_id),
         ));
     };
+
+    let validation_errors = validate_area_contest_results(
+        &input.content,
+        contest_max_marks_per_ballot(&contest),
+    );
+    if !validation_errors.is_empty() {
+        let messages = validation_errors
+            .into_iter()
+            .map(|error| format!("{}: {}", error.code, error.message))
+            .collect::<Vec<String>>()
+            .join("; ");
+        return Err((
+            Status::BadRequest,
+            format!("Invalid tally sheet content: {messages}"),
+        ));
+    }
 
     tally_sheet::lock_ballot_box_version_assignment(
         &hasura_transaction,
@@ -331,10 +336,18 @@ pub async fn preview_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+    let contest_vote_config = contest_vote_config_by_external_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let (canonical_csv, conversion_validation_errors) = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
+        &contest_vote_config,
     )
     .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
 
@@ -395,10 +408,18 @@ pub async fn create_tally_sheet_import(
     .map_err(map_tally_sheet_import_error)?;
     verify_source_sha256(input.sha256.as_deref(), &source_bytes)
         .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+    let contest_vote_config = contest_vote_config_by_external_id(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let (canonical_csv, conversion_validation_errors) = canonical_csv_bytes(
         &source_bytes,
         &input.source_format,
         &input.selected_channel,
+        &contest_vote_config,
     )
     .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
 
@@ -733,6 +754,7 @@ fn canonical_csv_bytes(
     source_bytes: &[u8],
     source_format: &TallySheetImportSourceFormat,
     selected_channel: &VotingChannel,
+    contest_vote_config: &HashMap<String, ContestVoteConfig>,
 ) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     match source_format {
         TallySheetImportSourceFormat::CANONICAL_CSV => {
@@ -742,9 +764,40 @@ fn canonical_csv_bytes(
             convert_ess_enhanced_xml_to_csv(
                 source_bytes,
                 selected_channel.clone(),
+                contest_vote_config,
             )
         }
     }
+}
+
+/// Fetches every contest in the election event and maps its external id to
+/// its `min_votes`/`max_votes`, for the ES&S converter to consult when
+/// classifying under-votes and checking vote reconciliation (see
+/// `convert_ess_enhanced_xml_to_csv`'s doc comment). Contests missing an
+/// external id are skipped — the converter can't match ES&S rows to them
+/// anyway.
+async fn contest_vote_config_by_external_id(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, ContestVoteConfig>> {
+    let contests =
+        export_contests(hasura_transaction, tenant_id, election_event_id)
+            .await?;
+    Ok(contests
+        .into_iter()
+        .filter_map(|contest| {
+            contest.external_id.map(|external_id| {
+                (
+                    external_id,
+                    ContestVoteConfig {
+                        min_votes: contest.min_votes.unwrap_or(0),
+                        max_votes: contest.max_votes.unwrap_or(1),
+                    },
+                )
+            })
+        })
+        .collect())
 }
 
 fn verify_source_sha256(

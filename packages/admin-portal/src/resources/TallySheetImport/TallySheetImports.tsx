@@ -48,6 +48,7 @@ import {
     useRefresh,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
+import {translateSharedValidationError} from "@/resources/TallySheet/utils"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -101,6 +102,7 @@ interface TallySheetImportValidationError {
     contest_external_id?: string | null
     candidate_external_id?: string | null
     field?: string | null
+    params?: Record<string, string> | null
 }
 
 interface TallySheetImportPreviewItem {
@@ -1229,17 +1231,20 @@ const SummaryChip: React.FC<{label: string; value: number}> = ({label, value}) =
     </Box>
 )
 
-const ValidationErrors: React.FC<{errors: TallySheetImportValidationError[]}> = ({errors}) => (
-    <Alert severity="error">
-        <Stack gap={0.5}>
-            {errors.map((error, index) => (
-                <Typography key={`${error.code}:${index}`} variant="body2">
-                    {error.message}
-                </Typography>
-            ))}
-        </Stack>
-    </Alert>
-)
+const ValidationErrors: React.FC<{errors: TallySheetImportValidationError[]}> = ({errors}) => {
+    const {t} = useTranslation()
+    return (
+        <Alert severity="error">
+            <Stack gap={0.5}>
+                {errors.map((error, index) => (
+                    <Typography key={`${error.code}:${index}`} variant="body2">
+                        {translateSharedValidationError(t, error)}
+                    </Typography>
+                ))}
+            </Stack>
+        </Alert>
+    )
+}
 
 const CsvDiffView: React.FC<{previous: string; incoming: string}> = ({previous, incoming}) => {
     const diff = useMemo(() => diffLines(previous, incoming), [incoming, previous])

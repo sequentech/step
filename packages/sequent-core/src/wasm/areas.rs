@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::area_tree::*;
-use crate::services::tally_sheet_validation::validate_area_contest_results;
+use crate::services::tally_sheet_validation::{
+    effective_max_marks_per_ballot, validate_area_contest_results,
+};
 use crate::types::hasura::core::AreaContest;
 use crate::types::tally_sheets::AreaContestResults;
 use crate::wasm::wasm::IntoResult;
 use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::panic;
@@ -68,10 +70,19 @@ pub fn get_contest_matches_js(
         .into_json()
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+struct ContestMarkBoundsInput {
+    max_votes: Option<i64>,
+    counting_algorithm: Option<String>,
+    cumulative_number_of_checkboxes: Option<u64>,
+}
+
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn validate_area_contest_results_js(
     content_json: JsValue,
+    contest_bounds_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     let content: AreaContestResults =
         serde_wasm_bindgen::from_value(content_json).map_err(|err| {
@@ -80,8 +91,22 @@ pub fn validate_area_contest_results_js(
             err
         )
         })?;
+    let bounds: ContestMarkBoundsInput =
+        serde_wasm_bindgen::from_value(contest_bounds_json).map_err(|err| {
+            format!(
+                "Error reading javascript contest bounds for validation: {}",
+                err
+            )
+        })?;
 
-    let errors = validate_area_contest_results(&content);
+    let max_marks_per_ballot = effective_max_marks_per_ballot(
+        bounds.max_votes,
+        bounds.counting_algorithm.as_deref(),
+        bounds.cumulative_number_of_checkboxes,
+    );
+
+    let errors =
+        validate_area_contest_results(&content, Some(max_marks_per_ballot));
     let serializer = Serializer::json_compatible();
     errors
         .serialize(&serializer)

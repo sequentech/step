@@ -16,9 +16,32 @@ use tracing::instrument;
 /// read by default when a caller doesn't ask for a specific one.
 pub const DEFAULT_IMPORT_REPORTING_GROUP_ID: &str = "1";
 
+/// The STEP contest config this converter needs — `min_votes` decides
+/// whether undervoting can invalidate a ballot; `max_votes` is the "vote
+/// for N" bound used to check ES&S's reported totals reconcile exactly.
+/// Missing/non-positive values default conservatively (`min_votes` to `0`,
+/// `max_votes` to `1`, i.e. single-choice).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ContestVoteConfig {
+    pub min_votes: i64,
+    pub max_votes: i64,
+}
+
 #[derive(Debug, Clone, Default)]
 struct ContestPrecinctTotals {
-    ballots_cast: u64,
+    /// Ballots cast across the whole precinct (every contest/ballot style
+    /// on it) — always available, used only as the `census` upper bound.
+    precinct_ballots_cast: u64,
+    /// Ballots cast specifically for *this* contest in this precinct, when
+    /// the XML variant reports it at that granularity (the
+    /// `ContestReportingGroupVotes` variant does). `None` for the
+    /// candidate-reporting-group variant: its `ballotsCast` lives on the
+    /// `<Precinct>` element, shared across every contest on the ballot, so
+    /// it isn't a valid `total_votes` for a contest that only appears on
+    /// some ballot styles within that precinct (e.g. a ward- or
+    /// school-board-specific race) — see the doc comment on
+    /// `convert_ess_enhanced_xml_to_csv` for how each case is handled.
+    contest_ballots_cast: Option<u64>,
     over_votes: u64,
     under_votes: u64,
     blank_votes: u64,
@@ -47,7 +70,86 @@ fn xml_error(
         contest_external_id: contest_external_id.map(|id| id.to_string()),
         candidate_external_id: None,
         field: None,
+        params: HashMap::new(),
     }
+}
+
+/// Checks the exact per-ballot accounting identity documented in the ES&S
+/// EVS SOP for `overVotes`/`underVotes`: every one of a contest's
+/// `max_votes` selection slots, across every ballot cast for it, ends up
+/// as either a candidate mark, an overvote slot, or an undervote slot,
+/// with no remainder — so `candidate_votes_sum + over_votes + under_votes`
+/// must equal `total_votes * max_votes` exactly. Returns a validation
+/// error scoped to this precinct/contest when it doesn't (a data-quality
+/// problem in the source file, not something a caller can fix).
+#[allow(clippy::too_many_arguments)]
+fn check_vote_reconciliation(
+    selected_channel: &VotingChannel,
+    area_name: &str,
+    contest_external_id: &str,
+    candidate_votes_sum: u64,
+    over_votes: u64,
+    under_votes: u64,
+    total_votes: u64,
+    max_votes: u64,
+) -> Option<TallySheetImportValidationError> {
+    let expected = total_votes.saturating_mul(max_votes);
+    let actual = candidate_votes_sum + over_votes + under_votes;
+    if actual == expected {
+        return None;
+    }
+    Some(TallySheetImportValidationError {
+        code: "ess_vote_reconciliation_mismatch".to_string(),
+        message: format!(
+            "candidate votes ({candidate_votes_sum}) + over votes ({over_votes}) + under votes ({under_votes}) must equal total votes ({total_votes}) \u{d7} {max_votes} marks per ballot ({expected})"
+        ),
+        channel: Some(selected_channel.clone()),
+        area_name: Some(area_name.to_string()),
+        contest_external_id: Some(contest_external_id.to_string()),
+        candidate_external_id: None,
+        field: Some("total_valid_votes".to_string()),
+        params: HashMap::from([
+            ("candidateVotesSum".to_string(), candidate_votes_sum.to_string()),
+            ("overVotes".to_string(), over_votes.to_string()),
+            ("underVotes".to_string(), under_votes.to_string()),
+            ("totalVotes".to_string(), total_votes.to_string()),
+            ("maxVotes".to_string(), max_votes.to_string()),
+            ("expected".to_string(), expected.to_string()),
+        ]),
+    })
+}
+
+/// Checks that `overVotes` is an exact multiple of `max_votes`, for the
+/// `ContestReportingGroupVotes` variant. ES&S always attributes a whole
+/// `max_votes` allotment to `overVotes` for every overvoted ballot
+/// (confirmed by the EVS SOP and empirically, no partial-slot overvotes
+/// observed) — so a non-exact remainder indicates a data-quality problem in
+/// the source file, not something this importer can resolve on its own.
+fn check_over_votes_divisible(
+    selected_channel: &VotingChannel,
+    area_name: &str,
+    contest_external_id: &str,
+    over_votes: u64,
+    max_votes: u64,
+) -> Option<TallySheetImportValidationError> {
+    if over_votes % max_votes == 0 {
+        return None;
+    }
+    Some(TallySheetImportValidationError {
+        code: "ess_over_votes_not_divisible".to_string(),
+        message: format!(
+            "over votes ({over_votes}) is not an exact multiple of {max_votes} marks per ballot — cannot determine the number of overvoted ballots"
+        ),
+        channel: Some(selected_channel.clone()),
+        area_name: Some(area_name.to_string()),
+        contest_external_id: Some(contest_external_id.to_string()),
+        candidate_external_id: None,
+        field: Some("implicit_invalid".to_string()),
+        params: HashMap::from([
+            ("overVotes".to_string(), over_votes.to_string()),
+            ("maxVotes".to_string(), max_votes.to_string()),
+        ]),
+    })
 }
 
 /// Resolves a single contest's precinct totals and candidate votes,
@@ -74,11 +176,13 @@ fn resolve_contest_data(
 pub fn convert_ess_enhanced_xml_to_csv(
     xml_bytes: &[u8],
     selected_channel: VotingChannel,
+    contest_vote_config: &HashMap<String, ContestVoteConfig>,
 ) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     convert_ess_enhanced_xml_to_csv_for_reporting_group(
         xml_bytes,
         selected_channel,
         DEFAULT_IMPORT_REPORTING_GROUP_ID,
+        contest_vote_config,
     )
 }
 
@@ -92,11 +196,31 @@ pub fn convert_ess_enhanced_xml_to_csv(
 /// `TallySheetImportValidationError`, exactly like `parse_canonical_csv`
 /// does for a bad CSV row — so a file with one broken contest still
 /// converts and imports every other contest in it.
+///
+/// `contest_vote_config` maps a contest's external id to its `min_votes`/
+/// `max_votes` (STEP contest config); a contest missing from the map uses
+/// the defaults documented on `ContestVoteConfig`. `min_votes` decides
+/// whether undervoting can invalidate a ballot — see the comment above
+/// `implicit_invalid` below. `max_votes` is used to check ES&S's reported
+/// totals reconcile exactly — see the comment above `check_vote_reconciliation`.
+///
+/// `total_votes`/`total_valid_votes` are derived differently depending on
+/// the XML variant. The `ContestReportingGroupVotes` variant reports
+/// `ballotsCast` per contest *and* precinct, so it's used directly. The
+/// candidate-reporting-group variant only reports `ballotsCast` per
+/// precinct (shared across every contest on the ballot), which isn't a
+/// valid ballot count for a contest that doesn't appear on every ballot
+/// style in that precinct (e.g. a ward- or school-board-specific race) —
+/// for that variant, `total_valid_votes` is derived from candidate marks
+/// plus blank votes instead, the only figures actually scoped to this
+/// contest and precinct. `census` always uses the precinct-wide ballots
+/// cast, regardless of variant.
 #[instrument(skip_all, err)]
 pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
     xml_bytes: &[u8],
     selected_channel: VotingChannel,
     reporting_group_id: &str,
+    contest_vote_config: &HashMap<String, ContestVoteConfig>,
 ) -> Result<(Vec<u8>, Vec<TallySheetImportValidationError>)> {
     let xml = std::str::from_utf8(xml_bytes).context("ES&S XML import must be valid UTF-8")?;
     let document = Document::parse(xml).context("Invalid ES&S Enhanced XML")?;
@@ -142,6 +266,13 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
                 }
             };
 
+        let vote_config = contest_vote_config
+            .get(&contest_external_id)
+            .copied()
+            .unwrap_or_default();
+        let min_votes = vote_config.min_votes;
+        let max_votes = vote_config.max_votes.max(1) as u64;
+
         for (precinct_id, totals) in totals_by_precinct {
             let Some(area_name) = precinct_names.get(&precinct_id) else {
                 validation_errors.push(xml_error(
@@ -155,6 +286,60 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
                 continue;
             };
 
+            // For the ContestReportingGroupVotes variant (contest_ballots_cast
+            // is Some), ES&S's own `blankVotes` is not a genuine blank-ballot
+            // count — it's exactly `overVotes + underVotes` (confirmed both
+            // by the EVS SOP's field description and empirically, with no
+            // exceptions). `underVotes` alone is the figure that actually
+            // reconciles as a ballot-cardinality "blank" for single-choice
+            // contests: `ballots_cast == candidate_votes_sum + underVotes`
+            // exactly whenever max_votes == 1. The candidate-reporting-group
+            // variant doesn't have this problem — its blank figure comes
+            // from the precinct's own `blanksCast`, a genuine (if
+            // precinct-wide) blank-ballot count — so it keeps using that.
+            let total_blank_votes = if totals.contest_ballots_cast.is_some() {
+                totals.under_votes
+            } else {
+                totals.blank_votes
+            };
+            // Overvoting a "vote for N" contest always spoils that contest
+            // on the ballot, regardless of over_vote_policy — see
+            // sequent_core::ballot_codec::checker::check_over_vote_policy,
+            // whose policy branches only change alert UI copy; the
+            // invalid_errors push (the actual invalidity decision) is
+            // unconditional there.
+            //
+            // ES&S's overVotes is a *selection-slot* count, not a ballot
+            // count (see check_over_votes_divisible's doc comment). For the
+            // ContestReportingGroupVotes variant, total_votes below is a
+            // genuine ballot count from ES&S, so overVotes must be divided
+            // by max_votes to recover an overvoted-*ballot* count —
+            // otherwise implicit_invalid could exceed total_votes and make
+            // total_valid_votes underflow to 0. The other variant derives
+            // total_votes from candidate marks/blank votes instead (see the
+            // total_votes/total_valid_votes match below), so it isn't
+            // exposed to that underflow and keeps using the raw slot count.
+            let mut implicit_invalid = if totals.contest_ballots_cast.is_some() {
+                totals.over_votes / max_votes
+            } else {
+                totals.over_votes
+            };
+            // Undervoting only invalidates a ballot when it selects fewer
+            // candidates than min_votes requires — see
+            // check_under_vote_policy's comment: falling short of
+            // min_votes "is an invalid vote no matter what" the
+            // under_vote_policy is; under_vote_policy itself never
+            // invalidates a ballot on its own. ES&S's aggregate under_votes
+            // count doesn't distinguish "fell short of min_votes" from any
+            // other undervote, so it can't be attributed precisely — this
+            // is a best-effort approximation (and a no-op whenever
+            // total_blank_votes is already under_votes itself, i.e. the
+            // ContestReportingGroupVotes variant above).
+            if min_votes > 0 {
+                implicit_invalid += totals.under_votes.saturating_sub(total_blank_votes);
+            }
+            let explicit_invalid = 0;
+            let total_invalid = implicit_invalid + explicit_invalid;
             let candidate_votes_sum = candidates
                 .iter()
                 .map(|candidate| {
@@ -165,12 +350,28 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
                         .unwrap_or(0)
                 })
                 .sum::<u64>();
-            let total_blank_votes = totals.blank_votes;
-            let implicit_invalid =
-                totals.over_votes + totals.under_votes.saturating_sub(total_blank_votes);
-            let explicit_invalid = 0;
-            let total_valid_votes = candidate_votes_sum + total_blank_votes;
-            let total_votes = total_valid_votes + implicit_invalid + explicit_invalid;
+            let (total_votes, total_valid_votes) = match totals.contest_ballots_cast {
+                // A single ballot can legitimately carry more than one
+                // candidate mark (e.g. "vote for N" contests), so
+                // total_votes comes from ES&S's own per-contest
+                // ballots-cast figure rather than being derived from the
+                // sum of candidate marks.
+                Some(contest_ballots_cast) => {
+                    let total_votes = contest_ballots_cast;
+                    let total_valid_votes = total_votes.saturating_sub(total_invalid);
+                    (total_votes, total_valid_votes)
+                }
+                // No ballots-cast figure is scoped to this contest and
+                // precinct (candidate-reporting-group variant) — the only
+                // figures that are scoped that way are the candidate marks
+                // and blank votes, so total_valid_votes is derived from
+                // those instead, same as for a single-choice contest.
+                None => {
+                    let total_valid_votes = candidate_votes_sum + total_blank_votes;
+                    let total_votes = total_valid_votes + total_invalid;
+                    (total_votes, total_valid_votes)
+                }
+            };
 
             write_scalar_row(
                 &mut writer,
@@ -218,8 +419,52 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
                 area_name,
                 &contest_external_id,
                 "census",
-                totals.ballots_cast,
+                totals.precinct_ballots_cast,
             )?;
+
+            // Only meaningful when total_votes is ES&S's own per-contest
+            // ballots-cast figure (not derived from candidate marks) — see
+            // check_vote_reconciliation's doc comment for the identity
+            // being checked.
+            if totals.contest_ballots_cast.is_some() {
+                write_scalar_row(
+                    &mut writer,
+                    &selected_channel,
+                    area_name,
+                    &contest_external_id,
+                    "over_votes",
+                    totals.over_votes,
+                )?;
+                write_scalar_row(
+                    &mut writer,
+                    &selected_channel,
+                    area_name,
+                    &contest_external_id,
+                    "under_votes",
+                    totals.under_votes,
+                )?;
+                if let Some(error) = check_over_votes_divisible(
+                    &selected_channel,
+                    area_name,
+                    &contest_external_id,
+                    totals.over_votes,
+                    max_votes,
+                ) {
+                    validation_errors.push(error);
+                }
+                if let Some(error) = check_vote_reconciliation(
+                    &selected_channel,
+                    area_name,
+                    &contest_external_id,
+                    candidate_votes_sum,
+                    totals.over_votes,
+                    totals.under_votes,
+                    total_votes,
+                    max_votes,
+                ) {
+                    validation_errors.push(error);
+                }
+            }
 
             for candidate in &candidates {
                 writer.write_record([
@@ -280,8 +525,10 @@ fn contest_totals_by_precinct(
         {
             let precinct_id = required_attr(votes, "refPrecinctId", "ContestReportingGroupVotes")?;
             let entry = totals_by_precinct.entry(precinct_id).or_default();
-            entry.ballots_cast +=
-                parse_u64_attr(votes, "ballotsCast", "ContestReportingGroupVotes")?;
+            let ballots_cast = parse_u64_attr(votes, "ballotsCast", "ContestReportingGroupVotes")?;
+            entry.precinct_ballots_cast += ballots_cast;
+            entry.contest_ballots_cast =
+                Some(entry.contest_ballots_cast.unwrap_or(0) + ballots_cast);
             entry.over_votes += parse_u64_attr(votes, "overVotes", "ContestReportingGroupVotes")?;
             entry.under_votes += parse_u64_attr(votes, "underVotes", "ContestReportingGroupVotes")?;
             entry.blank_votes += parse_u64_attr(votes, "blankVotes", "ContestReportingGroupVotes")?;
@@ -434,7 +681,7 @@ fn precinct_reporting_group_totals_by_precinct(
 
             found_import_group = true;
             let entry = totals_by_precinct.entry(precinct_id.clone()).or_default();
-            entry.ballots_cast +=
+            entry.precinct_ballots_cast +=
                 parse_u64_attr(reporting_group, "ballotsCast", "PrecinctReportingGroup")?;
             entry.blank_votes +=
                 parse_u64_attr(reporting_group, "blanksCast", "PrecinctReportingGroup")?;
@@ -538,7 +785,7 @@ mod tests {
                         <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="2" underVotes="5" blankVotes="4" />
                     </ContestReportingGroup>
                     <Candidate altId1="cand-1" type="NORMAL">
-                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="10" />
                     </Candidate>
                     <Candidate altId1="cand-2" type="NORMAL">
                         <CandidatePrecinctVotes refPrecinctId="p1" votes="3" />
@@ -550,7 +797,79 @@ mod tests {
             </ElectionReport>
         "#;
 
-        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        // min_votes defaults to 0 for a contest missing from the map, so
+        // the 3 under-votes here never invalidate a ballot — only the 2
+        // over-votes do. candidate_sum(13) + over(2) + under(5) ==
+        // ballots_cast(20) * max_votes(1, the default), satisfying the
+        // reconciliation check.
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,implicit_invalid,,2"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,5"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,18"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,20"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,10"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,over_votes,,2"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,under_votes,,5"));
+        assert!(!csv.contains("ignored-overvotes"));
+    }
+
+    #[test]
+    fn undervotes_only_count_as_invalid_when_contest_requires_a_minimum() {
+        // The candidate-reporting-group variant, where total_blank_votes
+        // (from the precinct's own blanksCast) and under_votes (from this
+        // contest's UNDERVOTES pseudo-candidate) are independent figures,
+        // so the overlap-safe subtraction has an observable effect. This
+        // contest requires at least 1 selection (min_votes=1), so the
+        // portion of under_votes beyond the precinct's blank ballots is
+        // folded into implicit_invalid.
+        let xml = br#"
+            <Owner name="EVS Electionware Enhanced XML Results File version 1.3">
+                <JurisdictionMap>
+                    <Jurisdiction id="1" title="Jurisdiction">
+                        <Precinct id="precinct-1" name="Precinct 1">
+                            <PrecinctReportingGroup reportingGroupId="1" ballotsCast="20" blanksCast="4"/>
+                        </Precinct>
+                        <Contest id="contest-source-1" altId1="contest-1" title="Contest">
+                            <Candidate id="candidate-source-a" type="NORMAL" altId1="cand-1" name="Candidate A">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="7">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="7"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                            <Candidate id="candidate-source-b" type="NORMAL" altId1="cand-2" name="Candidate B">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="3">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="3"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                            <Candidate id="source-overvotes" type="OVERVOTES" altId1="" name="OverVotes">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="2">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="2"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                            <Candidate id="source-undervotes" type="UNDERVOTES" altId1="" name="UnderVotes">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="5">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="5"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                        </Contest>
+                    </Jurisdiction>
+                </JurisdictionMap>
+            </Owner>
+        "#;
+
+        let contest_vote_config = HashMap::from([(
+            "contest-1".to_string(),
+            ContestVoteConfig {
+                min_votes: 1,
+                max_votes: 1,
+            },
+        )]);
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &contest_vote_config)
+                .unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
         assert!(errors.is_empty());
@@ -558,8 +877,57 @@ mod tests {
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,4"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,14"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,17"));
-        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,7"));
-        assert!(!csv.contains("ignored-overvotes"));
+        // candidate-reporting-group variant: no per-contest ballots-cast,
+        // so no over_votes/under_votes annotations are emitted either.
+        assert!(!csv.contains("contest-1,over_votes"));
+        assert!(!csv.contains("contest-1,under_votes"));
+    }
+
+    #[test]
+    fn derives_totals_from_ballots_cast_not_candidate_marks() {
+        // A "vote for 2" contest: candidate marks (15 + 12 = 27) legitimately
+        // exceed ballots_cast (20) because each ballot can select up to 2
+        // candidates. total_votes/total_valid_votes must still be derived
+        // from ballots_cast, not from summing candidate marks. underVotes
+        // (13) accounts for the rest of the 40 available slots (20 * 2)
+        // not used by a candidate mark, satisfying the reconciliation
+        // check: 27 + 0 + 13 == 20 * 2.
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1" />
+                </JurisdictionMap>
+                <Contest altId1="contest-1">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="0" underVotes="13" blankVotes="13" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="15" />
+                    </Candidate>
+                    <Candidate altId1="cand-2" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="12" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let contest_vote_config = HashMap::from([(
+            "contest-1".to_string(),
+            ContestVoteConfig {
+                min_votes: 0,
+                max_votes: 2,
+            },
+        )]);
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &contest_vote_config)
+                .unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,20"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,20"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,15"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-2,12"));
     }
 
     #[test]
@@ -602,7 +970,8 @@ mod tests {
             </Owner>
         "#;
 
-        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
         assert!(errors.is_empty());
@@ -613,6 +982,45 @@ mod tests {
         assert!(csv.contains("PAPER,Precinct 1,contest-1,implicit_invalid,,2"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,98"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,100"));
+    }
+
+    #[test]
+    fn derives_totals_from_marks_for_a_contest_not_on_every_ballot_style() {
+        // The candidate-reporting-group variant's ballotsCast is reported
+        // per precinct only (shared across every contest on the ballot),
+        // not per contest. A contest that only appears on some ballot
+        // styles in the precinct (e.g. a school-board trustee race) will
+        // have far fewer candidate marks than the precinct's ballotsCast —
+        // total_votes must come from those marks, not the precinct total.
+        let xml = br#"
+            <Owner name="EVS Electionware Enhanced XML Results File version 1.3">
+                <JurisdictionMap>
+                    <Jurisdiction id="1" title="Jurisdiction">
+                        <Precinct id="precinct-1" name="Precinct 1">
+                            <PrecinctReportingGroup reportingGroupId="1" ballotsCast="100" blanksCast="1"/>
+                        </Precinct>
+                        <Contest id="contest-source-1" altId1="contest-1" title="Contest">
+                            <Candidate id="candidate-source-a" type="NORMAL" altId1="cand-1" name="Candidate A">
+                                <CandidateReportingGroup reportingGroupId="1" totalVotes="5">
+                                    <CandidateReportingGroupPrecinct refPrecinctId="precinct-1" votes="5"/>
+                                </CandidateReportingGroup>
+                            </Candidate>
+                        </Contest>
+                    </Jurisdiction>
+                </JurisdictionMap>
+            </Owner>
+        "#;
+
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,5"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,1"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,6"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,6"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,census,,100"));
     }
 
     #[test]
@@ -640,7 +1048,8 @@ mod tests {
             </Owner>
         "#;
 
-        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
         assert!(errors.is_empty());
@@ -664,33 +1073,41 @@ mod tests {
                         <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="1" underVotes="2" blankVotes="2" />
                     </ContestReportingGroup>
                     <Candidate altId1="cand-1" type="NORMAL">
-                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
-                        <CandidatePrecinctVotes refPrecinctId="p2" votes="4" />
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="17" />
+                        <CandidatePrecinctVotes refPrecinctId="p2" votes="10" />
                     </Candidate>
                 </Contest>
             </ElectionReport>
         "#;
 
+        // Ward 1: candidate_sum(17) + over(1) + under(2) == ballots_cast(20) * max_votes(1).
+        // Ward 2: candidate_sum(10) + over(0) + under(0) == ballots_cast(10) * max_votes(1).
         let expected = "\
 channel,area_name,contest_external_id,field,candidate_external_id,value
-PAPER,Ward 1,contest-1,total_votes,,10
-PAPER,Ward 1,contest-1,total_valid_votes,,9
+PAPER,Ward 1,contest-1,total_votes,,20
+PAPER,Ward 1,contest-1,total_valid_votes,,19
 PAPER,Ward 1,contest-1,implicit_invalid,,1
 PAPER,Ward 1,contest-1,explicit_invalid,,0
 PAPER,Ward 1,contest-1,total_blank_votes,,2
 PAPER,Ward 1,contest-1,census,,20
-PAPER,Ward 1,contest-1,candidate_votes,cand-1,7
-PAPER,Ward 2,contest-1,total_votes,,5
-PAPER,Ward 2,contest-1,total_valid_votes,,5
+PAPER,Ward 1,contest-1,over_votes,,1
+PAPER,Ward 1,contest-1,under_votes,,2
+PAPER,Ward 1,contest-1,candidate_votes,cand-1,17
+PAPER,Ward 2,contest-1,total_votes,,10
+PAPER,Ward 2,contest-1,total_valid_votes,,10
 PAPER,Ward 2,contest-1,implicit_invalid,,0
 PAPER,Ward 2,contest-1,explicit_invalid,,0
-PAPER,Ward 2,contest-1,total_blank_votes,,1
+PAPER,Ward 2,contest-1,total_blank_votes,,0
 PAPER,Ward 2,contest-1,census,,10
-PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
+PAPER,Ward 2,contest-1,over_votes,,0
+PAPER,Ward 2,contest-1,under_votes,,0
+PAPER,Ward 2,contest-1,candidate_votes,cand-1,10
 ";
 
         for _ in 0..5 {
-            let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+            let (csv, errors) =
+                convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new())
+                    .unwrap();
             assert!(errors.is_empty());
             assert_eq!(String::from_utf8(csv).unwrap(), expected);
         }
@@ -720,7 +1137,8 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
         // A structural problem scoped to one contest is a validation error,
         // not a hard failure: the conversion still succeeds (with an empty
         // canonical CSV, since this file's only contest is the broken one).
-        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "xml_conversion_error");
         assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
@@ -754,7 +1172,7 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
                         <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="2" underVotes="5" blankVotes="4" />
                     </ContestReportingGroup>
                     <Candidate altId1="cand-1" type="NORMAL">
-                        <CandidatePrecinctVotes refPrecinctId="p1" votes="7" />
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="10" />
                     </Candidate>
                     <Candidate altId1="cand-2" type="NORMAL">
                         <CandidatePrecinctVotes refPrecinctId="p1" votes="3" />
@@ -763,7 +1181,8 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
             </ElectionReport>
         "#;
 
-        let (csv, errors) = convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER).unwrap();
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
         let csv = String::from_utf8(csv).unwrap();
 
         assert_eq!(errors.len(), 1);
@@ -776,8 +1195,139 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,4
             .contains("Duplicate CandidatePrecinctVotes"));
 
         assert!(!csv.contains("broken-contest"));
-        assert!(csv.contains("PAPER,Precinct 1,good-contest,candidate_votes,cand-1,7"));
+        assert!(csv.contains("PAPER,Precinct 1,good-contest,candidate_votes,cand-1,10"));
         assert!(csv.contains("PAPER,Precinct 1,good-contest,candidate_votes,cand-2,3"));
-        assert!(csv.contains("PAPER,Precinct 1,good-contest,total_votes,,17"));
+        assert!(csv.contains("PAPER,Precinct 1,good-contest,total_votes,,20"));
+    }
+
+    #[test]
+    fn reports_a_validation_error_when_totals_do_not_reconcile() {
+        // candidate_sum(5) + over(2) + under(5) = 12, but ballots_cast(20)
+        // * max_votes(1, the default) = 20 — a genuine data-quality
+        // problem in the source file, per the ES&S SOP's per-ballot
+        // accounting identity.
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1" />
+                </JurisdictionMap>
+                <Contest altId1="contest-1">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="20" overVotes="2" underVotes="5" blankVotes="4" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="5" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &HashMap::new()).unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_vote_reconciliation_mismatch");
+        assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
+        assert_eq!(errors[0].area_name, Some("Precinct 1".to_string()));
+        // The rest of the contest still converts — this is a validation
+        // warning about the source data, not a hard failure.
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,candidate_votes,cand-1,5"));
+    }
+
+    #[test]
+    fn overvoted_ballot_on_a_vote_for_n_contest_counts_as_one_invalid_ballot() {
+        // Reproduces a real ES&S test file: 3 ballots on a voteFor=4
+        // contest — one voted correctly for cand-1..cand-4, one fully
+        // overvoted, one left entirely blank. The overvoted ballot
+        // contributes its whole max_votes allotment (4) to overVotes, and
+        // the blank ballot contributes its whole allotment to underVotes.
+        // implicit_invalid must come from overVotes / max_votes (1
+        // overvoted *ballot*), not the raw overVotes slot count (4) —
+        // otherwise total_valid_votes (3 ballots - 4 invalid) would
+        // underflow to 0 instead of the correct 2.
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1" />
+                </JurisdictionMap>
+                <Contest altId1="contest-1">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="3" overVotes="4" underVotes="4" blankVotes="8" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="1" />
+                    </Candidate>
+                    <Candidate altId1="cand-2" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="1" />
+                    </Candidate>
+                    <Candidate altId1="cand-3" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="1" />
+                    </Candidate>
+                    <Candidate altId1="cand-4" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="1" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let contest_vote_config = HashMap::from([(
+            "contest-1".to_string(),
+            ContestVoteConfig {
+                min_votes: 0,
+                max_votes: 4,
+            },
+        )]);
+        let (csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &contest_vote_config)
+                .unwrap();
+        let csv = String::from_utf8(csv).unwrap();
+
+        assert!(errors.is_empty());
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,3"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,implicit_invalid,,1"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,2"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,over_votes,,4"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,under_votes,,4"));
+    }
+
+    #[test]
+    fn reports_a_validation_error_when_over_votes_is_not_an_exact_multiple_of_max_votes() {
+        // candidate_sum(3) + over(5) + under(4) = 12 = ballots_cast(3) *
+        // max_votes(4), so the reconciliation identity holds — but overVotes
+        // (5) isn't itself an exact multiple of max_votes (4), so there's no
+        // way to know how many ballots it represents. This is a distinct
+        // data-quality problem from a reconciliation mismatch.
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1" />
+                </JurisdictionMap>
+                <Contest altId1="contest-1">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="3" overVotes="5" underVotes="4" blankVotes="9" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="3" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let contest_vote_config = HashMap::from([(
+            "contest-1".to_string(),
+            ContestVoteConfig {
+                min_votes: 0,
+                max_votes: 4,
+            },
+        )]);
+        let (_csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &contest_vote_config)
+                .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_over_votes_not_divisible");
+        assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
+        assert_eq!(errors[0].area_name, Some("Precinct 1".to_string()));
     }
 }

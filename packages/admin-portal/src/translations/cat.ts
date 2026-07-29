@@ -2212,6 +2212,10 @@ const catalanTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
                 censusTooSmall: "El cens ha de ser major o igual al total de vots",
+                totalInvalidDoesNotMatch:
+                    "El total de vots invàlids ({{totalInvalid}}) ha de ser igual als vots invàlids implícits ({{implicitInvalid}}) més els vots invàlids explícits ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de vots ({{totalVotes}}) ha de ser igual al total de vots vàlids ({{totalValidVotes}}) més el total de vots invàlids ({{totalInvalid}})",
             },
             label: {
                 area: "Àrea",

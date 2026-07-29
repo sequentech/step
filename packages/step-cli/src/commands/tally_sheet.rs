@@ -18,6 +18,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
+    collections::HashMap,
     error::Error,
     fs::{self, File},
     io::Read,
@@ -712,8 +713,12 @@ pub fn convert_ess_xml_to_tally_csv(
     selected_channel: VotingChannelArg,
 ) -> Result<(), Box<dyn Error>> {
     let xml_bytes = fs::read(input)?;
+    // This is a standalone, offline conversion (no election event context),
+    // so contest min_votes can't be looked up — every contest is treated as
+    // min_votes=0, meaning under-votes never count as invalid. That's the
+    // common case; see convert_ess_enhanced_xml_to_csv's doc comment.
     let (csv_bytes, validation_errors) =
-        convert_ess_enhanced_xml_to_csv(&xml_bytes, selected_channel.to_core())?;
+        convert_ess_enhanced_xml_to_csv(&xml_bytes, selected_channel.to_core(), &HashMap::new())?;
     fs::write(output, csv_bytes)?;
     for error in &validation_errors {
         let context = match &error.contest_external_id {

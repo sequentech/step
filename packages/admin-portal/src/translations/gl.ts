@@ -2203,6 +2203,10 @@ const galegoTranslation: TranslationType = {
                 totalValidDoesNotMatch:
                     "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
                 censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
+                totalInvalidDoesNotMatch:
+                    "O total de votos non válidos ({{totalInvalid}}) debe ser igual aos votos non válidos implícitos ({{implicitInvalid}}) máis os votos non válidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "O total de votos ({{totalVotes}}) debe ser igual ao total de votos válidos ({{totalValidVotes}}) máis o total de votos non válidos ({{totalInvalid}})",
             },
             label: {
                 area: "Área",

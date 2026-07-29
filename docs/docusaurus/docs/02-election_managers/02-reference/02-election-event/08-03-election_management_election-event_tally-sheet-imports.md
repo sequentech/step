@@ -46,7 +46,7 @@ channel + area_name + contest_external_id
 
 The selected import channel must match every `channel` value in the CSV.
 
-Each ballot box must include exactly one row for every scalar field: `total_votes`, `total_valid_votes`, `implicit_invalid`, `explicit_invalid`, `total_blank_votes`, and `census`. It must also include one `candidate_votes` row for every candidate in the matched STEP contest.
+Each ballot box must include exactly one row for every required scalar field: `total_votes`, `total_valid_votes`, `implicit_invalid`, `explicit_invalid`, `total_blank_votes`, and `census`. It must also include one `candidate_votes` row for every candidate in the matched STEP contest. Any other `field` value (e.g. `over_votes`/`under_votes`, written by the ES&S import path — see below) is accepted without validation and carried through as extra data on the imported ballot box, so new source-specific fields don't need a canonical CSV format change to be picked up.
 
 Uploaded files are stored as normal STEP documents. The UI and CLI send a SHA-256 hash of the source file when they upload it, and the import actions verify that hash before parsing or persisting the import. The import record stores both the original source hash and the canonical CSV hash used for validation and review.
 
@@ -58,7 +58,7 @@ Uploaded files are stored as normal STEP documents. The UI and CLI send a SHA-25
 
 `contest_external_id` must match the contest external ID configured in STEP. Because the canonical CSV format has no election column, **contest external IDs must be unique within an election event** for tally sheet import to resolve rows correctly. If an election event has multiple elections that reuse the same external ID for different contests, the import will fail with an ambiguous-match error — rename the duplicate external IDs before importing.
 
-`field` must be one of:
+`field` is usually one of the required scalar fields or `candidate_votes`:
 
 - `candidate_votes`
 - `total_blank_votes`
@@ -67,6 +67,8 @@ Uploaded files are stored as normal STEP documents. The UI and CLI send a SHA-25
 - `total_valid_votes`
 - `total_votes`
 - `census`
+
+Any other value (e.g. `over_votes`, `under_votes`) is accepted as unvalidated extra data — see the note above.
 
 `candidate_external_id` is required only when `field` is `candidate_votes`. It must match a candidate external ID in the matched contest.
 
@@ -86,10 +88,13 @@ The importer validates these invariants per ballot box:
 
 ```text
 total_invalid = implicit_invalid + explicit_invalid
-total_valid_votes = sum(candidate_votes) + total_blank_votes
+non_blank_valid_votes = total_valid_votes - total_blank_votes
+non_blank_valid_votes <= sum(candidate_votes) <= non_blank_valid_votes * max_marks_per_ballot
 total_votes = total_valid_votes + total_invalid
 total_votes <= census
 ```
+
+A voter may be allowed to mark more than one candidate per ballot, so `sum(candidate_votes)` isn't required to equal the ballot count — it only has to fall within the range a valid ballot for this contest could produce. `max_marks_per_ballot` is `1` for ordinary single-choice contests, the contest's `max_votes` for plurality-at-large "vote for N" contests, and `max_votes` multiplied by the cumulative-voting checkbox limit for cumulative contests.
 
 ## ES&S Enhanced XML Mapping
 
@@ -99,9 +104,12 @@ For ES&S Enhanced XML uploads:
 - contest `altId1` is matched to contest external ID
 - candidate `altId1` is matched to candidate external ID
 - only ES&S reporting group `1` is read: its values are summed per precinct into one result for the selected STEP channel, and all other reporting groups are ignored
-- ES&S overvotes become STEP implicit invalid votes
-- ES&S blank votes become STEP blank votes
-- ES&S undervotes are treated with the overlap-safe rule `max(underVotes - blankVotes, 0)` before adding them to implicit invalid votes
+- ES&S overvotes always become STEP implicit invalid votes. ES&S's `overVotes` is a selection-*slot* count, not a ballot count — an overvoted ballot always contributes its whole `max_votes` allotment to `overVotes` (confirmed by the EVS SOP and empirically). For contests where ballots-cast is reported per contest and precinct (the `ContestReportingGroupVotes` XML variant), `overVotes` is divided by `max_votes` to recover an overvoted-*ballot* count before it's added to `implicit_invalid`; otherwise it could exceed `total_votes` and make `total_valid_votes` underflow. The other ES&S variant derives `total_votes` from candidate marks/blank votes instead (see below), so it isn't exposed to that underflow and uses the raw `overVotes` count directly.
+- ES&S undervotes only become implicit invalid votes (via the overlap-safe rule `max(underVotes - blankVotes, 0)`) when the contest requires a minimum number of selections (`min_votes > 0`) — undervoting an otherwise-optional contest is never invalid
+- ES&S's own `blankVotes` figure is **not** used as STEP's `total_blank_votes` for contests where ballots-cast is reported per contest and precinct (the `ContestReportingGroupVotes` XML variant): per the ES&S EVS documentation, `blankVotes` is exactly `overVotes + underVotes`, not a genuine blank-ballot count, so it can't validate a "vote for N" contest correctly. `underVotes` alone is used instead, which reconciles exactly for single-choice contests. The other ES&S variant (candidate-reporting-group) doesn't have this problem — its blank figure comes from the precinct's own `blanksCast`, a genuine (if precinct-wide) blank-ballot count — so it keeps using that.
+- `total_votes`/`total_valid_votes` are derived from ES&S's own ballots-cast figure when it's reported per contest *and* precinct (the `ContestReportingGroupVotes` XML variant), so vote-for-N contests (where candidate marks legitimately exceed the ballot count) convert correctly. The other ES&S variant only reports ballots cast per precinct, shared across every contest on the ballot — not a valid ballot count for a contest that doesn't appear on every ballot style in that precinct (e.g. a ward- or school-board-specific race). For that variant, `total_valid_votes` is derived from candidate marks plus blank votes instead, the only figures actually scoped to that contest and precinct; `census` always uses the precinct-wide ballots cast regardless of variant.
+- for the `ContestReportingGroupVotes` variant, the import additionally writes `over_votes`/`under_votes` rows carrying ES&S's raw counts, and cross-checks the per-ballot accounting identity documented in the ES&S SOP: every one of a contest's `max_votes` selection slots, across every ballot cast for it, is either a candidate mark, an overvote slot, or an undervote slot, with no remainder (`sum(candidate_votes) + over_votes + under_votes == total_votes * max_votes`). A mismatch is reported as an `ess_vote_reconciliation_mismatch` validation error — it indicates a data-quality problem in the source file, not something STEP can correct on its own.
+- for the `ContestReportingGroupVotes` variant, the import also checks that `over_votes` is an exact multiple of `max_votes` — required for the overvoted-ballot count used to compute `implicit_invalid` (see above) to be well-defined. A non-exact remainder is reported as an `ess_over_votes_not_divisible` validation error.
 
 ## Import Lifecycle
 
