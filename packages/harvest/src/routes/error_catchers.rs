@@ -6,7 +6,7 @@ use rocket::serde::json::Json;
 use rocket::Request;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::services::datafix::types::{
+use windmill::services::external::datafix_types::{
     DatafixErrorCode, DatafixResponse, JsonErrorResponse,
 };
 

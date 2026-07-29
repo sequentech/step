@@ -34,6 +34,8 @@ pub enum ETasksExecution {
     EXPORT_TALLY_RESULTS_XLSX,
     EXPORT_CERTIFICATE_AUTHORITIES,
     PUBLISH_RESULTS_WEBSITE,
+    GENERATE_RECONCILIATION_PATCHES,
+    APPLY_RECONCILIATION_PATCH,
 }
 
 impl ETasksExecution {
@@ -67,6 +69,8 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",
             ETasksExecution::EXPORT_CERTIFICATE_AUTHORITIES => "Export Certificate Authorities",
             ETasksExecution::PUBLISH_RESULTS_WEBSITE => "Publish Results Website",
+            ETasksExecution::GENERATE_RECONCILIATION_PATCHES => "Generate Reconciliation Patches",
+            ETasksExecution::APPLY_RECONCILIATION_PATCH => "Apply Reconciliation Changes",
         }
     }
 }
