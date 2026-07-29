@@ -60,6 +60,22 @@ cd /workspaces/step/packages/windmill && \
 
 ---
 
+## PostgreSQL-backed voter-channel test
+
+`voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote` is
+ignored by the default `cargo test` command because it requires PostgreSQL and
+the `HASURA_DB__*` connection variables. GitHub Actions runs it in the dedicated
+Windmill PostgreSQL job. In a configured dev container, run it with:
+
+```bash
+cd /workspaces/step/packages/windmill && \
+  cargo test \
+    services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote \
+    -- --ignored --exact
+```
+
+---
+
 ## Memory Tests
 
 ### What they measure

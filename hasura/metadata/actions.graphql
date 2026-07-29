@@ -28,6 +28,10 @@ type Query {
     ): FetchResultsArtifactOutput!
 }
 
+type Query {
+    get_realm_attributes(election_event_id: String!): GetRealmAttributesOutput!
+}
+
 type Mutation {
     configureResultsWebsitePolicy(
         election_event_id: String!
@@ -177,6 +181,20 @@ type Mutation {
 
 type Mutation {
     edit_user(body: EditUsersInput!): EditUserOutput!
+}
+
+type Mutation {
+    create_external_reconciliation_import(
+        election_event_id: String!
+        document_id: String!
+    ): taskOutput
+}
+
+type Mutation {
+    apply_external_reconciliation_changes(
+        election_event_id: String!
+        diff_document_id: String!
+    ): taskOutput
 }
 
 type Mutation {
@@ -1130,11 +1148,18 @@ type GetPrivateKeyOutput {
 
 type CastVotesPerDay {
     day: date!
+    channel: String!
     day_count: Int!
+}
+
+type VotersByChannel {
+    channel: String!
+    count: Int!
 }
 
 type ElectionEventStatsOutput {
     total_distinct_voters: Int!
+    voters_by_channel: [VotersByChannel!]!
     total_areas: Int!
     total_eligible_voters: Int!
     total_elections: Int!
@@ -1143,6 +1168,7 @@ type ElectionEventStatsOutput {
 
 type ElectionStatsOutput {
     total_distinct_voters: Int!
+    voters_by_channel: [VotersByChannel!]!
     total_areas: Int!
     votes_per_day: [CastVotesPerDay]!
 }
@@ -1807,6 +1833,10 @@ type Mutation {
 
 type DeleteCertificateAuthorityOutput {
     deleted_count: Int!
+}
+
+type GetRealmAttributesOutput {
+    attributes: jsonb!
 }
 
 type Mutation {

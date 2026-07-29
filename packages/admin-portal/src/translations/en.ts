@@ -103,6 +103,102 @@ const englishTranslation = {
                 next: "Next",
             },
         },
+        reconciliation: {
+            menuButton: "Ext. voters sync",
+            categories: {
+                VOTED_INTERNET: "Voted via Internet",
+                VOTED_OTHER_CHANNEL: "Voted via other channel",
+                DISABLED_DELETE_CALL: "Voter disabled",
+                DELETION_REVERTED: "Deletion reverted",
+                PROFILE_UPDATE: "Profile update",
+                VOTER_ADDED: "Voter added",
+                REENABLED: "Voter re-enabled",
+                VOTED_UNMARKED: "Voter unmarked as voted",
+                ROW_FAILURE: "Row failure",
+            },
+            table: {
+                voterId: "Voter ID",
+                field: "Field",
+                category: "Category",
+                currentValue: "Current value",
+                newValue: "New value",
+                reason: "Reason",
+                rowLabel: "Row",
+                noDifferences: "No differences found - the systems are in sync.",
+            },
+            wizard: {
+                title: "External reconciliation sync",
+                subtitle: "Synchronize the voter list with the external system",
+                drop: {
+                    description:
+                        "Drop the reconciliation file the external system produced - both diffs (external-side and Sequent-side) are calculated automatically and shown in separate tables.",
+                    fileFormatLabel: "CSV file",
+                    uploading: "Uploading {{fileName}} and calculating both diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Sequence {{sequence}}, generated {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} row(s) could not be reconciled safely and are excluded from both diffs - see below for details.",
+                    noDifferences: "No differences - the two systems are already in sync.",
+                    diffOnlyDifferences:
+                        "This is a convergence check for an already applied Sequence. Differences are shown for follow-up, but this round cannot be applied again.",
+                    externalDiffTitle: "External diff",
+                    sequentDiffTitle: "Sequent diff",
+                    downloadExternalPatch: "Download external patch",
+                    externalDiffCaption:
+                        "Download the patch and deliver it to the external system outside this tool. Once it applies the patch and produces the next reconciliation file, click 'Back' and drop that file in - 'Apply' unlocks once this table is empty.",
+                    noExternalDifferences: "No external-side differences.",
+                    sequentDiffCaption:
+                        "Apply changes directly to Sequent by clicking 'Apply' - no patch file is generated for these.",
+                    noSequentDifferences: "No Sequent-side differences.",
+                },
+                applying: {
+                    inProgress: "Applying Sequent-side changes...",
+                    rowFailures:
+                        "{{count}} row(s) were excluded from this round and need manual follow-up - see below for details.",
+                    rowFailuresTruncated:
+                        "Showing the first {{shown}} of {{count}} row failures. Resolve the shared cause and retry to see any remaining failures.",
+                    success: "All Sequent-side changes applied successfully.",
+                },
+                actions: {
+                    cancel: "Cancel",
+                    back: "Back",
+                    apply: "Apply",
+                    next: "Next",
+                    startOver: "Start over",
+                    close: "Close",
+                },
+                confirm: {
+                    title: "Confirm reconciliation changes",
+                    categoriesNote:
+                        "Categories outlined in orange ({{categories}}) touch voted status or disable voters.",
+                    applyChanges: "Apply changes",
+                    continue: "Continue",
+                },
+                summary: {
+                    votedOtherChannel: "marks {{count}} voter(s) as voted via other channels",
+                    disabled: "disables {{count}} voter(s)",
+                    reenabled: "re-enables {{count}} voter(s)",
+                    votedUnmarked: "unmarks {{count}} voter(s) as voted",
+                    profileUpdated: "updates {{count}} profile(s)",
+                    voterAdded: "adds {{count}} voter(s)",
+                    prefix: "This will apply changes that {{parts}}.",
+                    empty: "There are no Sequent-side changes to apply.",
+                },
+                notifications: {
+                    envelopeLoadError: "Failed to load the reconciliation diff - please try again.",
+                    generateFailed:
+                        "Failed to calculate the reconciliation diff - see the task widget for details.",
+                    applyFailed:
+                        "Failed to apply the Sequent-side changes - see the task widget for details.",
+                    uploadUrlError: "Failed to get an upload URL",
+                    generateTaskError: "Failed to start the reconciliation diff task",
+                    uploadError: "Failed to upload the reconciliation file",
+                    applyTaskError: "Failed to start the apply task",
+                    applyError: "Failed to apply the reconciliation changes",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
@@ -355,6 +451,11 @@ const englishTranslation = {
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
                 voter_authentication: "Voter Authentication",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -1012,6 +1113,8 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
@@ -1410,6 +1513,7 @@ const englishTranslation = {
                 kiosk: "Kiosk",
                 early_voting: "Early voting",
                 telephone: "Telephone voting",
+                other: "Other",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",

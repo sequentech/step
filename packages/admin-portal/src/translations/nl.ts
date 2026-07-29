@@ -104,6 +104,105 @@ const dutchTranslation: TranslationType = {
                 next: "Volgende",
             },
         },
+        reconciliation: {
+            menuButton: "Ext. kiezerssync",
+            categories: {
+                VOTED_INTERNET: "Gestemd via Internet",
+                VOTED_OTHER_CHANNEL: "Gestemd via ander kanaal",
+                DISABLED_DELETE_CALL: "Kiezer gedeactiveerd",
+                DELETION_REVERTED: "Verwijdering teruggedraaid",
+                PROFILE_UPDATE: "Profiel bijgewerkt",
+                VOTER_ADDED: "Kiezer toegevoegd",
+                REENABLED: "Kiezer heractiveerd",
+                VOTED_UNMARKED: "Kiezer niet langer gemarkeerd als gestemd",
+                ROW_FAILURE: "Rijfout",
+            },
+            table: {
+                voterId: "Kiezer-ID",
+                field: "Veld",
+                category: "Categorie",
+                currentValue: "Huidige waarde",
+                newValue: "Nieuwe waarde",
+                reason: "Reden",
+                rowLabel: "Rij",
+                noDifferences: "Geen verschillen gevonden - de systemen zijn gesynchroniseerd.",
+            },
+            wizard: {
+                title: "Externe reconciliatiesynchronisatie",
+                subtitle: "Synchroniseer de kiezerslijst met het externe systeem",
+                drop: {
+                    description:
+                        "Sleep het door het externe systeem gegenereerde reconciliatiebestand hierheen - beide diffs (externe zijde en Sequent-zijde) worden automatisch berekend en in aparte tabellen weergegeven.",
+                    fileFormatLabel: "CSV-bestand",
+                    uploading: "{{fileName}} wordt geüpload en beide diffs worden berekend...",
+                },
+                review: {
+                    fileSummary:
+                        "{{fileName}} - Sequentie {{sequence}}, gegenereerd {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} rij(en) konden niet veilig worden gereconcilieerd en zijn uitgesloten van beide diffs - zie details hieronder.",
+                    noDifferences: "Geen verschillen - beide systemen zijn al gesynchroniseerd.",
+                    diffOnlyDifferences:
+                        "Dit is een convergentiecontrole voor een reeds toegepaste reeks. Verschillen worden ter opvolging getoond, maar deze ronde kan niet opnieuw worden toegepast.",
+                    externalDiffTitle: "Externe diff",
+                    sequentDiffTitle: "Sequent-diff",
+                    downloadExternalPatch: "Externe patch downloaden",
+                    externalDiffCaption:
+                        "Download de patch en lever deze buiten deze tool aan het externe systeem. Zodra het de patch toepast en het volgende reconciliatiebestand produceert, klik op 'Terug' en sleep dat bestand hierheen - 'Toepassen' wordt geactiveerd zodra deze tabel leeg is.",
+                    noExternalDifferences: "Geen verschillen aan de externe zijde.",
+                    sequentDiffCaption:
+                        "Pas wijzigingen direct toe op Sequent door op 'Toepassen' te klikken - hiervoor wordt geen patchbestand gegenereerd.",
+                    noSequentDifferences: "Geen verschillen aan de Sequent-zijde.",
+                },
+                applying: {
+                    inProgress: "Wijzigingen aan de Sequent-zijde worden toegepast...",
+                    rowFailures:
+                        "{{count}} rij(en) zijn uitgesloten van deze ronde en vereisen handmatige opvolging - zie details hieronder.",
+                    rowFailuresTruncated:
+                        "De eerste {{shown}} van {{count}} rijfouten worden getoond. Los de gemeenschappelijke oorzaak op en probeer opnieuw om de resterende fouten te zien.",
+                    success: "Alle wijzigingen aan de Sequent-zijde zijn succesvol toegepast.",
+                },
+                actions: {
+                    cancel: "Annuleren",
+                    back: "Terug",
+                    apply: "Toepassen",
+                    next: "Volgende",
+                    startOver: "Opnieuw beginnen",
+                    close: "Sluiten",
+                },
+                confirm: {
+                    title: "Reconciliatiewijzigingen bevestigen",
+                    categoriesNote:
+                        "Categorieën die oranje zijn omlijnd ({{categories}}) hebben invloed op de stemstatus of deactiveren kiezers.",
+                    applyChanges: "Wijzigingen toepassen",
+                    continue: "Doorgaan",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "markeert {{count}} kiezer(s) als gestemd via een ander kanaal",
+                    disabled: "deactiveert {{count}} kiezer(s)",
+                    reenabled: "heractiveert {{count}} kiezer(s)",
+                    votedUnmarked: "verwijdert de stemmarkering van {{count}} kiezer(s)",
+                    profileUpdated: "werkt {{count}} profiel(en) bij",
+                    voterAdded: "voegt {{count}} kiezer(s) toe",
+                    prefix: "Dit past wijzigingen toe die {{parts}}.",
+                    empty: "Er zijn geen wijzigingen aan de Sequent-zijde om toe te passen.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Kon de reconciliatie-diff niet laden - probeer het opnieuw.",
+                    generateFailed:
+                        "Kon de reconciliatie-diff niet berekenen - zie de taakwidget voor details.",
+                    applyFailed:
+                        "Kon de wijzigingen aan de Sequent-zijde niet toepassen - zie de taakwidget voor details.",
+                    uploadUrlError: "Kon geen upload-URL verkrijgen",
+                    generateTaskError: "Kon de reconciliatie-difftaak niet starten",
+                    uploadError: "Kon het reconciliatiebestand niet uploaden",
+                    applyTaskError: "Kon de toepassingstaak niet starten",
+                    applyError: "Kon de reconciliatiewijzigingen niet toepassen",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot de logs.",
             title: "Logs",
@@ -356,6 +455,11 @@ const dutchTranslation: TranslationType = {
                 importCandidates: "Kandidaten importeren",
                 custom_filters: "Aangepaste filters",
                 voter_authentication: "Kiezersauthenticatie",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -1014,6 +1118,8 @@ const dutchTranslation: TranslationType = {
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Verkiezingsevenement Verwijderen",
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
@@ -1418,6 +1524,7 @@ const dutchTranslation: TranslationType = {
                 kiosk: "Kiosk",
                 early_voting: "Vroeg stemmen",
                 telephone: "Telefonisch stemmen",
+                other: "Overig",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
