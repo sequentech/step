@@ -9,11 +9,12 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::datafix::utils::{
-    datafix_annotations, datafix_voter_lock_key, is_datafix_election_event, DATAFIX_VOTER_LOCK_SECS,
-};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::external::utils::{
+    datafix_annotations, external_voter_lock_key, is_datafix_election_event,
+    DATAFIX_VOTER_LOCK_SECS,
+};
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::get_username_by_id;
@@ -189,8 +190,10 @@ async fn insert_datafix_cast_vote_locked<'a>(
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
 ) -> Result<CastVote, CastVoteError> {
+    let voter_id_uuid = parse_uuid_v4(ids.voter_id)
+        .map_err(|err| CastVoteError::VoterStateLocked(format!("Invalid voter id: {err}")))?;
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
+        external_voter_lock_key(ids.tenant_id, ids.election_event_id, &voter_id_uuid),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
