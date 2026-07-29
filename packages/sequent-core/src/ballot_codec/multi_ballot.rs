@@ -1532,7 +1532,16 @@ mod tests {
         let result = test_multi_contest_reencoding(&vec![decoded], &style)
             .expect("expanded capacity should encode a selection past max_votes");
 
-        assert_eq!(result[0].choices.len(), 4);
+        let selected: Vec<&str> = result[0]
+            .choices
+            .iter()
+            .filter(|choice| choice.selected > -1)
+            .map(|choice| choice.id.as_str())
+            .collect();
+        assert_eq!(selected.len(), 4);
+        assert!(selected_ids
+            .iter()
+            .all(|id| selected.contains(&id.as_str())));
         assert!(has_invalid_error(&result[0], "errors.implicit.selectedMax"));
         assert!(!has_invalid_alert(&result[0], "errors.implicit.selectedMax"));
     }
