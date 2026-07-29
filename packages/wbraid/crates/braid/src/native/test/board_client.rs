@@ -63,9 +63,9 @@ async fn run_restart_anti_rewrite<C: Context>() -> Result<()> {
         trustee_vks,
         2,
         2,
+        share_enc_keys,
         PhantomData,
-    )
-    .with_share_encryption_keys(share_enc_keys);
+    );
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 

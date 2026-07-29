@@ -105,9 +105,9 @@ async fn run_with_width<C: Context, const W: usize>(
         trustee_vks,
         n_threshold,
         W,
+        share_enc_keys,
         PhantomData,
-    )
-    .with_share_encryption_keys(share_enc_keys);
+    );
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
 

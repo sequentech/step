@@ -137,9 +137,9 @@ fn build_committee(
         trustee_vks,
         threshold,
         width,
+        share_enc_keys,
         PhantomData,
-    )
-    .with_share_encryption_keys(share_enc_keys);
+    );
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     Ok(Committee {
         pm,

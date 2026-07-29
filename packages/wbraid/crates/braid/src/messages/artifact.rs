@@ -51,6 +51,7 @@ impl<C: Context> Configuration<C> {
         trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
         threshold: usize,
         ciphertext_width: usize,
+        share_encryption_keys: Vec<C::Element>,
         _phantom: PhantomData<C>,
     ) -> Configuration<C> {
         let c = Configuration {
@@ -59,28 +60,12 @@ impl<C: Context> Configuration<C> {
             trustees,
             threshold,
             ciphertext_width,
-            share_encryption_keys: Vec::new(),
+            share_encryption_keys,
             phantom: PhantomData,
         };
         assert!(c.is_valid());
 
         c
-    }
-
-    /// Attaches the per-trustee share-encryption public keys (v0.6 DKG).
-    ///
-    /// `keys` must have one entry per trustee, in the same order as `trustees`.
-    /// The public side lives on the board inside the `Configuration`; each
-    /// trustee holds the matching secret scalar out of band (supplied at
-    /// construction).
-    pub fn with_share_encryption_keys(mut self, keys: Vec<C::Element>) -> Configuration<C> {
-        assert_eq!(
-            keys.len(),
-            self.trustees.len(),
-            "expected one share-encryption key per trustee"
-        );
-        self.share_encryption_keys = keys;
-        self
     }
 
     pub fn is_valid(&self) -> bool {
@@ -92,6 +77,7 @@ impl<C: Context> Configuration<C> {
             && (self.threshold > 1 && self.threshold <= self.trustees.len())
             && (self.ciphertext_width >= 1
                 && self.ciphertext_width <= super::newtypes::MAX_CIPHERTEXT_WIDTH)
+            && (self.share_encryption_keys.len() == self.trustees.len())
     }
 
     pub fn get_trustee_position(
