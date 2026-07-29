@@ -479,8 +479,10 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
         .await
         .map_err(|err| format!("Error loading election event: {err:?}"))?;
 
+    let user_id_uuid =
+        parse_uuid_v4(&body.user_id).map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = PgLock::acquire(
-        external_voter_lock_key(&body.tenant_id, &body.election_event_id, &body.user_id),
+        external_voter_lock_key(&body.tenant_id, &body.election_event_id, &user_id_uuid),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )

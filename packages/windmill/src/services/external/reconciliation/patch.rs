@@ -222,6 +222,7 @@ mod tests {
     fn item(voter: &str, target: ReconciliationPatchTarget) -> DiffItem {
         DiffItem {
             voter_username: voter.to_string(),
+            voter_id: Some(uuid::Uuid::new_v4()),
             target,
             category: ReconciliationChangeCategory::PROFILE_UPDATE,
             failure_reason: None,
@@ -231,7 +232,7 @@ mod tests {
     fn file_row(voter_id: &str) -> ParsedDatafixReconciliationRow {
         ParsedDatafixReconciliationRow {
             county_mun: "0014".to_string(),
-            voter_id: voter_id.to_string(),
+            external_voter_id: voter_id.to_string(),
             dob: "1990-01-01".to_string(),
             ward: "01".to_string(),
             poll: "000".to_string(),
@@ -385,6 +386,7 @@ mod tests {
         );
         let row_failure = DiffItem {
             voter_username: "v2".to_string(),
+            voter_id: None,
             target: ReconciliationPatchTarget::Sequent(None),
             category: ReconciliationChangeCategory::ROW_FAILURE,
             failure_reason: Some("bad row".to_string()),

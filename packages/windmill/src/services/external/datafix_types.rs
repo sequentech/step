@@ -425,7 +425,7 @@ pub struct ParsedDatafixReconciliationRow {
     #[serde(rename = "CountyMun")]
     pub county_mun: String,
     #[serde(rename = "VoterID")]
-    pub voter_id: String,
+    pub external_voter_id: String,
     #[serde(rename = "DoB")]
     pub dob: String,
     #[serde(rename = "Ward")]

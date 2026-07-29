@@ -142,7 +142,7 @@ async fn run_generate_reconciliation_patches(
     // Hash the whole file once (so Datafix's own generated hash can later be
     // compared against it manually) and read its `#META` line, then drop the
     // bytes — the batch loop below re-reads the same temp file path
-    // incrementally instead of keeping the whole file resident.
+    // incrementally instead of holding the whole file while processing the output.
     let file_bytes = std::fs::read(temp_file.path())
         .map_err(|err| format!("Error reading uploaded file: {err}"))?;
     let source_sha256 = hash_bytes(&file_bytes);
@@ -285,7 +285,10 @@ async fn run_generate_reconciliation_patches(
         }
         total_rows += file_rows.len();
 
-        let usernames: Vec<String> = file_rows.iter().map(|row| row.voter_id.clone()).collect();
+        let usernames: Vec<String> = file_rows
+            .iter()
+            .map(|row| row.external_voter_id.clone())
+            .collect();
         for username in &usernames {
             if !all_file_usernames.insert(username.clone()) {
                 return Err(format!(
@@ -305,7 +308,7 @@ async fn run_generate_reconciliation_patches(
         .await
         .map_err(|err| format!("Error fetching voter snapshots for a file batch: {err:?}"))?;
         for snapshot in snapshots.iter_mut() {
-            if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id_string) {
+            if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id.to_string()) {
                 snapshot.has_valid_internet_vote = state.has_valid_vote;
                 snapshot.has_unresolved_internet_vote = state.has_unresolved_vote;
             }
@@ -350,7 +353,7 @@ async fn run_generate_reconciliation_patches(
             break;
         }
         for snapshot in page.iter_mut() {
-            if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id_string) {
+            if let Some(state) = voter_cast_vote_states.get(&snapshot.voter_id.to_string()) {
                 snapshot.has_valid_internet_vote = state.has_valid_vote;
                 snapshot.has_unresolved_internet_vote = state.has_unresolved_vote;
             }
@@ -542,7 +545,7 @@ fn write_batch_to_all_outputs<EW: Write, SW: Write, CW: Write>(
 
     let file_rows_by_username: HashMap<String, _> = file_rows
         .iter()
-        .map(|row| (row.voter_id.clone(), row.clone()))
+        .map(|row| (row.external_voter_id.clone(), row.clone()))
         .collect();
     external_patch_writer
         .write_batch(batch_items, &file_rows_by_username)
@@ -718,6 +721,7 @@ mod tests {
     fn test_item(voter_username: &str, old_enabled: bool, new_enabled: bool) -> DiffItem {
         DiffItem {
             voter_username: voter_username.to_string(),
+            voter_id: Some(uuid::Uuid::new_v4()),
             target: ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
                 old_enabled,
                 new_enabled,

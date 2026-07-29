@@ -534,7 +534,6 @@ async fn process_voter_group<W: Write>(
 
     match apply_voter_changes(
         hasura_transaction,
-        keycloak_transaction,
         &body.tenant_id,
         &body.election_event_id,
         realm,

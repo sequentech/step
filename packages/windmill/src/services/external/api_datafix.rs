@@ -433,7 +433,9 @@ pub async fn acquire_inbound_voter_lock(
     drop(hasura_client);
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
     let user_id = get_user_id(keycloak_transaction, &realm, username).await?;
-    let lock_key = external_voter_lock_key(&claims.tenant_id, &election_event_id, &user_id);
+    let user_id_uuid = parse_uuid_v4(&user_id)
+        .map_err(|_| DatafixResponse::error(DatafixErrorCode::InternalError))?;
+    let lock_key = external_voter_lock_key(&claims.tenant_id, &election_event_id, &user_id_uuid);
     let lock = PgLock::acquire(
         lock_key,
         Uuid::new_v4().to_string(),

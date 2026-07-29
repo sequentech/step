@@ -429,6 +429,8 @@ mod tests {
     fn item(field: SequentReconciliationField) -> DiffItem {
         DiffItem {
             voter_username: "voter-1".to_string(),
+            // Real VOTER_ADDED items never carry one; the voter doesn't exist yet.
+            voter_id: None,
             target: ReconciliationPatchTarget::Sequent(Some(field)),
             category: ReconciliationChangeCategory::VOTER_ADDED,
             failure_reason: None,

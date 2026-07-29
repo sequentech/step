@@ -18,6 +18,7 @@ use sequent_core::types::keycloak::{
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tracing::{info, instrument};
+use uuid::Uuid;
 
 /// One (voter, field) change destined for either the Datafix patch or a
 /// direct Sequent apply. Never persisted on its own — always as part of a
@@ -36,6 +37,13 @@ use tracing::{info, instrument};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiffItem {
     pub voter_username: String,
+    /// Keycloak's own internal user id (`VoterSnapshot::voter_id`), captured
+    /// here so `apply.rs` never has to resolve it again per voter. `None`
+    /// where no `VoterSnapshot` was ever looked up for this item: the
+    /// row-level `CountyMun` mismatch failure, and `VOTER_ADDED` items — the
+    /// voter doesn't exist in Sequent yet.
+    #[serde(default)]
+    pub voter_id: Option<Uuid>,
     #[serde(flatten)]
     pub target: ReconciliationPatchTarget,
     pub category: ReconciliationChangeCategory,
@@ -146,7 +154,13 @@ pub fn diff_file_row_batch(
 ) -> Vec<DiffItem> {
     file_rows
         .iter()
-        .flat_map(|row| classify_file_row(row, snapshots_by_username.get(&row.voter_id), source))
+        .flat_map(|row| {
+            classify_file_row(
+                row,
+                snapshots_by_username.get(&row.external_voter_id),
+                source,
+            )
+        })
         .collect()
 }
 
@@ -182,7 +196,7 @@ pub fn diff_unmatched_sequent_voters(
 /// apply) *and* a `VOTED_INTERNET`-style correction so the Datafix patch
 /// still keeps `Channel=INTERNET` on their side for the rest of the round
 /// (spec, "Concrete examples" B) — easy to miss, worth a dedicated test.
-#[instrument(skip_all, fields(voter_username = %row.voter_id))]
+#[instrument(skip_all, fields(voter_username = %row.external_voter_id))]
 fn classify_file_row(
     row: &ParsedDatafixReconciliationRow,
     snapshot: Option<&VoterSnapshot>,
@@ -192,7 +206,9 @@ fn classify_file_row(
     let event_county_mun = county_mun.as_str();
     if row.county_mun != event_county_mun && row.deleted != "true" {
         return vec![DiffItem {
-            voter_username: row.voter_id.clone(),
+            voter_username: row.external_voter_id.clone(),
+            // No `VoterSnapshot` lookup has happened yet at this point.
+            voter_id: None,
             // Excluded from both diffs regardless; `CountyMun` has no Sequent
             // equivalent field, so there is nothing to name here.
             target: ReconciliationPatchTarget::Sequent(None),
@@ -211,7 +227,7 @@ fn classify_file_row(
         // add the voter with Channel=NONE.
         if channels_equal(&row.channel, FILE_CHANNEL_INTERNET) {
             return vec![diff_item(
-                &row.voter_id,
+                &row.external_voter_id,
                 ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                     row.channel.clone(),
                     ATTR_RESET_VALUE.to_string(),
@@ -245,7 +261,7 @@ fn classify_file_row(
     // A) Sequent holds a valid Internet ballot; Datafix says NONE.
     if file_says_none && snapshot.has_valid_internet_vote {
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                 row.channel.clone(),
                 FILE_CHANNEL_INTERNET.to_string(),
@@ -254,7 +270,7 @@ fn classify_file_row(
         ));
     } else if file_says_none && snapshot.has_unresolved_internet_vote {
         items.push(row_failure(
-            &row.voter_id,
+            &row.external_voter_id,
             "Voter has an in-progress Internet ballot; Channel=NONE cannot be reconciled until the ballot resolves",
         ));
     } else if unmarking_stored_channel {
@@ -285,7 +301,7 @@ fn classify_file_row(
             );
         }
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 old_attributes,
                 new_attributes,
@@ -297,7 +313,7 @@ fn classify_file_row(
             && stored_disable_comment == DISABLE_REASON_MARKVOTED_CALL
         {
             items.push(diff_item(
-                &row.voter_id,
+                &row.external_voter_id,
                 ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
                     false, true,
                 ))),
@@ -306,14 +322,14 @@ fn classify_file_row(
         }
     } else if file_says_internet && snapshot.has_unresolved_internet_vote {
         items.push(row_failure(
-            &row.voter_id,
+            &row.external_voter_id,
             "Voter has an in-progress Internet ballot; Channel=INTERNET cannot be confirmed until the ballot resolves",
         ));
     } else if file_says_internet && !snapshot.has_valid_internet_vote {
         // The reverse half of source-of-truth A: Datafix cannot claim an
         // Internet vote that Sequent has no active record of.
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                 row.channel.clone(),
                 ATTR_RESET_VALUE.to_string(),
@@ -329,7 +345,8 @@ fn classify_file_row(
             // Exception: cannot resolve automatically — row failure now, and
             // Sequent still wins for the rest of the round (spec, example B).
             items.push(DiffItem {
-                voter_username: row.voter_id.clone(),
+                voter_username: row.external_voter_id.clone(),
+                voter_id: Some(snapshot.voter_id),
                 target: ReconciliationPatchTarget::Sequent(Some(
                     SequentReconciliationField::KeycloakUA(
                         HashMap::from([(VOTED_CHANNEL.to_string(), stored_channel.to_string())]),
@@ -345,7 +362,7 @@ fn classify_file_row(
                 )),
             });
             items.push(diff_item(
-                &row.voter_id,
+                &row.external_voter_id,
                 ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
                     row.channel.clone(),
                     FILE_CHANNEL_INTERNET.to_string(),
@@ -354,7 +371,7 @@ fn classify_file_row(
             ));
         } else if snapshot.has_unresolved_internet_vote {
             items.push(row_failure(
-                &row.voter_id,
+                &row.external_voter_id,
                 &format!(
                     "Voter has an in-progress Internet ballot; voted-via-other-channel ({}) cannot be applied until it resolves",
                     row.channel
@@ -376,7 +393,7 @@ fn classify_file_row(
                 || stored_disable_comment != desired_disable_comment
             {
                 items.push(diff_item(
-                    &row.voter_id,
+                    &row.external_voter_id,
                     ReconciliationPatchTarget::Sequent(Some(
                         SequentReconciliationField::KeycloakUA(
                             HashMap::from([
@@ -403,7 +420,7 @@ fn classify_file_row(
             }
             if snapshot.enabled {
                 items.push(diff_item(
-                    &row.voter_id,
+                    &row.external_voter_id,
                     ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
                         true, false,
                     ))),
@@ -420,7 +437,7 @@ fn classify_file_row(
     let file_area_name = composed_area_name(row);
     if snapshot.area_name.as_deref() != Some(file_area_name.as_str()) {
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::AreaName(
                 snapshot
                     .area_name
@@ -433,7 +450,7 @@ fn classify_file_row(
     }
     if Some(row.dob.as_str()) != snapshot.dob.as_deref() {
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(
                     DATE_OF_BIRTH.to_string(),
@@ -454,7 +471,7 @@ fn classify_file_row(
     if row.deleted == "true" {
         if snapshot.has_valid_internet_vote {
             items.push(diff_item(
-                &row.voter_id,
+                &row.external_voter_id,
                 ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Deleted(
                     "true".to_string(),
                     "false".to_string(),
@@ -463,7 +480,7 @@ fn classify_file_row(
             ));
         } else if snapshot.has_unresolved_internet_vote {
             items.push(row_failure(
-                &row.voter_id,
+                &row.external_voter_id,
                 "Voter has an in-progress Internet ballot and cannot be deleted until it resolves",
             ));
         } else {
@@ -472,7 +489,7 @@ fn classify_file_row(
             // gets it here exactly once.
             if snapshot.enabled && !applying_other_channel {
                 items.push(diff_item(
-                    &row.voter_id,
+                    &row.external_voter_id,
                     ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
                         true, false,
                     ))),
@@ -487,7 +504,7 @@ fn classify_file_row(
                 && stored_disable_comment != DISABLE_REASON_DELETE_CALL
             {
                 items.push(diff_item(
-                    &row.voter_id,
+                    &row.external_voter_id,
                     ReconciliationPatchTarget::Sequent(Some(
                         SequentReconciliationField::KeycloakUA(
                             HashMap::from([(
@@ -510,7 +527,7 @@ fn classify_file_row(
         && channels_equal(stored_channel, ATTR_RESET_VALUE)
     {
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
                 false, true,
             ))),
@@ -531,10 +548,21 @@ fn classify_file_row(
         items.retain(|item| {
             item.category != ReconciliationChangeCategory::ROW_FAILURE && item.target.is_datafix()
         });
-        items.push(row_failure(&row.voter_id, &failure_reasons.join("; ")));
+        items.push(row_failure(
+            &row.external_voter_id,
+            &failure_reasons.join("; "),
+        ));
     }
 
+    // Every item above was classified against `snapshot`, so they all share
+    // its voter id — set once here instead of at each push site above.
     items
+        .into_iter()
+        .map(|item| DiffItem {
+            voter_id: Some(snapshot.voter_id),
+            ..item
+        })
+        .collect()
 }
 
 /// D, forward direction: the file has a voter Sequent doesn't. Per "Patch
@@ -546,7 +574,7 @@ fn classify_file_row(
 /// this only covers the fields Sequent itself understands. The bulk apply
 /// path consumes the emitted `Enabled` and `disable-comment` values exactly,
 /// including file rows already marked deleted or voted via another channel.
-#[instrument(skip_all, fields(voter_username = %row.voter_id))]
+#[instrument(skip_all, fields(voter_username = %row.external_voter_id))]
 fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem> {
     let file_area_name = composed_area_name(row);
     let voted_other_channel = !channels_equal(&row.channel, ATTR_RESET_VALUE);
@@ -560,7 +588,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
     };
     let mut items = vec![
         diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::AreaName(
                 ATTR_RESET_VALUE.to_string(),
                 file_area_name,
@@ -568,7 +596,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
             ReconciliationChangeCategory::VOTER_ADDED,
         ),
         diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(DATE_OF_BIRTH.to_string(), ATTR_RESET_VALUE.to_string())]),
                 HashMap::from([(DATE_OF_BIRTH.to_string(), row.dob.clone())]),
@@ -576,7 +604,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
             ReconciliationChangeCategory::VOTER_ADDED,
         ),
         diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(VOTED_CHANNEL.to_string(), ATTR_RESET_VALUE.to_string())]),
                 HashMap::from([(
@@ -587,7 +615,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
             ReconciliationChangeCategory::VOTER_ADDED,
         ),
         diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::Enabled(
                 false,
                 file_enabled,
@@ -597,7 +625,7 @@ fn voter_added_to_sequent(row: &ParsedDatafixReconciliationRow) -> Vec<DiffItem>
     ];
     if let Some(disable_comment) = disable_comment {
         items.push(diff_item(
-            &row.voter_id,
+            &row.external_voter_id,
             ReconciliationPatchTarget::Sequent(Some(SequentReconciliationField::KeycloakUA(
                 HashMap::from([(DISABLE_COMMENT.to_string(), ATTR_RESET_VALUE.to_string())]),
                 HashMap::from([(DISABLE_COMMENT.to_string(), disable_comment.to_string())]),
@@ -663,8 +691,9 @@ fn voter_missing_from_file(
     ];
     fields
         .into_iter()
-        .map(|field| {
-            diff_item(
+        .map(|field| DiffItem {
+            voter_id: Some(snapshot.voter_id),
+            ..diff_item(
                 username,
                 ReconciliationPatchTarget::Datafix(field),
                 ReconciliationChangeCategory::VOTER_ADDED,
@@ -681,6 +710,7 @@ fn diff_item(
 ) -> DiffItem {
     DiffItem {
         voter_username: voter_username.to_string(),
+        voter_id: None,
         target,
         category,
         failure_reason: None,
@@ -691,6 +721,7 @@ fn diff_item(
 fn row_failure(voter_username: &str, reason: &str) -> DiffItem {
     DiffItem {
         voter_username: voter_username.to_string(),
+        voter_id: None,
         target: ReconciliationPatchTarget::Sequent(None),
         category: ReconciliationChangeCategory::ROW_FAILURE,
         failure_reason: Some(reason.to_string()),
@@ -713,7 +744,7 @@ fn composed_area_name(row: &ParsedDatafixReconciliationRow) -> String {
     let optional_field = |value: &str| (value != ATTR_RESET_VALUE).then(|| value.to_string());
 
     let composed_area = compose_area_name(&VoterInformationBody {
-        voter_id: row.voter_id.clone(),
+        voter_id: row.external_voter_id.clone(),
         ward: row.ward.clone(),
         schoolboard: optional_field(&row.school_support_code),
         poll: optional_field(&row.poll),
@@ -731,7 +762,7 @@ mod tests {
     fn row(voter_id: &str, channel: &str, deleted: &str) -> ParsedDatafixReconciliationRow {
         ParsedDatafixReconciliationRow {
             county_mun: "0014".to_string(),
-            voter_id: voter_id.to_string(),
+            external_voter_id: voter_id.to_string(),
             dob: "1990-01-01".to_string(),
             ward: "01".to_string(),
             poll: "000".to_string(),
@@ -750,7 +781,7 @@ mod tests {
     fn enabled_snapshot() -> VoterSnapshot {
         VoterSnapshot {
             username: "voter-1".to_string(),
-            voter_id_string: "voter-1-id".to_string(),
+            voter_id: Uuid::new_v4(),
             enabled: true,
             area_name: Some("01-P-000".to_string()),
             dob: Some("1990-01-01".to_string()),

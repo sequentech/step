@@ -28,7 +28,7 @@ use crate::postgres::cast_vote::get_voter_cast_vote_state;
 use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::{ReconciliationChangeCategory, SequentReconciliationField};
 use crate::services::external::utils::{
-    external_voter_lock_key, get_user_id, voted_via_internet, voted_via_not_internet_channel,
+    external_voter_lock_key, voted_via_internet, voted_via_not_internet_channel,
     DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
@@ -53,19 +53,30 @@ pub enum VoterApplyOutcome {
 /// `voter_username`, already filtered to exclude `ROW_FAILURE`) under the
 /// same per-voter Datafix advisory lock the inbound API and `edit_user` use,
 /// so this can never interleave with an inbound Datafix call or an outbound
-/// `SetVoted`/`SetNotVoted` for the same voter.
-#[instrument(skip(hasura_transaction, keycloak_transaction, items), fields(voter_username = %voter_username), err)]
+/// `SetVoted`/`SetNotVoted` for the same voter. Locked on `voter_id`, not
+/// `voter_username`, to match the key `edit_user`/the inbound API use — both
+/// carried on `items` already, from the `VoterSnapshot` the diff was built
+/// from, so this needs no Keycloak lookup of its own.
+#[instrument(skip(hasura_transaction, items), fields(voter_username = %voter_username), err)]
 pub async fn apply_voter_changes(
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     realm: &str,
     voter_username: &str,
     items: &[DiffItem],
 ) -> Result<VoterApplyOutcome> {
+    let Some(first_item) = items.first() else {
+        return Ok(VoterApplyOutcome::Applied); // nothing to do
+    };
+    let Some(user_id) = first_item.voter_id else {
+        return Ok(VoterApplyOutcome::Failed {
+            reason: "Diff item is missing the voter's Keycloak id".to_string(),
+        });
+    };
+
     let lock = PgLock::acquire(
-        external_voter_lock_key(tenant_id, election_event_id, voter_username),
+        external_voter_lock_key(tenant_id, election_event_id, &user_id),
         Uuid::new_v4().to_string(),
         ISO8601::now() + chrono::Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -73,11 +84,10 @@ pub async fn apply_voter_changes(
 
     let result = apply_voter_changes_locked(
         hasura_transaction,
-        keycloak_transaction,
         tenant_id,
         election_event_id,
         realm,
-        voter_username,
+        &user_id.to_string(),
         items,
     )
     .await;
@@ -92,21 +102,17 @@ pub async fn apply_voter_changes(
 /// Validates every item's old snapshot and derives safety guards from the
 /// complete category set before writing. A voter can legitimately have
 /// mixed categories (for example profile update plus deletion), so dispatch
-/// must never depend on item ordering.
-#[instrument(skip(hasura_transaction, keycloak_transaction, items), err)]
+/// must never depend on item ordering. `items` is guaranteed non-empty by
+/// `apply_voter_changes`, its only caller.
+#[instrument(skip(hasura_transaction, items), err)]
 async fn apply_voter_changes_locked(
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     realm: &str,
-    voter_username: &str,
+    user_id: &str,
     items: &[DiffItem],
 ) -> Result<VoterApplyOutcome> {
-    if items.is_empty() {
-        return Ok(VoterApplyOutcome::Applied); // nothing to do
-    }
-
     let categories: HashSet<_> = items.iter().map(|item| item.category).collect();
     if categories.contains(&ReconciliationChangeCategory::VOTER_ADDED) {
         return Ok(VoterApplyOutcome::Failed {
@@ -126,14 +132,11 @@ async fn apply_voter_changes_locked(
         });
     }
 
-    let user_id = get_user_id(keycloak_transaction, realm, voter_username)
-        .await
-        .map_err(|err| anyhow!("Error resolving voter user id: {err:?}"))?;
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|err| anyhow!("Error getting KeycloakAdminClient: {err:?}"))?;
     let current_user = client
-        .get_user(realm, &user_id)
+        .get_user(realm, user_id)
         .await
         .map_err(|err| anyhow!("Error loading current voter snapshot: {err:?}"))?;
 
@@ -364,7 +367,6 @@ async fn resolve_area_attribute(
     items: &[DiffItem],
     attributes: &mut HashMap<String, Vec<String>>,
 ) -> Result<()> {
-    info!("Resolving area attribute for voter changes: {items:?}");
     let Some(area_name) = items
         .iter()
         .find_map(|item| item.target.sequent_field()?.new_area_name())
@@ -388,6 +390,7 @@ mod tests {
     fn item(field: SequentReconciliationField) -> DiffItem {
         DiffItem {
             voter_username: "voter-1".to_string(),
+            voter_id: Some(Uuid::new_v4()),
             target: ReconciliationPatchTarget::Sequent(Some(field)),
             category: ReconciliationChangeCategory::PROFILE_UPDATE,
             failure_reason: None,

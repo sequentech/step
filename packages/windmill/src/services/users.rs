@@ -46,10 +46,11 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 pub struct VoterSnapshot {
     pub username: String,
     /// Keycloak's own internal user id (`user_entity.id`) — same value
-    /// `cast_vote.voter_id_string` carries, so this is what actually matches
-    /// against the event-wide cast-vote state map; `username` is a
-    /// separate, mutable-in-theory identifier not safe to key that lookup on.
-    pub voter_id_string: String,
+    /// `cast_vote.voter_id_string` carries (as text there), so this is what
+    /// actually matches against the event-wide cast-vote state map;
+    /// `username` is a separate, mutable-in-theory identifier not safe to key
+    /// that lookup on.
+    pub voter_id: Uuid,
     pub enabled: bool,
     /// The voter's resolved area name (`WARD-SCHOOLBOARD-POLL`, uppercased —
     /// see `reconciliation::snapshot`), `None` if their `area-id` attribute
@@ -97,7 +98,7 @@ pub async fn fetch_realm_voter_snapshots_page(
         .prepare(
             r#"
                 SELECT
-                    u.id AS voter_id_string,
+                    u.id AS voter_id,
                     u.username,
                     u.enabled,
                     json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
@@ -158,7 +159,7 @@ pub async fn fetch_realm_voter_snapshots_by_usernames(
         .prepare(
             r#"
                 SELECT
-                    u.id AS voter_id_string,
+                    u.id AS voter_id,
                     u.username,
                     u.enabled,
                     json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
@@ -190,7 +191,8 @@ fn voter_snapshot_row_to_snapshot(
     row: Row,
     areas_by_id: &HashMap<String, String>,
 ) -> Option<VoterSnapshot> {
-    let voter_id_string: String = row.get("voter_id_string");
+    let voter_id: String = row.get("voter_id");
+    let voter_id = Uuid::parse_str(&voter_id).ok()?;
     let username: String = row.get("username");
     let enabled: bool = row.get("enabled");
     let attributes: Option<serde_json::Value> = row.get("attributes");
@@ -208,7 +210,7 @@ fn voter_snapshot_row_to_snapshot(
 
     Some(VoterSnapshot {
         username,
-        voter_id_string,
+        voter_id,
         enabled,
         area_name,
         dob: attr(DATE_OF_BIRTH),

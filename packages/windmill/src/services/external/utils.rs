@@ -22,6 +22,7 @@ use sequent_core::types::keycloak::{
 };
 use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
+use uuid::Uuid;
 
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
@@ -45,7 +46,11 @@ pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 /// mark/unmark, and reconciliation apply all take this same lock, so none of
 /// them can interleave for the same voter.
 #[instrument]
-pub fn external_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &str) -> String {
+pub fn external_voter_lock_key(
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &Uuid,
+) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 

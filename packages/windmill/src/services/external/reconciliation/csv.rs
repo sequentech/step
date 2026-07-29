@@ -115,7 +115,7 @@ fn normalize_optional_area_fields(row: &mut ParsedDatafixReconciliationRow) {
 fn validate_row(row: &ParsedDatafixReconciliationRow) -> Result<(), String> {
     let values = [
         ("CountyMun", row.county_mun.as_str()),
-        ("VoterID", row.voter_id.as_str()),
+        ("VoterID", row.external_voter_id.as_str()),
         ("DoB", row.dob.as_str()),
         ("Ward", row.ward.as_str()),
         ("Poll", row.poll.as_str()),
@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(meta.sequence, 1);
         let rows = parse_all_streamed(csv_bytes).unwrap();
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].voter_id, "17695");
+        assert_eq!(rows[0].external_voter_id, "17695");
         assert_eq!(rows[0].channel, "NONE");
         assert_eq!(rows[0].deleted, "false");
     }
