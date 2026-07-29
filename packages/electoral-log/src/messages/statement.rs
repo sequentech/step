@@ -261,6 +261,30 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::ExternalReconciliation(
+                _,
+                kind,
+                sequence,
+                _,
+                input_hash,
+                output_hash,
+            ) => {
+                let action = match kind {
+                    ExternalReconciliationKind::PatchGenerated => "External patch generated",
+                    ExternalReconciliationKind::ChangesApplied => "Sequent-side changes applied",
+                };
+                StatementHead {
+                    kind: StatementType::ExternalReconciliation,
+                    event_type: StatementEventType::USER,
+                    description: format!(
+                        "{action} for reconciliation Sequence {} (input {}, output {}).",
+                        sequence.0,
+                        input_hash.0,
+                        output_hash.0.as_deref().unwrap_or("none"),
+                    ),
+                    ..default_head
+                }
+            }
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -395,6 +419,24 @@ pub enum StatementBody {
         VoterCountryString,
         VotingChannelString,
     ),
+    /// Records a third-party voter registry reconciliation run event: either
+    /// the external-side diff/patch being generated, or the Sequent-side diff
+    /// being applied. Named for the general capability, not the specific
+    /// integration (Datafix) that first needed it. Doesn't fit
+    /// `ExternalApiRequest`'s shape: there is no HTTP call to the external
+    /// system involved, since it is offline for the whole freeze period a
+    /// reconciliation run happens during. The JSON of every applied voter's
+    /// old/new values is carried in `Message.artifact` on the
+    /// `ChangesApplied` entry — there is exactly one entry per phase per run,
+    /// not one per voter.
+    ExternalReconciliation(
+        EventIdString,
+        ExternalReconciliationKind,
+        ExternalReconciliationSequenceString,
+        ExternalReconciliationGeneratedAtString,
+        ExternalReconciliationInputHashString,
+        ExternalReconciliationOutputHashString,
+    ),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -428,6 +470,7 @@ pub enum StatementType {
     PhoneBlacklistUpdated,
     ResultsPublicationAction,
     ExternalApiRequest,
+    ExternalReconciliation,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
@@ -511,6 +554,14 @@ mod statement_compatibility_tests {
             VoterCountryString(String::new()),
             VotingChannelString(String::new()),
         );
+        let external_reconciliation = StatementBody::ExternalReconciliation(
+            EventIdString(String::new()),
+            ExternalReconciliationKind::PatchGenerated,
+            ExternalReconciliationSequenceString(String::new()),
+            ExternalReconciliationGeneratedAtString(String::new()),
+            ExternalReconciliationInputHashString(String::new()),
+            ExternalReconciliationOutputHashString(None),
+        );
 
         assert_eq!(borsh::to_vec(&election_publish).unwrap()[0], 2);
         assert_eq!(borsh::to_vec(&certificate).unwrap()[0], 23);
@@ -520,6 +571,7 @@ mod statement_compatibility_tests {
         // rebase that introduced `ExternalApiRequest`.
         assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
         assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 27);
+        assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
     }
 
     #[test]

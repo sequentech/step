@@ -52,3 +52,4 @@ CRUD endpoints for:
 - election-data-tab|approvals-tab
 - election-event-areas-tab|data-tab|keys-tab|logs-tab|publish-tab|reports-tab|scheduled-tab|tally-tab|tasks-tab|voters-tab|approvals-tab
 - election-publish-tab|voters-tab
+- election-event-voter-list-reconciliation

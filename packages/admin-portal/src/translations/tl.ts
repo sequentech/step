@@ -104,6 +104,104 @@ const tagalogTranslation: TranslationType = {
                 next: "Susunod",
             },
         },
+        reconciliation: {
+            menuButton: "I-sync ang ext. botante",
+            categories: {
+                VOTED_INTERNET: "Bumoto sa pamamagitan ng Internet",
+                VOTED_OTHER_CHANNEL: "Bumoto sa ibang channel",
+                DISABLED_DELETE_CALL: "Na-disable ang botante",
+                DELETION_REVERTED: "Na-revert ang pagtanggal",
+                PROFILE_UPDATE: "Na-update ang profile",
+                VOTER_ADDED: "Naidagdag ang botante",
+                REENABLED: "Na-enable muli ang botante",
+                VOTED_UNMARKED: "Inalis ang markang bumoto ang botante",
+                ROW_FAILURE: "Nabigo ang row",
+            },
+            table: {
+                voterId: "ID ng Botante",
+                field: "Field",
+                category: "Kategorya",
+                currentValue: "Kasalukuyang value",
+                newValue: "Bagong value",
+                reason: "Dahilan",
+                rowLabel: "Row",
+                noDifferences: "Walang nakitang pagkakaiba - naka-sync na ang mga sistema.",
+            },
+            wizard: {
+                title: "Pag-sync ng External Reconciliation",
+                subtitle: "I-sync ang listahan ng botante sa external system",
+                drop: {
+                    description:
+                        "I-drop ang reconciliation file na ginawa ng external system - awtomatikong kinakalkula at ipinapakita sa magkahiwalay na tables ang parehong diffs (external side at Sequent side).",
+                    fileFormatLabel: "CSV file",
+                    uploading: "Ina-upload ang {{fileName}} at kinakalkula ang parehong diffs...",
+                },
+                review: {
+                    fileSummary:
+                        "{{fileName}} - Sequence {{sequence}}, ginawa noong {{generatedAt}}",
+                    rowFailuresWarning:
+                        "Hindi ligtas na ma-reconcile ang {{count}} row(s) at hindi kasama ang mga ito sa parehong diffs - tingnan ang mga detalye sa ibaba.",
+                    noDifferences: "Walang pagkakaiba - naka-sync na ang dalawang sistema.",
+                    diffOnlyDifferences:
+                        "Convergence check ito para sa nailapat nang Sequence. Ipinapakita ang mga pagkakaiba para sa follow-up, ngunit hindi na maaaring ilapat muli ang round na ito.",
+                    externalDiffTitle: "External diff",
+                    sequentDiffTitle: "Sequent diff",
+                    downloadExternalPatch: "I-download ang external patch",
+                    externalDiffCaption:
+                        "I-download ang patch at ibigay ito sa external system sa labas ng tool na ito. Kapag na-apply na nito ang patch at nagawa ang susunod na reconciliation file, i-click ang 'Bumalik' at i-drop ang file na iyon - mag-e-enable ang 'I-apply' kapag walang laman ang table na ito.",
+                    noExternalDifferences: "Walang pagkakaiba sa external side.",
+                    sequentDiffCaption:
+                        "I-apply ang mga pagbabago nang direkta sa Sequent sa pamamagitan ng pag-click sa 'I-apply' - walang ginagawang patch file para dito.",
+                    noSequentDifferences: "Walang pagkakaiba sa Sequent side.",
+                },
+                applying: {
+                    inProgress: "Inilalapat ang mga pagbabago sa Sequent side...",
+                    rowFailures:
+                        "Hindi kasama ang {{count}} row(s) sa round na ito at kailangan ng manual na follow-up - tingnan ang mga detalye sa ibaba.",
+                    rowFailuresTruncated:
+                        "Ipinapakita ang unang {{shown}} sa {{count}} row failure. Ayusin ang magkakaparehong sanhi at subukang muli upang makita ang mga natitirang failure.",
+                    success: "Matagumpay na nailapat ang lahat ng pagbabago sa Sequent side.",
+                },
+                actions: {
+                    cancel: "I-cancel",
+                    back: "Bumalik",
+                    apply: "I-apply",
+                    next: "Susunod",
+                    startOver: "Ulitin mula sa simula",
+                    close: "Isara",
+                },
+                confirm: {
+                    title: "Kumpirmahin ang mga pagbabago sa reconciliation",
+                    categoriesNote:
+                        "Ang mga kategoryang naka-highlight sa orange ({{categories}}) ay nakakaapekto sa status ng pagboto o nagdi-disable ng mga botante.",
+                    applyChanges: "I-apply ang mga pagbabago",
+                    continue: "Magpatuloy",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "mina-mark ang {{count}} botante bilang bumoto sa ibang channel",
+                    disabled: "dini-disable ang {{count}} botante",
+                    reenabled: "ine-enable muli ang {{count}} botante",
+                    votedUnmarked: "inaalis ang markang bumoto sa {{count}} botante",
+                    profileUpdated: "ina-update ang {{count}} profile",
+                    voterAdded: "nagdadagdag ng {{count}} botante",
+                    prefix: "Ilalapat nito ang mga pagbabagong {{parts}}.",
+                    empty: "Walang pagbabago sa Sequent side na ila-apply.",
+                },
+                notifications: {
+                    envelopeLoadError: "Hindi na-load ang reconciliation diff - subukan muli.",
+                    generateFailed:
+                        "Hindi na-calculate ang reconciliation diff - tingnan ang task widget para sa detalye.",
+                    applyFailed:
+                        "Hindi na-apply ang mga pagbabago sa Sequent side - tingnan ang task widget para sa detalye.",
+                    uploadUrlError: "Hindi makakuha ng upload URL",
+                    generateTaskError: "Hindi masimulan ang reconciliation diff task",
+                    uploadError: "Hindi ma-upload ang reconciliation file",
+                    applyTaskError: "Hindi masimulan ang apply task",
+                    applyError: "Hindi na-apply ang mga pagbabago sa reconciliation",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Wala kang permiso upang ma-access ang mga log.",
             title: "Mga Log",
