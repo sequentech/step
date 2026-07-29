@@ -11,6 +11,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,7 +94,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
         .filter(e -> !e.isAuthenticatorFlow()) // skip sub-flow references
         .filter(IvrConfigResourceProvider::isRequiredOrConditional)
         .filter(e -> !SKIPPED_AUTHENTICATORS.contains(e.getAuthenticator()))
-        .forEachOrdered(e -> steps.add(buildStep(realm, e)));
+        .forEachOrdered(e -> steps.addAll(buildSteps(realm, e)));
 
     // If there are no auth steps "left" configured, it is very likely that was a configuration
     // issue.
@@ -153,11 +154,20 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
         || r == AuthenticationExecutionModel.Requirement.CONDITIONAL;
   }
 
-  private static AuthStep buildStep(RealmModel realm, AuthenticationExecutionModel exec) {
+  /**
+   * Values for {@code field}/{@code max_digits}/{@code kind}/{@code maps_to}/{@code prompt_key} may
+   * be {@value #MULTIVALUE_SEPARATOR}-separated to fan one execution out into several ordered
+   * {@link AuthStep}s (e.g. a single multi-attribute authenticator collecting both a date of birth
+   * and a PIN). All multivalued properties present must split into the same count; {@code
+   * prompt_key} is the only one allowed to be entirely absent.
+   */
+  private static final String MULTIVALUE_SEPARATOR = "##";
+
+  private static List<AuthStep> buildSteps(RealmModel realm, AuthenticationExecutionModel exec) {
     String authenticatorId = exec.getAuthenticator();
     AuthStep stock = STOCK_AUTHENTICATORS.get(authenticatorId);
     if (stock != null) {
-      return stock;
+      return List.of(stock);
     }
 
     String configId = exec.getAuthenticatorConfig();
@@ -176,10 +186,10 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
       throw new WebApplicationException(
           msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
-    String fieldName = c.get(Constants.AUTH_STEP_PROP_FIELD);
-    String mapsTo = c.get(Constants.AUTH_STEP_PROP_MAPS_TO);
-    String kind = c.get(Constants.AUTH_STEP_PROP_KIND);
-    if (fieldName == null || mapsTo == null || kind == null) {
+    String fieldRaw = c.get(Constants.AUTH_STEP_PROP_FIELD);
+    String mapsToRaw = c.get(Constants.AUTH_STEP_PROP_MAPS_TO);
+    String kindRaw = c.get(Constants.AUTH_STEP_PROP_KIND);
+    if (fieldRaw == null || mapsToRaw == null || kindRaw == null) {
       String msg = "AuthenticatorConfig for '%s' is missing required IVR keys (%s, %s, %s)";
       throw new WebApplicationException(
           msg.formatted(
@@ -190,17 +200,45 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
           Response.Status.INTERNAL_SERVER_ERROR);
     }
 
-    int maxDigits;
-    try {
-      maxDigits = Integer.parseInt(c.getOrDefault(Constants.AUTH_STEP_PROP_MAX_DIGITS, "10"));
-    } catch (NumberFormatException e) {
-      String msg = "AuthenticatorConfig for '%s' has non-numeric max_digits";
-      throw new WebApplicationException(
-          msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
-    }
-    String promptKey = c.get(Constants.AUTH_STEP_PROP_PROMPT_KEY); // optional, may be null
+    List<String> fields = splitMultivalue(fieldRaw);
+    List<String> mapsTos = splitMultivalue(mapsToRaw);
+    List<String> kinds = splitMultivalue(kindRaw);
+    List<String> maxDigitsRaw =
+        splitMultivalue(c.getOrDefault(Constants.AUTH_STEP_PROP_MAX_DIGITS, "10"));
+    String promptKeyRaw = c.get(Constants.AUTH_STEP_PROP_PROMPT_KEY); // optional, may be null
+    List<String> promptKeys = promptKeyRaw == null ? null : splitMultivalue(promptKeyRaw);
 
-    return new AuthStep(fieldName, maxDigits, kind, mapsTo, promptKey);
+    int count = fields.size();
+    if (mapsTos.size() != count
+        || kinds.size() != count
+        || maxDigitsRaw.size() != count
+        || (promptKeys != null && promptKeys.size() != count)) {
+      String msg =
+          "AuthenticatorConfig for '%s' has mismatched %s-separated value counts across field/"
+              + "max_digits/kind/maps_to/prompt_key";
+      throw new WebApplicationException(
+          msg.formatted(authenticatorId, MULTIVALUE_SEPARATOR),
+          Response.Status.INTERNAL_SERVER_ERROR);
+    }
+
+    List<AuthStep> steps = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      int maxDigits;
+      try {
+        maxDigits = Integer.parseInt(maxDigitsRaw.get(i));
+      } catch (NumberFormatException e) {
+        String msg = "AuthenticatorConfig for '%s' has non-numeric max_digits";
+        throw new WebApplicationException(
+            msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
+      }
+      String promptKey = promptKeys == null ? null : promptKeys.get(i);
+      steps.add(new AuthStep(fields.get(i), maxDigits, kinds.get(i), mapsTos.get(i), promptKey));
+    }
+    return steps;
+  }
+
+  private static List<String> splitMultivalue(String raw) {
+    return Arrays.asList(raw.split(MULTIVALUE_SEPARATOR));
   }
 
   @Override
