@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![recursion_limit = "256"]
 #[macro_use]
-extern crate quick_error;
+extern crate quick_error; 
 
 pub mod postgres;
 pub mod services;

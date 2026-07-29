@@ -12,6 +12,7 @@
 use crate::services::external::datafix_types::ParsedDatafixReconciliationRow;
 use crate::services::external::types::ReconciliationFileMeta;
 use ::csv::{ReaderBuilder, StringRecord};
+use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -100,6 +101,17 @@ pub fn split_meta_and_csv(bytes: &[u8]) -> Result<(ReconciliationFileMeta, &[u8]
     Ok((parse_meta_line(meta_line)?, rest))
 }
 
+/// Datafix represents unset optional area components both as an empty CSV
+/// cell and as `NONE`. Normalize the former at the input boundary so every
+/// downstream comparison and generated patch uses the canonical sentinel.
+fn normalize_optional_area_fields(row: &mut ParsedDatafixReconciliationRow) {
+    for value in [&mut row.poll, &mut row.school_support_code] {
+        if value.is_empty() {
+            *value = ATTR_RESET_VALUE.to_string();
+        }
+    }
+}
+
 fn validate_row(row: &ParsedDatafixReconciliationRow) -> Result<(), String> {
     let values = [
         ("CountyMun", row.county_mun.as_str()),
@@ -182,18 +194,21 @@ impl<R: Read> ReconciliationRowBatches<R> {
         let mut records = self.reader.deserialize::<ParsedDatafixReconciliationRow>();
         for _ in 0..batch_size {
             match records.next() {
-                Some(Ok(row)) => match validate_row(&row) {
-                    Ok(()) => {
-                        rows.push(row);
-                        self.next_line += 1;
+                Some(Ok(mut row)) => {
+                    normalize_optional_area_fields(&mut row);
+                    match validate_row(&row) {
+                        Ok(()) => {
+                            rows.push(row);
+                            self.next_line += 1;
+                        }
+                        Err(message) => {
+                            return Err(RowParseError {
+                                line: self.next_line,
+                                message,
+                            });
+                        }
                     }
-                    Err(message) => {
-                        return Err(RowParseError {
-                            line: self.next_line,
-                            message,
-                        });
-                    }
-                },
+                }
                 Some(Err(err)) => {
                     return Err(RowParseError {
                         line: self.next_line,
@@ -308,6 +323,26 @@ mod tests {
             let error = parse_all_streamed(csv.as_bytes()).unwrap_err();
             assert!(error.message.contains(expected));
         }
+    }
+
+    #[test]
+    fn normalizes_empty_optional_area_fields_to_none() {
+        let csv_bytes = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,,P,NONE,false\n0014,17696,1963-05-23,04,000,,NONE,false\n0014,17697,1963-05-23,04,,,NONE,false\n";
+        let rows = parse_all_streamed(csv_bytes).unwrap();
+
+        assert_eq!(rows[0].poll, ATTR_RESET_VALUE);
+        assert_eq!(rows[0].school_support_code, "P");
+        assert_eq!(rows[1].poll, "000");
+        assert_eq!(rows[1].school_support_code, ATTR_RESET_VALUE);
+        assert_eq!(rows[2].poll, ATTR_RESET_VALUE);
+        assert_eq!(rows[2].school_support_code, ATTR_RESET_VALUE);
+    }
+
+    #[test]
+    fn still_rejects_empty_required_fields() {
+        let csv_bytes = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,,1963-05-23,04,000,P,NONE,false\n";
+        let error = parse_all_streamed(csv_bytes).unwrap_err();
+        assert!(error.message.contains("VoterID cannot be empty"));
     }
 
     #[test]
