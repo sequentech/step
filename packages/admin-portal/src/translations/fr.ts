@@ -356,6 +356,11 @@ const frenchTranslation: TranslationType = {
                 importCandidates: "Importer des Candidats",
                 custom_filters: "Filtres personnalisés",
                 voter_authentication: "Authentification des électeurs",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Connexion",
@@ -1018,6 +1023,8 @@ const frenchTranslation: TranslationType = {
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Supprimer Événement Électoral",
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
@@ -1429,6 +1436,7 @@ const frenchTranslation: TranslationType = {
                 kiosk: "Kiosque",
                 early_voting: "Vote anticipé",
                 telephone: "Vote par téléphone",
+                other: "Autre",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",

@@ -17,9 +17,10 @@ use crate::{
     utils::areas::get_areas::GetAreas,
 };
 use sequent_core::{ballot::VotingStatus, types::ceremonies::TallyType};
-use std::{env, error::Error, fmt::format};
+use std::{env, error::Error};
 
 #[test]
+#[ignore = "requires a fully configured election environment"]
 fn run_e2e() -> Result<(), Box<dyn Error>> {
     // TODO: Add environment Variables in dev.env + beyond + gitops - Do this for the variables in this file + the variables in init_loadero.rs
 
@@ -57,7 +58,7 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
         for i in 11..(voter_sim_number + 1) {
             let name = format!("test{}", i);
             let pass = format!("password{}", i);
-            let user_id = create_voter(&election_event_id, &name, &name, &name, "")?;
+            let user_id = create_voter(&election_event_id, &name, &name, &name, "", "")?;
             // Call Edit to update password and area id for voter
             edit_voter(
                 &election_event_id,
@@ -116,8 +117,8 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
     )?;
 
     // Step 3: Start Election - Update Status
-    let status = update_event_voting_status::VotingStatus::OPEN;
-    update_event_voting_status(&election_event_id, &status)?;
+    let status = VotingStatus::OPEN;
+    update_event_voting_status(&election_event_id, &status, &None)?;
 
     // Step 3.5 : Create Publication
     publish_changes(&election_event_id, None)?;

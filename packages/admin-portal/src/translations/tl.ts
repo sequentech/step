@@ -358,6 +358,11 @@ const tagalogTranslation: TranslationType = {
                 importCandidates: "Mag-import ng mga Kandidato",
                 custom_filters: "Pasadyang mga filter",
                 voter_authentication: "Pag-authenticate ng Botante",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Pag-login",
@@ -1016,6 +1021,8 @@ const tagalogTranslation: TranslationType = {
                 "election-event-create": "Lumikha ng Kaganapan ng Halalan",
                 "election-event-read": "Basahin ang Kaganapan ng Halalan",
                 "election-event-write": "I-edit ang Kaganapan ng Halalan",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Tanggalin ang Kaganapan ng Halalan",
                 "voter-create": "Lumikha ng Botante",
                 "voter-read": "Basahin ang Botante",
@@ -1423,6 +1430,7 @@ const tagalogTranslation: TranslationType = {
                 kiosk: "Kiosk",
                 early_voting: "Maagang pagboto",
                 telephone: "Pagboto sa Telepono",
+                other: "Iba pa",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",

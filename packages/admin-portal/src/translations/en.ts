@@ -355,6 +355,11 @@ const englishTranslation = {
                 importCandidates: "Import Candidates",
                 custom_filters: "Custom filters",
                 voter_authentication: "Voter Authentication",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -1012,6 +1017,8 @@ const englishTranslation = {
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
@@ -1410,6 +1417,7 @@ const englishTranslation = {
                 kiosk: "Kiosk",
                 early_voting: "Early voting",
                 telephone: "Telephone voting",
+                other: "Other",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",

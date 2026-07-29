@@ -356,6 +356,11 @@ const catalanTranslation: TranslationType = {
                 importCandidates: "Importar Candidats",
                 custom_filters: "Filtres personalitzats",
                 voter_authentication: "Autenticació del votant",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -1016,6 +1021,8 @@ const catalanTranslation: TranslationType = {
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
@@ -1432,6 +1439,7 @@ const catalanTranslation: TranslationType = {
                 kiosk: "Quiosc",
                 early_voting: "Votació anticipada",
                 telephone: "Votació telefònica",
+                other: "Altres",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
