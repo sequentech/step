@@ -92,12 +92,32 @@ The Voting Portal removes accepted hint parameters from its visible URL before
 redirecting to Keycloak. Invalid, duplicate, or over-limit hint sets are rejected
 as a whole.
 
+#### Per-field prefill policy
+
+Each registration field decides how it accepts a prefilled value through the
+`loginHintPrefillPolicy` annotation of its Keycloak user profile attribute:
+
+| Policy | Behaviour |
+| --- | --- |
+| `EDITABLE` | Prefill the field and let the voter change the value. Applied when the annotation is absent. |
+| `READ_ONLY` | Prefill the field, render it read-only, and reject the registration if the submitted value was changed. |
+| `IGNORE` | Never prefill the field from a voting link. |
+
+Set the annotation in **Realm settings → User profile → Attributes → *(attribute)*
+→ Annotations**, for example `loginHintPrefillPolicy` = `READ_ONLY`. An
+unrecognised value is treated as `IGNORE`, so a typo never prefills a field.
+
+Credential fields, unmanaged attributes, attributes the voter cannot write, and
+attributes rendered as hidden inputs are never prefilled, whatever the policy.
+
 :::warning
-Prefilled values are editable convenience data, not verified identity claims.
-They never bypass authentication, registration validation, or required actions.
-Do not include passwords, tokens, secrets, or sensitive attributes that are not
-approved for browser URLs and notification delivery. Percent encoding protects
-URL structure; it does not provide confidentiality or authenticity.
+Prefilled values are convenience data, not verified identity claims. They never
+bypass authentication, registration validation, or required actions. `READ_ONLY`
+stops a voter from changing a prefilled field; it does not make the value
+trustworthy, because whoever built the link chose it. Do not include passwords,
+tokens, secrets, or sensitive attributes that are not approved for browser URLs
+and notification delivery. Percent encoding protects URL structure; it does not
+provide confidentiality or authenticity.
 :::
 
 > **Note:** For further guidance on template fields or syntax, refer to the Reports section of the guide where Template usage in report configuration is detailed.

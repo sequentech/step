@@ -4,67 +4,86 @@
 package sequent.keycloak.voter_enrollment;
 
 import com.google.auto.service.AutoService;
-import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.keycloak.Config;
 import org.keycloak.authentication.FormAction;
 import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
+import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.utils.FormMessage;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.userprofile.UserProfile;
-import org.keycloak.userprofile.UserProfileContext;
-import org.keycloak.userprofile.UserProfileProvider;
 
 @AutoService(FormActionFactory.class)
 public class LoginHintRegistrationPrefill implements FormAction, FormActionFactory {
 
   public static final String PROVIDER_ID = "login-hint-registration-prefill";
+  public static final String READ_ONLY_ATTRIBUTES = "loginHintReadOnlyAttributes";
 
   @Override
   public void buildPage(FormContext context, LoginFormsProvider form) {
-    if (!"GET".equals(context.getHttpRequest().getHttpMethod())) {
+    LoginHintPrefill.Prefill prefill = resolvePrefill(context);
+
+    if (prefill.isEmpty()) {
       return;
     }
 
-    Map<String, String> hints;
-    try {
-      hints = LoginHintPrefill.extractHints(context.getAuthenticationSession().getClientNotes());
-    } catch (IllegalArgumentException invalidHints) {
-      return;
+    // The marker is set on every render so locked fields stay locked when the
+    // form is redisplayed with validation errors.
+    if (!prefill.lockedAttributes().isEmpty()) {
+      form.setAttribute(READ_ONLY_ATTRIBUTES, List.copyOf(prefill.lockedAttributes()));
     }
 
-    if (hints.isEmpty()) {
-      return;
-    }
-
-    MultivaluedMap<String, String> candidateFormData = new MultivaluedHashMap<>();
-    hints.forEach(candidateFormData::putSingle);
-    UserProfile profile =
-        context
-            .getSession()
-            .getProvider(UserProfileProvider.class)
-            .create(UserProfileContext.REGISTRATION, candidateFormData);
-    MultivaluedMap<String, String> writableHints =
-        LoginHintPrefill.filterWritableHints(hints, profile.getAttributes(), Set.of());
-
-    if (!writableHints.isEmpty()) {
-      form.setFormData(writableHints);
+    // Only the initial render prefills, so a redisplayed form keeps what the voter typed.
+    if ("GET".equals(context.getHttpRequest().getHttpMethod())) {
+      form.setFormData(prefill.writableHints());
     }
   }
 
   @Override
   public void validate(ValidationContext context) {
-    context.success();
+    LoginHintPrefill.Prefill prefill = resolvePrefill(context);
+
+    if (prefill.lockedAttributes().isEmpty()) {
+      context.success();
+      return;
+    }
+
+    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+    Set<String> modifiedAttributes =
+        LoginHintPrefill.findModifiedLockedHints(
+            prefill.writableHints(), prefill.lockedAttributes(), formData);
+
+    if (modifiedAttributes.isEmpty()) {
+      context.success();
+      return;
+    }
+
+    List<FormMessage> errors =
+        modifiedAttributes.stream()
+            .map(
+                attributeName ->
+                    new FormMessage(
+                        attributeName, LoginHintPrefill.READ_ONLY_FIELD_MODIFIED_MESSAGE))
+            .collect(Collectors.toList());
+    context.error(Errors.INVALID_REGISTRATION);
+    context.validationError(
+        LoginHintPrefill.restoreLockedHints(formData, prefill.writableHints(), modifiedAttributes),
+        errors);
+  }
+
+  private LoginHintPrefill.Prefill resolvePrefill(FormContext context) {
+    return LoginHintPrefill.resolve(
+        context.getSession(), context.getAuthenticationSession().getClientNotes(), Set.of());
   }
 
   @Override
@@ -118,7 +137,7 @@ public class LoginHintRegistrationPrefill implements FormAction, FormActionFacto
 
   @Override
   public String getHelpText() {
-    return "Prefills managed writable registration attributes from validated login hint parameters. Place this action before registration user creation.";
+    return "Prefills managed writable registration attributes from validated login hint parameters. Set the loginHintPrefillPolicy user profile annotation to EDITABLE, READ_ONLY or IGNORE to configure an attribute. Place this action before registration user creation.";
   }
 
   @Override

@@ -204,6 +204,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // Get the form data
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     context.getEvent().detail(Details.REGISTER_METHOD, "form");
+
+    if (rejectModifiedLoginHints(context, configMap, formData)) {
+      return;
+    }
+
     Set<String> hiddenProfileAttributes = getHiddenProfileAttributes(configMap);
     UserProfile profile = getOrCreateUserProfile(context, formData, hiddenProfileAttributes);
 
@@ -541,32 +546,36 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       LoginFormsProvider form,
       Map<String, String> configMap,
       Set<String> hiddenProfileAttributes) {
+    LoginHintPrefill.Prefill prefill =
+        resolveLoginHintPrefill(context, configMap, hiddenProfileAttributes);
+
+    if (prefill.isEmpty()) {
+      return;
+    }
+
+    // The marker is set on every render so locked fields stay locked when the
+    // form is redisplayed with validation errors.
+    if (!prefill.lockedAttributes().isEmpty()) {
+      form.setAttribute(
+          LoginHintRegistrationPrefill.READ_ONLY_ATTRIBUTES,
+          List.copyOf(prefill.lockedAttributes()));
+    }
+
+    // Only the initial render prefills, so a redisplayed form keeps what the voter typed.
+    if ("GET".equals(context.getHttpRequest().getHttpMethod())) {
+      form.setFormData(prefill.writableHints());
+    }
+  }
+
+  private LoginHintPrefill.Prefill resolveLoginHintPrefill(
+      FormContext context, Map<String, String> configMap, Set<String> hiddenProfileAttributes) {
     String policy =
         Optional.ofNullable(configMap.get(PREFILL_PARAMETERS_POLICY))
             .orElse(PrefillPolicy.IGNORE.name());
-    if (!PrefillPolicy.ACCEPT.name().equals(policy)
-        || !"GET".equals(context.getHttpRequest().getHttpMethod())) {
-      return;
+    if (!PrefillPolicy.ACCEPT.name().equals(policy)) {
+      return LoginHintPrefill.Prefill.EMPTY;
     }
 
-    Map<String, String> hints;
-    try {
-      hints = LoginHintPrefill.extractHints(context.getAuthenticationSession().getClientNotes());
-    } catch (IllegalArgumentException invalidHints) {
-      return;
-    }
-
-    if (hints.isEmpty()) {
-      return;
-    }
-
-    MultivaluedMap<String, String> candidateFormData = new MultivaluedHashMap<>();
-    hints.forEach(candidateFormData::putSingle);
-    UserProfile profile =
-        context
-            .getSession()
-            .getProvider(UserProfileProvider.class)
-            .create(UserProfileContext.REGISTRATION, candidateFormData);
     Set<String> excludedAttributes =
         Stream.concat(
                 hiddenProfileAttributes.stream(),
@@ -574,12 +583,54 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                     Optional.ofNullable(configMap.get(Utils.USER_STATUS_ATTRIBUTE))
                         .orElse(VERIFIED_DEFAULT_ID)))
             .collect(Collectors.toUnmodifiableSet());
-    MultivaluedMap<String, String> writableHints =
-        LoginHintPrefill.filterWritableHints(hints, profile.getAttributes(), excludedAttributes);
 
-    if (!writableHints.isEmpty()) {
-      form.setFormData(writableHints);
+    return LoginHintPrefill.resolve(
+        context.getSession(),
+        context.getAuthenticationSession().getClientNotes(),
+        excludedAttributes);
+  }
+
+  /**
+   * Rejects locked prefilled fields that were submitted with another value. Rendering them
+   * read-only is only a browser affordance, so the submitted values are checked too.
+   *
+   * @param context validation context of the submitted registration form
+   * @param configMap authenticator configuration values
+   * @param formData submitted form parameters
+   * @return true when the form must be redisplayed with errors
+   */
+  private boolean rejectModifiedLoginHints(
+      ValidationContext context,
+      Map<String, String> configMap,
+      MultivaluedMap<String, String> formData) {
+    LoginHintPrefill.Prefill prefill =
+        resolveLoginHintPrefill(context, configMap, getHiddenProfileAttributes(configMap));
+
+    if (prefill.lockedAttributes().isEmpty()) {
+      return false;
     }
+
+    Set<String> modifiedAttributes =
+        LoginHintPrefill.findModifiedLockedHints(
+            prefill.writableHints(), prefill.lockedAttributes(), formData);
+
+    if (modifiedAttributes.isEmpty()) {
+      return false;
+    }
+
+    log.errorv("validate(): read-only prefilled fields were modified: {0}", modifiedAttributes);
+    List<FormMessage> errors =
+        modifiedAttributes.stream()
+            .map(
+                attributeName ->
+                    new FormMessage(
+                        attributeName, LoginHintPrefill.READ_ONLY_FIELD_MODIFIED_MESSAGE))
+            .collect(Collectors.toList());
+    context.error(Errors.INVALID_REGISTRATION);
+    context.validationError(
+        LoginHintPrefill.restoreLockedHints(formData, prefill.writableHints(), modifiedAttributes),
+        errors);
+    return true;
   }
 
   @Override
