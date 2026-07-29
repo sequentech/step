@@ -1134,11 +1134,18 @@ type GetPrivateKeyOutput {
 
 type CastVotesPerDay {
     day: date!
+    channel: String!
     day_count: Int!
+}
+
+type VotersByChannel {
+    channel: String!
+    count: Int!
 }
 
 type ElectionEventStatsOutput {
     total_distinct_voters: Int!
+    voters_by_channel: [VotersByChannel!]!
     total_areas: Int!
     total_eligible_voters: Int!
     total_elections: Int!
@@ -1147,6 +1154,7 @@ type ElectionEventStatsOutput {
 
 type ElectionStatsOutput {
     total_distinct_voters: Int!
+    voters_by_channel: [VotersByChannel!]!
     total_areas: Int!
     votes_per_day: [CastVotesPerDay]!
 }

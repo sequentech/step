@@ -1425,6 +1425,7 @@ const basqueTranslation: TranslationType = {
                 kiosk: "Kiosko",
                 early_voting: "Aurre-botoa",
                 telephone: "Telefono bozketa",
+                other: "Beste batzuk",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",

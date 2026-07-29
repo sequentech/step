@@ -1430,6 +1430,7 @@ const galegoTranslation: TranslationType = {
                 kiosk: "Quiosco",
                 early_voting: "Votación anticipada",
                 telephone: "Votación telefónica",
+                other: "Outros",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
