@@ -104,6 +104,103 @@ const galegoTranslation: TranslationType = {
                 next: "Seguinte",
             },
         },
+        reconciliation: {
+            menuButton: "Sincr. votantes ext.",
+            categories: {
+                VOTED_INTERNET: "Votou por Internet",
+                VOTED_OTHER_CHANNEL: "Votou por outra canle",
+                DISABLED_DELETE_CALL: "Votante desactivado",
+                DELETION_REVERTED: "Eliminación revertida",
+                PROFILE_UPDATE: "Perfil actualizado",
+                VOTER_ADDED: "Votante engadido",
+                REENABLED: "Votante reactivado",
+                VOTED_UNMARKED: "Votante desmarcado como votante",
+                ROW_FAILURE: "Erro de fila",
+            },
+            table: {
+                voterId: "ID de Votante",
+                field: "Campo",
+                category: "Categoría",
+                currentValue: "Valor actual",
+                newValue: "Valor novo",
+                reason: "Motivo",
+                rowLabel: "Fila",
+                noDifferences: "Non se atoparon diferenzas - os sistemas están sincronizados.",
+            },
+            wizard: {
+                title: "Sincronización de reconciliación externa",
+                subtitle: "Sincroniza a lista de votantes co sistema externo",
+                drop: {
+                    description:
+                        "Solta o ficheiro de reconciliación xerado polo sistema externo - ambos os diffs (lado externo e lado Sequent) calcúlanse automaticamente e móstranse en táboas separadas.",
+                    fileFormatLabel: "Ficheiro CSV",
+                    uploading: "Subindo {{fileName}} e calculando ambos os diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Secuencia {{sequence}}, xerado {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} fila(s) non se puideron reconciliar de forma segura e quedan excluídas de ambos os diffs - ver detalles abaixo.",
+                    noDifferences: "Non hai diferenzas - ambos os sistemas xa están sincronizados.",
+                    diffOnlyDifferences:
+                        "Esta é unha comprobación de converxencia dunha secuencia xa aplicada. As diferenzas móstranse para o seu seguimento, pero esta rolda non se pode volver aplicar.",
+                    externalDiffTitle: "Diff externo",
+                    sequentDiffTitle: "Diff de Sequent",
+                    downloadExternalPatch: "Descargar parche externo",
+                    externalDiffCaption:
+                        "Descarga o parche e entrégao ao sistema externo fóra desta ferramenta. Unha vez que o aplique e xere o seguinte ficheiro de reconciliación, preme en 'Atrás' e solta ese ficheiro - 'Aplicar' actívase cando esta táboa estea baleira.",
+                    noExternalDifferences: "Non hai diferenzas do lado externo.",
+                    sequentDiffCaption:
+                        "Aplica os cambios directamente a Sequent premendo en 'Aplicar' - non se xera ficheiro de parche para estes.",
+                    noSequentDifferences: "Non hai diferenzas do lado de Sequent.",
+                },
+                applying: {
+                    inProgress: "Aplicando os cambios do lado de Sequent...",
+                    rowFailures:
+                        "{{count}} fila(s) quedaron excluídas desta ronda e precisan seguimento manual - ver detalles abaixo.",
+                    rowFailuresTruncated:
+                        "Amósanse os primeiros {{shown}} de {{count}} erros de fila. Resolve a causa común e téntao de novo para ver os erros restantes.",
+                    success: "Todos os cambios do lado de Sequent aplicáronse correctamente.",
+                },
+                actions: {
+                    cancel: "Cancelar",
+                    back: "Atrás",
+                    apply: "Aplicar",
+                    next: "Seguinte",
+                    startOver: "Comezar de novo",
+                    close: "Pechar",
+                },
+                confirm: {
+                    title: "Confirmar cambios de reconciliación",
+                    categoriesNote:
+                        "As categorías resaltadas en laranxa ({{categories}}) afectan o estado de voto ou desactivan votantes.",
+                    applyChanges: "Aplicar cambios",
+                    continue: "Continuar",
+                },
+                summary: {
+                    votedOtherChannel: "marca {{count}} votante(s) como votado(s) por outra canle",
+                    disabled: "desactiva {{count}} votante(s)",
+                    reenabled: "reactiva {{count}} votante(s)",
+                    votedUnmarked: "desmarca {{count}} votante(s) como votante",
+                    profileUpdated: "actualiza {{count}} perfil(s)",
+                    voterAdded: "engade {{count}} votante(s)",
+                    prefix: "Isto aplicará cambios que {{parts}}.",
+                    empty: "Non hai cambios do lado de Sequent para aplicar.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Non se puido cargar o diff de reconciliación - téntao de novo.",
+                    generateFailed:
+                        "Non se puido calcular o diff de reconciliación - consulta o widget de tarefas para máis detalles.",
+                    applyFailed:
+                        "Non se puideron aplicar os cambios do lado de Sequent - consulta o widget de tarefas para máis detalles.",
+                    uploadUrlError: "Non se puido obter unha URL de subida",
+                    generateTaskError: "Non se puido iniciar a tarefa de diff de reconciliación",
+                    uploadError: "Non se puido subir o ficheiro de reconciliación",
+                    applyTaskError: "Non se puido iniciar a tarefa de aplicación",
+                    applyError: "Non se puideron aplicar os cambios de reconciliación",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Non tes permiso para acceder aos rexistros.",
             title: "Rexistros",

@@ -401,6 +401,8 @@ pub enum Permissions {
     PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
+    #[strum(serialize = "election-event-voter-list-reconciliation")]
+    ELECTION_EVENT_VOTER_LIST_SYNC,
 }
 
 #[allow(non_camel_case_types)]
