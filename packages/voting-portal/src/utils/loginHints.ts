@@ -69,9 +69,11 @@ export const parseLoginHints = (search: string): ParsedLoginHints => {
     const searchParams = new URLSearchParams(search)
     const hints = new Map<string, string>()
 
-    for (const [parameterName, value] of searchParams.entries()) {
+    // The portal is compiled targeting ES5, where `for ... of` over an iterator
+    // (as opposed to an array) is transpiled into a no-op indexed loop.
+    searchParams.forEach((value, parameterName) => {
         if (!parameterName.startsWith(LOGIN_HINT_PREFIX)) {
-            continue
+            return
         }
 
         const hintName = parameterName.slice(LOGIN_HINT_PREFIX.length)
@@ -85,11 +87,11 @@ export const parseLoginHints = (search: string): ParsedLoginHints => {
         if (hints.size > MAX_LOGIN_HINT_COUNT) {
             throw new InvalidLoginHintsError()
         }
-    }
+    })
 
-    for (const hintName of hints.keys()) {
+    hints.forEach((_value, hintName) => {
         searchParams.delete(`${LOGIN_HINT_PREFIX}${hintName}`)
-    }
+    })
 
     const remainingSearch = searchParams.toString()
     return {
