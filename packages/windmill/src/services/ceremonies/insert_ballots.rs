@@ -262,7 +262,7 @@ pub async fn insert_ballots_messages(
                         elegible_voters: merge_result.eligible_voters,
                         ballots_without_voter: merge_result.ballots_without_voter,
                         casted_ballots: merge_result.casted_ballots,
-                        votes_by_channel: merge_result.casted_ballots_by_channel,
+                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
                     };
 
                     let annotations = serde_json::to_value(&annotations)?;

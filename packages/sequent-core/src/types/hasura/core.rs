@@ -443,8 +443,8 @@ pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
     pub ballots_without_voter: u64,
     pub casted_ballots: u64,
-    #[serde(default)]
-    pub votes_by_channel: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub votes_by_channel: Option<BTreeMap<String, u64>>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -521,4 +521,30 @@ pub struct Tenant {
     pub voting_channels: Option<Value>,
     pub settings: Option<Value>,
     pub test: Option<i32>,
+}
+
+#[cfg(test)]
+mod tally_session_contest_annotations_tests {
+    use super::*;
+
+    #[test]
+    fn distinguishes_legacy_missing_channels_from_a_current_empty_breakdown() {
+        let legacy: TallySessionContestAnnotations =
+            serde_json::from_value(serde_json::json!({
+                "elegible_voters": 0,
+                "ballots_without_voter": 0,
+                "casted_ballots": 0
+            }))
+            .unwrap();
+        assert_eq!(legacy.votes_by_channel, None);
+
+        let current = TallySessionContestAnnotations {
+            elegible_voters: 0,
+            ballots_without_voter: 0,
+            casted_ballots: 0,
+            votes_by_channel: Some(BTreeMap::new()),
+        };
+        let serialized = serde_json::to_value(current).unwrap();
+        assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+    }
 }

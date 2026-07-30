@@ -80,7 +80,7 @@ pub struct AreaContestDataType {
     pub eligible_voters: u64,
     pub area: Area,
     pub auditable_votes: u64,
-    pub votes_by_channel: BTreeMap<String, u64>,
+    pub votes_by_channel: Option<BTreeMap<String, u64>>,
 }
 
 #[instrument(skip_all)]

@@ -75,6 +75,29 @@ pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
     tally_sheet_folders
 }
 
+fn load_tally_sheet_results(
+    tally_sheets_dir: &Path,
+    contest: &Contest,
+) -> Result<Vec<(ContestResult, TallySheet)>> {
+    if !tally_sheets_dir.is_dir() {
+        return Ok(vec![]);
+    }
+
+    list_tally_sheet_subfolders(tally_sheets_dir)
+        .into_iter()
+        .map(|tally_sheet_folder| {
+            let tally_sheet_file_path = tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
+            let tally_sheet_str = fs::read_to_string(&tally_sheet_file_path)
+                .map_err(|error| Error::FileAccess(tally_sheet_file_path, error))?;
+            let tally_sheet: TallySheet = serde_json::from_str(&tally_sheet_str)?;
+            let contest_result = tally::process_tally_sheet(&tally_sheet, contest)
+                .map_err(|error| Error::UnexpectedError(error.to_string()))?;
+            validate_votes_by_channel(&contest_result)?;
+            Ok((contest_result, tally_sheet))
+        })
+        .collect()
+}
+
 impl DoTally {
     #[instrument(err, skip_all)]
     fn save_tally_sheets_breakdown(
@@ -91,7 +114,7 @@ impl DoTally {
             breakdown_map
                 .entry(channel)
                 .and_modify(|current_result| {
-                    current_result.aggregate(&contest_result, true);
+                    *current_result = current_result.aggregate(contest_result, true);
                 })
                 .or_insert_with(|| contest_result.clone());
         }
@@ -109,26 +132,75 @@ impl DoTally {
     }
 }
 
-fn validate_votes_by_channel(result: &ContestResult) -> Result<()> {
-    let votes_by_channel = result
-        .extended_metrics
-        .as_ref()
-        .map(|metrics| &metrics.votes_by_channel);
-    let Some(votes_by_channel) = votes_by_channel.filter(|counts| !counts.is_empty()) else {
-        return Ok(());
-    };
-
-    let channel_total: u64 = votes_by_channel.values().sum();
+fn participation_total(result: &ContestResult) -> Result<u64> {
     let declined = result
         .extended_metrics
         .as_ref()
         .map(|metrics| metrics.total_declined_to_vote)
         .unwrap_or_default();
-    let participation_total = result
+
+    result
         .total_votes
         .checked_add(result.auditable_votes)
         .and_then(|total| total.checked_add(declined))
-        .ok_or_else(|| Error::UnexpectedError("Participation total overflow".to_string()))?;
+        .ok_or_else(|| Error::UnexpectedError("Participation total overflow".to_string()))
+}
+
+fn merge_votes_by_channel(
+    aggregate: &mut BTreeMap<String, u64>,
+    counts: &BTreeMap<String, u64>,
+) -> Result<()> {
+    for (channel, count) in counts {
+        let current = aggregate.entry(channel.clone()).or_default();
+        *current = current.checked_add(*count).ok_or_else(|| {
+            Error::UnexpectedError(format!("Voting channel count overflow for {channel}"))
+        })?;
+    }
+    Ok(())
+}
+
+fn merge_result_votes_by_channel(
+    aggregate: &mut BTreeMap<String, u64>,
+    result: &ContestResult,
+) -> Result<()> {
+    if let Some(metrics) = &result.extended_metrics {
+        merge_votes_by_channel(aggregate, &metrics.votes_by_channel)?;
+    }
+    Ok(())
+}
+
+fn set_votes_by_channel(result: &mut ContestResult, counts: BTreeMap<String, u64>) {
+    result
+        .extended_metrics
+        .get_or_insert_with(ExtendedMetricsContest::default)
+        .votes_by_channel = counts;
+}
+
+fn validate_votes_by_channel(result: &ContestResult) -> Result<()> {
+    let has_counts = result
+        .extended_metrics
+        .as_ref()
+        .is_some_and(|metrics| !metrics.votes_by_channel.is_empty());
+    if !has_counts {
+        return Ok(());
+    }
+
+    validate_complete_votes_by_channel(result)
+}
+
+fn validate_complete_votes_by_channel(result: &ContestResult) -> Result<()> {
+    let channel_total = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| metrics.votes_by_channel.values())
+        .into_iter()
+        .flatten()
+        .try_fold(0u64, |total, count| {
+            total
+                .checked_add(*count)
+                .ok_or_else(|| Error::UnexpectedError("Voting channel total overflow".to_string()))
+        })?;
+    let participation_total = participation_total(result)?;
 
     if channel_total != participation_total {
         return Err(Error::UnexpectedError(format!(
@@ -138,6 +210,15 @@ fn validate_votes_by_channel(result: &ContestResult) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn has_complete_votes_by_channel(result: &ContestResult) -> Result<bool> {
+    validate_votes_by_channel(result)?;
+    let has_counts = result
+        .extended_metrics
+        .as_ref()
+        .is_some_and(|metrics| !metrics.votes_by_channel.is_empty());
+    Ok(participation_total(result)? == 0 || has_counts)
 }
 
 impl Pipe for DoTally {
@@ -207,6 +288,17 @@ impl Pipe for DoTally {
                             (area_input.area.id.to_string(), area_input.auditable_votes)
                         })
                         .collect();
+                    let votes_by_channel_map: HashMap<String, Option<BTreeMap<String, u64>>> =
+                        contest_input
+                            .area_list
+                            .iter()
+                            .map(|area_input| {
+                                (
+                                    area_input.area.id.to_string(),
+                                    area_input.area.votes_by_channel.clone(),
+                                )
+                            })
+                            .collect();
 
                     // Parallelize processing for each area within this contest
                     let area_processing_results: Result<Vec<_>, Error> = contest_input
@@ -312,13 +404,72 @@ impl Pipe for DoTally {
                                     vec![],
                                 )
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                                let res: ContestResult = counting_algorithm
+                                let mut aggregate_result: ContestResult = counting_algorithm
                                     .tally()
                                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                                let mut electronic_channel_counts = BTreeMap::new();
+                                let mut all_channel_inputs_present = true;
+                                for child_area in &children_areas {
+                                    match votes_by_channel_map
+                                        .get(&child_area.id)
+                                        .and_then(Option::as_ref)
+                                    {
+                                        Some(counts) => merge_votes_by_channel(
+                                            &mut electronic_channel_counts,
+                                            counts,
+                                        )?,
+                                        None => all_channel_inputs_present = false,
+                                    }
+                                }
+                                set_votes_by_channel(
+                                    &mut aggregate_result,
+                                    electronic_channel_counts,
+                                );
+                                let has_complete_electronic_channels = if all_channel_inputs_present
+                                {
+                                    validate_complete_votes_by_channel(&aggregate_result)?;
+                                    true
+                                } else {
+                                    participation_total(&aggregate_result)? == 0
+                                };
+
+                                let mut aggregate_tally_sheet_results = vec![];
+                                for child_area in &children_areas {
+                                    let child_area_id =
+                                        Uuid::parse_str(&child_area.id).map_err(|error| {
+                                            Error::UnexpectedError(format!(
+                                                "Uuid parse error: {error:?}"
+                                            ))
+                                        })?;
+                                    let child_tally_sheets_dir = PipeInputs::build_path(
+                                        &tally_sheets_dir,
+                                        &election_id,
+                                        Some(&contest_id),
+                                        Some(&child_area_id),
+                                    );
+                                    aggregate_tally_sheet_results.extend(load_tally_sheet_results(
+                                        &child_tally_sheets_dir,
+                                        &contest_object,
+                                    )?);
+                                }
+
+                                aggregate_result = aggregate_tally_sheet_results.iter().fold(
+                                    aggregate_result,
+                                    |result, (tally_sheet_result, _)| {
+                                        result.aggregate(tally_sheet_result, false)
+                                    },
+                                );
+                                if !has_complete_electronic_channels {
+                                    set_votes_by_channel(&mut aggregate_result, BTreeMap::new());
+                                }
+                                validate_votes_by_channel(&aggregate_result)?;
+
                                 let file_path =
                                     base_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
                                 let file = fs::File::create(file_path)?;
-                                serde_json::to_writer_pretty(file, &res)?; // Using pretty for readability
+                                serde_json::to_writer_pretty(file, &aggregate_result)?;
+                                // Using pretty for readability
                             }
 
                             let area_weight =
@@ -339,72 +490,65 @@ impl Pipe for DoTally {
                                 .tally()
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                            let extended_metrics = area_tally_results
-                                .extended_metrics
-                                .get_or_insert_with(ExtendedMetricsContest::default);
-                            extended_metrics.weight = area_weight;
-                            extended_metrics.votes_by_channel =
-                                area_input.area.votes_by_channel.clone();
+                            let has_channel_input = area_input.area.votes_by_channel.is_some();
+                            {
+                                let extended_metrics = area_tally_results
+                                    .extended_metrics
+                                    .get_or_insert_with(ExtendedMetricsContest::default);
+                                extended_metrics.weight = area_weight;
+                                extended_metrics.votes_by_channel =
+                                    area_input.area.votes_by_channel.clone().unwrap_or_default();
+                            }
+                            let has_complete_electronic_channels = if has_channel_input {
+                                validate_complete_votes_by_channel(&area_tally_results)?;
+                                true
+                            } else {
+                                participation_total(&area_tally_results)? == 0
+                            };
 
                             // Tally sheets tally for this area
-                            let mut area_specific_tally_sheet_results: Vec<(
-                                ContestResult,
-                                TallySheet,
-                            )> = vec![];
                             let input_tally_sheets_dir_path = PipeInputs::build_path(
                                 &tally_sheets_dir,
                                 &election_id,
                                 Some(&contest_id),
                                 Some(&area_id),
                             );
-
-                            if input_tally_sheets_dir_path.exists()
-                                && input_tally_sheets_dir_path.is_dir()
+                            let area_specific_tally_sheet_results = load_tally_sheet_results(
+                                &input_tally_sheets_dir_path,
+                                &contest_object,
+                            )?;
+                            for (contest_result_sheet, tally_sheet) in
+                                &area_specific_tally_sheet_results
                             {
-                                let tally_sheet_folders =
-                                    list_tally_sheet_subfolders(&input_tally_sheets_dir_path);
-                                for tally_sheet_folder in tally_sheet_folders {
-                                    let tally_sheets_file_path =
-                                        tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
-                                    let tally_sheet_str = fs::read_to_string(
-                                        &tally_sheets_file_path,
-                                    )
-                                    .map_err(|e| {
-                                        Error::FileAccess(tally_sheets_file_path.to_path_buf(), e)
-                                    })?;
-                                    let tally_sheet: TallySheet =
-                                        serde_json::from_str(&tally_sheet_str)?;
-                                    let output_tally_sheets_folder_path =
-                                        PipeInputs::build_tally_sheet_path(
-                                            &base_output_path,
-                                            &tally_sheet.id, // Assuming TallySheet has an id field
-                                        );
-                                    fs::create_dir_all(&output_tally_sheets_folder_path)?;
-                                    let contest_result_sheet =
-                                        tally::process_tally_sheet(&tally_sheet, &contest_object)
-                                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-
-                                    let output_tally_sheets_file_path =
-                                        output_tally_sheets_folder_path
-                                            .join(OUTPUT_CONTEST_RESULT_FILE);
-                                    let contest_result_file_sheet =
-                                        fs::File::create(&output_tally_sheets_file_path)?;
-                                    serde_json::to_writer_pretty(
-                                        contest_result_file_sheet,
-                                        &contest_result_sheet,
-                                    )?; // Using pretty
-                                    area_specific_tally_sheet_results
-                                        .push((contest_result_sheet, tally_sheet));
-                                }
+                                let output_tally_sheets_folder_path =
+                                    PipeInputs::build_tally_sheet_path(
+                                        &base_output_path,
+                                        &tally_sheet.id,
+                                    );
+                                fs::create_dir_all(&output_tally_sheets_folder_path)?;
+                                let output_tally_sheets_file_path = output_tally_sheets_folder_path
+                                    .join(OUTPUT_CONTEST_RESULT_FILE);
+                                let contest_result_file_sheet =
+                                    fs::File::create(&output_tally_sheets_file_path)?;
+                                serde_json::to_writer_pretty(
+                                    contest_result_file_sheet,
+                                    contest_result_sheet,
+                                )?;
                             }
 
-                            let area_result_with_tally_sheets =
+                            let mut area_result_with_tally_sheets =
                                 area_specific_tally_sheet_results.iter().fold(
                                     area_tally_results.clone(),
                                     |result, (tally_sheet_result, _)| {
                                         result.aggregate(tally_sheet_result, false)
                                     },
                                 );
+                            if !has_complete_electronic_channels {
+                                set_votes_by_channel(
+                                    &mut area_result_with_tally_sheets,
+                                    BTreeMap::new(),
+                                );
+                            }
                             validate_votes_by_channel(&area_result_with_tally_sheets)?;
 
                             fs::create_dir_all(&base_output_path)?;
@@ -470,6 +614,22 @@ impl Pipe for DoTally {
                             .iter()
                             .map(|(res, _)| res.clone())
                             .collect();
+                    let has_complete_electronic_channels = area_tally_results_for_contest
+                        .iter()
+                        .try_fold(true, |is_complete, area_result| {
+                            Ok::<bool, Error>(
+                                is_complete && has_complete_votes_by_channel(area_result)?,
+                            )
+                        })?;
+                    let mut final_channel_counts = BTreeMap::new();
+                    if has_complete_electronic_channels {
+                        for result in area_tally_results_for_contest
+                            .iter()
+                            .chain(final_only_sheet_results.iter())
+                        {
+                            merge_result_votes_by_channel(&mut final_channel_counts, result)?;
+                        }
+                    }
 
                     // Create final contest tally
                     let final_counting_algorithm = tally::create_tally(
@@ -482,9 +642,10 @@ impl Pipe for DoTally {
                         area_tally_results_for_contest,
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                    let final_res = final_counting_algorithm
+                    let mut final_res = final_counting_algorithm
                         .tally()
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                    set_votes_by_channel(&mut final_res, final_channel_counts);
                     validate_votes_by_channel(&final_res)?;
 
                     let final_contest_result_file_path =
@@ -843,5 +1004,31 @@ mod tests {
         };
 
         assert!(validate_votes_by_channel(&result).is_ok());
+    }
+
+    #[test]
+    fn legacy_participation_without_channel_counts_is_incomplete_but_valid() {
+        let result = ContestResult {
+            total_votes: 2,
+            extended_metrics: Some(ExtendedMetricsContest::default()),
+            ..Default::default()
+        };
+
+        assert!(validate_votes_by_channel(&result).is_ok());
+        assert!(!has_complete_votes_by_channel(&result).unwrap());
+    }
+
+    #[test]
+    fn channel_validation_rejects_a_partial_non_empty_breakdown() {
+        let result = ContestResult {
+            total_votes: 2,
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 1)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        assert!(validate_votes_by_channel(&result).is_err());
     }
 }

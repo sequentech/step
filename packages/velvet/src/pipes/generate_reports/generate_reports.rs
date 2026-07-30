@@ -1507,3 +1507,39 @@ fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: Candidate
         }
     }
 }
+
+#[cfg(test)]
+mod participation_by_channel_tests {
+    use super::*;
+    use crate::pipes::do_tally::ExtendedMetricsContest;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn builds_ordered_rows_with_census_percentages_and_future_channel_fallbacks() {
+        let result = ContestResult {
+            census: 20,
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: BTreeMap::from([
+                    ("FUTURE_CHANNEL".to_string(), 2),
+                    ("ONLINE".to_string(), 5),
+                    ("PAPER".to_string(), 3),
+                    ("POSTAL".to_string(), 0),
+                ]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let rows = participation_by_channel_rows(&result);
+
+        assert_eq!(
+            rows.iter()
+                .map(|row| row.channel.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ONLINE", "PAPER", "FUTURE_CHANNEL"]
+        );
+        assert_eq!(rows[0].percentage, 25.0);
+        assert_eq!(rows[1].percentage, 15.0);
+        assert_eq!(rows[2].label, "Future Channel");
+    }
+}

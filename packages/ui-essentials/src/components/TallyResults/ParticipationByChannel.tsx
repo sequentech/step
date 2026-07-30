@@ -15,7 +15,7 @@ import {
     Typography,
 } from "@mui/material"
 import type {ResultsAndParticipationLabels, ResultsParticipationSummary} from "./types"
-import {mergeLabels, percentOrDash, toFiniteNumber} from "./utils"
+import {mergeLabels, toFiniteNumber} from "./utils"
 
 interface ParticipationByChannelProps {
     result: ResultsParticipationSummary
@@ -54,6 +54,11 @@ const channelLabel = (channel: string, labels: ResultsAndParticipationLabels): s
     }
     return knownLabels[channel] ?? fallbackChannelLabel(channel)
 }
+
+const formatChannelPercentage = (total: number, eligibleCensus: number | null): string =>
+    eligibleCensus !== null && eligibleCensus > 0
+        ? `${((total / eligibleCensus) * 100).toFixed(1)}%`
+        : "-"
 
 export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({result, labels}) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
@@ -99,11 +104,7 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({r
                                 </TableCell>
                                 <TableCell align="right">{total}</TableCell>
                                 <TableCell align="right">
-                                    {percentOrDash(
-                                        eligibleCensus && eligibleCensus > 0
-                                            ? total / eligibleCensus
-                                            : null
-                                    )}
+                                    {formatChannelPercentage(total, eligibleCensus)}
                                 </TableCell>
                             </TableRow>
                         ))}

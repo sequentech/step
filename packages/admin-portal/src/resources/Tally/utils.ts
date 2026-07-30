@@ -67,9 +67,7 @@ export const parseResultAnnotations = (annotations: unknown): ParsedAnnotations 
 
     try {
         const parsed = typeof annotations === "string" ? JSON.parse(annotations) : annotations
-        return typeof parsed === "object" && parsed !== null
-            ? (parsed as ParsedAnnotations)
-            : null
+        return typeof parsed === "object" && parsed !== null ? (parsed as ParsedAnnotations) : null
     } catch {
         return null
     }
