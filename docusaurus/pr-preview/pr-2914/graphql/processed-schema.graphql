@@ -3140,8 +3140,6 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: election_event_delete_key_input
-    """increments the numeric columns with given value of the filtered values"""
-    _inc: election_event_inc_input
     """prepend existing jsonb value of filtered columns with new jsonb value"""
     _prepend: election_event_prepend_input
     """sets the columns of the filtered rows to the given values"""
@@ -3167,8 +3165,6 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: election_event_delete_key_input
-    """increments the numeric columns with given value of the filtered values"""
-    _inc: election_event_inc_input
     """prepend existing jsonb value of filtered columns with new jsonb value"""
     _prepend: election_event_prepend_input
     """sets the columns of the filtered rows to the given values"""
@@ -10579,7 +10575,6 @@ type election_event {
     path: String
   ): jsonb
   created_at: timestamptz
-  datafix_last_applied_sequence: bigint!
   description: String
   """An array relationship"""
   elections(
@@ -10650,17 +10645,9 @@ type election_event_aggregate {
 aggregate fields of "sequent_backend.election_event"
 """
 type election_event_aggregate_fields {
-  avg: election_event_avg_fields
   count(columns: [election_event_select_column!], distinct: Boolean): Int!
   max: election_event_max_fields
   min: election_event_min_fields
-  stddev: election_event_stddev_fields
-  stddev_pop: election_event_stddev_pop_fields
-  stddev_samp: election_event_stddev_samp_fields
-  sum: election_event_sum_fields
-  var_pop: election_event_var_pop_fields
-  var_samp: election_event_var_samp_fields
-  variance: election_event_variance_fields
 }
 
 """append existing jsonb value of filtered columns with new jsonb value"""
@@ -10674,11 +10661,6 @@ input election_event_append_input {
   voting_channels: jsonb
 }
 
-"""aggregate avg on columns"""
-type election_event_avg_fields {
-  datafix_last_applied_sequence: Float
-}
-
 """
 Boolean expression to filter rows from the table "sequent_backend.election_event". All fields are combined with a logical 'AND'.
 """
@@ -10690,7 +10672,6 @@ input election_event_bool_exp {
   audit_election_event_id: uuid_comparison_exp
   bulletin_board_reference: jsonb_comparison_exp
   created_at: timestamptz_comparison_exp
-  datafix_last_applied_sequence: bigint_comparison_exp
   description: String_comparison_exp
   elections: election_bool_exp
   elections_aggregate: election_aggregate_bool_exp
@@ -10764,13 +10745,6 @@ input election_event_delete_key_input {
 }
 
 """
-input type for incrementing numeric columns in table "sequent_backend.election_event"
-"""
-input election_event_inc_input {
-  datafix_last_applied_sequence: bigint
-}
-
-"""
 input type for inserting data into table "sequent_backend.election_event"
 """
 input election_event_insert_input {
@@ -10778,7 +10752,6 @@ input election_event_insert_input {
   audit_election_event_id: uuid
   bulletin_board_reference: jsonb
   created_at: timestamptz
-  datafix_last_applied_sequence: bigint
   description: String
   elections: election_arr_rel_insert_input
   encryption_protocol: String
@@ -10801,7 +10774,6 @@ input election_event_insert_input {
 type election_event_max_fields {
   audit_election_event_id: uuid
   created_at: timestamptz
-  datafix_last_applied_sequence: bigint
   description: String
   encryption_protocol: String
   external_id: String
@@ -10816,7 +10788,6 @@ type election_event_max_fields {
 type election_event_min_fields {
   audit_election_event_id: uuid
   created_at: timestamptz
-  datafix_last_applied_sequence: bigint
   description: String
   encryption_protocol: String
   external_id: String
@@ -10854,7 +10825,6 @@ input election_event_order_by {
   audit_election_event_id: order_by
   bulletin_board_reference: order_by
   created_at: order_by
-  datafix_last_applied_sequence: order_by
   description: order_by
   elections_aggregate: election_aggregate_order_by
   encryption_protocol: order_by
@@ -10902,8 +10872,6 @@ enum election_event_select_column {
   """column name"""
   created_at
   """column name"""
-  datafix_last_applied_sequence
-  """column name"""
   description
   """column name"""
   encryption_protocol
@@ -10943,7 +10911,6 @@ input election_event_set_input {
   audit_election_event_id: uuid
   bulletin_board_reference: jsonb
   created_at: timestamptz
-  datafix_last_applied_sequence: bigint
   description: String
   encryption_protocol: String
   external_id: String
@@ -10959,21 +10926,6 @@ input election_event_set_input {
   updated_at: timestamptz
   user_boards: String
   voting_channels: jsonb
-}
-
-"""aggregate stddev on columns"""
-type election_event_stddev_fields {
-  datafix_last_applied_sequence: Float
-}
-
-"""aggregate stddev_pop on columns"""
-type election_event_stddev_pop_fields {
-  datafix_last_applied_sequence: Float
-}
-
-"""aggregate stddev_samp on columns"""
-type election_event_stddev_samp_fields {
-  datafix_last_applied_sequence: Float
 }
 
 """
@@ -10992,7 +10944,6 @@ input election_event_stream_cursor_value_input {
   audit_election_event_id: uuid
   bulletin_board_reference: jsonb
   created_at: timestamptz
-  datafix_last_applied_sequence: bigint
   description: String
   encryption_protocol: String
   external_id: String
@@ -11010,11 +10961,6 @@ input election_event_stream_cursor_value_input {
   voting_channels: jsonb
 }
 
-"""aggregate sum on columns"""
-type election_event_sum_fields {
-  datafix_last_applied_sequence: bigint
-}
-
 """
 update columns of table "sequent_backend.election_event"
 """
@@ -11027,8 +10973,6 @@ enum election_event_update_column {
   bulletin_board_reference
   """column name"""
   created_at
-  """column name"""
-  datafix_last_applied_sequence
   """column name"""
   description
   """column name"""
@@ -11076,29 +11020,12 @@ input election_event_updates {
   delete key/value pair or string element. key/value pairs are matched based on their key value
   """
   _delete_key: election_event_delete_key_input
-  """increments the numeric columns with given value of the filtered values"""
-  _inc: election_event_inc_input
   """prepend existing jsonb value of filtered columns with new jsonb value"""
   _prepend: election_event_prepend_input
   """sets the columns of the filtered rows to the given values"""
   _set: election_event_set_input
   """filter the rows which have to be updated"""
   where: election_event_bool_exp!
-}
-
-"""aggregate var_pop on columns"""
-type election_event_var_pop_fields {
-  datafix_last_applied_sequence: Float
-}
-
-"""aggregate var_samp on columns"""
-type election_event_var_samp_fields {
-  datafix_last_applied_sequence: Float
-}
-
-"""aggregate variance on columns"""
-type election_event_variance_fields {
-  datafix_last_applied_sequence: Float
 }
 
 """
