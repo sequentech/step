@@ -57,10 +57,20 @@ const channelLabel = (channel: string, labels: ResultsAndParticipationLabels): s
     return knownLabels[channel] ?? fallbackChannelLabel(channel)
 }
 
-const formatChannelPercentage = (total: number, eligibleCensus: number | null): string =>
-    eligibleCensus !== null && eligibleCensus > 0
-        ? `${((total / eligibleCensus) * 100).toFixed(1)}%`
-        : "-"
+const compareChannelKeys = (left: string, right: string): number => {
+    if (left === right) return 0
+    return left < right ? -1 : 1
+}
+
+const formatChannelPercentage = (total: number, eligibleCensus: number | null): string => {
+    if (eligibleCensus === null) return "-"
+
+    const percentage = Math.min(
+        100,
+        Math.max(0, (total / Math.max(1, eligibleCensus)) * 100)
+    )
+    return `${percentage.toFixed(1)}%`
+}
 
 export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({result, labels}) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
@@ -77,7 +87,7 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({r
                     (left, right) =>
                         (channelOrder.get(left.channel) ?? Number.MAX_SAFE_INTEGER) -
                             (channelOrder.get(right.channel) ?? Number.MAX_SAFE_INTEGER) ||
-                        left.channel.localeCompare(right.channel)
+                        compareChannelKeys(left.channel, right.channel)
                 ),
         [result.votesByChannel]
     )

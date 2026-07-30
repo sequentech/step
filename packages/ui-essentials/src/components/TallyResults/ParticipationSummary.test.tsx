@@ -117,4 +117,44 @@ describe("ParticipationByChannel", () => {
         expect(markup).toContain("10.0%")
         expect(markup).not.toContain("Postal")
     })
+
+    it("orders unknown channels deterministically after known channels", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 10,
+                    votesByChannel: {
+                        A_B: 1,
+                        AA: 1,
+                        ONLINE: 1,
+                    },
+                }}
+            />
+        )
+
+        const onlineIndex = markup.indexOf(">Online<")
+        const aaIndex = markup.indexOf(">Aa<")
+        const aBIndex = markup.indexOf(">A B<")
+
+        expect(onlineIndex).toBeGreaterThan(-1)
+        expect(aaIndex).toBeGreaterThan(onlineIndex)
+        expect(aBIndex).toBeGreaterThan(aaIndex)
+    })
+
+    it("uses the report percentage policy when participation exceeds or has no census", () => {
+        const exceededCensus = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{eligibleCensus: 1, votesByChannel: {ONLINE: 3}}}
+            />
+        )
+        const zeroCensus = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{eligibleCensus: 0, votesByChannel: {ONLINE: 1}}}
+            />
+        )
+
+        expect(exceededCensus).toContain("100.0%")
+        expect(exceededCensus).not.toContain("300.0%")
+        expect(zeroCensus).toContain("100.0%")
+    })
 })

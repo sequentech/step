@@ -169,6 +169,30 @@ fn merge_result_votes_by_channel(
     Ok(())
 }
 
+fn aggregate_area_votes_by_channel<'a>(
+    area_ids: impl IntoIterator<Item = &'a str>,
+    votes_by_channel_map: &HashMap<String, Option<BTreeMap<String, u64>>>,
+) -> Result<(BTreeMap<String, u64>, bool)> {
+    let mut aggregate = BTreeMap::new();
+    let mut all_inputs_present = true;
+
+    for area_id in area_ids {
+        // The area tree contains every area in the election, including areas
+        // whose ballot style does not contain this contest. Those areas are
+        // not inputs for this aggregate and must not make it look incomplete.
+        let Some(counts) = votes_by_channel_map.get(area_id) else {
+            continue;
+        };
+
+        match counts {
+            Some(counts) => merge_votes_by_channel(&mut aggregate, counts)?,
+            None => all_inputs_present = false,
+        }
+    }
+
+    Ok((aggregate, all_inputs_present))
+}
+
 fn set_votes_by_channel(result: &mut ContestResult, counts: BTreeMap<String, u64>) {
     result
         .extended_metrics
@@ -408,20 +432,11 @@ impl Pipe for DoTally {
                                     .tally()
                                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                                let mut electronic_channel_counts = BTreeMap::new();
-                                let mut all_channel_inputs_present = true;
-                                for child_area in &children_areas {
-                                    match votes_by_channel_map
-                                        .get(&child_area.id)
-                                        .and_then(Option::as_ref)
-                                    {
-                                        Some(counts) => merge_votes_by_channel(
-                                            &mut electronic_channel_counts,
-                                            counts,
-                                        )?,
-                                        None => all_channel_inputs_present = false,
-                                    }
-                                }
+                                let (electronic_channel_counts, all_channel_inputs_present) =
+                                    aggregate_area_votes_by_channel(
+                                        children_areas.iter().map(|area| area.id.as_str()),
+                                        &votes_by_channel_map,
+                                    )?;
                                 set_votes_by_channel(
                                     &mut aggregate_result,
                                     electronic_channel_counts,
@@ -917,6 +932,7 @@ impl ContestResult {
         let aggregate_metrics = aggregate.extended_metrics.take().unwrap_or_default();
         aggregate.extended_metrics =
             Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
+        aggregate.auditable_votes += other.auditable_votes;
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;
@@ -988,6 +1004,65 @@ mod tests {
         assert_eq!(aggregate.votes_by_channel.get("ONLINE"), Some(&5));
         assert_eq!(aggregate.votes_by_channel.get("TELEPHONE"), Some(&1));
         assert_eq!(aggregate.votes_by_channel.get("PAPER"), Some(&4));
+    }
+
+    #[test]
+    fn contest_result_aggregation_preserves_auditable_channel_participation() {
+        let area_result = ContestResult {
+            census: 1,
+            total_votes: 1,
+            auditable_votes: 1,
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 2)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let aggregate = ContestResult::default().aggregate(&area_result, true);
+
+        assert_eq!(aggregate.auditable_votes, 1);
+        assert!(validate_votes_by_channel(&aggregate).is_ok());
+    }
+
+    #[test]
+    fn area_channel_aggregation_ignores_areas_outside_the_contest() {
+        let area_ids = ["parent", "contest-child", "other-contest-child"];
+        let votes_by_channel_map = HashMap::from([
+            (
+                "parent".to_string(),
+                Some(BTreeMap::from([("ONLINE".to_string(), 2)])),
+            ),
+            (
+                "contest-child".to_string(),
+                Some(BTreeMap::from([("TELEPHONE".to_string(), 1)])),
+            ),
+        ]);
+
+        let (aggregate, all_inputs_present) =
+            aggregate_area_votes_by_channel(area_ids.iter().copied(), &votes_by_channel_map)
+                .unwrap();
+
+        assert!(all_inputs_present);
+        assert_eq!(aggregate.get("ONLINE"), Some(&2));
+        assert_eq!(aggregate.get("TELEPHONE"), Some(&1));
+    }
+
+    #[test]
+    fn area_channel_aggregation_detects_a_legacy_contest_area() {
+        let votes_by_channel_map = HashMap::from([
+            (
+                "parent".to_string(),
+                Some(BTreeMap::from([("ONLINE".to_string(), 2)])),
+            ),
+            ("legacy-child".to_string(), None),
+        ]);
+
+        let (_, all_inputs_present) =
+            aggregate_area_votes_by_channel(["parent", "legacy-child"], &votes_by_channel_map)
+                .unwrap();
+
+        assert!(!all_inputs_present);
     }
 
     #[test]

@@ -743,7 +743,14 @@ impl CountingAlgorithm for InstantRunoff {
                 self.process_ballots(op)?
             }
         };
-        Ok(contest_result)
+
+        Ok(self
+            .tally
+            .tally_sheet_results
+            .iter()
+            .fold(contest_result, |result, tally_sheet_result| {
+                result.aggregate(tally_sheet_result, false)
+            }))
     }
 }
 
@@ -751,6 +758,7 @@ impl CountingAlgorithm for InstantRunoff {
 mod tests {
     use super::*;
     use sequent_core::ballot::CandidatePresentation;
+    use std::collections::BTreeMap;
 
     fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
         Candidate {
@@ -916,5 +924,56 @@ mod tests {
             .expect("candidate B result should exist");
         assert_eq!(candidate_b.total_count, 0);
         assert_eq!(candidate_b.percentage_votes, 0.0);
+    }
+
+    #[test]
+    fn contest_tally_includes_tally_sheet_results() {
+        let mut tally = instant_runoff(vec![vote_with_selected_ids(&["candidate_a"])]);
+        tally.tally.auditable_votes = 0;
+        let candidate_a = tally
+            .tally
+            .contest
+            .candidates
+            .iter()
+            .find(|candidate| candidate.id == "candidate_a")
+            .unwrap()
+            .clone();
+        tally.tally.tally_sheet_results = vec![ContestResult {
+            contest: tally.tally.contest.clone(),
+            total_votes: 2,
+            total_valid_votes: 2,
+            candidate_result: vec![CandidateResult {
+                candidate: candidate_a,
+                percentage_votes: 100.0,
+                total_count: 2,
+            }],
+            extended_metrics: Some(ExtendedMetricsContest {
+                votes_by_channel: BTreeMap::from([("PAPER".to_string(), 2)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }];
+
+        let result = tally
+            .tally()
+            .expect("IRV contest tally should include tally sheets");
+
+        assert_eq!(result.total_votes, 3);
+        assert_eq!(result.total_valid_votes, 3);
+        assert_eq!(
+            result
+                .candidate_result
+                .iter()
+                .find(|candidate| candidate.candidate.id == "candidate_a")
+                .map(|candidate| candidate.total_count),
+            Some(3)
+        );
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .and_then(|metrics| metrics.votes_by_channel.get("PAPER")),
+            Some(&2)
+        );
     }
 }

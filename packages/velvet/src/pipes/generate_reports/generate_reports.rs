@@ -1520,6 +1520,8 @@ mod participation_by_channel_tests {
             census: 20,
             extended_metrics: Some(ExtendedMetricsContest {
                 votes_by_channel: BTreeMap::from([
+                    ("AA".to_string(), 1),
+                    ("A_B".to_string(), 1),
                     ("FUTURE_CHANNEL".to_string(), 2),
                     ("ONLINE".to_string(), 5),
                     ("PAPER".to_string(), 3),
@@ -1536,10 +1538,28 @@ mod participation_by_channel_tests {
             rows.iter()
                 .map(|row| row.channel.as_str())
                 .collect::<Vec<_>>(),
-            vec!["ONLINE", "PAPER", "FUTURE_CHANNEL"]
+            vec!["ONLINE", "PAPER", "AA", "A_B", "FUTURE_CHANNEL"]
         );
         assert_eq!(rows[0].percentage, 25.0);
         assert_eq!(rows[1].percentage, 15.0);
-        assert_eq!(rows[2].label, "Future Channel");
+        assert_eq!(rows[4].label, "Future Channel");
+    }
+
+    #[test]
+    fn channel_percentages_are_clamped_for_zero_or_exceeded_census() {
+        for (census, total) in [(0, 1), (1, 3)] {
+            let result = ContestResult {
+                census,
+                extended_metrics: Some(ExtendedMetricsContest {
+                    votes_by_channel: BTreeMap::from([("ONLINE".to_string(), total)]),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+
+            let rows = participation_by_channel_rows(&result);
+
+            assert_eq!(rows[0].percentage, 100.0);
+        }
     }
 }
