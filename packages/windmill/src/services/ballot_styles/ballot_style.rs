@@ -5,8 +5,7 @@
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{
-    get_ballot_publication_by_id, record_ballot_publication_generation_error,
-    update_ballot_publication_status,
+    get_ballot_publication_by_id, update_ballot_publication_status,
 };
 use crate::postgres::ballot_style::insert_ballot_style;
 use crate::postgres::candidate::export_candidates;
@@ -288,24 +287,6 @@ pub async fn update_election_event_ballot_styles(
     let result =
         generate_election_event_ballot_styles(tenant_id, election_event_id, ballot_publication_id)
             .await;
-
-    // Recorded on its own connection so it survives the rollback of the
-    // (uncommitted) transaction used by generate_election_event_ballot_styles.
-    if let Err(error) = &result {
-        if let Err(record_error) = record_ballot_publication_generation_error(
-            tenant_id,
-            election_event_id,
-            ballot_publication_id,
-            &error.to_string(),
-        )
-        .await
-        {
-            event!(
-                Level::WARN,
-                "Failed to record ballot publication generation error: {record_error}"
-            );
-        }
-    }
 
     let lock_result = lock.release().await;
     match result {

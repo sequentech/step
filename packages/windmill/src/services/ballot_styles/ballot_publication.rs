@@ -12,7 +12,11 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::*;
+use crate::services::tasks_execution::{
+    post as post_task_execution, update_fail as update_task_execution_fail,
+};
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
+use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use deadpool_postgres::Transaction;
@@ -20,6 +24,7 @@ use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
+use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
@@ -49,7 +54,8 @@ pub async fn add_ballot_publication(
     election_event_id: String,
     election_id: Option<String>,
     user_id: String,
-) -> Result<String> {
+    executer_name: &str,
+) -> Result<(String, TasksExecution)> {
     let celery_app = get_celery_app().await;
 
     let election_ids = get_election_ids_for_publication(
@@ -71,20 +77,40 @@ pub async fn add_ballot_publication(
     .await?
     .with_context(|| "can't find inserted ballot publication")?;
 
-    let task = celery_app
+    let task_execution = post_task_execution(
+        &tenant_id,
+        Some(&election_event_id),
+        ETasksExecution::GENERATE_BALLOT_PUBLICATION,
+        executer_name,
+    )
+    .await
+    .context("Failed to insert task execution record")?;
+
+    let task = match celery_app
         .send_task(update_election_event_ballot_styles::new(
             tenant_id.clone(),
             election_event_id.clone(),
             ballot_publication.id.clone(),
+            task_execution.clone(),
         ))
-        .await?;
+        .await
+    {
+        Ok(task) => task,
+        Err(err) => {
+            let message = format!("Failed to enqueue ballot style generation: {err}");
+            update_task_execution_fail(&task_execution, &message)
+                .await
+                .ok();
+            return Err(anyhow!(message));
+        }
+    };
     event!(
         Level::INFO,
         "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
         task.task_id
     );
 
-    Ok(ballot_publication.id.clone())
+    Ok((ballot_publication.id.clone(), task_execution))
 }
 
 #[instrument(err)]

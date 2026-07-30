@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ComponentType, useCallback, useContext, useEffect, useRef, useState} from "react"
+import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
 import {Box} from "@mui/material"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {useGetOne, useNotify, useRecordContext, Identifier, useRefresh} from "react-admin"
 
@@ -18,6 +18,8 @@ import {
 } from "./EPublishStatus"
 import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
 import {GET_BALLOT_PUBLICATION_CHANGE} from "@/queries/GetBallotPublicationChanges"
+import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
+import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
 
 import {
     PublishBallotMutation,
@@ -27,6 +29,7 @@ import {
     UpdateElectionVotingStatusOutput,
     GenerateBallotPublicationMutation,
     GetBallotPublicationChangesOutput,
+    GetTaskByIdQuery,
     Sequent_Backend_Ballot_Publication,
     VotingStatusChannel,
     Sequent_Backend_Tenant,
@@ -40,6 +43,7 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
+    ETaskExecutionStatus,
     EVotingStatus,
     IElectionEventStatus,
     IElectionPresentation,
@@ -57,10 +61,6 @@ enum ViewMode {
     Edit,
     View,
     List,
-}
-
-interface IBallotPublicationAnnotations {
-    generation_error?: string
 }
 
 type TPublish = {
@@ -83,6 +83,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
             null
         )
+        const [taskId, setTaskId] = useState<string | null>(null)
         const {globalSettings} = useContext(SettingsContext)
         const authContext = useContext(AuthContext)
         const {isGoldUser} = authContext
@@ -124,6 +125,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 enabled: !!ballotPublicationId,
             }
         )
+
+        const {data: generationTaskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
+            variables: {task_id: taskId},
+            skip: !taskId,
+            pollInterval: taskId ? globalSettings.QUERY_POLL_INTERVAL_MS : 0,
+        })
 
         const onPublish = async () => {
             try {
@@ -223,6 +230,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
                 if (data?.generate_ballot_publication?.ballot_publication_id) {
                     setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
+                    setTaskId(data?.generate_ballot_publication?.task_execution?.id ?? null)
                 } else {
                     throw "Publication Generation Error"
                 }
@@ -415,45 +423,34 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             getPublishChanges,
         ])
 
-        // Surfaces ballot style generation failures (e.g. exceeding the
-        // ballot size limit) instead of polling forever for is_generated.
-        // The ref avoids notifying again when a refetch returns the same
-        // failed publication.
-        const notifiedGenerationErrorIdRef = useRef<Identifier | null>(null)
+        // Tracks the async ballot style generation task (backed by
+        // sequent_backend.tasks_execution) instead of polling
+        // ballot_publication.is_generated forever - on SUCCESS it refetches
+        // the publication once (which then flows into the effect above), on
+        // FAILED it surfaces the task's last log line (e.g. exceeding the
+        // ballot size limit) and resets back to the list.
+        const generationTask = generationTaskData?.sequent_backend_tasks_execution?.[0]
         useEffect(() => {
-            const generationError = (
-                ballotPublication?.annotations as IBallotPublicationAnnotations | undefined
-            )?.generation_error
+            if (!taskId || !generationTask) {
+                return
+            }
 
-            if (
-                generationError &&
-                ballotPublication &&
-                notifiedGenerationErrorIdRef.current !== ballotPublication.id
-            ) {
-                notifiedGenerationErrorIdRef.current = ballotPublication.id
-                notify(t("publish.dialog.error_capacity", {message: generationError}), {
+            if (generationTask.execution_status === ETaskExecutionStatus.SUCCESS) {
+                setTaskId(null)
+                refetch()
+            } else if (generationTask.execution_status === ETaskExecutionStatus.FAILED) {
+                const logs = (generationTask.logs as ITaskLog[] | undefined) ?? []
+                const message = logs[logs.length - 1]?.log_text
+
+                setTaskId(null)
+                notify(t("publish.dialog.error_capacity", {message}), {
                     type: "error",
                 })
                 handleSetPublishStatus(PublishStatus.Void)
                 setViewMode(ViewMode.List)
                 setBallotPublicationId(null)
             }
-        }, [ballotPublication, notify, t, handleSetPublishStatus])
-
-        // Used in order to make sure new generated publications are viewed when task completes
-        useEffect(() => {
-            const generationError = (
-                ballotPublication?.annotations as IBallotPublicationAnnotations | undefined
-            )?.generation_error
-
-            if (ballotPublication && ballotPublication.is_generated === false && !generationError) {
-                const intervalId = setInterval(() => {
-                    refetch()
-                }, globalSettings.QUERY_POLL_INTERVAL_MS)
-
-                return () => clearInterval(intervalId)
-            }
-        }, [ballotPublication, refetch])
+        }, [taskId, generationTask, notify, t, handleSetPublishStatus, refetch])
 
         useEffect(() => {
             if (ballotPublicationId) {

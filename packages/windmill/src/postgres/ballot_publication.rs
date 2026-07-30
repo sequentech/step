@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::get_hasura_pool;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::{DateTime, Local};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotPublication;
@@ -128,66 +127,6 @@ pub async fn update_ballot_publication_status(
                 &parse_uuid_v4(ballot_publication_id)?,
                 &is_generated,
                 &published_at,
-            ],
-        )
-        .await?;
-
-    let results: Vec<BallotPublication> = rows
-        .into_iter()
-        .map(|row| -> Result<BallotPublication> {
-            row.try_into()
-                .map(|res: BallotPublicationWrapper| -> BallotPublication { res.0 })
-        })
-        .collect::<Result<Vec<BallotPublication>>>()?;
-
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
-}
-
-/// Records a ballot style generation failure in `annotations.generation_error`.
-/// Uses its own connection so the write survives even if the caller's
-/// transaction rolls back.
-pub async fn record_ballot_publication_generation_error(
-    tenant_id: &str,
-    election_event_id: &str,
-    ballot_publication_id: &str,
-    error_message: &str,
-) -> Result<Option<BallotPublication>> {
-    let db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
-    let annotations = serde_json::json!({"generation_error": error_message});
-
-    let query = db_client
-        .prepare(
-            r#"
-            UPDATE
-                sequent_backend.ballot_publication
-            SET
-                annotations = COALESCE(annotations, '{}'::jsonb) || $4
-            WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                id = $3 AND
-                deleted_at IS NULL
-            RETURNING
-                *;
-            "#,
-        )
-        .await?;
-
-    let rows: Vec<Row> = db_client
-        .query(
-            &query,
-            &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-                &parse_uuid_v4(ballot_publication_id)?,
-                &annotations,
             ],
         )
         .await?;
