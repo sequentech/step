@@ -104,6 +104,104 @@ const frenchTranslation: TranslationType = {
                 next: "Suivant",
             },
         },
+        reconciliation: {
+            menuButton: "Sync. élect. ext.",
+            categories: {
+                VOTED_INTERNET: "A voté par Internet",
+                VOTED_OTHER_CHANNEL: "A voté par un autre canal",
+                DISABLED_DELETE_CALL: "Électeur désactivé",
+                DELETION_REVERTED: "Suppression annulée",
+                PROFILE_UPDATE: "Profil mis à jour",
+                VOTER_ADDED: "Électeur ajouté",
+                REENABLED: "Électeur réactivé",
+                VOTED_UNMARKED: "Vote de l’électeur annulé",
+                ROW_FAILURE: "Échec de ligne",
+            },
+            table: {
+                voterId: "ID Électeur",
+                field: "Champ",
+                category: "Catégorie",
+                currentValue: "Valeur actuelle",
+                newValue: "Nouvelle valeur",
+                reason: "Motif",
+                rowLabel: "Ligne",
+                noDifferences: "Aucune différence trouvée - les systèmes sont synchronisés.",
+            },
+            wizard: {
+                title: "Synchronisation de réconciliation externe",
+                subtitle: "Synchronisez la liste des électeurs avec le système externe",
+                drop: {
+                    description:
+                        "Déposez le fichier de réconciliation généré par le système externe - les deux diffs (côté externe et côté Sequent) sont calculés automatiquement et affichés dans des tableaux séparés.",
+                    fileFormatLabel: "Fichier CSV",
+                    uploading: "Téléversement de {{fileName}} et calcul des deux diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Séquence {{sequence}}, généré {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} ligne(s) n'ont pas pu être réconciliées en toute sécurité et sont exclues des deux diffs - voir les détails ci-dessous.",
+                    noDifferences: "Aucune différence - les deux systèmes sont déjà synchronisés.",
+                    diffOnlyDifferences:
+                        "Il s'agit d'un contrôle de convergence pour une séquence déjà appliquée. Les différences sont affichées pour suivi, mais ce cycle ne peut pas être appliqué à nouveau.",
+                    externalDiffTitle: "Diff externe",
+                    sequentDiffTitle: "Diff Sequent",
+                    downloadExternalPatch: "Télécharger le correctif externe",
+                    externalDiffCaption:
+                        "Téléchargez le correctif et remettez-le au système externe en dehors de cet outil. Une fois qu'il l'applique et produit le fichier de réconciliation suivant, cliquez sur 'Retour' et déposez ce fichier - 'Appliquer' se débloque une fois ce tableau vide.",
+                    noExternalDifferences: "Aucune différence côté externe.",
+                    sequentDiffCaption:
+                        "Appliquez les changements directement à Sequent en cliquant sur 'Appliquer' - aucun fichier de correctif n'est généré pour ceux-ci.",
+                    noSequentDifferences: "Aucune différence côté Sequent.",
+                },
+                applying: {
+                    inProgress: "Application des changements côté Sequent...",
+                    rowFailures:
+                        "{{count}} ligne(s) ont été exclues de ce cycle et nécessitent un suivi manuel - voir les détails ci-dessous.",
+                    rowFailuresTruncated:
+                        "Affichage des {{shown}} premiers échecs de ligne sur {{count}}. Corrigez la cause commune et réessayez pour voir les échecs restants.",
+                    success: "Tous les changements côté Sequent ont été appliqués avec succès.",
+                },
+                actions: {
+                    cancel: "Annuler",
+                    back: "Retour",
+                    apply: "Appliquer",
+                    next: "Suivant",
+                    startOver: "Recommencer",
+                    close: "Fermer",
+                },
+                confirm: {
+                    title: "Confirmer les changements de réconciliation",
+                    categoriesNote:
+                        "Les catégories surlignées en orange ({{categories}}) affectent le statut de vote ou désactivent des électeurs.",
+                    applyChanges: "Appliquer les changements",
+                    continue: "Continuer",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "marque {{count}} électeur(s) comme ayant voté par un autre canal",
+                    disabled: "désactive {{count}} électeur(s)",
+                    reenabled: "réactive {{count}} électeur(s)",
+                    votedUnmarked: "annule le vote de {{count}} électeur(s)",
+                    profileUpdated: "met à jour {{count}} profil(s)",
+                    voterAdded: "ajoute {{count}} électeur(s)",
+                    prefix: "Ceci appliquera des changements qui {{parts}}.",
+                    empty: "Il n'y a aucun changement côté Sequent à appliquer.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "Impossible de charger le diff de réconciliation - veuillez réessayer.",
+                    generateFailed:
+                        "Impossible de calculer le diff de réconciliation - consultez le widget de tâches pour plus de détails.",
+                    applyFailed:
+                        "Impossible d'appliquer les changements côté Sequent - consultez le widget de tâches pour plus de détails.",
+                    uploadUrlError: "Impossible d'obtenir une URL de téléversement",
+                    generateTaskError: "Impossible de démarrer la tâche de diff de réconciliation",
+                    uploadError: "Impossible de téléverser le fichier de réconciliation",
+                    applyTaskError: "Impossible de démarrer la tâche d'application",
+                    applyError: "Impossible d'appliquer les changements de réconciliation",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder aux journaux.",
             title: "Journaux",
@@ -1436,6 +1534,7 @@ const frenchTranslation: TranslationType = {
                 kiosk: "Kiosque",
                 early_voting: "Vote anticipé",
                 telephone: "Vote par téléphone",
+                other: "Autre",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",

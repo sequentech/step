@@ -3,15 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
 use super::sql_utils::escape_sql_literal;
-use crate::services::datafix::utils::{
-    is_datafix_election_event_by_id, voted_via_not_internet_channel,
+use crate::postgres::cast_vote::{
+    count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
 };
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::external::utils::{
+    is_datafix_election_event_by_id, voted_via_not_internet_channel,
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
@@ -263,6 +267,7 @@ impl TryFrom<Row> for ElectionCastVotes {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVotesPerDay {
     pub day: String,
+    pub channel: String,
     pub day_count: i64,
 }
 
@@ -271,9 +276,89 @@ impl TryFrom<Row> for CastVotesPerDay {
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVotesPerDay {
             day: item.try_get::<_, chrono::NaiveDate>("day")?.to_string(),
+            channel: item.try_get("channel")?,
             day_count: item.try_get::<_, i64>("day_count")?,
         })
     }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct VotersByChannel {
+    pub channel: String,
+    pub count: i64,
+}
+
+impl TryFrom<Row> for VotersByChannel {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(VotersByChannel {
+            channel: item.try_get("channel")?,
+            count: item.try_get("count")?,
+        })
+    }
+}
+
+/// Counts each voter once under the channel of their latest valid vote.
+/// Votes created before the channel annotation was introduced are online.
+#[instrument(skip(transaction), err)]
+pub async fn get_count_distinct_voters_by_channel(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<Vec<VotersByChannel>> {
+    get_count_distinct_voters_by_channel_from_relation(
+        transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        CastVoteRelation::Production,
+    )
+    .await
+}
+
+async fn get_count_distinct_voters_by_channel_from_relation(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    cast_vote_relation: CastVoteRelation,
+) -> Result<Vec<VotersByChannel>> {
+    let election_id = election_id.map(parse_uuid_v4).transpose()?;
+    let status = CastVoteStatus::Valid.to_string();
+    let default_channel = VotingStatusChannel::ONLINE.to_string();
+    let sql = count_distinct_voters_by_channel_query(cast_vote_relation, election_id.is_some());
+    let statement = transaction.prepare(&sql).await?;
+
+    let tenant_id = parse_uuid_v4(tenant_id)?;
+    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let rows = match election_id {
+        Some(election_id) => {
+            transaction
+                .query(
+                    &statement,
+                    &[
+                        &tenant_id,
+                        &election_event_id,
+                        &status,
+                        &default_channel,
+                        &election_id,
+                    ],
+                )
+                .await?
+        }
+        None => {
+            transaction
+                .query(
+                    &statement,
+                    &[&tenant_id, &election_event_id, &status, &default_channel],
+                )
+                .await?
+        }
+    };
+
+    rows.into_iter().map(TryInto::try_into).collect()
 }
 
 #[instrument(err)]
@@ -336,6 +421,29 @@ pub async fn get_count_votes_per_day(
     election_id: Option<String>,
     user_timezone: &str,
 ) -> Result<Vec<CastVotesPerDay>> {
+    get_count_votes_per_day_from_relation(
+        transaction,
+        tenant_id,
+        election_event_id,
+        start_date,
+        end_date,
+        election_id,
+        user_timezone,
+        CastVoteRelation::Production,
+    )
+    .await
+}
+
+async fn get_count_votes_per_day_from_relation(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    start_date: &str,
+    end_date: &str,
+    election_id: Option<String>,
+    user_timezone: &str,
+    cast_vote_relation: CastVoteRelation,
+) -> Result<Vec<CastVotesPerDay>> {
     let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
         .with_context(|| "Error parsing start_date")?;
     let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
@@ -345,51 +453,9 @@ pub async fn get_count_votes_per_day(
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
-    let total_areas_statement = transaction
-        .prepare(
-            format!(
-                r#"
-            WITH date_series AS (
-                SELECT
-                    (t.day)::date AS day
-                FROM 
-                    generate_series(
-                        $3::date,
-                        $4::date,
-                        interval '1 day'
-                    ) AS t(day)
-            )
-            SELECT
-                ds.day,
-                COALESCE(
-                    COUNT(
-                        CASE 
-                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
-                            ELSE NULL 
-                        END
-                    ), 
-                    0
-                ) AS day_count
-            FROM
-                date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
-                AND v.tenant_id = $1
-                AND v.election_event_id = $2
-                AND (v.election_id = $6 OR $6 IS NULL)
-                AND v.status = $7
-            WHERE
-                (
-                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
-                    DATE(v.created_at AT TIME ZONE $5) <= $4
-                )
-                OR v.created_at IS NULL
-            GROUP BY ds.day
-            ORDER BY ds.day;
-            "#
-            )
-            .as_str(),
-        )
-        .await?;
+    let default_channel = VotingStatusChannel::ONLINE.to_string();
+    let sql = count_votes_per_day_query(cast_vote_relation);
+    let total_areas_statement = transaction.prepare(&sql).await?;
 
     let rows: Vec<Row> = transaction
         .query(
@@ -402,6 +468,7 @@ pub async fn get_count_votes_per_day(
                 &user_timezone,
                 &election_uuid,
                 &status,
+                &default_channel,
             ],
         )
         .await?;
@@ -834,4 +901,134 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::database::generate_hasura_pool;
+
+    const TENANT_ID: &str = "10000000-0000-4000-8000-000000000001";
+    const ELECTION_EVENT_ID: &str = "10000000-0000-4000-8000-000000000002";
+    const ELECTION_ID: &str = "10000000-0000-4000-8000-000000000003";
+
+    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<String, i64> {
+        rows.into_iter()
+            .map(|row| (row.channel, row.count))
+            .collect()
+    }
+
+    fn counts_by_day_and_channel(rows: Vec<CastVotesPerDay>) -> HashMap<(String, String), i64> {
+        rows.into_iter()
+            .map(|row| ((row.day, row.channel), row.day_count))
+            .collect()
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
+    async fn voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote() {
+        let pool = generate_hasura_pool().await.unwrap();
+        let mut client = pool.get().await.unwrap();
+        let transaction = client.transaction().await.unwrap();
+
+        transaction
+            .batch_execute(
+                r#"
+                CREATE TEMP TABLE cast_vote_stats_test (
+                    id UUID PRIMARY KEY,
+                    tenant_id UUID NOT NULL,
+                    election_event_id UUID NOT NULL,
+                    election_id UUID NOT NULL,
+                    voter_id_string TEXT,
+                    status TEXT NOT NULL,
+                    annotations JSONB,
+                    created_at TIMESTAMPTZ
+                );
+
+                INSERT INTO cast_vote_stats_test (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    voter_id_string,
+                    status,
+                    annotations,
+                    created_at
+                ) VALUES
+                    ('10000000-0000-4000-8000-000000000010', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'legacy-voter', 'valid', '{}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'revoting-voter', 'valid', '{"voting_channel":"KIOSK"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000012', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'revoting-voter', 'valid', '{"voting_channel":"TELEPHONE"}', '2026-01-02T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'discarded-revote-voter', 'valid', '{"voting_channel":"KIOSK"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000014', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'discarded-revote-voter', 'discarded', '{"voting_channel":"TELEPHONE"}', '2026-01-02T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000015', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000004', 'second-election-voter', 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000016', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', NULL, 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000017', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'other-tenant-voter', 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z');
+                "#,
+            )
+            .await
+            .unwrap();
+
+        let event_counts = counts_by_channel(
+            get_count_distinct_voters_by_channel_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                None,
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(event_counts.get("ONLINE"), Some(&2));
+        assert_eq!(event_counts.get("KIOSK"), Some(&1));
+        assert_eq!(event_counts.get("TELEPHONE"), Some(&1));
+
+        let election_counts = counts_by_channel(
+            get_count_distinct_voters_by_channel_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                Some(ELECTION_ID),
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(election_counts.get("ONLINE"), Some(&1));
+        assert_eq!(election_counts.get("KIOSK"), Some(&1));
+        assert_eq!(election_counts.get("TELEPHONE"), Some(&1));
+
+        let votes_per_day = counts_by_day_and_channel(
+            get_count_votes_per_day_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                "2026-01-01",
+                "2026-01-03",
+                Some(ELECTION_ID.to_string()),
+                "UTC",
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-01".to_string(), "ONLINE".to_string())),
+            Some(&2)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-01".to_string(), "KIOSK".to_string())),
+            Some(&2)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-02".to_string(), "TELEPHONE".to_string())),
+            Some(&1)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-03".to_string(), "ONLINE".to_string())),
+            Some(&0)
+        );
+
+        transaction.rollback().await.unwrap();
+    }
 }

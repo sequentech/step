@@ -104,6 +104,104 @@ const basqueTranslation: TranslationType = {
                 next: "Hurrengoa",
             },
         },
+        reconciliation: {
+            menuButton: "Kanpo bozk. sink.",
+            categories: {
+                VOTED_INTERNET: "Internet bidez bozkatu du",
+                VOTED_OTHER_CHANNEL: "Beste kanal batetik bozkatu du",
+                DISABLED_DELETE_CALL: "Bozkatzailea desgaituta",
+                DELETION_REVERTED: "Ezabaketa desegina",
+                PROFILE_UPDATE: "Profila eguneratuta",
+                VOTER_ADDED: "Bozkatzailea gehituta",
+                REENABLED: "Bozkatzailea berriz gaituta",
+                VOTED_UNMARKED: "Bozkatzaileari boto-marka kendu zaio",
+                ROW_FAILURE: "Errenkada-errorea",
+            },
+            table: {
+                voterId: "Bozkatzailearen IDa",
+                field: "Eremua",
+                category: "Kategoria",
+                currentValue: "Uneko balioa",
+                newValue: "Balio berria",
+                reason: "Arrazoia",
+                rowLabel: "Errenkada",
+                noDifferences: "Ez da desberdintasunik aurkitu - sistemak sinkronizatuta daude.",
+            },
+            wizard: {
+                title: "Kanpoko bat-egite sinkronizazioa",
+                subtitle: "Sinkronizatu bozkatzaileen zerrenda kanpoko sistemarekin",
+                drop: {
+                    description:
+                        "Jaregin kanpoko sistemak sortutako bat-egite fitxategia - bi diffak (kanpoko aldea eta Sequent aldea) automatikoki kalkulatzen dira eta taula bereizietan erakusten dira.",
+                    fileFormatLabel: "CSV fitxategia",
+                    uploading: "{{fileName}} igotzen eta bi diffak kalkulatzen...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - {{sequence}} sekuentzia, {{generatedAt}} sortua",
+                    rowFailuresWarning:
+                        "{{count}} errenkada ezin izan dira modu seguruan bateratu eta bi diffetatik kanpo geratzen dira - ikusi xehetasunak behean.",
+                    noDifferences:
+                        "Ez dago desberdintasunik - bi sistemak jada sinkronizatuta daude.",
+                    diffOnlyDifferences:
+                        "Dagoeneko aplikatutako sekuentzia baten konbergentzia-egiaztapena da hau. Aldeak jarraipenerako erakusten dira, baina txanda hau ezin da berriro aplikatu.",
+                    externalDiffTitle: "Kanpoko diff-a",
+                    sequentDiffTitle: "Sequent diff-a",
+                    downloadExternalPatch: "Deskargatu kanpoko adabakia",
+                    externalDiffCaption:
+                        "Deskargatu adabakia eta eman ezazu kanpoko sistemari tresna honetatik kanpo. Adabakia aplikatu eta hurrengo bat-egite fitxategia sortu ondoren, sakatu 'Atzera' eta jaregin fitxategi hori - 'Aplikatu' gaitzen da taula hau hutsik dagoenean.",
+                    noExternalDifferences: "Ez dago desberdintasunik kanpoko aldean.",
+                    sequentDiffCaption:
+                        "Aplikatu aldaketak zuzenean Sequent-i 'Aplikatu' sakatuz - hauetarako ez da adabaki-fitxategirik sortzen.",
+                    noSequentDifferences: "Ez dago desberdintasunik Sequent aldean.",
+                },
+                applying: {
+                    inProgress: "Sequent aldeko aldaketak aplikatzen...",
+                    rowFailures:
+                        "{{count}} errenkada bat-egite honetatik kanpo geratu dira eta eskuzko jarraipena behar dute - ikusi xehetasunak behean.",
+                    rowFailuresTruncated:
+                        "{{count}} errenkada-hutsegiteetatik lehen {{shown}} erakusten dira. Ebatzi kausa komuna eta saiatu berriro gainerakoak ikusteko.",
+                    success: "Sequent aldeko aldaketa guztiak ondo aplikatu dira.",
+                },
+                actions: {
+                    cancel: "Ezeztatu",
+                    back: "Atzera",
+                    apply: "Aplikatu",
+                    next: "Hurrengoa",
+                    startOver: "Hasi berriro",
+                    close: "Itxi",
+                },
+                confirm: {
+                    title: "Berretsi bat-egite aldaketak",
+                    categoriesNote:
+                        "Laranjaz nabarmendutako kategoriek ({{categories}}) boto-egoerari eragiten diote edo bozkatzaileak desgaitzen dituzte.",
+                    applyChanges: "Aplikatu aldaketak",
+                    continue: "Jarraitu",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "{{count}} bozkatzaile beste kanal batetik bozkatu izana adierazten du",
+                    disabled: "{{count}} bozkatzaile desgaitzen ditu",
+                    reenabled: "{{count}} bozkatzaile berriz gaitzen ditu",
+                    votedUnmarked: "{{count}} bozkatzaileari boto-marka kentzen dio",
+                    profileUpdated: "{{count}} profil eguneratzen ditu",
+                    voterAdded: "{{count}} bozkatzaile gehitzen ditu",
+                    prefix: "Honek {{parts}} dituzten aldaketak aplikatuko ditu.",
+                    empty: "Ez dago Sequent aldeko aldaketarik aplikatzeko.",
+                },
+                notifications: {
+                    envelopeLoadError: "Ezin izan da bat-egite diff-a kargatu - saiatu berriro.",
+                    generateFailed:
+                        "Ezin izan da bat-egite diff-a kalkulatu - ikusi zereginen widget-a xehetasunetarako.",
+                    applyFailed:
+                        "Ezin izan dira Sequent aldeko aldaketak aplikatu - ikusi zereginen widget-a xehetasunetarako.",
+                    uploadUrlError: "Ezin izan da igotzeko URLa lortu",
+                    generateTaskError: "Ezin izan da bat-egite diff zeregina abiarazi",
+                    uploadError: "Ezin izan da bat-egite fitxategia igo",
+                    applyTaskError: "Ezin izan da aplikatzeko zeregina abiarazi",
+                    applyError: "Ezin izan dira bat-egite aldaketak aplikatu",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "Ez duzu egunkariak atzitzeko baimenik.",
             title: "Egunkariak",
@@ -1425,6 +1523,7 @@ const basqueTranslation: TranslationType = {
                 kiosk: "Kiosko",
                 early_voting: "Aurre-botoa",
                 telephone: "Telefono bozketa",
+                other: "Beste batzuk",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",

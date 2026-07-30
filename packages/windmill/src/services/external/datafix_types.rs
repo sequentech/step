@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::utils::{DATAFIX_ID_KEY, DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
+use super::utils::{
+    DATAFIX_ID_KEY, DATAFIX_LAST_APPLIED_SEQUENCE_KEY, DATAFIX_LAST_APPLY_HAD_FAILURES_KEY,
+    DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY,
+};
 use anyhow::{anyhow, Result};
 use rand::{distr, Rng};
 use rocket::http::Status;
@@ -142,6 +145,13 @@ pub struct DatafixAnnotations {
     pub id: String,
     pub password_policy: PasswordPolicy,
     pub voterview_request: VoterviewRequest,
+    /// See `DATAFIX_LAST_APPLIED_SEQUENCE_KEY`. `None` means no reconciliation
+    /// has ever been applied; this distinction is required because the
+    /// legitimate kickoff file uses `Sequence=0`.
+    pub last_applied_sequence: Option<i64>,
+    /// Whether the last apply finished with per-row failures. Only that state
+    /// permits another apply at the same Sequence.
+    pub last_apply_had_failures: bool,
 }
 
 #[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
@@ -224,10 +234,30 @@ impl ValidateAnnotations for ElectionEventDatafix {
             None => return Err(anyhow!("{DATAFIX_VOTERVIEW_REQ_KEY} not found")),
         };
 
+        let last_applied_sequence = annotations
+            .get(DATAFIX_LAST_APPLIED_SEQUENCE_KEY)
+            .map(|value| {
+                value.parse::<i64>().map_err(|err| {
+                    anyhow!("Invalid {DATAFIX_LAST_APPLIED_SEQUENCE_KEY} value '{value}': {err}")
+                })
+            })
+            .transpose()?;
+        let last_apply_had_failures = annotations
+            .get(DATAFIX_LAST_APPLY_HAD_FAILURES_KEY)
+            .map(|value| {
+                value.parse::<bool>().map_err(|err| {
+                    anyhow!("Invalid {DATAFIX_LAST_APPLY_HAD_FAILURES_KEY} value '{value}': {err}")
+                })
+            })
+            .transpose()?
+            .unwrap_or(false);
+
         Ok(DatafixAnnotations {
             id,
             password_policy,
             voterview_request,
+            last_applied_sequence,
+            last_apply_had_failures,
         })
     }
 }
@@ -286,9 +316,156 @@ pub struct SoapRequestData<'a> {
     pub timestamp: &'a str,
 }
 
+// =======================================================================
+// Datafix reconciliation types. These live here (not in sequent_core::types)
+// since they don't need WASM exposure, and the direct precedent for this
+// feature (everything else in this file) already lives here and is reused by
+// harvest via its dependency on this crate. `ReconciliationFileMeta`,
+// `ReconciliationChangeCategory` and `ReconciliationPatchTarget` live in
+// `super::types` instead — they're not Datafix-specific wire shapes.
+// =======================================================================
+
+/// The reconciliation file format's own value for an Internet vote in the
+/// `Channel` column — always uppercase per the "Accepted Values" spec, and
+/// distinct from Keycloak's stored `VOTED_CHANNEL_INTERNET_VALUE` ("Internet"):
+/// comparisons and writes must cross the explicit mappings below.
+pub const FILE_CHANNEL_INTERNET: &str = "INTERNET";
+
+/// Converts the file contract's channel representation into the value stored
+/// in Keycloak. Other channels stay uppercase; only Sequent's historical
+/// Internet spelling differs.
+pub fn file_channel_to_keycloak(channel: &str) -> String {
+    if channel.eq_ignore_ascii_case(FILE_CHANNEL_INTERNET) {
+        sequent_core::types::keycloak::VOTED_CHANNEL_INTERNET_VALUE.to_string()
+    } else {
+        channel.to_uppercase()
+    }
+}
+
+/// Converts a Keycloak channel to the canonical reconciliation-file value.
+pub fn keycloak_channel_to_file(channel: &str) -> String {
+    channel.to_uppercase()
+}
+
+pub fn channels_equal(left: &str, right: &str) -> bool {
+    left.eq_ignore_ascii_case(right)
+}
+
+/// One column of the "Patch Files Format" `_old`/`_new` pair contract,
+/// carrying that pair directly (`old`, `new`) instead of leaving it to a
+/// separate `old_value`/`new_value` on `DiffItem` — a field and its own
+/// old/new values are never meaningful apart from each other, so keeping
+/// them on `DiffItem` alongside the field was pure duplication. Wire column
+/// names match `PATCH_FIELDS` in the admin portal's `types.ts` exactly.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DatafixReconciliationField {
+    CountyMun(String, String),
+    DoB(String, String),
+    Ward(String, String),
+    Poll(String, String),
+    SchoolSupportCode(String, String),
+    Channel(String, String),
+    /// Kept as the literal CSV strings ("true"/"false"/"NONE"), not a `bool`
+    /// — unlike Sequent's own `Enabled` (a genuine two-state Keycloak flag),
+    /// the patch CSV's `Deleted` column can legitimately carry `NONE` (no
+    /// prior value, e.g. reporting a Sequent-only voter Datafix has never
+    /// seen), which a `bool` can't represent.
+    Deleted(String, String),
+}
+
+impl DatafixReconciliationField {
+    /// Every column name, in the fixed order the patch CSV and the "Patch
+    /// Files Format" spec require regardless of which fields changed —
+    /// carries no old/new data since it's used to iterate the fixed set of
+    /// possible columns, not any voter's actual values.
+    pub const NAMES: [&'static str; 7] = [
+        "CountyMun",
+        "DoB",
+        "Ward",
+        "Poll",
+        "SchoolSupportCode",
+        "Channel",
+        "Deleted",
+    ];
+
+    /// The column name this instance carries a value for.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::CountyMun(..) => "CountyMun",
+            Self::DoB(..) => "DoB",
+            Self::Ward(..) => "Ward",
+            Self::Poll(..) => "Poll",
+            Self::SchoolSupportCode(..) => "SchoolSupportCode",
+            Self::Channel(..) => "Channel",
+            Self::Deleted(..) => "Deleted",
+        }
+    }
+
+    /// The `(old, new)` pair as the literal strings the patch CSV writes.
+    pub fn old_new(&self) -> (&str, &str) {
+        match self {
+            Self::CountyMun(old, new)
+            | Self::DoB(old, new)
+            | Self::Ward(old, new)
+            | Self::Poll(old, new)
+            | Self::SchoolSupportCode(old, new)
+            | Self::Channel(old, new)
+            | Self::Deleted(old, new) => (old.as_str(), new.as_str()),
+        }
+    }
+}
+
+/// One row of an uploaded reconciliation file, after CSV parsing. Field names
+/// match the CSV header (`CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,
+/// Channel,Deleted`) via `serde(rename)` so `csv::Reader::deserialize` can
+/// build this directly — see `reconciliation::csv`.
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct ParsedDatafixReconciliationRow {
+    #[serde(rename = "CountyMun")]
+    pub county_mun: String,
+    #[serde(rename = "VoterID")]
+    pub external_voter_id: String,
+    #[serde(rename = "DoB")]
+    pub dob: String,
+    #[serde(rename = "Ward")]
+    pub ward: String,
+    #[serde(rename = "Poll")]
+    pub poll: String,
+    #[serde(rename = "SchoolSupportCode")]
+    pub school_support_code: String,
+    #[serde(rename = "Channel")]
+    pub channel: String,
+    #[serde(rename = "Deleted")]
+    pub deleted: String, // "true"/"false" — kept as the wire string, parsed where needed
+}
+
+impl ParsedDatafixReconciliationRow {
+    /// This row's own value for one of `DatafixReconciliationField::NAMES`,
+    /// by column name — used to fill in a field that didn't change for this
+    /// voter on the outbound patch CSV with its real current value (this row
+    /// is exactly that value, since an unchanged field is one Sequent didn't
+    /// disagree with) instead of a placeholder.
+    pub fn field_value(&self, name: &str) -> Option<&str> {
+        match name {
+            "CountyMun" => Some(&self.county_mun),
+            "DoB" => Some(&self.dob),
+            "Ward" => Some(&self.ward),
+            "Poll" => Some(&self.poll),
+            "SchoolSupportCode" => Some(&self.school_support_code),
+            "Channel" => Some(&self.channel),
+            "Deleted" => Some(&self.deleted),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{DatafixErrorCode, DatafixResponse};
+    use super::{
+        channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixErrorCode,
+        DatafixResponse, FILE_CHANNEL_INTERNET,
+    };
     use rocket::http::Status;
 
     #[test]
@@ -371,5 +548,13 @@ mod tests {
             serde_json::to_value(&*body).unwrap(),
             serde_json::json!({"code": 200, "message": "OK"})
         );
+    }
+
+    #[test]
+    fn channel_boundaries_use_each_systems_canonical_spelling() {
+        assert!(channels_equal("Internet", FILE_CHANNEL_INTERNET));
+        assert_eq!(file_channel_to_keycloak(FILE_CHANNEL_INTERNET), "Internet");
+        assert_eq!(keycloak_channel_to_file("Internet"), FILE_CHANNEL_INTERNET);
+        assert_eq!(file_channel_to_keycloak("paper"), "PAPER");
     }
 }

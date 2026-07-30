@@ -325,13 +325,13 @@ impl ElectoralLog {
         voter_id: String,
         voter_username: Option<String>,
         area_id: String,
+        voting_channel: String,
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
         let country = VoterCountryString(voter_country);
-
-        let message = Message::cast_vote_message(
+        let message = Message::cast_vote_with_channel_message(
             event,
             election,
             pseudonym_h,
@@ -339,13 +339,14 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
+            VotingChannelString(voting_channel),
             Some(voter_id.clone()),
             voter_username.clone(),
             area_id,
         )?;
-        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
-            "Error converting Message::cast_vote_message into ElectoralLogMessage"
-        })?;
+        let board_message: ElectoralLogMessage = (&message)
+            .try_into()
+            .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
@@ -501,6 +502,44 @@ impl ElectoralLog {
             .send_task(enqueue_electoral_log_event::new(input))
             .await?;
         Ok(())
+    }
+
+    /// Posts a third-party voter registry reconciliation run event (patch
+    /// generation or applying the Sequent-side diff) — see
+    /// `windmill::services::external::reconciliation`. Named for the general
+    /// capability, not the specific integration (Datafix) that first needed
+    /// it. `artifact` carries the JSON of old/new values applied, for a
+    /// `ChangesApplied` entry (`None` for `PatchGenerated`, which has nothing
+    /// to apply yet).
+    #[instrument(skip(self, artifact), fields(kind = %kind), err)]
+    pub async fn post_external_reconciliation(
+        &self,
+        event_id: String,
+        kind: ExternalReconciliationKind,
+        sequence: i64,
+        generated_at: i64,
+        input_sha256: String,
+        output_sha256: Option<String>,
+        artifact: Option<Vec<u8>>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+
+        let message = Message::external_reconciliation_message(
+            event,
+            kind,
+            ExternalReconciliationSequenceString(sequence.to_string()),
+            ExternalReconciliationGeneratedAtString(generated_at.to_string()),
+            ExternalReconciliationInputHashString(input_sha256),
+            ExternalReconciliationOutputHashString(output_sha256),
+            artifact,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
     }
 
     #[instrument(skip(self))]
