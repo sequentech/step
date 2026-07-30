@@ -65,10 +65,7 @@ const compareChannelKeys = (left: string, right: string): number => {
 const formatChannelPercentage = (total: number, eligibleCensus: number | null): string => {
     if (eligibleCensus === null) return "-"
 
-    const percentage = Math.min(
-        100,
-        Math.max(0, (total / Math.max(1, eligibleCensus)) * 100)
-    )
+    const percentage = Math.min(100, Math.max(0, (total / Math.max(1, eligibleCensus)) * 100))
     return `${percentage.toFixed(1)}%`
 }
 

@@ -143,14 +143,10 @@ describe("ParticipationByChannel", () => {
 
     it("uses the report percentage policy when participation exceeds or has no census", () => {
         const exceededCensus = renderToStaticMarkup(
-            <ParticipationByChannel
-                result={{eligibleCensus: 1, votesByChannel: {ONLINE: 3}}}
-            />
+            <ParticipationByChannel result={{eligibleCensus: 1, votesByChannel: {ONLINE: 3}}} />
         )
         const zeroCensus = renderToStaticMarkup(
-            <ParticipationByChannel
-                result={{eligibleCensus: 0, votesByChannel: {ONLINE: 1}}}
-            />
+            <ParticipationByChannel result={{eligibleCensus: 0, votesByChannel: {ONLINE: 1}}} />
         )
 
         expect(exceededCensus).toContain("100.0%")
