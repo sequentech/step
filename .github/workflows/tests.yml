@@ -133,7 +133,7 @@ jobs:
   # ===========================================================================
   # JOB: run-frontend-tests
   # ===========================================================================
-  # Runs the TypeScript (jest) unit tests for the frontend packages.
+  # Runs the Jest frontend tests and the Node.js theme tests.
   # ===========================================================================
   run-frontend-tests:
     name: Run frontend tests
@@ -143,9 +143,13 @@ jobs:
       matrix:
         include:
           - package: ui-core
+            test_args: --runInBand
           - package: ui-essentials
+            test_args: --runInBand
           - package: admin-portal
+            test_args: --runInBand
           - package: keycloak-extensions/sequent-theme
+            test_args: ''
       fail-fast: false
     steps:
       - name: Check out code
@@ -163,7 +167,7 @@ jobs:
         working-directory: packages
 
       - name: Run ${{ matrix.package }} tests
-        run: yarn --cwd ./${{ matrix.package }} test --runInBand
+        run: yarn --cwd ./${{ matrix.package }} test ${{ matrix.test_args }}
         working-directory: packages
 
   # ===========================================================================
