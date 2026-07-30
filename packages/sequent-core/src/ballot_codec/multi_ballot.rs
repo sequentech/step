@@ -519,8 +519,10 @@ impl BallotChoices {
 
         // Iterate in contest order (contest contexts are sorted by id, the
         // order in which selections must be encoded and decoded)
-        for (contest_context, &vote_slot_count) in
-            context.contest_contexts.iter().zip(&context.vote_slot_counts)
+        for (contest_context, &vote_slot_count) in context
+            .contest_contexts
+            .iter()
+            .zip(&context.vote_slot_counts)
         {
             let contest = contest_context.contest;
             let plaintext = plaintexts_map.get(&contest.id).ok_or(format!(
@@ -542,8 +544,11 @@ impl BallotChoices {
                 )));
             }
 
-            let contest_choices =
-                self.encode_contest(contest_context, vote_slot_count, plaintext)?;
+            let contest_choices = self.encode_contest(
+                contest_context,
+                vote_slot_count,
+                plaintext,
+            )?;
 
             // Accumulate the choices for each contest
             choices.extend(contest_choices);
