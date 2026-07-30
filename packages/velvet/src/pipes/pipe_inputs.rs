@@ -14,7 +14,7 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
 };
@@ -393,6 +393,8 @@ pub struct AreaConfig {
     pub census: u64,
     pub parent_id: Option<Uuid>,
     pub auditable_votes: u64,
+    #[serde(default)]
+    pub votes_by_channel: BTreeMap<String, u64>,
 }
 
 impl Into<TreeNodeArea> for &AreaConfig {

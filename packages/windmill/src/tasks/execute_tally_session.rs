@@ -236,7 +236,7 @@ async fn generate_area_contests_mc(
                 continue;
             };
 
-            let (eligible_voters, auditable_votes) = if let Some(annotations) =
+            let (eligible_voters, auditable_votes, votes_by_channel) = if let Some(annotations) =
                 session_election.annotations.clone()
             {
                 let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
@@ -244,9 +244,10 @@ async fn generate_area_contests_mc(
                 (
                     annotations.elegible_voters,
                     annotations.ballots_without_voter,
+                    annotations.votes_by_channel,
                 )
             } else {
-                (0u64, 0u64)
+                (0u64, 0u64, Default::default())
             };
 
             almost_vec.push(AreaContestDataType {
@@ -256,6 +257,7 @@ async fn generate_area_contests_mc(
                 ballot_style: ballot_style.clone(),
                 eligible_voters,
                 auditable_votes,
+                votes_by_channel,
                 area: area.clone(),
             })
         }
@@ -332,7 +334,7 @@ fn generate_area_contests(
                 return None;
             };
 
-            let (eligible_voters, auditable_votes) =
+            let (eligible_voters, auditable_votes, votes_by_channel) =
             if let Some(annotations) = session_contest.annotations.clone() {
                 let annotations: TallySessionContestAnnotations =
                     deserialize_value(annotations).ok()?;
@@ -340,9 +342,10 @@ fn generate_area_contests(
                 (
                     annotations.elegible_voters,
                     annotations.ballots_without_voter,
+                    annotations.votes_by_channel,
                 )
             } else {
-                (0u64, 0u64)
+                (0u64, 0u64, Default::default())
             };
 
             Some(AreaContestDataType {
@@ -352,6 +355,7 @@ fn generate_area_contests(
                 ballot_style: ballot_style.clone(),
                 eligible_voters,
                 auditable_votes,
+                votes_by_channel,
                 area: area.clone(),
             })
         })

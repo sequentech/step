@@ -41,11 +41,12 @@ jest.mock("./ChartPanel", () => {
 jest.mock(
     "@sequentech/ui-core",
     () => ({
-        formatPercentOne: (value: number) => `${value}%`,
+        formatPercentOne: (value: number) => `${(value * 100).toFixed(1)}%`,
     }),
     {virtual: true}
 )
 
+import {ParticipationByChannel} from "./ParticipationByChannel"
 import {ParticipationSummaryChart} from "./ParticipationSummary"
 import type {ResultsParticipationSummary} from "./types"
 
@@ -84,5 +85,31 @@ describe("ParticipationSummaryChart", () => {
         expect(markup).toContain('data-series="[100]"')
         expect(markup).not.toContain("No results")
         expect(markup).not.toContain('role="img"')
+    })
+})
+
+describe("ParticipationByChannel", () => {
+    it("renders non-zero channel totals in canonical order using census percentages", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 20,
+                    votesByChannel: {
+                        PAPER: 3,
+                        ONLINE: 5,
+                        POSTAL: 0,
+                        FUTURE_CHANNEL: 2,
+                    },
+                }}
+            />
+        )
+
+        expect(markup).toContain("Participation by channel")
+        expect(markup.indexOf("Online")).toBeLessThan(markup.indexOf("Paper"))
+        expect(markup.indexOf("Paper")).toBeLessThan(markup.indexOf("Future Channel"))
+        expect(markup).toContain("25.0%")
+        expect(markup).toContain("15.0%")
+        expect(markup).toContain("10.0%")
+        expect(markup).not.toContain("Postal")
     })
 })

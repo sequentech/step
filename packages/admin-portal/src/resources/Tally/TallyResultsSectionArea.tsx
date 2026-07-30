@@ -10,13 +10,13 @@ import {
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Candidate_Extended, ParsedAnnotations, RunoffStatus} from "./types"
+import {Sequent_Backend_Candidate_Extended, RunoffStatus} from "./types"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
-import {parseProcessResults} from "./utils"
+import {parseProcessResults, parseResultAnnotations} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
@@ -107,14 +107,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     }, [resultsData])
 
     const weight = useMemo((): number | null => {
-        try {
-            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
-                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
-                : null
-            return parsedAnnotations?.extended_metrics?.weight ?? null
-        } catch {
-            return null
-        }
+        return parseResultAnnotations(general?.[0]?.annotations)?.extended_metrics?.weight ?? null
     }, [general?.[0]])
 
     const processResults = useMemo(
@@ -152,6 +145,8 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             implicitBlankVotes: result.implicit_blank_votes,
             implicitBlankVotesPercent: result.implicit_blank_votes_percent,
             weight,
+            votesByChannel: parseResultAnnotations(result.annotations)?.extended_metrics
+                ?.votes_by_channel,
         }
     }, [general, weight])
 
@@ -197,6 +192,15 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             winner: t("tally.table.preferential.winner"),
             eliminated: t("tally.table.preferential.eliminated"),
             empty: t("common.label.noResult"),
+            participationByChannel: t("tally.table.participation_by_channel"),
+            channel: t("tally.table.channel"),
+            channelOnline: t("tally.table.channel_online"),
+            channelKiosk: t("tally.table.channel_kiosk"),
+            channelEarlyVoting: t("tally.table.channel_early_voting"),
+            channelTelephone: t("tally.table.channel_telephone"),
+            channelPaper: t("tally.table.channel_paper"),
+            channelPostal: t("tally.table.channel_postal"),
+            channelInPerson: t("tally.table.channel_in_person"),
         }),
         [t]
     )

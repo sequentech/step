@@ -981,6 +981,7 @@ mod tests {
             candidate_result: vec![],
             channel_type: None,
             election_results: None,
+            participation_by_channel: vec![],
         };
         ElectionReportDataComputed {
             election_id: election_id.to_string(),

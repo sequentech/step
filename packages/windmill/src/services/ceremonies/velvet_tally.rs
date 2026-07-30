@@ -50,7 +50,7 @@ use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, 
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -80,6 +80,7 @@ pub struct AreaContestDataType {
     pub eligible_voters: u64,
     pub area: Area,
     pub auditable_votes: u64,
+    pub votes_by_channel: BTreeMap<String, u64>,
 }
 
 #[instrument(skip_all)]
@@ -196,6 +197,7 @@ pub fn prepare_tally_for_area_contest(
         election_id: parse_uuid_v4(&election_id)?,
         census: area_contest.eligible_voters as u64,
         auditable_votes: area_contest.auditable_votes as u64,
+        votes_by_channel: area_contest.votes_by_channel.clone(),
         parent_id: area_contest
             .area
             .parent_id

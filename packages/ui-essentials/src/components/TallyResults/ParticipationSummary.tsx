@@ -21,6 +21,7 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
+import {ParticipationByChannel} from "./ParticipationByChannel"
 import type {
     NumericValue,
     ResultsAndParticipationLabels,
@@ -244,15 +245,16 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
             </Typography>
 
             {result ? (
-                <Box
-                    className="seq-tally-results-participation-summary__content"
-                    sx={{
-                        display: "flex",
-                        flexDirection: {xs: "column", lg: "row"},
-                        gap: 4,
-                        alignItems: "flex-start",
-                    }}
-                >
+                <>
+                    <Box
+                        className="seq-tally-results-participation-summary__content"
+                        sx={{
+                            display: "flex",
+                            flexDirection: {xs: "column", lg: "row"},
+                            gap: 4,
+                            alignItems: "flex-start",
+                        }}
+                    >
                     <Box
                         className="seq-tally-results-participation-summary__chart-column"
                         sx={{
@@ -349,7 +351,9 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                             </Table>
                         </TableContainer>
                     </Box>
-                </Box>
+                    </Box>
+                    <ParticipationByChannel result={result} labels={mergedLabels} />
+                </>
             ) : (
                 <Typography
                     className="seq-tally-results-participation-summary__empty"

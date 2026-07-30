@@ -677,7 +677,7 @@ impl InstantRunoff {
         let count_valid = ballots_status.count_valid;
         let count_invalid_votes = ballots_status.count_invalid_votes;
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
-        let extended_metrics = ballots_status.extended_metrics;
+        let extended_metrics = ballots_status.extended_metrics.clone();
         debug_assert!(count_blank <= count_valid);
         let percentage_votes_denominator = count_valid.saturating_sub(count_blank);
 

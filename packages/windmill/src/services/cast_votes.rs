@@ -117,11 +117,13 @@ pub async fn find_area_ballots(
     let area_id = escape_sql_literal(area_id);
     let election_id = escape_sql_literal(election_id);
     let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
+    let default_channel = escape_sql_literal(&VotingStatusChannel::ONLINE.to_string());
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
-                        content
+                        content,
+                        COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
@@ -129,7 +131,11 @@ pub async fn find_area_ballots(
                         area_id = '{area_id}' AND
                         election_id = '{election_id}' AND
                         status = '{status}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
+                    ORDER BY
+                        election_id,
+                        voter_id_string,
+                        created_at DESC NULLS LAST,
+                        id DESC
                 "#
     );
 

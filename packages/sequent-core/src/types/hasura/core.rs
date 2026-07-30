@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
-use std::str::FromStr;
+use std::{collections::BTreeMap, str::FromStr};
 
 use crate::{
     ballot::{
@@ -443,6 +443,8 @@ pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
     pub ballots_without_voter: u64,
     pub casted_ballots: u64,
+    #[serde(default)]
+    pub votes_by_channel: BTreeMap<String, u64>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

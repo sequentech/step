@@ -47,7 +47,10 @@ const sameId = (left: unknown, right: unknown): boolean =>
     String(left) === String(right)
 
 interface ResultAnnotations {
-    extended_metrics?: {weight?: unknown}
+    extended_metrics?: {
+        weight?: unknown
+        votes_by_channel?: Record<string, number | string | null>
+    }
     process_results?: PreferentialProcessResults
 }
 
@@ -144,6 +147,8 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             weight: getNumber(
                 parseAnnotations(resultContest.annotations)?.extended_metrics?.weight
             ),
+            votesByChannel: parseAnnotations(resultContest.annotations)?.extended_metrics
+                ?.votes_by_channel,
         }
     }, [resultContest])
 
@@ -207,6 +212,17 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             empty: t("resultsPortal.resultsAndParticipation.empty"),
             previousRounds: t("resultsPortal.resultsAndParticipation.previousRounds"),
             nextRounds: t("resultsPortal.resultsAndParticipation.nextRounds"),
+            participationByChannel: t(
+                "resultsPortal.resultsAndParticipation.participationByChannel"
+            ),
+            channel: t("resultsPortal.resultsAndParticipation.channel"),
+            channelOnline: t("resultsPortal.resultsAndParticipation.channelOnline"),
+            channelKiosk: t("resultsPortal.resultsAndParticipation.channelKiosk"),
+            channelEarlyVoting: t("resultsPortal.resultsAndParticipation.channelEarlyVoting"),
+            channelTelephone: t("resultsPortal.resultsAndParticipation.channelTelephone"),
+            channelPaper: t("resultsPortal.resultsAndParticipation.channelPaper"),
+            channelPostal: t("resultsPortal.resultsAndParticipation.channelPostal"),
+            channelInPerson: t("resultsPortal.resultsAndParticipation.channelInPerson"),
         }),
         [t]
     )

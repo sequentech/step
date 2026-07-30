@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 export type NumericValue = number | string | null | undefined
+export type VotesByChannel = Record<string, NumericValue>
 
 export interface ResultsParticipationSummary {
     id?: string | number
@@ -26,6 +27,7 @@ export interface ResultsParticipationSummary {
     implicitBlankVotes?: NumericValue
     implicitBlankVotesPercent?: NumericValue
     weight?: NumericValue
+    votesByChannel?: VotesByChannel
 }
 
 export interface CandidateResultRow {
@@ -99,6 +101,15 @@ export interface ResultsAndParticipationLabels {
     empty: string
     previousRounds: string
     nextRounds: string
+    participationByChannel: string
+    channel: string
+    channelOnline: string
+    channelKiosk: string
+    channelEarlyVoting: string
+    channelTelephone: string
+    channelPaper: string
+    channelPostal: string
+    channelInPerson: string
 }
 
 export interface ResultsAndParticipationProps {
@@ -143,4 +154,13 @@ export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels
     empty: "No items",
     previousRounds: "Navigate to previous rounds",
     nextRounds: "Navigate to next rounds",
+    participationByChannel: "Participation by channel",
+    channel: "Channel",
+    channelOnline: "Online",
+    channelKiosk: "Kiosk",
+    channelEarlyVoting: "Early voting",
+    channelTelephone: "Telephone",
+    channelPaper: "Paper",
+    channelPostal: "Postal",
+    channelInPerson: "In person",
 }

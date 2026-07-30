@@ -21,6 +21,7 @@ export interface ExtendedMetricsContest {
     expected_votes: number
     total_ballots: number
     weight: number
+    votes_by_channel?: Record<string, number>
 }
 
 export interface CandidateReference {
@@ -64,6 +65,6 @@ export interface RunoffStatus {
 }
 
 export interface ParsedAnnotations {
-    extended_metrics: ExtendedMetricsContest
+    extended_metrics?: ExtendedMetricsContest
     process_results?: RunoffStatus | unknown
 }

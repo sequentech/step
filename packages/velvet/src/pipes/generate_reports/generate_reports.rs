@@ -219,6 +219,10 @@ impl GenerateReports {
                     };
                     contest_result_opt = Some(contest_result);
                 }
+                let participation_by_channel = contest_result_opt
+                    .as_ref()
+                    .map(participation_by_channel_rows)
+                    .unwrap_or_default();
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
@@ -239,6 +243,7 @@ impl GenerateReports {
                     tally_sheet_id: None,
                     channel_type: report.channel_type.clone(),
                     election_results: report.election_results.clone(),
+                    participation_by_channel,
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
@@ -911,6 +916,63 @@ fn percentage_of(count: u64, base: u64) -> f64 {
     ((count as f64) * 100.0 / (safe_base as f64)).clamp(0.0, 100.0)
 }
 
+fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByChannelRow> {
+    let mut rows: Vec<ParticipationByChannelRow> = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| {
+            metrics
+                .votes_by_channel
+                .iter()
+                .filter(|(_, total)| **total > 0)
+                .map(|(channel, total)| ParticipationByChannelRow {
+                    channel: channel.clone(),
+                    label: match channel.as_str() {
+                        "ONLINE" => "Online".to_string(),
+                        "KIOSK" => "Kiosk".to_string(),
+                        "EARLY_VOTING" => "Early voting".to_string(),
+                        "TELEPHONE" => "Telephone".to_string(),
+                        "PAPER" => "Paper".to_string(),
+                        "POSTAL" => "Postal".to_string(),
+                        "IN_PERSON" => "In person".to_string(),
+                        _ => channel
+                            .split('_')
+                            .filter(|part| !part.is_empty())
+                            .map(|part| {
+                                let mut chars = part.to_lowercase().chars().collect::<Vec<_>>();
+                                if let Some(first) = chars.first_mut() {
+                                    first.make_ascii_uppercase();
+                                }
+                                chars.into_iter().collect::<String>()
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    },
+                    total: *total,
+                    percentage: percentage_of(*total, result.census),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    rows.sort_by(|left, right| {
+        let order = |channel: &str| match channel {
+            "ONLINE" => 0,
+            "KIOSK" => 1,
+            "EARLY_VOTING" => 2,
+            "TELEPHONE" => 3,
+            "PAPER" => 4,
+            "POSTAL" => 5,
+            "IN_PERSON" => 6,
+            _ => usize::MAX,
+        };
+        order(&left.channel)
+            .cmp(&order(&right.channel))
+            .then_with(|| left.channel.cmp(&right.channel))
+    });
+    rows
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ElectionResultReport {
     pub census: u64,
@@ -1341,6 +1403,16 @@ pub struct ReportDataComputed {
     pub candidate_result: Vec<CandidateResultForReport>,
     pub channel_type: Option<String>,
     pub election_results: Option<ElectionResultReport>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub participation_by_channel: Vec<ParticipationByChannelRow>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ParticipationByChannelRow {
+    pub channel: String,
+    pub label: String,
+    pub total: u64,
+    pub percentage: f64,
 }
 
 impl From<ReportDataComputed> for ReportData {

@@ -37,7 +37,7 @@ use std::cmp;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
@@ -107,6 +107,37 @@ impl DoTally {
 
         Ok(())
     }
+}
+
+fn validate_votes_by_channel(result: &ContestResult) -> Result<()> {
+    let votes_by_channel = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| &metrics.votes_by_channel);
+    let Some(votes_by_channel) = votes_by_channel.filter(|counts| !counts.is_empty()) else {
+        return Ok(());
+    };
+
+    let channel_total: u64 = votes_by_channel.values().sum();
+    let declined = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| metrics.total_declined_to_vote)
+        .unwrap_or_default();
+    let participation_total = result
+        .total_votes
+        .checked_add(result.auditable_votes)
+        .and_then(|total| total.checked_add(declined))
+        .ok_or_else(|| Error::UnexpectedError("Participation total overflow".to_string()))?;
+
+    if channel_total != participation_total {
+        return Err(Error::UnexpectedError(format!(
+            "Voting channel total {channel_total} does not match participation total {participation_total} for contest {}",
+            result.contest.id
+        )));
+    }
+
+    Ok(())
 }
 
 impl Pipe for DoTally {
@@ -308,16 +339,12 @@ impl Pipe for DoTally {
                                 .tally()
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                            if let Some(extended_metrics) =
-                                area_tally_results.extended_metrics.as_mut()
-                            {
-                                extended_metrics.weight = area_weight;
-                            }
-
-                            fs::create_dir_all(&base_output_path)?;
-                            let file_path_area = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
-                            let file_area = fs::File::create(file_path_area)?;
-                            serde_json::to_writer_pretty(file_area, &area_tally_results)?; // Using pretty
+                            let extended_metrics = area_tally_results
+                                .extended_metrics
+                                .get_or_insert_with(ExtendedMetricsContest::default);
+                            extended_metrics.weight = area_weight;
+                            extended_metrics.votes_by_channel =
+                                area_input.area.votes_by_channel.clone();
 
                             // Tally sheets tally for this area
                             let mut area_specific_tally_sheet_results: Vec<(
@@ -370,6 +397,24 @@ impl Pipe for DoTally {
                                         .push((contest_result_sheet, tally_sheet));
                                 }
                             }
+
+                            let area_result_with_tally_sheets =
+                                area_specific_tally_sheet_results.iter().fold(
+                                    area_tally_results.clone(),
+                                    |result, (tally_sheet_result, _)| {
+                                        result.aggregate(tally_sheet_result, false)
+                                    },
+                                );
+                            validate_votes_by_channel(&area_result_with_tally_sheets)?;
+
+                            fs::create_dir_all(&base_output_path)?;
+                            let file_path_area = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                            let file_area = fs::File::create(file_path_area)?;
+                            serde_json::to_writer_pretty(
+                                file_area,
+                                &area_result_with_tally_sheets,
+                            )?;
+
                             // Return data needed for final aggregation for the contest
                             Ok((
                                 (decoded_ballots_file, area_weight),
@@ -440,6 +485,7 @@ impl Pipe for DoTally {
                     let final_res = final_counting_algorithm
                         .tally()
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                    validate_votes_by_channel(&final_res)?;
 
                     let final_contest_result_file_path =
                         contest_output_dir_path.join(OUTPUT_CONTEST_RESULT_FILE);
@@ -541,7 +587,7 @@ impl DerefMut for BlankVotes {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ExtendedMetricsContest {
     // Voted more candidates than the allowed amount per contest
     pub over_votes: u64,
@@ -558,6 +604,8 @@ pub struct ExtendedMetricsContest {
     pub weight: Weight, // Used to store the actual weight used to tally an specific area.
     pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
     pub total_declined_to_vote: u64, // Total number of ballots that declined to vote
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub votes_by_channel: BTreeMap<String, u64>,
 }
 
 impl ExtendedMetricsContest {
@@ -571,6 +619,9 @@ impl ExtendedMetricsContest {
         result.total_ballots += other.total_ballots;
         result.total_weight += other.total_weight;
         result.total_declined_to_vote += other.total_declined_to_vote;
+        for (channel, count) in &other.votes_by_channel {
+            *result.votes_by_channel.entry(channel.clone()).or_default() += count;
+        }
         result
     }
 }
@@ -702,7 +753,7 @@ impl ContestResult {
         if add_census {
             aggregate.census += other.census;
         }
-        let aggregate_metrics = aggregate.extended_metrics.unwrap_or_default();
+        let aggregate_metrics = aggregate.extended_metrics.take().unwrap_or_default();
         aggregate.extended_metrics =
             Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
         aggregate.total_votes += other.total_votes;
@@ -750,5 +801,47 @@ impl HasId for Contest {
 impl HasId for Candidate {
     fn id(&self) -> &str {
         &self.id
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extended_metrics_aggregate_channel_counts() {
+        let left = ExtendedMetricsContest {
+            votes_by_channel: BTreeMap::from([
+                ("ONLINE".to_string(), 3),
+                ("TELEPHONE".to_string(), 1),
+            ]),
+            ..Default::default()
+        };
+        let right = ExtendedMetricsContest {
+            votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 2), ("PAPER".to_string(), 4)]),
+            ..Default::default()
+        };
+
+        let aggregate = left.aggregate(&right);
+
+        assert_eq!(aggregate.votes_by_channel.get("ONLINE"), Some(&5));
+        assert_eq!(aggregate.votes_by_channel.get("TELEPHONE"), Some(&1));
+        assert_eq!(aggregate.votes_by_channel.get("PAPER"), Some(&4));
+    }
+
+    #[test]
+    fn channel_validation_includes_auditable_and_declined_ballots() {
+        let result = ContestResult {
+            total_votes: 4,
+            auditable_votes: 1,
+            extended_metrics: Some(ExtendedMetricsContest {
+                total_declined_to_vote: 1,
+                votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 6)]),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        assert!(validate_votes_by_channel(&result).is_ok());
     }
 }
