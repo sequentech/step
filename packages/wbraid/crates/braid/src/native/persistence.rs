@@ -8,8 +8,9 @@
 //! Predicates are stored as their `VSer` bytes in a single-column table whose
 //! primary key is the bytes themselves, so `INSERT OR IGNORE` makes persistence
 //! idempotent for identical predicates while still recording distinct ones. The
-//! anti-rewrite decision lives in the board client's boundary `collides()` check
-//! (§6.3); this only supplies the durable committed set.
+//! anti-rewrite decision lives in the board client's completeness gate (§6.3),
+//! not `collides()` (that stays the datalog's job alone, §5.3); this module only
+//! supplies the durable committed set the gate checks against.
 
 use anyhow::Result;
 use async_trait::async_trait;

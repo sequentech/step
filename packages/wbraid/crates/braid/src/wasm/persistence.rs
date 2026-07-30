@@ -8,8 +8,9 @@
 //! Mirrors [`SqlitePersistence`](crate::native::persistence::SqlitePersistence):
 //! predicates are stored in an object store keyed by their `VSer` bytes (an
 //! out-of-line binary key), so `put` is idempotent for identical predicates.
-//! Anti-rewrite remains the board client's boundary `collides()` check (§6.3);
-//! this only supplies the durable committed set.
+//! Anti-rewrite remains the board client's completeness gate (§6.3), not
+//! `collides()` (that stays the datalog's job alone, §5.3); this module only
+//! supplies the durable committed set the gate checks against.
 //!
 //! The web-sys handles and `JsFuture`s are `!Send`, which is why the
 //! [`Persistence`] seam is `?Send` (spec Option B).

@@ -102,18 +102,13 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         Ok(client)
     }
 
-    /// Seed the committed set with the parent's predicates (§8.2). Persists each so
-    /// the anti-rewrite baseline is durable across tally restarts. A seed that
-    /// equivocates against what is already committed is itself a fault (⇒ halt).
+    /// Seed the committed set with the parent's predicates (§8.2), so the tally's
+    /// completeness gate (below) extends across the union: the DKG-session
+    /// predicates become part of what every later `update()` must still be able
+    /// to reconstruct. Persists each so the baseline is durable across tally
+    /// restarts too.
     async fn seed_parent_predicates(&mut self, parent_predicates: Vec<Predicate>) -> Result<()> {
         for predicate in parent_predicates {
-            if let Some(prior) = self.committed.iter().find(|p| p.collides(&predicate)) {
-                bail!(
-                    "union seed predicate {:?} collides with committed {:?}",
-                    predicate,
-                    prior
-                );
-            }
             if !self.committed.contains(&predicate) {
                 self.persistence.persist(&predicate).await?;
                 self.committed.push(predicate);
@@ -122,8 +117,8 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         Ok(())
     }
 
-    /// Update-first (§6): fetch from b4, verify each message, persist its digest,
-    /// and only then admit it to the in-memory store. For a union (§8.2) this reads
+    /// Update-first (§6): fetch from b4, verify + admit each message, then run the
+    /// anti-rewrite **completeness gate** (§6.3). For a union (§8.2) this reads
     /// BOTH the parent (DKG) and child (tally) boards and merges them into the one
     /// store the trustee sees. Idempotent — the store is a set keyed by predicate —
     /// so a full re-fetch each call is safe (§12; fetching the static parent every
@@ -137,29 +132,42 @@ impl<C: Context, T: Transport<C>, P: Persistence> BoardClient<C, T, P> {
         for message in &messages {
             self.admit(message).await?;
         }
-        Ok(())
+        self.check_complete()
     }
 
-    /// Verify a fetched message, run the anti-rewrite boundary check, then persist
-    /// its digest and admit it to the store (§6.2–6.3).
+    /// Verify a fetched message, then persist its digest and admit it to the store
+    /// (§6.2). Collision detection is not this method's job (§5.3): a predicate
+    /// that collides with an existing store entry is simply inserted alongside it
+    /// under its own distinct key — the datalog's own `collides()` rule is what
+    /// catches two such facts coexisting in one view.
     async fn admit(&mut self, message: &ProtocolMessage<C>) -> Result<()> {
         let (predicate, body) = verify(message, self.store.configuration())?;
-        // Anti-rewrite boundary check (§6.3): a freshly fetched predicate must never
-        // collide with one already committed. Signatures were just re-verified by
-        // `verify`; this is the additional, durable layer that forbids b4 from
-        // filling a slot with a different body across restarts and across the union.
-        if let Some(prior) = self.committed.iter().find(|p| p.collides(&predicate)) {
-            bail!(
-                "anti-rewrite violation: fetched predicate {:?} collides with committed {:?}",
-                predicate,
-                prior
-            );
-        }
         self.persistence.persist(&predicate).await?;
         if !self.committed.contains(&predicate) {
             self.committed.push(predicate.clone());
         }
         self.store.insert(predicate, body)?;
+        Ok(())
+    }
+
+    /// Anti-rewrite completeness gate (§6.3): every predicate this client has ever
+    /// committed to — durably persisted, and, for a union, seeded from the parent
+    /// — must still be reconstructible from the current fetch. Plain equality, not
+    /// `collides()`: within a slot the two are complements (a live entry is either
+    /// equal to the committed one, or colliding with it — never neither), so a
+    /// missing committed predicate is exactly the signature of b4 now serving
+    /// something different (or nothing) for a slot it once committed to. This
+    /// gates whether `step` runs at all this cycle; it does not itself detect
+    /// equivocation between two live, simultaneously-fetched messages — that is
+    /// the datalog's `collides()` rule, over whatever this gate lets through.
+    fn check_complete(&self) -> Result<()> {
+        let live = self.store.get_predicates();
+        if let Some(missing) = self.committed.iter().find(|p| !live.contains(p)) {
+            bail!(
+                "anti-rewrite violation: committed predicate {:?} is no longer reconstructible from b4",
+                missing
+            );
+        }
         Ok(())
     }
 
@@ -337,9 +345,13 @@ mod tests {
         Ok(())
     }
 
-    /// Anti-rewrite across the union (§8.2): the tally is seeded with the trustee's
-    /// own DKG-session committed digests, so a b4 that rewrites the DKG history
-    /// when serving it to the tally is caught (digest mismatch ⇒ HALT).
+    /// Anti-rewrite completeness gate across the union (§6.3/§8.2): the tally is
+    /// seeded with the trustee's own DKG-session committed digests. If b4 later
+    /// serves a *different* board for that same union — same Configuration, but a
+    /// colliding Shares in place of the one actually committed during the DKG —
+    /// the original committed predicate is no longer reconstructible, so
+    /// `update()`'s completeness gate blocks it before `step` ever runs over the
+    /// incomplete view.
     #[tokio::test]
     async fn union_seed_blocks_parent_rewrite() -> Result<()> {
         run_union_anti_rewrite::<RistrettoCtx>().await
@@ -347,7 +359,7 @@ mod tests {
 
     async fn run_union_anti_rewrite<C: Context>() -> Result<()> {
         let Setup {
-            pm: _,
+            pm,
             signing_keys,
             cfg,
             cfg_hash,
@@ -357,9 +369,9 @@ mod tests {
         let trustee1 =
             SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
-        let parent_board = MemoryBoard::<C>::new();
-        parent_board.push(cfg_message);
-        parent_board.push(ProtocolMessage::<C>::shares(
+        let dkg_board = MemoryBoard::<C>::new();
+        dkg_board.push(cfg_message);
+        dkg_board.push(ProtocolMessage::<C>::shares(
             &trustee1,
             DATE,
             cfg_hash,
@@ -370,14 +382,19 @@ mod tests {
         // DKG — this is the anti-rewrite seed (never a fresh b4 re-fetch).
         let seed = {
             let mut dkg =
-                BoardClient::connect(MemoryTransport::new(parent_board.clone()), NoOpPersistence)
+                BoardClient::connect(MemoryTransport::new(dkg_board.clone()), NoOpPersistence)
                     .await?;
             dkg.update().await?;
             dkg.committed().to_vec()
         };
 
-        // b4 rewrites the DKG history: a colliding Shares (different body) appears.
-        parent_board.push(ProtocolMessage::<C>::shares(
+        // A dishonest b4 now serves a DIFFERENT board for the same union: the same
+        // Configuration, but a colliding Shares (different body) in place of the
+        // one the DKG session actually saw — never the original alongside it, or
+        // datalog's own collides() would catch it trivially with no seed needed.
+        let rewritten_parent_board = MemoryBoard::<C>::new();
+        rewritten_parent_board.push(ProtocolMessage::<C>::configuration(&pm, DATE, &cfg));
+        rewritten_parent_board.push(ProtocolMessage::<C>::shares(
             &trustee1,
             DATE,
             cfg_hash,
@@ -387,7 +404,7 @@ mod tests {
         let child_board = MemoryBoard::<C>::new();
         let mut client = BoardClient::connect_union(
             MemoryTransport::new(child_board.clone()),
-            MemoryTransport::new(parent_board.clone()),
+            MemoryTransport::new(rewritten_parent_board.clone()),
             NoOpPersistence,
             seed,
         )
@@ -396,6 +413,65 @@ mod tests {
         assert!(
             result.is_err(),
             "seeded DKG digest must block the parent rewrite"
+        );
+        Ok(())
+    }
+
+    /// The complementary case (§5.3): when b4 serves BOTH the original and a
+    /// colliding message together in one view — no restart, no union, nothing
+    /// missing from history — the completeness gate has nothing to say (both are
+    /// reconstructible). It is the datalog's own `collides()` rule, run over the
+    /// resulting store, that catches this one.
+    #[tokio::test]
+    async fn live_collision_is_caught_by_datalog_not_completeness() -> Result<()> {
+        run_live_collision::<RistrettoCtx>().await
+    }
+
+    async fn run_live_collision<C: Context>() -> Result<()> {
+        let Setup {
+            cfg,
+            cfg_hash,
+            cfg_message,
+            signing_keys,
+            ..
+        } = setup::<C>(2)?;
+        let sk1 = signing_keys.into_iter().next().unwrap();
+        let trustee1 =
+            SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+
+        let board = MemoryBoard::<C>::new();
+        board.push(cfg_message);
+        board.push(ProtocolMessage::<C>::shares(
+            &trustee1,
+            DATE,
+            cfg_hash,
+            &vec![1u8, 2, 3],
+        ));
+        // Trustee 1 equivocates: a second, different Shares for the same slot,
+        // served alongside the first (nothing withheld, nothing missing).
+        board.push(ProtocolMessage::<C>::shares(
+            &trustee1,
+            DATE,
+            cfg_hash,
+            &vec![4u8, 5, 6],
+        ));
+
+        let mut client =
+            BoardClient::connect(MemoryTransport::new(board.clone()), NoOpPersistence).await?;
+        client.update().await?;
+
+        let predicates = client.view().get_predicates();
+        assert_eq!(
+            predicates
+                .iter()
+                .filter(|p| matches!(p, Predicate::Shares(_)))
+                .count(),
+            2,
+            "both colliding Shares must be admitted — the completeness gate does not reject either"
+        );
+        assert!(
+            crate::datalog::composed::run(&predicates).is_err(),
+            "datalog's own collides() rule must halt on two live Shares for the same sender"
         );
         Ok(())
     }

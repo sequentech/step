@@ -25,9 +25,10 @@ use crate::runtime::SessionTrustee;
 
 const DATE: Timestamp = 0;
 
-/// Restart + anti-rewrite (§6.2/§6.3): a predicate persisted before a restart
-/// is reloaded into the committed set and forbids b4 from later filling the
-/// same slot with a different body.
+/// Restart + anti-rewrite completeness gate (§6.2/§6.3): a predicate persisted
+/// before a restart is reloaded into the committed set; if b4 no longer serves
+/// it back (because it's serving a different body for that slot instead), the
+/// completeness gate in `update()` blocks before `step` ever runs.
 ///
 /// The `Shares` bodies are dummy bytes: `verify` only re-hashes the body into
 /// the predicate and checks the signature, so distinct bodies yield distinct
@@ -91,14 +92,19 @@ async fn run_restart_anti_rewrite<C: Context>() -> Result<()> {
         // client dropped here (and with it the in-memory committed set)
     };
 
-    // --- b4 is asked to rewrite the slot: a colliding Shares from the same
-    //     trustee with a different body appears on the board ---
+    // --- b4 now serves a DIFFERENT board on reconnect: same Configuration, but a
+    //     colliding Shares (different body) in place of the one it served before
+    //     the restart — never the original alongside it, or the datalog's own
+    //     collides() rule would catch it directly with no persistence involved ---
+    let rewritten_board = MemoryBoard::<C>::new();
+    rewritten_board.push(ProtocolMessage::<C>::configuration(&pm, DATE, &cfg));
     let colliding = ProtocolMessage::<C>::shares(&trustee, DATE, cfg_hash, &vec![4u8, 5, 6]);
-    board.push(colliding);
+    rewritten_board.push(colliding);
 
     // --- restart: reopen persistence, reconnect, update must halt ---
     let persistence = SqlitePersistence::open(&db_path)?;
-    let mut client = BoardClient::connect(MemoryTransport::new(board.clone()), persistence).await?;
+    let mut client =
+        BoardClient::connect(MemoryTransport::new(rewritten_board.clone()), persistence).await?;
     let result = client.update().await;
 
     let _ = std::fs::remove_file(&db_path);

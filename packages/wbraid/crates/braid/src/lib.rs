@@ -42,11 +42,12 @@
 //!                  persist, store
 //! ```
 //!
-//! - [`BoardClient`](board::BoardClient) is the only slot / `collides()`-aware
+//! - [`BoardClient`](board::BoardClient) is the only persistence/completeness-aware
 //!   layer: it verifies each [`ProtocolMessage`](messages::wire::ProtocolMessage) into
 //!   a [`Predicate`](messages::predicate::Predicate) (+ body), runs the anti-rewrite
-//!   check against its persisted commitments (§6.2–§6.3), and owns the
-//!   [`MessageStore`](messages::store::MessageStore) (§5, §8).
+//!   completeness gate against its persisted commitments (§6.2–§6.3), and owns the
+//!   [`MessageStore`](messages::store::MessageStore) (§5, §8). `collides()` itself
+//!   stays the datalog's job alone (§5.3).
 //! - [`SessionTrustee`](runtime::SessionTrustee) is constructed with its secret
 //!   keys (§9) and runs a **pure** `step` over the store — no I/O, no state. It is
 //!   oblivious to whether the store is one board or a client-composed union of
