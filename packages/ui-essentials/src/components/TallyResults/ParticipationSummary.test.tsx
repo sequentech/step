@@ -104,9 +104,14 @@ describe("ParticipationByChannel", () => {
             />
         )
 
+        const onlineIndex = markup.indexOf(">Online<")
+        const paperIndex = markup.indexOf(">Paper<")
+        const futureChannelIndex = markup.indexOf(">Future Channel<")
+
         expect(markup).toContain("Participation by channel")
-        expect(markup.indexOf("Online")).toBeLessThan(markup.indexOf("Paper"))
-        expect(markup.indexOf("Paper")).toBeLessThan(markup.indexOf("Future Channel"))
+        expect(onlineIndex).toBeGreaterThan(-1)
+        expect(paperIndex).toBeGreaterThan(onlineIndex)
+        expect(futureChannelIndex).toBeGreaterThan(paperIndex)
         expect(markup).toContain("25.0%")
         expect(markup).toContain("15.0%")
         expect(markup).toContain("10.0%")
