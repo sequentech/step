@@ -60,6 +60,10 @@ fn is_marker_candidate_selected(
 pub struct MultiBallotCodecContext<'a> {
     /// Per-contest codec contexts, sorted by contest id.
     pub contest_contexts: Vec<ContestCodecContext<'a>>,
+    /// Choice slots per contest in the multi-contest encoding, aligned
+    /// index-for-index with `contest_contexts`. Defaults to `max_votes`;
+    /// widened to the candidate count for `EXPANDED_CAPACITY` styles.
+    pub vote_slot_counts: Vec<usize>,
     /// Whether the ballot-level decline-to-vote flag is encoded.
     pub include_decline_to_vote: bool,
     /// The mixed radix bases for the whole ballot.
@@ -73,6 +77,29 @@ impl<'a> MultiBallotCodecContext<'a> {
     /// `mode` is the ballot style's persisted encoding mode, applied
     /// uniformly, not derived per-contest.
     pub fn new(
+        contests: &'a [Contest],
+        include_decline_to_vote: bool,
+        mode: MultiContestEncodingMode,
+    ) -> Result<Self, String> {
+        // Validated in contest.id order, the same order `new_unchecked`
+        // builds contexts in, so the first invalid contest reported here
+        // matches the order used everywhere else.
+        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
+        sorted_contests.sort_by(|a, b| a.id.cmp(&b.id));
+        for contest in sorted_contests {
+            validate_contest_configuration(contest)?;
+        }
+
+        Self::new_unchecked(contests, include_decline_to_vote, mode)
+    }
+
+    /// Precomputes the constants used to encode and decode multi-contest
+    /// ballots without validating the contest configurations.
+    ///
+    /// Used by decode paths that validate each contest configuration at
+    /// the point it is decoded, to preserve the order in which errors are
+    /// reported (see `BallotChoices::decode`).
+    pub fn new_unchecked(
         contests: &'a [Contest],
         include_decline_to_vote: bool,
         mode: MultiContestEncodingMode,
@@ -91,8 +118,9 @@ impl<'a> MultiBallotCodecContext<'a> {
         }
 
         let mut contest_contexts = Vec::with_capacity(sorted_contests.len());
+        let mut vote_slot_counts = Vec::with_capacity(sorted_contests.len());
         for contest in sorted_contests {
-            let mut context = ContestCodecContext::new(contest)?;
+            let context = ContestCodecContext::new_unchecked(contest);
 
             // Compact encoding only supports plurality
             if contest.get_counting_algorithm()
@@ -113,22 +141,129 @@ impl<'a> MultiBallotCodecContext<'a> {
                 bases.push(2);
             }
 
-            if mode == MultiContestEncodingMode::EXPANDED_CAPACITY {
-                context.vote_slot_count =
-                    context.sorted_normal_candidates.len();
-            }
-            for _ in 0..context.vote_slot_count {
+            let vote_slot_count =
+                if mode == MultiContestEncodingMode::EXPANDED_CAPACITY {
+                    context.sorted_normal_candidates.len()
+                } else {
+                    usize::try_from(contest.max_votes).unwrap_or(0)
+                };
+            for _ in 0..vote_slot_count {
                 // + 1: include the unset value.
                 bases.push(num_valid_candidates + 1);
             }
 
             contest_contexts.push(context);
+            vote_slot_counts.push(vote_slot_count);
         }
 
         Ok(MultiBallotCodecContext {
             contest_contexts,
+            vote_slot_counts,
             include_decline_to_vote,
             bases,
+        })
+    }
+
+    /// Decode a mixed radix representation of the ballot given this
+    /// context's per-contest codec contexts, sorted by contest id.
+    ///
+    /// When `validate_contest_configurations` is true, each contest
+    /// configuration is validated right before the contest is decoded,
+    /// preserving the order in which errors are reported.
+    fn decode_sorted_contexts(
+        &self,
+        validate_contest_configurations: bool,
+        raw_ballot: &RawBallotContest,
+        serial_number_counter: Option<&mut u32>,
+    ) -> Result<DecodedBallotChoices, String> {
+        let mut contest_choices: Vec<DecodedContestChoices> = vec![];
+        let choices = &raw_ballot.choices;
+
+        // Each contest contributes vote_slot_count slots plus one invalid
+        // flag and, when configured, one explicit blank flag.
+        let expected_vote_slots: usize = self.vote_slot_counts.iter().sum();
+
+        let expected_blank_slots = self
+            .contest_contexts
+            .iter()
+            .filter(|contest_context| {
+                contest_context.explicit_blank_candidate.is_some()
+            })
+            .count();
+
+        // One per-contest invalid flag, optional per-contest blank flags, and
+        // vote_slot_count slots per contest, plus a ballot-level invalid flag
+        // when decline-to-vote is enabled.
+        let expected_choices = expected_vote_slots
+            + self.contest_contexts.len()
+            + expected_blank_slots
+            + usize::from(self.include_decline_to_vote);
+        if choices.len() != expected_choices {
+            return Err(format!(
+                "Unexpected number of choices {} != {}",
+                choices.len(),
+                expected_choices
+            ));
+        }
+
+        let is_explicit_invalid = if self.include_decline_to_vote {
+            !choices.is_empty() && (choices[0] > 0)
+        } else {
+            false
+        };
+        let mut choice_index = usize::from(self.include_decline_to_vote);
+
+        // Contest contexts are sorted by contest id, the order in which
+        // selections are encoded and decoded.
+        for (contest_context, &vote_slot_count) in
+            self.contest_contexts.iter().zip(&self.vote_slot_counts)
+        {
+            let contest_is_explicit_invalid: bool = choices
+                .get(choice_index)
+                .map(|value| *value > 0)
+                .unwrap_or(false);
+            choice_index += 1;
+
+            let contest_is_explicit_blank =
+                if contest_context.explicit_blank_candidate.is_some() {
+                    let value = choices
+                        .get(choice_index)
+                        .map(|value| *value > 0)
+                        .unwrap_or(false);
+                    choice_index += 1;
+                    value
+                } else {
+                    false
+                };
+
+            if validate_contest_configurations {
+                validate_contest_configuration(contest_context.contest)?;
+            }
+            let next = BallotChoices::decode_contest(
+                contest_context,
+                vote_slot_count,
+                &choices[choice_index..],
+                contest_is_explicit_invalid,
+                contest_is_explicit_blank,
+                is_explicit_invalid,
+            )?;
+            choice_index += vote_slot_count;
+            contest_choices.push(next);
+        }
+
+        let serial_number = match serial_number_counter {
+            Some(serial_number) => {
+                let sn = Some(format!("{:09}", *serial_number));
+                *serial_number += 1;
+                sn
+            }
+            None => None,
+        };
+
+        Ok(DecodedBallotChoices {
+            is_explicit_invalid,
+            choices: contest_choices,
+            serial_number,
         })
     }
 }
@@ -384,7 +519,9 @@ impl BallotChoices {
 
         // Iterate in contest order (contest contexts are sorted by id, the
         // order in which selections must be encoded and decoded)
-        for contest_context in &context.contest_contexts {
+        for (contest_context, &vote_slot_count) in
+            context.contest_contexts.iter().zip(&context.vote_slot_counts)
+        {
             let contest = contest_context.contest;
             let plaintext = plaintexts_map.get(&contest.id).ok_or(format!(
                 "Could not find plaintexts for contest {:?}",
@@ -406,7 +543,7 @@ impl BallotChoices {
             }
 
             let contest_choices =
-                self.encode_contest(contest_context, plaintext)?;
+                self.encode_contest(contest_context, vote_slot_count, plaintext)?;
 
             // Accumulate the choices for each contest
             choices.extend(contest_choices);
@@ -416,14 +553,13 @@ impl BallotChoices {
     }
 
     /// Encodes one contest into a choice vector of length
-    /// context.vote_slot_count.
+    /// `vote_slot_count`.
     fn encode_contest(
         &self,
         context: &ContestCodecContext,
+        vote_slot_count: usize,
         plaintext: &ContestChoices,
     ) -> Result<Vec<u64>, String> {
-        let vote_slot_count = context.vote_slot_count;
-
         let choices_order = match self.counting_algorithm.is_preferential() {
             true => {
                 // Setting the choices in order of preference to support
@@ -600,30 +736,16 @@ impl BallotChoices {
         mode: MultiContestEncodingMode,
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
-        // The contest configurations are validated inside the decode loop
-        // (see decode_sorted_contexts) so that errors are reported in the
-        // same order in which decoding progresses.
-        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
-        sorted_contests.sort_by(|a, b| a.id.cmp(&b.id));
-        let contest_contexts: Vec<ContestCodecContext> = sorted_contests
-            .into_iter()
-            .map(ContestCodecContext::new_unchecked)
-            .map(|mut context| {
-                if mode == MultiContestEncodingMode::EXPANDED_CAPACITY {
-                    context.vote_slot_count =
-                        context.sorted_normal_candidates.len();
-                }
-                context
-            })
-            .collect();
-
-        Self::decode_sorted_contexts(
-            &contest_contexts,
+        // The contest configurations are validated inside decode_sorted_contexts
+        // (its `validate_contest_configurations: true` below) so that errors
+        // are reported in the same order in which decoding progresses.
+        let context = MultiBallotCodecContext::new_unchecked(
+            contests,
             include_decline_to_vote,
-            true,
-            raw_ballot,
-            serial_number_counter,
-        )
+            mode,
+        )?;
+
+        context.decode_sorted_contexts(true, raw_ballot, serial_number_counter)
     }
 
     /// Decode a mixed radix representation of the ballot using a
@@ -635,123 +757,13 @@ impl BallotChoices {
     ) -> Result<DecodedBallotChoices, String> {
         // The contest configurations were already validated when the
         // context was built.
-        Self::decode_sorted_contexts(
-            &context.contest_contexts,
-            context.include_decline_to_vote,
-            false,
-            raw_ballot,
-            serial_number_counter,
-        )
-    }
-
-    /// Decode a mixed radix representation of the ballot given the
-    /// per-contest codec contexts, sorted by contest id.
-    ///
-    /// When `validate_contest_configurations` is true, each contest
-    /// configuration is validated right before the contest is decoded,
-    /// preserving the order in which errors are reported.
-    fn decode_sorted_contexts(
-        contest_contexts: &[ContestCodecContext],
-        include_decline_to_vote: bool,
-        validate_contest_configurations: bool,
-        raw_ballot: &RawBallotContest,
-        serial_number_counter: Option<&mut u32>,
-    ) -> Result<DecodedBallotChoices, String> {
-        let mut contest_choices: Vec<DecodedContestChoices> = vec![];
-        let choices = &raw_ballot.choices;
-
-        // Each contest contributes vote_slot_count slots plus one invalid
-        // flag and, when configured, one explicit blank flag.
-        let expected_vote_slots: usize = contest_contexts
-            .iter()
-            .fold(0, |a, b| a + b.vote_slot_count);
-
-        let expected_blank_slots = contest_contexts
-            .iter()
-            .filter(|contest_context| {
-                contest_context.explicit_blank_candidate.is_some()
-            })
-            .count();
-
-        // One per-contest invalid flag, optional per-contest blank flags, and
-        // vote_slot_count slots per contest, plus a ballot-level invalid flag
-        // when decline-to-vote is enabled.
-        let expected_choices = expected_vote_slots
-            + contest_contexts.len()
-            + expected_blank_slots
-            + usize::from(include_decline_to_vote);
-        if choices.len() != expected_choices {
-            return Err(format!(
-                "Unexpected number of choices {} != {}",
-                choices.len(),
-                expected_choices
-            ));
-        }
-
-        let is_explicit_invalid = if include_decline_to_vote {
-            !choices.is_empty() && (choices[0] > 0)
-        } else {
-            false
-        };
-        let mut choice_index = usize::from(include_decline_to_vote);
-
-        // Contest contexts are sorted by contest id, the order in which
-        // selections are encoded and decoded.
-        for contest_context in contest_contexts {
-            let contest_is_explicit_invalid: bool = choices
-                .get(choice_index)
-                .map(|value| *value > 0)
-                .unwrap_or(false);
-            choice_index += 1;
-
-            let contest_is_explicit_blank =
-                if contest_context.explicit_blank_candidate.is_some() {
-                    let value = choices
-                        .get(choice_index)
-                        .map(|value| *value > 0)
-                        .unwrap_or(false);
-                    choice_index += 1;
-                    value
-                } else {
-                    false
-                };
-
-            if validate_contest_configurations {
-                validate_contest_configuration(contest_context.contest)?;
-            }
-            let next = Self::decode_contest(
-                contest_context,
-                &choices[choice_index..],
-                contest_is_explicit_invalid,
-                contest_is_explicit_blank,
-                is_explicit_invalid,
-            )?;
-            choice_index += contest_context.vote_slot_count;
-            contest_choices.push(next);
-        }
-
-        let serial_number = match serial_number_counter {
-            Some(serial_number) => {
-                let sn = Some(format!("{:09}", *serial_number));
-                *serial_number += 1;
-                sn
-            }
-            None => None,
-        };
-
-        let ret = DecodedBallotChoices {
-            is_explicit_invalid,
-            choices: contest_choices,
-            serial_number,
-        };
-
-        Ok(ret)
+        context.decode_sorted_contexts(false, raw_ballot, serial_number_counter)
     }
 
     /// Decodes one contest in the ballot
     ///
     /// Returns a ContestChoice for the choices slice argument,
-    /// which will be read up to position context.vote_slot_count. This
+    /// which will be read up to position `vote_slot_count`. This
     /// ContestChoice will be added to the overall DecodedBallotChoices.
     /// Values set to 0 (unset) will not return a ContestChoice.
     /// It is the responsibility of the caller to advance the choice slice
@@ -764,6 +776,7 @@ impl BallotChoices {
     /// check still apply.
     fn decode_contest(
         context: &ContestCodecContext,
+        vote_slot_count: usize,
         choices: &[u64],
         is_explicit_invalid: bool,
         is_explicit_blank: bool,
@@ -783,7 +796,7 @@ impl BallotChoices {
         let sorted_candidates = &context.sorted_normal_candidates;
 
         let mut next_choices = vec![];
-        for i in 0..context.vote_slot_count {
+        for i in 0..vote_slot_count {
             let next = choices[i];
             let next = usize::try_from(next).map_err(|_| {
                 format!("u64 -> usize conversion on plaintext choice")
