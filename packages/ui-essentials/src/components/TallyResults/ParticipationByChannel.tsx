@@ -32,7 +32,9 @@ const CHANNEL_ORDER = [
     "IN_PERSON",
 ] as const
 
-const channelOrder = new Map(CHANNEL_ORDER.map((channel, index) => [channel, index]))
+const channelOrder = new Map<string, number>(
+    CHANNEL_ORDER.map((channel, index) => [channel, index])
+)
 
 const fallbackChannelLabel = (channel: string): string =>
     channel
