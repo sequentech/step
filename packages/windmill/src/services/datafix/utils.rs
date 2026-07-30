@@ -4,6 +4,7 @@
 use super::types::*;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::update_election_event_annotations;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::electoral_log::ElectoralLog;
@@ -12,6 +13,8 @@ use crate::services::users::get_users_by_username;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
+use sequent_core::ballot::Annotations;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::UserArea;
 use sequent_core::types::keycloak::{
@@ -19,19 +22,31 @@ use sequent_core::types::keycloak::{
 };
 use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
+use uuid::Uuid;
 
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
+/// Last `Sequence` (from a reconciliation file's `#META` line) actually applied
+/// for this event — the monotonic gate against importing a stale file. Kept
+/// per-provider under its own annotation key (like the three above), not a
+/// dedicated `election_event` column, since a future non-Datafix voter
+/// registry integration would need its own independent sequence, not share
+/// this one.
+pub const DATAFIX_LAST_APPLIED_SEQUENCE_KEY: &str = "datafix:last_applied_sequence";
+/// Whether the most recent reconciliation apply had per-row failures. A true
+/// value permits retrying that same Sequence; a successful apply clears it.
+pub const DATAFIX_LAST_APPLY_HAD_FAILURES_KEY: &str = "datafix:last_apply_had_failures";
 /// Lifetime of the per-voter Datafix advisory lock. Must exceed the slowest
 /// VoterView round-trip so the lock outlives an in-flight SOAP call.
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 
-/// Advisory-lock key that serializes all Datafix work for one voter within an
-/// event, so outbound `SetVoted`, disable-release and inbound mark/unmark cannot
-/// interleave for the same voter.
+/// Advisory-lock key that serializes all Datafix work for one
+/// voter within an event — outbound `SetVoted`, disable-release, inbound
+/// mark/unmark, and reconciliation apply all take this same lock, so none of
+/// them can interleave for the same voter.
 #[instrument]
-pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &str) -> String {
+pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &Uuid) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 
@@ -41,7 +56,7 @@ pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id
 pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => {
-            matches!(v.last(), Some(channel) if channel.eq(VOTED_CHANNEL_INTERNET_VALUE))
+            matches!(v.last(), Some(channel) if channel.eq_ignore_ascii_case(VOTED_CHANNEL_INTERNET_VALUE))
         }
         None => false,
     }
@@ -53,7 +68,7 @@ pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
 pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
         Some((_, v)) => {
-            matches!(v.last(), Some(channel) if channel != ATTR_RESET_VALUE && channel != VOTED_CHANNEL_INTERNET_VALUE && !channel.is_empty())
+            matches!(v.last(), Some(channel) if !channel.eq_ignore_ascii_case(ATTR_RESET_VALUE) && !channel.eq_ignore_ascii_case(VOTED_CHANNEL_INTERNET_VALUE) && !channel.is_empty())
         }
         None => false,
     }
@@ -113,8 +128,12 @@ pub async fn get_event_id_and_datafix_annotations(
 /// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
 /// ignored (e.g. `WARD-POLL` when there is no SchoolSupportCode,
 /// `WARD-SCHOOL` when there is no Poll). All values are uppercased.
+/// `pub(crate)` (rather than private) so `reconciliation::diff` can reuse the
+/// exact same Ward-SchoolSupportCode-Poll composition/uppercasing rule when
+/// comparing a reconciliation file row's area against a voter's resolved
+/// `Area::name`.
 #[instrument(skip_all)]
-fn compose_area_name(voter_info: &VoterInformationBody) -> String {
+pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     let mut parts = vec![voter_info.ward.clone()];
 
     if let Some(schoolboard) = &voter_info.schoolboard {
@@ -241,6 +260,57 @@ pub fn datafix_annotations(election_event: &ElectionEvent) -> Result<Option<Data
         .get_annotations()
         .map(Some)
         .map_err(|err| anyhow!("Invalid Datafix election event configuration: {err}"))
+}
+
+/// Stores the event's last applied Sequence and whether that apply had row
+/// failures. Same-Sequence writes update the retry flag; moving backwards is
+/// rejected. Read-modify-write of the whole
+/// `annotations` blob, matching every other annotation writer in this codebase (e.g.
+/// `update_election_event_sbei_users`) rather than a raw `jsonb_set`
+/// compare-and-swap — reconciliation apply is an infrequent, deliberate admin
+/// action, not a hot concurrent path.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn set_datafix_reconciliation_state(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    sequence: i64,
+    had_failures: bool,
+) -> Result<()> {
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let annotations_value = election_event
+        .annotations
+        .clone()
+        .ok_or_else(|| anyhow!("Missing election event annotations"))?;
+    let mut annotations: Annotations = deserialize_value(annotations_value)?;
+
+    let current: Option<i64> = annotations
+        .get(DATAFIX_LAST_APPLIED_SEQUENCE_KEY)
+        .and_then(|value| value.parse().ok());
+    if current.is_some_and(|current| current > sequence) {
+        return Err(anyhow!(
+            "Cannot move Datafix reconciliation state backwards from Sequence {} to {sequence}",
+            current.unwrap_or_default()
+        ));
+    }
+
+    annotations.insert(
+        DATAFIX_LAST_APPLIED_SEQUENCE_KEY.to_string(),
+        sequence.to_string(),
+    );
+    annotations.insert(
+        DATAFIX_LAST_APPLY_HAD_FAILURES_KEY.to_string(),
+        had_failures.to_string(),
+    );
+    let annotations_value = serde_json::to_value(&annotations)?;
+    update_election_event_annotations(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        annotations_value,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(direction = %direction), err)]

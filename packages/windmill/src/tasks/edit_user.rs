@@ -26,7 +26,9 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
-use sequent_core::types::keycloak::{User, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
+use sequent_core::types::keycloak::{
+    User, ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, info, instrument};
@@ -65,10 +67,10 @@ pub struct EditUserOutput {
 /// the (potentially slow, retried) VoterView round-trip. The release logic runs
 /// in [`apply_datafix_voter_edit`]; its outcome is recorded on `task_execution`,
 /// which backs the operator's task widget. A Datafix voter's ballots are
-/// discarded after the Keycloak disable. A retry also resumes a partial
-/// disable when Keycloak is already disabled but active ballots remain.
-/// Whether `SetNotVoted` converges is still handled by the separate manual
-/// reconciliation process.
+/// discarded and its voted-channel attribute reset after the Keycloak
+/// disable. A retry also resumes a partial disable when Keycloak is already
+/// disabled but active ballots remain. Whether `SetNotVoted` converges is
+/// still handled by the separate manual reconciliation process.
 #[instrument(
     skip_all,
     fields(
@@ -150,7 +152,6 @@ fn plan_voter_release(
     if reenable_transition
         && (cast_vote_state.has_unresolved_vote
             || cast_vote_state.has_valid_vote
-            || voted_via_internet(current_attributes)
             || voted_via_not_internet_channel(current_attributes))
     {
         return Err(
@@ -258,6 +259,39 @@ async fn discard_voter_ballots(
     transaction.commit().await?;
     info!(discarded, "Discarded active Datafix cast votes");
     Ok(())
+}
+
+/// Resets `VOTED_CHANNEL` back to `NONE` after a release discards the voter's
+/// ballots, mirroring the reset `unmark_voter_as_voted` already does for the
+/// inbound `/unmark-voted` call. Without this the attribute — set once, when a
+/// vote first resolves to `Valid`, and otherwise never touched — stays stale
+/// after the ballot it described is gone, wrongly blocking a later re-enable
+/// and feeding a stale channel into the reconciliation patch for a voter
+/// Datafix has no record of. Only ever runs after `plan_voter_release` has
+/// already confirmed the voter isn't recorded as voted through another
+/// channel, so this can only be clearing a stale `INTERNET` value or a no-op.
+#[instrument(skip(ctx))]
+async fn clear_voted_channel(ctx: &DatafixEditCtx<'_>) -> anyhow::Result<()> {
+    let client = KeycloakAdminClient::new().await?;
+    let attributes = HashMap::from([(
+        VOTED_CHANNEL.to_string(),
+        vec![ATTR_RESET_VALUE.to_string()],
+    )]);
+    client
+        .edit_user(
+            &ctx.realm,
+            &ctx.body.user_id,
+            None,
+            Some(attributes),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .map(|_| ())
 }
 
 /// Records the outcome of a disabled-voter release in the electoral log.
@@ -415,6 +449,9 @@ async fn run_datafix_voter_edit(
     discard_voter_ballots(&body.tenant_id, &body.election_event_id, &body.user_id)
         .await
         .map_err(|err| format!("Error discarding Datafix cast votes: {err:?}"))?;
+    clear_voted_channel(ctx).await.map_err(|err| {
+        format!("Could not reset the voter's voted-channel attribute after discard: {err}")
+    })?;
 
     if !plan.owes_set_not_voted {
         return Ok(());
@@ -440,8 +477,10 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
         .await
         .map_err(|err| format!("Error loading election event: {err:?}"))?;
 
+    let user_id_uuid =
+        parse_uuid_v4(&body.user_id).map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(&body.tenant_id, &body.election_event_id, &body.user_id),
+        datafix_voter_lock_key(&body.tenant_id, &body.election_event_id, &user_id_uuid),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -567,10 +606,25 @@ mod tests {
     }
 
     #[test]
-    fn reenabling_is_refused_while_marked_voted_via_internet() {
+    fn reenabling_a_voter_with_only_discarded_internet_ballots_is_allowed() {
+        // The voted-channel attribute is never cleared by a discard, so once a
+        // voter has ever cast an internet ballot it stays "Internet" forever —
+        // re-enable must key off the live `VoterCastVoteState`, not this stale
+        // attribute, or a fully-resolved (discarded) voter could never be
+        // re-enabled.
+        let plan = plan_voter_release(Some(false), Some(true), &no_cast_votes(), &internet_voter())
+            .unwrap();
+        assert!(!plan.release_attempt);
+    }
+
+    #[test]
+    fn reenabling_is_refused_while_marked_voted_via_another_channel() {
+        // Unlike an internet ballot, a non-internet channel has no
+        // corresponding `cast_vote` row — the attribute is the only record of
+        // it, and only Datafix's own `/unmark-voted` call may reverse it.
+        let attributes = HashMap::from([(VOTED_CHANNEL.to_string(), vec!["PAPER".to_string()])]);
         assert!(
-            plan_voter_release(Some(false), Some(true), &no_cast_votes(), &internet_voter())
-                .is_err()
+            plan_voter_release(Some(false), Some(true), &no_cast_votes(), &attributes).is_err()
         );
     }
 

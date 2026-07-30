@@ -189,8 +189,10 @@ async fn insert_datafix_cast_vote_locked<'a>(
     is_early_voting_area: bool,
     initial_status: CastVoteStatus,
 ) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    let voter_id_uuid = parse_uuid_v4(ids.voter_id)
+        .map_err(|err| CastVoteError::VoterStateLocked(format!("Invalid voter id: {err}")))?;
     let lock = PgLock::acquire(
-        datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, ids.voter_id),
+        datafix_voter_lock_key(ids.tenant_id, ids.election_event_id, &voter_id_uuid),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )

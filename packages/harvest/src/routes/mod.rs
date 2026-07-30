@@ -8,6 +8,7 @@ pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
 pub mod create_ballot_receipt;
 pub mod custom_urls;
+pub mod datafix_reconciliation;
 pub mod delete_certificate_authority;
 pub mod delete_election_event;
 pub mod election_dates;

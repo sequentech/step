@@ -52,6 +52,21 @@ pub async fn update(
     document_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
     let annotations = serde_json::to_value(TaskAnnotations { document_id })?;
+    update_with_annotations(tenant_id, task_id, status, logs, annotations).await
+}
+
+/// Updates a task with caller-owned structured annotations. Most tasks only
+/// need `document_id` and should use `update`; workflows with typed result
+/// data (for example reconciliation row failures) use this instead of
+/// encoding machine-readable state in human log strings.
+#[instrument(skip_all, err)]
+pub async fn update_with_annotations(
+    tenant_id: &str,
+    task_id: &str,
+    status: TasksExecutionStatus,
+    logs: serde_json::Value,
+    annotations: serde_json::Value,
+) -> Result<(), anyhow::Error> {
     update_task_execution_status(tenant_id, task_id, status, Some(logs), annotations)
         .await
         .context("Failed to update task execution record")?;

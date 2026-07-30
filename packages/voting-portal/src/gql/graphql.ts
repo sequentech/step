@@ -1228,6 +1228,8 @@ export type Mutation_Root = {
   ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
+  /** applies the Sequent-side reconciliation diff for an already-computed import */
+  apply_external_reconciliation_changes?: Maybe<TaskOutput>;
   call_plugin_route: PluginsRouteOutput;
   /** check private key */
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
@@ -1238,6 +1240,8 @@ export type Mutation_Root = {
   /** create_ballot_receipt */
   create_ballot_receipt?: Maybe<CreateBallotReceiptOutput>;
   create_election?: Maybe<CreateElectionOutput>;
+  /** uploads an external (i.e. Datafix) reconciliation file and kicks off the diff-calculation task */
+  create_external_reconciliation_import?: Maybe<TaskOutput>;
   /** create keys ceremony */
   create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   /** create_new_tally_sheet */
@@ -1959,6 +1963,13 @@ export type Mutation_RootVerifyApplicationArgs = {
 
 
 /** mutation root */
+export type Mutation_RootApply_External_Reconciliation_ChangesArgs = {
+  diff_document_id: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootCall_Plugin_RouteArgs = {
   data: Scalars['jsonb']['input'];
   path: Scalars['String']['input'];
@@ -2007,6 +2018,13 @@ export type Mutation_RootCreate_ElectionArgs = {
   election_event_id: Scalars['String']['input'];
   external_id: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_External_Reconciliation_ImportArgs = {
+  document_id: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
 };
 
 
