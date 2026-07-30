@@ -38,6 +38,8 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
 
 @UtilityClass
@@ -46,6 +48,35 @@ public class Utils {
   public static final String USERNAME_ATTRIBUTES = "usernameAttributes";
   public static final List<String> USERNAME_ATTRIBUTES_DEFAULT =
       Collections.unmodifiableList(Arrays.asList("username"));
+  public static final String MATCH_ATTRIBUTES = "matchAttributes";
+  public static final List<String> MATCH_ATTRIBUTES_DEFAULT = Collections.emptyList();
+  public static final String MAX_CANDIDATES = "maxCandidates";
+  public static final String MAX_CANDIDATES_DEFAULT = "10";
+  public static final String TUPLE_MAX_FAILURES = "tupleMaxFailures";
+  public static final String TUPLE_MAX_FAILURES_DEFAULT = "10";
+  public static final String TUPLE_FAILURE_WINDOW_SECONDS = "tupleFailureWindowSeconds";
+  public static final String TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT = "60";
+
+  /**
+   * Hard ceiling on rows pulled from the user store per configured attribute - see {@link
+   * MultiAttributeCredentialResolver.ThrottleConfig#maxAttributeLookupResults}. Deliberately much
+   * larger than {@link #MAX_CANDIDATES_DEFAULT}: a safety ceiling against pathological matches, not
+   * a replacement for the tighter password-hash cost bound.
+   */
+  public static final String MAX_ATTRIBUTE_LOOKUP_RESULTS = "maxAttributeLookupResults";
+
+  public static final String MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT = "5000";
+
+  /**
+   * Selects {@link MultiAttributeCredentialResolver.MatchPolicy}. Defaults to the safe {@code
+   * REJECT_AMBIGUOUS} - {@code FIRST_MATCH} must only be enabled when passwords are guaranteed
+   * unique across every candidate a request could match, since it authenticates as the first
+   * candidate whose password matches without checking for other matches.
+   */
+  public static final String MATCH_POLICY = "matchPolicy";
+
+  public static final String MATCH_POLICY_DEFAULT =
+      MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name();
   public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
   public final String DISABLE_PASSWORD_ATTRIBUTE = "disablePassword";
   public final String HIDE_USER_NOT_FOUND = "hideUserNotFound";
@@ -152,6 +183,27 @@ public class Utils {
     return Boolean.parseBoolean(mapConfig.get(configKey));
   }
 
+  /**
+   * Reads the DoS-mitigation config shared by {@link MultiAttributePasswordAuthenticator} and
+   * {@link MultiAttributePasswordDirectGrantAuthenticator} - see {@link
+   * MultiAttributeCredentialResolver.ThrottleConfig}.
+   */
+  public MultiAttributeCredentialResolver.ThrottleConfig getThrottleConfig(
+      AuthenticatorConfigModel config) {
+    return new MultiAttributeCredentialResolver.ThrottleConfig(
+        getInt(config, MAX_CANDIDATES, MAX_CANDIDATES_DEFAULT),
+        getInt(config, TUPLE_MAX_FAILURES, TUPLE_MAX_FAILURES_DEFAULT),
+        getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
+        getInt(config, MAX_ATTRIBUTE_LOOKUP_RESULTS, MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
+  }
+
+  /** Reads {@link #MATCH_POLICY}, defaulting to the safe {@code REJECT_AMBIGUOUS}. */
+  public MultiAttributeCredentialResolver.MatchPolicy getMatchPolicy(
+      AuthenticatorConfigModel config) {
+    return MultiAttributeCredentialResolver.MatchPolicy.fromString(
+        getString(config, MATCH_POLICY, MATCH_POLICY_DEFAULT));
+  }
+
   int getPasswordLength(AuthenticatorConfigModel config) {
     return getInt(config, Utils.PASSWORD_LENGTH, Utils.PASSWORD_LENGTH_DEFAULT);
   }
@@ -170,6 +222,78 @@ public class Utils {
         config,
         Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE,
         Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT);
+  }
+
+  /**
+   * Fetches the realm's User Profile attribute declarations, tolerating a missing {@link
+   * UserProfileProvider}, a missing configuration, or a missing attribute list - any of which
+   * yields an empty list rather than throwing, so callers never need their own null checks.
+   */
+  public List<UPAttribute> getRealmUserProfileAttributes(KeycloakSession session) {
+    UserProfileProvider userProfileProvider = session.getProvider(UserProfileProvider.class);
+    if (userProfileProvider == null || userProfileProvider.getConfiguration() == null) {
+      return Collections.emptyList();
+    }
+    List<UPAttribute> attributes = userProfileProvider.getConfiguration().getAttributes();
+    return attributes == null ? Collections.emptyList() : attributes;
+  }
+
+  /**
+   * Looks up the HTML5 input type ({@code date}, {@code email}, ...) that {@code attributeName}
+   * declares via its {@code inputType} annotation (e.g. {@code html5-date}) among the given User
+   * Profile attributes - the same source registration/profile forms (user-profile-commons.ftl)
+   * already render from; see {@link #getRealmUserProfileAttributes}. Falls back to {@code text}
+   * when the attribute has no User Profile entry, or its declared input type isn't an {@code
+   * html5-*} one (e.g. {@code select}, {@code textarea} - not meaningful for a single login lookup
+   * field).
+   */
+  public String resolveHtml5InputType(List<UPAttribute> attributes, String attributeName) {
+    Object inputType =
+        attributes.stream()
+            .filter(attribute -> attributeName.equals(attribute.getName()))
+            .findFirst()
+            .map(UPAttribute::getAnnotations)
+            .map(annotations -> annotations.get("inputType"))
+            .orElse(null);
+    if (!(inputType instanceof String) || !((String) inputType).startsWith("html5-")) {
+      return "text";
+    }
+    return ((String) inputType).substring("html5-".length());
+  }
+
+  /**
+   * Reformats a date-like value into the canonical {@code YYYY-MM-DD} form user attributes are
+   * stored/searched in (the same format an HTML5 date input always submits), given the digit order
+   * it arrived in (e.g. {@code "YYYY-MM-DD"} for an HTML5 date input - a no-op reformat - or {@code
+   * "MMDDYYYY"} for 8 raw IVR DTMF digits). Non-digit characters in {@code rawValue} (separators)
+   * are stripped before reordering, so callers don't need to pre-clean input. Returns {@code
+   * rawValue} unchanged if its digit count doesn't match {@code sourceFormat}'s, rather than
+   * guessing.
+   */
+  public String normalizeDate(String rawValue, String sourceFormat) {
+    if (rawValue == null) {
+      return null;
+    }
+    String digits = rawValue.replaceAll("[^0-9]", "");
+    String formatLetters = sourceFormat.replaceAll("[^YMDymd]", "").toUpperCase();
+    if (digits.length() != formatLetters.length()) {
+      return rawValue;
+    }
+
+    StringBuilder year = new StringBuilder();
+    StringBuilder month = new StringBuilder();
+    StringBuilder day = new StringBuilder();
+    for (int i = 0; i < formatLetters.length(); i++) {
+      switch (formatLetters.charAt(i)) {
+        case 'Y' -> year.append(digits.charAt(i));
+        case 'M' -> month.append(digits.charAt(i));
+        case 'D' -> day.append(digits.charAt(i));
+        default -> {
+          // unrecognized letter in sourceFormat; ignore this position
+        }
+      }
+    }
+    return year + "-" + month + "-" + day;
   }
 
   Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {

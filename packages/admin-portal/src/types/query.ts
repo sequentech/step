@@ -240,6 +240,7 @@ export const sequent_backend_cast_vote: Sequent_Backend_Cast_Vote = {
     id: "",
     labels: undefined,
     last_updated_at: undefined,
+    status: "",
     tenant_id: "",
     voter_id_string: undefined,
 }

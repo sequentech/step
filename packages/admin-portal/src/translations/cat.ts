@@ -104,6 +104,104 @@ const catalanTranslation: TranslationType = {
                 next: "Següent",
             },
         },
+        reconciliation: {
+            menuButton: "Sincr. votants ext.",
+            categories: {
+                VOTED_INTERNET: "Ha votat per Internet",
+                VOTED_OTHER_CHANNEL: "Ha votat per un altre canal",
+                DISABLED_DELETE_CALL: "Votant deshabilitat",
+                DELETION_REVERTED: "Eliminació revertida",
+                PROFILE_UPDATE: "Perfil actualitzat",
+                VOTER_ADDED: "Votant afegit",
+                REENABLED: "Votant rehabilitat",
+                VOTED_UNMARKED: "Votant desmarcat com a votat",
+                ROW_FAILURE: "Error de fila",
+            },
+            table: {
+                voterId: "ID de Votant",
+                field: "Camp",
+                category: "Categoria",
+                currentValue: "Valor actual",
+                newValue: "Valor nou",
+                reason: "Motiu",
+                rowLabel: "Fila",
+                noDifferences: "No s'han trobat diferències - els sistemes estan sincronitzats.",
+            },
+            wizard: {
+                title: "Sincronització de reconciliació externa",
+                subtitle: "Sincronitza la llista de votants amb el sistema extern",
+                drop: {
+                    description:
+                        "Deixa anar el fitxer de reconciliació generat pel sistema extern - ambdós diffs (costat extern i costat Sequent) es calculen automàticament i es mostren en taules separades.",
+                    fileFormatLabel: "Fitxer CSV",
+                    uploading: "Pujant {{fileName}} i calculant ambdós diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Seqüència {{sequence}}, generat {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} fila(es) no s'han pogut reconciliar de manera segura i queden excloses d'ambdós diffs - vegeu els detalls a continuació.",
+                    noDifferences: "No hi ha diferències - ambdós sistemes ja estan sincronitzats.",
+                    diffOnlyDifferences:
+                        "Aquesta és una comprovació de convergència d'una seqüència ja aplicada. Les diferències es mostren per fer-ne seguiment, però aquesta ronda no es pot tornar a aplicar.",
+                    externalDiffTitle: "Diff extern",
+                    sequentDiffTitle: "Diff de Sequent",
+                    downloadExternalPatch: "Descarregar pedaç extern",
+                    externalDiffCaption:
+                        "Descarrega el pedaç i lliura'l al sistema extern fora d'aquesta eina. Un cop l'apliqui i generi el següent fitxer de reconciliació, fes clic a 'Enrere' i deixa anar aquest fitxer - 'Aplicar' s'habilita quan aquesta taula estigui buida.",
+                    noExternalDifferences: "No hi ha diferències del costat extern.",
+                    sequentDiffCaption:
+                        "Aplica els canvis directament a Sequent fent clic a 'Aplicar' - no es genera cap fitxer de pedaç per aquests.",
+                    noSequentDifferences: "No hi ha diferències del costat de Sequent.",
+                },
+                applying: {
+                    inProgress: "Aplicant els canvis del costat de Sequent...",
+                    rowFailures:
+                        "{{count}} fila(es) han quedat excloses d'aquesta ronda i necessiten seguiment manual - vegeu els detalls a continuació.",
+                    rowFailuresTruncated:
+                        "Es mostren les primeres {{shown}} de {{count}} errades de fila. Resoleu la causa comuna i torneu-ho a provar per veure les errades restants.",
+                    success: "Tots els canvis del costat de Sequent s'han aplicat correctament.",
+                },
+                actions: {
+                    cancel: "Cancel·lar",
+                    back: "Enrere",
+                    apply: "Aplicar",
+                    next: "Següent",
+                    startOver: "Tornar a començar",
+                    close: "Tancar",
+                },
+                confirm: {
+                    title: "Confirmar canvis de reconciliació",
+                    categoriesNote:
+                        "Les categories ressaltades en taronja ({{categories}}) afecten l'estat de vot o deshabiliten votants.",
+                    applyChanges: "Aplicar canvis",
+                    continue: "Continuar",
+                },
+                summary: {
+                    votedOtherChannel:
+                        "marca {{count}} votant(s) com a votat(s) per un altre canal",
+                    disabled: "deshabilita {{count}} votant(s)",
+                    reenabled: "rehabilita {{count}} votant(s)",
+                    votedUnmarked: "desmarca {{count}} votant(s) com a votat",
+                    profileUpdated: "actualitza {{count}} perfil(s)",
+                    voterAdded: "afegeix {{count}} votant(s)",
+                    prefix: "Això aplicarà canvis que {{parts}}.",
+                    empty: "No hi ha canvis del costat de Sequent per aplicar.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "No s'ha pogut carregar el diff de reconciliació - torna-ho a provar.",
+                    generateFailed:
+                        "No s'ha pogut calcular el diff de reconciliació - consulta el widget de tasques per a més detalls.",
+                    applyFailed:
+                        "No s'han pogut aplicar els canvis del costat de Sequent - consulta el widget de tasques per a més detalls.",
+                    uploadUrlError: "No s'ha pogut obtenir una URL de pujada",
+                    generateTaskError: "No s'ha pogut iniciar la tasca de diff de reconciliació",
+                    uploadError: "No s'ha pogut pujar el fitxer de reconciliació",
+                    applyTaskError: "No s'ha pogut iniciar la tasca d'aplicació",
+                    applyError: "No s'han pogut aplicar els canvis de reconciliació",
+                },
+            },
+        },
         tasksScreen: {
             noPermissions: "No tens permís per accedir als registres.",
             title: "Execució de tasques",
@@ -128,6 +226,7 @@ const catalanTranslation: TranslationType = {
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
                 IMPORT_USERS: "Importar usuaris",
+                EDIT_USER: "Editar votant",
                 IMPORT_CANDIDATES: "Importar candidats",
                 EXPORT_VOTERS: "Exportar votants",
                 CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
@@ -355,6 +454,11 @@ const catalanTranslation: TranslationType = {
                 importCandidates: "Importar Candidats",
                 custom_filters: "Filtres personalitzats",
                 voter_authentication: "Autenticació del votant",
+                realm_attributes: "Keycloak realm attributes",
+                realm_attributes_load_error: "Error loading Keycloak realm attributes",
+                realm_attributes_update_error: "Error updating Keycloak realm attributes",
+                realm_attributes_not_loaded:
+                    "Keycloak realm attributes have not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Inici de sessió",
@@ -891,6 +995,8 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
+                    "voted-channel": "Canal de vot",
+                    "disable-comment": "Comentari de desactivació",
                     "username": "Nom d'Usuari",
                     "first_name": "Nom",
                     "last_name": "Cognom",
@@ -1013,6 +1119,8 @@ const catalanTranslation: TranslationType = {
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
+                "keycloak-realm-attributes-read": "Read Keycloak realm attributes",
+                "keycloak-realm-attributes-write": "Edit Keycloak realm attributes",
                 "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
@@ -1429,6 +1537,7 @@ const catalanTranslation: TranslationType = {
                 kiosk: "Quiosc",
                 early_voting: "Votació anticipada",
                 telephone: "Votació telefònica",
+                other: "Altres",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",

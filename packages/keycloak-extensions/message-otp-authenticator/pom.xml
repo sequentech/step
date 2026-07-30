@@ -22,6 +22,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<maven.compiler.release>17</maven.compiler.release>
 		<maven.compiler.version>3.14.0</maven.compiler.version>
 		<maven.shade.version>3.6.1</maven.shade.version>
+		<junit.version>5.11.3</junit.version>
+		<mockito.version>5.14.2</mockito.version>
 	</properties>
 
 	<dependencyManagement>
@@ -37,6 +39,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</dependencyManagement>
 
 	<dependencies>
+		<dependency>
+			<groupId>sequent</groupId>
+			<artifactId>action-token-login-bridge</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.keycloak</groupId>
 			<artifactId>keycloak-server-spi</artifactId>
@@ -89,16 +96,42 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>10.9.2</version>
 			<scope>compile</scope>
 		</dependency>
+
+		<!-- JUnit 5 -->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter</artifactId>
-			<version>6.0.3</version>
+			<artifactId>junit-jupiter-api</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Mockito -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>5.20.0</version>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Provides a jakarta.ws.rs.ext.RuntimeDelegate for tests exercising
+			 AbstractDirectGrantAuthenticator#errorResponse (Response.status(...)),
+			 not otherwise available outside a running Keycloak server. -->
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-common</artifactId>
+			<version>3.1.6</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -132,6 +165,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.2</version>
 			</plugin>
 			<plugin>
 			<groupId>com.diffplug.spotless</groupId>

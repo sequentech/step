@@ -11,7 +11,8 @@ import {Stats} from "./Stats"
 import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotesPerDay} from "../charts/VotesPerDay"
-import {VotingChanel, VotersByChannel} from "../charts/VotersByChannel"
+import {VotersByChannel} from "../charts/VotersByChannel"
+import {toVotersByChannelRows} from "../charts/votersByChannelData"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     CastVotesPerDay,
@@ -233,24 +234,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             endDate={endDate}
                         />
                         <VotersByChannel
-                            data={[
-                                {
-                                    channel: VotingChanel.Online,
-                                    count: dataStats?.stats?.total_distinct_voters ?? 0,
-                                },
-                                {
-                                    channel: VotingChanel.Paper,
-                                    count: 0,
-                                },
-                                {
-                                    channel: VotingChanel.Telephone,
-                                    count: 0,
-                                },
-                                {
-                                    channel: VotingChanel.Postal,
-                                    count: 0,
-                                },
-                            ]}
+                            data={toVotersByChannelRows(dataStats?.stats?.voters_by_channel)}
                             width={cardWidth}
                             height={cardHeight}
                         />

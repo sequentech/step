@@ -28,8 +28,10 @@ services:
     profiles: ["full", "base"]
     container_name: keycloak
     build:
-      context: ../packages/
+      context: ../packages
       dockerfile: Dockerfile.keycloak
+      additional_contexts:
+        beyond: ../beyond
     restart: always
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
@@ -702,6 +704,7 @@ services:
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
 
   beat:
     profiles: ["full", "base"]

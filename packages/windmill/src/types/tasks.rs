@@ -29,10 +29,13 @@ pub enum ETasksExecution {
     EXPORT_TEMPLATES,
     IMPORT_TEMPLATES,
     DELETE_ELECTION_EVENT,
+    EDIT_USER,
     PREPARE_PUBLICATION_PREVIEW,
     EXPORT_TALLY_RESULTS_XLSX,
     EXPORT_CERTIFICATE_AUTHORITIES,
     PUBLISH_RESULTS_WEBSITE,
+    GENERATE_RECONCILIATION_PATCHES,
+    APPLY_RECONCILIATION_PATCH,
 }
 
 impl ETasksExecution {
@@ -61,10 +64,13 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_TEMPLATES => "Export Templates",
             ETasksExecution::IMPORT_TEMPLATES => "Import Templates",
             ETasksExecution::DELETE_ELECTION_EVENT => "Delete Election Event",
+            ETasksExecution::EDIT_USER => "Edit Voter",
             ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
             ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",
             ETasksExecution::EXPORT_CERTIFICATE_AUTHORITIES => "Export Certificate Authorities",
             ETasksExecution::PUBLISH_RESULTS_WEBSITE => "Publish Results Website",
+            ETasksExecution::GENERATE_RECONCILIATION_PATCHES => "Generate Reconciliation Patches",
+            ETasksExecution::APPLY_RECONCILIATION_PATCH => "Apply Reconciliation Changes",
         }
     }
 }

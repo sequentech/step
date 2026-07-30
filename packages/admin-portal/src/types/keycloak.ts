@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/** Sentinel value for a cleared/unset Keycloak user attribute — mirrors the
+ * backend's `sequent_core::types::keycloak::ATTR_RESET_VALUE`. */
+export const ATTR_RESET_VALUE = "NONE"
+
 export enum IPermissions {
     ADMIN_USER = "admin-user",
     TENANT_CREATE = "tenant-create",
@@ -10,6 +14,8 @@ export enum IPermissions {
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
+    KEYCLOAK_REALM_ATTRIBUTES_READ = "keycloak-realm-attributes-read",
+    KEYCLOAK_REALM_ATTRIBUTES_WRITE = "keycloak-realm-attributes-write",
     ELECTION_EVENT_DELETE = "election-event-delete",
     ELECTION_EVENT_ARCHIVE = "election-event-archive",
     VOTER_CREATE = "voter-create",
@@ -210,4 +216,5 @@ export enum IPermissions {
     PHONE_BLACKLIST_CREATE = "phone-blacklist-create",
     PHONE_BLACKLIST_DELETE = "phone-blacklist-delete",
     PHONE_BLACKLIST_UPDATE = "phone-blacklist-update",
+    ELECTION_EVENT_VOTER_LIST_SYNC = "election-event-voter-list-reconciliation",
 }

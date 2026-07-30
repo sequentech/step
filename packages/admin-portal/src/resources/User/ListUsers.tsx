@@ -60,7 +60,7 @@ import {
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
-import {IPermissions} from "@/types/keycloak"
+import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser, translate} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -75,6 +75,8 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
+import SyncAltIcon from "@mui/icons-material/SyncAlt"
+import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWizard"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
@@ -93,6 +95,8 @@ import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
+export const VOTED_CHANNEL = "voted-channel"
+export const DISABLE_COMMENT = "disable-comment"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -153,6 +157,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const [openReconciliationWizard, setOpenReconciliationWizard] = useState<boolean>(false)
     const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
     const [userRecord, setUserRecord] = useState<RaRecord<Identifier> | undefined>()
     const authContext = useContext(AuthContext)
@@ -221,6 +226,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                     />
                 )
+                filters.push(
+                    <TextInput
+                        key={VOTED_CHANNEL}
+                        source={`attributes.${VOTED_CHANNEL}`}
+                        label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
+                    />
+                )
             }
         }
         return filters
@@ -260,6 +272,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        showVoterListSync,
     } = useUsersPermissions()
     /**
      * Permissions
@@ -879,6 +892,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
+    // Datafix voter edits are handled asynchronously by a task; show a progress
+    // widget for it. Non-Datafix edits return no task, so this is not called.
+    const handleEditUserTask = (taskExecutionId: string) => {
+        const currWidget = addWidget(ETasksExecution.EDIT_USER, undefined)
+        setWidgetTaskId(currWidget.identifier, taskExecutionId, refresh)
+    }
+
     const listFields = useMemo(() => {
         const basicInfoFields: UserProfileAttribute[] = []
         const attributesFields: UserProfileAttribute[] = []
@@ -898,6 +918,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
             if (attr.name === AUTHORIZED_ELECTION_IDS) return null
+            if (attr.name === DISABLE_COMMENT) return null
+            if (attr.name === VOTED_CHANNEL) return null
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
@@ -1092,6 +1114,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         {renderFields(listFields.attributesFields)}
                         {electionEventId && (
                             <FunctionField<IUser>
+                                source={`attributes['${VOTED_CHANNEL}']`}
+                                label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
+                                render={(record) => {
+                                    const values = record?.attributes?.[VOTED_CHANNEL]
+                                    const channel = Array.isArray(values)
+                                        ? values[values.length - 1]
+                                        : values
+                                    return channel && channel !== ATTR_RESET_VALUE ? channel : "-"
+                                }}
+                            />
+                        )}
+                        {electionEventId && showVoterListSync && (
+                            <FunctionField<IUser>
+                                source={`attributes['${DISABLE_COMMENT}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.disable-comment")
+                                )}
+                                render={(record) => {
+                                    const values = record?.attributes?.[DISABLE_COMMENT]
+                                    const comment = Array.isArray(values)
+                                        ? values[values.length - 1]
+                                        : values
+                                    return comment && comment !== ATTR_RESET_VALUE ? comment : "-"
+                                }}
+                            />
+                        )}
+                        {electionEventId && (
+                            <FunctionField<IUser>
                                 source="has_voted"
                                 label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                                 render={(record, source) => {
@@ -1179,7 +1229,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 />
                             }
                             withComponent={canCreateVoters}
-                            extraActions={[...listActions]}
+                            extraActions={[
+                                ...listActions,
+                                ...(electionEventId && showVoterListSync
+                                    ? [
+                                          <Button
+                                              key="datafix-reconciliation-sync"
+                                              onClick={() => setOpenReconciliationWizard(true)}
+                                          >
+                                              <SyncAltIcon sx={{mr: 1}} />
+                                              {t("reconciliation.menuButton")}
+                                          </Button>,
+                                      ]
+                                    : []),
+                            ]}
                         />
                     }
                     filter={{
@@ -1203,6 +1266,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     rolesList={rolesList || []}
                     userAttributes={userAttributes?.get_user_profile_attributes || []}
                     record={userRecord}
+                    onTaskLaunched={handleEditUserTask}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openSendTemplate} onClose={handleClose}>
@@ -1284,6 +1348,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     ) : null}
                 </FormStyles.ReservedProgressSpace>
             </Dialog>
+
+            {electionEventId && showVoterListSync ? (
+                <ReconciliationWizard
+                    open={openReconciliationWizard}
+                    electionEventId={electionEventId}
+                    onClose={() => setOpenReconciliationWizard(false)}
+                />
+            ) : null}
 
             <ImportDataDrawer
                 open={openImportDrawer}

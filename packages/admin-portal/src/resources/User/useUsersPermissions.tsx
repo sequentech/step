@@ -58,6 +58,11 @@ export function useUsersPermissions() {
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
+    const showVoterListSync = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ELECTION_EVENT_VOTER_LIST_SYNC
+    )
     /**
      * Permissions
      */
@@ -77,5 +82,6 @@ export function useUsersPermissions() {
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        showVoterListSync,
     }
 }

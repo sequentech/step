@@ -387,6 +387,36 @@ actions:
           - role: voter-manually-verify
           - role: voter-write
           - role: admin-user
+    - name: create_external_reconciliation_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/create-reconciliation-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-voter-list-reconciliation
+          - role: admin-user
+      comment: uploads an external (i.e. Datafix) reconciliation file and kicks off the diff-calculation task
+    - name: apply_external_reconciliation_changes
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/apply-reconciliation-changes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-voter-list-reconciliation
+          - role: admin-user
+      comment: applies the Sequent-side reconciliation diff for an already-computed import
     - name: update_realm_attributes
       definition:
           kind: synchronous
@@ -400,7 +430,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-          - role: election-event-write
+          - role: keycloak-realm-attributes-write
     - name: encrypt_report
       definition:
           kind: synchronous
@@ -833,6 +863,20 @@ actions:
       permissions:
           - role: admin-user
       comment: list permissions
+    - name: get_realm_attributes
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-realm-attributes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: keycloak-realm-attributes-read
     - name: get_private_key
       definition:
           kind: synchronous
@@ -1703,10 +1747,12 @@ custom_types:
         - name: CountUsersInput
     objects:
         - name: GetManualVerificationOutput
+        - name: GetRealmAttributesOutput
         - name: UpdateRealmAttributesOutput
         - name: CreateKeysCeremonyOutput
         - name: GetPrivateKeyOutput
         - name: CastVotesPerDay
+        - name: VotersByChannel
         - name: ElectionEventStatsOutput
         - name: ElectionStatsOutput
         - name: CheckPrivateKeyOutput
@@ -1730,6 +1776,7 @@ custom_types:
         - name: VotesInfo
         - name: KeycloakUser
         - name: GetUsersOutput
+        - name: EditUserOutput
         - name: GetPermissionsOutput
         - name: KeycloakPermission
         - name: GetRolesOutput

@@ -8,6 +8,7 @@ import CardChart, {getWeekLegend} from "./Charts"
 import {CastVotesPerDay} from "@/gql/graphql"
 import {useTranslation} from "react-i18next"
 import {CircularProgress} from "@mui/material"
+import {toVotesPerDayChartData} from "./votesPerDayData"
 
 export interface VotersPerDayProps {
     data: CastVotesPerDay[] | null
@@ -23,21 +24,24 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({data, width, height, e
         return <CircularProgress />
     }
 
+    const chartData = toVotesPerDayChartData(data)
     const state: Props = {
         options: {
             chart: {
                 id: "barchart-votes",
+                stacked: true,
             },
             xaxis: {
                 categories: getWeekLegend(endDate),
             },
-        },
-        series: [
-            {
-                name: "series-1",
-                data: data.map((item) => item.day_count),
+            legend: {
+                showForZeroSeries: false,
             },
-        ],
+        },
+        series: chartData.series.map(({channel, data: channelData}) => ({
+            name: String(t(`common.channel.${channel.toLowerCase()}`)),
+            data: channelData,
+        })),
     }
 
     return (
