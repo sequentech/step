@@ -138,6 +138,93 @@ class IvrConfigResourceProviderTest {
   }
 
   @Test
+  void customAuthenticatorMultivaluedConfig_fansOutMultipleSteps() {
+    AuthenticationExecutionModel custom =
+        exec(
+            "multi-attribute-password-direct-grant",
+            AuthenticationExecutionModel.Requirement.REQUIRED,
+            "cfg-multi");
+    stubExecutions(custom);
+    AuthenticatorConfigModel cfg = mock(AuthenticatorConfigModel.class);
+    when(cfg.getConfig())
+        .thenReturn(
+            Map.of(
+                Constants.AUTH_STEP_PROP_FIELD, "dob##pin",
+                Constants.AUTH_STEP_PROP_MAX_DIGITS, "8##8",
+                Constants.AUTH_STEP_PROP_KIND,
+                    Constants.AUTH_STEP_KIND_IDENTIFIER + "##" + Constants.AUTH_STEP_KIND_SECRET,
+                Constants.AUTH_STEP_PROP_MAPS_TO, "dob##password",
+                Constants.AUTH_STEP_PROP_PROMPT_KEY, "auth_enter_dob##auth_enter_pin"));
+    when(realm.getAuthenticatorConfigById("cfg-multi")).thenReturn(cfg);
+
+    IvrConfigResourceProvider provider = providerWithValidToken();
+    @SuppressWarnings("unchecked")
+    List<AuthStep> steps =
+        (List<AuthStep>)
+            ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
+
+    assertThat(steps)
+        .containsExactly(
+            new AuthStep("dob", 8, Constants.AUTH_STEP_KIND_IDENTIFIER, "dob", "auth_enter_dob"),
+            new AuthStep("pin", 8, Constants.AUTH_STEP_KIND_SECRET, "password", "auth_enter_pin"));
+  }
+
+  @Test
+  void customAuthenticatorMultivaluedConfig_noPromptKey_stepsHaveNullPromptKey() {
+    AuthenticationExecutionModel custom =
+        exec(
+            "multi-attribute-password-direct-grant",
+            AuthenticationExecutionModel.Requirement.REQUIRED,
+            "cfg-multi");
+    stubExecutions(custom);
+    AuthenticatorConfigModel cfg = mock(AuthenticatorConfigModel.class);
+    when(cfg.getConfig())
+        .thenReturn(
+            Map.of(
+                Constants.AUTH_STEP_PROP_FIELD, "dob##pin",
+                Constants.AUTH_STEP_PROP_MAX_DIGITS, "8##8",
+                Constants.AUTH_STEP_PROP_KIND,
+                    Constants.AUTH_STEP_KIND_IDENTIFIER + "##" + Constants.AUTH_STEP_KIND_SECRET,
+                Constants.AUTH_STEP_PROP_MAPS_TO, "dob##password"));
+    when(realm.getAuthenticatorConfigById("cfg-multi")).thenReturn(cfg);
+
+    IvrConfigResourceProvider provider = providerWithValidToken();
+    @SuppressWarnings("unchecked")
+    List<AuthStep> steps =
+        (List<AuthStep>)
+            ((Map<?, ?>) provider.getIvrConfig().getEntity()).get(Constants.IVR_CONFIG_FIELD_STEPS);
+
+    assertThat(steps)
+        .containsExactly(
+            new AuthStep("dob", 8, Constants.AUTH_STEP_KIND_IDENTIFIER, "dob", null),
+            new AuthStep("pin", 8, Constants.AUTH_STEP_KIND_SECRET, "password", null));
+  }
+
+  @Test
+  void customAuthenticatorMultivaluedConfig_mismatchedCountsYields500() {
+    AuthenticationExecutionModel custom =
+        exec(
+            "multi-attribute-password-direct-grant",
+            AuthenticationExecutionModel.Requirement.REQUIRED,
+            "cfg-mismatch");
+    stubExecutions(custom);
+    AuthenticatorConfigModel cfg = mock(AuthenticatorConfigModel.class);
+    when(cfg.getConfig())
+        .thenReturn(
+            Map.of(
+                Constants.AUTH_STEP_PROP_FIELD, "dob##pin",
+                Constants.AUTH_STEP_PROP_MAX_DIGITS, "8", // only one value for two fields
+                Constants.AUTH_STEP_PROP_KIND,
+                    Constants.AUTH_STEP_KIND_IDENTIFIER + "##" + Constants.AUTH_STEP_KIND_SECRET,
+                Constants.AUTH_STEP_PROP_MAPS_TO, "dob##password"));
+    when(realm.getAuthenticatorConfigById("cfg-mismatch")).thenReturn(cfg);
+
+    IvrConfigResourceProvider provider = providerWithValidToken();
+    WebApplicationException e = assertThrows(WebApplicationException.class, provider::getIvrConfig);
+    assertEquals(500, e.getResponse().getStatus());
+  }
+
+  @Test
   void alternativeDisabledAndSubflowExecutionsAreSkipped() {
     AuthenticationExecutionModel subflow = mock(AuthenticationExecutionModel.class);
     when(subflow.isAuthenticatorFlow()).thenReturn(true);

@@ -16,21 +16,49 @@ SPDX-License-Identifier: AGPL-3.0-only
           <div id="kc-form-wrapper">
             <#if realm.password>
                 <form id="kc-form-login" <#if !structuredCredential>onsubmit="login.disabled = true; return true;"</#if> action="${url.loginAction}" method="post">
+                    <#-- Number of fields rendered ahead of the password field -->
+                    <#assign fieldCount = (matchAttributes?? && matchAttributes?has_content)?then(matchAttributes?size, 1)>
                     <#if !usernameHidden??>
-                        <div class="${properties.kcFormGroupClass!}">
-                            <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
+                        <#if matchAttributes?? && matchAttributes?has_content>
+                            <#if matchAttributes?filter(f -> f.type == "tel")?has_content>
+                                <#include "intl-tel-input.ftl">
+                            </#if>
+                            <#list matchAttributes as field>
+                                <div class="${properties.kcFormGroupClass!}">
+                                    <label for="${field.name}" class="${properties.kcLabelClass!}">${msg(field.name)}</label>
 
-                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
-                                   <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
-                            />
+                                    <#if field.type == "tel">
+                                        <@renderIntlTelInput id=field.name name=field.name autofocus=(field?index == 0)/>
+                                    <#else>
+                                        <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
+                                               <#if field?index == 0>autofocus</#if> autocomplete="off"
+                                               <#if credentialFieldError>aria-invalid="true"</#if>
+                                        />
+                                    </#if>
+                                </div>
+                            </#list>
 
                             <#if credentialFieldError && !structuredCredential>
                                 <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
                                         ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
                                 </span>
                             </#if>
+                        <#else>
+                            <div class="${properties.kcFormGroupClass!}">
+                                <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
-                        </div>
+                                <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
+                                       <#if credentialFieldError>aria-invalid="true"</#if>
+                                />
+
+                                <#if credentialFieldError && !structuredCredential>
+                                    <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                            ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
+                                    </span>
+                                </#if>
+
+                            </div>
+                        </#if>
                     </#if>
 
                     <div class="${properties.kcFormGroupClass!}">
@@ -45,14 +73,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                              data-label-id="structured-credential-label"
                              data-hint-id="structured-credential-hint"
                              data-error-id="structured-credential-error"</#if>>
-                            <input tabindex="3" id="password" class="${properties.kcInputClass!}" name="password" type="password"
+                            <input tabindex="${fieldCount + 2}" id="password" class="${properties.kcInputClass!}" name="password" type="password"
                                    autocomplete="<#if structuredCredential>current-password<#else>off</#if>"
                                    <#if structuredCredential>inputmode="numeric"</#if>
                                    <#if structuredCredential>aria-describedby="structured-credential-hint structured-credential-error"</#if>
                                    <#if structuredCredentialHasError || credentialFieldError>aria-invalid="true"</#if>
                             />
                             <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
-                                    aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if> tabindex="4"
+                                    aria-controls="password" <#if structuredCredential>data-structured-credential-toggle<#else>data-password-toggle</#if> tabindex="${fieldCount + 3}"
                                     data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
                                     data-label-show="<#if structuredCredential>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
                                     data-label-hide="<#if structuredCredential>${msg('hideStructuredCredential')}<#else>${msg('hidePassword')}</#if>">
