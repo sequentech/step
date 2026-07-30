@@ -94,11 +94,11 @@ impl<C: Context> Configuration<C> {
 
 #[derive(Debug, VSer)]
 pub struct Shares<C: Context> {
-    // Commitments to the coefficients of the generated polynomial
+    // Commitments to the coefficients of the generated polynomial, aka the checking values.
     pub commitments: Vec<C::Element>,
     // One vector of bytes per trustee, including the share sent to
     // itself. The bytes are the serialization of the ElGamal
-    // encryption of the share. See Ctx::encrypt_exp.
+    // encryption of the share. See  CryptographicGroup::encrypt_scalar.
     pub encrypted_shares: Vec<Vec<u8>>,
 }
 
