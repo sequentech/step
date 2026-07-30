@@ -104,6 +104,103 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
             },
         },
+        reconciliation: {
+            menuButton: "Sincr. votantes ext.",
+            categories: {
+                VOTED_INTERNET: "Votó por Internet",
+                VOTED_OTHER_CHANNEL: "Votó por otro canal",
+                DISABLED_DELETE_CALL: "Votante deshabilitado",
+                DELETION_REVERTED: "Eliminación revertida",
+                PROFILE_UPDATE: "Perfil actualizado",
+                VOTER_ADDED: "Votante añadido",
+                REENABLED: "Votante rehabilitado",
+                VOTED_UNMARKED: "Votante desmarcado como votante",
+                ROW_FAILURE: "Fallo de fila",
+            },
+            table: {
+                voterId: "ID de Votante",
+                field: "Campo",
+                category: "Categoría",
+                currentValue: "Valor actual",
+                newValue: "Valor nuevo",
+                reason: "Motivo",
+                rowLabel: "Fila",
+                noDifferences: "No se encontraron diferencias - los sistemas están sincronizados.",
+            },
+            wizard: {
+                title: "Sincronización de reconciliación externa",
+                subtitle: "Sincroniza la lista de votantes con el sistema externo",
+                drop: {
+                    description:
+                        "Suelta el archivo de reconciliación generado por el sistema externo - ambos diffs (lado externo y lado Sequent) se calculan automáticamente y se muestran en tablas separadas.",
+                    fileFormatLabel: "Archivo CSV",
+                    uploading: "Subiendo {{fileName}} y calculando ambos diffs...",
+                },
+                review: {
+                    fileSummary: "{{fileName}} - Secuencia {{sequence}}, generado {{generatedAt}}",
+                    rowFailuresWarning:
+                        "{{count}} fila(s) no se pudieron reconciliar de forma segura y quedan excluidas de ambos diffs - ver detalles abajo.",
+                    noDifferences: "No hay diferencias - ambos sistemas ya están sincronizados.",
+                    diffOnlyDifferences:
+                        "Esta es una comprobación de convergencia de una secuencia ya aplicada. Las diferencias se muestran para su seguimiento, pero esta ronda no se puede volver a aplicar.",
+                    externalDiffTitle: "Diff externo",
+                    sequentDiffTitle: "Diff de Sequent",
+                    downloadExternalPatch: "Descargar parche externo",
+                    externalDiffCaption:
+                        "Descarga el parche y entrégaselo al sistema externo fuera de esta herramienta. Cuando lo aplique y genere el siguiente archivo de reconciliación, haz clic en 'Atrás' y suelta ese archivo - 'Aplicar' se habilita cuando esta tabla esté vacía.",
+                    noExternalDifferences: "No hay diferencias del lado externo.",
+                    sequentDiffCaption:
+                        "Aplica los cambios directamente a Sequent haciendo clic en 'Aplicar' - no se genera archivo de parche para estos.",
+                    noSequentDifferences: "No hay diferencias del lado de Sequent.",
+                },
+                applying: {
+                    inProgress: "Aplicando cambios del lado de Sequent...",
+                    rowFailures:
+                        "{{count}} fila(s) quedaron excluidas de esta ronda y requieren seguimiento manual - ver detalles abajo.",
+                    rowFailuresTruncated:
+                        "Se muestran los primeros {{shown}} de {{count}} fallos de fila. Resuelve la causa común y vuelve a intentarlo para ver los fallos restantes.",
+                    success: "Todos los cambios del lado de Sequent se aplicaron correctamente.",
+                },
+                actions: {
+                    cancel: "Cancelar",
+                    back: "Atrás",
+                    apply: "Aplicar",
+                    next: "Siguiente",
+                    startOver: "Empezar de nuevo",
+                    close: "Cerrar",
+                },
+                confirm: {
+                    title: "Confirmar cambios de reconciliación",
+                    categoriesNote:
+                        "Las categorías resaltadas en naranja ({{categories}}) afectan el estado de voto o deshabilitan votantes.",
+                    applyChanges: "Aplicar cambios",
+                    continue: "Continuar",
+                },
+                summary: {
+                    votedOtherChannel: "marca {{count}} votante(s) como votado(s) por otro canal",
+                    disabled: "deshabilita {{count}} votante(s)",
+                    reenabled: "rehabilita {{count}} votante(s)",
+                    votedUnmarked: "desmarca {{count}} votante(s) como votante",
+                    profileUpdated: "actualiza {{count}} perfil(es)",
+                    voterAdded: "añade {{count}} votante(s)",
+                    prefix: "Esto aplicará cambios que {{parts}}.",
+                    empty: "No hay cambios del lado de Sequent para aplicar.",
+                },
+                notifications: {
+                    envelopeLoadError:
+                        "No se pudo cargar el diff de reconciliación - inténtalo de nuevo.",
+                    generateFailed:
+                        "No se pudo calcular el diff de reconciliación - consulta el widget de tareas para más detalles.",
+                    applyFailed:
+                        "No se pudieron aplicar los cambios del lado de Sequent - consulta el widget de tareas para más detalles.",
+                    uploadUrlError: "No se pudo obtener una URL de subida",
+                    generateTaskError: "No se pudo iniciar la tarea de diff de reconciliación",
+                    uploadError: "No se pudo subir el archivo de reconciliación",
+                    applyTaskError: "No se pudo iniciar la tarea de aplicación",
+                    applyError: "No se pudieron aplicar los cambios de reconciliación",
+                },
+            },
+        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",

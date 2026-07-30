@@ -184,6 +184,20 @@ type Mutation {
 }
 
 type Mutation {
+    create_external_reconciliation_import(
+        election_event_id: String!
+        document_id: String!
+    ): taskOutput
+}
+
+type Mutation {
+    apply_external_reconciliation_changes(
+        election_event_id: String!
+        diff_document_id: String!
+    ): taskOutput
+}
+
+type Mutation {
     encrypt_report(
         election_event_id: String!
         report_id: String

@@ -254,6 +254,30 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::ExternalReconciliation(
+                _,
+                kind,
+                sequence,
+                _,
+                input_hash,
+                output_hash,
+            ) => {
+                let action = match kind {
+                    ExternalReconciliationKind::PatchGenerated => "External patch generated",
+                    ExternalReconciliationKind::ChangesApplied => "Sequent-side changes applied",
+                };
+                StatementHead {
+                    kind: StatementType::ExternalReconciliation,
+                    event_type: StatementEventType::USER,
+                    description: format!(
+                        "{action} for reconciliation Sequence {} (input {}, output {}).",
+                        sequence.0,
+                        input_hash.0,
+                        output_hash.0.as_deref().unwrap_or("none"),
+                    ),
+                    ..default_head
+                }
+            }
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -373,6 +397,33 @@ pub enum StatementBody {
         ExtApiName,
         String,
     ),
+    /// Records a third-party voter registry reconciliation run event: either
+    /// the external-side diff/patch being generated, or the Sequent-side diff
+    /// being applied. Named for the general capability, not the specific
+    /// integration (Datafix) that first needed it. Doesn't fit
+    /// `ExternalApiRequest`'s shape: there is no HTTP call to the external
+    /// system involved, since it is offline for the whole freeze period a
+    /// reconciliation run happens during. The JSON of every applied voter's
+    /// old/new values is carried in `Message.artifact` on the
+    /// `ChangesApplied` entry — there is exactly one entry per phase per run,
+    /// not one per voter.
+    ///
+    /// Borsh discriminant note for release/10.0: this variant is discriminant
+    /// 27 here, whereas on `main` it is 28 because `CastVoteWithChannel`
+    /// occupies 27 there. When the `CastVoteWithChannel` topic is ported to
+    /// this branch, append it AFTER this variant (as discriminant 28) — do
+    /// not insert it before to match `main`'s order, as that would shift this
+    /// variant and break decoding of statements already written by this
+    /// branch. The resulting cross-branch order mismatch with `main` is the
+    /// accepted trade-off.
+    ExternalReconciliation(
+        EventIdString,
+        ExternalReconciliationKind,
+        ExternalReconciliationSequenceString,
+        ExternalReconciliationGeneratedAtString,
+        ExternalReconciliationInputHashString,
+        ExternalReconciliationOutputHashString,
+    ),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -406,6 +457,7 @@ pub enum StatementType {
     PhoneBlacklistUpdated,
     ResultsPublicationAction,
     ExternalApiRequest,
+    ExternalReconciliation,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
@@ -481,11 +533,23 @@ mod tests {
             ExtApiName::Datafix,
             String::new(),
         );
+        let external_reconciliation = StatementBody::ExternalReconciliation(
+            EventIdString(String::new()),
+            ExternalReconciliationKind::PatchGenerated,
+            ExternalReconciliationSequenceString(String::new()),
+            ExternalReconciliationGeneratedAtString(String::new()),
+            ExternalReconciliationInputHashString(String::new()),
+            ExternalReconciliationOutputHashString(None),
+        );
 
         assert_eq!(borsh::to_vec(&election_publish).unwrap()[0], 2);
         assert_eq!(borsh::to_vec(&certificate).unwrap()[0], 23);
         assert_eq!(borsh::to_vec(&phone).unwrap()[0], 24);
-        assert_eq!(borsh::to_vec(&external).unwrap()[0], 25);
+        // `ExternalApiRequest` follows `ResultsPublicationAction` in the
+        // released enum. The previous expectation of 25 was left stale by the
+        // rebase that introduced `ExternalApiRequest`.
+        assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
+        assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 27);
     }
 
     #[test]
