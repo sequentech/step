@@ -8,13 +8,13 @@ use crate::postgres::cast_vote::{
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
-use crate::services::datafix;
-use crate::services::datafix::types::{SoapRequest, SoapRequestResponse};
-use crate::services::datafix::utils::{
-    datafix_annotations, datafix_voter_lock_key, post_operation_result_to_electoral_log,
+use crate::services::external;
+use crate::services::external::datafix_types::{SoapRequest, SoapRequestResponse};
+use crate::services::external::utils::{
+    datafix_annotations, external_voter_lock_key, post_operation_result_to_electoral_log,
     voted_via_internet, voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
-use crate::services::datafix::voterview_requests::SoapSendError;
+use crate::services::external::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
 use crate::types::error::Result;
 use celery::error::TaskError;
@@ -61,8 +61,13 @@ pub async fn process_cast_vote(
         .voter_id_string
         .as_deref()
         .ok_or("Voter id not found")?;
+    let voter_id = Uuid::parse_str(voter_id).map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = match PgLock::acquire(
-        datafix_voter_lock_key(&cast_vote.tenant_id, &cast_vote.election_event_id, voter_id),
+        external_voter_lock_key(
+            &cast_vote.tenant_id,
+            &cast_vote.election_event_id,
+            &voter_id,
+        ),
         Uuid::new_v4().to_string(),
         ISO8601::now() + Duration::seconds(DATAFIX_VOTER_LOCK_SECS),
     )
@@ -167,7 +172,7 @@ async fn process_locked_cast_vote(
         return Ok(());
     }
 
-    let prepared = datafix::voterview_requests::prepare(
+    let prepared = external::voterview_requests::prepare(
         SoapRequest::SetVoted,
         ElectionEventDatafix(election_event),
         &Some(username.clone()),
@@ -180,7 +185,7 @@ async fn process_locked_cast_vote(
         .map_err(|err| format!("Datafix voter lock was lost before SetVoted: {err}"))?;
 
     let template_sha256 = prepared.template_sha256().to_string();
-    let result = datafix::voterview_requests::send_prepared(prepared).await;
+    let result = external::voterview_requests::send_prepared(prepared).await;
     match &result {
         Ok(result) => info!(
             template_sha256 = %result.template_sha256,
@@ -478,16 +483,18 @@ mod tests {
 
     #[test]
     fn voter_lock_is_event_wide() {
-        let first = datafix_voter_lock_key("tenant", "event", "voter");
-        let second = datafix_voter_lock_key("tenant", "event", "voter");
+        let voter = Uuid::new_v4();
+        let other_voter = Uuid::new_v4();
+        let first = external_voter_lock_key("tenant", "event", &voter);
+        let second = external_voter_lock_key("tenant", "event", &voter);
         assert_eq!(first, second);
         assert_ne!(
             first,
-            datafix_voter_lock_key("tenant", "other-event", "voter")
+            external_voter_lock_key("tenant", "other-event", &voter)
         );
         assert_ne!(
             first,
-            datafix_voter_lock_key("tenant", "event", "other-voter")
+            external_voter_lock_key("tenant", "event", &other_voter)
         );
     }
 }

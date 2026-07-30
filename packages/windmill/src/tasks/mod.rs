@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod activity_logs_report;
+pub mod apply_reconciliation_patch;
 pub mod create_ballot_receipt;
 pub mod create_keys;
 pub mod delete_election_event;
@@ -19,6 +20,7 @@ pub mod export_templates;
 pub mod export_tenant_config;
 pub mod export_trustees;
 pub mod export_users;
+pub mod generate_reconciliation_patches;
 pub mod generate_report;
 pub mod generate_template;
 pub mod import_application;

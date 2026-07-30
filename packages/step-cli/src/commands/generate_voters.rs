@@ -13,6 +13,7 @@ use fake::Fake;
 use rand::seq::IndexedRandom;
 use rand::seq::SliceRandom;
 use rand::Rng;
+use sequent_core::util::external_config::VoterPasswordPolicy;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs::File;
@@ -41,13 +42,46 @@ impl GenerateVoters {
         }
     }
 
+    /// Age (years above `min_age`) at which the population has halved, under the exponential
+    /// mortality-decay model `generate_fake_dob` samples from - i.e. voters aged `min_age +
+    /// AGE_HALF_LIFE_YEARS` are half as common as voters aged exactly `min_age`, voters aged
+    /// `min_age + 2 * AGE_HALF_LIFE_YEARS` a quarter as common, and so on. Approximates a
+    /// realistic population pyramid (most populous at the youngest eligible age, tapering off
+    /// with age) without hard-coding any specific country's census data.
+    const AGE_HALF_LIFE_YEARS: f64 = 25.0;
+
+    /// Samples a date of birth in `[today - max_age years, today - min_age years]`, weighted so
+    /// younger ages (near `min_age`) are more common than older ones (near `max_age`) - see
+    /// `AGE_HALF_LIFE_YEARS`. Implemented as inverse-CDF sampling from a truncated exponential
+    /// distribution over the age range, rather than a uniform pick across the whole span.
     fn generate_fake_dob(&self, min_age: i64, max_age: i64) -> NaiveDate {
         let today = Utc::now().date_naive();
-        let max_date = today - Duration::days(min_age * 365);
-        let min_date = today - Duration::days(max_age * 365);
-        let days_diff = (max_date - min_date).num_days();
-        let random_days = rand::thread_rng().gen_range(0..=days_diff);
-        min_date + Duration::days(random_days)
+        let youngest_dob = today - Duration::days(min_age * 365);
+        let oldest_dob = today - Duration::days(max_age * 365);
+        let days_diff = (youngest_dob - oldest_dob).num_days();
+
+        let lambda = std::f64::consts::LN_2 / (Self::AGE_HALF_LIFE_YEARS * 365.0);
+        let u: f64 = rand::thread_rng().gen_range(0.0..1.0);
+        let extra_age_days = if days_diff <= 0 {
+            0
+        } else {
+            let cdf_at_max = 1.0 - (-lambda * days_diff as f64).exp();
+            (-(1.0 - u * cdf_at_max).ln() / lambda) as i64
+        };
+
+        // extra_age_days == 0 is the youngest possible voter (DOB == youngest_dob); larger
+        // values move further back toward oldest_dob, with the exponential weighting making
+        // large values increasingly rare.
+        youngest_dob - Duration::days(extra_age_days.min(days_diff))
+    }
+
+    /// Generates a random numeric string of exactly `digits` digits (leading zeros allowed,
+    /// since a PIN is an opaque digit string, not a number).
+    fn generate_random_numeric_password(&self, digits: u32) -> String {
+        let mut rng = rand::thread_rng();
+        (0..digits)
+            .map(|_| std::char::from_digit(rng.gen_range(0..10), 10).unwrap())
+            .collect()
     }
 
     /// Deduplicate items while preserving order.
@@ -88,6 +122,7 @@ impl GenerateVoters {
         let sequence_email_number = voters_config.sequence_email_number;
         let sequence_start_number = voters_config.sequence_start_number;
         let voter_password = voters_config.voter_password;
+        let voter_password_policy = voters_config.voter_password_policy;
         let password_salt = voters_config.password_salt;
         let hashed_password = voters_config.hashed_password;
         let min_age = voters_config.min_age;
@@ -331,6 +366,13 @@ impl GenerateVoters {
             let dob = self.generate_fake_dob(min_age, max_age);
             let dob_str = dob.format("%Y-%m-%d").to_string();
 
+            let password = match &voter_password_policy {
+                VoterPasswordPolicy::Fixed => voter_password.clone(),
+                VoterPasswordPolicy::RandomNumeric { digits } => {
+                    self.generate_random_numeric_password(*digits)
+                }
+            };
+
             let email = if sequence_email_number {
                 format!(
                     "{}+{}@{}",
@@ -366,7 +408,7 @@ impl GenerateVoters {
                     "overseasReferences" => overseas_reference.to_string(),
                     "area_name" => area_name.to_string(),
                     "authorized-election-ids" => joined_aliases.clone(),
-                    "password" => voter_password.to_string(),
+                    "password" => password.clone(),
                     "email" => email.clone(),
                     "password_salt" => password_salt.to_string(),
                     "hashed_password" => hashed_password.to_string(),

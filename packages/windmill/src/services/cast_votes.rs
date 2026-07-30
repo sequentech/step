@@ -6,10 +6,10 @@ use super::sql_utils::escape_sql_literal;
 use crate::postgres::cast_vote::{
     count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
 };
-use crate::services::datafix::utils::{
+use crate::services::electoral_log::ElectoralLog;
+use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
-use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
