@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The only runtime dependency. GitHub and Slack are reached through the standard
+# library, to keep the supply chain of a credential-handling workflow small.
+anthropic==0.120.2
