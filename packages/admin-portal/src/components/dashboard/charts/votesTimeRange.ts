@@ -2,9 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export type VotesTimeResolution = "minute" | "hour" | "day"
+export enum VotesTimeResolution {
+    MINUTE = "minute",
+    HOUR = "hour",
+    DAY = "day",
+}
 
-export type VotesTimeRange = "15m" | "1h" | "6h" | "24h" | "7d" | "30d" | "90d"
+export enum VotesTimeRange {
+    FIFTEEN_MINUTES = "15m",
+    ONE_HOUR = "1h",
+    SIX_HOURS = "6h",
+    TWENTY_FOUR_HOURS = "24h",
+    SEVEN_DAYS = "7d",
+    THIRTY_DAYS = "30d",
+    NINETY_DAYS = "90d",
+}
 
 export interface VotesTimeSelection {
     resolution: VotesTimeResolution
@@ -21,32 +33,40 @@ export const VOTES_TIME_RANGE_OPTIONS: Record<
     VotesTimeResolution,
     readonly VotesTimeRangeOption[]
 > = {
-    minute: [
-        {value: "15m", label: "15m", bucketCount: 15},
-        {value: "1h", label: "1h", bucketCount: 60},
-        {value: "6h", label: "6h", bucketCount: 360},
+    [VotesTimeResolution.MINUTE]: [
+        {
+            value: VotesTimeRange.FIFTEEN_MINUTES,
+            label: VotesTimeRange.FIFTEEN_MINUTES,
+            bucketCount: 15,
+        },
+        {value: VotesTimeRange.ONE_HOUR, label: VotesTimeRange.ONE_HOUR, bucketCount: 60},
+        {value: VotesTimeRange.SIX_HOURS, label: VotesTimeRange.SIX_HOURS, bucketCount: 360},
     ],
-    hour: [
-        {value: "24h", label: "24h", bucketCount: 24},
-        {value: "7d", label: "7d", bucketCount: 168},
-        {value: "30d", label: "30d", bucketCount: 720},
+    [VotesTimeResolution.HOUR]: [
+        {
+            value: VotesTimeRange.TWENTY_FOUR_HOURS,
+            label: VotesTimeRange.TWENTY_FOUR_HOURS,
+            bucketCount: 24,
+        },
+        {value: VotesTimeRange.SEVEN_DAYS, label: VotesTimeRange.SEVEN_DAYS, bucketCount: 168},
+        {value: VotesTimeRange.THIRTY_DAYS, label: VotesTimeRange.THIRTY_DAYS, bucketCount: 720},
     ],
-    day: [
-        {value: "7d", label: "7d", bucketCount: 7},
-        {value: "30d", label: "30d", bucketCount: 30},
-        {value: "90d", label: "90d", bucketCount: 90},
+    [VotesTimeResolution.DAY]: [
+        {value: VotesTimeRange.SEVEN_DAYS, label: VotesTimeRange.SEVEN_DAYS, bucketCount: 7},
+        {value: VotesTimeRange.THIRTY_DAYS, label: VotesTimeRange.THIRTY_DAYS, bucketCount: 30},
+        {value: VotesTimeRange.NINETY_DAYS, label: VotesTimeRange.NINETY_DAYS, bucketCount: 90},
     ],
 }
 
 const DEFAULT_RANGE: Record<VotesTimeResolution, VotesTimeRange> = {
-    minute: "1h",
-    hour: "24h",
-    day: "7d",
+    [VotesTimeResolution.MINUTE]: VotesTimeRange.ONE_HOUR,
+    [VotesTimeResolution.HOUR]: VotesTimeRange.TWENTY_FOUR_HOURS,
+    [VotesTimeResolution.DAY]: VotesTimeRange.SEVEN_DAYS,
 }
 
 export const DEFAULT_VOTES_TIME_SELECTION: VotesTimeSelection = {
-    resolution: "day",
-    range: DEFAULT_RANGE.day,
+    resolution: VotesTimeResolution.DAY,
+    range: DEFAULT_RANGE[VotesTimeResolution.DAY],
 }
 
 export function getVotesTimeRangeOptions(

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {ApexOptions} from "apexcharts"
-import type {VotesTimeResolution} from "./votesTimeRange"
+import {VotesTimeResolution} from "./votesTimeRange"
 
 const MAX_AXIS_LABELS = 8
 const MAX_TOTAL_LABELS = 24
@@ -54,7 +54,7 @@ export function formatVotesBucket(
         return bucket
     }
 
-    if (resolution === "day") {
+    if (resolution === VotesTimeResolution.DAY) {
         return new Intl.DateTimeFormat(locale, {
             weekday: detailed ? "short" : undefined,
             year: detailed ? "numeric" : undefined,

@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {formatVotesBucket, getVotesPerDayChartOptions} from "./votesPerDayOptions"
+import {VotesTimeResolution} from "./votesTimeRange"
 
 describe("getVotesPerDayChartOptions", () => {
     it("shows one total per compact stack and channel counts on hover", () => {
         const buckets = ["2026-07-31T10:00:00", "2026-07-31T11:00:00"]
         const options = getVotesPerDayChartOptions({
             buckets,
-            resolution: "hour",
+            resolution: VotesTimeResolution.HOUR,
             locale: "en-US",
         })
 
@@ -35,7 +36,7 @@ describe("getVotesPerDayChartOptions", () => {
                 {length: 60},
                 (_, index) => `2026-07-31T10:${String(index).padStart(2, "0")}:00`
             ),
-            resolution: "minute",
+            resolution: VotesTimeResolution.MINUTE,
             locale: "en-US",
         })
 
@@ -43,7 +44,9 @@ describe("getVotesPerDayChartOptions", () => {
     })
 
     it("formats local buckets and safely preserves unexpected values", () => {
-        expect(formatVotesBucket("2026-07-31T10:01:00", "minute", "en-US")).toContain("Jul 31")
-        expect(formatVotesBucket("unexpected", "day", "en-US")).toBe("unexpected")
+        expect(
+            formatVotesBucket("2026-07-31T10:01:00", VotesTimeResolution.MINUTE, "en-US")
+        ).toContain("Jul 31")
+        expect(formatVotesBucket("unexpected", VotesTimeResolution.DAY, "en-US")).toBe("unexpected")
     })
 })

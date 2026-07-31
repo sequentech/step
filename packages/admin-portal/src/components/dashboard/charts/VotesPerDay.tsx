@@ -76,7 +76,7 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
                         )
                     }
                 >
-                    {(["minute", "hour", "day"] as VotesTimeResolution[]).map((resolution) => (
+                    {Object.values(VotesTimeResolution).map((resolution) => (
                         <MenuItem key={resolution} value={resolution}>
                             {String(t(`dashboard.${resolution}`))}
                         </MenuItem>
