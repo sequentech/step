@@ -64,6 +64,7 @@
 //! | [`trustee`] | [`Trustee`](trustee::Trustee): the pure step + the action/crypto layer, split by protocol phase | §7.5, §9 |
 //! | [`board`] | board client: [`store`](board::store) (EDB), [`verify`](board::verify) (ProtocolMessage -> Predicate), [`Transport`](board::transport::Transport) / [`Persistence`](board::persistence::Persistence) seams; the b4 board union | §6, §8 |
 //! | [`session`] | one trustee bound to one board client; the update-first driver | §6 |
+//! | [`protocol_manager`] | [`ProtocolManager`](protocol_manager::ProtocolManager): the other protocol participant, authors `Configuration`/`Ballots` | §4.3, §9.6 |
 //! | [`dispatch`] | const-generic dispatch macros for the ciphertext width `W` | §10.3 |
 //! | [`native`] | native-only: logging + the test harnesses | §2 |
 //! | `wasm` (feature `wasm-core`) | wasm bindings + the interactive emulator | §2 (M3) |
@@ -83,6 +84,7 @@ pub mod board;
 pub mod datalog;
 pub mod messages;
 pub mod dispatch;
+pub mod protocol_manager;
 pub mod session;
 pub mod trustee;
 

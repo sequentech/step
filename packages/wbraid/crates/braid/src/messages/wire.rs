@@ -47,7 +47,6 @@ use super::artifact::Configuration;
 use super::newtypes::{
     CiphertextsHash, ConfigurationHash, Hash, PublicKeyHash, Timestamp, TrusteeIndex,
 };
-use super::sender::{Sender, Signer};
 
 ///////////////////////////////////////////////////////////////////////////
 // Message type discriminant
@@ -190,6 +189,43 @@ pub struct PlaintextsHead {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
     pub ciphertexts: CiphertextsHash,
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Sender & Signer
+//
+// Sender is the identity stamped into every ProtocolMessage; Signer is the
+// commonality that lets anything sign one — a trustee (`crate::trustee::Trustee`)
+// or the protocol manager (`crate::protocol_manager::ProtocolManager`).
+///////////////////////////////////////////////////////////////////////////
+
+pub trait Signer<C: Context> {
+    fn get_signing_key(&self) -> &<C::SignatureScheme as SignatureScheme<C::Rng>>::Signer;
+    fn get_name(&self) -> String;
+}
+
+#[derive(VSer)]
+pub struct Sender<C: Context> {
+    pub name: String,
+    pub pk: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
+}
+
+impl<C: Context> Clone for Sender<C> {
+    fn clone(&self) -> Self {
+        Sender {
+            name: self.name.clone(),
+            pk: self.pk.clone(),
+        }
+    }
+}
+
+impl<C: Context> Sender<C> {
+    pub fn new(
+        name: String,
+        pk: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
+    ) -> Sender<C> {
+        Sender { name, pk }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -211,7 +211,7 @@ mod tests {
 
     use crate::messages::artifact::Configuration;
     use crate::messages::newtypes::{zero_hash, ConfigurationHash, PublicKeyHash};
-    use crate::messages::protocol_manager::ProtocolManager;
+    use crate::protocol_manager::ProtocolManager;
     use crate::messages::wire::ProtocolMessage;
 
     use crate::board::persistence::NoOpPersistence;

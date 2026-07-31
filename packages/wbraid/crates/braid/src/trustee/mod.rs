@@ -42,8 +42,7 @@ use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{
     ConfigurationHash, Timestamp, TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
-use crate::messages::sender::Signer;
-use crate::messages::wire::ProtocolMessage;
+use crate::messages::wire::{ProtocolMessage, Signer};
 
 use crate::board::store::MessageStore;
 use crate::datalog::{self, Action};

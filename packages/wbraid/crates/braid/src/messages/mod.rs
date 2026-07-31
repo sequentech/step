@@ -9,20 +9,19 @@
 //! - [`newtypes`]: content-addressed hash wrappers and index types.
 //! - [`artifact`]: the `Configuration` artifact and related domain types.
 //! - [`wire`]: the [`ProtocolMessage`](wire::ProtocolMessage) structure, per-type
-//!   heads, signing, and the `statement_bytes` byte layout.
-//! - [`sender`]: the sender/signer identity types.
-//! - [`protocol_manager`]: protocol-manager identity and key management.
+//!   heads, signing (the `Sender`/`Signer` identity types), and the
+//!   `statement_bytes` byte layout.
 //! - [`predicate`]: the typed, content-addressed statements (the datalog EDB)
 //!   and the slot/collision logic (§4.2, §5.1).
 //!
 //! The message *store* and *verification* (`ProtocolMessage` → `Predicate`,
 //! §3.4) are board-client operations, not message vocabulary, and live in
-//! [`crate::board`] (`store`, `verify`) instead.
+//! [`crate::board`] (`store`, `verify`) instead. `ProtocolManager` — a protocol
+//! *participant* (a `Signer`) rather than message vocabulary — lives in
+//! [`crate::protocol_manager`], alongside [`crate::trustee`].
 
 pub mod newtypes;
 pub mod artifact;
-pub mod sender;
-pub mod protocol_manager;
 pub mod wire;
 
 pub mod predicate;

@@ -18,7 +18,7 @@ use crate::board::transport::{MemoryBoard, MemoryTransport};
 use crate::board::BoardClient;
 use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{ConfigurationHash, Timestamp};
-use crate::messages::protocol_manager::ProtocolManager;
+use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::ProtocolMessage;
 use crate::native::persistence::SqlitePersistence;
 use crate::trustee::Trustee;
