@@ -27,6 +27,18 @@ export class InvalidLoginHintsError extends Error {
 export const routeAcceptsLoginHints = (pathname: string): boolean =>
     /\/(login|enroll)\/?$/.test(pathname)
 
+const ENROLL_ROUTE_PATTERN = /\/enroll\/?$/
+
+/**
+ * Returns where Keycloak sends the voter once enrollment succeeds, or undefined to keep the
+ * adapter default. Kept beside {@link routeAcceptsLoginHints} because both must accept the same
+ * optional trailing slash: a link good enough to carry hints has to reach /login afterwards.
+ */
+export const enrollmentRedirectUrl = (baseUrl: string, search: string): string | undefined =>
+    ENROLL_ROUTE_PATTERN.test(baseUrl)
+        ? baseUrl.replace(ENROLL_ROUTE_PATTERN, "/login") + search
+        : undefined
+
 // Decode only enough ASCII bytes to recognize the namespace. This remains reliable when a later
 // percent escape is malformed, which is precisely when the invalid-link cleanup must fail closed.
 const rawNameHasLoginHintPrefix = (rawName: string): boolean => {
