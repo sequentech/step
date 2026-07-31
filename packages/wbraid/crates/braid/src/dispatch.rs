@@ -4,7 +4,7 @@
 
 // This module provides only the const-generic dispatch macros used across the
 // crate. The pre-v0.6 protocol implementation (superseded by
-// crate::{runtime, board, session, datalog, messages}) was archived to `legacy/`.
+// crate::{trustee, board, session, datalog, messages}) was archived to `legacy/`.
 
 /// Macro to dispatch threshold trustee operations based on runtime values
 /// to compile-time const generic parameters

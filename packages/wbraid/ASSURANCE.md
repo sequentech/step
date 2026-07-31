@@ -72,7 +72,7 @@ Effort is **comparable to the datalog rule port already completed**:
 (~634) build a `stateright::Model` over the **full actor system**
 (`trustee_administration_server::handlers`, `trustee_application::{handlers,
 top_level_actor}`, `trustee_cryptography`, `trustee_messages`). v0.6 deliberately
-**replaced** that architecture with `SessionTrustee` + `BoardClient` + `b4`, so
+**replaced** that architecture with `Trustee` + `BoardClient` + `b4`, so
 this is not portable as-is — it would mean re-expressing the integration model
 over braid's runtime (`Session`/`BoardClient`), i.e. new design work. Treat as a
 separate, later question if end-to-end model checking of the v0.6 runtime is ever

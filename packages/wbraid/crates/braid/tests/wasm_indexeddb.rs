@@ -17,12 +17,13 @@
 
 use wasm_bindgen_test::*;
 
-use braid::board::persistence::{IndexedDbPersistence, Persistence};
-use braid::messages::predicate::{Mix, Predicate, Shares};
+use braid::board::persistence::Persistence;
+use braid::wasm::persistence::IndexedDbPersistence;
 
-use b4::messages::newtypes::{
+use braid::messages::newtypes::{
     zero_hash, CiphertextsHash, ConfigurationHash, PublicKeyHash, SharesHash,
 };
+use braid::messages::predicate::{Mix, Predicate, Shares};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
