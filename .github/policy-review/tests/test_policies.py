@@ -87,17 +87,21 @@ class LoadPoliciesTests(GitRepoTestCase):
 
         self.assertEqual([p.policy_id for p in policies], ["20-real"])
 
+    # The fixture below embeds a licence header as test data. REUSE would
+    # otherwise try to parse it as this file's own licence and fail on the
+    # escaped newlines, so it is fenced off from the linter.
+    # REUSE-IgnoreStart
     def test_strips_an_html_licence_header(self):
-        self.write(
-            "10-scope.md",
-            "<!--\nSPDX-License-Identifier: AGPL-3.0-only\n-->\n\n# Scope\n\nRule.\n",
-        )
+        header = "<!--\n" + "SPDX-License-" + "Identifier: AGPL-3.0-only\n" + "-->\n"
+        self.write("10-scope.md", header + "\n# Scope\n\nRule.\n")
         self.commit()
 
         policies, _ = load_policies(POLICY_DIR, "main", self.repo)
 
         self.assertNotIn("SPDX", policies[0].body)
         self.assertTrue(policies[0].body.startswith("# Scope"))
+
+    # REUSE-IgnoreEnd
 
     def test_derives_a_title_when_the_file_has_no_heading(self):
         self.write("30-database-naming.md", "Databases use underscores.\n")
