@@ -66,4 +66,24 @@ class LoginTemplateTest {
         template.contains(
             "<#assign structuredCredentialHasError = structuredCredential && credentialFieldError>"));
   }
+
+  @Test
+  void prefillsTheUsernameFromTheLoginHint() throws IOException {
+    String template = Files.readString(LOGIN_TEMPLATE);
+
+    assertTrue(template.contains("name=\"username\" value=\"${(login.username!'')}\""));
+  }
+
+  @Test
+  void locksThePrefilledUsernameWhenTheRealmPolicyIsReadOnly() throws IOException {
+    String template = Files.readString(LOGIN_TEMPLATE);
+
+    assertTrue(
+        template.contains(
+            "<#assign usernamePrefilled = (login.username!'')?has_content && !login.rememberMe??>"));
+    assertTrue(
+        template.contains(
+            "(realm.attributes['loginHintUsernamePolicy']!'EDITABLE') == 'READ_ONLY'"));
+    assertTrue(template.contains("<#if usernameReadOnly>readonly</#if>"));
+  }
 }

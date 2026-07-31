@@ -342,6 +342,9 @@ const englishTranslation = {
                 certAuthFailedTitle: "Certificate Authentication Failed",
                 certAuthFailedMessage:
                     "Your certificate could not be verified. Please check that you are using a valid voter certificate and try again.",
+                invalidLoginHintParametersTitle: "Invalid voting link",
+                invalidLoginHintParametersMessage:
+                    "This voting link contains invalid login information. Request a new link and try again.",
             },
         },
         materials: {
