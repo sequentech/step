@@ -46,7 +46,7 @@
 //!   layer: it verifies each [`ProtocolMessage`](messages::wire::ProtocolMessage) into
 //!   a [`Predicate`](messages::predicate::Predicate) (+ body), runs the anti-rewrite
 //!   completeness gate against its persisted commitments (§6.2–§6.3), and owns the
-//!   [`MessageStore`](messages::store::MessageStore) (§5, §8). `collides()` itself
+//!   [`MessageStore`](board::store::MessageStore) (§5, §8). `collides()` itself
 //!   stays the datalog's job alone (§5.3).
 //! - [`SessionTrustee`](runtime::SessionTrustee) is constructed with its secret
 //!   keys (§9) and runs a **pure** `step` over the store — no I/O, no state. It is
@@ -60,12 +60,12 @@
 //!
 //! | Module | Role | Spec |
 //! |---|---|---|
-//! | [`messages`] | verify ProtocolMessages -> predicates; the store (datalog EDB) | §3–§5 |
+//! | [`messages`] | message/artifact vocabulary: wire format, predicates, signing | §3–§5 |
 //! | [`datalog`] | the brain: predicates -> actions, or HALT | §7 |
 //! | [`runtime`] | [`SessionTrustee`](runtime::SessionTrustee): the pure step + the action/crypto layer | §7.5, §9 |
-//! | [`board`] | board client + [`Transport`](board::transport::Transport) / [`Persistence`](board::persistence::Persistence) seams; the b4 board union | §6, §8 |
+//! | [`board`] | board client: [`store`](board::store) (EDB), [`verify`](board::verify) (ProtocolMessage -> Predicate), [`Transport`](board::transport::Transport) / [`Persistence`](board::persistence::Persistence) seams; the b4 board union | §6, §8 |
 //! | [`session`] | one trustee bound to one board client; the update-first driver | §6 |
-//! | [`protocol`] | const-generic dispatch macros for the ciphertext width `W` | §10.3 |
+//! | [`dispatch`] | const-generic dispatch macros for the ciphertext width `W` | §10.3 |
 //! | [`native`] | native-only: logging + the test harnesses | §2 |
 //! | `wasm` (feature `wasm-core`) | wasm bindings + the interactive emulator | §2 (M3) |
 //!
@@ -83,7 +83,7 @@ extern crate cfg_if;
 pub mod board;
 pub mod datalog;
 pub mod messages;
-pub mod protocol;
+pub mod dispatch;
 pub mod runtime;
 pub mod session;
 

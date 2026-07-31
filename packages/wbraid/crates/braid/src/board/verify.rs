@@ -18,12 +18,12 @@ use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 use cryptography::utils::serialization::VDeserializable;
 
-use super::artifact::Configuration;
-use super::newtypes::{
+use crate::messages::artifact::Configuration;
+use crate::messages::newtypes::{
     hash_bytes, CiphertextsHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash, SharesHash,
     TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
-use super::wire::{
+use crate::messages::wire::{
     statement_bytes, BallotsHead, MessageType, MixHead, MixSignatureHead, PartialDecryptionsHead,
     PlaintextsHead, ProtocolMessage, PublicKeyHead, SharesHead,
 };

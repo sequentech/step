@@ -5,10 +5,12 @@
 //! The unified board client (§6 of `crates/braid/v0.6_spec.md`).
 //!
 //! One component with the three §6 responsibilities: (a) the in-memory
-//! [`MessageStore`], (b) predicate [`persistence`] (anti-rewrite), and (c) b4
-//! interaction via a [`transport`]. The orchestration is written once here; the
-//! persistence and transport backends are swappable (in-memory / SQLite / HTTP+S3
-//! / IndexedDB) so the same logic serves M1 → M3.
+//! [`store`] ([`MessageStore`]), (b) predicate [`persistence`] (anti-rewrite),
+//! and (c) b4 interaction via a [`transport`]; [`verify`] is the trust boundary
+//! that turns a fetched message into the `(Predicate, Body)` pair (a) admits.
+//! The orchestration is written once here; the persistence and transport
+//! backends are swappable (in-memory / SQLite / HTTP+S3 / IndexedDB) so the
+//! same logic serves M1 → M3.
 //!
 //! The client enforces the **update-first / loop-back** rule (§6): a message a
 //! trustee produces has no local effect until it is fetched back, verified,
@@ -16,7 +18,9 @@
 //! store through the [`MessageStore`] returned by [`BoardClient::view`].
 
 pub mod persistence;
+pub mod store;
 pub mod transport;
+pub mod verify;
 
 use anyhow::{bail, Result};
 
@@ -26,10 +30,10 @@ use crate::messages::artifact::Configuration;
 use crate::messages::wire::ProtocolMessage;
 
 use crate::messages::predicate::Predicate;
-use crate::messages::store::MessageStore;
-use crate::messages::verify::verify;
 use persistence::Persistence;
+use store::MessageStore;
 use transport::Transport;
+use verify::verify;
 
 /// The unified board client: owns the in-memory store, a persistence backend, and
 /// a transport to b4. A constructed client always holds a `Configuration` (§9.8).

@@ -14,9 +14,10 @@
 //! - [`protocol_manager`]: protocol-manager identity and key management.
 //! - [`predicate`]: the typed, content-addressed statements (the datalog EDB)
 //!   and the slot/collision logic (§4.2, §5.1).
-//! - [`verify`]: the trust boundary — `ProtocolMessage` → `Predicate` (§3.4).
-//! - [`store`]: the in-memory message store, the pure core of the board client
-//!   and the source of the datalog EDB (§6.1).
+//!
+//! The message *store* and *verification* (`ProtocolMessage` → `Predicate`,
+//! §3.4) are board-client operations, not message vocabulary, and live in
+//! [`crate::board`] (`store`, `verify`) instead.
 
 pub mod newtypes;
 pub mod artifact;
@@ -25,5 +26,3 @@ pub mod protocol_manager;
 pub mod wire;
 
 pub mod predicate;
-pub mod store;
-pub mod verify;

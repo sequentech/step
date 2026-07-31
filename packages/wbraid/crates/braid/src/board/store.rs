@@ -5,7 +5,7 @@
 //! The message store (§6.1 of `crates/braid/v0.6_spec.md`): the in-memory,
 //! type-safe home for verified messages and the source of the datalog EDB.
 //!
-//! This is the pure, I/O-free core of the board client (`crate::board`), which
+//! This is the pure, I/O-free core of [`BoardClient`](super::BoardClient), which
 //! wraps it with persistence and b4 transport. The store is **identity-agnostic**
 //! about the local trustee: it holds the board's `Configuration` and the verified
 //! per-type collections, and exposes read accessors the trustee's `step` consumes.
@@ -27,11 +27,11 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 
-use super::artifact::Configuration;
-use super::newtypes::{
+use crate::messages::artifact::Configuration;
+use crate::messages::newtypes::{
     CiphertextsHash, DecryptionFactorsHash, PublicKeyHash, SharesHash, TrusteeIndex,
 };
-use super::wire::ProtocolMessage;
+use crate::messages::wire::ProtocolMessage;
 
 use crate::messages::predicate::{
     Ballots, Mix, MixSignature, PartialDecryptions, Plaintexts, Predicate, PublicKey, Shares,

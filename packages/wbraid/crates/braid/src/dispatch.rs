@@ -2,36 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/*
-+--------------------------------------------------------------------------------+
-| RemoteBoard                                                                    |
-|                                                                                |
-+------------+--------------------------------------------------------^----------+
-             |                                                        |
-+------------+--------------------------------------------------------+----------+
-| Trustee    |                                                        |          |
-|       +----v----+    +---------------+                         +----+----+     |
-|       |         |    |               |                         |         |     |
-|       |Message  |    |LocalBoard     |                         |Message  |     |
-|       |         |    |               |                         |         |     |
-|       +---------+    +---------------+                         +---------+     |
-|       |Statement|    |Configuration  |    +---------+          |Statement|     |
-|       |         |    |               |    |Predicate|          |         |     |
-|       |Artifact |    |               |    |         |          |Artifact |     |
-|       +-+-------+    |Statements ----+--->|         |          +----^----+     |
-|         |            |               |    +-----+---+               |          |
-|         |  Verify    |Artifacts      |          |                   |          |
-|         +----------->|               |          |                   |          |
-|                      +---------------+          |                   |          |
-|                              ^             +----v----+        +-----+----+     |
-|                              |             |Datalog  |        |Action    |     |
-|                              └-------------|         |------->|          |     |
-|                                Output      |         |        |          |     |
-|                                Predicates  +---------+        +----------+     |
-|                                                                                |
-+--------------------------------------------------------------------------------+
-*/
-
 // This module provides only the const-generic dispatch macros used across the
 // crate. The pre-v0.6 protocol implementation (superseded by
 // crate::{runtime, board, session, datalog, messages}) was archived to `legacy/`.

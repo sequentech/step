@@ -4,7 +4,6 @@
 
 //! The v0.6 session runtime: the trustee-side protocol engine.
 //!
-//! This is the new (M1) replacement for `crate::protocol::{trustee, action}`.
 //! A [`SessionTrustee`] holds only this trustee's identity and secrets; the board
 //! state lives in the board client (`crate::board`). Its [`SessionTrustee::step`]
 //! is a **pure** function of the board's [`MessageStore`] read view:
@@ -13,10 +12,9 @@
 //!    `ConfigurationValid` fact (§9.7), forming the datalog EDB;
 //! 2. **run the datalog** engine ([`crate::datalog::composed::run`], §7.4) to
 //!    derive the enabled [`Action`]s;
-//! 3. **execute** each action — the cryptography ported from the old
-//!    `protocol::action` modules, minus channels/symmetric wrapping/batches
-//!    (§9.4) — producing signed [`ProtocolMessage`]s, which are returned (never
-//!    stored or posted here).
+//! 3. **execute** each action — the core cryptography, minus channels/symmetric
+//!    wrapping/batches (§9.4) — producing signed [`ProtocolMessage`]s, which are
+//!    returned (never stored or posted here).
 //!
 //! Per the loop-back rule (§6) the trustee never advances on its own output: a
 //! produced message only takes effect once the board client posts it and fetches
@@ -24,7 +22,7 @@
 //! counts from the view's configuration and lowers them to const generics via the
 //! dispatch macros.
 //!
-//! [`MessageStore`]: crate::messages::store::MessageStore
+//! [`MessageStore`]: crate::board::store::MessageStore
 
 use anyhow::{anyhow, Result};
 
@@ -44,9 +42,9 @@ use crate::messages::newtypes::{
 use crate::messages::sender::Signer;
 use crate::messages::wire::ProtocolMessage;
 
+use crate::board::store::MessageStore;
 use crate::datalog::{self, Action, MixSource};
 use crate::messages::predicate::ConfigurationValid;
-use crate::messages::store::MessageStore;
 
 /// Wire `date` stamped on every message this trustee produces. Timestamps are
 /// purely informational (§10.2) — nothing in the protocol consumes them — so a
