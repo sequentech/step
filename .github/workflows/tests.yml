@@ -103,7 +103,17 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        package: [ui-core, ui-essentials, keycloak-extensions/sequent-theme]
+        include:
+          - package: ui-core
+            test_args: --runInBand
+          - package: ui-essentials
+            test_args: --runInBand
+          - package: admin-portal
+            test_args: --runInBand
+          - package: voting-portal
+            test_args: --runInBand
+          - package: keycloak-extensions/sequent-theme
+            test_args: ''
       fail-fast: false
     steps:
       - name: Check out code
