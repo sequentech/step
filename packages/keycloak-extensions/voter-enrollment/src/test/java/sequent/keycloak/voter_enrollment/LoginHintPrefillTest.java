@@ -13,11 +13,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.AuthenticationFlowException;
 import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
@@ -75,6 +76,12 @@ class LoginHintPrefillTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> LoginHintPrefill.extractHints(Map.of(clientNote("username"), " ")));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> LoginHintPrefill.extractHints(Map.of(clientNote("username"), "\u00a0")));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> LoginHintPrefill.extractHints(Map.of(clientNote("username"), "\ufeff")));
   }
 
   @Test
@@ -82,19 +89,37 @@ class LoginHintPrefillTest {
     Attributes attributes = mock(Attributes.class);
     AttributeMetadata metadata = mock(AttributeMetadata.class);
     AttributeMetadata hiddenMetadata = mock(AttributeMetadata.class);
+    AttributeMetadata hiddenFlagMetadata = mock(AttributeMetadata.class);
+    AttributeMetadata styledHiddenMetadata = mock(AttributeMetadata.class);
+    AttributeMetadata passwordMetadata = mock(AttributeMetadata.class);
+    AttributeMetadata htmlPasswordMetadata = mock(AttributeMetadata.class);
     when(metadata.getAnnotations()).thenReturn(Map.of());
     when(hiddenMetadata.getAnnotations()).thenReturn(Map.of("inputType", "hidden"));
+    when(hiddenFlagMetadata.getAnnotations()).thenReturn(Map.of("hidden", "true"));
+    when(styledHiddenMetadata.getAnnotations())
+        .thenReturn(Map.of("html-attribute:style", "visibility:hidden"));
+    when(passwordMetadata.getAnnotations()).thenReturn(Map.of("inputType", "password"));
+    when(htmlPasswordMetadata.getAnnotations()).thenReturn(Map.of("inputType", "html5-password"));
     when(attributes.getWritable())
         .thenReturn(
             Map.of(
                 "username", List.of("voter@example.com"),
                 "dateOfBirth", List.of("2000-01-01"),
                 "hiddenReference", List.of("internal-value"),
+                "hiddenFlagReference", List.of("internal-value"),
+                "sequent.read-only.id-card-number", List.of("government-id"),
+                "pin", List.of("1234"),
+                "accessCode", List.of("secret"),
                 "unmanaged", List.of("value")));
     when(attributes.getUnmanagedAttributes()).thenReturn(Map.of("unmanaged", List.of("value")));
     when(attributes.getMetadata("username")).thenReturn(metadata);
     when(attributes.getMetadata("dateOfBirth")).thenReturn(metadata);
     when(attributes.getMetadata("hiddenReference")).thenReturn(hiddenMetadata);
+    when(attributes.getMetadata("hiddenFlagReference")).thenReturn(hiddenFlagMetadata);
+    when(attributes.getMetadata("sequent.read-only.id-card-number"))
+        .thenReturn(styledHiddenMetadata);
+    when(attributes.getMetadata("pin")).thenReturn(passwordMetadata);
+    when(attributes.getMetadata("accessCode")).thenReturn(htmlPasswordMetadata);
 
     MultivaluedMap<String, String> result =
         LoginHintPrefill.filterWritableHints(
@@ -103,6 +128,10 @@ class LoginHintPrefillTest {
                 "dateOfBirth", "2000-01-01",
                 "verificationStatus", "VERIFIED",
                 "hiddenReference", "internal-value",
+                "hiddenFlagReference", "internal-value",
+                "sequent.read-only.id-card-number", "government-id",
+                "pin", "1234",
+                "accessCode", "secret",
                 "unmanaged", "value",
                 "password", "secret"),
             attributes,
@@ -111,6 +140,58 @@ class LoginHintPrefillTest {
     assertEquals(
         Map.of("username", List.of("voter@example.com"), "dateOfBirth", List.of("2000-01-01")),
         result);
+  }
+
+  @Test
+  void prefillsFieldsCarryingPurelyCosmeticHtmlAnnotations() {
+    Attributes attributes = mock(Attributes.class);
+    AttributeMetadata styledMetadata = mock(AttributeMetadata.class);
+    AttributeMetadata layoutMetadata = mock(AttributeMetadata.class);
+    when(styledMetadata.getAnnotations())
+        .thenReturn(Map.of("html-attribute:class", "kc-input kc-hidden-label"));
+    when(layoutMetadata.getAnnotations())
+        .thenReturn(Map.of("html-attribute:style", "opacity:0.85;width:100%"));
+    when(attributes.getWritable())
+        .thenReturn(
+            Map.of(
+                "username", List.of("voter@example.com"),
+                "dateOfBirth", List.of("2000-01-01")));
+    when(attributes.getUnmanagedAttributes()).thenReturn(Map.of());
+    when(attributes.getMetadata("username")).thenReturn(styledMetadata);
+    when(attributes.getMetadata("dateOfBirth")).thenReturn(layoutMetadata);
+
+    MultivaluedMap<String, String> result =
+        LoginHintPrefill.filterWritableHints(
+            Map.of("username", "voter@example.com", "dateOfBirth", "2000-01-01"),
+            attributes,
+            Set.of());
+
+    assertEquals(
+        Map.of("username", List.of("voter@example.com"), "dateOfBirth", List.of("2000-01-01")),
+        result);
+  }
+
+  @Test
+  void skipsFieldsAnInlineStyleActuallyHides() {
+    Attributes attributes = mock(Attributes.class);
+    AttributeMetadata displayNoneMetadata = mock(AttributeMetadata.class);
+    AttributeMetadata transparentMetadata = mock(AttributeMetadata.class);
+    when(displayNoneMetadata.getAnnotations())
+        .thenReturn(Map.of("html-attribute:style", "DISPLAY: NONE"));
+    when(transparentMetadata.getAnnotations())
+        .thenReturn(Map.of("html-attribute:style", "opacity: 0"));
+    when(attributes.getWritable())
+        .thenReturn(
+            Map.of("username", List.of("voter@example.com"), "reference", List.of("ABC-123")));
+    when(attributes.getUnmanagedAttributes()).thenReturn(Map.of());
+    when(attributes.getMetadata("username")).thenReturn(displayNoneMetadata);
+    when(attributes.getMetadata("reference")).thenReturn(transparentMetadata);
+
+    MultivaluedMap<String, String> result =
+        LoginHintPrefill.filterWritableHints(
+            Map.of("username", "voter@example.com", "reference", "ABC-123"), attributes, Set.of());
+
+    assertEquals(new MultivaluedHashMap<String, String>(), result);
   }
 
   @Test
@@ -187,6 +268,13 @@ class LoginHintPrefillTest {
         Set.of("username"),
         LoginHintPrefill.findModifiedLockedHints(
             writableHints, Set.of("username"), new MultivaluedHashMap<>()));
+
+    MultivaluedMap<String, String> pollutedFormData = new MultivaluedHashMap<>();
+    pollutedFormData.put("username", List.of("voter@example.com", "someone.else@example.com"));
+    assertEquals(
+        Set.of("username"),
+        LoginHintPrefill.findModifiedLockedHints(
+            writableHints, Set.of("username"), pollutedFormData));
   }
 
   @Test
@@ -329,10 +417,17 @@ class LoginHintPrefillTest {
         .thenReturn(
             Map.of(
                 clientNote("username"), "voter@example.com", clientNote("invalid field"), "value"));
+    Response response = Response.status(Response.Status.BAD_REQUEST).build();
+    when(form.setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION))
+        .thenReturn(form);
+    when(form.createErrorPage(Response.Status.BAD_REQUEST)).thenReturn(response);
 
-    new LoginHintRegistrationPrefill().buildPage(context, form);
+    AuthenticationFlowException failure =
+        assertThrows(
+            AuthenticationFlowException.class,
+            () -> new LoginHintRegistrationPrefill().buildPage(context, form));
 
-    verifyNoInteractions(form);
+    assertEquals(response, failure.getResponse());
   }
 
   @Test

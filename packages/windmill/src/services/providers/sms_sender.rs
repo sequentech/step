@@ -70,7 +70,7 @@ impl SmsSender {
     pub async fn send(&self, receiver: String, message: String) -> Result<()> {
         match self.transport {
             SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
-                event!(Level::INFO, "SmsTransport::AwsSns: Sending SMS",);
+                event!(Level::INFO, "SmsTransport::AwsSns: Sending SMS");
                 aws_client
                     .publish()
                     .set_message_attributes(messsage_attributes.clone())
@@ -81,7 +81,13 @@ impl SmsSender {
                     .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
             }
             SmsTransport::Console => {
-                event!(Level::INFO, "SmsTransport::Console: Simulating SMS",);
+                // The console transport does not deliver anything, so printing the rendered
+                // message is its only effect. Keep it verbose: it is how a developer retrieves
+                // an enrollment or login link locally.
+                event!(
+                    Level::INFO,
+                    "SmsTransport::Console: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
+                );
             }
         }
 

@@ -85,6 +85,20 @@ The voter-enrollment provider accepts at most five hints, with field names
 matching `[A-Za-z0-9._-]+`, names no longer than 128 characters, and values no
 longer than 255 characters. Any invalid hint rejects the complete set.
 
+A pre-matching request validator in the voter-enrollment provider reads the raw
+query of the `auth` and `registrations` authorization endpoints and rejects an
+invalid hint set with HTTP 400 before Keycloak parses or stores it. It sees
+duplicate parameters and malformed percent escapes that framework decoding would
+otherwise discard, so callers that bypass the Voting Portal are held to the same
+contract. Hint values never appear in the error response.
+
+The validator covers the query string only. Hints delivered inside a signed
+`request` object or a pushed authorization request are validated later, from the
+stored client notes, where Keycloak has already applied its own additional
+parameter limits — an over-limit set can therefore be truncated rather than
+rejected on those paths. Step's Voting Portal uses neither, but a deployment that
+introduces request objects or PAR should re-check this boundary.
+
 ### Stock registration flow
 
 In each realm that uses Keycloak's stock registration form:
@@ -126,11 +140,12 @@ and login-to-registration redirects.
 
 Treat every hint as untrusted, user-editable input. Prefill must not mark email,
 phone, identity, eligibility, or other verification state as trusted. Do not log
-hint values, and do not place credentials, tokens, or secrets in notification
+hint values. Never place passwords, one-time passwords (OTPs), tokens, secrets,
+government identifiers, or other inappropriate sensitive values in notification
 URLs. URL encoding prevents query-structure injection but does not make values
 confidential or authentic. Dynamic attributes with dots or dashes in their names
-must be read with the Handlebars `lookup` helper; `attributes` is reserved for
-the complete attribute map.
+must be read with the Handlebars `lookup` helper; `attributes` is reserved for the
+complete attribute map.
 
 ## Tally
 

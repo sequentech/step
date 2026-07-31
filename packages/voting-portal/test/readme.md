@@ -38,5 +38,7 @@ annotation (`EDITABLE`, `READ_ONLY` or `IGNORE`, defaulting to `EDITABLE`).
 - `PREFILL_DEFERRED_IGNORE_URL`: Voting Portal `/enroll` URL using deferred registration with `IGNORE`
 - `PREFILL_DEFERRED_ACCEPT_URL`: Voting Portal `/enroll` URL using deferred registration with `ACCEPT`
 
-Run `npx nightwatch test/e2e/login_hints.test.ts`. Scenarios without a configured URL
-are reported as skipped.
+Run `yarn test:login-hints:e2e`. Scenarios without a configured URL are reported
+as skipped. Set `PREFILL_BROWSER_MATRIX_REQUIRED=true` to make a missing scenario
+URL fail visibly instead of reducing the matrix silently, which is what an
+evidence run wants.

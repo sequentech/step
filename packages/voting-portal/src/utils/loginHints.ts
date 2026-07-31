@@ -8,6 +8,7 @@ export const MAX_LOGIN_HINT_NAME_LENGTH = 128
 export const MAX_LOGIN_HINT_VALUE_LENGTH = 255
 
 const LOGIN_HINT_NAME_PATTERN = /^[A-Za-z0-9._-]+$/
+const HEX_PAIR_PATTERN = /^[0-9A-Fa-f]{2}$/
 
 export type LoginHints = Record<string, string>
 
@@ -25,6 +26,37 @@ export class InvalidLoginHintsError extends Error {
 
 export const routeAcceptsLoginHints = (pathname: string): boolean =>
     /\/(login|enroll)\/?$/.test(pathname)
+
+// Decode only enough ASCII bytes to recognize the namespace. This remains reliable when a later
+// percent escape is malformed, which is precisely when the invalid-link cleanup must fail closed.
+const rawNameHasLoginHintPrefix = (rawName: string): boolean => {
+    let rawIndex = 0
+
+    for (let prefixIndex = 0; prefixIndex < LOGIN_HINT_PREFIX.length; prefixIndex += 1) {
+        if (rawIndex >= rawName.length) {
+            return false
+        }
+
+        let character = rawName[rawIndex]
+        if (character === "%") {
+            const hexPair = rawName.slice(rawIndex + 1, rawIndex + 3)
+            if (!HEX_PAIR_PATTERN.test(hexPair)) {
+                return false
+            }
+            character = String.fromCharCode(Number.parseInt(hexPair, 16))
+            rawIndex += 3
+        } else {
+            character = character === "+" ? " " : character
+            rawIndex += 1
+        }
+
+        if (character !== LOGIN_HINT_PREFIX[prefixIndex]) {
+            return false
+        }
+    }
+
+    return true
+}
 
 const validateLoginHint = (name: string, value: string): void => {
     if (
@@ -48,7 +80,7 @@ const validateLoginHintEncoding = (search: string): void => {
         try {
             parameterName = decodeURIComponent(rawName.replaceAll("+", " "))
         } catch {
-            if (rawName.startsWith(LOGIN_HINT_PREFIX)) {
+            if (rawNameHasLoginHintPrefix(rawName)) {
                 throw new InvalidLoginHintsError()
             }
             continue
@@ -108,17 +140,7 @@ export const removeLoginHintsFromSearch = (search: string): string => {
             const separatorIndex = component.indexOf("=")
             const rawName = separatorIndex === -1 ? component : component.slice(0, separatorIndex)
 
-            if (rawName.startsWith(LOGIN_HINT_PREFIX)) {
-                return false
-            }
-
-            try {
-                return !decodeURIComponent(rawName.replaceAll("+", " ")).startsWith(
-                    LOGIN_HINT_PREFIX
-                )
-            } catch {
-                return true
-            }
+            return !rawNameHasLoginHintPrefix(rawName)
         })
 
     return remainingComponents.length > 0 ? `?${remainingComponents.join("&")}` : ""
