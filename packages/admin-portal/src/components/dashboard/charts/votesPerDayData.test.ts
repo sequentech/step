@@ -16,11 +16,32 @@ describe("toVotesPerDayChartData", () => {
                 {day: "2026-07-28", channel: "FUTURE_CHANNEL", day_count: 4},
             ])
         ).toEqual({
-            days: ["2026-07-27", "2026-07-28"],
+            buckets: ["2026-07-27", "2026-07-28"],
             series: [
                 {channel: CastVoteChannel.ONLINE, data: [0, 3]},
                 {channel: CastVoteChannel.KIOSK, data: [2, 1]},
             ],
+        })
+    })
+    it("keeps hour and minute buckets from the same day separate", () => {
+        expect(
+            toVotesPerDayChartData([
+                {
+                    day: "2026-07-31",
+                    bucket: "2026-07-31T10:00:00",
+                    channel: "ONLINE",
+                    day_count: 2,
+                },
+                {
+                    day: "2026-07-31",
+                    bucket: "2026-07-31T10:01:00",
+                    channel: "ONLINE",
+                    day_count: 3,
+                },
+            ])
+        ).toEqual({
+            buckets: ["2026-07-31T10:00:00", "2026-07-31T10:01:00"],
+            series: [{channel: CastVoteChannel.ONLINE, data: [2, 3]}],
         })
     })
 
@@ -30,6 +51,6 @@ describe("toVotesPerDayChartData", () => {
                 {day: "2026-07-27", channel: "ONLINE", day_count: 0},
                 {day: "2026-07-28", channel: "ONLINE", day_count: 0},
             ])
-        ).toEqual({days: ["2026-07-27", "2026-07-28"], series: []})
+        ).toEqual({buckets: ["2026-07-27", "2026-07-28"], series: []})
     })
 })

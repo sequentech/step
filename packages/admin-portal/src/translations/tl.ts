@@ -418,6 +418,12 @@ const tagalogTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Boto kada araw",
+            votesOverTime: "Mga boto sa paglipas ng panahon",
+            timeResolution: "Resolusyon ng oras",
+            timeRange: "Saklaw ng oras",
+            minute: "Minuto",
+            hour: "Oras",
+            day: "Araw",
             votersByChannels: "Mga botante ayon sa channel",
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",

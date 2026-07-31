@@ -413,6 +413,12 @@ const englishTranslation = {
         },
         dashboard: {
             voteByDay: "Votes by day",
+            votesOverTime: "Votes over time",
+            timeResolution: "Time resolution",
+            timeRange: "Time range",
+            minute: "Minute",
+            hour: "Hour",
+            day: "Day",
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
             voterEnrollURL: "Voter Enroll URL",

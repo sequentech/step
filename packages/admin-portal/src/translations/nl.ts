@@ -416,6 +416,12 @@ const dutchTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Stemmen per dag",
+            votesOverTime: "Stemmen in de tijd",
+            timeResolution: "Tijdsresolutie",
+            timeRange: "Tijdsbereik",
+            minute: "Minuut",
+            hour: "Uur",
+            day: "Dag",
             votersByChannels: "Kiezers per kanaal",
             voterLoginURL: "Login URL kiezer",
             voterEnrollURL: "Inschrijvings-URL kiezer",

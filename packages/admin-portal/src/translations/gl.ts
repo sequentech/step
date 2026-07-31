@@ -415,6 +415,12 @@ const galegoTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Votos por día",
+            votesOverTime: "Votos ao longo do tempo",
+            timeResolution: "Resolución temporal",
+            timeRange: "Intervalo de tempo",
+            minute: "Minuto",
+            hour: "Hora",
+            day: "Día",
             votersByChannels: "Votantes por canle",
             voterLoginURL: "URL de Inicio de Sesión do Votante",
             voterEnrollURL: "URL de Rexistro do Votante",

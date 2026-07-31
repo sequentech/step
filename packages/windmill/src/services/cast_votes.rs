@@ -11,8 +11,7 @@ use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::NaiveDate;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
 use sequent_core::ballot::VotingStatusChannel;
@@ -270,9 +269,39 @@ impl TryFrom<Row> for ElectionCastVotes {
     }
 }
 
+const MAX_VOTES_TIME_BUCKETS: i32 = 1000;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum VotesTimeResolution {
+    Minute,
+    Hour,
+    #[default]
+    Day,
+}
+
+impl VotesTimeResolution {
+    fn as_sql(self) -> &'static str {
+        match self {
+            Self::Minute => "minute",
+            Self::Hour => "hour",
+            Self::Day => "day",
+        }
+    }
+
+    fn seconds(self) -> i64 {
+        match self {
+            Self::Minute => 60,
+            Self::Hour => 60 * 60,
+            Self::Day => 24 * 60 * 60,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVotesPerDay {
     pub day: String,
+    pub bucket: String,
     pub channel: String,
     pub day_count: i64,
 }
@@ -281,7 +310,11 @@ impl TryFrom<Row> for CastVotesPerDay {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVotesPerDay {
-            day: item.try_get::<_, chrono::NaiveDate>("day")?.to_string(),
+            day: item.try_get::<_, NaiveDate>("day")?.to_string(),
+            bucket: item
+                .try_get::<_, NaiveDateTime>("bucket")?
+                .format("%Y-%m-%dT%H:%M:%S")
+                .to_string(),
             channel: item.try_get("channel")?,
             day_count: item.try_get::<_, i64>("day_count")?,
         })
@@ -417,6 +450,59 @@ pub async fn count_cast_votes_election(
     Ok(count_data)
 }
 
+fn parse_votes_time_boundary(value: &str, end_of_day: bool) -> Result<NaiveDateTime> {
+    for format in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%d %H:%M:%S%.f"] {
+        if let Ok(value) = NaiveDateTime::parse_from_str(value, format) {
+            return Ok(value);
+        }
+    }
+
+    let date = NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .with_context(|| format!("Error parsing time boundary: {value}"))?;
+    let time = if end_of_day {
+        NaiveTime::from_hms_micro_opt(23, 59, 59, 999_999)
+    } else {
+        NaiveTime::from_hms_opt(0, 0, 0)
+    }
+    .ok_or_else(|| anyhow!("Error building time boundary"))?;
+
+    Ok(date.and_time(time))
+}
+
+fn validate_votes_time_range(
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
+) -> Result<()> {
+    if end < start {
+        return Err(anyhow!("end_date must not be earlier than start_date"));
+    }
+
+    let requested_buckets = match bucket_count {
+        Some(count) if (1..=MAX_VOTES_TIME_BUCKETS).contains(&count) => i64::from(count),
+        Some(_) => {
+            return Err(anyhow!(
+                "bucket_count must be between 1 and {MAX_VOTES_TIME_BUCKETS}"
+            ))
+        }
+        None => end
+            .signed_duration_since(start)
+            .num_seconds()
+            .checked_div(resolution.seconds())
+            .and_then(|count| count.checked_add(1))
+            .ok_or_else(|| anyhow!("Unable to calculate requested time buckets"))?,
+    };
+
+    if requested_buckets > i64::from(MAX_VOTES_TIME_BUCKETS) {
+        return Err(anyhow!(
+            "Requested {requested_buckets} time buckets; maximum is {MAX_VOTES_TIME_BUCKETS}"
+        ));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip(transaction), err)]
 pub async fn get_count_votes_per_day(
     transaction: &Transaction<'_>,
@@ -426,6 +512,8 @@ pub async fn get_count_votes_per_day(
     end_date: &str,
     election_id: Option<String>,
     user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
 ) -> Result<Vec<CastVotesPerDay>> {
     get_count_votes_per_day_from_relation(
         transaction,
@@ -435,6 +523,8 @@ pub async fn get_count_votes_per_day(
         end_date,
         election_id,
         user_timezone,
+        resolution,
+        bucket_count,
         CastVoteRelation::Production,
     )
     .await
@@ -448,18 +538,23 @@ async fn get_count_votes_per_day_from_relation(
     end_date: &str,
     election_id: Option<String>,
     user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
     cast_vote_relation: CastVoteRelation,
 ) -> Result<Vec<CastVotesPerDay>> {
-    let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
-        .with_context(|| "Error parsing start_date")?;
-    let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
-        .with_context(|| "Error parsing end_date")?;
+    let start_date_naive =
+        parse_votes_time_boundary(start_date, false).with_context(|| "Error parsing start_date")?;
+    let end_date_naive =
+        parse_votes_time_boundary(end_date, true).with_context(|| "Error parsing end_date")?;
+    validate_votes_time_range(start_date_naive, end_date_naive, resolution, bucket_count)?;
+
     let election_uuid = match election_id {
         Some(ref election_id_r) => Some(parse_uuid_v4(election_id_r.as_str())?),
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
     let default_channel = VotingStatusChannel::ONLINE.to_string();
+    let resolution_sql = resolution.as_sql();
     let sql = count_votes_per_day_query(cast_vote_relation);
     let total_areas_statement = transaction.prepare(&sql).await?;
 
@@ -475,6 +570,8 @@ async fn get_count_votes_per_day_from_relation(
                 &election_uuid,
                 &status,
                 &default_channel,
+                &resolution_sql,
+                &bucket_count,
             ],
         )
         .await?;
@@ -930,6 +1027,29 @@ mod tests {
             .collect()
     }
 
+    #[test]
+    fn accepts_supported_time_resolutions_and_bounded_ranges() {
+        let start = parse_votes_time_boundary("2026-01-01T10:15:00", false).unwrap();
+        let end = parse_votes_time_boundary("2026-01-01T11:14:59", true).unwrap();
+
+        assert!(
+            validate_votes_time_range(start, end, VotesTimeResolution::Minute, Some(60),).is_ok()
+        );
+        assert!(validate_votes_time_range(start, end, VotesTimeResolution::Hour, None,).is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_or_excessive_time_ranges() {
+        let start = parse_votes_time_boundary("2026-01-01", false).unwrap();
+        let end = parse_votes_time_boundary("2026-01-02", true).unwrap();
+
+        assert!(validate_votes_time_range(start, end, VotesTimeResolution::Minute, None).is_err());
+        assert!(validate_votes_time_range(end, start, VotesTimeResolution::Day, Some(2)).is_err());
+        assert!(
+            validate_votes_time_range(start, end, VotesTimeResolution::Day, Some(1001)).is_err()
+        );
+    }
+
     #[tokio::test]
     #[ignore = "requires PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
     async fn voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote() {
@@ -1013,6 +1133,8 @@ mod tests {
                 "2026-01-03",
                 Some(ELECTION_ID.to_string()),
                 "UTC",
+                VotesTimeResolution::Day,
+                None,
                 CastVoteRelation::StatisticsTest,
             )
             .await

@@ -2,11 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext} from "react"
+import React, {useContext, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
+import {
+    DEFAULT_VOTES_TIME_SELECTION,
+    getVotesBucketCount,
+    VotesTimeSelection,
+} from "../charts/votesTimeRange"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
 import {VotersByChannel} from "../charts/VotersByChannel"
 import {toVotersByChannelRows} from "../charts/votersByChannelData"
@@ -33,6 +38,10 @@ export default function DashboardElection() {
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election>()
+    const [votesTimeSelection, setVotesTimeSelection] = useState<VotesTimeSelection>(
+        DEFAULT_VOTES_TIME_SELECTION
+    )
+
     const electionAlias = record
         ? translateFromPresentation(record.presentation, "alias", i18n.language)
         : undefined
@@ -59,6 +68,8 @@ export default function DashboardElection() {
             endDate: formatDate(endDate),
             electionAlias: electionAlias ?? undefined,
             userTimezone,
+            timeResolution: votesTimeSelection.resolution,
+            bucketCount: getVotesBucketCount(votesTimeSelection),
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         skip: !canQueryStats,
@@ -91,7 +102,8 @@ export default function DashboardElection() {
                         data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
                         width={cardWidth}
                         height={cardHeight}
-                        endDate={endDate}
+                        selection={votesTimeSelection}
+                        onSelectionChange={setVotesTimeSelection}
                     />
                     <VotersByChannel
                         data={toVotersByChannelRows(dataStats?.stats?.voters_by_channel)}

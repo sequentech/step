@@ -416,6 +416,12 @@ const frenchTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Votes par jour",
+            votesOverTime: "Votes au fil du temps",
+            timeResolution: "Résolution temporelle",
+            timeRange: "Plage de temps",
+            minute: "Minute",
+            hour: "Heure",
+            day: "Jour",
             votersByChannels: "Votants par canaux",
             voterLoginURL: "URL de connexion des électeurs",
             voterEnrollURL: "URL d'inscription des électeurs",

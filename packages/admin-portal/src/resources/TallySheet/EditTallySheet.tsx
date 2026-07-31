@@ -643,7 +643,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     />
                 </FormControl>
 
-                <FormControl fullWidth size="small">
+                <FormControl size="small" sx={{width: 300}}>
                     <InputLabel>{t("tallysheet.label.channel")}</InputLabel>
                     <Select
                         name="channel"

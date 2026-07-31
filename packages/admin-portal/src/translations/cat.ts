@@ -416,6 +416,12 @@ const catalanTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Vots per dia",
+            votesOverTime: "Vots al llarg del temps",
+            timeResolution: "Resolució temporal",
+            timeRange: "Interval de temps",
+            minute: "Minut",
+            hour: "Hora",
+            day: "Dia",
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",

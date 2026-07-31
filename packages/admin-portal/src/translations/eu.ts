@@ -416,6 +416,12 @@ const basqueTranslation: TranslationType = {
         },
         dashboard: {
             voteByDay: "Eguneko botoak",
+            votesOverTime: "Botoak denboran zehar",
+            timeResolution: "Denbora-bereizmena",
+            timeRange: "Denbora-tartea",
+            minute: "Minutua",
+            hour: "Ordua",
+            day: "Eguna",
             votersByChannels: "Kanaleko bozkatzaileak",
             voterLoginURL: "Bozkatzaile Sarrera URLa",
             voterEnrollURL: "Bozkatzaile Matrikula URLa",
