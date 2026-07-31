@@ -352,7 +352,11 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                             </TableContainer>
                         </Box>
                     </Box>
-                    <ParticipationByChannel result={result} labels={mergedLabels} />
+                    <ParticipationByChannel
+                        result={result}
+                        chartName={chartName}
+                        labels={mergedLabels}
+                    />
                 </>
             ) : (
                 <Typography

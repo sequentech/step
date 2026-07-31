@@ -282,6 +282,20 @@
           "winning_position": 3
         }
       ],
+      "participation_by_channel": [
+        {
+          "channel": "ONLINE",
+          "label": "Online",
+          "total": 3000000,
+          "percentage": 60.0
+        },
+        {
+          "channel": "PAPER",
+          "label": "Paper",
+          "total": 1950000,
+          "percentage": 39.0
+        }
+      ],
       "channel_type": "Online Voting"
     },
     {

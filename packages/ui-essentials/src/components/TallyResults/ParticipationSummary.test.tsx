@@ -92,6 +92,7 @@ describe("ParticipationByChannel", () => {
     it("renders non-zero channel totals in canonical order using census percentages", () => {
         const markup = renderToStaticMarkup(
             <ParticipationByChannel
+                chartName="Election - Contest"
                 result={{
                     eligibleCensus: 20,
                     votesByChannel: {
@@ -116,6 +117,10 @@ describe("ParticipationByChannel", () => {
         expect(markup).toContain("15.0%")
         expect(markup).toContain("10.0%")
         expect(markup).not.toContain("Postal")
+        expect(markup).toContain("seq-tally-results-participation-by-channel-chart")
+        expect(markup).toContain('aria-label="Election - Contest"')
+        expect(markup).toContain('data-height="170"')
+        expect(markup).toContain('data-series="[5,3,2]"')
     })
 
     it("orders unknown channels deterministically after known channels", () => {

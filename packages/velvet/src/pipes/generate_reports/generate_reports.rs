@@ -1514,6 +1514,32 @@ mod participation_by_channel_tests {
     use crate::pipes::do_tally::ExtendedMetricsContest;
     use std::collections::BTreeMap;
 
+    fn report_with_channels(
+        participation_by_channel: Vec<ParticipationByChannelRow>,
+    ) -> ReportDataComputed {
+        ReportDataComputed {
+            election_name: "Election".to_string(),
+            election_alias: "Election".to_string(),
+            election_id: "election-1".to_string(),
+            election_event_id: "event-1".to_string(),
+            tenant_id: "tenant-1".to_string(),
+            election_description: String::new(),
+            election_dates: None,
+            election_annotations: HashMap::new(),
+            election_event_annotations: HashMap::new(),
+            contest: None,
+            area: None,
+            area_annotations: HashMap::new(),
+            is_aggregate: false,
+            tally_sheet_id: None,
+            contest_result: None,
+            candidate_result: vec![],
+            channel_type: None,
+            election_results: None,
+            participation_by_channel,
+        }
+    }
+
     #[test]
     fn builds_ordered_rows_with_census_percentages_and_future_channel_fallbacks() {
         let result = ContestResult {
@@ -1560,6 +1586,74 @@ mod participation_by_channel_tests {
             let rows = participation_by_channel_rows(&result);
 
             assert_eq!(rows[0].percentage, 100.0);
+        }
+    }
+
+    #[test]
+    fn serializes_channel_participation_into_report_json() {
+        let report = report_with_channels(vec![ParticipationByChannelRow {
+            channel: "ONLINE".to_string(),
+            label: "Online".to_string(),
+            total: 5,
+            percentage: 25.0,
+        }]);
+        let json = serde_json::to_value(TemplateData {
+            execution_annotations: HashMap::new(),
+            reports: vec![report],
+        })
+        .unwrap();
+
+        assert_eq!(
+            json["reports"][0]["participation_by_channel"][0]["channel"],
+            "ONLINE"
+        );
+        assert_eq!(
+            json["reports"][0]["participation_by_channel"][0]["total"],
+            5
+        );
+        assert_eq!(
+            json["reports"][0]["participation_by_channel"][0]["percentage"],
+            25.0
+        );
+    }
+
+    #[test]
+    fn renders_channel_participation_in_the_built_in_and_default_html_pdf_templates() {
+        let variables = serde_json::json!({
+            "reports": [{
+                "election_name": "Election",
+                "contest": {
+                    "name": "Contest",
+                    "description": "",
+                    "counting_algorithm": "other",
+                    "min_votes": 0,
+                    "max_votes": 1
+                },
+                "contest_result": {},
+                "candidate_result": [],
+                "participation_by_channel": [{
+                    "channel": "ONLINE",
+                    "label": "Online",
+                    "total": 5,
+                    "percentage": 25.0
+                }]
+            }]
+        });
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+
+        for template in [
+            include_str!("../../resources/report_content.hbs"),
+            include_str!(
+                "../../../../../.devcontainer/minio/public-assets/electoral_results_user.hbs"
+            ),
+        ] {
+            let rendered = reports::render_template_text(template, variables.clone()).unwrap();
+
+            assert!(rendered.contains("Participation by channel"));
+            assert!(rendered.contains("Online"));
+            assert!(rendered.contains("25.0%"));
         }
     }
 }
