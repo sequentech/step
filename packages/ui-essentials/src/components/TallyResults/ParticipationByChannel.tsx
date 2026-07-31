@@ -70,10 +70,10 @@ const compareChannelKeys = (left: string, right: string): number => {
     return left < right ? -1 : 1
 }
 
-const formatChannelPercentage = (total: number, eligibleCensus: number | null): string => {
-    if (eligibleCensus === null) return "-"
+const formatChannelPercentage = (total: number, totalChannelVotes: number): string => {
+    if (totalChannelVotes <= 0) return "-"
 
-    const percentage = Math.min(100, Math.max(0, (total / Math.max(1, eligibleCensus)) * 100))
+    const percentage = Math.min(100, Math.max(0, (total / totalChannelVotes) * 100))
     return `${percentage.toFixed(1)}%`
 }
 
@@ -83,7 +83,6 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
-    const eligibleCensus = toFiniteNumber(result.eligibleCensus)
     const rows = useMemo(
         () =>
             Object.entries(result.votesByChannel ?? {})
@@ -99,6 +98,10 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
                         compareChannelKeys(left.channel, right.channel)
                 ),
         [result.votesByChannel]
+    )
+    const totalChannelVotes = useMemo(
+        () => rows.reduce((total, row) => total + row.total, 0),
+        [rows]
     )
     const chartData = useMemo(
         () =>
@@ -182,7 +185,7 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
                                         </TableCell>
                                         <TableCell align="right">{total}</TableCell>
                                         <TableCell align="right">
-                                            {formatChannelPercentage(total, eligibleCensus)}
+                                            {formatChannelPercentage(total, totalChannelVotes)}
                                         </TableCell>
                                     </TableRow>
                                 ))}

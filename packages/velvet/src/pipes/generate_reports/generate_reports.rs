@@ -917,6 +917,13 @@ fn percentage_of(count: u64, base: u64) -> f64 {
 }
 
 fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByChannelRow> {
+    let total_channel_votes = result
+        .extended_metrics
+        .as_ref()
+        .map(|metrics| {
+            metrics.votes_by_channel.values().copied().fold(0u64, u64::saturating_add)
+        })
+        .unwrap_or_default();
     let mut rows: Vec<ParticipationByChannelRow> = result
         .extended_metrics
         .as_ref()
@@ -949,7 +956,7 @@ fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByC
                             .join(" "),
                     },
                     total: *total,
-                    percentage: percentage_of(*total, result.census),
+                    percentage: percentage_of(*total, total_channel_votes),
                 })
                 .collect()
         })
@@ -1541,7 +1548,7 @@ mod participation_by_channel_tests {
     }
 
     #[test]
-    fn builds_ordered_rows_with_census_percentages_and_future_channel_fallbacks() {
+    fn builds_ordered_rows_with_total_vote_percentages_and_future_channel_fallbacks() {
         let result = ContestResult {
             census: 20,
             extended_metrics: Some(ExtendedMetricsContest {
@@ -1566,18 +1573,21 @@ mod participation_by_channel_tests {
                 .collect::<Vec<_>>(),
             vec!["ONLINE", "PAPER", "AA", "A_B", "FUTURE_CHANNEL"]
         );
-        assert_eq!(rows[0].percentage, 25.0);
-        assert_eq!(rows[1].percentage, 15.0);
+        assert_eq!(rows[0].percentage, percentage_of(5, 12));
+        assert_eq!(rows[1].percentage, percentage_of(3, 12));
         assert_eq!(rows[4].label, "Future Channel");
     }
 
     #[test]
-    fn channel_percentages_are_clamped_for_zero_or_exceeded_census() {
-        for (census, total) in [(0, 1), (1, 3)] {
+    fn channel_percentages_use_total_channel_votes_independently_of_census() {
+        for census in [0, 1, 100] {
             let result = ContestResult {
                 census,
                 extended_metrics: Some(ExtendedMetricsContest {
-                    votes_by_channel: BTreeMap::from([("ONLINE".to_string(), total)]),
+                    votes_by_channel: BTreeMap::from([
+                        ("ONLINE".to_string(), 3),
+                        ("PAPER".to_string(), 1),
+                    ]),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -1585,7 +1595,8 @@ mod participation_by_channel_tests {
 
             let rows = participation_by_channel_rows(&result);
 
-            assert_eq!(rows[0].percentage, 100.0);
+            assert_eq!(rows[0].percentage, 75.0);
+            assert_eq!(rows[1].percentage, 25.0);
         }
     }
 

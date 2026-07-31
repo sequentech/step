@@ -89,7 +89,7 @@ describe("ParticipationSummaryChart", () => {
 })
 
 describe("ParticipationByChannel", () => {
-    it("renders non-zero channel totals in canonical order using census percentages", () => {
+    it("renders non-zero channel totals in canonical order using total vote percentages", () => {
         const markup = renderToStaticMarkup(
             <ParticipationByChannel
                 chartName="Election - Contest"
@@ -113,9 +113,9 @@ describe("ParticipationByChannel", () => {
         expect(onlineIndex).toBeGreaterThan(-1)
         expect(paperIndex).toBeGreaterThan(onlineIndex)
         expect(futureChannelIndex).toBeGreaterThan(paperIndex)
-        expect(markup).toContain("25.0%")
-        expect(markup).toContain("15.0%")
-        expect(markup).toContain("10.0%")
+        expect(markup).toContain("50.0%")
+        expect(markup).toContain("30.0%")
+        expect(markup).toContain("20.0%")
         expect(markup).not.toContain("Postal")
         expect(markup).toContain("seq-tally-results-participation-by-channel-chart")
         expect(markup).toContain('aria-label="Election - Contest"')
@@ -146,16 +146,21 @@ describe("ParticipationByChannel", () => {
         expect(aBIndex).toBeGreaterThan(aaIndex)
     })
 
-    it("uses the report percentage policy when participation exceeds or has no census", () => {
-        const exceededCensus = renderToStaticMarkup(
-            <ParticipationByChannel result={{eligibleCensus: 1, votesByChannel: {ONLINE: 3}}} />
+    it("uses total channel votes independently of the census", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 1,
+                    votesByChannel: {ONLINE: 3, PAPER: 1},
+                }}
+            />
         )
         const zeroCensus = renderToStaticMarkup(
             <ParticipationByChannel result={{eligibleCensus: 0, votesByChannel: {ONLINE: 1}}} />
         )
 
-        expect(exceededCensus).toContain("100.0%")
-        expect(exceededCensus).not.toContain("300.0%")
+        expect(markup).toContain("75.0%")
+        expect(markup).toContain("25.0%")
         expect(zeroCensus).toContain("100.0%")
     })
 })

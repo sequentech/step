@@ -287,13 +287,13 @@
           "channel": "ONLINE",
           "label": "Online",
           "total": 3000000,
-          "percentage": 60.0
+          "percentage": 60.6
         },
         {
           "channel": "PAPER",
           "label": "Paper",
           "total": 1950000,
-          "percentage": 39.0
+          "percentage": 39.4
         }
       ],
       "channel_type": "Online Voting"
