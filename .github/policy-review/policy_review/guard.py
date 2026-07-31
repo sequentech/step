@@ -25,9 +25,16 @@ from dataclasses import dataclass
 DEFAULT_GUARDED_PATHS: tuple[str, ...] = (
     ".github/workflows/policy-check.yml",
     ".github/workflows/policy-review.yml",
-    ".github/workflows/policy-review-tests.yml",
     ".github/policy-review/**",
 )
+
+# The engine's own lint and test jobs live inside each repository's shared lint
+# and test workflows rather than a workflow of their own. Those files are not
+# guarded: they change constantly for unrelated reasons, and guarding them would
+# fire this notice on every frontend or Rust change until people stopped reading
+# it. Removing the engine's job from one of them is instead caught by the
+# "changes must be checked" policy, which treats narrowing an existing check's
+# reach as a blocking violation.
 
 # Ordered most to least specific, so a path inside the engine is described as
 # engine code rather than as a generic match.
@@ -35,7 +42,6 @@ _DESCRIPTIONS: tuple[tuple[str, str], ...] = (
     ("/tests/", "engine test"),
     (".github/policy-review/", "engine code"),
     ("policy-review.yml", "the reusable policy workflow"),
-    ("policy-review-tests.yml", "the engine's own test workflow"),
     ("policy-check.yml", "this repository's policy check workflow"),
 )
 

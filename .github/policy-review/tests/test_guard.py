@@ -50,6 +50,15 @@ class DetectionTests(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertIn("policy check workflow", hits[0].reason)
 
+    def test_does_not_guard_the_shared_lint_and_test_workflows(self):
+        """Too noisy: they change constantly for unrelated reasons.
+
+        Removing the engine's job from one of them is caught by the
+        "changes must be checked" policy instead.
+        """
+        changed = [".github/workflows/tests.yml", ".github/workflows/lint_prettify.yml"]
+        self.assertEqual(find_hits(changed, POLICIES), [])
+
     def test_flags_the_reusable_workflow(self):
         hits = find_hits([".github/workflows/policy-review.yml"], POLICIES)
         self.assertEqual(len(hits), 1)

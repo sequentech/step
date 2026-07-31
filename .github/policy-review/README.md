@@ -199,9 +199,15 @@ So when a pull request touches any of these:
 .github/policies/**                        (whatever policies_path is set to)
 .github/workflows/policy-check.yml
 .github/workflows/policy-review.yml
-.github/workflows/policy-review-tests.yml
 .github/policy-review/**
 ```
+
+The shared lint and test workflows that host the engine's own jobs are
+deliberately **not** guarded: they change constantly for unrelated reasons, and
+guarding them would fire this notice on every frontend or Rust change until
+people stopped reading it. Removing the engine's job from one of them is caught
+by the "changes must be checked" policy instead, which treats narrowing an
+existing check's reach as a blocking violation.
 
 …three things happen regardless of the verdict:
 
@@ -270,8 +276,21 @@ ruff format --check .     # formatting
 python -m unittest discover -s tests -t . -v
 ```
 
-All three run in CI on every pull request that touches the engine. The tests
-stub every outbound call, so the suite needs no credentials and no network.
+All three run in CI on **every** pull request, as jobs inside this repository's
+existing workflows rather than a workflow of their own:
+
+| Job | Lives in | Runs |
+|---|---|---|
+| `Check policy review engine format` | `lint_prettify.yml` | `ruff check`, `ruff format --check` |
+| `Run policy review engine tests` | `tests.yml` | the unit tests, and the public-safety suite as a named step |
+
+A failure in the test job also pages the dev channel, because it is in
+`notify-on-failure`'s `needs` alongside the Rust, Windmill and frontend suites.
+The engine is shared infrastructure; a regression here is felt in more than one
+repository.
+
+The tests stub every outbound call, so the suite needs no credentials and no
+network.
 
 Linting is configured in `pyproject.toml` and **scoped to this directory**.
 There is no Python linting elsewhere in this repository; retrofitting it across

@@ -39,7 +39,11 @@ SCANNED_DIRECTORIES = (
 SCANNED_WORKFLOWS = (
     ".github/workflows/policy-review.yml",
     ".github/workflows/policy-check.yml",
-    ".github/workflows/policy-review-tests.yml",
+    # The engine's lint and test jobs live in the repository's shared lint and
+    # test workflows, so those are scanned too — a `uses:` pointing at another
+    # repository would disclose it just as readily from there.
+    ".github/workflows/lint_prettify.yml",
+    ".github/workflows/tests.yml",
 )
 
 TEXT_SUFFIXES = {".py", ".yml", ".yaml", ".md", ".txt", ".json", ".cfg", ".toml"}
