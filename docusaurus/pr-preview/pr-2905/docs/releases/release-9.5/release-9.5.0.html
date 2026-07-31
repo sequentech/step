@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Release 9.5.0 | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2905/docs/releases/release-9.5/release-9.5.0"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release 9.5.0 | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2905/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2905/docs/releases/release-9.5/release-9.5.0"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2905/docs/releases/release-9.5/release-9.5.0" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2905/docs/releases/release-9.5/release-9.5.0" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release 9.5.0","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2905/docs/releases/release-9.5/release-9.5.0"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2905/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2905/assets/js/runtime~main.af77502f.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-2905/assets/js/main.e83a8a69.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2905/assets/js/runtime~main.caea766f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2905/assets/js/main.d3e2f631.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -50,12 +50,20 @@ replacing a default template does not modify them.</li>
 and deferred registration. Confirm submitted form values override hints and
 verification or credential fields are never prefilled.</li>
 </ol>
+<p>Notification delivery records and logs changed alongside this feature. The
+electoral log entry for a sent message now records the channel, the receiver and
+the rendered subject instead of the rendered message bodies, and the AWS SES,
+SMTP and AWS SNS transports no longer log receivers, subjects or body previews.
+Rendered bodies carry the notification URL, including any <code>login_hint__*</code>
+values, and the electoral log cannot be redacted once written. The console
+transport used by local development still prints the complete message.</p>
 <p>Hints are editable, untrusted convenience data. Do not include passwords,
-tokens, secrets, or inappropriate sensitive identifiers, and never use a hint to
-bypass authentication or mark identity, contact details, or eligibility as
-verified. Percent encoding protects query structure, not confidentiality or
-authenticity. See <a href="https://github.com/sequentech/meta/issues/12617" target="_blank" rel="noopener noreferrer" class="">sequentech/meta#12617</a>
-for details.</p>
+one-time passwords (OTPs), tokens, secrets, government identifiers, or other
+inappropriate sensitive values, and never use a hint to bypass authentication
+or mark identity, contact details, or eligibility as verified. Percent encoding
+protects query structure, not confidentiality or authenticity. See
+<a href="https://github.com/sequentech/meta/issues/12617" target="_blank" rel="noopener noreferrer" class="">sequentech/meta#12617</a> for
+details.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="-highlights">📝 Highlights<a href="#-highlights" class="hash-link" aria-label="Direct link to 📝 Highlights" title="Direct link to 📝 Highlights" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="-keycloak-and-authentication-enhancements">✨ Keycloak and authentication enhancements<a href="#-keycloak-and-authentication-enhancements" class="hash-link" aria-label="Direct link to ✨ Keycloak and authentication enhancements" title="Direct link to ✨ Keycloak and authentication enhancements" translate="no">​</a></h3>
 <p>Release <code>9.5.0</code> adds <a href="https://github.com/sequentech/meta/issues/11928" target="_blank" rel="noopener noreferrer" class="">OpenID4VP Wallet Extension Plugin support</a>, including a Keycloak version bump from <code>26.4</code> to <code>26.6.1</code>. It introduces <a href="https://github.com/sequentech/meta/issues/11932" target="_blank" rel="noopener noreferrer" class="">multi-IdP user linking via custom attributes</a>, <a href="https://github.com/sequentech/meta/issues/11110" target="_blank" rel="noopener noreferrer" class="">multiple certificate support per Election Event</a>, and a <a href="https://github.com/sequentech/meta/issues/11799" target="_blank" rel="noopener noreferrer" class="">policy to disable browser language detection</a>. Keycloak also gains <a href="https://github.com/sequentech/meta/issues/11905" target="_blank" rel="noopener noreferrer" class="">Catalan OTP translations</a> and <a href="https://github.com/sequentech/meta/issues/10975" target="_blank" rel="noopener noreferrer" class="">2FA/Passkeys across all environments</a>.</p>
