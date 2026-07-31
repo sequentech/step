@@ -139,6 +139,16 @@ jobs:
             echo "No model credentials in this run — skipping the policy review."
             echo "A pull request from a fork does not receive secrets; a" \
                  "maintainer re-running this check will produce the review."
+            # Make the skip visible in the run summary. A green check that
+            # reviewed nothing must not be mistaken for a clean review.
+            {
+              echo "### ⚠️ Policy review skipped"
+              echo
+              echo "This run had no model credentials, which is expected for a"
+              echo "pull request opened from a fork. **No policies were"
+              echo "checked.** Have a maintainer re-run this check before"
+              echo "treating it as reviewed."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
@@ -159,6 +169,15 @@ jobs:
                  "running this workflow manually."
             exit 1
           fi
+          # Both sources are integers, so this only ever rejects a malformed
+          # input — but it is what keeps the value out of later git refs and
+          # step outputs if that ever stops being true.
+          case "${NUMBER}" in
+            ''|*[!0-9]*)
+              echo "::error::Pull request number must be numeric, got '${NUMBER}'."
+              exit 1
+              ;;
+          esac
           echo "number=${NUMBER}" >> "$GITHUB_OUTPUT"
 
       # Full history so the merge base with the target branch can be resolved,

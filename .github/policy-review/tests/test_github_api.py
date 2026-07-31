@@ -73,20 +73,46 @@ class CommentTests(ClientTestCase):
         self.assertEqual(self.calls[-1][2], {"body": "hello"})
 
     def test_updates_the_existing_comment_instead_of_adding_another(self):
-        existing = [{"id": 55, "body": f"{COMMENT_MARKER}\nold text"}]
+        existing = [
+            {"id": 55, "body": f"{COMMENT_MARKER}\nold text", "user": {"type": "Bot"}}
+        ]
         with self.stub([Response(200, existing), Response(200, {"id": 55})]):
             self.client.upsert_comment(7, "new text")
         self.assertEqual(self.calls[-1][0], "PATCH")
         self.assertIn("/issues/comments/55", self.calls[-1][1])
 
     def test_ignores_comments_from_other_authors(self):
-        others = [{"id": 1, "body": "a human said something"}]
+        others = [{"id": 1, "body": "a human said something", "user": {"type": "User"}}]
         with self.stub([Response(200, others), Response(201, {"id": 2})]):
             self.client.upsert_comment(7, "text")
         self.assertEqual(self.calls[-1][0], "POST")
 
+    def test_will_not_adopt_a_marker_comment_written_by_a_person(self):
+        """Otherwise anyone could pre-empt the report by planting the marker."""
+        planted = [
+            {
+                "id": 99,
+                "body": f"{COMMENT_MARKER}\nnothing to see here",
+                "user": {"type": "User", "login": "attacker"},
+            }
+        ]
+        with self.stub([Response(200, planted), Response(201, {"id": 100})]):
+            self.client.upsert_comment(7, "the real findings")
+
+        # A new comment is posted rather than the planted one being overwritten.
+        self.assertEqual(self.calls[-1][0], "POST")
+        self.assertEqual(self.calls[-1][2], {"body": "the real findings"})
+
     def test_tolerates_a_comment_with_no_body(self):
-        with self.stub([Response(200, [{"id": 1, "body": None}]), Response(201, {})]):
+        with self.stub(
+            [Response(200, [{"id": 1, "body": None, "user": {"type": "Bot"}}]),
+             Response(201, {})]
+        ):
+            self.client.upsert_comment(7, "text")
+        self.assertEqual(self.calls[-1][0], "POST")
+
+    def test_tolerates_a_comment_with_no_author(self):
+        with self.stub([Response(200, [{"id": 1, "body": "x"}]), Response(201, {})]):
             self.client.upsert_comment(7, "text")
         self.assertEqual(self.calls[-1][0], "POST")
 

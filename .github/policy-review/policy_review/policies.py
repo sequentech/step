@@ -116,6 +116,23 @@ def _list_from_worktree(policies_path: str, repo_root: Path) -> list[str]:
     )
 
 
+def _check_contained(policies_path: str, repo_root: Path) -> None:
+    """Reject a policies path that points outside the repository.
+
+    ``policies_path`` comes from the caller's workflow and is trusted, so this
+    guards against a typo rather than an attack — but a path that escaped the
+    checkout would read files nobody meant to publish into a prompt.
+    """
+    if Path(policies_path).is_absolute():
+        raise PolicyLoadError(f"policies_path must be relative, got {policies_path!r}")
+    resolved = (repo_root / policies_path).resolve()
+    root = repo_root.resolve()
+    if resolved != root and root not in resolved.parents:
+        raise PolicyLoadError(
+            f"policies_path must stay inside the repository, got {policies_path!r}"
+        )
+
+
 def load_policies(
     policies_path: str,
     base_ref: str,
@@ -127,6 +144,7 @@ def load_policies(
     it resolves, otherwise the working tree (which is the case for a manual
     ``workflow_dispatch`` run, where there is no pull request to guard against).
     """
+    _check_contained(policies_path, repo_root)
     use_ref = base_ref_available(base_ref, repo_root)
     source = base_ref if use_ref else "working tree"
 

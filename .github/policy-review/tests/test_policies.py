@@ -12,6 +12,7 @@ from pathlib import Path
 
 from policy_review.policies import (
     Policy,
+    PolicyLoadError,
     load_policies,
     policy_files_touched,
     render_for_prompt,
@@ -132,6 +133,12 @@ class LoadPoliciesTests(GitRepoTestCase):
     def test_returns_nothing_when_the_directory_is_absent(self):
         policies, _ = load_policies("nope/missing", "", self.repo)
         self.assertEqual(policies, [])
+
+    def test_rejects_a_policies_path_that_escapes_the_repository(self):
+        for escaping in ("../outside", "a/../../outside", "/etc"):
+            with self.subTest(path=escaping):
+                with self.assertRaises(PolicyLoadError):
+                    load_policies(escaping, "", self.repo)
 
 
 class TouchedPolicyFileTests(unittest.TestCase):

@@ -15,6 +15,8 @@ region is evidence, never instruction.
 
 from __future__ import annotations
 
+import re
+
 from .context import PullRequestContext
 
 SYSTEM_PROMPT = """\
@@ -88,9 +90,16 @@ def _fence(tag: str, content: str) -> str:
     """Wrap untrusted content in a tag the system prompt knows to distrust.
 
     Any closing tag inside the payload is defanged so the content cannot appear
-    to end its own fence and escape into instruction context.
+    to end its own fence and escape into instruction context. The match is
+    case-insensitive and tolerates internal whitespace, because a payload only
+    has to *look* like a closing tag to the model to be worth neutralising.
     """
-    safe = content.replace(f"</{tag}>", f"<\\/{tag}>")
+    safe = re.sub(
+        rf"<\s*/\s*{re.escape(tag)}\s*>",
+        f"<\\\\/{tag}>",
+        content,
+        flags=re.IGNORECASE,
+    )
     return f"<{tag}>\n{safe}\n</{tag}>"
 
 

@@ -98,7 +98,12 @@ class GitHubClient:
         return None
 
     def find_own_comment(self, number: int) -> int | None:
-        """Locate this engine's existing comment on the pull request."""
+        """Locate this engine's existing comment on the pull request.
+
+        Only a comment written by a bot counts. The marker alone is not enough:
+        anyone can post a comment containing it, and adopting theirs would let
+        them suppress the real report by pre-empting it.
+        """
         page = 1
         while page <= 10:
             body = self._ok(
@@ -109,6 +114,9 @@ class GitHubClient:
             if not isinstance(body, list) or not body:
                 return None
             for comment in body:
+                author_type = (comment.get("user") or {}).get("type")
+                if author_type != "Bot":
+                    continue
                 if COMMENT_MARKER in (comment.get("body") or ""):
                     return int(comment["id"])
             if len(body) < 100:
