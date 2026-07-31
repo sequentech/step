@@ -95,29 +95,12 @@ on:
         default: 0
       review_drafts:
         description: >-
-          Review draft pull requests automatically. Off by default: drafts churn,
-          and each push would cost a review. A draft can still be reviewed on
-          demand with the comment command below, and is reviewed automatically
-          the moment it is marked ready.
+          Review draft pull requests too. Off by default: drafts churn, and each
+          push would cost a review. A draft is reviewed automatically the moment
+          it is marked ready for review.
         type: boolean
         required: false
         default: false
-      command:
-        description: >-
-          Comment that triggers a review on demand. Only honoured from an
-          organisation committer — see `permitted_associations`.
-        type: string
-        required: false
-        default: /policy-review
-      permitted_associations:
-        description: >-
-          Comma-separated GitHub author associations allowed to trigger a review
-          by comment. The default is everyone with write access to the
-          repository; a drive-by commenter cannot spend the organisation's model
-          budget.
-        type: string
-        required: false
-        default: OWNER,MEMBER,COLLABORATOR
       engine_ref:
         description: >-
           Ref of this repository to take the engine from. Pin it to the same ref
@@ -163,25 +146,19 @@ jobs:
       # Decide whether this event deserves a review at all.
       #
       #   ready pull request  → every push (that is what `synchronize` is)
-      #   draft pull request  → only on request, or when it is marked ready
-      #   comment             → only the command, only from a committer
+      #   marked ready        → reviewed at that moment
+      #   draft pull request  → not reviewed, unless `review_drafts` is set
       #   manual dispatch     → always
       #
       # Drafts are excluded by default because they churn and each push would
-      # cost a review. The comment command is the escape hatch for an author who
-      # wants an early read.
+      # cost a review; they are picked up the moment they are marked ready.
       # ------------------------------------------------------------------
       - name: Decide whether to review
         id: gate
         env:
           EVENT_NAME: ${{ github.event_name }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
-          COMMENT_ON_PR: ${{ github.event.issue.pull_request != null }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          ASSOCIATION: ${{ github.event.comment.author_association }}
           REVIEW_DRAFTS: ${{ inputs.review_drafts }}
-          COMMAND: ${{ inputs.command }}
-          PERMITTED: ${{ inputs.permitted_associations }}
         run: |
           run=false
           reason="unrecognised event"
@@ -191,25 +168,9 @@ jobs:
               run=true
               reason="manual run"
               ;;
-            issue_comment)
-              # Exact match on the first line only, so a review command quoted
-              # inside a longer discussion does not fire one.
-              first_line=$(printf '%s\n' "${COMMENT_BODY}" | head -n 1 \
-                | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-              if [ "${COMMENT_ON_PR}" != "true" ]; then
-                reason="comment was not on a pull request"
-              elif [ "${first_line}" != "${COMMAND}" ]; then
-                reason="comment is not the review command"
-              elif printf '%s' ",${PERMITTED}," | grep -qF ",${ASSOCIATION},"; then
-                run=true
-                reason="requested by a ${ASSOCIATION}"
-              else
-                reason="commenter is a ${ASSOCIATION}, which cannot request a review"
-              fi
-              ;;
             pull_request)
               if [ "${IS_DRAFT}" = "true" ] && [ "${REVIEW_DRAFTS}" != "true" ]; then
-                reason="pull request is a draft — comment ${COMMAND} to review it now"
+                reason="pull request is a draft — it will be reviewed when marked ready"
               else
                 run=true
                 reason="pull request event"
@@ -261,11 +222,10 @@ jobs:
         env:
           INPUT_PR: ${{ inputs.pr_number }}
           EVENT_PR: ${{ github.event.pull_request.number }}
-          COMMENT_PR: ${{ github.event.issue.number }}
         run: |
           NUMBER="${INPUT_PR}"
           if [ -z "${NUMBER}" ] || [ "${NUMBER}" = "0" ]; then
-            NUMBER="${EVENT_PR:-${COMMENT_PR}}"
+            NUMBER="${EVENT_PR}"
           fi
           if [ -z "${NUMBER}" ]; then
             echo "::error::No pull request to review. Pass pr_number when" \
@@ -306,8 +266,8 @@ jobs:
           PR_NUMBER: ${{ steps.target.outputs.number }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          # A comment or manual trigger carries no base branch in the event, so
-          # ask the API which branch this pull request targets.
+          # A manual run carries no base branch in the event, so ask the API
+          # which branch this pull request targets.
           BRANCH="${BASE_BRANCH}"
           if [ -z "${BRANCH}" ]; then
             BRANCH=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \

@@ -129,9 +129,7 @@ business; everything else belongs in the shared workflow.
 | `max_diff_bytes` | `400000` | Larger diffs are truncated, and the comment says so |
 | `slack_channel` | `""` | Channel ID for alerts; empty disables Slack |
 | `slack_message_prompt` | built-in | House style for the generated alert |
-| `review_drafts` | `false` | Review draft pull requests automatically |
-| `command` | `/policy-review` | Comment that triggers a review on demand |
-| `permitted_associations` | `OWNER,MEMBER,COLLABORATOR` | Who may trigger one by comment |
+| `review_drafts` | `false` | Review draft pull requests too |
 | `pr_number` | `0` | Only needed for `workflow_dispatch` |
 | `engine_ref` | `main` | Ref to take the engine from |
 | `python_version` | `3.12` | Python used to run the engine |
@@ -175,32 +173,15 @@ one changes what future comments cite.
 | Ready pull request, every push | Reviewed (`synchronize` is what "every new commit" means) |
 | Draft marked ready for review | Reviewed |
 | Draft pull request, pushes | **Not** reviewed — drafts churn, and each push would cost a review |
-| Comment `/policy-review` on a pull request | Reviewed, if the commenter has write access |
 | `workflow_dispatch` | Reviewed |
 
-Set `review_drafts: true` to review drafts on every push as well.
+So the review tracks a pull request from the moment it is offered for human
+review onwards, and every commit after that gets one. Work in progress costs
+nothing.
 
-### The comment command
-
-An author who wants an early read on a draft comments:
-
-```
-/policy-review
-```
-
-It must be the whole first line — a command quoted inside a longer discussion
-does not fire one. The commenter must be an `OWNER`, `MEMBER` or `COLLABORATOR`
-(configurable via `permitted_associations`), which is GitHub's way of saying
-"has write access". A drive-by commenter on a public repository cannot spend the
-organisation's model budget.
-
-Two things to know about this trigger:
-
-- It uses the `issue_comment` event, which always runs the workflow file from
-  the **default branch**. The caller has to be merged before the command works.
-- The check does not appear in the pull request's check list, because
-  `issue_comment` runs are not associated with a pull request. The review
-  comment is the feedback.
+Set `review_drafts: true` to review drafts on every push as well, or use
+`workflow_dispatch` with a `pr_number` for a one-off review of a specific pull
+request.
 
 ## Self-protection
 

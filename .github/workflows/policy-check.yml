@@ -9,15 +9,11 @@
 name: Policy check
 
 on:
-  # `synchronize` is every new commit. Draft pull requests are filtered out by
-  # the shared workflow, so in practice this means: every push to a pull request
-  # that is ready for review, plus the moment it becomes ready.
+  # `synchronize` is every new commit. Drafts are filtered out by the shared
+  # workflow, so this means: every push to a pull request that is ready for
+  # review, plus the moment it becomes ready.
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  # On-demand review, for a draft that wants an early read. Restricted to
-  # organisation committers by the shared workflow.
-  issue_comment:
-    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -32,12 +28,6 @@ permissions:
 jobs:
   policy-review:
     name: Policy review
-    # Cheap pre-filter so an ordinary comment does not start a runner. The
-    # shared workflow still does the authoritative permission check.
-    if: >-
-      github.event_name != 'issue_comment' ||
-      (github.event.issue.pull_request != null &&
-       startsWith(github.event.comment.body, '/policy-review'))
     uses: ./.github/workflows/policy-review.yml
     with:
       policies_path: .github/policies
