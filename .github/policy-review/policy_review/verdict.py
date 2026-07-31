@@ -184,8 +184,7 @@ def parse(payload: str) -> Verdict:
         violations.append(
             Violation(
                 policy_id=_str(item, "policy_id"),
-                policy_title=_str(item, "policy_title", required=False)
-                or _str(item, "policy_id"),
+                policy_title=_str(item, "policy_title", required=False) or _str(item, "policy_id"),
                 severity=severity,
                 path=_str(item, "path"),
                 explanation=_str(item, "explanation"),

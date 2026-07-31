@@ -38,14 +38,11 @@ class PullRequestTests(ClientTestCase):
         with self.stub([Response(200, {"title": "A change", "number": 7})]):
             data = self.client.get_pull_request(7)
         self.assertEqual(data["title"], "A change")
-        self.assertEqual(
-            self.calls[0][:2], ("GET", "/repos/example-org/example-repo/pulls/7")
-        )
+        self.assertEqual(self.calls[0][:2], ("GET", "/repos/example-org/example-repo/pulls/7"))
 
     def test_raises_on_an_error_status(self):
-        with self.stub([Response(404, {"message": "Not Found"})]):
-            with self.assertRaises(GitHubError):
-                self.client.get_pull_request(7)
+        with self.stub([Response(404, {"message": "Not Found"})]), self.assertRaises(GitHubError):
+            self.client.get_pull_request(7)
 
 
 class LinkedIssueTests(ClientTestCase):
@@ -73,9 +70,7 @@ class CommentTests(ClientTestCase):
         self.assertEqual(self.calls[-1][2], {"body": "hello"})
 
     def test_updates_the_existing_comment_instead_of_adding_another(self):
-        existing = [
-            {"id": 55, "body": f"{COMMENT_MARKER}\nold text", "user": {"type": "Bot"}}
-        ]
+        existing = [{"id": 55, "body": f"{COMMENT_MARKER}\nold text", "user": {"type": "Bot"}}]
         with self.stub([Response(200, existing), Response(200, {"id": 55})]):
             self.client.upsert_comment(7, "new text")
         self.assertEqual(self.calls[-1][0], "PATCH")
@@ -105,8 +100,7 @@ class CommentTests(ClientTestCase):
 
     def test_tolerates_a_comment_with_no_body(self):
         with self.stub(
-            [Response(200, [{"id": 1, "body": None, "user": {"type": "Bot"}}]),
-             Response(201, {})]
+            [Response(200, [{"id": 1, "body": None, "user": {"type": "Bot"}}]), Response(201, {})]
         ):
             self.client.upsert_comment(7, "text")
         self.assertEqual(self.calls[-1][0], "POST")
@@ -135,9 +129,8 @@ class RequestChangesTests(ClientTestCase):
                     self.assertFalse(self.client.request_changes(7, "body"))
 
     def test_raises_on_an_unexpected_status(self):
-        with self.stub([Response(500, {"message": "boom"})]):
-            with self.assertRaises(GitHubError):
-                self.client.request_changes(7, "body")
+        with self.stub([Response(500, {"message": "boom"})]), self.assertRaises(GitHubError):
+            self.client.request_changes(7, "body")
 
 
 if __name__ == "__main__":

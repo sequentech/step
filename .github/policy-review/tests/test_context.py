@@ -21,9 +21,7 @@ from policy_review.context import (
 class IssueReferenceTests(unittest.TestCase):
     def test_finds_a_related_link(self):
         body = "Does the thing.\n\nRelated: https://github.com/example-org/tracker/issues/12676"
-        self.assertEqual(
-            find_issue_reference(body), ("example-org", "tracker", 12676)
-        )
+        self.assertEqual(find_issue_reference(body), ("example-org", "tracker", 12676))
 
     def test_finds_a_parent_issue_link(self):
         body = "Parent issue: https://github.com/example-org/tracker/issues/42"

@@ -89,9 +89,7 @@ class RunnerTestCase(unittest.TestCase):
         )
         self._patch(runner, "GitHubClient", return_value=self.client)
         self._patch(runner, "_build_pr_context", return_value=pr_context())
-        self.review = self._patch(
-            runner.model_api, "review", return_value=verdict_json()
-        )
+        self.review = self._patch(runner.model_api, "review", return_value=verdict_json())
         self.slack_message = self._patch(
             runner.model_api, "slack_message", return_value="alert text"
         )
@@ -141,9 +139,7 @@ class ViolationPathTests(RunnerTestCase):
 
     def test_survives_github_declining_the_review(self):
         self.client.request_changes.return_value = False
-        self.assertEqual(
-            self.run_with(config(event_action="ready_for_review")), EXIT_VIOLATIONS
-        )
+        self.assertEqual(self.run_with(config(event_action="ready_for_review")), EXIT_VIOLATIONS)
 
     def test_notifies_slack_when_configured(self):
         self.run_with(config(slack_channel="C1", slack_bot_token="xoxb-token"))
@@ -315,9 +311,11 @@ class EntryPointTests(unittest.TestCase):
     def test_skips_when_no_model_credentials_are_available(self):
         """A fork pull request gets no secrets; skipping is correct."""
         env = {"GITHUB_REPOSITORY": "example-org/example-repo", "POLICY_PR_NUMBER": "7"}
-        with mock.patch.dict("os.environ", env, clear=True):
-            with mock.patch.object(runner, "run") as run_stub:
-                self.assertEqual(runner.main(), EXIT_OK)
+        with (
+            mock.patch.dict("os.environ", env, clear=True),
+            mock.patch.object(runner, "run") as run_stub,
+        ):
+            self.assertEqual(runner.main(), EXIT_OK)
         run_stub.assert_not_called()
 
     def test_fails_when_the_environment_is_unusable(self):

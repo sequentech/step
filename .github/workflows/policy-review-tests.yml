@@ -6,7 +6,7 @@
 # other repositories call it — so a regression here is felt beyond this
 # repository and the tests gate every change to it.
 
-name: Policy review engine tests
+name: Policy review engine checks
 
 on:
   pull_request:
@@ -46,7 +46,18 @@ jobs:
         run: |
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet --disable-pip-version-check \
-            -r requirements.txt
+            -r requirements-dev.txt
+
+      # There is no Python linting elsewhere in this repository, so this is
+      # scoped to the engine directory via its own pyproject.toml rather than
+      # retrofitted across code this change does not own.
+      - name: Lint
+        working-directory: .github/policy-review
+        run: ruff check .
+
+      - name: Check formatting
+        working-directory: .github/policy-review
+        run: ruff format --check .
 
       - name: Run unit tests
         working-directory: .github/policy-review

@@ -10,7 +10,7 @@ string carrying a URL with an embedded token, say — cannot turn into a leak.
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 PLACEHOLDER = "***"
 

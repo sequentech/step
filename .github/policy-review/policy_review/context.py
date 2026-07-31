@@ -19,9 +19,7 @@ from pathlib import Path
 
 # "Related: https://github.com/<owner>/<repo>/issues/<n>", "Parent issue: <url>",
 # or a bare URL anywhere in the description.
-_ISSUE_URL = re.compile(
-    r"https://github\.com/([\w.-]+)/([\w.-]+)/issues/(\d+)", re.IGNORECASE
-)
+_ISSUE_URL = re.compile(r"https://github\.com/([\w.-]+)/([\w.-]+)/issues/(\d+)", re.IGNORECASE)
 
 _TRUNCATION_NOTE = "\n\n[diff truncated: {omitted} of {total} bytes omitted]\n"
 

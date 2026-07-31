@@ -93,6 +93,31 @@ on:
         type: number
         required: false
         default: 0
+      review_drafts:
+        description: >-
+          Review draft pull requests automatically. Off by default: drafts churn,
+          and each push would cost a review. A draft can still be reviewed on
+          demand with the comment command below, and is reviewed automatically
+          the moment it is marked ready.
+        type: boolean
+        required: false
+        default: false
+      command:
+        description: >-
+          Comment that triggers a review on demand. Only honoured from an
+          organisation committer — see `permitted_associations`.
+        type: string
+        required: false
+        default: /policy-review
+      permitted_associations:
+        description: >-
+          Comma-separated GitHub author associations allowed to trigger a review
+          by comment. The default is everyone with write access to the
+          repository; a drive-by commenter cannot spend the organisation's model
+          budget.
+        type: string
+        required: false
+        default: OWNER,MEMBER,COLLABORATOR
       engine_ref:
         description: >-
           Ref of this repository to take the engine from. Pin it to the same ref
@@ -135,6 +160,71 @@ jobs:
 
     steps:
       # ------------------------------------------------------------------
+      # Decide whether this event deserves a review at all.
+      #
+      #   ready pull request  → every push (that is what `synchronize` is)
+      #   draft pull request  → only on request, or when it is marked ready
+      #   comment             → only the command, only from a committer
+      #   manual dispatch     → always
+      #
+      # Drafts are excluded by default because they churn and each push would
+      # cost a review. The comment command is the escape hatch for an author who
+      # wants an early read.
+      # ------------------------------------------------------------------
+      - name: Decide whether to review
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          COMMENT_ON_PR: ${{ github.event.issue.pull_request != null }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ASSOCIATION: ${{ github.event.comment.author_association }}
+          REVIEW_DRAFTS: ${{ inputs.review_drafts }}
+          COMMAND: ${{ inputs.command }}
+          PERMITTED: ${{ inputs.permitted_associations }}
+        run: |
+          run=false
+          reason="unrecognised event"
+
+          case "${EVENT_NAME}" in
+            workflow_dispatch)
+              run=true
+              reason="manual run"
+              ;;
+            issue_comment)
+              # Exact match on the first line only, so a review command quoted
+              # inside a longer discussion does not fire one.
+              first_line=$(printf '%s\n' "${COMMENT_BODY}" | head -n 1 \
+                | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+              if [ "${COMMENT_ON_PR}" != "true" ]; then
+                reason="comment was not on a pull request"
+              elif [ "${first_line}" != "${COMMAND}" ]; then
+                reason="comment is not the review command"
+              elif printf '%s' ",${PERMITTED}," | grep -qF ",${ASSOCIATION},"; then
+                run=true
+                reason="requested by a ${ASSOCIATION}"
+              else
+                reason="commenter is a ${ASSOCIATION}, which cannot request a review"
+              fi
+              ;;
+            pull_request)
+              if [ "${IS_DRAFT}" = "true" ] && [ "${REVIEW_DRAFTS}" != "true" ]; then
+                reason="pull request is a draft — comment ${COMMAND} to review it now"
+              else
+                run=true
+                reason="pull request event"
+              fi
+              ;;
+          esac
+
+          echo "run=${run}" >> "$GITHUB_OUTPUT"
+          if [ "${run}" = "true" ]; then
+            echo "Running the policy review: ${reason}."
+          else
+            echo "Skipping the policy review: ${reason}."
+          fi
+
+      # ------------------------------------------------------------------
       # A pull request from a fork runs without access to secrets. That is a
       # deliberate property of the `pull_request` trigger and the reason this
       # workflow does not use `pull_request_target`: the alternative would give
@@ -142,6 +232,7 @@ jobs:
       # ------------------------------------------------------------------
       - name: Check for model credentials
         id: credentials
+        if: steps.gate.outputs.run == 'true'
         env:
           MODEL_KEY: ${{ secrets.anthropic_api_key }}
         run: |
@@ -170,10 +261,11 @@ jobs:
         env:
           INPUT_PR: ${{ inputs.pr_number }}
           EVENT_PR: ${{ github.event.pull_request.number }}
+          COMMENT_PR: ${{ github.event.issue.number }}
         run: |
           NUMBER="${INPUT_PR}"
           if [ -z "${NUMBER}" ] || [ "${NUMBER}" = "0" ]; then
-            NUMBER="${EVENT_PR}"
+            NUMBER="${EVENT_PR:-${COMMENT_PR}}"
           fi
           if [ -z "${NUMBER}" ]; then
             echo "::error::No pull request to review. Pass pr_number when" \
@@ -212,8 +304,16 @@ jobs:
           BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           PR_NUMBER: ${{ steps.target.outputs.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          BRANCH="${BASE_BRANCH:-${DEFAULT_BRANCH}}"
+          # A comment or manual trigger carries no base branch in the event, so
+          # ask the API which branch this pull request targets.
+          BRANCH="${BASE_BRANCH}"
+          if [ -z "${BRANCH}" ]; then
+            BRANCH=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" \
+              --jq .base.ref) || BRANCH=""
+          fi
+          BRANCH="${BRANCH:-${DEFAULT_BRANCH}}"
           git fetch --no-tags --quiet origin \
             "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
           git fetch --no-tags --quiet origin \
@@ -253,10 +353,19 @@ jobs:
       # attacker-controlled — the pull request title, its description, the diff
       # — is ever interpolated into this shell, so a crafted branch name or
       # title cannot become a command.
+      #
+      # The engine runs from *its own* checkout, never from inside the
+      # repository under review, and `PYTHONSAFEPATH` keeps the working
+      # directory off `sys.path`. Without both, a pull request that added a
+      # `policy_review/` package at the repository root would shadow the engine
+      # and execute its own code with this job's credentials.
       - name: Run the policy review
         if: steps.credentials.outputs.available == 'true'
+        working-directory: .policy-review-engine/.github/policy-review
         env:
+          PYTHONSAFEPATH: "1"
           PYTHONPATH: ${{ github.workspace }}/.policy-review-engine/.github/policy-review
+          POLICY_REPO_ROOT: ${{ github.workspace }}
           GITHUB_TOKEN: ${{ github.token }}
           ANTHROPIC_API_KEY: ${{ secrets.anthropic_api_key }}
           SLACK_BOT_TOKEN: ${{ secrets.slack_bot_token }}

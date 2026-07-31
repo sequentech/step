@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Tooling configuration for the policy review engine.
+#
+# Scoped to this directory on purpose. There is no Python linting anywhere else
+# in this repository, and retrofitting it across code this change does not own
+# would turn a focused change into a repository-wide one. Anyone extending
+# Python linting further can lift this configuration outwards.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes — undefined names, unused imports
+    "I",    # import sorting
+    "B",    # bugbear — mutable defaults, shadowed loop vars, silent except
+    "C4",   # comprehension simplification
+    "UP",   # outdated syntax for the target version
+    "SIM",  # obvious simplifications
+    "RUF",  # ruff's own rules
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately build long, literal fixtures and assert on them, and
+# `dict(field=...)` reads better than a brace literal when the point is to
+# assemble keyword defaults that are then splatted into a constructor.
+"tests/*" = ["E501", "C408"]
+
+[tool.ruff.format]
+quote-style = "double"

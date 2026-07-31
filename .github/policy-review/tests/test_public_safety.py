@@ -55,14 +55,10 @@ def scanned_files() -> list[Path]:
         found.extend(
             path
             for path in sorted(root.rglob("*"))
-            if path.is_file()
-            and path.suffix in TEXT_SUFFIXES
-            and "__pycache__" not in path.parts
+            if path.is_file() and path.suffix in TEXT_SUFFIXES and "__pycache__" not in path.parts
         )
     found.extend(
-        REPO_ROOT / workflow
-        for workflow in SCANNED_WORKFLOWS
-        if (REPO_ROOT / workflow).is_file()
+        REPO_ROOT / workflow for workflow in SCANNED_WORKFLOWS if (REPO_ROOT / workflow).is_file()
     )
     return found
 
@@ -103,9 +99,7 @@ class NonDisclosureTests(unittest.TestCase):
 
 def without_comments(text: str) -> str:
     """Drop whole-line comments, so prose about a risk is not read as the risk."""
-    return "\n".join(
-        line for line in text.splitlines() if not line.lstrip().startswith("#")
-    )
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
 
 
 class WorkflowSafetyTests(unittest.TestCase):
@@ -125,9 +119,7 @@ class WorkflowSafetyTests(unittest.TestCase):
                 )
 
     def test_the_reusable_workflow_requests_least_privilege(self):
-        text = (REPO_ROOT / ".github/workflows/policy-review.yml").read_text(
-            encoding="utf-8"
-        )
+        text = (REPO_ROOT / ".github/workflows/policy-review.yml").read_text(encoding="utf-8")
         self.assertIn("contents: read", text)
         self.assertIn("pull-requests: write", text)
         for excessive in ("contents: write", "permissions: write-all", "id-token: write"):
@@ -138,11 +130,7 @@ class PublicPolicyContentTests(unittest.TestCase):
     def test_this_repository_ships_at_least_one_policy(self):
         policies = REPO_ROOT / ".github/policies"
         self.assertTrue(policies.is_dir(), "no policies directory")
-        files = [
-            path
-            for path in policies.glob("*.md")
-            if path.name.lower() != "readme.md"
-        ]
+        files = [path for path in policies.glob("*.md") if path.name.lower() != "readme.md"]
         self.assertTrue(files, "no policy files found")
 
 

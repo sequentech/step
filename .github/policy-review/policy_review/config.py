@@ -54,10 +54,7 @@ def _lines(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
     if not raw:
         return default
     parts = [
-        piece.strip()
-        for line in raw.splitlines()
-        for piece in line.split(",")
-        if piece.strip()
+        piece.strip() for line in raw.splitlines() for piece in line.split(",") if piece.strip()
     ]
     return tuple(parts) or default
 
@@ -155,9 +152,7 @@ def from_env() -> Config:
     try:
         pr_number = int(raw_number)
     except ValueError as exc:
-        raise ConfigError(
-            f"POLICY_PR_NUMBER must be an integer, got {raw_number!r}"
-        ) from exc
+        raise ConfigError(f"POLICY_PR_NUMBER must be an integer, got {raw_number!r}") from exc
 
     effort = _clean("POLICY_EFFORT", DEFAULT_EFFORT)
     if effort not in ("low", "medium", "high", "xhigh", "max"):
@@ -166,8 +161,7 @@ def from_env() -> Config:
     fail_on = _clean("POLICY_FAIL_ON_SEVERITY", DEFAULT_FAIL_ON_SEVERITY)
     if fail_on not in SEVERITIES:
         raise ConfigError(
-            f"POLICY_FAIL_ON_SEVERITY must be one of {', '.join(SEVERITIES)}, "
-            f"got {fail_on!r}"
+            f"POLICY_FAIL_ON_SEVERITY must be one of {', '.join(SEVERITIES)}, got {fail_on!r}"
         )
 
     return Config(
@@ -184,9 +178,7 @@ def from_env() -> Config:
         fail_on_severity=fail_on,
         guarded_paths=_lines("POLICY_GUARDED_PATHS", DEFAULT_GUARDED_PATHS),
         slack_channel=_clean("POLICY_SLACK_CHANNEL"),
-        slack_message_prompt=_clean(
-            "POLICY_SLACK_MESSAGE_PROMPT", DEFAULT_SLACK_MESSAGE_PROMPT
-        ),
+        slack_message_prompt=_clean("POLICY_SLACK_MESSAGE_PROMPT", DEFAULT_SLACK_MESSAGE_PROMPT),
         github_token=_clean("GITHUB_TOKEN"),
         anthropic_api_key=_clean("ANTHROPIC_API_KEY"),
         slack_bot_token=_clean("SLACK_BOT_TOKEN"),

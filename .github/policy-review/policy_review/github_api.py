@@ -108,8 +108,7 @@ class GitHubClient:
         while page <= 10:
             body = self._ok(
                 "GET",
-                f"/repos/{self.repository}/issues/{number}/comments"
-                f"?per_page=100&page={page}",
+                f"/repos/{self.repository}/issues/{number}/comments?per_page=100&page={page}",
             )
             if not isinstance(body, list) or not body:
                 return None
@@ -158,6 +157,5 @@ class GitHubClient:
         if response.status in (403, 422):
             return False
         raise GitHubError(
-            f"could not request changes on #{number}: "
-            f"{response.status}: {response.body}"
+            f"could not request changes on #{number}: {response.status}: {response.body}"
         )

@@ -96,10 +96,7 @@ def render_comment(
         ]
     else:
         total = len(verdict.violations)
-        heading = (
-            f"### ❌ Policy review — {total} violation"
-            f"{'s' if total != 1 else ''} found"
-        )
+        heading = f"### ❌ Policy review — {total} violation{'s' if total != 1 else ''} found"
         parts += [heading, "", verdict.summary.strip(), ""]
         if blocking_count:
             parts.append(
@@ -107,10 +104,7 @@ def render_comment(
                 "pull request can merge.**"
             )
         else:
-            parts.append(
-                "None of these block the merge, but please read them before "
-                "merging."
-            )
+            parts.append("None of these block the merge, but please read them before merging.")
         parts += ["", "---", ""]
         parts += [
             _violation_section(violation, index)
@@ -120,8 +114,7 @@ def render_comment(
     notes = []
     if diff_truncated:
         notes.append(
-            "This pull request was too large to review in full; only part of "
-            "the diff was examined."
+            "This pull request was too large to review in full; only part of the diff was examined."
         )
     if notes:
         parts += ["", "---", "", *(f"> ⚠️ {note}" for note in notes)]

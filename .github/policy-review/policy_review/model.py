@@ -61,9 +61,7 @@ def _create(client: anthropic.Anthropic, **kwargs):
     is re-raised.
     """
     try:
-        return client.beta.messages.create(
-            betas=[FALLBACK_BETA], fallbacks="default", **kwargs
-        )
+        return client.beta.messages.create(betas=[FALLBACK_BETA], fallbacks="default", **kwargs)
     except anthropic.BadRequestError as exc:
         detail = str(exc).lower()
         if "fallback" not in detail and "beta" not in detail:

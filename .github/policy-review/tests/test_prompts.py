@@ -164,9 +164,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            guard_hits=[
-                GuardHit(path=".github/policy-review/runner.py", reason="engine code")
-            ],
+            guard_hits=[GuardHit(path=".github/policy-review/runner.py", reason="engine code")],
         )
         self.assertIn("changes the policy review system itself", prompt)
         self.assertIn(".github/policy-review/runner.py", prompt)
@@ -179,9 +177,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            guard_hits=[
-                GuardHit(path=".github/policies/10-scope.md", reason="policy file")
-            ],
+            guard_hits=[GuardHit(path=".github/policies/10-scope.md", reason="policy file")],
         )
         self.assertIn("the policy files themselves are edited here", prompt)
         self.assertIn("target branch", prompt)
@@ -209,9 +205,7 @@ class UserPromptFencingTests(unittest.TestCase):
 
     def test_notes_an_unresolvable_linked_issue_without_content(self):
         prompt = build_user_prompt(
-            make_pr(
-                linked_issue=LinkedIssue(owner="example-org", repo="tracker", number=99)
-            ),
+            make_pr(linked_issue=LinkedIssue(owner="example-org", repo="tracker", number=99)),
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
@@ -262,9 +256,7 @@ class SlackPromptTests(unittest.TestCase):
             pr_title="Title",
             summary="Reviewed.",
             violations=[],
-            guard_hits=[
-                GuardHit(path=".github/policies/10-scope.md", reason="policy file")
-            ],
+            guard_hits=[GuardHit(path=".github/policies/10-scope.md", reason="policy file")],
         )
         self.assertIn("Changes the policy review system itself: yes", prompt)
         self.assertIn("Lead the message with that", prompt)

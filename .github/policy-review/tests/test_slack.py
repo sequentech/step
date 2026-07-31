@@ -52,9 +52,7 @@ class PostTests(unittest.TestCase):
         self.assertEqual(payload["channel"], "C123")
         self.assertEqual(payload["text"], "violations found")
         self.assertFalse(payload["unfurl_links"])
-        self.assertEqual(
-            request.get_header("Authorization"), "Bearer xoxb-token"
-        )
+        self.assertEqual(request.get_header("Authorization"), "Bearer xoxb-token")
 
     def test_truncates_an_overlong_message(self):
         with mock.patch("urllib.request.urlopen", return_value=ok_response()) as opened:
@@ -66,27 +64,29 @@ class PostTests(unittest.TestCase):
     def test_raises_when_slack_reports_an_application_error(self):
         # Slack signals these with HTTP 200 and ok=false.
         body = FakeResponse(json.dumps({"ok": False, "error": "channel_not_found"}).encode())
-        with mock.patch("urllib.request.urlopen", return_value=body):
-            with self.assertRaises(SlackError) as caught:
-                post_message(token="xoxb-1", channel="C1", text="hi")
+        with (
+            mock.patch("urllib.request.urlopen", return_value=body),
+            self.assertRaises(SlackError) as caught,
+        ):
+            post_message(token="xoxb-1", channel="C1", text="hi")
         self.assertIn("channel_not_found", str(caught.exception))
 
     def test_raises_on_an_http_error(self):
         error = urllib.error.HTTPError("url", 500, "boom", {}, None)
-        with mock.patch("urllib.request.urlopen", side_effect=error):
-            with self.assertRaises(SlackError):
-                post_message(token="xoxb-1", channel="C1", text="hi")
+        with mock.patch("urllib.request.urlopen", side_effect=error), self.assertRaises(SlackError):
+            post_message(token="xoxb-1", channel="C1", text="hi")
 
     def test_raises_when_slack_is_unreachable(self):
         error = urllib.error.URLError("no route to host")
-        with mock.patch("urllib.request.urlopen", side_effect=error):
-            with self.assertRaises(SlackError):
-                post_message(token="xoxb-1", channel="C1", text="hi")
+        with mock.patch("urllib.request.urlopen", side_effect=error), self.assertRaises(SlackError):
+            post_message(token="xoxb-1", channel="C1", text="hi")
 
     def test_raises_on_a_malformed_response(self):
-        with mock.patch("urllib.request.urlopen", return_value=FakeResponse(b"not json")):
-            with self.assertRaises(SlackError):
-                post_message(token="xoxb-1", channel="C1", text="hi")
+        with (
+            mock.patch("urllib.request.urlopen", return_value=FakeResponse(b"not json")),
+            self.assertRaises(SlackError),
+        ):
+            post_message(token="xoxb-1", channel="C1", text="hi")
 
 
 if __name__ == "__main__":

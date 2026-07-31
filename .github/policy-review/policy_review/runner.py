@@ -9,13 +9,12 @@ import sys
 from pathlib import Path
 
 from . import context as ctx
-from . import guard
+from . import guard, prompts, report, slack
 from . import model as model_api
 from . import policies as policy_loader
-from . import prompts, report, slack
 from .config import Config
-from .guard import GuardHit
 from .github_api import GitHubClient, GitHubError
+from .guard import GuardHit
 from .redact import redact
 from .verdict import Verdict, VerdictError, parse
 
@@ -105,9 +104,7 @@ def _fallback_slack_text(
             f"{config.repository} #{pr.number} — {pr.title}"
         )
     else:
-        headline = (
-            f"Policy violations in {config.repository} #{pr.number} — {pr.title}"
-        )
+        headline = f"Policy violations in {config.repository} #{pr.number} — {pr.title}"
     files = "".join(f"\n• {hit.path} ({hit.reason})" for hit in guard_hits[:5])
     return f"{headline}{files}\n{link}"
 
@@ -172,9 +169,7 @@ def _alert_or_log(
 
 def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int:
     """Execute one policy review. Returns the process exit code."""
-    policies, source = policy_loader.load_policies(
-        config.policies_path, config.base_ref, repo_root
-    )
+    policies, source = policy_loader.load_policies(config.policies_path, config.base_ref, repo_root)
     if not policies:
         log(
             f"No policy files found under {config.policies_path!r}; nothing to "
@@ -198,9 +193,7 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         config=config,
     )
 
-    guard_hits = guard.find_hits(
-        pr.changed_paths, config.policies_path, config.guarded_paths
-    )
+    guard_hits = guard.find_hits(pr.changed_paths, config.policies_path, config.guarded_paths)
     if guard_hits:
         log(
             "This pull request changes the policy review system itself: "
@@ -230,14 +223,10 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         reason = redact(str(exc), config.secrets())
         log(f"Policy review failed: {reason}", config=config)
         try:
-            client.upsert_comment(
-                pr.number, report.render_error_comment(reason, guard_hits)
-            )
+            client.upsert_comment(pr.number, report.render_error_comment(reason, guard_hits))
         except GitHubError as post_error:
             log(f"Could not post the failure comment: {post_error}", config=config)
-        _write_summary(
-            f"### ⚠️ Policy review could not be completed\n\n{reason}", summary_path
-        )
+        _write_summary(f"### ⚠️ Policy review could not be completed\n\n{reason}", summary_path)
         # A change to the machinery still deserves an alert even when the review
         # that would have judged it could not run — arguably more so.
         if guard_hits and config.slack_enabled:
@@ -274,8 +263,7 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         config=config,
     )
     _write_summary(
-        f"### ❌ Policy review — {len(verdict.violations)} violation(s), "
-        f"{len(blocking)} blocking",
+        f"### ❌ Policy review — {len(verdict.violations)} violation(s), {len(blocking)} blocking",
         summary_path,
     )
 
@@ -322,8 +310,13 @@ def main(argv: list[str] | None = None) -> int:
         print("Policy review needs a GitHub token.", file=sys.stderr, flush=True)
         return EXIT_ERROR
 
+    # The repository under review is passed explicitly rather than assumed to be
+    # the working directory. The engine deliberately runs from its own checkout,
+    # never from inside the repository whose diff it is reading.
+    repo_root = Path(os.environ.get("POLICY_REPO_ROOT") or Path.cwd())
+
     try:
-        return run(config, Path.cwd(), os.environ.get("GITHUB_STEP_SUMMARY"))
+        return run(config, repo_root, os.environ.get("GITHUB_STEP_SUMMARY"))
     except (GitHubError, policy_loader.PolicyLoadError, RuntimeError) as exc:
         log(f"Policy review failed: {exc}", config=config)
         return EXIT_ERROR

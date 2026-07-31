@@ -84,7 +84,8 @@ def base_ref_available(base_ref: str, repo_root: Path) -> bool:
     """Whether ``base_ref`` can be resolved locally."""
     if not base_ref:
         return False
-    return _git(["rev-parse", "--verify", "--quiet", f"{base_ref}^{{commit}}"], repo_root).returncode == 0
+    probe = _git(["rev-parse", "--verify", "--quiet", f"{base_ref}^{{commit}}"], repo_root)
+    return probe.returncode == 0
 
 
 def _list_from_ref(policies_path: str, base_ref: str, repo_root: Path) -> list[str]:
@@ -99,9 +100,7 @@ def _list_from_ref(policies_path: str, base_ref: str, repo_root: Path) -> list[s
 def _read_from_ref(path: str, base_ref: str, repo_root: Path) -> str:
     result = _git(["show", f"{base_ref}:{path}"], repo_root)
     if result.returncode != 0:
-        raise PolicyLoadError(
-            f"could not read {path!r} at {base_ref!r}: {result.stderr.strip()}"
-        )
+        raise PolicyLoadError(f"could not read {path!r} at {base_ref!r}: {result.stderr.strip()}")
     return result.stdout
 
 
@@ -110,9 +109,7 @@ def _list_from_worktree(policies_path: str, repo_root: Path) -> list[str]:
     if not directory.is_dir():
         return []
     return sorted(
-        str(item.relative_to(repo_root))
-        for item in directory.rglob("*")
-        if item.is_file()
+        str(item.relative_to(repo_root)) for item in directory.rglob("*") if item.is_file()
     )
 
 

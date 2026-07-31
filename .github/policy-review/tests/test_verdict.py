@@ -84,22 +84,16 @@ class ParseTests(unittest.TestCase):
 
     def test_violations_win_over_a_contradictory_pass_claim(self):
         """A response cannot report breaches and still declare itself a pass."""
-        result = parse(
-            payload(verdict="pass", summary="All good.", violations=[violation()])
-        )
+        result = parse(payload(verdict="pass", summary="All good.", violations=[violation()]))
         self.assertFalse(result.passed)
         self.assertIn("take precedence", result.summary)
 
     def test_an_unknown_severity_is_escalated_to_blocker(self):
-        result = parse(
-            payload(verdict="violations", violations=[violation(severity="trivial")])
-        )
+        result = parse(payload(verdict="violations", violations=[violation(severity="trivial")]))
         self.assertEqual(result.violations[0].severity, "blocker")
 
     def test_normalises_severity_case(self):
-        result = parse(
-            payload(verdict="violations", violations=[violation(severity="WARNING")])
-        )
+        result = parse(payload(verdict="violations", violations=[violation(severity="WARNING")]))
         self.assertEqual(result.violations[0].severity, "warning")
 
     def test_accepts_a_numeric_line(self):
@@ -112,9 +106,7 @@ class ParseTests(unittest.TestCase):
 
     def test_discards_a_nonsensical_line(self):
         for bad in (0, -3, "abc", None, True):
-            result = parse(
-                payload(verdict="violations", violations=[violation(line=bad)])
-            )
+            result = parse(payload(verdict="violations", violations=[violation(line=bad)]))
             self.assertIsNone(result.violations[0].line, f"line={bad!r}")
 
     def test_supplies_a_summary_when_the_model_omits_one(self):
@@ -169,9 +161,7 @@ class BlockingTests(unittest.TestCase):
         self.assertEqual([v.severity for v in blocking], ["blocker"])
 
     def test_a_lower_threshold_blocks_more(self):
-        blocking = self.verdict("blocker", "warning", "info").blocking(
-            self.config("warning")
-        )
+        blocking = self.verdict("blocker", "warning", "info").blocking(self.config("warning"))
         self.assertEqual([v.severity for v in blocking], ["blocker", "warning"])
 
     def test_warnings_alone_do_not_block_by_default(self):

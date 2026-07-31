@@ -33,19 +33,25 @@ class FromEnvTests(unittest.TestCase):
         self.assertEqual(cfg.model, config_module.DEFAULT_MODEL)
 
     def test_requires_a_repository(self):
-        with mock.patch.dict("os.environ", {"POLICY_PR_NUMBER": "1"}, clear=True):
-            with self.assertRaises(ConfigError):
-                from_env()
+        with (
+            mock.patch.dict("os.environ", {"POLICY_PR_NUMBER": "1"}, clear=True),
+            self.assertRaises(ConfigError),
+        ):
+            from_env()
 
     def test_requires_a_pull_request_number(self):
-        with mock.patch.dict("os.environ", {"GITHUB_REPOSITORY": "o/r"}, clear=True):
-            with self.assertRaises(ConfigError):
-                from_env()
+        with (
+            mock.patch.dict("os.environ", {"GITHUB_REPOSITORY": "o/r"}, clear=True),
+            self.assertRaises(ConfigError),
+        ):
+            from_env()
 
     def test_rejects_a_non_numeric_pull_request_number(self):
-        with mock.patch.dict("os.environ", env(POLICY_PR_NUMBER="abc"), clear=True):
-            with self.assertRaises(ConfigError):
-                from_env()
+        with (
+            mock.patch.dict("os.environ", env(POLICY_PR_NUMBER="abc"), clear=True),
+            self.assertRaises(ConfigError),
+        ):
+            from_env()
 
     def test_treats_whitespace_only_values_as_unset(self):
         # GitHub renders an unset workflow input as an empty string, so blank
@@ -55,19 +61,25 @@ class FromEnvTests(unittest.TestCase):
         self.assertEqual(cfg.model, config_module.DEFAULT_MODEL)
 
     def test_rejects_an_unknown_effort_level(self):
-        with mock.patch.dict("os.environ", env(POLICY_EFFORT="turbo"), clear=True):
-            with self.assertRaises(ConfigError):
-                from_env()
+        with (
+            mock.patch.dict("os.environ", env(POLICY_EFFORT="turbo"), clear=True),
+            self.assertRaises(ConfigError),
+        ):
+            from_env()
 
     def test_rejects_an_unknown_severity_threshold(self):
-        with mock.patch.dict("os.environ", env(POLICY_FAIL_ON_SEVERITY="nit"), clear=True):
-            with self.assertRaises(ConfigError):
-                from_env()
+        with (
+            mock.patch.dict("os.environ", env(POLICY_FAIL_ON_SEVERITY="nit"), clear=True),
+            self.assertRaises(ConfigError),
+        ):
+            from_env()
 
     def test_rejects_a_non_positive_diff_budget(self):
-        with mock.patch.dict("os.environ", env(POLICY_MAX_DIFF_BYTES="0"), clear=True):
-            with self.assertRaises(ConfigError):
-                from_env()
+        with (
+            mock.patch.dict("os.environ", env(POLICY_MAX_DIFF_BYTES="0"), clear=True),
+            self.assertRaises(ConfigError),
+        ):
+            from_env()
 
     def test_accepts_a_full_environment(self):
         with mock.patch.dict(
@@ -137,9 +149,7 @@ class SecretInventoryTests(unittest.TestCase):
             anthropic_api_key="",
             slack_bot_token="xoxb_token_value",
         )
-        self.assertEqual(
-            set(cfg.secrets()), {"ghs_token_value", "xoxb_token_value"}
-        )
+        self.assertEqual(set(cfg.secrets()), {"ghs_token_value", "xoxb_token_value"})
 
     def test_repr_does_not_expose_credentials(self):
         cfg = Config(
@@ -167,9 +177,7 @@ class SecretInventoryTests(unittest.TestCase):
         )
         self.assertFalse(Config(**base, slack_channel="C1").slack_enabled)
         self.assertFalse(Config(**base, slack_bot_token="xoxb-1").slack_enabled)
-        self.assertTrue(
-            Config(**base, slack_channel="C1", slack_bot_token="xoxb-1").slack_enabled
-        )
+        self.assertTrue(Config(**base, slack_channel="C1", slack_bot_token="xoxb-1").slack_enabled)
 
 
 if __name__ == "__main__":

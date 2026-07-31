@@ -139,9 +139,8 @@ class LoadPoliciesTests(GitRepoTestCase):
 
     def test_rejects_a_policies_path_that_escapes_the_repository(self):
         for escaping in ("../outside", "a/../../outside", "/etc"):
-            with self.subTest(path=escaping):
-                with self.assertRaises(PolicyLoadError):
-                    load_policies(escaping, "", self.repo)
+            with self.subTest(path=escaping), self.assertRaises(PolicyLoadError):
+                load_policies(escaping, "", self.repo)
 
 
 class RenderForPromptTests(unittest.TestCase):

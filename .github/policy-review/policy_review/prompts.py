@@ -185,8 +185,7 @@ def build_user_prompt(
     elif pr.linked_issue:
         sections += [
             "",
-            f"Linked tracking issue: #{pr.linked_issue.number} "
-            "(content unavailable to this run).",
+            f"Linked tracking issue: #{pr.linked_issue.number} (content unavailable to this run).",
         ]
 
     sections += [
@@ -241,8 +240,7 @@ def build_slack_prompt(
         f"- Pull request: #{pr_number} — {pr_title}",
         f"- Link: https://github.com/{repository}/pull/{pr_number}",
         f"- Violations: {len(violations)}",
-        f"- Changes the policy review system itself: "
-        f"{'yes' if guard_hits else 'no'}",
+        f"- Changes the policy review system itself: {'yes' if guard_hits else 'no'}",
     ]
 
     if guard_hits:
