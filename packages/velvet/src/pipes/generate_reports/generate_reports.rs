@@ -921,7 +921,11 @@ fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByC
         .extended_metrics
         .as_ref()
         .map(|metrics| {
-            metrics.votes_by_channel.values().copied().fold(0u64, u64::saturating_add)
+            metrics
+                .votes_by_channel
+                .values()
+                .copied()
+                .fold(0u64, u64::saturating_add)
         })
         .unwrap_or_default();
     let mut rows: Vec<ParticipationByChannelRow> = result
