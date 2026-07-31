@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Windmill | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2907/docs/developers/windmill/developers_windmill"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Windmill | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2907/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2907/docs/developers/windmill/developers_windmill"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2907/docs/developers/windmill/developers_windmill" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2907/docs/developers/windmill/developers_windmill" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Windmill","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2907/docs/developers/windmill/developers_windmill"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2907/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2907/assets/js/runtime~main.0dd3af3c.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-2907/assets/js/main.9647f69e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2907/assets/js/runtime~main.6a6e4517.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2907/assets/js/main.76c02c6a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -46,6 +46,18 @@ the standard OIDC <code>login_hint</code>.</p>
 The voter-enrollment provider accepts at most five hints, with field names
 matching <code>[A-Za-z0-9._-]+</code>, names no longer than 128 characters, and values no
 longer than 255 characters. Any invalid hint rejects the complete set.</p>
+<p>A pre-matching request validator in the voter-enrollment provider reads the raw
+query of the <code>auth</code> and <code>registrations</code> authorization endpoints and rejects an
+invalid hint set with HTTP 400 before Keycloak parses or stores it. It sees
+duplicate parameters and malformed percent escapes that framework decoding would
+otherwise discard, so callers that bypass the Voting Portal are held to the same
+contract. Hint values never appear in the error response.</p>
+<p>The validator covers the query string only. Hints delivered inside a signed
+<code>request</code> object or a pushed authorization request are validated later, from the
+stored client notes, where Keycloak has already applied its own additional
+parameter limits — an over-limit set can therefore be truncated rather than
+rejected on those paths. Step&#x27;s Voting Portal uses neither, but a deployment that
+introduces request objects or PAR should re-check this boundary.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="stock-registration-flow">Stock registration flow<a href="#stock-registration-flow" class="hash-link" aria-label="Direct link to Stock registration flow" title="Direct link to Stock registration flow" translate="no">​</a></h3>
 <p>In each realm that uses Keycloak&#x27;s stock registration form:</p>
 <ol>
@@ -76,11 +88,12 @@ authentication flow configuration separately and verify both direct enrollment
 and login-to-registration redirects.</p>
 <p>Treat every hint as untrusted, user-editable input. Prefill must not mark email,
 phone, identity, eligibility, or other verification state as trusted. Do not log
-hint values, and do not place credentials, tokens, or secrets in notification
+hint values. Never place passwords, one-time passwords (OTPs), tokens, secrets,
+government identifiers, or other inappropriate sensitive values in notification
 URLs. URL encoding prevents query-structure injection but does not make values
 confidential or authentic. Dynamic attributes with dots or dashes in their names
-must be read with the Handlebars <code>lookup</code> helper; <code>attributes</code> is reserved for
-the complete attribute map.</p>
+must be read with the Handlebars <code>lookup</code> helper; <code>attributes</code> is reserved for the
+complete attribute map.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="tally">Tally<a href="#tally" class="hash-link" aria-label="Direct link to Tally" title="Direct link to Tally" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="discardedauditable-ballots">Discarded/Auditable Ballots<a href="#discardedauditable-ballots" class="hash-link" aria-label="Direct link to Discarded/Auditable Ballots" title="Direct link to Discarded/Auditable Ballots" translate="no">​</a></h3>
 <p>Discarded Ballots that for some reason are not included in the tally. Possible reasons:</p>
