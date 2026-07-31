@@ -152,6 +152,40 @@ fn check_over_votes_divisible(
     })
 }
 
+/// Sanity-checks that a contest's derived `total_blank_votes` is at least
+/// the precinct's whole-ballot blank count (`blanksCast`, read from
+/// `PrecinctReportingGroup` — see `precinct_blanks_cast_by_id`). Every
+/// ballot that's blank on the whole ballot is necessarily blank in this
+/// contest too, so `total_blank_votes` can never be smaller — a violation
+/// indicates a data-quality problem in the source file, not something this
+/// importer can resolve on its own.
+fn check_blank_votes_at_least_precinct_minimum(
+    selected_channel: &VotingChannel,
+    area_name: &str,
+    contest_external_id: &str,
+    total_blank_votes: u64,
+    precinct_blanks_cast: u64,
+) -> Option<TallySheetImportValidationError> {
+    if total_blank_votes >= precinct_blanks_cast {
+        return None;
+    }
+    Some(TallySheetImportValidationError {
+        code: "ess_blank_votes_below_precinct_minimum".to_string(),
+        message: format!(
+            "total blank votes ({total_blank_votes}) is less than the precinct's whole-ballot blank count ({precinct_blanks_cast}) — every ballot blank on the whole ballot must also be blank in this contest"
+        ),
+        channel: Some(selected_channel.clone()),
+        area_name: Some(area_name.to_string()),
+        contest_external_id: Some(contest_external_id.to_string()),
+        candidate_external_id: None,
+        field: Some("total_blank_votes".to_string()),
+        params: HashMap::from([
+            ("totalBlankVotes".to_string(), total_blank_votes.to_string()),
+            ("precinctBlanksCast".to_string(), precinct_blanks_cast.to_string()),
+        ]),
+    })
+}
+
 /// Resolves a single contest's precinct totals and candidate votes,
 /// regardless of which of the two ES&S XML variants it uses.
 fn resolve_contest_data(
@@ -225,6 +259,7 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
     let xml = std::str::from_utf8(xml_bytes).context("ES&S XML import must be valid UTF-8")?;
     let document = Document::parse(xml).context("Invalid ES&S Enhanced XML")?;
     let precinct_names = precinct_names_by_id(&document)?;
+    let precinct_blanks_cast = precinct_blanks_cast_by_id(&document, reporting_group_id);
     let mut writer = Writer::from_writer(Vec::new());
     let mut validation_errors = Vec::new();
 
@@ -290,15 +325,24 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
             // is Some), ES&S's own `blankVotes` is not a genuine blank-ballot
             // count — it's exactly `overVotes + underVotes` (confirmed both
             // by the EVS SOP's field description and empirically, with no
-            // exceptions). `underVotes` alone is the figure that actually
-            // reconciles as a ballot-cardinality "blank" for single-choice
-            // contests: `ballots_cast == candidate_votes_sum + underVotes`
-            // exactly whenever max_votes == 1. The candidate-reporting-group
+            // exceptions). `underVotes` is a *selection-slot* count, not a
+            // ballot count (same issue as `overVotes` — see
+            // check_over_votes_divisible's doc comment): it sums unused
+            // slots from both genuinely blank ballots (which contribute
+            // their whole max_votes allotment) and ballots with a valid
+            // partial selection (which contribute their remaining unused
+            // slots too), so `underVotes / max_votes` is only an
+            // *upper-bound approximation* of the blank-ballot count, exact
+            // only when every under-filled ballot is entirely blank — no
+            // field in ES&S's aggregate XML distinguishes the two cases.
+            // `check_blank_votes_at_least_precinct_minimum` below
+            // sanity-checks this approximation against a genuine (if
+            // precinct-wide) lower bound. The candidate-reporting-group
             // variant doesn't have this problem — its blank figure comes
-            // from the precinct's own `blanksCast`, a genuine (if
+            // directly from the precinct's own `blanksCast`, a genuine (if
             // precinct-wide) blank-ballot count — so it keeps using that.
             let total_blank_votes = if totals.contest_ballots_cast.is_some() {
-                totals.under_votes
+                totals.under_votes / max_votes
             } else {
                 totals.blank_votes
             };
@@ -332,10 +376,16 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
             // invalidates a ballot on its own. ES&S's aggregate under_votes
             // count doesn't distinguish "fell short of min_votes" from any
             // other undervote, so it can't be attributed precisely — this
-            // is a best-effort approximation (and a no-op whenever
-            // total_blank_votes is already under_votes itself, i.e. the
-            // ContestReportingGroupVotes variant above).
-            if min_votes > 0 {
+            // is a best-effort approximation, and only applies to the
+            // candidate-reporting-group variant, where total_blank_votes is
+            // an independent, genuinely ballot-scoped figure (blanksCast)
+            // that under_votes (a slot count) can meaningfully overlap
+            // with. The ContestReportingGroupVotes variant's
+            // total_blank_votes above is itself already derived from
+            // under_votes, so subtracting it back out here wouldn't be a
+            // meaningful correction (the two figures use different units —
+            // see the comment above total_blank_votes).
+            if min_votes > 0 && totals.contest_ballots_cast.is_none() {
                 implicit_invalid += totals.under_votes.saturating_sub(total_blank_votes);
             }
             let explicit_invalid = 0;
@@ -464,6 +514,18 @@ pub fn convert_ess_enhanced_xml_to_csv_for_reporting_group(
                 ) {
                     validation_errors.push(error);
                 }
+                if let Some(&precinct_blanks_cast_value) = precinct_blanks_cast.get(&precinct_id)
+                {
+                    if let Some(error) = check_blank_votes_at_least_precinct_minimum(
+                        &selected_channel,
+                        area_name,
+                        &contest_external_id,
+                        total_blank_votes,
+                        precinct_blanks_cast_value,
+                    ) {
+                        validation_errors.push(error);
+                    }
+                }
             }
 
             for candidate in &candidates {
@@ -500,6 +562,45 @@ fn precinct_names_by_id(document: &Document<'_>) -> Result<HashMap<String, Strin
         precinct_names.insert(id, name);
     }
     Ok(precinct_names)
+}
+
+/// Reads each precinct's whole-ballot blank count (`blanksCast`) from its
+/// `PrecinctReportingGroup` matching `reporting_group_id`, when present.
+/// This is a genuine, if precinct-wide (not per-contest), blank-*ballot*
+/// count — used only as a lower-bound sanity check on a contest's derived
+/// `total_blank_votes` (see `check_blank_votes_at_least_precinct_minimum`),
+/// never as the figure itself. Missing data (e.g. a precinct with no
+/// matching reporting group) is treated as "unknown" rather than a hard
+/// failure, since it's only needed for this optional check.
+#[instrument(skip_all)]
+fn precinct_blanks_cast_by_id(
+    document: &Document<'_>,
+    reporting_group_id: &str,
+) -> HashMap<String, u64> {
+    let mut blanks_cast_by_precinct = HashMap::new();
+    for precinct in document
+        .descendants()
+        .filter(|node| node.has_tag_name("Precinct"))
+    {
+        let Some(precinct_id) = precinct.attribute("id") else {
+            continue;
+        };
+        for group in precinct
+            .children()
+            .filter(|node| node.has_tag_name("PrecinctReportingGroup"))
+        {
+            if group.attribute("reportingGroupId") != Some(reporting_group_id) {
+                continue;
+            }
+            if let Some(blanks_cast) = group
+                .attribute("blanksCast")
+                .and_then(|value| value.parse::<u64>().ok())
+            {
+                blanks_cast_by_precinct.insert(precinct_id.to_string(), blanks_cast);
+            }
+        }
+    }
+    blanks_cast_by_precinct
 }
 
 // Keyed by a BTreeMap so the canonical CSV rows are emitted in a stable
@@ -1245,11 +1346,17 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,10
         // implicit_invalid must come from overVotes / max_votes (1
         // overvoted *ballot*), not the raw overVotes slot count (4) —
         // otherwise total_valid_votes (3 ballots - 4 invalid) would
-        // underflow to 0 instead of the correct 2.
+        // underflow to 0 instead of the correct 2. total_blank_votes must
+        // similarly come from underVotes / max_votes (1 blank *ballot*),
+        // not the raw underVotes slot count (4) — and must be at least the
+        // precinct's whole-ballot blanksCast (1 here), since the one blank
+        // ballot in this file is blank on the whole ballot too.
         let xml = br#"
             <ElectionReport>
                 <JurisdictionMap>
-                    <Precinct id="p1" name="Precinct 1" />
+                    <Precinct id="p1" name="Precinct 1">
+                        <PrecinctReportingGroup reportingGroupId="1" ballotsCast="3" blanksCast="1" />
+                    </Precinct>
                 </JurisdictionMap>
                 <Contest altId1="contest-1">
                     <ContestReportingGroup reportingGroupId="1">
@@ -1287,8 +1394,54 @@ PAPER,Ward 2,contest-1,candidate_votes,cand-1,10
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_votes,,3"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,implicit_invalid,,1"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,total_valid_votes,,2"));
+        assert!(csv.contains("PAPER,Precinct 1,contest-1,total_blank_votes,,1"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,over_votes,,4"));
         assert!(csv.contains("PAPER,Precinct 1,contest-1,under_votes,,4"));
+    }
+
+    #[test]
+    fn reports_a_validation_error_when_blank_votes_undercount_the_precincts_whole_ballot_blanks() {
+        // The precinct's whole-ballot blanksCast (2) means at least 2
+        // ballots are blank in every contest on the ballot, including this
+        // one — but this contest's own underVotes (2) divided by max_votes
+        // (2) only accounts for 1 blank ballot, an internally inconsistent
+        // combination that can't reflect genuine source data.
+        let xml = br#"
+            <ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1">
+                        <PrecinctReportingGroup reportingGroupId="1" ballotsCast="10" blanksCast="2" />
+                    </Precinct>
+                </JurisdictionMap>
+                <Contest altId1="contest-1">
+                    <ContestReportingGroup reportingGroupId="1">
+                        <ContestReportingGroupVotes refPrecinctId="p1" ballotsCast="10" overVotes="0" underVotes="2" blankVotes="2" />
+                    </ContestReportingGroup>
+                    <Candidate altId1="cand-1" type="NORMAL">
+                        <CandidatePrecinctVotes refPrecinctId="p1" votes="18" />
+                    </Candidate>
+                </Contest>
+            </ElectionReport>
+        "#;
+
+        let contest_vote_config = HashMap::from([(
+            "contest-1".to_string(),
+            ContestVoteConfig {
+                min_votes: 0,
+                max_votes: 2,
+            },
+        )]);
+        let (_csv, errors) =
+            convert_ess_enhanced_xml_to_csv(xml, VotingChannel::PAPER, &contest_vote_config)
+                .unwrap();
+
+        // candidate_sum(18) + over(0) + under(2) == ballots_cast(10) * max_votes(2),
+        // so the reconciliation and divisibility checks pass — only the
+        // blanksCast lower-bound check fires.
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_blank_votes_below_precinct_minimum");
+        assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
+        assert_eq!(errors[0].area_name, Some("Precinct 1".to_string()));
     }
 
     #[test]
