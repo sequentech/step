@@ -5,7 +5,7 @@
 //! In-memory M1 protocol test: drive the v0.6 runtime through a full DKG →
 //! encrypt → mix → threshold-decrypt round.
 //!
-//! Each trustee runs as a [`Session`] (a functional [`SessionTrustee`] over a
+//! Each trustee runs as a [`Session`] (a functional [`Trustee`] over a
 //! [`BoardClient`]); all board clients share one in-memory [`MemoryBoard`] that
 //! stands in for b4. The driver runs the **update-first** cycle (§6): every board
 //! client pulls the latest board, each trustee `step`s (in parallel — CPU-bound
@@ -40,7 +40,7 @@ use crate::messages::wire::{MessageType, ProtocolMessage};
 use crate::board::persistence::NoOpPersistence;
 use crate::board::transport::{MemoryBoard, MemoryTransport};
 use crate::board::BoardClient;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 use crate::session::Session;
 
 /// Wire `date` for every message the harness posts (§3.1); a fixed value is fine
@@ -125,7 +125,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
         let transport = MemoryTransport::new(board.clone());
         let client = BoardClient::connect(transport, NoOpPersistence).await?;
-        let trustee = SessionTrustee::new(
+        let trustee = Trustee::new(
             (i + 1).to_string(),
             signing_key,
             keypair,
@@ -209,7 +209,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
 /// back (async). A round that produces nothing is the fixpoint. Because it is
 /// update-first, a trustee's own output only takes effect once it loops back on
 /// the next round's update. The parallel `step` also exercises the concurrent use
-/// of `SessionTrustee`/`ProtocolMessage` that the deployed mixnet relies on.
+/// of `Trustee`/`ProtocolMessage` that the deployed mixnet relies on.
 async fn drive<C: Context>(sessions: &mut [MemorySession<C>]) -> Result<()> {
     for _ in 0..MAX_ROUNDS {
         for session in sessions.iter_mut() {

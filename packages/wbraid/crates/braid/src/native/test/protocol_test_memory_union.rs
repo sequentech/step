@@ -14,7 +14,7 @@
 //! carried across the union by **seeding** each tally with the trustee's own
 //! committed DKG digests ([`BoardClient::committed`]) — never a b4 re-fetch (§8.2).
 //!
-//! The trustee is a pure component, so the SAME [`SessionTrustee`] instances drive
+//! The trustee is a pure component, so the SAME [`Trustee`] instances drive
 //! the DKG phase and every tally phase; only the board client changes.
 
 use anyhow::{anyhow, Result};
@@ -43,7 +43,7 @@ use crate::board::persistence::{NoOpPersistence, Persistence};
 use crate::board::transport::{MemoryBoard, MemoryTransport, Transport};
 use crate::board::BoardClient;
 use crate::messages::predicate::Predicate;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 
 /// Wire `date` for every message the harness posts (§3.1).
 const DATE: Timestamp = 0;
@@ -113,9 +113,9 @@ async fn run_with_width<C: Context, const W: usize>(
 
     // The trustees are pure components, built once and reused across the DKG and
     // every tally phase (only the board client changes, §8.2).
-    let mut trustees: Vec<SessionTrustee<C>> = Vec::with_capacity(n_trustees);
+    let mut trustees: Vec<Trustee<C>> = Vec::with_capacity(n_trustees);
     for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
-        trustees.push(SessionTrustee::new(
+        trustees.push(Trustee::new(
             (i + 1).to_string(),
             signing_key,
             keypair,
@@ -232,7 +232,7 @@ async fn run_with_width<C: Context, const W: usize>(
 /// parallel over its client view (CPU-bound crypto), then post. A round that
 /// produces nothing is the fixpoint. Trustee `i` is paired with client `i`.
 async fn drive<C, T, P>(
-    trustees: &[SessionTrustee<C>],
+    trustees: &[Trustee<C>],
     clients: &mut [BoardClient<C, T, P>],
 ) -> Result<()>
 where

@@ -22,7 +22,7 @@
 //!   which halts the trustee.
 //! - **Body** — everything else: message verification and the store
 //!   ([`messages`]), the board client and its b4 / persistence seams ([`board`]),
-//!   and the action layer that performs the actual cryptography ([`runtime`]).
+//!   and the action layer that performs the actual cryptography ([`trustee`]).
 //! - **Dependencies:** the `cryptography` crate (`vsc`) supplies the cryptographic
 //!   primitives the action layer calls (groups, ElGamal, shuffle proofs, DKG,
 //!   signatures, serialization); the `b4` crate supplies the message/artifact
@@ -35,10 +35,10 @@
 //! so a trustee never advances on its own unconfirmed output:
 //!
 //! ```text
-//! b4 --messages--> BoardClient --> SessionTrustee --> datalog --> actions --> BoardClient --messages--> b4
-//!                  verify ->        pure step,         brain:      run crypto,   build + sign
-//!                  predicate,       holds keys         predicates  width W       ProtocolMessages
-//!                  anti-rewrite,                       -> actions
+//! b4 --messages--> BoardClient --> Trustee --> datalog --> actions --> BoardClient --messages--> b4
+//!                  verify ->        pure step,   brain:      run crypto,   build + sign
+//!                  predicate,       holds keys    predicates  width W       ProtocolMessages
+//!                  anti-rewrite,                  -> actions
 //!                  persist, store
 //! ```
 //!
@@ -48,10 +48,9 @@
 //!   completeness gate against its persisted commitments (§6.2–§6.3), and owns the
 //!   [`MessageStore`](board::store::MessageStore) (§5, §8). `collides()` itself
 //!   stays the datalog's job alone (§5.3).
-//! - [`SessionTrustee`](runtime::SessionTrustee) is constructed with its secret
-//!   keys (§9) and runs a **pure** `step` over the store — no I/O, no state. It is
-//!   oblivious to whether the store is one board or a client-composed union of
-//!   boards (§8.2).
+//! - [`Trustee`](trustee::Trustee) is constructed with its secret keys (§9) and
+//!   runs a **pure** `step` over the store — no I/O, no state. It is oblivious to
+//!   whether the store is one board or a client-composed union of boards (§8.2).
 //! - [`Session`](session::Session) binds one trustee to one board client and drives
 //!   the cycle; a multi-trustee harness can run the CPU-bound `step`s in parallel
 //!   while keeping the async transport phases sequential.
@@ -62,7 +61,7 @@
 //! |---|---|---|
 //! | [`messages`] | message/artifact vocabulary: wire format, predicates, signing | §3–§5 |
 //! | [`datalog`] | the brain: predicates -> actions, or HALT | §7 |
-//! | [`runtime`] | [`SessionTrustee`](runtime::SessionTrustee): the pure step + the action/crypto layer | §7.5, §9 |
+//! | [`trustee`] | [`Trustee`](trustee::Trustee): the pure step + the action/crypto layer, split by protocol phase | §7.5, §9 |
 //! | [`board`] | board client: [`store`](board::store) (EDB), [`verify`](board::verify) (ProtocolMessage -> Predicate), [`Transport`](board::transport::Transport) / [`Persistence`](board::persistence::Persistence) seams; the b4 board union | §6, §8 |
 //! | [`session`] | one trustee bound to one board client; the update-first driver | §6 |
 //! | [`dispatch`] | const-generic dispatch macros for the ciphertext width `W` | §10.3 |
@@ -84,8 +83,8 @@ pub mod board;
 pub mod datalog;
 pub mod messages;
 pub mod dispatch;
-pub mod runtime;
 pub mod session;
+pub mod trustee;
 
 // Platform-specific modules
 #[cfg(feature = "native")]

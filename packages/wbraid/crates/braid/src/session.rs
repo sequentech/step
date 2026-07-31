@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! A trustee session: one [`SessionTrustee`] bound to one [`BoardClient`],
+//! A trustee session: one [`Trustee`] bound to one [`BoardClient`],
 //! driving the **update-first** cycle (§6 of `crates/braid/v0.6_spec.md`).
 //!
 //! A `Session` is the reusable per-trustee unit. The cycle is: the board client
@@ -26,16 +26,16 @@ use crate::messages::wire::ProtocolMessage;
 use crate::board::persistence::Persistence;
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 
 /// One trustee driving one board.
 pub struct Session<C: Context, T: Transport<C>, P: Persistence> {
-    pub trustee: SessionTrustee<C>,
+    pub trustee: Trustee<C>,
     pub client: BoardClient<C, T, P>,
 }
 
 impl<C: Context, T: Transport<C>, P: Persistence> Session<C, T, P> {
-    pub fn new(trustee: SessionTrustee<C>, client: BoardClient<C, T, P>) -> Self {
+    pub fn new(trustee: Trustee<C>, client: BoardClient<C, T, P>) -> Self {
         Self { trustee, client }
     }
 

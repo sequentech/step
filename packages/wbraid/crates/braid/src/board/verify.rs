@@ -43,7 +43,7 @@ use crate::messages::predicate::{
 /// Covers the 7 message-derived predicate types. `Configuration` is NOT handled
 /// here — its predicate (`ConfigurationValid`) additionally needs the body's
 /// threshold/trustee_count and this trustee's `self_index`, so it is assembled by
-/// the board client / SessionTrustee at construction (§9.8), via
+/// the board client / Trustee at construction (§9.8), via
 /// [`ProtocolMessage::verify_configuration`].
 ///
 /// The cfg-domain check (`predicate.configuration == our cfg_hash`) is NOT done

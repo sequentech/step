@@ -65,7 +65,7 @@ use crate::messages::wire::{MessageType, ProtocolMessage};
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
 use crate::messages::predicate::Predicate;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 use crate::wasm::persistence::IndexedDbPersistence;
 use crate::wasm::transport::WasmHttpTransport;
 
@@ -166,14 +166,14 @@ fn generate_committee(n_trustees: usize, n_threshold: usize, width: usize) -> Re
 
 /// Build the (pure, reusable) trustees from a committee's material (§8.2 — the
 /// same trustees drive the DKG and every tally; only the board client changes).
-fn build_trustees(committee: &Committee) -> Result<Vec<SessionTrustee<RistrettoCtx>>> {
+fn build_trustees(committee: &Committee) -> Result<Vec<Trustee<RistrettoCtx>>> {
     committee
         .signing_keys
         .iter()
         .zip(&committee.share_keypairs)
         .enumerate()
         .map(|(i, (signing_key, keypair))| {
-            SessionTrustee::new(
+            Trustee::new(
                 (i + 1).to_string(),
                 signing_key.clone(),
                 keypair.clone(),
@@ -386,7 +386,7 @@ pub struct Emulator {
 
 struct Inner {
     /// The pure, reusable trustees (§8.2): built once, shared across all phases.
-    trustees: Vec<SessionTrustee<RistrettoCtx>>,
+    trustees: Vec<Trustee<RistrettoCtx>>,
     /// The active phase's board clients, trustee `i` paired with client `i`.
     clients: Vec<EmuClient>,
     phase: Phase,

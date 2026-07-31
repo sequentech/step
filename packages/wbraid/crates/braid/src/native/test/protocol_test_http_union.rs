@@ -43,7 +43,7 @@ use crate::board::BoardClient;
 use crate::messages::predicate::Predicate;
 use crate::native::http_transport::HttpTransport;
 use crate::native::persistence::SqlitePersistence;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 
 /// b4 server endpoint the test drives against (must be running, with S3).
 const HTTP_URL: &str = "http://127.0.0.1:3000";
@@ -113,9 +113,9 @@ async fn run_with_width<C: Context, const W: usize>(
 
     // The trustees are pure components, built once and reused across the DKG and
     // every tally phase (only the board client changes, §8.2).
-    let mut trustees: Vec<SessionTrustee<C>> = Vec::with_capacity(n_trustees);
+    let mut trustees: Vec<Trustee<C>> = Vec::with_capacity(n_trustees);
     for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
-        trustees.push(SessionTrustee::new(
+        trustees.push(Trustee::new(
             (i + 1).to_string(),
             signing_key,
             keypair,
@@ -251,7 +251,7 @@ fn temp_db(tag: &str) -> std::path::PathBuf {
 /// cycle (§6), sequentially (HTTP latency dominates). Trustee `i` is paired with
 /// client `i`.
 async fn drive<C, T, P>(
-    trustees: &[SessionTrustee<C>],
+    trustees: &[Trustee<C>],
     clients: &mut [BoardClient<C, T, P>],
 ) -> Result<()>
 where

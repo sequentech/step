@@ -4,7 +4,7 @@
 
 //! WASM bindings for the braid mixnet (M3).
 //!
-//! The bindings are `SessionTrustee`/`BoardClient` over a browser-`fetch`
+//! The bindings are `Trustee`/`BoardClient` over a browser-`fetch`
 //! transport with IndexedDB persistence, exposed through the interactive
 //! [`emulator`]. (The pre-v0.6 wasm bindings were archived to `legacy/`.)
 //!

@@ -21,7 +21,7 @@ use crate::messages::newtypes::{ConfigurationHash, Timestamp};
 use crate::messages::protocol_manager::ProtocolManager;
 use crate::messages::wire::ProtocolMessage;
 use crate::native::persistence::SqlitePersistence;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 
 const DATE: Timestamp = 0;
 
@@ -78,7 +78,7 @@ async fn run_restart_anti_rewrite<C: Context>() -> Result<()> {
     let trustee = {
         let transport = MemoryTransport::new(board.clone());
         let client = BoardClient::connect(transport, SqlitePersistence::open(&db_path)?).await?;
-        let trustee = SessionTrustee::<C>::new(
+        let trustee = Trustee::<C>::new(
             "1".to_string(),
             first_sk.next().unwrap(),
             KeyPair::<C>::generate(),

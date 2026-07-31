@@ -218,7 +218,7 @@ mod tests {
     use crate::board::transport::{MemoryBoard, MemoryTransport};
     use crate::board::BoardClient;
     use crate::messages::predicate::Predicate;
-    use crate::runtime::SessionTrustee;
+    use crate::trustee::Trustee;
 
     const DATE: crate::messages::newtypes::Timestamp = 0;
 
@@ -282,7 +282,7 @@ mod tests {
         } = setup::<C>(2)?;
         let sk1 = signing_keys.into_iter().next().unwrap();
         let trustee1 =
-            SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+            Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
         // Parent (DKG) board: Configuration + a Shares from trustee 1.
         let parent_board = MemoryBoard::<C>::new();
@@ -371,7 +371,7 @@ mod tests {
         } = setup::<C>(2)?;
         let sk1 = signing_keys.into_iter().next().unwrap();
         let trustee1 =
-            SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+            Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
         let dkg_board = MemoryBoard::<C>::new();
         dkg_board.push(cfg_message);
@@ -441,7 +441,7 @@ mod tests {
         } = setup::<C>(2)?;
         let sk1 = signing_keys.into_iter().next().unwrap();
         let trustee1 =
-            SessionTrustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+            Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
         let board = MemoryBoard::<C>::new();
         board.push(cfg_message);

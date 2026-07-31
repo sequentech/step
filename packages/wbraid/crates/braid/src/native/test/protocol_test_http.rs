@@ -37,7 +37,7 @@ use crate::board::persistence::NoOpPersistence;
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
 use crate::native::http_transport::HttpTransport;
-use crate::runtime::SessionTrustee;
+use crate::trustee::Trustee;
 use crate::session::Session;
 
 /// b4 server endpoint the test drives against (must be running, with S3).
@@ -117,7 +117,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
         let transport = HttpTransport::new(HTTP_URL, &board);
         let client = BoardClient::connect(transport, NoOpPersistence).await?;
-        let trustee = SessionTrustee::new(
+        let trustee = Trustee::new(
             (i + 1).to_string(),
             signing_key,
             keypair,
