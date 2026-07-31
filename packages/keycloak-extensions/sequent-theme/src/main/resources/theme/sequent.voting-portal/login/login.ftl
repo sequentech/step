@@ -12,6 +12,13 @@ SPDX-License-Identifier: AGPL-3.0-only
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
+        <#--  The login page is not rendered from the user profile, so the username policy is a
+              realm attribute rather than the loginHintPrefillPolicy attribute annotation used by
+              the registration forms. A remembered username stays editable so the voter can still
+              sign in as somebody else.  -->
+        <#assign usernamePrefilled = (login.username!'')?has_content && !login.rememberMe??>
+        <#assign usernameReadOnly = usernamePrefilled
+            && (realm.attributes['loginHintUsernamePolicy']!'EDITABLE') == 'READ_ONLY'>
         <div id="kc-form">
           <div id="kc-form-wrapper">
             <#if realm.password>
@@ -47,7 +54,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                             <div class="${properties.kcFormGroupClass!}">
                                 <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
-                                <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
+                                <#-- readonly rather than disabled so the locked value is still submitted -->
+                                <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="<#if structuredCredential>username<#else>off</#if>"
+                                       <#if usernameReadOnly>readonly</#if>
                                        <#if credentialFieldError>aria-invalid="true"</#if>
                                 />
 

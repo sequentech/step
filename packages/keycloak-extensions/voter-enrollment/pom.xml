@@ -37,6 +37,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<version>5.19.0</version>
 			<scope>test</scope>
 		</dependency>
+		<!-- Supplies the JAX-RS RuntimeDelegate used by response-building unit tests. -->
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-common</artifactId>
+			<version>3.1.6</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

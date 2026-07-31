@@ -8622,6 +8622,7 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "tracing-tree",
+ "urlencoding",
  "uuid",
  "warp",
  "wasm-bindgen",
