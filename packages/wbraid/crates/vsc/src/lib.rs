@@ -2,7 +2,27 @@
 // Copyright 2025 Free & Fair
 // See LICENSE.md for details
 
-//! Cryptography library for the VoteSecure project
+//! Cryptography library for the VoteSecure project.
+//!
+//! A [`Context`](context::Context) instantiates one coherent set of choices —
+//! group backend, hashing, RNG, serialization, signatures — that the rest of
+//! the crate is generic over; [`RistrettoCtx`](context::RistrettoCtx) is the
+//! one braid (this workspace's mixnet trustee crate) uses.
+//!
+//! ## Module map
+//!
+//! | Module | Role |
+//! |---|---|
+//! | [`context`] | ties a group backend + hashing/RNG/serialization/signatures into one [`Context`](context::Context) |
+//! | [`traits`] | the group/element/scalar abstractions everything else is generic over |
+//! | [`groups`] | curve backends: [`p256`](groups::p256), [`ristretto255`](groups::ristretto255), and generic [`productgroup`](groups::productgroup) |
+//! | [`cryptosystem`] | ElGamal and Naor-Yung public-key cryptosystems |
+//! | [`dkgd`] | distributed key generation and decryption ([`Dealer`](dkgd::dealer::Dealer) / [`Recipient`](dkgd::recipient::Recipient)) |
+//! | [`zkp`] | zero-knowledge proofs: Schnorr, discrete-log equality, PLEQ, and the shuffle proof |
+//! | [`utils`] | hashing, RNG, (de)serialization, signatures, error types |
+//!
+//! See each module's own docs for detail on that module; the overview and a
+//! worked example below are this crate's README.
 
 #![allow(dead_code)]
 // Only necessary for custom_warning_macro

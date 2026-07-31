@@ -6,8 +6,8 @@
 //!
 //! One component with the three §6 responsibilities: (a) the in-memory
 //! [`store`] ([`MessageStore`]), (b) predicate [`persistence`] (anti-rewrite),
-//! and (c) b4 interaction via a [`transport`]; [`verify`] is the trust boundary
-//! that turns a fetched message into the `(Predicate, Body)` pair (a) admits.
+//! and (c) b4 interaction via a [`transport`]; [`mod@verify`] is the trust
+//! boundary that turns a fetched message into the `(Predicate, Body)` pair (a) admits.
 //! The orchestration is written once here; the persistence and transport
 //! backends are swappable (in-memory / SQLite / HTTP+S3 / IndexedDB) so the
 //! same logic serves M1 → M3.

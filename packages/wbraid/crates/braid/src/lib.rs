@@ -14,19 +14,32 @@
 //! `crates/braid/v0.6_decisions.md` (the decision log); testing is described in
 //! the repo-root `TESTING.md`. Section references below (§N) point into the spec.
 //!
-//! ## Brain and body (§1)
+//! ## Within braid: functional core / imperative shell (§1.2)
 //!
-//! - **Brain** — [`datalog`]: a faithful port of the vs_lift `ascent` rules. Given
-//!   the set of verified predicates it has observed, it decides what is proven and
-//!   which [`Action`](datalog::Action)s the trustee may take — or raises an error,
-//!   which halts the trustee.
-//! - **Body** — everything else: message verification and the store
-//!   ([`messages`]), the board client and its b4 / persistence seams ([`board`]),
-//!   and the action layer that performs the actual cryptography ([`trustee`]).
-//! - **Dependencies:** the `cryptography` crate (`vsc`) supplies the cryptographic
-//!   primitives the action layer calls (groups, ElGamal, shuffle proofs, DKG,
-//!   signatures, serialization); the `b4` crate supplies the message/artifact
-//!   types and the wire format ([`messages`]).
+//! - **The functional core** is [`Trustee::step`](trustee::Trustee::step). It is a
+//!   pure function of the board's read view: it performs no I/O and holds no
+//!   mutable protocol state between calls — only the fixed secret keys it was
+//!   constructed with (§9) — so called twice with the same view it returns the
+//!   same result. Internally it reads the board-sourced predicates, runs the
+//!   [`datalog`] engine (a faithful port of the vs_lift `ascent` rules) to derive
+//!   the enabled [`Action`](datalog::Action)s, and executes each one to produce
+//!   signed [`ProtocolMessage`](messages::wire::ProtocolMessage)s — or the
+//!   datalog raises an error, halting the trustee.
+//! - **The imperative shell** is [`Session`](session::Session) +
+//!   [`BoardClient`](board::BoardClient): `Session::advance()` drives `update()`
+//!   (fetch from b4) → `step()` (call the pure core) → `post()` (write back to
+//!   b4); `BoardClient` owns the b4 transport, the persisted anti-rewrite
+//!   commitments, and the in-memory store the core reads.
+//! - Consequence: the core carries no memory of its own unconfirmed output
+//!   between calls — it only ever sees what the shell hands it as `view`. That is
+//!   exactly what makes the update-first / loop-back rule below safe to enforce
+//!   entirely in the shell, with no core-side state to advance prematurely.
+//!
+//! **Dependencies:** the `cryptography` crate (`vsc`) supplies the cryptographic
+//! primitives the action layer calls (groups, ElGamal, shuffle proofs, DKG,
+//! signatures, serialization); the `b4` crate is the bulletin board braid posts
+//! to and fetches from, over the HTTP boundary its `api_types` define
+//! ([`board::transport`]).
 //!
 //! ## The update-first cycle (§6)
 //!
