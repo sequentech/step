@@ -45,12 +45,13 @@ use sequent_core::types::hasura::core::{
     Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySessionContest,
     TallySheet,
 };
+use sequent_core::types::participation::VotesByChannel;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody};
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -80,7 +81,7 @@ pub struct AreaContestDataType {
     pub eligible_voters: u64,
     pub area: Area,
     pub auditable_votes: u64,
-    pub votes_by_channel: Option<BTreeMap<String, u64>>,
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 #[instrument(skip_all)]

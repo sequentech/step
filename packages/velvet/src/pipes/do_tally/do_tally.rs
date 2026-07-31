@@ -23,6 +23,7 @@ use sequent_core::{
     sqlite::election_event,
     types::ceremonies::{ScopeOperation, TallyOperation},
     types::hasura::core::TallySheet,
+    types::participation::VotesByChannel,
     types::tally_sheets::VotingChannel,
     util::path::{get_folder_name, list_subfolders},
 };
@@ -37,7 +38,7 @@ use std::cmp;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
@@ -146,10 +147,7 @@ fn participation_total(result: &ContestResult) -> Result<u64> {
         .ok_or_else(|| Error::UnexpectedError("Participation total overflow".to_string()))
 }
 
-fn merge_votes_by_channel(
-    aggregate: &mut BTreeMap<String, u64>,
-    counts: &BTreeMap<String, u64>,
-) -> Result<()> {
+fn merge_votes_by_channel(aggregate: &mut VotesByChannel, counts: &VotesByChannel) -> Result<()> {
     for (channel, count) in counts {
         let current = aggregate.entry(channel.clone()).or_default();
         *current = current.checked_add(*count).ok_or_else(|| {
@@ -160,7 +158,7 @@ fn merge_votes_by_channel(
 }
 
 fn merge_result_votes_by_channel(
-    aggregate: &mut BTreeMap<String, u64>,
+    aggregate: &mut VotesByChannel,
     result: &ContestResult,
 ) -> Result<()> {
     if let Some(metrics) = &result.extended_metrics {
@@ -171,9 +169,9 @@ fn merge_result_votes_by_channel(
 
 fn aggregate_area_votes_by_channel<'a>(
     area_ids: impl IntoIterator<Item = &'a str>,
-    votes_by_channel_map: &HashMap<String, Option<BTreeMap<String, u64>>>,
-) -> Result<(BTreeMap<String, u64>, bool)> {
-    let mut aggregate = BTreeMap::new();
+    votes_by_channel_map: &HashMap<String, Option<VotesByChannel>>,
+) -> Result<(VotesByChannel, bool)> {
+    let mut aggregate = VotesByChannel::new();
     let mut all_inputs_present = true;
 
     for area_id in area_ids {
@@ -193,7 +191,7 @@ fn aggregate_area_votes_by_channel<'a>(
     Ok((aggregate, all_inputs_present))
 }
 
-fn set_votes_by_channel(result: &mut ContestResult, counts: BTreeMap<String, u64>) {
+fn set_votes_by_channel(result: &mut ContestResult, counts: VotesByChannel) {
     result
         .extended_metrics
         .get_or_insert_with(ExtendedMetricsContest::default)
@@ -312,7 +310,7 @@ impl Pipe for DoTally {
                             (area_input.area.id.to_string(), area_input.auditable_votes)
                         })
                         .collect();
-                    let votes_by_channel_map: HashMap<String, Option<BTreeMap<String, u64>>> =
+                    let votes_by_channel_map: HashMap<String, Option<VotesByChannel>> =
                         contest_input
                             .area_list
                             .iter()
@@ -476,7 +474,10 @@ impl Pipe for DoTally {
                                     },
                                 );
                                 if !has_complete_electronic_channels {
-                                    set_votes_by_channel(&mut aggregate_result, BTreeMap::new());
+                                    set_votes_by_channel(
+                                        &mut aggregate_result,
+                                        VotesByChannel::new(),
+                                    );
                                 }
                                 validate_votes_by_channel(&aggregate_result)?;
 
@@ -561,7 +562,7 @@ impl Pipe for DoTally {
                             if !has_complete_electronic_channels {
                                 set_votes_by_channel(
                                     &mut area_result_with_tally_sheets,
-                                    BTreeMap::new(),
+                                    VotesByChannel::new(),
                                 );
                             }
                             validate_votes_by_channel(&area_result_with_tally_sheets)?;
@@ -636,7 +637,7 @@ impl Pipe for DoTally {
                                 is_complete && has_complete_votes_by_channel(area_result)?,
                             )
                         })?;
-                    let mut final_channel_counts = BTreeMap::new();
+                    let mut final_channel_counts = VotesByChannel::new();
                     if has_complete_electronic_channels {
                         for result in area_tally_results_for_contest
                             .iter()
@@ -780,8 +781,8 @@ pub struct ExtendedMetricsContest {
     pub weight: Weight, // Used to store the actual weight used to tally an specific area.
     pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
     pub total_declined_to_vote: u64, // Total number of ballots that declined to vote
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub votes_by_channel: BTreeMap<String, u64>,
+    #[serde(default, skip_serializing_if = "VotesByChannel::is_empty")]
+    pub votes_by_channel: VotesByChannel,
 }
 
 impl ExtendedMetricsContest {
@@ -984,26 +985,47 @@ impl HasId for Candidate {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::{
+        ballot::VotingStatusChannel, types::tally_sheets::VotingChannel as TallySheetVotingChannel,
+    };
 
     #[test]
     fn extended_metrics_aggregate_channel_counts() {
         let left = ExtendedMetricsContest {
-            votes_by_channel: BTreeMap::from([
-                ("ONLINE".to_string(), 3),
-                ("TELEPHONE".to_string(), 1),
+            votes_by_channel: VotesByChannel::from([
+                (VotingStatusChannel::ONLINE.into(), 3),
+                (VotingStatusChannel::TELEPHONE.into(), 1),
             ]),
             ..Default::default()
         };
         let right = ExtendedMetricsContest {
-            votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 2), ("PAPER".to_string(), 4)]),
+            votes_by_channel: VotesByChannel::from([
+                (VotingStatusChannel::ONLINE.into(), 2),
+                (TallySheetVotingChannel::PAPER.into(), 4),
+            ]),
             ..Default::default()
         };
 
         let aggregate = left.aggregate(&right);
 
-        assert_eq!(aggregate.votes_by_channel.get("ONLINE"), Some(&5));
-        assert_eq!(aggregate.votes_by_channel.get("TELEPHONE"), Some(&1));
-        assert_eq!(aggregate.votes_by_channel.get("PAPER"), Some(&4));
+        assert_eq!(
+            aggregate
+                .votes_by_channel
+                .get(&VotingStatusChannel::ONLINE.into()),
+            Some(&5)
+        );
+        assert_eq!(
+            aggregate
+                .votes_by_channel
+                .get(&VotingStatusChannel::TELEPHONE.into()),
+            Some(&1)
+        );
+        assert_eq!(
+            aggregate
+                .votes_by_channel
+                .get(&TallySheetVotingChannel::PAPER.into()),
+            Some(&4)
+        );
     }
 
     #[test]
@@ -1013,7 +1035,7 @@ mod tests {
             total_votes: 1,
             auditable_votes: 1,
             extended_metrics: Some(ExtendedMetricsContest {
-                votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 2)]),
+                votes_by_channel: VotesByChannel::from([(VotingStatusChannel::ONLINE.into(), 2)]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -1031,11 +1053,17 @@ mod tests {
         let votes_by_channel_map = HashMap::from([
             (
                 "parent".to_string(),
-                Some(BTreeMap::from([("ONLINE".to_string(), 2)])),
+                Some(VotesByChannel::from([(
+                    VotingStatusChannel::ONLINE.into(),
+                    2,
+                )])),
             ),
             (
                 "contest-child".to_string(),
-                Some(BTreeMap::from([("TELEPHONE".to_string(), 1)])),
+                Some(VotesByChannel::from([(
+                    VotingStatusChannel::TELEPHONE.into(),
+                    1,
+                )])),
             ),
         ]);
 
@@ -1044,8 +1072,11 @@ mod tests {
                 .unwrap();
 
         assert!(all_inputs_present);
-        assert_eq!(aggregate.get("ONLINE"), Some(&2));
-        assert_eq!(aggregate.get("TELEPHONE"), Some(&1));
+        assert_eq!(aggregate.get(&VotingStatusChannel::ONLINE.into()), Some(&2));
+        assert_eq!(
+            aggregate.get(&VotingStatusChannel::TELEPHONE.into()),
+            Some(&1)
+        );
     }
 
     #[test]
@@ -1053,7 +1084,10 @@ mod tests {
         let votes_by_channel_map = HashMap::from([
             (
                 "parent".to_string(),
-                Some(BTreeMap::from([("ONLINE".to_string(), 2)])),
+                Some(VotesByChannel::from([(
+                    VotingStatusChannel::ONLINE.into(),
+                    2,
+                )])),
             ),
             ("legacy-child".to_string(), None),
         ]);
@@ -1072,7 +1106,7 @@ mod tests {
             auditable_votes: 1,
             extended_metrics: Some(ExtendedMetricsContest {
                 total_declined_to_vote: 1,
-                votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 6)]),
+                votes_by_channel: VotesByChannel::from([(VotingStatusChannel::ONLINE.into(), 6)]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -1098,7 +1132,7 @@ mod tests {
         let result = ContestResult {
             total_votes: 2,
             extended_metrics: Some(ExtendedMetricsContest {
-                votes_by_channel: BTreeMap::from([("ONLINE".to_string(), 1)]),
+                votes_by_channel: VotesByChannel::from([(VotingStatusChannel::ONLINE.into(), 1)]),
                 ..Default::default()
             }),
             ..Default::default()

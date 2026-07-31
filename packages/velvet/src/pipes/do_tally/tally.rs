@@ -16,11 +16,12 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::types::{
     ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
     hasura::core::TallySheet,
+    participation::{ParticipationChannel, VotesByChannel},
     tally_sheets::{TallySheetStatus, VotingChannel},
 };
 use serde_json::Value;
 use std::cmp;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
@@ -322,7 +323,8 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 
     let total_votes = count_valid + count_invalid;
     let channel: VotingChannel = tally_sheet.channel.clone().into();
-    let votes_by_channel = BTreeMap::from([(channel.to_string(), total_votes)]);
+    let votes_by_channel =
+        VotesByChannel::from([(ParticipationChannel::from(channel), total_votes)]);
 
     let contest_result = ContestResult {
         contest: contest.clone(),
@@ -476,10 +478,11 @@ mod tests {
         assert_eq!(result.candidate_result[0].total_count, 4);
         assert_eq!(result.candidate_result[0].percentage_votes, 100.0);
         assert_eq!(
-            result
-                .extended_metrics
-                .as_ref()
-                .and_then(|metrics| metrics.votes_by_channel.get("PAPER")),
+            result.extended_metrics.as_ref().and_then(|metrics| {
+                metrics
+                    .votes_by_channel
+                    .get(&ParticipationChannel::from(VotingChannel::PAPER))
+            }),
             Some(&7)
         );
     }

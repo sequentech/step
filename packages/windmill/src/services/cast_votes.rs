@@ -302,8 +302,14 @@ impl VotesTimeResolution {
 pub struct CastVotesPerDay {
     pub day: String,
     pub bucket: String,
-    pub channel: String,
+    pub channel: VotingStatusChannel,
     pub day_count: i64,
+}
+
+fn voting_status_channel_from_row(item: &Row) -> Result<VotingStatusChannel> {
+    let channel = item.try_get::<_, String>("channel")?;
+    VotingStatusChannel::from_str(&channel)
+        .map_err(|error| anyhow!("Invalid voting channel {channel}: {error}"))
 }
 
 impl TryFrom<Row> for CastVotesPerDay {
@@ -315,7 +321,7 @@ impl TryFrom<Row> for CastVotesPerDay {
                 .try_get::<_, NaiveDateTime>("bucket")?
                 .format("%Y-%m-%dT%H:%M:%S")
                 .to_string(),
-            channel: item.try_get("channel")?,
+            channel: voting_status_channel_from_row(&item)?,
             day_count: item.try_get::<_, i64>("day_count")?,
         })
     }
@@ -323,7 +329,7 @@ impl TryFrom<Row> for CastVotesPerDay {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotersByChannel {
-    pub channel: String,
+    pub channel: VotingStatusChannel,
     pub count: i64,
 }
 
@@ -332,7 +338,7 @@ impl TryFrom<Row> for VotersByChannel {
 
     fn try_from(item: Row) -> Result<Self> {
         Ok(VotersByChannel {
-            channel: item.try_get("channel")?,
+            channel: voting_status_channel_from_row(&item)?,
             count: item.try_get("count")?,
         })
     }
@@ -1015,13 +1021,15 @@ mod tests {
     const ELECTION_EVENT_ID: &str = "10000000-0000-4000-8000-000000000002";
     const ELECTION_ID: &str = "10000000-0000-4000-8000-000000000003";
 
-    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<String, i64> {
+    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<VotingStatusChannel, i64> {
         rows.into_iter()
             .map(|row| (row.channel, row.count))
             .collect()
     }
 
-    fn counts_by_day_and_channel(rows: Vec<CastVotesPerDay>) -> HashMap<(String, String), i64> {
+    fn counts_by_day_and_channel(
+        rows: Vec<CastVotesPerDay>,
+    ) -> HashMap<(String, VotingStatusChannel), i64> {
         rows.into_iter()
             .map(|row| ((row.day, row.channel), row.day_count))
             .collect()
@@ -1105,9 +1113,9 @@ mod tests {
             .await
             .unwrap(),
         );
-        assert_eq!(event_counts.get("ONLINE"), Some(&2));
-        assert_eq!(event_counts.get("KIOSK"), Some(&1));
-        assert_eq!(event_counts.get("TELEPHONE"), Some(&1));
+        assert_eq!(event_counts.get(&VotingStatusChannel::ONLINE), Some(&2));
+        assert_eq!(event_counts.get(&VotingStatusChannel::KIOSK), Some(&1));
+        assert_eq!(event_counts.get(&VotingStatusChannel::TELEPHONE), Some(&1));
 
         let election_counts = counts_by_channel(
             get_count_distinct_voters_by_channel_from_relation(
@@ -1120,9 +1128,12 @@ mod tests {
             .await
             .unwrap(),
         );
-        assert_eq!(election_counts.get("ONLINE"), Some(&1));
-        assert_eq!(election_counts.get("KIOSK"), Some(&1));
-        assert_eq!(election_counts.get("TELEPHONE"), Some(&1));
+        assert_eq!(election_counts.get(&VotingStatusChannel::ONLINE), Some(&1));
+        assert_eq!(election_counts.get(&VotingStatusChannel::KIOSK), Some(&1));
+        assert_eq!(
+            election_counts.get(&VotingStatusChannel::TELEPHONE),
+            Some(&1)
+        );
 
         let votes_per_day = counts_by_day_and_channel(
             get_count_votes_per_day_from_relation(
@@ -1141,19 +1152,19 @@ mod tests {
             .unwrap(),
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-01".to_string(), "ONLINE".to_string())),
+            votes_per_day.get(&("2026-01-01".to_string(), VotingStatusChannel::ONLINE)),
             Some(&2)
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-01".to_string(), "KIOSK".to_string())),
+            votes_per_day.get(&("2026-01-01".to_string(), VotingStatusChannel::KIOSK)),
             Some(&2)
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-02".to_string(), "TELEPHONE".to_string())),
+            votes_per_day.get(&("2026-01-02".to_string(), VotingStatusChannel::TELEPHONE)),
             Some(&1)
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-03".to_string(), "ONLINE".to_string())),
+            votes_per_day.get(&("2026-01-03".to_string(), VotingStatusChannel::ONLINE)),
             Some(&0)
         );
 

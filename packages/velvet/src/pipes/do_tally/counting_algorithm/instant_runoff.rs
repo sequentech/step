@@ -758,7 +758,7 @@ impl CountingAlgorithm for InstantRunoff {
 mod tests {
     use super::*;
     use sequent_core::ballot::CandidatePresentation;
-    use std::collections::BTreeMap;
+    use sequent_core::types::{participation::VotesByChannel, tally_sheets::VotingChannel};
 
     fn candidate(id: &str, is_explicit_blank: bool) -> Candidate {
         Candidate {
@@ -948,7 +948,7 @@ mod tests {
                 total_count: 2,
             }],
             extended_metrics: Some(ExtendedMetricsContest {
-                votes_by_channel: BTreeMap::from([("PAPER".to_string(), 2)]),
+                votes_by_channel: VotesByChannel::from([(VotingChannel::PAPER.into(), 2)]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -972,7 +972,7 @@ mod tests {
             result
                 .extended_metrics
                 .as_ref()
-                .and_then(|metrics| metrics.votes_by_channel.get("PAPER")),
+                .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
             Some(&2)
         );
     }

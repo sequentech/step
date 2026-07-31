@@ -13,7 +13,7 @@ use sequent_core::{
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
     sqlite::results_election_area,
-    types::{ceremonies::TallyType, to_map::ToMap},
+    types::{ceremonies::TallyType, participation::ParticipationChannel, to_map::ToMap},
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
@@ -938,27 +938,7 @@ fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByC
                 .filter(|(_, total)| **total > 0)
                 .map(|(channel, total)| ParticipationByChannelRow {
                     channel: channel.clone(),
-                    label: match channel.as_str() {
-                        "ONLINE" => "Online".to_string(),
-                        "KIOSK" => "Kiosk".to_string(),
-                        "EARLY_VOTING" => "Early voting".to_string(),
-                        "TELEPHONE" => "Telephone".to_string(),
-                        "PAPER" => "Paper".to_string(),
-                        "POSTAL" => "Postal".to_string(),
-                        "IN_PERSON" => "In person".to_string(),
-                        _ => channel
-                            .split('_')
-                            .filter(|part| !part.is_empty())
-                            .map(|part| {
-                                let mut chars = part.to_lowercase().chars().collect::<Vec<_>>();
-                                if let Some(first) = chars.first_mut() {
-                                    first.make_ascii_uppercase();
-                                }
-                                chars.into_iter().collect::<String>()
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                    },
+                    label: channel.report_label().into_owned(),
                     total: *total,
                     percentage: percentage_of(*total, total_channel_votes),
                 })
@@ -966,21 +946,7 @@ fn participation_by_channel_rows(result: &ContestResult) -> Vec<ParticipationByC
         })
         .unwrap_or_default();
 
-    rows.sort_by(|left, right| {
-        let order = |channel: &str| match channel {
-            "ONLINE" => 0,
-            "KIOSK" => 1,
-            "EARLY_VOTING" => 2,
-            "TELEPHONE" => 3,
-            "PAPER" => 4,
-            "POSTAL" => 5,
-            "IN_PERSON" => 6,
-            _ => usize::MAX,
-        };
-        order(&left.channel)
-            .cmp(&order(&right.channel))
-            .then_with(|| left.channel.cmp(&right.channel))
-    });
+    rows.sort_by(|left, right| left.channel.cmp(&right.channel));
     rows
 }
 
@@ -1420,7 +1386,7 @@ pub struct ReportDataComputed {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ParticipationByChannelRow {
-    pub channel: String,
+    pub channel: ParticipationChannel,
     pub label: String,
     pub total: u64,
     pub percentage: f64,
@@ -1523,7 +1489,12 @@ fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: Candidate
 mod participation_by_channel_tests {
     use super::*;
     use crate::pipes::do_tally::ExtendedMetricsContest;
-    use std::collections::BTreeMap;
+    use sequent_core::{
+        ballot::VotingStatusChannel,
+        types::{
+            participation::VotesByChannel, tally_sheets::VotingChannel as TallySheetVotingChannel,
+        },
+    };
 
     fn report_with_channels(
         participation_by_channel: Vec<ParticipationByChannelRow>,
@@ -1556,13 +1527,16 @@ mod participation_by_channel_tests {
         let result = ContestResult {
             census: 20,
             extended_metrics: Some(ExtendedMetricsContest {
-                votes_by_channel: BTreeMap::from([
-                    ("AA".to_string(), 1),
-                    ("A_B".to_string(), 1),
-                    ("FUTURE_CHANNEL".to_string(), 2),
-                    ("ONLINE".to_string(), 5),
-                    ("PAPER".to_string(), 3),
-                    ("POSTAL".to_string(), 0),
+                votes_by_channel: VotesByChannel::from([
+                    (ParticipationChannel::Unknown("AA".to_string()), 1),
+                    (ParticipationChannel::Unknown("A_B".to_string()), 1),
+                    (
+                        ParticipationChannel::Unknown("FUTURE_CHANNEL".to_string()),
+                        2,
+                    ),
+                    (VotingStatusChannel::ONLINE.into(), 5),
+                    (TallySheetVotingChannel::PAPER.into(), 3),
+                    (TallySheetVotingChannel::POSTAL.into(), 0),
                 ]),
                 ..Default::default()
             }),
@@ -1588,9 +1562,9 @@ mod participation_by_channel_tests {
             let result = ContestResult {
                 census,
                 extended_metrics: Some(ExtendedMetricsContest {
-                    votes_by_channel: BTreeMap::from([
-                        ("ONLINE".to_string(), 3),
-                        ("PAPER".to_string(), 1),
+                    votes_by_channel: VotesByChannel::from([
+                        (VotingStatusChannel::ONLINE.into(), 3),
+                        (TallySheetVotingChannel::PAPER.into(), 1),
                     ]),
                     ..Default::default()
                 }),
@@ -1607,7 +1581,7 @@ mod participation_by_channel_tests {
     #[test]
     fn serializes_channel_participation_into_report_json() {
         let report = report_with_channels(vec![ParticipationByChannelRow {
-            channel: "ONLINE".to_string(),
+            channel: VotingStatusChannel::ONLINE.into(),
             label: "Online".to_string(),
             total: 5,
             percentage: 25.0,

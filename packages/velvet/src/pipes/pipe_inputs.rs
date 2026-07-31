@@ -10,11 +10,12 @@ use crate::{
 use sequent_core::{
     ballot::{BallotStyle, Contest, ElectionPresentation, ReportDates, StringifiedPeriodDates},
     services::area_tree::TreeNodeArea,
+    types::participation::VotesByChannel,
     util::path::get_folder_name,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -394,7 +395,7 @@ pub struct AreaConfig {
     pub parent_id: Option<Uuid>,
     pub auditable_votes: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub votes_by_channel: Option<BTreeMap<String, u64>>,
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 impl Into<TreeNodeArea> for &AreaConfig {

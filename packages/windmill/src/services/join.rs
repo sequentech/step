@@ -4,7 +4,8 @@
 
 use anyhow::{anyhow, ensure, Result};
 use csv::{ReaderBuilder, StringRecord};
-use std::{cmp::Ordering, collections::BTreeMap, fs::File};
+use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
+use std::{cmp::Ordering, fs::File};
 use tracing::{info, instrument};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -13,11 +14,11 @@ pub struct MergeJoinResult {
     pub eligible_voters: u64,
     pub ballots_without_voter: u64,
     pub casted_ballots: u64,
-    pub casted_ballots_by_channel: BTreeMap<String, u64>,
+    pub casted_ballots_by_channel: VotesByChannel,
 }
 
 fn count_ballot_channel(
-    counts: &mut BTreeMap<String, u64>,
+    counts: &mut VotesByChannel,
     ballot: &StringRecord,
     channel_index: Option<usize>,
     count: u64,
@@ -29,7 +30,9 @@ fn count_ballot_channel(
         .get(channel_index)
         .filter(|channel| !channel.is_empty())
         .ok_or_else(|| anyhow!("Ballot channel column {channel_index} is missing or empty"))?;
-    *counts.entry(channel.to_string()).or_default() += count;
+    *counts
+        .entry(ParticipationChannel::from(channel))
+        .or_default() += count;
     Ok(())
 }
 
@@ -50,7 +53,7 @@ pub fn merge_join_csv(
     let mut ballots_without_voter: u64 = 0;
     let mut elegible_voters: u64 = 0;
     let mut casted_ballots: u64 = 0;
-    let mut casted_ballots_by_channel = BTreeMap::new();
+    let mut casted_ballots_by_channel = VotesByChannel::new();
 
     // Assume the CSV files do not have headers.
     let mut ballots_reader = ReaderBuilder::new()
@@ -228,6 +231,7 @@ pub fn merge_join_csv(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::ballot::VotingStatusChannel;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -710,9 +714,24 @@ mod tests {
         assert_eq!(result.ballot_contents.len(), 4);
         assert_eq!(result.casted_ballots, 5);
         assert_eq!(result.ballots_without_voter, 1);
-        assert_eq!(result.casted_ballots_by_channel.get("ONLINE"), Some(&3));
-        assert_eq!(result.casted_ballots_by_channel.get("TELEPHONE"), Some(&1));
-        assert_eq!(result.casted_ballots_by_channel.get("KIOSK"), Some(&1));
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::ONLINE.into()),
+            Some(&3)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::TELEPHONE.into()),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::KIOSK.into()),
+            Some(&1)
+        );
         assert_eq!(
             result
                 .casted_ballots_by_channel

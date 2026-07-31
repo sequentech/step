@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
-use std::{collections::BTreeMap, str::FromStr};
+use std::str::FromStr;
 
 use crate::{
     ballot::{
@@ -19,6 +19,7 @@ use crate::{
             AutomaticRecountPolicy, CeremoniesPolicy,
             KeysCeremonyExecutionStatus, KeysCeremonyStatus,
         },
+        participation::VotesByChannel,
         tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
@@ -444,7 +445,7 @@ pub struct TallySessionContestAnnotations {
     pub ballots_without_voter: u64,
     pub casted_ballots: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub votes_by_channel: Option<BTreeMap<String, u64>>,
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -542,7 +543,7 @@ mod tally_session_contest_annotations_tests {
             elegible_voters: 0,
             ballots_without_voter: 0,
             casted_ballots: 0,
-            votes_by_channel: Some(BTreeMap::new()),
+            votes_by_channel: Some(VotesByChannel::new()),
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
