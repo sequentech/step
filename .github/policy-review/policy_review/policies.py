@@ -177,12 +177,6 @@ def load_policies(
     return policies, source
 
 
-def policy_files_touched(changed_paths: list[str], policies_path: str) -> list[str]:
-    """Which of ``changed_paths`` live inside the policies directory."""
-    prefix = policies_path.strip("/") + "/"
-    return sorted(p for p in changed_paths if p.startswith(prefix))
-
-
 def render_for_prompt(policies: list[Policy]) -> str:
     """Render policies into the block injected into the system prompt."""
     if not policies:

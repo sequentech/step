@@ -13,6 +13,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from .guard import DEFAULT_GUARDED_PATHS
+
 # Ordered from least to most serious. A violation blocks when its severity is at
 # or above the configured threshold.
 SEVERITIES = ("info", "warning", "blocker")
@@ -24,12 +26,12 @@ DEFAULT_MAX_DIFF_BYTES = 400_000
 DEFAULT_FAIL_ON_SEVERITY = "blocker"
 
 DEFAULT_SLACK_MESSAGE_PROMPT = (
-    "Write a short Slack alert for the engineering channel about the policy "
-    "violations found in this pull request. Open with one sentence naming what "
-    "boundary was crossed, then list at most three concrete violations as "
-    "bullets, each naming the file. Close with the pull request link on its own "
-    "line. Plain text with Slack mrkdwn only; no headings, no preamble, no "
-    "sign-off. Keep it under 900 characters."
+    "Write a short Slack alert for the engineering channel about this policy "
+    "review result. Open with one sentence naming what happened — a boundary "
+    "crossed, the policy review system itself changed, or both. Then list at "
+    "most three concrete items as bullets, each naming the file. Close with the "
+    "pull request link on its own line. Plain text with Slack mrkdwn only; no "
+    "headings, no preamble, no sign-off. Keep it under 900 characters."
 )
 
 
@@ -44,6 +46,20 @@ def _clean(name: str, default: str = "") -> str:
         return default
     value = value.strip()
     return value if value else default
+
+
+def _lines(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """Read a newline- or comma-separated list, falling back to ``default``."""
+    raw = _clean(name)
+    if not raw:
+        return default
+    parts = [
+        piece.strip()
+        for line in raw.splitlines()
+        for piece in line.split(",")
+        if piece.strip()
+    ]
+    return tuple(parts) or default
 
 
 def _int(name: str, default: int) -> int:
@@ -77,6 +93,7 @@ class Config:
     effort: str = DEFAULT_EFFORT
     max_diff_bytes: int = DEFAULT_MAX_DIFF_BYTES
     fail_on_severity: str = DEFAULT_FAIL_ON_SEVERITY
+    guarded_paths: tuple[str, ...] = DEFAULT_GUARDED_PATHS
 
     # Where to shout about it
     slack_channel: str = ""
@@ -165,6 +182,7 @@ def from_env() -> Config:
         effort=effort,
         max_diff_bytes=_int("POLICY_MAX_DIFF_BYTES", DEFAULT_MAX_DIFF_BYTES),
         fail_on_severity=fail_on,
+        guarded_paths=_lines("POLICY_GUARDED_PATHS", DEFAULT_GUARDED_PATHS),
         slack_channel=_clean("POLICY_SLACK_CHANNEL"),
         slack_message_prompt=_clean(
             "POLICY_SLACK_MESSAGE_PROMPT", DEFAULT_SLACK_MESSAGE_PROMPT

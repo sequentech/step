@@ -14,7 +14,6 @@ from policy_review.policies import (
     Policy,
     PolicyLoadError,
     load_policies,
-    policy_files_touched,
     render_for_prompt,
 )
 
@@ -143,25 +142,6 @@ class LoadPoliciesTests(GitRepoTestCase):
             with self.subTest(path=escaping):
                 with self.assertRaises(PolicyLoadError):
                     load_policies(escaping, "", self.repo)
-
-
-class TouchedPolicyFileTests(unittest.TestCase):
-    def test_detects_edits_inside_the_policies_directory(self):
-        changed = [
-            "src/main.py",
-            ".github/policies/10-scope.md",
-            ".github/policies/nested/20-more.md",
-            ".github/policies-other/30-decoy.md",
-        ]
-        self.assertEqual(
-            policy_files_touched(changed, ".github/policies"),
-            [".github/policies/10-scope.md", ".github/policies/nested/20-more.md"],
-        )
-
-    def test_returns_nothing_when_policies_are_untouched(self):
-        self.assertEqual(
-            policy_files_touched(["src/main.py"], ".github/policies"), []
-        )
 
 
 class RenderForPromptTests(unittest.TestCase):

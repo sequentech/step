@@ -8,6 +8,7 @@ from __future__ import annotations
 import unittest
 
 from policy_review.context import LinkedIssue, PullRequestContext
+from policy_review.guard import GuardHit
 from policy_review.prompts import (
     build_slack_prompt,
     build_system_prompt,
@@ -57,7 +58,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         for tag in (
             "untrusted_pr_title",
@@ -81,7 +82,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         # The literal closing tag is defanged, so exactly one real close remains.
         self.assertEqual(prompt.count("</untrusted_diff>"), 1)
@@ -102,7 +103,7 @@ class UserPromptFencingTests(unittest.TestCase):
                     repository="example-org/example-repo",
                     repo_type="",
                     policies_source="origin/main",
-                    touched_policy_files=[],
+                    guard_hits=[],
                 )
                 # Only the real fence closes the region.
                 closings = sum(
@@ -121,7 +122,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         self.assertEqual(prompt.count("</untrusted_pr_title>"), 1)
         self.assertEqual(prompt.count("</untrusted_pr_description>"), 1)
@@ -133,7 +134,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="Deployment configuration only",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         self.assertIn("Deployment configuration only", prompt)
 
@@ -143,7 +144,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         self.assertNotIn("Repository role", prompt)
 
@@ -153,20 +154,37 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         self.assertIn("truncated", prompt)
 
-    def test_flags_self_modified_policies(self):
+    def test_flags_a_change_to_the_policy_review_system(self):
         prompt = build_user_prompt(
             make_pr(),
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[".github/policies/10-scope.md"],
+            guard_hits=[
+                GuardHit(path=".github/policy-review/runner.py", reason="engine code")
+            ],
         )
-        self.assertIn("edits its own policy files", prompt)
-        self.assertIn(".github/policies/10-scope.md", prompt)
+        self.assertIn("changes the policy review system itself", prompt)
+        self.assertIn(".github/policy-review/runner.py", prompt)
+        # Maintaining the system is allowed; only a real breach is a violation.
+        self.assertIn("Do not report it as a violation on its own", prompt)
+
+    def test_flags_self_modified_policies_separately(self):
+        prompt = build_user_prompt(
+            make_pr(),
+            repository="example-org/example-repo",
+            repo_type="",
+            policies_source="origin/main",
+            guard_hits=[
+                GuardHit(path=".github/policies/10-scope.md", reason="policy file")
+            ],
+        )
+        self.assertIn("the policy files themselves are edited here", prompt)
+        self.assertIn("target branch", prompt)
 
     def test_includes_a_resolved_linked_issue_as_background(self):
         prompt = build_user_prompt(
@@ -182,7 +200,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         self.assertIn("<untrusted_linked_issue>", prompt)
         self.assertIn("Do the thing", prompt)
@@ -197,7 +215,7 @@ class UserPromptFencingTests(unittest.TestCase):
             repository="example-org/example-repo",
             repo_type="",
             policies_source="origin/main",
-            touched_policy_files=[],
+            guard_hits=[],
         )
         self.assertIn("content unavailable", prompt)
         self.assertNotIn("<untrusted_linked_issue>", prompt)
@@ -235,6 +253,46 @@ class SlackPromptTests(unittest.TestCase):
             violations=[{}],
         )
         self.assertIn("unknown", prompt)
+
+    def test_leads_with_the_system_change_when_one_happened(self):
+        prompt = build_slack_prompt(
+            message_prompt="Style.",
+            repository="example-org/example-repo",
+            pr_number=7,
+            pr_title="Title",
+            summary="Reviewed.",
+            violations=[],
+            guard_hits=[
+                GuardHit(path=".github/policies/10-scope.md", reason="policy file")
+            ],
+        )
+        self.assertIn("Changes the policy review system itself: yes", prompt)
+        self.assertIn("Lead the message with that", prompt)
+        self.assertIn(".github/policies/10-scope.md", prompt)
+
+    def test_says_the_review_passed_when_there_are_no_violations(self):
+        prompt = build_slack_prompt(
+            message_prompt="Style.",
+            repository="example-org/example-repo",
+            pr_number=7,
+            pr_title="Title",
+            summary="Reviewed.",
+            violations=[],
+            guard_hits=[GuardHit(path="x", reason="engine code")],
+        )
+        # A "system changed" alert must not read as "something is broken".
+        self.assertIn("Do not imply that anything is broken", prompt)
+
+    def test_records_the_absence_of_a_system_change(self):
+        prompt = build_slack_prompt(
+            message_prompt="Style.",
+            repository="example-org/example-repo",
+            pr_number=7,
+            pr_title="Title",
+            summary="Reviewed.",
+            violations=[{"path": "a", "explanation": "b"}],
+        )
+        self.assertIn("Changes the policy review system itself: no", prompt)
 
 
 if __name__ == "__main__":

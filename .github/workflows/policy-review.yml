@@ -75,6 +75,17 @@ on:
         type: string
         required: false
         default: blocker
+      guarded_paths:
+        description: >-
+          Newline- or comma-separated paths belonging to the policy review
+          system itself. A pull request touching one gets a prominent notice and
+          always triggers a Slack alert, even when the review otherwise passes,
+          because such a change can weaken enforcement for everything that
+          follows. The configured policies_path is always guarded in addition to
+          these. Empty uses the built-in list.
+        type: string
+        required: false
+        default: ""
       pr_number:
         description: >-
           Pull request to review. Only needed for workflow_dispatch runs; on a
@@ -259,6 +270,7 @@ jobs:
           POLICY_EFFORT: ${{ inputs.effort }}
           POLICY_MAX_DIFF_BYTES: ${{ inputs.max_diff_bytes }}
           POLICY_FAIL_ON_SEVERITY: ${{ inputs.fail_on_severity }}
+          POLICY_GUARDED_PATHS: ${{ inputs.guarded_paths }}
           POLICY_SLACK_CHANNEL: ${{ inputs.slack_channel }}
           POLICY_SLACK_MESSAGE_PROMPT: ${{ inputs.slack_message_prompt }}
         run: python -m policy_review

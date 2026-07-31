@@ -107,6 +107,15 @@ passes and says so — it never fails a repository for not having opted in yet.
 Keep callers thin. Triggers, path filters and the values above are the caller's
 business; everything else belongs in the shared workflow.
 
+> [!WARNING]
+> **A `paths-ignore` filter must never be able to match a guarded path.**
+> Policy files are Markdown, so a blanket `paths-ignore: "**/*.md"` skips the
+> check entirely for a pull request that guts a policy — the one change that
+> most needs reviewing. GitHub does not support negation in `paths-ignore`, so
+> keep any filter narrow and specific (`docs/**`) rather than broad. If in
+> doubt, use no filter: a review costs one model call, and a hole in the guard
+> costs the whole check.
+
 ### Inputs
 
 | Input | Default | What it does |
@@ -116,6 +125,7 @@ business; everything else belongs in the shared workflow.
 | `model` | `claude-opus-5` | Model used for the review |
 | `effort` | `high` | `low`, `medium`, `high`, `xhigh` or `max` |
 | `fail_on_severity` | `blocker` | Lowest severity that fails the check |
+| `guarded_paths` | built-in list | Files belonging to the policy review system itself — see [Self-protection](#self-protection) |
 | `max_diff_bytes` | `400000` | Larger diffs are truncated, and the comment says so |
 | `slack_channel` | `""` | Channel ID for alerts; empty disables Slack |
 | `slack_message_prompt` | built-in | House style for the generated alert |
@@ -155,6 +165,44 @@ to ignore a check.
 Findings cite policies by id, so filenames are part of the interface. Renaming
 one changes what future comments cite.
 
+## Self-protection
+
+Every policy asks "is this change allowed?". One check asks a different
+question: **"does this change alter the thing that decides what is allowed?"**
+
+A pull request that edits the policies, the caller workflow, the reusable
+workflow or the engine can weaken or disable enforcement for every pull request
+that follows — quietly, in a diff that looks like routine maintenance. Deleting
+a policy file is the clearest example, and it is a one-line change.
+
+So when a pull request touches any of these:
+
+```
+.github/policies/**                        (whatever policies_path is set to)
+.github/workflows/policy-check.yml
+.github/workflows/policy-review.yml
+.github/workflows/policy-review-tests.yml
+.github/policy-review/**
+```
+
+…three things happen regardless of the verdict:
+
+1. **A warning banner is placed above the verdict** in the pull request comment,
+   naming each touched file and what it is. It sits above deliberately: a change
+   to the machinery outranks the verdict that machinery just produced.
+2. **A Slack alert is sent**, even when the review passes with no violations,
+   and even when the review could not run at all. A failed review of a change to
+   the machinery is the worst case to stay silent about.
+3. **The reviewer is told**, and asked to describe in its summary what the
+   change does to the system's ability to do its job.
+
+It is a **notice, not a block**. The system has to be maintainable, so this is
+not treated as a violation on its own — only as something that must never pass
+unremarked. A real breach is still reported as a violation in the normal way.
+
+`guarded_paths` overrides the list above (newline- or comma-separated).
+`policies_path` is always guarded whether or not it appears there.
+
 ## What it does with what it finds
 
 - **Always** — updates a single comment on the pull request. Repeated pushes
@@ -162,8 +210,9 @@ one changes what future comments cite.
 - **Blocking violations, once the pull request is marked ready for review** —
   submits a formal "changes requested" review. If GitHub declines (nobody may
   review their own pull request), the comment stands on its own.
-- **Any violation, if Slack is configured** — posts one alert to the channel,
-  with the text generated from `slack_message_prompt`.
+- **Any violation, or any change to the system itself, if Slack is configured** —
+  posts one alert to the channel, with the text generated from
+  `slack_message_prompt`.
 - **Clean** — a short "all policies passed" note.
 - **Could not run** — an explicit "this is not a pass" comment. A review that
   failed must never look like one that succeeded.

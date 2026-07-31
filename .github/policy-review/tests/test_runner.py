@@ -198,6 +198,110 @@ class FailurePathTests(RunnerTestCase):
         self.assertIn("***", body)
 
 
+class SystemSelfProtectionTests(RunnerTestCase):
+    """Touching the policy machinery is always surfaced and always announced."""
+
+    SYSTEM_CHANGE = pr_context(
+        changed_paths=[
+            "unified/client-apps/prod1/dev/values.yaml",
+            ".github/policies/10-scope.md",
+        ]
+    )
+
+    def slack_config(self) -> Config:
+        return config(slack_channel="C1", slack_bot_token="xoxb-token")
+
+    def touch_the_system(self):
+        self._patch(runner, "_build_pr_context", return_value=self.SYSTEM_CHANGE)
+
+    def test_alerts_slack_even_when_the_review_passes(self):
+        self.touch_the_system()
+
+        self.assertEqual(self.run_with(self.slack_config()), EXIT_OK)
+
+        self.post_message.assert_called_once()
+
+    def test_the_passing_comment_still_carries_the_notice(self):
+        self.touch_the_system()
+
+        self.run_with(self.slack_config())
+
+        body = self.client.upsert_comment.call_args[0][1]
+        self.assertIn("changes the policy review system itself", body)
+        self.assertIn(".github/policies/10-scope.md", body)
+
+    def test_the_generated_alert_is_told_about_the_change(self):
+        self.touch_the_system()
+
+        self.run_with(self.slack_config())
+
+        prompt = self.slack_message.call_args.kwargs["user_prompt"]
+        self.assertIn("Changes the policy review system itself: yes", prompt)
+
+    def test_falls_back_to_a_plain_alert_naming_the_files(self):
+        self.touch_the_system()
+        self.slack_message.return_value = ""
+
+        self.run_with(self.slack_config())
+
+        text = self.post_message.call_args.kwargs["text"]
+        self.assertIn("Policy review system changed", text)
+        self.assertIn(".github/policies/10-scope.md", text)
+        self.assertIn("The review itself passed", text)
+
+    def test_alerts_even_when_the_review_could_not_run(self):
+        # No verdict and the machinery moved — the worst case to stay quiet on.
+        self.touch_the_system()
+        self.review.side_effect = ModelError("the model was unreachable")
+
+        self.assertEqual(self.run_with(self.slack_config()), EXIT_ERROR)
+
+        self.post_message.assert_called_once()
+        body = self.client.upsert_comment.call_args[0][1]
+        self.assertIn("changes the policy review system itself", body)
+
+    def test_engine_and_workflow_changes_count_too(self):
+        for path in (
+            ".github/workflows/policy-check.yml",
+            ".github/workflows/policy-review.yml",
+            ".github/policy-review/policy_review/verdict.py",
+        ):
+            with self.subTest(path=path):
+                self.post_message.reset_mock()
+                self._patch(
+                    runner,
+                    "_build_pr_context",
+                    return_value=pr_context(changed_paths=[path]),
+                )
+                self.run_with(self.slack_config())
+                self.post_message.assert_called_once()
+
+    def test_an_ordinary_passing_change_stays_silent(self):
+        self.assertEqual(self.run_with(self.slack_config()), EXIT_OK)
+        self.post_message.assert_not_called()
+
+    def test_says_why_it_stayed_silent_without_slack_configured(self):
+        self.touch_the_system()
+        self.assertEqual(self.run_with(config()), EXIT_OK)
+        self.post_message.assert_not_called()
+
+    def test_a_custom_guarded_path_is_honoured(self):
+        self._patch(
+            runner,
+            "_build_pr_context",
+            return_value=pr_context(changed_paths=["tooling/review/engine.py"]),
+        )
+        cfg = config(
+            slack_channel="C1",
+            slack_bot_token="xoxb-token",
+            guarded_paths=("tooling/review/**",),
+        )
+
+        self.run_with(cfg)
+
+        self.post_message.assert_called_once()
+
+
 class NoPolicyTests(RunnerTestCase):
     def test_succeeds_quietly_when_no_policies_are_configured(self):
         with mock.patch.object(

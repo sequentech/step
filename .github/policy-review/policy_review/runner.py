@@ -9,10 +9,12 @@ import sys
 from pathlib import Path
 
 from . import context as ctx
+from . import guard
 from . import model as model_api
 from . import policies as policy_loader
 from . import prompts, report, slack
 from .config import Config
+from .guard import GuardHit
 from .github_api import GitHubClient, GitHubError
 from .redact import redact
 from .verdict import Verdict, VerdictError, parse
@@ -84,7 +86,38 @@ def _build_pr_context(
     )
 
 
-def _notify_slack(config: Config, pr: ctx.PullRequestContext, verdict: Verdict) -> None:
+def _fallback_slack_text(
+    config: Config,
+    pr: ctx.PullRequestContext,
+    verdict: Verdict,
+    guard_hits: list[GuardHit],
+) -> str:
+    """A plain alert, used when the generated one is unavailable."""
+    link = f"https://github.com/{config.repository}/pull/{pr.number}"
+    if guard_hits and not verdict.violations:
+        headline = (
+            f"Policy review system changed in {config.repository} "
+            f"#{pr.number} — {pr.title}. The review itself passed."
+        )
+    elif guard_hits:
+        headline = (
+            f"Policy violations *and* a change to the policy review system in "
+            f"{config.repository} #{pr.number} — {pr.title}"
+        )
+    else:
+        headline = (
+            f"Policy violations in {config.repository} #{pr.number} — {pr.title}"
+        )
+    files = "".join(f"\n• {hit.path} ({hit.reason})" for hit in guard_hits[:5])
+    return f"{headline}{files}\n{link}"
+
+
+def _notify_slack(
+    config: Config,
+    pr: ctx.PullRequestContext,
+    verdict: Verdict,
+    guard_hits: list[GuardHit],
+) -> None:
     """Generate and post the Slack alert. Never raises."""
     prompt = prompts.build_slack_prompt(
         message_prompt=config.slack_message_prompt,
@@ -93,18 +126,15 @@ def _notify_slack(config: Config, pr: ctx.PullRequestContext, verdict: Verdict) 
         pr_title=pr.title,
         summary=verdict.summary,
         violations=[v.as_dict() for v in verdict.violations],
+        guard_hits=guard_hits,
     )
     text = model_api.slack_message(
         api_key=config.anthropic_api_key, model=config.model, user_prompt=prompt
     )
     if not text:
         # Falling back to a plain message is better than staying silent about a
-        # real violation.
-        text = (
-            f"Policy violations in {config.repository} "
-            f"#{pr.number} — {pr.title}\n"
-            f"https://github.com/{config.repository}/pull/{pr.number}"
-        )
+        # real violation, or about the machinery being changed.
+        text = _fallback_slack_text(config, pr, verdict, guard_hits)
     try:
         slack.post_message(
             token=config.slack_bot_token,
@@ -114,6 +144,30 @@ def _notify_slack(config: Config, pr: ctx.PullRequestContext, verdict: Verdict) 
         log(f"Slack alert posted to {config.slack_channel}.", config=config)
     except slack.SlackError as exc:
         log(f"Could not post the Slack alert: {exc}", config=config)
+
+
+def _alert_or_log(
+    config: Config,
+    pr: ctx.PullRequestContext,
+    verdict: Verdict,
+    guard_hits: list[GuardHit],
+) -> None:
+    """Send the Slack alert if there is anything to announce, or say why not."""
+    if not (verdict.violations or guard_hits):
+        return
+    if config.slack_enabled:
+        _notify_slack(config, pr, verdict, guard_hits)
+        return
+    log(
+        "Slack notification skipped: no channel or bot token configured. "
+        + (
+            "This pull request changes the policy review system itself, which "
+            "would otherwise have been announced."
+            if guard_hits
+            else ""
+        ),
+        config=config,
+    )
 
 
 def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int:
@@ -144,11 +198,13 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         config=config,
     )
 
-    touched = policy_loader.policy_files_touched(pr.changed_paths, config.policies_path)
-    if touched:
+    guard_hits = guard.find_hits(
+        pr.changed_paths, config.policies_path, config.guarded_paths
+    )
+    if guard_hits:
         log(
-            "This pull request edits policy files; reviewing against the target "
-            "branch's version of them.",
+            "This pull request changes the policy review system itself: "
+            + ", ".join(str(hit) for hit in guard_hits),
             config=config,
         )
 
@@ -158,7 +214,7 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         repository=config.repository,
         repo_type=config.repo_type,
         policies_source=source,
-        touched_policy_files=touched,
+        guard_hits=guard_hits,
     )
 
     try:
@@ -174,12 +230,18 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         reason = redact(str(exc), config.secrets())
         log(f"Policy review failed: {reason}", config=config)
         try:
-            client.upsert_comment(pr.number, report.render_error_comment(reason))
+            client.upsert_comment(
+                pr.number, report.render_error_comment(reason, guard_hits)
+            )
         except GitHubError as post_error:
             log(f"Could not post the failure comment: {post_error}", config=config)
         _write_summary(
             f"### ⚠️ Policy review could not be completed\n\n{reason}", summary_path
         )
+        # A change to the machinery still deserves an alert even when the review
+        # that would have judged it could not run — arguably more so.
+        if guard_hits and config.slack_enabled:
+            _notify_slack(config, pr, Verdict(summary=reason), guard_hits)
         return EXIT_ERROR
 
     blocking = verdict.blocking(config)
@@ -189,12 +251,22 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
         policy_count=len(policies),
         blocking_count=len(blocking),
         diff_truncated=pr.diff_truncated,
+        guard_hits=guard_hits,
     )
     client.upsert_comment(pr.number, redact(comment, config.secrets()))
 
     if verdict.passed:
         log("All policies passed.", config=config)
-        _write_summary("### ✅ Policy review — all policies passed", summary_path)
+        if guard_hits:
+            _write_summary(
+                "### ✅ Policy review — all policies passed\n\n"
+                "⚠️ This pull request changes the policy review system itself "
+                f"({len(guard_hits)} file(s)); a Slack alert was sent.",
+                summary_path,
+            )
+            _alert_or_log(config, pr, verdict, guard_hits)
+        else:
+            _write_summary("### ✅ Policy review — all policies passed", summary_path)
         return EXIT_OK
 
     log(
@@ -220,10 +292,7 @@ def run(config: Config, repo_root: Path, summary_path: str | None = None) -> int
                 config=config,
             )
 
-    if config.slack_enabled:
-        _notify_slack(config, pr, verdict)
-    elif verdict.violations:
-        log("Slack notification skipped: no channel or bot token configured.", config=config)
+    _alert_or_log(config, pr, verdict, guard_hits)
 
     return EXIT_VIOLATIONS if blocking else EXIT_OK
 

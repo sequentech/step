@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 
 from .context import PullRequestContext
+from .guard import GuardHit, touched_policies
 
 SYSTEM_PROMPT = """\
 You are the policy reviewer for a software engineering organisation. You judge \
@@ -108,7 +109,7 @@ def build_user_prompt(
     repository: str,
     repo_type: str,
     policies_source: str,
-    touched_policy_files: list[str],
+    guard_hits: list[GuardHit],
 ) -> str:
     """Assemble the review request.
 
@@ -135,14 +136,26 @@ def build_user_prompt(
             "- NOTE: the diff below is truncated. Judge only what is shown and "
             "say so in your summary."
         )
-    if touched_policy_files:
-        listed = ", ".join(f"`{p}`" for p in touched_policy_files)
+    if guard_hits:
+        listed = ", ".join(f"`{hit.path}` ({hit.reason})" for hit in guard_hits)
         sections.append(
-            f"- NOTE: this pull request edits its own policy files ({listed}). "
-            "You are reviewing against the policies as they stand on the target "
-            "branch, not as this pull request would change them. Call the edit "
-            "out in your summary so a human reviews it deliberately."
+            f"- NOTE: this pull request changes the policy review system itself "
+            f"({listed}). Such a change can weaken or disable enforcement for "
+            "every pull request that follows, so say what it does to the "
+            "system's ability to do its job in your `summary` — whether it "
+            "narrows a rule, relaxes a trigger, changes what is reported, or is "
+            "routine maintenance that leaves enforcement intact. Do not report "
+            "it as a violation on its own; maintaining the system is allowed. "
+            "Report a violation only if the change also breaches a policy."
         )
+        edited_policies = touched_policies(guard_hits)
+        if edited_policies:
+            names = ", ".join(f"`{p}`" for p in edited_policies)
+            sections.append(
+                f"- NOTE: the policy files themselves are edited here ({names}). "
+                "You are reviewing against the policies as they stand on the "
+                "target branch, not as this pull request would change them."
+            )
 
     sections += [
         "",
@@ -208,8 +221,15 @@ def build_slack_prompt(
     pr_title: str,
     summary: str,
     violations: list[dict],
+    guard_hits: list[GuardHit] | None = None,
 ) -> str:
-    """Assemble the request that generates the Slack alert text."""
+    """Assemble the request that generates the Slack alert text.
+
+    An alert is worth sending in two situations, and the message has to make
+    clear which one it is: policies were breached, or the machinery that
+    enforces them was changed. Both can be true at once.
+    """
+    guard_hits = guard_hits or []
     lines = [
         "Style instruction from the repository maintainers:",
         "",
@@ -221,15 +241,36 @@ def build_slack_prompt(
         f"- Pull request: #{pr_number} — {pr_title}",
         f"- Link: https://github.com/{repository}/pull/{pr_number}",
         f"- Violations: {len(violations)}",
-        "",
-        "Findings:",
+        f"- Changes the policy review system itself: "
+        f"{'yes' if guard_hits else 'no'}",
     ]
-    for item in violations:
-        lines.append(
-            f"- [{item.get('severity', 'unknown')}] "
-            f"{item.get('policy_title') or item.get('policy_id', 'policy')} — "
-            f"{item.get('path', 'unknown path')}: "
-            f"{item.get('explanation', '').strip()}"
-        )
+
+    if guard_hits:
+        lines += [
+            "",
+            "This pull request modifies the policy review system. Lead the "
+            "message with that — it is the more important fact, because a "
+            "change here affects every pull request that follows, not just "
+            "this one. Ask for a careful human review of these files:",
+        ]
+        lines += [f"- {hit.path} — {hit.reason}" for hit in guard_hits]
+
+    if violations:
+        lines += ["", "Findings:"]
+        for item in violations:
+            lines.append(
+                f"- [{item.get('severity', 'unknown')}] "
+                f"{item.get('policy_title') or item.get('policy_id', 'policy')} — "
+                f"{item.get('path', 'unknown path')}: "
+                f"{item.get('explanation', '').strip()}"
+            )
+    else:
+        lines += [
+            "",
+            "No policy violations were found. Do not imply that anything is "
+            "broken — say plainly that the review passed, and that the alert "
+            "is about the change to the system itself.",
+        ]
+
     lines += ["", "Reviewer summary:", "", summary.strip() or "(none)"]
     return "\n".join(lines)

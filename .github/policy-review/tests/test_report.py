@@ -8,9 +8,11 @@ from __future__ import annotations
 import unittest
 
 from policy_review.github_api import COMMENT_MARKER
+from policy_review.guard import GuardHit
 from policy_review.report import (
     render_comment,
     render_error_comment,
+    render_guard_notice,
     render_review_body,
 )
 from policy_review.verdict import Verdict, Violation
@@ -141,9 +143,77 @@ class ReviewBodyTests(unittest.TestCase):
         self.assertIn("line one line two", body)
 
 
+class GuardNoticeTests(unittest.TestCase):
+    def setUp(self):
+        self.hits = [
+            GuardHit(path=".github/policies/10-scope.md", reason="policy file"),
+            GuardHit(
+                path=".github/policy-review/policy_review/runner.py",
+                reason="engine code",
+            ),
+        ]
+
+    def test_the_notice_appears_above_the_verdict(self):
+        comment = render_comment(
+            Verdict(summary="Nothing to flag."),
+            policies_source="origin/main",
+            policy_count=3,
+            blocking_count=0,
+            guard_hits=self.hits,
+        )
+        notice_at = comment.index("changes the policy review system itself")
+        verdict_at = comment.index("all policies passed")
+        self.assertLess(notice_at, verdict_at)
+
+    def test_the_notice_names_every_touched_file_and_why_it_matters(self):
+        comment = render_comment(
+            Verdict(summary="s"),
+            policies_source="origin/main",
+            policy_count=1,
+            blocking_count=0,
+            guard_hits=self.hits,
+        )
+        self.assertIn(".github/policies/10-scope.md", comment)
+        self.assertIn("engine code", comment)
+        self.assertIn("every pull request that follows", comment)
+        self.assertIn("Slack alert has been sent", comment)
+
+    def test_renders_as_a_github_warning_callout(self):
+        self.assertTrue(render_guard_notice(self.hits).startswith("> [!WARNING]"))
+
+    def test_uses_the_singular_for_one_file(self):
+        notice = render_guard_notice([self.hits[0]])
+        self.assertIn("1 file", notice)
+        self.assertIn(" is modified", notice)
+
+    def test_uses_the_plural_for_several(self):
+        notice = render_guard_notice(self.hits)
+        self.assertIn("2 files", notice)
+        self.assertIn(" are modified", notice)
+
+    def test_no_notice_when_the_system_is_untouched(self):
+        comment = render_comment(
+            Verdict(summary="s"),
+            policies_source="origin/main",
+            policy_count=1,
+            blocking_count=0,
+        )
+        self.assertNotIn("policy review system itself", comment)
+
+
 class ErrorCommentTests(unittest.TestCase):
     def setUp(self):
         self.comment = render_error_comment("the model was unreachable")
+
+    def test_carries_the_guard_notice_when_the_system_was_touched(self):
+        # A failed review of a change to the machinery is the worst case: no
+        # verdict, and the machinery moved. The notice must survive.
+        comment = render_error_comment(
+            "the model was unreachable",
+            [GuardHit(path=".github/policies/10-scope.md", reason="policy file")],
+        )
+        self.assertIn("changes the policy review system itself", comment)
+        self.assertIn("not** a pass", comment)
 
     def test_is_explicitly_not_a_pass(self):
         # A review that did not run must never read like a clean one.

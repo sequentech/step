@@ -10,6 +10,7 @@ and gives every finding a file, a reason and a fix.
 from __future__ import annotations
 
 from .github_api import COMMENT_MARKER
+from .guard import GuardHit
 from .verdict import Verdict, Violation
 
 SEVERITY_LABEL = {
@@ -43,6 +44,36 @@ def _violation_section(violation: Violation, index: int) -> str:
     return "\n".join(lines)
 
 
+def render_guard_notice(hits: list[GuardHit]) -> str:
+    """Render the banner shown when the policy review system is changed.
+
+    Deliberately placed above the verdict. A change to the machinery outranks
+    the verdict that machinery just produced, because it affects every pull
+    request after this one.
+    """
+    count = len(hits)
+    subject = "1 file" if count == 1 else f"{count} files"
+    verb = "is" if count == 1 else "are"
+
+    lines = [
+        "> [!WARNING]",
+        "> ### This pull request changes the policy review system itself",
+        ">",
+        f"> {subject} belonging to the automated policy check {verb} modified"
+        " here. A change to these files can weaken or disable enforcement for"
+        " **every pull request that follows**, not just this one.",
+        ">",
+    ]
+    lines += [f"> - `{hit.path}` — {hit.reason}" for hit in hits]
+    lines += [
+        ">",
+        "> This is allowed — the system has to be maintainable — but it needs a"
+        " deliberate human review rather than a routine one. A Slack alert has"
+        " been sent.",
+    ]
+    return "\n".join(lines)
+
+
 def render_comment(
     verdict: Verdict,
     *,
@@ -50,9 +81,12 @@ def render_comment(
     policy_count: int,
     blocking_count: int,
     diff_truncated: bool = False,
+    guard_hits: list[GuardHit] | None = None,
 ) -> str:
     """Render the full pull request comment."""
     parts = [COMMENT_MARKER]
+    if guard_hits:
+        parts += [render_guard_notice(guard_hits), ""]
 
     if verdict.passed:
         parts += [
@@ -122,21 +156,22 @@ def render_review_body(verdict: Verdict, blocking: list[Violation]) -> str:
     return "\n".join(lines)
 
 
-def render_error_comment(reason: str) -> str:
+def render_error_comment(reason: str, guard_hits: list[GuardHit] | None = None) -> str:
     """Render the comment used when the review could not be completed.
 
     Explicitly not a pass: a review that did not run must not read like one.
     """
-    return "\n".join(
-        [
-            COMMENT_MARKER,
-            "### ⚠️ Policy review could not be completed",
-            "",
-            reason.strip(),
-            "",
-            "This is **not** a pass. Re-run the check, or ask a maintainer to "
-            "review the change against the repository's policies by hand.",
-            "",
-            _FOOTER,
-        ]
-    )
+    parts = [COMMENT_MARKER]
+    if guard_hits:
+        parts += [render_guard_notice(guard_hits), ""]
+    parts += [
+        "### ⚠️ Policy review could not be completed",
+        "",
+        reason.strip(),
+        "",
+        "This is **not** a pass. Re-run the check, or ask a maintainer to "
+        "review the change against the repository's policies by hand.",
+        "",
+        _FOOTER,
+    ]
+    return "\n".join(parts)
