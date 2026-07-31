@@ -9,6 +9,7 @@ import {CastVotesPerDay} from "@/gql/graphql"
 import {useTranslation} from "react-i18next"
 import {CircularProgress} from "@mui/material"
 import {toVotesPerDayChartData} from "./votesPerDayData"
+import {getVotesPerDayChartOptions} from "./votesPerDayOptions"
 
 export interface VotersPerDayProps {
     data: CastVotesPerDay[] | null
@@ -26,18 +27,7 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({data, width, height, e
 
     const chartData = toVotesPerDayChartData(data)
     const state: Props = {
-        options: {
-            chart: {
-                id: "barchart-votes",
-                stacked: true,
-            },
-            xaxis: {
-                categories: getWeekLegend(endDate),
-            },
-            legend: {
-                showForZeroSeries: false,
-            },
-        },
+        options: getVotesPerDayChartOptions(getWeekLegend(endDate)),
         series: chartData.series.map(({channel, data: channelData}) => ({
             name: String(t(`common.channel.${channel.toLowerCase()}`)),
             data: channelData,
