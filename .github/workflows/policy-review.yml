@@ -1,0 +1,245 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# ==============================================================================
+# Reusable policy review workflow
+# ==============================================================================
+#
+# Reviews a pull request against the policy files carried by the repository that
+# calls this workflow. It contains no policies of its own — every rule it
+# enforces is read at run time from `policies_path` inside the calling
+# repository, so each repository publishes only the rules appropriate to it.
+#
+# This workflow lives in a public repository on purpose. A private repository
+# may call a workflow from a public one, but not the reverse without granting
+# access. Keeping the shared implementation here means any repository can call
+# it while this repository needs no knowledge of, or reference to, its callers.
+#
+# Callers are thin: they declare their triggers and path filters and point
+# `policies_path` at their own policy directory. See
+# `.github/policy-review/README.md`.
+# ==============================================================================
+
+name: Policy review (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      policies_path:
+        description: >-
+          Directory in the CALLING repository holding the policy files. Every
+          Markdown or text file below it is loaded, except README.md.
+        type: string
+        required: false
+        default: .github/policies
+      repo_type:
+        description: >-
+          Free-form context describing this repository's role, passed to the
+          reviewer as background. Deliberately unvalidated, so this workflow
+          holds no list of the repositories that call it.
+        type: string
+        required: false
+        default: ""
+      model:
+        description: Model used for the review.
+        type: string
+        required: false
+        default: claude-opus-5
+      effort:
+        description: "Reasoning effort: low, medium, high, xhigh or max."
+        type: string
+        required: false
+        default: high
+      slack_channel:
+        description: >-
+          Slack channel ID for violation alerts. Leave empty to disable Slack.
+        type: string
+        required: false
+        default: ""
+      slack_message_prompt:
+        description: >-
+          House style for the generated Slack alert. Empty uses the built-in
+          instruction.
+        type: string
+        required: false
+        default: ""
+      max_diff_bytes:
+        description: Largest diff to review, in bytes. Larger diffs are truncated.
+        type: number
+        required: false
+        default: 400000
+      fail_on_severity:
+        description: >-
+          Lowest severity that fails the check: blocker, warning or info.
+        type: string
+        required: false
+        default: blocker
+      pr_number:
+        description: >-
+          Pull request to review. Only needed for workflow_dispatch runs; on a
+          pull_request event it is taken from the event.
+        type: number
+        required: false
+        default: 0
+      engine_ref:
+        description: >-
+          Ref of this repository to take the engine from. Pin it to the same ref
+          used in the caller's `uses:` line so engine and workflow stay matched.
+        type: string
+        required: false
+        default: main
+      python_version:
+        description: Python version used to run the engine.
+        type: string
+        required: false
+        default: "3.12"
+      runs_on:
+        description: Runner label.
+        type: string
+        required: false
+        default: ubuntu-24.04
+    secrets:
+      anthropic_api_key:
+        description: >-
+          Model API key. When absent the review is skipped rather than failed,
+          which is what happens for a pull request opened from a fork.
+        required: false
+      slack_bot_token:
+        description: Slack bot token with chat:write. Optional.
+        required: false
+
+# Least privilege. `contents: read` to read the diff and the policies,
+# `pull-requests: write` to leave the findings comment and request changes.
+# Nothing here needs to write to the repository.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  policy-review:
+    name: Policy review
+    runs-on: ${{ inputs.runs_on }}
+    timeout-minutes: 20
+
+    steps:
+      # ------------------------------------------------------------------
+      # A pull request from a fork runs without access to secrets. That is a
+      # deliberate property of the `pull_request` trigger and the reason this
+      # workflow does not use `pull_request_target`: the alternative would give
+      # untrusted code a run that holds this repository's credentials.
+      # ------------------------------------------------------------------
+      - name: Check for model credentials
+        id: credentials
+        env:
+          MODEL_KEY: ${{ secrets.anthropic_api_key }}
+        run: |
+          if [ -z "${MODEL_KEY}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "No model credentials in this run — skipping the policy review."
+            echo "A pull request from a fork does not receive secrets; a" \
+                 "maintainer re-running this check will produce the review."
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve the pull request number
+        id: target
+        if: steps.credentials.outputs.available == 'true'
+        env:
+          INPUT_PR: ${{ inputs.pr_number }}
+          EVENT_PR: ${{ github.event.pull_request.number }}
+        run: |
+          NUMBER="${INPUT_PR}"
+          if [ -z "${NUMBER}" ] || [ "${NUMBER}" = "0" ]; then
+            NUMBER="${EVENT_PR}"
+          fi
+          if [ -z "${NUMBER}" ]; then
+            echo "::error::No pull request to review. Pass pr_number when" \
+                 "running this workflow manually."
+            exit 1
+          fi
+          echo "number=${NUMBER}" >> "$GITHUB_OUTPUT"
+
+      # Full history so the merge base with the target branch can be resolved,
+      # and so the policies can be read from the target branch rather than from
+      # the pull request's own head.
+      - name: Check out the repository under review
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Resolve the two commits the review compares. The target branch is
+      # fetched fresh so policies are read from its current tip, and the pull
+      # request head is fetched explicitly so a manual run works the same way
+      # as an event-triggered one.
+      - name: Fetch the branches under comparison
+        id: base
+        if: steps.credentials.outputs.available == 'true'
+        env:
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PR_NUMBER: ${{ steps.target.outputs.number }}
+        run: |
+          BRANCH="${BASE_BRANCH:-${DEFAULT_BRANCH}}"
+          git fetch --no-tags --quiet origin \
+            "+refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}"
+          git fetch --no-tags --quiet origin \
+            "+refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr/${PR_NUMBER}"
+          echo "ref=origin/${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "head=$(git rev-parse "refs/remotes/origin/pr/${PR_NUMBER}")" \
+            >> "$GITHUB_OUTPUT"
+
+      # The engine is taken from this repository, which is public, so the
+      # checkout needs no special access and reveals nothing about the caller.
+      # Sparse checkout keeps it to the engine directory alone.
+      - name: Check out the policy review engine
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: sequentech/step
+          ref: ${{ inputs.engine_ref }}
+          path: .policy-review-engine
+          sparse-checkout: .github/policy-review
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Set up Python
+        if: steps.credentials.outputs.available == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install engine dependencies
+        if: steps.credentials.outputs.available == 'true'
+        run: |
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet --disable-pip-version-check \
+            -r .policy-review-engine/.github/policy-review/requirements.txt
+
+      # Every value the engine reads arrives through `env`. Nothing
+      # attacker-controlled — the pull request title, its description, the diff
+      # — is ever interpolated into this shell, so a crafted branch name or
+      # title cannot become a command.
+      - name: Run the policy review
+        if: steps.credentials.outputs.available == 'true'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/.policy-review-engine/.github/policy-review
+          GITHUB_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.anthropic_api_key }}
+          SLACK_BOT_TOKEN: ${{ secrets.slack_bot_token }}
+          POLICY_PR_NUMBER: ${{ steps.target.outputs.number }}
+          POLICY_BASE_REF: ${{ steps.base.outputs.ref }}
+          POLICY_HEAD_SHA: ${{ steps.base.outputs.head }}
+          POLICY_EVENT_ACTION: ${{ github.event.action }}
+          POLICY_POLICIES_PATH: ${{ inputs.policies_path }}
+          POLICY_REPO_TYPE: ${{ inputs.repo_type }}
+          POLICY_MODEL: ${{ inputs.model }}
+          POLICY_EFFORT: ${{ inputs.effort }}
+          POLICY_MAX_DIFF_BYTES: ${{ inputs.max_diff_bytes }}
+          POLICY_FAIL_ON_SEVERITY: ${{ inputs.fail_on_severity }}
+          POLICY_SLACK_CHANNEL: ${{ inputs.slack_channel }}
+          POLICY_SLACK_MESSAGE_PROMPT: ${{ inputs.slack_message_prompt }}
+        run: python -m policy_review

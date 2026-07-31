@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Unit tests for the policy review engine. The engine is shared infrastructure —
+# other repositories call it — so a regression here is felt beyond this
+# repository and the tests gate every change to it.
+
+name: Policy review engine tests
+
+on:
+  pull_request:
+    paths:
+      - .github/policy-review/**
+      - .github/workflows/policy-review.yml
+      - .github/workflows/policy-review-tests.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/policy-review/**
+      - .github/workflows/policy-review.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: .github/policy-review
+        run: |
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet --disable-pip-version-check \
+            -r requirements.txt
+
+      - name: Run unit tests
+        working-directory: .github/policy-review
+        run: python -m unittest discover -s tests -t . -v
+
+      # The engine is public. Guarding that here means a policy rule naming a
+      # private repository, environment or customer cannot reach it by accident.
+      - name: Check the engine carries no private policy content
+        working-directory: .github/policy-review
+        run: python -m unittest tests.test_public_safety -v

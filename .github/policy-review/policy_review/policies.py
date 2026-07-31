@@ -19,8 +19,13 @@ POLICY_SUFFIXES = (".md", ".markdown", ".txt")
 
 # Leading licence/SPDX blocks carry no policy meaning. Stripping them keeps the
 # prompt free of boilerplate that is repeated in every file.
+#
+# The hash form must not swallow a Markdown `# Heading`, which is how most
+# policies open, so it only applies to a leading comment block that actually
+# mentions SPDX.
 _HTML_COMMENT = re.compile(r"\A\s*<!--.*?-->\s*", re.DOTALL)
-_HASH_HEADER = re.compile(r"\A(?:\s*#[^\n]*\n)+")
+_HASH_HEADER = re.compile(r"\A(?:[ \t]*#[^\n]*\n)+")
+_SPDX = re.compile(r"SPDX-(?:FileCopyrightText|License-Identifier)")
 
 _TITLE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 
@@ -43,10 +48,16 @@ class Policy:
 
 
 def _strip_licence_header(text: str) -> str:
-    stripped = _HTML_COMMENT.sub("", text, count=1)
-    if stripped == text:
-        stripped = _HASH_HEADER.sub("", text, count=1)
-    return stripped.lstrip("\n")
+    """Remove a leading licence block, leaving the policy body untouched."""
+    match = _HTML_COMMENT.match(text)
+    if match and _SPDX.search(match.group(0)):
+        return text[match.end() :].lstrip("\n")
+
+    match = _HASH_HEADER.match(text)
+    if match and _SPDX.search(match.group(0)):
+        return text[match.end() :].lstrip("\n")
+
+    return text.lstrip("\n")
 
 
 def _title_of(policy_id: str, body: str) -> str:
