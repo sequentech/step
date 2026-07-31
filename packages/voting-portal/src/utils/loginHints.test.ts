@@ -10,6 +10,7 @@ import {
     appendLoginHints,
     parseLoginHints,
     removeLoginHintsFromSearch,
+    enrollmentRedirectUrl,
     routeAcceptsLoginHints,
 } from "./loginHints"
 
@@ -131,5 +132,19 @@ describe("routeAcceptsLoginHints", () => {
 
     it("rejects non-authentication routes", () => {
         expect(routeAcceptsLoginHints("/tenant/t/event/e/vote")).toBe(false)
+    })
+})
+
+describe("enrollmentRedirectUrl", () => {
+    const base = "https://vote.example/tenant/t/event/e"
+
+    it.each([
+        ["/enroll", `${base}/login?lang=en&kiosk`],
+        // A trailing slash still accepts hints, so it must still reach /login after enrolling.
+        ["/enroll/", `${base}/login?lang=en&kiosk`],
+        ["/preenroll", undefined],
+        ["/login", undefined],
+    ])("maps %s", (route, expected) => {
+        expect(enrollmentRedirectUrl(`${base}${route}`, "?lang=en&kiosk")).toBe(expected)
     })
 })

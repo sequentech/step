@@ -10,7 +10,7 @@ import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../types/keycloak"
-import {appendLoginHints, LoginHints} from "../utils/loginHints"
+import {appendLoginHints, enrollmentRedirectUrl, LoginHints} from "../utils/loginHints"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -306,9 +306,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                         const registerOptions = {
                             ...keycloakInitOptions,
                             // after successful enrollment, we should redirect to login
-                            redirectUri: baseUrl.endsWith("/enroll")
-                                ? baseUrl.replace(/\/enroll$/, "/login") + queryString
-                                : undefined,
+                            redirectUri: enrollmentRedirectUrl(baseUrl, queryString),
                             loginHint: loginHints.username,
                         }
 
