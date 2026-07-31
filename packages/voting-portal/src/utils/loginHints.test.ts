@@ -69,6 +69,7 @@ describe("parseLoginHints", () => {
         ],
         ["a duplicate field", "?login_hint__username=first&login_hint__username=second"],
         ["an invalid percent escape", "?login_hint__username=user%ZZexample"],
+        ["an invalid encoded hint name", "?login%5fhint__user%ZZ=secret"],
         ["invalid UTF-8", "?login_hint__username=%E0%A4%A"],
     ])("rejects %s", (_description, search) => {
         expect(() => parseLoginHints(search)).toThrow(InvalidLoginHintsError)
@@ -92,7 +93,7 @@ describe("parseLoginHints", () => {
     it("removes invalid raw hint components while preserving unrelated query text", () => {
         expect(
             removeLoginHintsFromSearch(
-                "?lang=en&login_hint__username=%E0%A4%A&login_hint__username=duplicate&kiosk"
+                "?lang=en&login_hint__username=%E0%A4%A&login%5fhint__user%ZZ=secret&login_hint__username=duplicate&kiosk"
             )
         ).toBe("?lang=en&kiosk")
     })

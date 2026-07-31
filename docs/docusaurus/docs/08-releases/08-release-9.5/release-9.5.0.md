@@ -52,12 +52,21 @@ For deployments enabling prefill:
   and deferred registration. Confirm submitted form values override hints and
   verification or credential fields are never prefilled.
 
+Notification delivery records and logs changed alongside this feature. The
+electoral log entry for a sent message now records the channel, the receiver and
+the rendered subject instead of the rendered message bodies, and the AWS SES,
+SMTP and AWS SNS transports no longer log receivers, subjects or body previews.
+Rendered bodies carry the notification URL, including any `login_hint__*`
+values, and the electoral log cannot be redacted once written. The console
+transport used by local development still prints the complete message.
+
 Hints are editable, untrusted convenience data. Do not include passwords,
-tokens, secrets, or inappropriate sensitive identifiers, and never use a hint to
-bypass authentication or mark identity, contact details, or eligibility as
-verified. Percent encoding protects query structure, not confidentiality or
-authenticity. See [sequentech/meta#12617](https://github.com/sequentech/meta/issues/12617)
-for details.
+one-time passwords (OTPs), tokens, secrets, government identifiers, or other
+inappropriate sensitive values, and never use a hint to bypass authentication
+or mark identity, contact details, or eligibility as verified. Percent encoding
+protects query structure, not confidentiality or authenticity. See
+[sequentech/meta#12617](https://github.com/sequentech/meta/issues/12617) for
+details.
 
 ## 📝 Highlights
 
@@ -224,4 +233,3 @@ See [sequentech/meta#11570](https://github.com/sequentech/meta/issues/11570) for
 
 - ✨ Prepare Release 9.5 ([sequentech/step#2639](https://github.com/sequentech/step/pull/2639))
   by @Findeton
-

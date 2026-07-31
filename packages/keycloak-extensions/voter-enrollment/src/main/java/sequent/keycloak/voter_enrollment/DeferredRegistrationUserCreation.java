@@ -648,7 +648,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       Map<String, String> configMap,
       Set<String> hiddenProfileAttributes) {
     LoginHintPrefill.Prefill prefill =
-        resolveLoginHintPrefill(context, configMap, hiddenProfileAttributes);
+        LoginHintPrefill.requireValid(
+            resolveLoginHintPrefill(context, configMap, hiddenProfileAttributes), () -> form);
 
     if (prefill.isEmpty()) {
       return;
@@ -668,13 +669,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
   }
 
-  private LoginHintPrefill.Prefill resolveLoginHintPrefill(
+  private LoginHintPrefill.HintResolution resolveLoginHintPrefill(
       FormContext context, Map<String, String> configMap, Set<String> hiddenProfileAttributes) {
     String policy =
         Optional.ofNullable(configMap.get(PREFILL_PARAMETERS_POLICY))
             .orElse(PrefillPolicy.IGNORE.name());
     if (!PrefillPolicy.ACCEPT.name().equals(policy)) {
-      return LoginHintPrefill.Prefill.EMPTY;
+      return new LoginHintPrefill.HintResolution.None();
     }
 
     Set<String> excludedAttributes =
@@ -705,7 +706,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       Map<String, String> configMap,
       MultivaluedMap<String, String> formData) {
     LoginHintPrefill.Prefill prefill =
-        resolveLoginHintPrefill(context, configMap, getHiddenProfileAttributes(configMap));
+        LoginHintPrefill.requireValid(
+            resolveLoginHintPrefill(context, configMap, getHiddenProfileAttributes(configMap)),
+            () ->
+                context
+                    .getSession()
+                    .getProvider(LoginFormsProvider.class)
+                    .setAuthenticationSession(context.getAuthenticationSession()));
 
     if (prefill.lockedAttributes().isEmpty()) {
       return false;

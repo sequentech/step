@@ -91,8 +91,20 @@ fn get_variables(
     Ok(variables)
 }
 
-fn delivery_audit_message(channel: &str) -> String {
-    json!({"channel": channel}).to_string()
+/// Builds the delivery record posted to the immutable electoral log.
+///
+/// The record keeps what an auditor needs to confirm a delivery — the channel, the address it
+/// went to, and the rendered subject — but never the rendered bodies. Those bodies carry the
+/// notification URL, including any `login_hint__*` values, and the electoral log cannot be
+/// redacted once written.
+fn delivery_audit_message(channel: &str, receiver: &str, subject: Option<&str>) -> String {
+    let mut record = Map::new();
+    record.insert("channel".to_string(), json!(channel));
+    record.insert("receiver".to_string(), json!(receiver));
+    if let Some(subject) = subject {
+        record.insert("subject".to_string(), json!(subject));
+    }
+    Value::Object(record).to_string()
 }
 
 #[instrument(skip_all, err)]
@@ -107,7 +119,7 @@ async fn send_template_sms(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message.clone()).await?;
-        return Ok(Some(delivery_audit_message("sms")));
+        return Ok(Some(delivery_audit_message("sms", receiver, None)));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
@@ -147,7 +159,11 @@ pub async fn send_template_email(
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(delivery_audit_message("email")));
+        return Ok(Some(delivery_audit_message(
+            "email",
+            receiver,
+            Some(&subject),
+        )));
     } else {
         // Log the event if the receiver or template is missing
         event!(
@@ -683,13 +699,24 @@ mod tests {
     }
 
     #[test]
-    fn delivery_audit_message_does_not_include_rendered_content() {
-        let message = delivery_audit_message("email");
+    fn delivery_audit_message_keeps_delivery_metadata_without_rendered_bodies() {
+        let email = delivery_audit_message("email", "voter@example.com", Some("Your voting link"));
 
         assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&message).expect("valid audit JSON"),
-            json!({"channel": "email"})
+            serde_json::from_str::<serde_json::Value>(&email).expect("valid audit JSON"),
+            json!({
+                "channel": "email",
+                "receiver": "voter@example.com",
+                "subject": "Your voting link",
+            })
         );
-        assert!(!message.contains("login_hint__"));
+        assert!(!email.contains("login_hint__"));
+
+        let sms = delivery_audit_message("sms", "+34600000000", None);
+
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&sms).expect("valid audit JSON"),
+            json!({"channel": "sms", "receiver": "+34600000000"})
+        );
     }
 }

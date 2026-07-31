@@ -186,8 +186,10 @@ pub fn helper_wrapper<'a>(
                 Ok(val) => Ok(val),
                 Err(err) => {
                     warn!(
-                        "Error calling helper name={name:?}: {err:?}",
-                        name = helper.name(),
+                        "Error calling helper name={name:?} with params={params:?}, hash={hash:?}: {err:?}",
+                        name=helper.name(),
+                        params=helper.params(),
+                        hash=helper.hash()
                     );
                     Err(err)
                 }

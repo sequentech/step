@@ -107,8 +107,19 @@ Set the annotation in **Realm settings → User profile → Attributes → *(att
 → Annotations**, for example `loginHintPrefillPolicy` = `READ_ONLY`. An
 unrecognised value is treated as `IGNORE`, so a typo never prefills a field.
 
-Credential fields, unmanaged attributes, attributes the voter cannot write, and
-attributes rendered as hidden inputs are never prefilled, whatever the policy.
+Some attributes are never prefilled, whatever the policy says: credential
+fields, unmanaged attributes, attributes the voter cannot write, and attributes
+the voter would not be able to see or edit on the form. The last group covers an
+attribute annotated `hidden`, one rendered as a hidden or password input, and one
+whose annotations set `html-attribute:disabled`, `hidden`, `inert`, `readonly`,
+`aria-hidden="true"`, or an inline `html-attribute:style` that hides it
+(`display:none`, `visibility:hidden`, `visibility:collapse` or `opacity:0`).
+
+Cosmetic annotations do not affect prefill — `html-attribute:class` and inline
+styles that only change appearance leave the field prefillable. When an
+attribute is skipped, Keycloak logs the attribute name and the reason at `DEBUG`
+level under `sequent.keycloak.voter_enrollment.LoginHintPrefill`; hint values are
+never logged.
 
 The policy applies to registration forms once the **Sequent: Login hint
 registration prefill** action is part of the registration flow.
@@ -132,10 +143,9 @@ Prefilled values are convenience data, not verified identity claims. They never
 bypass authentication, registration validation, or required actions. `READ_ONLY`
 stops a voter from changing a prefilled field; it does not make the value
 trustworthy, because whoever built the link chose it. Do not include passwords,
-tokens, secrets, or sensitive attributes that are not approved for browser URLs
-and notification delivery. Percent encoding protects URL structure; it does not
-provide confidentiality or authenticity.
+one-time passwords (OTPs), tokens, secrets, government identifiers, or other
+inappropriate sensitive values. Percent encoding protects URL structure; it
+does not provide confidentiality or authenticity.
 :::
 
 > **Note:** For further guidance on template fields or syntax, refer to the Reports section of the guide where Template usage in report configuration is detailed.
-

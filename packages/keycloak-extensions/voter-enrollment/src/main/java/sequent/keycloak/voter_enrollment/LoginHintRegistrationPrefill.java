@@ -31,7 +31,8 @@ public class LoginHintRegistrationPrefill implements FormAction, FormActionFacto
 
   @Override
   public void buildPage(FormContext context, LoginFormsProvider form) {
-    LoginHintPrefill.Prefill prefill = resolvePrefill(context);
+    LoginHintPrefill.Prefill prefill =
+        LoginHintPrefill.requireValid(resolvePrefill(context), () -> form);
 
     if (prefill.isEmpty()) {
       return;
@@ -51,7 +52,14 @@ public class LoginHintRegistrationPrefill implements FormAction, FormActionFacto
 
   @Override
   public void validate(ValidationContext context) {
-    LoginHintPrefill.Prefill prefill = resolvePrefill(context);
+    LoginHintPrefill.Prefill prefill =
+        LoginHintPrefill.requireValid(
+            resolvePrefill(context),
+            () ->
+                context
+                    .getSession()
+                    .getProvider(LoginFormsProvider.class)
+                    .setAuthenticationSession(context.getAuthenticationSession()));
 
     if (prefill.lockedAttributes().isEmpty()) {
       context.success();
@@ -81,7 +89,7 @@ public class LoginHintRegistrationPrefill implements FormAction, FormActionFacto
         errors);
   }
 
-  private LoginHintPrefill.Prefill resolvePrefill(FormContext context) {
+  private LoginHintPrefill.HintResolution resolvePrefill(FormContext context) {
     return LoginHintPrefill.resolve(
         context.getSession(), context.getAuthenticationSession().getClientNotes(), Set.of());
   }

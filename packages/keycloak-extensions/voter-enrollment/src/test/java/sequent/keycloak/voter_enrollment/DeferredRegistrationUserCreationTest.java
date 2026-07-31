@@ -21,12 +21,14 @@ import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.AuthenticationFlowException;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
@@ -615,6 +617,42 @@ class DeferredRegistrationUserCreationTest {
     when(request.getHttpMethod()).thenReturn("POST");
     action.buildPage(context, form);
     verify(form).setFormData(any());
+  }
+
+  @Test
+  void deferredAcceptRejectsInvalidStoredHintsWhileIgnoreLeavesThemUntouched() {
+    DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+
+    Map<String, String> configValues = new java.util.HashMap<>();
+    configValues.put(DeferredRegistrationUserCreation.FORM_MODE, "REGISTRATION");
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig()).thenReturn(configValues);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(authenticationSession.getClientNotes())
+        .thenReturn(
+            Map.of(
+                clientNote("username"), "voter@example.com",
+                clientNote("invalid field"), "value"));
+
+    action.buildPage(context, form);
+    verify(form, never()).setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION);
+
+    configValues.put(
+        DeferredRegistrationUserCreation.PREFILL_PARAMETERS_POLICY,
+        DeferredRegistrationUserCreation.PrefillPolicy.ACCEPT.name());
+    Response response = Response.status(Response.Status.BAD_REQUEST).build();
+    when(form.setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION))
+        .thenReturn(form);
+    when(form.createErrorPage(Response.Status.BAD_REQUEST)).thenReturn(response);
+
+    AuthenticationFlowException failure =
+        assertThrows(AuthenticationFlowException.class, () -> action.buildPage(context, form));
+
+    assertEquals(response, failure.getResponse());
   }
 
   private static String clientNote(String attributeName) {
