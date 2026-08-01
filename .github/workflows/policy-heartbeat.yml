@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Silence is the failure mode this system cannot see.
+#
+# Every other control reports when something is wrong. If CodeRabbit stops
+# reviewing — an outage, a lapsed plan, a revoked installation, a malformed
+# `.coderabbit.yaml` — nothing reports anything, and "no findings" looks exactly
+# like "working fine". This job is the one thing that goes red on silence.
+#
+# It asks a single question once a week: of the pull requests that CodeRabbit
+# should have reviewed recently, did it review any of them?
+
+name: Policy review heartbeat
+
+on:
+  schedule:
+    - cron: '17 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  heartbeat:
+    name: Confirm the reviewer is alive
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Look for a recent CodeRabbit review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          since=$(date -u -d '14 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          echo "Looking at non-draft pull requests updated since ${since}"
+
+          prs=$(gh pr list --repo "$REPO" --state all --limit 60 \
+                  --json number,isDraft,updatedAt \
+                  --jq "[.[] | select(.isDraft == false and .updatedAt > \"${since}\")] | .[].number")
+
+          if [ -z "$prs" ]; then
+            echo "::notice::No non-draft pull requests in the window — nothing to review, nothing to conclude."
+            exit 0
+          fi
+
+          total=0
+          reviewed=0
+          for pr in $prs; do
+            total=$((total + 1))
+            hit=$(gh api "repos/$REPO/issues/$pr/comments" --paginate \
+                    --jq '[.[] | select(.user.login | test("coderabbit"; "i"))] | length' 2>/dev/null || echo 0)
+            if [ "${hit:-0}" -gt 0 ]; then
+              reviewed=$((reviewed + 1))
+            fi
+          done
+
+          echo "CodeRabbit responded on ${reviewed} of ${total} eligible pull requests."
+          if [ "$reviewed" -eq 0 ]; then
+            echo "::error::CodeRabbit has not responded to any of the last ${total} non-draft pull requests."
+            echo "The policy system is not running. Check the app installation, the plan, and .coderabbit.yaml."
+            exit 1
+          fi

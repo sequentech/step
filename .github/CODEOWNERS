@@ -18,6 +18,13 @@
 /.github/CODEOWNERS                  @sequentech/Architects
 /.github/workflows/policy-alert.yml  @sequentech/Architects
 
+# The self-check and the heartbeat. Both are part of the machinery: one asserts
+# the policy chain still agrees with itself, the other is the only thing that
+# goes red when the reviewer stops running at all.
+/.github/scripts/check_policy_consistency.py  @sequentech/Architects
+/.github/workflows/policy-consistency.yml     @sequentech/Architects
+/.github/workflows/policy-heartbeat.yml       @sequentech/Architects
+
 # The architecture document, for the same reason.
 #
 # `60-architectural-changes.md` requires a change to update this file. That

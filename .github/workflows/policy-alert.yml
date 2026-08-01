@@ -72,8 +72,27 @@ jobs:
           echo "icon=${icon}" >> "$GITHUB_OUTPUT"
           echo "what=${what}" >> "$GITHUB_OUTPUT"
 
-      - name: Slack notification
+      # A missing webhook must not fail the check. This job runs on pull
+      # requests, and `secrets` are not available to one raised from a fork —
+      # an unset `SLACK_WEBHOOK_URL` would otherwise put a red X on an outside
+      # contributor's pull request for a Slack message nobody was owed.
+      # Degrade to silent, and say so in the log.
+      - name: Check the webhook is configured
+        id: webhook
         if: steps.alert.outputs.skip != 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SLACK_WEBHOOK_URL is not set — policy alert not sent." \
+              "The label is still on the pull request; only the Slack message is missing."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Slack notification
+        if: steps.alert.outputs.skip != 'true' && steps.webhook.outputs.configured == 'true'
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |

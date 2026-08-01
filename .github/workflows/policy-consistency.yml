@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# One policy owns one label owns one routing rule owns one alert. That chain
+# lives in four files and nothing used to check they still agree.
+#
+# Deliberately NO `paths` filter. A filter here is the same hole the policy
+# system already found once: `paths-ignore: "**/*.md"` meant a pull request
+# deleting a policy skipped the check entirely, because policies are Markdown.
+# This job is cheap; run it on everything.
+
+name: Policy consistency
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the policy system agrees with itself
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyYAML
+        run: pip install --quiet 'pyyaml==6.0.2'
+
+      - name: Check policy consistency
+        run: python3 .github/scripts/check_policy_consistency.py
