@@ -2,10 +2,39 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
-use csv::ReaderBuilder;
+use anyhow::{anyhow, ensure, Result};
+use csv::{ReaderBuilder, StringRecord};
+use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
 use std::{cmp::Ordering, fs::File};
 use tracing::{info, instrument};
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct MergeJoinResult {
+    pub ballot_contents: Vec<String>,
+    pub eligible_voters: u64,
+    pub ballots_without_voter: u64,
+    pub casted_ballots: u64,
+    pub casted_ballots_by_channel: VotesByChannel,
+}
+
+fn count_ballot_channel(
+    counts: &mut VotesByChannel,
+    ballot: &StringRecord,
+    channel_index: Option<usize>,
+    count: u64,
+) -> Result<()> {
+    let Some(channel_index) = channel_index else {
+        return Ok(());
+    };
+    let channel = ballot
+        .get(channel_index)
+        .filter(|channel| !channel.is_empty())
+        .ok_or_else(|| anyhow!("Ballot channel column {channel_index} is missing or empty"))?;
+    *counts
+        .entry(ParticipationChannel::from(channel))
+        .or_default() += count;
+    Ok(())
+}
 
 #[instrument(skip_all, err)]
 pub fn merge_join_csv(
@@ -14,8 +43,9 @@ pub fn merge_join_csv(
     ballots_voter_id_index: usize,
     voters_id_index: usize,
     ballots_content_index: usize,
+    ballots_channel_index: Option<usize>,
     delegate_count_index: Option<usize>,
-) -> Result<(Vec<String>, u64, u64, u64)> {
+) -> Result<MergeJoinResult> {
     info!("START merge_join_csv");
 
     // Initialize the result vector and counters
@@ -23,6 +53,7 @@ pub fn merge_join_csv(
     let mut ballots_without_voter: u64 = 0;
     let mut elegible_voters: u64 = 0;
     let mut casted_ballots: u64 = 0;
+    let mut casted_ballots_by_channel = VotesByChannel::new();
 
     // Assume the CSV files do not have headers.
     let mut ballots_reader = ReaderBuilder::new()
@@ -107,6 +138,12 @@ pub fn merge_join_csv(
             Ordering::Less => {
                 // If the ballot has no voter.
                 ballots_without_voter += 1;
+                count_ballot_channel(
+                    &mut casted_ballots_by_channel,
+                    ballot,
+                    ballots_channel_index,
+                    1,
+                )?;
                 // Advance ballots file.
                 ballots_record = ballots_iterator.next();
                 casted_ballots += 1;
@@ -131,12 +168,20 @@ pub fn merge_join_csv(
                 // Add delegates if any (if delegate_count was 0, this does nothing).
                 result.extend(std::iter::repeat(ballot_content.to_string()).take(delegate_count));
 
+                // Count the voter's ballot (1) + all their delegated ballots.
+                let ballot_count = 1 + (delegate_count as u64);
+                casted_ballots += ballot_count;
+                count_ballot_channel(
+                    &mut casted_ballots_by_channel,
+                    ballot,
+                    ballots_channel_index,
+                    ballot_count,
+                )?;
+
                 // Advance both iterators.
                 ballots_record = ballots_iterator.next();
                 voters_record = voters_iterator.next();
 
-                // Count the voter's ballot (1) + all their delegated ballots.
-                casted_ballots += 1 + (delegate_count as u64);
                 elegible_voters += 1;
             }
         }
@@ -149,25 +194,44 @@ pub fn merge_join_csv(
     }
 
     // Count the rest of the ballots
-    while ballots_record.is_some() {
+    while let Some(ballot_record) = ballots_record {
         casted_ballots += 1;
         ballots_without_voter += 1;
+        if ballots_channel_index.is_some() {
+            let ballot = ballot_record?;
+            count_ballot_channel(
+                &mut casted_ballots_by_channel,
+                &ballot,
+                ballots_channel_index,
+                1,
+            )?;
+        }
         ballots_record = ballots_iterator.next();
+    }
+
+    if ballots_channel_index.is_some() {
+        let channel_total: u64 = casted_ballots_by_channel.values().sum();
+        ensure!(
+            channel_total == casted_ballots,
+            "Ballot channel total {channel_total} does not match cast ballot total {casted_ballots}"
+        );
     }
 
     info!("ballots_to_be_tallied: {}, elegible_voters: {}, ballots_without_voter: {}, casted_ballots: {}", result.len(), elegible_voters, ballots_without_voter, casted_ballots);
 
-    Ok((
-        result,
-        elegible_voters,
+    Ok(MergeJoinResult {
+        ballot_contents: result,
+        eligible_voters: elegible_voters,
         ballots_without_voter,
         casted_ballots,
-    ))
+        casted_ballots_by_channel,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::ballot::VotingStatusChannel;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -190,20 +254,20 @@ mod tests {
         // Assumes standard test indexes:
         // ballots_voter_id_index=0, voters_id_index=0, ballots_content_index=1
         // Pass `None` for delegate_count_index to run in standard mode.
-        let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-            merge_join_csv(
-                &ballots_ro,
-                &users_ro,
-                0,    // ballots_voter_id_index
-                0,    // voters_id_index
-                1,    // ballots_content_index
-                None, // delegate_count_index
-            )?;
+        let result = merge_join_csv(
+            &ballots_ro,
+            &users_ro,
+            0,    // ballots_voter_id_index
+            0,    // voters_id_index
+            1,    // ballots_content_index
+            None, // ballots_channel_index
+            None, // delegate_count_index
+        )?;
         Ok((
-            ballot_contents,
-            elegible_voters,
-            ballots_without_voter,
-            casted_ballots,
+            result.ballot_contents,
+            result.eligible_voters,
+            result.ballots_without_voter,
+            result.casted_ballots,
         ))
     }
 
@@ -468,21 +532,21 @@ mod tests {
 
         // Call the function under test
         // Pass `Some(1)` for delegate_count_index to run in delegate mode.
-        let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-            merge_join_csv(
-                &ballots_ro,
-                &voters_ro,
-                /* ballots_voter_id_index   */ 0,
-                /* voters_id_index        */ 0,
-                /* ballots_content_index  */ 1,
-                /* delegate_count_index   */ Some(1),
-            )?;
+        let result = merge_join_csv(
+            &ballots_ro,
+            &voters_ro,
+            /* ballots_voter_id_index   */ 0,
+            /* voters_id_index        */ 0,
+            /* ballots_content_index  */ 1,
+            /* ballots_channel_index  */ None,
+            /* delegate_count_index   */ Some(1),
+        )?;
 
         Ok((
-            ballot_contents,
-            elegible_voters,
-            ballots_without_voter,
-            casted_ballots,
+            result.ballot_contents,
+            result.eligible_voters,
+            result.ballots_without_voter,
+            result.casted_ballots,
         ))
     }
 
@@ -620,6 +684,62 @@ mod tests {
 
         // Only user_A is counted as an eligible voter. user_G was skipped.
         assert_eq!(elegible_voters, 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_counts_channels_for_matched_auditable_and_delegated_ballots() -> Result<()> {
+        let mut ballots_file = NamedTempFile::new()?;
+        write!(
+            ballots_file,
+            "user_A,content_A,ONLINE\nuser_B,content_B,TELEPHONE\nuser_Z,content_Z,KIOSK"
+        )?;
+        ballots_file.flush()?;
+
+        let mut voters_file = NamedTempFile::new()?;
+        write!(voters_file, "user_A,2\nuser_B,0")?;
+        voters_file.flush()?;
+
+        let result = merge_join_csv(
+            &ballots_file.reopen()?,
+            &voters_file.reopen()?,
+            0,
+            0,
+            1,
+            Some(2),
+            Some(1),
+        )?;
+
+        assert_eq!(result.ballot_contents.len(), 4);
+        assert_eq!(result.casted_ballots, 5);
+        assert_eq!(result.ballots_without_voter, 1);
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::ONLINE.into()),
+            Some(&3)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::TELEPHONE.into()),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .get(&VotingStatusChannel::KIOSK.into()),
+            Some(&1)
+        );
+        assert_eq!(
+            result
+                .casted_ballots_by_channel
+                .values()
+                .copied()
+                .sum::<u64>(),
+            result.casted_ballots
+        );
 
         Ok(())
     }

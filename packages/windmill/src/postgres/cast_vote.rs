@@ -4,13 +4,148 @@
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use serde_json::json;
-use serde_json::value::Value;
+use serde::Serialize;
+use serde_json::Value;
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+#[derive(Serialize)]
+struct CastVoteAnnotations<'a> {
+    ip: Option<&'a str>,
+    country: Option<&'a str>,
+    voting_channel: VotingStatusChannel,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum CastVoteRelation {
+    Production,
+    #[cfg(test)]
+    StatisticsTest,
+}
+
+impl CastVoteRelation {
+    /// PostgreSQL identifiers cannot be query parameters. Keeping the relation
+    /// selector closed prevents caller-controlled text from reaching the SQL.
+    fn sql_identifier(self) -> &'static str {
+        match self {
+            Self::Production => "sequent_backend.cast_vote",
+            #[cfg(test)]
+            Self::StatisticsTest => "pg_temp.cast_vote_stats_test",
+        }
+    }
+}
+
+pub(crate) fn count_distinct_voters_by_channel_query(
+    cast_vote_relation: CastVoteRelation,
+    filter_by_election: bool,
+) -> String {
+    let election_filter = if filter_by_election {
+        "AND election_id = $5"
+    } else {
+        ""
+    };
+    let cast_vote_relation = cast_vote_relation.sql_identifier();
+
+    format!(
+        r#"
+            WITH latest_valid_votes AS (
+                SELECT DISTINCT ON (voter_id_string)
+                    voter_id_string,
+                    COALESCE(annotations->>'voting_channel', $4) AS channel
+                FROM {cast_vote_relation}
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    status = $3 AND
+                    voter_id_string IS NOT NULL
+                    {election_filter}
+                ORDER BY
+                    voter_id_string,
+                    created_at DESC NULLS LAST,
+                    id DESC
+            )
+            SELECT
+                channel,
+                COUNT(*) AS count
+            FROM latest_valid_votes
+            GROUP BY channel
+            ORDER BY channel;
+            "#
+    )
+}
+
+pub(crate) fn count_votes_per_day_query(cast_vote_relation: CastVoteRelation) -> String {
+    let cast_vote_relation = cast_vote_relation.sql_identifier();
+
+    format!(
+        r#"
+            WITH resolution AS (
+                SELECT
+                    CASE $9
+                        WHEN 'minute' THEN interval '1 minute'
+                        WHEN 'hour' THEN interval '1 hour'
+                        ELSE interval '1 day'
+                    END AS bucket_interval
+            ),
+            range_bounds AS (
+                SELECT
+                    CASE
+                        WHEN $10::integer IS NULL THEN date_trunc($9, $3::timestamp)
+                        ELSE date_trunc($9, CURRENT_TIMESTAMP AT TIME ZONE $5)
+                            - bucket_interval * ($10::integer - 1)
+                    END AS start_bucket,
+                    CASE
+                        WHEN $10::integer IS NULL THEN date_trunc($9, $4::timestamp)
+                        ELSE date_trunc($9, CURRENT_TIMESTAMP AT TIME ZONE $5)
+                    END AS end_bucket,
+                    bucket_interval
+                FROM resolution
+            )
+            SELECT
+                series.bucket,
+                series.bucket::date AS day,
+                COALESCE(v.annotations->>'voting_channel', $8) AS channel,
+                COUNT(v.id) AS day_count
+            FROM range_bounds bounds
+            CROSS JOIN LATERAL generate_series(
+                bounds.start_bucket,
+                bounds.end_bucket,
+                bounds.bucket_interval
+            ) AS series(bucket)
+            LEFT JOIN {cast_vote_relation} v
+                ON date_trunc($9, v.created_at AT TIME ZONE $5) = series.bucket
+                AND v.tenant_id = $1
+                AND v.election_event_id = $2
+                AND (v.election_id = $6 OR $6 IS NULL)
+                AND v.status = $7
+                AND (v.created_at AT TIME ZONE $5) >= bounds.start_bucket
+                AND (v.created_at AT TIME ZONE $5)
+                    < bounds.end_bucket + bounds.bucket_interval
+            GROUP BY
+                series.bucket,
+                COALESCE(v.annotations->>'voting_channel', $8)
+            ORDER BY
+                series.bucket,
+                channel;
+            "#
+    )
+}
+
+fn cast_vote_annotations(
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
+    voting_channel: VotingStatusChannel,
+) -> Result<Value> {
+    Ok(serde_json::to_value(CastVoteAnnotations {
+        ip: voter_ip.as_deref(),
+        country: voter_country.as_deref(),
+        voting_channel,
+    })?)
+}
 
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
@@ -25,6 +160,7 @@ pub async fn insert_cast_vote(
     cast_ballot_signature: &[u8],
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    voting_channel: VotingStatusChannel,
     initial_status: CastVoteStatus,
 ) -> Result<CastVote> {
     let status = initial_status.to_string();
@@ -67,10 +203,7 @@ pub async fn insert_cast_vote(
         )
         .await?;
 
-    let annotations: Value = json!({
-        "ip": voter_ip,
-        "country": voter_country,
-    });
+    let annotations = cast_vote_annotations(voter_ip, voter_country, voting_channel)?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(

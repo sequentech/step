@@ -1,3 +1,4 @@
+import {VotingStatusChannel} from "@sequentech/ui-core"
 import {TypedDocumentNode as DocumentNode} from "@graphql-typed-document-node/core"
 export type Maybe<T> = T | null
 export type InputMaybe<T> = T | null | undefined
@@ -1106,12 +1107,7 @@ export enum VotingStatus {
     Paused = "PAUSED",
 }
 
-export enum VotingStatusChannel {
-    EarlyVoting = "EARLY_VOTING",
-    Kiosk = "KIOSK",
-    Online = "ONLINE",
-    Telephone = "TELEPHONE",
-}
+export {VotingStatusChannel}
 
 export type ApplicationOutput = {
     __typename?: "applicationOutput"

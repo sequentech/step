@@ -27,6 +27,7 @@ pub fn get_area_config(
         election_id: *election_id,
         census,
         auditable_votes,
+        votes_by_channel: Default::default(),
         parent_id,
     }
 }

@@ -16,7 +16,8 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::types::{
     ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
     hasura::core::TallySheet,
-    tally_sheets::TallySheetStatus,
+    participation::{ParticipationChannel, VotesByChannel},
+    tally_sheets::{TallySheetStatus, VotingChannel},
 };
 use serde_json::Value;
 use std::cmp;
@@ -321,6 +322,9 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         .unwrap_or(votes_for_candidates.saturating_add(count_blank));
 
     let total_votes = count_valid + count_invalid;
+    let channel: VotingChannel = tally_sheet.channel.clone().into();
+    let votes_by_channel =
+        VotesByChannel::from([(ParticipationChannel::from(channel), total_votes)]);
 
     let contest_result = ContestResult {
         contest: contest.clone(),
@@ -343,7 +347,10 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         percentage_invalid_votes_implicit: 0.0,
         invalid_votes: count_invalid_votes,
         candidate_result: candidate_results,
-        extended_metrics: None,
+        extended_metrics: Some(ExtendedMetricsContest {
+            votes_by_channel,
+            ..Default::default()
+        }),
         process_results: None,
     };
     Ok(contest_result.calculate_percentages())
@@ -470,5 +477,13 @@ mod tests {
         assert_eq!(result.total_invalid_votes, 1);
         assert_eq!(result.candidate_result[0].total_count, 4);
         assert_eq!(result.candidate_result[0].percentage_votes, 100.0);
+        assert_eq!(
+            result.extended_metrics.as_ref().and_then(|metrics| {
+                metrics
+                    .votes_by_channel
+                    .get(&ParticipationChannel::from(VotingChannel::PAPER))
+            }),
+            Some(&7)
+        );
     }
 }

@@ -804,6 +804,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         &ballot_signature,
         voter_ip,
         voter_country,
+        voting_channel,
         initial_status,
     );
 

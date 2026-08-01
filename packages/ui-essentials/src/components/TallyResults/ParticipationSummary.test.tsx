@@ -38,14 +38,29 @@ jest.mock("./ChartPanel", () => {
     }
 })
 
+// ui-core's built dist is unavailable when this package's tests run alone, so
+// load the canonical channel module from source instead of duplicating its values.
 jest.mock(
     "@sequentech/ui-core",
-    () => ({
-        formatPercentOne: (value: number) => `${value}%`,
-    }),
+    () => {
+        const votingChannels = jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/types/VotingChannel"
+        )
+
+        return {
+            ...votingChannels,
+            formatPercentOne: (value: number) => `${(value * 100).toFixed(1)}%`,
+        }
+    },
     {virtual: true}
 )
 
+import {
+    TallySheetVotingChannel,
+    VotingStatusChannel,
+    parseParticipationChannel,
+} from "@sequentech/ui-core"
+import {ParticipationByChannel} from "./ParticipationByChannel"
 import {ParticipationSummaryChart} from "./ParticipationSummary"
 import type {ResultsParticipationSummary} from "./types"
 
@@ -84,5 +99,90 @@ describe("ParticipationSummaryChart", () => {
         expect(markup).toContain('data-series="[100]"')
         expect(markup).not.toContain("No results")
         expect(markup).not.toContain('role="img"')
+    })
+})
+
+describe("ParticipationByChannel", () => {
+    it("renders non-zero channel totals in canonical order using total vote percentages", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                chartName="Election - Contest"
+                result={{
+                    eligibleCensus: 20,
+                    votesByChannel: {
+                        [TallySheetVotingChannel.Paper]: 3,
+                        [VotingStatusChannel.Online]: 5,
+                        [TallySheetVotingChannel.Postal]: 0,
+                        [parseParticipationChannel("FUTURE_CHANNEL")]: 2,
+                    },
+                }}
+            />
+        )
+
+        const onlineIndex = markup.indexOf(">Online<")
+        const paperIndex = markup.indexOf(">Paper<")
+        const futureChannelIndex = markup.indexOf(">Future Channel<")
+
+        expect(markup).toContain("Participation by channel")
+        expect(onlineIndex).toBeGreaterThan(-1)
+        expect(paperIndex).toBeGreaterThan(onlineIndex)
+        expect(futureChannelIndex).toBeGreaterThan(paperIndex)
+        expect(markup).toContain("50.0%")
+        expect(markup).toContain("30.0%")
+        expect(markup).toContain("20.0%")
+        expect(markup).not.toContain("Postal")
+        expect(markup).toContain("seq-tally-results-participation-by-channel-chart")
+        expect(markup).toContain('aria-label="Election - Contest"')
+        expect(markup).toContain('data-height="170"')
+        expect(markup).toContain('data-series="[5,3,2]"')
+    })
+
+    it("orders unknown channels deterministically after known channels", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 10,
+                    votesByChannel: {
+                        [parseParticipationChannel("A_B")]: 1,
+                        [parseParticipationChannel("AA")]: 1,
+                        [VotingStatusChannel.Online]: 1,
+                    },
+                }}
+            />
+        )
+
+        const onlineIndex = markup.indexOf(">Online<")
+        const aaIndex = markup.indexOf(">Aa<")
+        const aBIndex = markup.indexOf(">A B<")
+
+        expect(onlineIndex).toBeGreaterThan(-1)
+        expect(aaIndex).toBeGreaterThan(onlineIndex)
+        expect(aBIndex).toBeGreaterThan(aaIndex)
+    })
+
+    it("uses total channel votes independently of the census", () => {
+        const markup = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 1,
+                    votesByChannel: {
+                        [VotingStatusChannel.Online]: 3,
+                        [TallySheetVotingChannel.Paper]: 1,
+                    },
+                }}
+            />
+        )
+        const zeroCensus = renderToStaticMarkup(
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 0,
+                    votesByChannel: {[VotingStatusChannel.Online]: 1},
+                }}
+            />
+        )
+
+        expect(markup).toContain("75.0%")
+        expect(markup).toContain("25.0%")
+        expect(zeroCensus).toContain("100.0%")
     })
 })

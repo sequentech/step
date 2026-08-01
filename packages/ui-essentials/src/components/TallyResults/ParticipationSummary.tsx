@@ -21,8 +21,10 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
+import {ParticipationByChannel} from "./ParticipationByChannel"
 import type {
     NumericValue,
+    ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
     ResultsParticipationSummary,
 } from "./types"
@@ -31,13 +33,13 @@ import {mergeLabels, percentOrDash, toFiniteNumber, valueOrDash} from "./utils"
 interface ParticipationSummaryChartProps {
     result: ResultsParticipationSummary
     chartName: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 }
 
 interface ParticipationSummaryProps {
     result?: ResultsParticipationSummary | null
     chartName: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
     showWeight?: boolean
 }
 
@@ -244,112 +246,119 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
             </Typography>
 
             {result ? (
-                <Box
-                    className="seq-tally-results-participation-summary__content"
-                    sx={{
-                        display: "flex",
-                        flexDirection: {xs: "column", lg: "row"},
-                        gap: 4,
-                        alignItems: "flex-start",
-                    }}
-                >
+                <>
                     <Box
-                        className="seq-tally-results-participation-summary__chart-column"
+                        className="seq-tally-results-participation-summary__content"
                         sx={{
-                            flex: {
-                                xs: "1 1 auto",
-                                lg: `0 0 ${TALLY_RESULTS_PIE_PANEL_WIDTH}px`,
-                            },
-                            mt: 2,
-                            width: {xs: "100%", lg: TALLY_RESULTS_PIE_PANEL_WIDTH},
-                            maxWidth: "100%",
+                            display: "flex",
+                            flexDirection: {xs: "column", lg: "row"},
+                            gap: 4,
+                            alignItems: "flex-start",
                         }}
                     >
-                        <ParticipationSummaryChart
-                            result={result}
-                            chartName={chartName}
-                            labels={mergedLabels}
-                        />
-                    </Box>
-                    <Box
-                        className="seq-tally-results-participation-summary__table-column"
-                        sx={{
-                            flex: "1 1 auto",
-                            mt: 2,
-                            border: "1px solid",
-                            borderColor: "divider",
-                            minWidth: 0,
-                            width: "100%",
-                        }}
-                    >
-                        <TableContainer
-                            className="seq-tally-results-participation-summary__table-container"
-                            component={Paper}
+                        <Box
+                            className="seq-tally-results-participation-summary__chart-column"
+                            sx={{
+                                flex: {
+                                    xs: "1 1 auto",
+                                    lg: `0 0 ${TALLY_RESULTS_PIE_PANEL_WIDTH}px`,
+                                },
+                                mt: 2,
+                                width: {xs: "100%", lg: TALLY_RESULTS_PIE_PANEL_WIDTH},
+                                maxWidth: "100%",
+                            }}
                         >
-                            <Table
-                                className="seq-tally-results-participation-summary__table"
-                                sx={{minWidth: {xs: 300, sm: 500}, tableLayout: "fixed"}}
+                            <ParticipationSummaryChart
+                                result={result}
+                                chartName={chartName}
+                                labels={mergedLabels}
+                            />
+                        </Box>
+                        <Box
+                            className="seq-tally-results-participation-summary__table-column"
+                            sx={{
+                                flex: "1 1 auto",
+                                mt: 2,
+                                border: "1px solid",
+                                borderColor: "divider",
+                                minWidth: 0,
+                                width: "100%",
+                            }}
+                        >
+                            <TableContainer
+                                className="seq-tally-results-participation-summary__table-container"
+                                component={Paper}
                             >
-                                <TableHead className="seq-tally-results-participation-summary__table-head">
-                                    <TableRow className="seq-tally-results-participation-summary__heading-row">
-                                        <TableCell
-                                            className="seq-tally-results-participation-summary__label-heading"
-                                            sx={{
-                                                width: {xs: "48%", sm: "44%"},
-                                                overflowWrap: "anywhere",
-                                            }}
-                                        />
-                                        <TableCell
-                                            className="seq-tally-results-participation-summary__total-heading"
-                                            sx={{width: {xs: "26%", sm: "28%"}}}
-                                            align="right"
-                                        >
-                                            {mergedLabels.total}
-                                        </TableCell>
-                                        <TableCell
-                                            className="seq-tally-results-participation-summary__turnout-heading"
-                                            sx={{width: {xs: "26%", sm: "28%"}}}
-                                            align="right"
-                                        >
-                                            {mergedLabels.turnout}
-                                        </TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody className="seq-tally-results-participation-summary__table-body">
-                                    {summaryRows.map((row) => (
-                                        <TableRow
-                                            className={`seq-tally-results-participation-summary__row seq-tally-results-participation-summary__row--${row.key}`}
-                                            key={row.key}
-                                        >
+                                <Table
+                                    className="seq-tally-results-participation-summary__table"
+                                    sx={{minWidth: {xs: 300, sm: 500}, tableLayout: "fixed"}}
+                                >
+                                    <TableHead className="seq-tally-results-participation-summary__table-head">
+                                        <TableRow className="seq-tally-results-participation-summary__heading-row">
                                             <TableCell
-                                                className="seq-tally-results-participation-summary__label-cell"
-                                                component="th"
-                                                scope="row"
-                                                sx={{overflowWrap: "anywhere"}}
-                                            >
-                                                {row.label}
-                                            </TableCell>
+                                                className="seq-tally-results-participation-summary__label-heading"
+                                                sx={{
+                                                    width: {xs: "48%", sm: "44%"},
+                                                    overflowWrap: "anywhere",
+                                                }}
+                                            />
                                             <TableCell
-                                                className="seq-tally-results-participation-summary__value-cell"
+                                                className="seq-tally-results-participation-summary__total-heading"
+                                                sx={{width: {xs: "26%", sm: "28%"}}}
                                                 align="right"
                                             >
-                                                {valueOrDash(row.value)}
+                                                {mergedLabels.total}
                                             </TableCell>
                                             <TableCell
-                                                className="seq-tally-results-participation-summary__percent-cell"
+                                                className="seq-tally-results-participation-summary__turnout-heading"
+                                                sx={{width: {xs: "26%", sm: "28%"}}}
                                                 align="right"
                                             >
-                                                {row.showPercent === false
-                                                    ? ""
-                                                    : percentOrDash(row.percent)}
+                                                {mergedLabels.turnout}
                                             </TableCell>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                                    </TableHead>
+                                    <TableBody className="seq-tally-results-participation-summary__table-body">
+                                        {summaryRows.map((row) => (
+                                            <TableRow
+                                                className={`seq-tally-results-participation-summary__row seq-tally-results-participation-summary__row--${row.key}`}
+                                                key={row.key}
+                                            >
+                                                <TableCell
+                                                    className="seq-tally-results-participation-summary__label-cell"
+                                                    component="th"
+                                                    scope="row"
+                                                    sx={{overflowWrap: "anywhere"}}
+                                                >
+                                                    {row.label}
+                                                </TableCell>
+                                                <TableCell
+                                                    className="seq-tally-results-participation-summary__value-cell"
+                                                    align="right"
+                                                >
+                                                    {valueOrDash(row.value)}
+                                                </TableCell>
+                                                <TableCell
+                                                    className="seq-tally-results-participation-summary__percent-cell"
+                                                    align="right"
+                                                >
+                                                    {row.showPercent === false
+                                                        ? ""
+                                                        : percentOrDash(row.percent)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </Box>
                     </Box>
-                </Box>
+                    <ParticipationByChannel
+                        result={result}
+                        chartName={chartName}
+                        labels={mergedLabels}
+                    />
+                </>
             ) : (
                 <Typography
                     className="seq-tally-results-participation-summary__empty"

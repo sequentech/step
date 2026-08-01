@@ -3,15 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
 use super::sql_utils::escape_sql_literal;
+use crate::postgres::cast_vote::{
+    count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
+};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::NaiveDate;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
@@ -113,11 +116,13 @@ pub async fn find_area_ballots(
     let area_id = escape_sql_literal(area_id);
     let election_id = escape_sql_literal(election_id);
     let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
+    let default_channel = escape_sql_literal(&VotingStatusChannel::ONLINE.to_string());
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
-                        content
+                        content,
+                        COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
@@ -125,7 +130,11 @@ pub async fn find_area_ballots(
                         area_id = '{area_id}' AND
                         election_id = '{election_id}' AND
                         status = '{status}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
+                    ORDER BY
+                        election_id,
+                        voter_id_string,
+                        created_at DESC NULLS LAST,
+                        id DESC
                 "#
     );
 
@@ -260,20 +269,141 @@ impl TryFrom<Row> for ElectionCastVotes {
     }
 }
 
+const MAX_VOTES_TIME_BUCKETS: i32 = 1000;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum VotesTimeResolution {
+    Minute,
+    Hour,
+    #[default]
+    Day,
+}
+
+impl VotesTimeResolution {
+    fn as_sql(self) -> &'static str {
+        match self {
+            Self::Minute => "minute",
+            Self::Hour => "hour",
+            Self::Day => "day",
+        }
+    }
+
+    fn seconds(self) -> i64 {
+        match self {
+            Self::Minute => 60,
+            Self::Hour => 60 * 60,
+            Self::Day => 24 * 60 * 60,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVotesPerDay {
     pub day: String,
+    pub bucket: String,
+    pub channel: VotingStatusChannel,
     pub day_count: i64,
+}
+
+fn voting_status_channel_from_row(item: &Row) -> Result<VotingStatusChannel> {
+    let channel = item.try_get::<_, String>("channel")?;
+    VotingStatusChannel::from_str(&channel)
+        .map_err(|error| anyhow!("Invalid voting channel {channel}: {error}"))
 }
 
 impl TryFrom<Row> for CastVotesPerDay {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVotesPerDay {
-            day: item.try_get::<_, chrono::NaiveDate>("day")?.to_string(),
+            day: item.try_get::<_, NaiveDate>("day")?.to_string(),
+            bucket: item
+                .try_get::<_, NaiveDateTime>("bucket")?
+                .format("%Y-%m-%dT%H:%M:%S")
+                .to_string(),
+            channel: voting_status_channel_from_row(&item)?,
             day_count: item.try_get::<_, i64>("day_count")?,
         })
     }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct VotersByChannel {
+    pub channel: VotingStatusChannel,
+    pub count: i64,
+}
+
+impl TryFrom<Row> for VotersByChannel {
+    type Error = anyhow::Error;
+
+    fn try_from(item: Row) -> Result<Self> {
+        Ok(VotersByChannel {
+            channel: voting_status_channel_from_row(&item)?,
+            count: item.try_get("count")?,
+        })
+    }
+}
+
+/// Counts each voter once under the channel of their latest valid vote.
+/// Votes created before the channel annotation was introduced are online.
+#[instrument(skip(transaction), err)]
+pub async fn get_count_distinct_voters_by_channel(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<Vec<VotersByChannel>> {
+    get_count_distinct_voters_by_channel_from_relation(
+        transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        CastVoteRelation::Production,
+    )
+    .await
+}
+
+async fn get_count_distinct_voters_by_channel_from_relation(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    cast_vote_relation: CastVoteRelation,
+) -> Result<Vec<VotersByChannel>> {
+    let election_id = election_id.map(parse_uuid_v4).transpose()?;
+    let status = CastVoteStatus::Valid.to_string();
+    let default_channel = VotingStatusChannel::ONLINE.to_string();
+    let sql = count_distinct_voters_by_channel_query(cast_vote_relation, election_id.is_some());
+    let statement = transaction.prepare(&sql).await?;
+
+    let tenant_id = parse_uuid_v4(tenant_id)?;
+    let election_event_id = parse_uuid_v4(election_event_id)?;
+    let rows = match election_id {
+        Some(election_id) => {
+            transaction
+                .query(
+                    &statement,
+                    &[
+                        &tenant_id,
+                        &election_event_id,
+                        &status,
+                        &default_channel,
+                        &election_id,
+                    ],
+                )
+                .await?
+        }
+        None => {
+            transaction
+                .query(
+                    &statement,
+                    &[&tenant_id, &election_event_id, &status, &default_channel],
+                )
+                .await?
+        }
+    };
+
+    rows.into_iter().map(TryInto::try_into).collect()
 }
 
 #[instrument(err)]
@@ -326,6 +456,59 @@ pub async fn count_cast_votes_election(
     Ok(count_data)
 }
 
+fn parse_votes_time_boundary(value: &str, end_of_day: bool) -> Result<NaiveDateTime> {
+    for format in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%d %H:%M:%S%.f"] {
+        if let Ok(value) = NaiveDateTime::parse_from_str(value, format) {
+            return Ok(value);
+        }
+    }
+
+    let date = NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .with_context(|| format!("Error parsing time boundary: {value}"))?;
+    let time = if end_of_day {
+        NaiveTime::from_hms_micro_opt(23, 59, 59, 999_999)
+    } else {
+        NaiveTime::from_hms_opt(0, 0, 0)
+    }
+    .ok_or_else(|| anyhow!("Error building time boundary"))?;
+
+    Ok(date.and_time(time))
+}
+
+fn validate_votes_time_range(
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
+) -> Result<()> {
+    if end < start {
+        return Err(anyhow!("end_date must not be earlier than start_date"));
+    }
+
+    let requested_buckets = match bucket_count {
+        Some(count) if (1..=MAX_VOTES_TIME_BUCKETS).contains(&count) => i64::from(count),
+        Some(_) => {
+            return Err(anyhow!(
+                "bucket_count must be between 1 and {MAX_VOTES_TIME_BUCKETS}"
+            ))
+        }
+        None => end
+            .signed_duration_since(start)
+            .num_seconds()
+            .checked_div(resolution.seconds())
+            .and_then(|count| count.checked_add(1))
+            .ok_or_else(|| anyhow!("Unable to calculate requested time buckets"))?,
+    };
+
+    if requested_buckets > i64::from(MAX_VOTES_TIME_BUCKETS) {
+        return Err(anyhow!(
+            "Requested {requested_buckets} time buckets; maximum is {MAX_VOTES_TIME_BUCKETS}"
+        ));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip(transaction), err)]
 pub async fn get_count_votes_per_day(
     transaction: &Transaction<'_>,
@@ -335,61 +518,51 @@ pub async fn get_count_votes_per_day(
     end_date: &str,
     election_id: Option<String>,
     user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
 ) -> Result<Vec<CastVotesPerDay>> {
-    let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
-        .with_context(|| "Error parsing start_date")?;
-    let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
-        .with_context(|| "Error parsing end_date")?;
+    get_count_votes_per_day_from_relation(
+        transaction,
+        tenant_id,
+        election_event_id,
+        start_date,
+        end_date,
+        election_id,
+        user_timezone,
+        resolution,
+        bucket_count,
+        CastVoteRelation::Production,
+    )
+    .await
+}
+
+async fn get_count_votes_per_day_from_relation(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    start_date: &str,
+    end_date: &str,
+    election_id: Option<String>,
+    user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
+    cast_vote_relation: CastVoteRelation,
+) -> Result<Vec<CastVotesPerDay>> {
+    let start_date_naive =
+        parse_votes_time_boundary(start_date, false).with_context(|| "Error parsing start_date")?;
+    let end_date_naive =
+        parse_votes_time_boundary(end_date, true).with_context(|| "Error parsing end_date")?;
+    validate_votes_time_range(start_date_naive, end_date_naive, resolution, bucket_count)?;
+
     let election_uuid = match election_id {
         Some(ref election_id_r) => Some(parse_uuid_v4(election_id_r.as_str())?),
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
-    let total_areas_statement = transaction
-        .prepare(
-            format!(
-                r#"
-            WITH date_series AS (
-                SELECT
-                    (t.day)::date AS day
-                FROM 
-                    generate_series(
-                        $3::date,
-                        $4::date,
-                        interval '1 day'
-                    ) AS t(day)
-            )
-            SELECT
-                ds.day,
-                COALESCE(
-                    COUNT(
-                        CASE 
-                            WHEN DATE(v.created_at AT TIME ZONE $5) = ds.day THEN 1 
-                            ELSE NULL 
-                        END
-                    ), 
-                    0
-                ) AS day_count
-            FROM
-                date_series ds
-            LEFT JOIN sequent_backend.cast_vote v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
-                AND v.tenant_id = $1
-                AND v.election_event_id = $2
-                AND (v.election_id = $6 OR $6 IS NULL)
-                AND v.status = $7
-            WHERE
-                (
-                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
-                    DATE(v.created_at AT TIME ZONE $5) <= $4
-                )
-                OR v.created_at IS NULL
-            GROUP BY ds.day
-            ORDER BY ds.day;
-            "#
-            )
-            .as_str(),
-        )
-        .await?;
+    let default_channel = VotingStatusChannel::ONLINE.to_string();
+    let resolution_sql = resolution.as_sql();
+    let sql = count_votes_per_day_query(cast_vote_relation);
+    let total_areas_statement = transaction.prepare(&sql).await?;
 
     let rows: Vec<Row> = transaction
         .query(
@@ -402,6 +575,9 @@ pub async fn get_count_votes_per_day(
                 &user_timezone,
                 &election_uuid,
                 &status,
+                &default_channel,
+                &resolution_sql,
+                &bucket_count,
             ],
         )
         .await?;

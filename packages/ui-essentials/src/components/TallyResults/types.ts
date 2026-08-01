@@ -2,7 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {
+    TallySheetVotingChannel,
+    VotingStatusChannel,
+    type KnownParticipationChannel,
+    type ParticipationChannel,
+} from "@sequentech/ui-core"
+
 export type NumericValue = number | string | null | undefined
+export type VotesByChannel = Readonly<Partial<Record<ParticipationChannel, NumericValue>>>
+export type ParticipationChannelNames = Record<KnownParticipationChannel, string>
 
 export interface ResultsParticipationSummary {
     id?: string | number
@@ -26,6 +35,7 @@ export interface ResultsParticipationSummary {
     implicitBlankVotes?: NumericValue
     implicitBlankVotesPercent?: NumericValue
     weight?: NumericValue
+    votesByChannel?: VotesByChannel
 }
 
 export interface CandidateResultRow {
@@ -99,13 +109,23 @@ export interface ResultsAndParticipationLabels {
     empty: string
     previousRounds: string
     nextRounds: string
+    participationByChannel: string
+    channel: string
+    channelNames: ParticipationChannelNames
+}
+
+export type ResultsAndParticipationLabelOverrides = Omit<
+    Partial<ResultsAndParticipationLabels>,
+    "channelNames"
+> & {
+    channelNames?: Partial<ParticipationChannelNames>
 }
 
 export interface ResultsAndParticipationProps {
     chartName: string
     summary?: ResultsParticipationSummary | null
     candidates: CandidateResultRow[]
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
     showWeight?: boolean
     processResults?: PreferentialProcessResults | null
     preferential?: boolean
@@ -143,4 +163,15 @@ export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels
     empty: "No items",
     previousRounds: "Navigate to previous rounds",
     nextRounds: "Navigate to next rounds",
+    participationByChannel: "Participation by channel",
+    channel: "Channel",
+    channelNames: {
+        [VotingStatusChannel.Online]: "Online",
+        [VotingStatusChannel.Kiosk]: "Kiosk",
+        [VotingStatusChannel.EarlyVoting]: "Early voting",
+        [VotingStatusChannel.Telephone]: "Telephone",
+        [TallySheetVotingChannel.Paper]: "Paper",
+        [TallySheetVotingChannel.Postal]: "Postal",
+        [TallySheetVotingChannel.InPerson]: "In person",
+    },
 }
