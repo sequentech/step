@@ -50,7 +50,8 @@ Three declarative edits, no code:
    should reach Slack. Leave it out and the policy is labelled but silent.
 
 Then create the label in the repository — CodeRabbit applies labels, it does not
-create them.
+create them. See [Configuring the policy review](../../docs/docusaurus/docs/engineering/policy-review-configuration.md)
+for how, and for the Slack webhook and branch-protection settings.
 
 Write four things in every policy: **what the rule is**, **what breaks it** with
 concrete examples, **what does not** break it, and **what to do instead**. The
