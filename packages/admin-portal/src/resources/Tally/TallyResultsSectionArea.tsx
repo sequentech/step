@@ -10,13 +10,17 @@ import {
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
-import {Sequent_Backend_Candidate_Extended, ParsedAnnotations, RunoffStatus} from "./types"
+import {Sequent_Backend_Candidate_Extended, RunoffStatus} from "./types"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
-import {parseProcessResults} from "./utils"
+import {
+    EElectionEventWeightedVotingPolicy,
+    ICountingAlgorithm,
+    TallySheetVotingChannel,
+    VotingStatusChannel,
+} from "@sequentech/ui-core"
+import {parseProcessResults, parseResultAnnotations} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
@@ -24,7 +28,7 @@ import {
     CandidateResultRow,
     PreferentialProcessResults,
     ResultsAndParticipation,
-    ResultsAndParticipationLabels,
+    ResultsAndParticipationLabelOverrides,
     ResultsParticipationSummary,
 } from "@sequentech/ui-essentials"
 
@@ -107,14 +111,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     }, [resultsData])
 
     const weight = useMemo((): number | null => {
-        try {
-            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
-                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
-                : null
-            return parsedAnnotations?.extended_metrics?.weight ?? null
-        } catch {
-            return null
-        }
+        return parseResultAnnotations(general?.[0]?.annotations)?.extended_metrics?.weight ?? null
     }, [general?.[0]])
 
     const processResults = useMemo(
@@ -152,6 +149,8 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             implicitBlankVotes: result.implicit_blank_votes,
             implicitBlankVotesPercent: result.implicit_blank_votes_percent,
             weight,
+            votesByChannel: parseResultAnnotations(result.annotations)?.extended_metrics
+                ?.votes_by_channel,
         }
     }, [general, weight])
 
@@ -167,7 +166,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         [orderedResultsData]
     )
 
-    const labels = useMemo<Partial<ResultsAndParticipationLabels>>(
+    const labels = useMemo<ResultsAndParticipationLabelOverrides>(
         () => ({
             participationSummary: t("tally.table.global"),
             candidateResults: t("tally.table.candidates"),
@@ -197,6 +196,17 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             winner: t("tally.table.preferential.winner"),
             eliminated: t("tally.table.preferential.eliminated"),
             empty: t("common.label.noResult"),
+            participationByChannel: t("tally.table.participation_by_channel"),
+            channel: t("tally.table.channel"),
+            channelNames: {
+                [VotingStatusChannel.Online]: t("tally.table.channel_online"),
+                [VotingStatusChannel.Kiosk]: t("tally.table.channel_kiosk"),
+                [VotingStatusChannel.EarlyVoting]: t("tally.table.channel_early_voting"),
+                [VotingStatusChannel.Telephone]: t("tally.table.channel_telephone"),
+                [TallySheetVotingChannel.Paper]: t("tally.table.channel_paper"),
+                [TallySheetVotingChannel.Postal]: t("tally.table.channel_postal"),
+                [TallySheetVotingChannel.InPerson]: t("tally.table.channel_in_person"),
+            },
         }),
         [t]
     )

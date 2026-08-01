@@ -31,6 +31,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(format_percentage), String::from("-")),
     );
     reg.register_helper(
+        "format_percentage_one",
+        helper_wrapper_or(Box::new(format_percentage_one), String::from("-")),
+    );
+    reg.register_helper(
         "format_dec_percentage",
         helper_wrapper_or(Box::new(format_dec_percentage), String::from("-")),
     );
@@ -601,6 +605,27 @@ pub fn format_percentage(
     let formatted_number = format!("{:.2}", val);
 
     out.write(&formatted_number)?;
+
+    Ok(())
+}
+
+pub fn format_percentage_one(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let val_json = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
+            "format_percentage_one",
+            0,
+        ))?
+        .value();
+
+    let val = parse_f64_value(val_json)?;
+    out.write(&format!("{val:.1}"))?;
 
     Ok(())
 }

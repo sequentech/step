@@ -83,38 +83,53 @@ pub(crate) fn count_votes_per_day_query(cast_vote_relation: CastVoteRelation) ->
 
     format!(
         r#"
-            WITH date_series AS (
+            WITH resolution AS (
                 SELECT
-                    (t.day)::date AS day
-                FROM
-                    generate_series(
-                        $3::date,
-                        $4::date,
-                        interval '1 day'
-                    ) AS t(day)
+                    CASE $9
+                        WHEN 'minute' THEN interval '1 minute'
+                        WHEN 'hour' THEN interval '1 hour'
+                        ELSE interval '1 day'
+                    END AS bucket_interval
+            ),
+            range_bounds AS (
+                SELECT
+                    CASE
+                        WHEN $10::integer IS NULL THEN date_trunc($9, $3::timestamp)
+                        ELSE date_trunc($9, CURRENT_TIMESTAMP AT TIME ZONE $5)
+                            - bucket_interval * ($10::integer - 1)
+                    END AS start_bucket,
+                    CASE
+                        WHEN $10::integer IS NULL THEN date_trunc($9, $4::timestamp)
+                        ELSE date_trunc($9, CURRENT_TIMESTAMP AT TIME ZONE $5)
+                    END AS end_bucket,
+                    bucket_interval
+                FROM resolution
             )
             SELECT
-                ds.day,
+                series.bucket,
+                series.bucket::date AS day,
                 COALESCE(v.annotations->>'voting_channel', $8) AS channel,
                 COUNT(v.id) AS day_count
-            FROM
-                date_series ds
-            LEFT JOIN {cast_vote_relation} v ON ds.day = DATE(v.created_at AT TIME ZONE $5)
+            FROM range_bounds bounds
+            CROSS JOIN LATERAL generate_series(
+                bounds.start_bucket,
+                bounds.end_bucket,
+                bounds.bucket_interval
+            ) AS series(bucket)
+            LEFT JOIN {cast_vote_relation} v
+                ON date_trunc($9, v.created_at AT TIME ZONE $5) = series.bucket
                 AND v.tenant_id = $1
                 AND v.election_event_id = $2
                 AND (v.election_id = $6 OR $6 IS NULL)
                 AND v.status = $7
-            WHERE
-                (
-                    DATE(v.created_at AT TIME ZONE $5) >= $3 AND
-                    DATE(v.created_at AT TIME ZONE $5) <= $4
-                )
-                OR v.created_at IS NULL
+                AND (v.created_at AT TIME ZONE $5) >= bounds.start_bucket
+                AND (v.created_at AT TIME ZONE $5)
+                    < bounds.end_bucket + bounds.bucket_interval
             GROUP BY
-                ds.day,
+                series.bucket,
                 COALESCE(v.annotations->>'voting_channel', $8)
             ORDER BY
-                ds.day,
+                series.bucket,
                 channel;
             "#
     )

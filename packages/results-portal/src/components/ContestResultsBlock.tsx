@@ -4,14 +4,15 @@
 
 import React, {useMemo} from "react"
 import {Box, Chip, Stack, Typography} from "@mui/material"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
+import {ICountingAlgorithm, TallySheetVotingChannel, VotingStatusChannel} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {
     CandidateResultRow,
     PreferentialProcessResults,
     ResultsAndParticipation,
-    ResultsAndParticipationLabels,
+    ResultsAndParticipationLabelOverrides,
     ResultsParticipationSummary,
+    VotesByChannel,
 } from "@sequentech/ui-essentials"
 import {ResultsManifestContest, ResultsRow, ResultsSqliteDataset} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
@@ -47,7 +48,10 @@ const sameId = (left: unknown, right: unknown): boolean =>
     String(left) === String(right)
 
 interface ResultAnnotations {
-    extended_metrics?: {weight?: unknown}
+    extended_metrics?: {
+        weight?: unknown
+        votes_by_channel?: VotesByChannel
+    }
     process_results?: PreferentialProcessResults
 }
 
@@ -144,6 +148,8 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             weight: getNumber(
                 parseAnnotations(resultContest.annotations)?.extended_metrics?.weight
             ),
+            votesByChannel: parseAnnotations(resultContest.annotations)?.extended_metrics
+                ?.votes_by_channel,
         }
     }, [resultContest])
 
@@ -174,7 +180,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
         ? `${electionName} - ${title} - ${areaName}`
         : `${electionName} - ${title}`
     const isPublished = manifestContest.publication_state === "published"
-    const labels = useMemo<Partial<ResultsAndParticipationLabels>>(
+    const labels = useMemo<ResultsAndParticipationLabelOverrides>(
         () => ({
             participationSummary: t("resultsPortal.resultsAndParticipation.participationSummary"),
             candidateResults: t("resultsPortal.resultsAndParticipation.candidateResults"),
@@ -207,6 +213,33 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
             empty: t("resultsPortal.resultsAndParticipation.empty"),
             previousRounds: t("resultsPortal.resultsAndParticipation.previousRounds"),
             nextRounds: t("resultsPortal.resultsAndParticipation.nextRounds"),
+            participationByChannel: t(
+                "resultsPortal.resultsAndParticipation.participationByChannel"
+            ),
+            channel: t("resultsPortal.resultsAndParticipation.channel"),
+            channelNames: {
+                [VotingStatusChannel.Online]: t(
+                    "resultsPortal.resultsAndParticipation.channelOnline"
+                ),
+                [VotingStatusChannel.Kiosk]: t(
+                    "resultsPortal.resultsAndParticipation.channelKiosk"
+                ),
+                [VotingStatusChannel.EarlyVoting]: t(
+                    "resultsPortal.resultsAndParticipation.channelEarlyVoting"
+                ),
+                [VotingStatusChannel.Telephone]: t(
+                    "resultsPortal.resultsAndParticipation.channelTelephone"
+                ),
+                [TallySheetVotingChannel.Paper]: t(
+                    "resultsPortal.resultsAndParticipation.channelPaper"
+                ),
+                [TallySheetVotingChannel.Postal]: t(
+                    "resultsPortal.resultsAndParticipation.channelPostal"
+                ),
+                [TallySheetVotingChannel.InPerson]: t(
+                    "resultsPortal.resultsAndParticipation.channelInPerson"
+                ),
+            },
         }),
         [t]
     )

@@ -48,6 +48,7 @@ export {
     defaultResultsAndParticipationLabels,
     ParticipationSummary,
     ParticipationSummaryChart,
+    ParticipationByChannel,
     PreferentialCandidateResults,
     sortCandidateResults,
     TALLY_RESULTS_PIE_HEIGHT,
@@ -60,9 +61,12 @@ export {
 export type {
     CandidateReference,
     CandidateResultRow,
+    ParticipationChannelNames,
+    ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
     ResultsAndParticipationProps,
     ResultsParticipationSummary,
+    VotesByChannel,
     PreferentialProcessResults,
     PreferentialRound,
 } from "./components/TallyResults/TallyResults"
