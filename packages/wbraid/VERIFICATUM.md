@@ -589,6 +589,48 @@ belongs to the decryption work, where the shares are actually used.
 does not yet have (§2.5), plus the `Dec.s`/`Dec.v` transcript, the decryption artifacts in the proof
 directory, and the real `Γ` above. This is new cryptography, not a translation.
 
+### Non-participating parties, and why braid's model differs
+
+The two systems disagree about who publishes decryption factors, and the emitter has to bridge it.
+
+- **VMN:** *all* `k` mix-servers publish factors. `CorrectIndices.bt` then names Δ, the λ whose
+  proofs are correct, and only those are Lagrange-combined. The batching seed commits to **all `k`**
+  factor arrays, not only Δ's.
+- **braid:** only the λ trustees selected for the mix produce factors at all. The datalog's
+  `ComputePartialDecryptions` requires a `mixing_position`, and `partial_decryptions_all` fires only
+  at `threshold`, so either every participant succeeds or the protocol stalls. There is no
+  recover-with-a-different-subset path. Lagrange is still used, and its coefficients are non-trivial,
+  because the participant set is an arbitrary λ-subset of the trustees rather than `{1..λ}`.
+
+So braid produces λ factor arrays where VMN's verifier wants `k`, and the gap cannot be closed by
+relabelling participants to `1..λ`: shares are evaluations `p(l)` at braid's own trustee indices, and
+`y_l = ∏_s Γ_s^{l^s}` only holds if VMN's party index equals braid's trustee index.
+
+**What to write for the missing parties** (from `DistrElGamalSession.exchangeDecryptionFactors`): an
+array of the group identity, one per ciphertext, in the width-ω plaintext group.
+
+```java
+tempLog.info("Not active, setting to all-one array.");
+correct[l] = false;
+...
+if (!correct[l]) {
+    decryptionFactors[l] = leftPGroup.toElementArray(size, leftPGroup.getONE());
+}
+```
+
+The file cannot simply be omitted: the verifier's `readArray` calls `failStop` on a missing file, so
+every `l ∈ [1, k]` needs one. For P-256 the identity is the point at infinity,
+`node(leaf(−1), leaf(−1))`, which `vcompat::arithm::point_at_infinity` already emits.
+
+So the emitter's rule is: **`DecryptionFactors<l>.bt` for a non-participant is an all-identity array
+of the same shape as a real one, and `CorrectIndices.bt` marks that party false.** Δ is then exactly
+braid's participant set, whose size is already λ — which matches VMN's requirement that `|Δ| = λ`
+exactly.
+
+Also confirmed from the same source, resolving the sign and scaling questions of §2.5:
+`f_j = u^{−x_j·(1/α)}` with `α = lcm(1,…,k)²`, i.e.
+`firstComponents.exp(secretKey.neg().mul(inverseFactor))`.
+
 P-256 is no longer a caveat: the encoding gap is closed and braid's full protocol — DKG, mix,
 threshold decryption, board union — runs over it.
 
