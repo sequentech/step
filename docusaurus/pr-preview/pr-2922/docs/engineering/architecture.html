@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Architecture | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2922/docs/engineering/architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Architecture | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2922/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2922/docs/engineering/architecture"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2922/docs/engineering/architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2922/docs/engineering/architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Architecture","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2922/docs/engineering/architecture"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2922/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2922/assets/js/runtime~main.5a855777.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2922/assets/js/runtime~main.2af62cab.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2922/assets/js/main.63967191.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -22,6 +22,14 @@ must not merge as if it were. <a href="https://github.com/sequentech/step/blob/m
 is the rule; this file is the baseline it compares against.</p>
 <p><strong>If a change makes something here untrue, the change must update this file.</strong>
 A stale architecture document is worse than none, because it is trusted.</p>
+<blockquote>
+<p><strong>Last verified against <code>main</code>: 2026-08-01</strong> — see
+<a href="https://github.com/sequentech/meta/issues/12676" target="_blank" rel="noopener noreferrer" class="">meta#12676</a>.</p>
+<p><code>60-architectural-changes.md</code> catches <em>change</em>; nothing catches <em>decay</em>. Every
+statement below was checked against the repository on that date. Re-verify at
+least quarterly, and move this date when you do — an unmoved date is itself
+the finding.</p>
+</blockquote>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-this-document-covers">What this document covers<a href="#what-this-document-covers" class="hash-link" aria-label="Direct link to What this document covers" title="Direct link to What this document covers" translate="no">​</a></h2>
 <p>The components built in this repository, and the interfaces between them.</p>
 <p>It does <strong>not</strong> cover how the platform is deployed — cluster topology, cloud
