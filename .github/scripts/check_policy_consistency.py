@@ -61,24 +61,24 @@ def rel(path: str) -> str:
 
 
 def load_yaml(path: str) -> dict:
-    """Minimal reader for the two keys we need, so the check has no deps."""
+    """Read the config. PyYAML is required — deliberately, see below."""
     try:
         import yaml  # type: ignore
-
-        with open(path, encoding="utf-8") as handle:
-            return yaml.safe_load(handle) or {}
     except ImportError:
-        notes.append("PyYAML not installed — falling back to a regex reader")
-        with open(path, encoding="utf-8") as handle:
-            text = handle.read()
-        labels = re.findall(r'^\s*-\s*label:\s*"([^"]+)"', text, re.M)
-        files = re.findall(r'^\s*-\s*files:\s*"([^"]+)"', text, re.M)
-        return {
-            "reviews": {"labeling_instructions": [{"label": x} for x in labels]},
-            "knowledge_base": {
-                "code_guidelines": {"filePatterns": [{"files": f} for f in files]}
-            },
-        }
+        print(
+            "error: PyYAML is required.\n"
+            "  pip install pyyaml\n\n"
+            "This script previously fell back to a regex reader when PyYAML was\n"
+            "missing. That fallback did not synthesise `applyTo`, so the check\n"
+            "below reported every guideline pattern as misconfigured and exited 1\n"
+            "on a correct repository. A parser that is quietly wrong is worse than\n"
+            "a dependency, so the fallback is gone rather than patched.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    with open(path, encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
 
 
 def main() -> int:
@@ -91,7 +91,10 @@ def main() -> int:
         fail(f"no policy files found in {rel(POLICY_DIR)}")
         return report()
 
-    policy_labels: dict[str, str] = {}
+    # A label may legitimately be owned by more than one policy — `step` routes
+    # both licensing and CI coverage through `policy:coverage`. Keep every owner
+    # so a shared label cannot silently drop a policy from this check.
+    policy_labels: dict[str, list[str]] = {}
     for path in policy_files:
         text = open(path, encoding="utf-8").read()
         found = LABEL_RE.findall(text)
@@ -103,7 +106,7 @@ def main() -> int:
             continue
         if len(found) > 1:
             fail(f"{rel(path)}: declares {len(found)} labels; a policy owns exactly one")
-        policy_labels[found[0]] = rel(path)
+        policy_labels.setdefault(found[0], []).append(rel(path))
 
     # -------------------------------------------------------------- coderabbit
     config = load_yaml(CODERABBIT)
@@ -117,7 +120,7 @@ def main() -> int:
     declared = set(policy_labels)
     for label in sorted(declared - configured):
         fail(
-            f"label '{label}' is declared by {policy_labels[label]} but has no "
+            f"label '{label}' is declared by {', '.join(policy_labels[label])} but has no "
             f"labeling_instructions entry in .coderabbit.yaml — CodeRabbit will "
             f"never apply it"
         )
@@ -177,8 +180,19 @@ def main() -> int:
     )
     guideline_files: list[str] = []
     for pattern in patterns:
-        spec = pattern["files"] if isinstance(pattern, dict) else pattern
-        matched = glob.glob(os.path.join(ROOT, spec))
+        if isinstance(pattern, dict):
+            spec = pattern.get("files")
+            if not spec:
+                fail(
+                    ".coderabbit.yaml: a code_guidelines filePatterns entry has no "
+                    "'files' key"
+                )
+                continue
+        else:
+            spec = pattern
+        # recursive=True, or `**` behaves as a single-level `*` and a correct
+        # cross-directory pattern is reported as matching nothing.
+        matched = glob.glob(os.path.join(ROOT, spec), recursive=True)
         if not matched:
             fail(
                 f".coderabbit.yaml: code_guidelines pattern '{spec}' matches no file — "

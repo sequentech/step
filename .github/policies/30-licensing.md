@@ -27,7 +27,7 @@ Report a violation when a change:
 - **Adds a source file with no SPDX header** and no covering entry in
   `REUSE.toml`. Headers look like this, using the comment syntax of the language:
 
-  ```
+  ```text
   # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
   #
   # SPDX-License-Identifier: AGPL-3.0-only

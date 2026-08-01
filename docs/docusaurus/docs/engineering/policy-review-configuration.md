@@ -90,7 +90,7 @@ problem this is solving.
 7. Choose the channel from step 2.1 and click **Allow**.
 8. Copy the **Webhook URL**:
 
-   ```
+   ```text
    https://hooks.slack.com/services/<workspace-id>/<webhook-id>/<token>
    ```
 
@@ -143,7 +143,7 @@ Do not wait for a real policy breach to find out.
 
 One message should appear in your channel within a few seconds:
 
-```
+```text
 🔒 Policy review — sequentech/step
    The policy system itself was changed
    Pull request: manual test    Author: <you>    Policy: .github/policies/50-governance.md

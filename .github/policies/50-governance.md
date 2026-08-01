@@ -30,7 +30,7 @@ quietly.**
 
 These files are the system:
 
-```
+```text
 .coderabbit.yaml                     labels, reviewer routing, guideline wiring
 .github/policies/**                  the rules themselves
 .github/CODEOWNERS                   who must approve a change to the above
