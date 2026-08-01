@@ -560,11 +560,18 @@ exiting 0, so an exit-code-only check would stay green while the interop was sil
 
 ### Caveats
 
-- Shuffle only. The decryption transcript (`Dec.s`, `Dec.v`) and the batched decryption proof braid
-  would need (§2.5) are still not done, so `vmnv -mix` is unreached.
-- Single mix-server, threshold 1. Multi-party proofs need per-party files and an `activethreshold`
-  greater than 1.
-- P-256 only, and braid's DKG still cannot run on P-256 (the four `todo!()`s in §2.1).
+Two axes remain, and they are **independent** — neither blocks the other.
+
+- **Decryption.** Shuffle only so far. `vmnv -mix` needs the batched decryption proof braid does not
+  yet have (§2.5), plus the `Dec.s`/`Dec.v` transcript and the decryption artifacts in the proof
+  directory. This is new cryptography, not a translation.
+- **Multiple parties.** Single mix-server, threshold 1 so far. Needs per-party proof files, a real
+  `activethreshold`, the intermediate `Ciphertexts<l>.bt` chain, and a genuine
+  `PolynomialInExponent.bt` — which for threshold λ is λ elements derived from braid's per-dealer
+  commitments as `Γ_s = ∏_d C_{d,s}` (§2.4), not the one-element stand-in the current emitter writes.
+
+P-256 is no longer a caveat: the encoding gap is closed and braid's full protocol — DKG, mix,
+threshold decryption, board union — runs over it.
 
 ---
 
