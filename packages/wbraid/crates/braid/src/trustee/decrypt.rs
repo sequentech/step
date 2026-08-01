@@ -13,7 +13,7 @@ use cryptography::utils::serialization::VDeserializable;
 
 use crate::messages::artifact::{DkgPublicKey, Mix, PartialDecryption, Plaintexts, Shares};
 use crate::messages::newtypes::{
-    CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PublicKeyHash, SharesHash,
+    CiphertextsHash, ConfigurationHash, PartialDecryptionHash, PublicKeyHash, SharesHash,
     TrusteeIndex,
 };
 use crate::messages::wire::ProtocolMessage;
@@ -24,11 +24,12 @@ use super::{domain_label, Trustee, WIRE_DATE};
 
 impl<C: Context> Trustee<C> {
     /// `ComputePartialDecryptions` (§7): decrypt this trustee's DKG share from
-    /// every dealer to rebuild its secret, then produce a decryption factor (and
-    /// proof) for each of the final mixed ciphertexts. The dealer shares are
-    /// named explicitly by `shares_hashes` (carried in the action) — the action
-    /// is a self-contained, hash-bound description of its inputs, even though the
-    /// shares are also held in the store.
+    /// every dealer to rebuild its secret, then produce a decryption factor for
+    /// each of the final mixed ciphertexts, with a **single** proof covering all
+    /// of them. The dealer shares are named explicitly by `shares_hashes`
+    /// (carried in the action) — the action is a self-contained, hash-bound
+    /// description of its inputs, even though the shares are also held in the
+    /// store.
     pub(super) fn compute_partial_decryptions(
         &self,
         view: &MessageStore<C>,
@@ -125,11 +126,10 @@ impl<C: Context> Trustee<C> {
             .iter()
             .map(|c| DkgCiphertext(c.clone()))
             .collect();
-        let dfactors = recipient
-            .decryption_factor(&wrapped, &label)
+        let partial_decryption = recipient
+            .partial_decrypt(&wrapped, &label)
             .map_err(|e| anyhow!("failed to compute decryption factors: {:?}", e))?;
 
-        let partial_decryption = PartialDecryption::new(dfactors.factors);
         let message = ProtocolMessage::<C>::partial_decryptions(
             self,
             WIRE_DATE,
@@ -153,7 +153,7 @@ impl<C: Context> Trustee<C> {
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
-        decryptions_hashes: &[DecryptionFactorsHash],
+        decryptions_hashes: &[PartialDecryptionHash],
         _self_index: TrusteeIndex,
     ) -> Result<Vec<ProtocolMessage<C>>> {
         let cfg = view.configuration();
@@ -193,11 +193,11 @@ impl<C: Context> Trustee<C> {
         cfg_hash: &ConfigurationHash,
         pk_hash: &PublicKeyHash,
         ciphertexts_hash: &CiphertextsHash,
-        decryptions_hashes: &[DecryptionFactorsHash],
+        decryptions_hashes: &[PartialDecryptionHash],
         dkg_pk: &DkgPublicKey<C>,
     ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::dkgd::recipient::{
-            combine, DecryptionFactors, DkgCiphertext, ParticipantPosition,
+            combine, AttributedDecryption, DkgCiphertext, ParticipantPosition,
         };
 
         let label = domain_label(cfg_hash, "decryption proof");
@@ -208,9 +208,12 @@ impl<C: Context> Trustee<C> {
         let mix = Mix::<C, W>::deser(mix_body)
             .map_err(|e| anyhow!("failed to deserialize final mix: {:?}", e))?;
 
-        let mut dfactors_vec: Vec<DecryptionFactors<C, W, P>> =
+        // Each contribution is attributed here, from the producing trustee's
+        // index rather than from the message body — the body carries no position
+        // precisely so that a trustee cannot claim another's. The verification
+        // key follows from that index, so the two cannot be misaligned.
+        let mut contributions: Vec<AttributedDecryption<C, W, P>> =
             Vec::with_capacity(decryptions_hashes.len());
-        let mut vkeys_vec: Vec<C::Element> = Vec::with_capacity(decryptions_hashes.len());
 
         for df_hash in decryptions_hashes {
             let (sender, body) = view
@@ -218,9 +221,11 @@ impl<C: Context> Trustee<C> {
                 .ok_or_else(|| anyhow!("missing partial decryptions body for {:?}", df_hash))?;
             let partial = PartialDecryption::<C, W>::deser(body)
                 .map_err(|e| anyhow!("failed to deserialize partial decryptions: {:?}", e))?;
-            let source = ParticipantPosition::from_usize(sender);
-            dfactors_vec.push(DecryptionFactors::new(partial.factors, source));
-            vkeys_vec.push(dkg_pk.verification_keys[sender - 1].clone());
+            contributions.push(AttributedDecryption::new(
+                partial,
+                ParticipantPosition::from_usize(sender),
+                dkg_pk.verification_keys[sender - 1].clone(),
+            ));
         }
 
         let wrapped: Vec<DkgCiphertext<C, W, T>> = mix
@@ -229,15 +234,12 @@ impl<C: Context> Trustee<C> {
             .map(|c| DkgCiphertext(c.clone()))
             .collect();
 
-        let dfactors_array: [DecryptionFactors<C, W, P>; T] =
-            dfactors_vec.try_into().map_err(|v: Vec<_>| {
-                anyhow!("expected {} decryption factor sets, got {}", T, v.len())
+        let contributions: [AttributedDecryption<C, W, P>; T] =
+            contributions.try_into().map_err(|v: Vec<_>| {
+                anyhow!("expected {} partial decryptions, got {}", T, v.len())
             })?;
-        let vkeys_array: [C::Element; T] = vkeys_vec
-            .try_into()
-            .map_err(|v: Vec<_>| anyhow!("expected {} verification keys, got {}", T, v.len()))?;
 
-        let plaintexts = combine(&wrapped, &dfactors_array, &vkeys_array, &label)
+        let plaintexts = combine(&wrapped, &contributions, &label)
             .map_err(|e| anyhow!("failed to combine decryption factors: {:?}", e))?;
 
         let plaintexts = Plaintexts::<C, W>(plaintexts);

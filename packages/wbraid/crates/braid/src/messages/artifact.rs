@@ -10,7 +10,7 @@ use super::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
-use cryptography::dkgd::recipient::DecryptionFactor;
+
 use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::utils::signatures::SignatureScheme;
 use cryptography::zkp::shuffle::ShuffleProof;
@@ -164,36 +164,18 @@ impl<C: Context, const W: usize> Mix<C, W> {
     }
 }
 
-/// Partial decryption data for transmission over the wire.
+/// Partial decryption data for transmission over the wire: one decryption
+/// factor per ciphertext, and a single proof covering all of them.
 ///
-/// Contains decryption factors (value + proof pairs) without participant position.
-/// The position is determined by the message signature, not the message content.
-///
-/// This is the message-layer representation. The cryptography layer uses
-/// [`cryptography::dkgd::recipient::DecryptionFactors`] which includes the source position.
-#[derive(Debug)]
-pub struct PartialDecryption<C: Context, const W: usize> {
-    pub factors: Vec<DecryptionFactor<C, W>>,
-}
-
-impl<C: Context, const W: usize> VSerializable for PartialDecryption<C, W> {
-    fn ser(&self) -> Vec<u8> {
-        self.factors.ser()
-    }
-}
-
-impl<C: Context, const W: usize> VDeserializable for PartialDecryption<C, W> {
-    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
-        let factors = Vec::<DecryptionFactor<C, W>>::deser(buffer)?;
-        Ok(PartialDecryption { factors })
-    }
-}
-
-impl<C: Context, const W: usize> PartialDecryption<C, W> {
-    pub fn new(factors: Vec<DecryptionFactor<C, W>>) -> PartialDecryption<C, W> {
-        PartialDecryption { factors }
-    }
-}
+/// Re-exported from the cryptography layer rather than redefined here. It used
+/// to be a distinct message-layer type because the crypto layer's equivalent
+/// bundled the participant's position, which must **not** travel in the body —
+/// it is determined by the message signature. That is no longer so: the position
+/// is attached by
+/// [`AttributedDecryption`][`cryptography::dkgd::recipient::AttributedDecryption`]
+/// at the point of use, so the published form is identical on both sides of the
+/// boundary and one type serves.
+pub use cryptography::dkgd::recipient::PartialDecryption;
 
 #[derive(Debug, VSer)]
 pub struct Plaintexts<C: Context, const W: usize>(pub Vec<[C::Element; W]>);

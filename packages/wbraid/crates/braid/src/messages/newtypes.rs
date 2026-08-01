@@ -83,7 +83,7 @@ impl std::fmt::Debug for PublicKeyHash {
 // The ciphertexts hash is used to refer to ballots and mix artifacts.
 // This allows accessing either one when pointing to a source of
 // ciphertexts (ballots or mix). The same typed hash is propagated
-// all the way from Ballots to DecryptionFactors predicates.
+// all the way from Ballots to PartialDecryptions predicates.
 #[derive(Copy, Clone, PartialEq, Eq, VSer)]
 pub struct CiphertextsHash(pub Hash);
 impl std::fmt::Debug for CiphertextsHash {
@@ -93,10 +93,10 @@ impl std::fmt::Debug for CiphertextsHash {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VSer)]
-pub struct DecryptionFactorsHash(pub Hash);
-impl std::fmt::Debug for DecryptionFactorsHash {
+pub struct PartialDecryptionHash(pub Hash);
+impl std::fmt::Debug for PartialDecryptionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DecryptionFactorsHash({})", dbg_hash(&self.0))
+        write!(f, "PartialDecryptionHash({})", dbg_hash(&self.0))
     }
 }
 

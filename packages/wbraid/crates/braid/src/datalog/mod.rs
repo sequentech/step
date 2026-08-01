@@ -45,7 +45,7 @@ pub mod types {
     use super::accumulator::AccumulatorSet;
 
     pub use crate::messages::newtypes::{
-        CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash,
+        CiphertextsHash, ConfigurationHash, PartialDecryptionHash, PlaintextsHash, PublicKeyHash,
         SharesHash, Threshold, TrusteeCount, TrusteeIndex,
     };
 
@@ -54,7 +54,7 @@ pub mod types {
     /// Trustee shares hash (vs_lift `TrusteeSharesHash`).
     pub type TrusteeSharesHash = SharesHash;
     /// Partial decryptions hash (vs_lift `PartialDecryptionsHash`).
-    pub type PartialDecryptionsHash = DecryptionFactorsHash;
+    pub type PartialDecryptionsHash = PartialDecryptionHash;
     /// Message sender, a 1-based trustee index (vs_lift `Sender`).
     pub type Sender = TrusteeIndex;
     /// Ordered sequence of trustee shares hashes.
@@ -62,9 +62,9 @@ pub mod types {
     /// Accumulator of trustee shares hashes.
     pub type SharesHashesAcc = AccumulatorSet<SharesHash>;
     /// Ordered sequence of partial decryptions hashes.
-    pub type PartialDecryptionsHashes = Vec<DecryptionFactorsHash>;
+    pub type PartialDecryptionsHashes = Vec<PartialDecryptionHash>;
     /// Accumulator of partial decryptions hashes.
-    pub type PartialDecryptionsHashesAcc = AccumulatorSet<DecryptionFactorsHash>;
+    pub type PartialDecryptionsHashesAcc = AccumulatorSet<PartialDecryptionHash>;
 }
 
 ///////////////////////////////////////////////////////////////////////////

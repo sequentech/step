@@ -24,7 +24,7 @@ use cryptography::utils::serialization::{VDeserializable, VSerializable};
 use cryptography::VSerializable as VSer;
 
 use super::newtypes::{
-    CiphertextsHash, ConfigurationHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash,
+    CiphertextsHash, ConfigurationHash, PartialDecryptionHash, PlaintextsHash, PublicKeyHash,
     SharesHash, Threshold, TrusteeCount, TrusteeIndex,
 };
 
@@ -105,7 +105,7 @@ pub struct PartialDecryptions {
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
     pub ciphertexts: CiphertextsHash,
-    pub decryptions: DecryptionFactorsHash,
+    pub decryptions: PartialDecryptionHash,
     pub sender: TrusteeIndex,
 }
 
@@ -343,7 +343,7 @@ mod tests {
                 configuration: cfg,
                 public_key: pk,
                 ciphertexts: ct,
-                decryptions: DecryptionFactorsHash(zero_hash()),
+                decryptions: PartialDecryptionHash(zero_hash()),
                 sender: 2,
             }),
             Predicate::Plaintexts(Plaintexts {

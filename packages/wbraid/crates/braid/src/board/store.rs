@@ -29,7 +29,7 @@ use cryptography::context::Context;
 
 use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{
-    CiphertextsHash, DecryptionFactorsHash, PublicKeyHash, SharesHash, TrusteeIndex,
+    CiphertextsHash, PartialDecryptionHash, PublicKeyHash, SharesHash, TrusteeIndex,
 };
 use crate::messages::wire::ProtocolMessage;
 
@@ -193,11 +193,11 @@ impl<C: Context> MessageStore<C> {
 
     /// The sender (1-based trustee index) and body bytes of the
     /// `PartialDecryptions` message whose decryptions out-hash is `hash`. The
-    /// sender is the participant position needed to rebuild the crypto-layer
-    /// `DecryptionFactors` and index the verification keys.
+    /// sender is the participant position needed to attribute the contribution
+    /// (`AttributedDecryption`) and index the verification keys.
     pub fn partial_decryptions_by_hash(
         &self,
-        hash: &DecryptionFactorsHash,
+        hash: &PartialDecryptionHash,
     ) -> Option<(TrusteeIndex, &[u8])> {
         self.partial_decryptions
             .iter()

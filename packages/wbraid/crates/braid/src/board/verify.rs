@@ -20,7 +20,7 @@ use cryptography::utils::serialization::VDeserializable;
 
 use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{
-    hash_bytes, CiphertextsHash, DecryptionFactorsHash, PlaintextsHash, PublicKeyHash, SharesHash,
+    hash_bytes, CiphertextsHash, PartialDecryptionHash, PlaintextsHash, PublicKeyHash, SharesHash,
     TrusteeIndex, PROTOCOL_MANAGER_INDEX,
 };
 use crate::messages::wire::{
@@ -169,7 +169,7 @@ pub fn verify<C: Context>(
                 configuration: head.configuration,
                 public_key: head.public_key,
                 ciphertexts: head.ciphertexts,
-                decryptions: DecryptionFactorsHash(body_hash),
+                decryptions: PartialDecryptionHash(body_hash),
                 sender,
             }
             .into();
