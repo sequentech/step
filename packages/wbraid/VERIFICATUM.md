@@ -248,28 +248,38 @@ polynomials, so **Γ is derivable from braid's data** as the component-wise prod
 commitment vectors, `Γ_s = ∏_d C_{d,s}`. braid's `DkgPublicKey.verification_keys` should then equal
 the `y_l` Verificatum derives from Γ — a cheap and valuable cross-check to assert early.
 
-### 2.5 Proof of correct decryption: STRUCTURAL MISMATCH — a real work item
+### 2.5 Proof of correct decryption: was a structural mismatch, now largely closed
 
-This is where the two designs genuinely diverge.
+This was where the two designs genuinely diverged, and it is the one place the investigation changed
+braid's own cryptography rather than only adding an emitter.
 
-- **braid** emits, per party, *N* independent DLEQ proofs — one per ciphertext
-  (`crates/vsc/src/dkgd/recipient.rs:353-378`: `DecryptionFactor { value, proof: DlogEqProof }`,
-  collected into `DecryptionFactors`).
-- **Verificatum** expects, per party, *one batched proof over all N ciphertexts*:
-  `τ_l^dec = node(y'_l, B'_l)` and `σ_l^dec = k_{x,l}` (VMNV §8.6), verified against batched
-  elements `A = (∏u_i^{e_i}, 1)` and `B = ∏f_i^{e_i}`.
+**Originally:** braid emitted, per party, *N* independent DLEQ proofs — one per ciphertext
+(`DecryptionFactor { value, proof: DlogEqProof }`) — while Verificatum expects *one batched proof
+over all N*: `τ_l^dec = node(y'_l, B'_l)` and `σ_l^dec = k_{x,l}` (VMNV §8.6), verified against
+`A = (∏u_i^{e_i}, 1)` and `B = ∏f_i^{e_i}`.
 
-Two further conventions differ:
+**Now:** braid batches too. `Recipient::partial_decrypt` publishes `N` factors and a single
+`DlogEqProof` over the same random linear combination — the statement is unchanged, so no new proof
+type was needed, only different bases. This was adopted on its own merits (smaller messages, one
+proof to verify per party instead of `N`) with the interop as a secondary benefit; see the
+`feat/braid-0.6-batched-decryption` work.
+
+Three conventions still differ, and the emitter still bridges them:
 
 - **Sign.** Verificatum's decryption factor is `f_l = u^{−x_l}` and combines as `TDec = v·f`;
   braid computes `u^{+x_l}` and divides during combination.
 - **The α trick.** Verificatum computes `f_l = PDec_{x_l/α}` with `α = lcm(1,…,k)²`, cancelling it
-  in the Lagrange combination so the coefficients stay small integers (VMNV §2.2). braid has no
-  analogue.
+  in the Lagrange combination so the coefficients stay small integers (VMNV §2.2). braid keeps plain
+  Lagrange over the unscaled share. Adopting α was considered and rejected: its payoff is a
+  small-exponent multi-exponentiation, and braid's `multi_exp` does not yet exploit small exponents,
+  so it would import the complication without the benefit.
+- **The batching transcript.** braid derives its exponents from its own hash of the verification key,
+  ciphertexts and factors; Verificatum derives them from `RO_seed` over a byte-tree of `Γ` and *all
+  k* parties' factors. These are necessarily different, so a braid proof is not a VMN proof.
 
-Closing this means implementing VMN's batched decryption proof in braid. It is standard
-(Bellare et al. batching over a Chaum–Pedersen proof) and small compared with the shuffle, but it is
-new code, not a translation.
+The consequence for the emitter is unchanged: `vmn::decrypt::prove_decryption` still produces
+Verificatum's proof from the secret rather than converting braid's, and the factors are still
+re-exponentiated by `−1/α` at the boundary.
 
 ### 2.6 Fiat–Shamir transcript: THE dominant incompatibility
 
