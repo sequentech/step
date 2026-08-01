@@ -29,6 +29,7 @@
 //! only P-256 executions can be checked this way.
 
 pub mod challenges;
+pub mod decrypt;
 pub mod encode;
 pub mod generators;
 pub mod proof_dir;
