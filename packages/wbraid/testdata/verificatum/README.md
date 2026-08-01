@@ -134,3 +134,49 @@ Regenerate it exactly as above but with `-nopart 3 -thres 3`, running the `vmni 
 party and merging all three. Note ρ is unaffected by the party count — it commits to the version,
 session identifier, bit lengths, group and hash functions, but not to `nopart` or `thres` — so both
 info files share a prefix and the same session constants in the tests.
+
+## Running the `vmnv` tests
+
+`crates/braid/tests/vmn_verifier.rs` shells out to a JVM and is `#[ignore]`d, so
+it needs four environment variables. Only `VMNV_RANDOM_SOURCE`/`_SEED` need
+creating; the rest point at things already in the repo.
+
+```
+VMNV_JAVA           path to java (omit to use `java` from PATH)
+VMNV_JAR_DIR        crates/braid/verificatum  (contains the two jars)
+VMNV_PROTINFO       defaults to this directory's protInfo.xml
+VMNV_RANDOM_SOURCE  \
+VMNV_RANDOM_SEED    /  written once by `vog -rndinit`, see below
+```
+
+The verifier refuses to start without an initialised random source, even though
+verification consumes no randomness. On Unix:
+
+```sh
+vog -rndinit RandomDevice /dev/urandom
+```
+
+`/dev/urandom` does not exist on Windows, so use the seeded PRG instead — write
+512 random bytes to a file, then:
+
+```
+vog -gen HashfunctionHeuristic SHA-256          # prints the descriptor
+vog -seed <seedfile> -rndinit PRGHeuristic "<that descriptor>"
+```
+
+with `vog` invoked as
+
+```
+java -cp <vmn.jar>;<vcr.jar> com.verificatum.ui.gen.GeneratorTool \
+     vog :VERIFICATUM_VOG_BUILTIN <random_source> <random_seed> ...
+```
+
+The two path arguments are where the source and seed are written; point
+`VMNV_RANDOM_SOURCE` and `VMNV_RANDOM_SEED` at the same files afterwards. They
+are throwaway — regenerate them freely.
+
+Then:
+
+```
+cargo test -p braid --test vmn_verifier -- --ignored --nocapture
+```
