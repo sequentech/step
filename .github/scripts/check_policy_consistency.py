@@ -190,9 +190,34 @@ def main() -> int:
                 continue
         else:
             spec = pattern
+
+        # The pattern has to stay inside the repository.
+        #
+        # `os.path.join(ROOT, "/etc/hosts")` silently discards ROOT, and
+        # `../…` walks out of the checkout. Both matter here rather than in
+        # theory: `beyond` and `gitops` run this script with their own tree and
+        # `step`'s checked out as SIBLING directories, so `../step/...` would
+        # let a repository satisfy this check using another repository's files.
+        # `.coderabbit.yaml` is read from the pull request's own branch, so the
+        # pattern is attacker-supplied in the same sense the config is.
+        if not isinstance(spec, str):
+            fail(f".coderabbit.yaml: code_guidelines pattern {spec!r} is not a string")
+            continue
+        if os.path.isabs(spec) or ".." in spec.split("/"):
+            fail(
+                f".coderabbit.yaml: code_guidelines pattern '{spec}' is absolute or "
+                f"escapes the repository — patterns must be relative to the repository "
+                f"root and stay inside it"
+            )
+            continue
+
         # recursive=True, or `**` behaves as a single-level `*` and a correct
         # cross-directory pattern is reported as matching nothing.
-        matched = glob.glob(os.path.join(ROOT, spec), recursive=True)
+        matched = [
+            m for m in glob.glob(os.path.join(ROOT, spec), recursive=True)
+            # Belt and braces: a symlink inside the tree can still point out of it.
+            if os.path.realpath(m).startswith(ROOT + os.sep)
+        ]
         if not matched:
             fail(
                 f".coderabbit.yaml: code_guidelines pattern '{spec}' matches no file — "
