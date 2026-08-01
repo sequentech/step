@@ -16,4 +16,5 @@ sha2 = "0.11"
 num-bigint = "0.4"
 
 [dev-dependencies]
+num-traits = "0.2"
 hex = "0.4"

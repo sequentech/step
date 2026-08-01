@@ -33,6 +33,7 @@
 //! | [`marshal`] | group descriptors, `comment::hex` marshalling, P-256 | VMNV §6.7 |
 //! | [`crypto`] | hash, PRG, random oracles, the global prefix ρ | VMNV §5, §9.3 |
 //! | [`generators`] | independent generators via the quadratic-residue walk | VMNV §6.8, §8.2 |
+//! | [`lagrange`] | modified Lagrange coefficients and the alpha factor | VMNV §2.2 |
 //! | [`error`] | decoding errors | — |
 //!
 //! ## Two encoding traps
@@ -52,6 +53,7 @@ pub mod bytetree;
 pub mod crypto;
 pub mod error;
 pub mod generators;
+pub mod lagrange;
 pub mod marshal;
 
 pub use bytetree::ByteTree;
