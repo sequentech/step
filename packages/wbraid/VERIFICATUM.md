@@ -631,6 +631,44 @@ Also confirmed from the same source, resolving the sign and scaling questions of
 `f_j = u^{−x_j·(1/α)}` with `α = lcm(1,…,k)²`, i.e.
 `firstComponents.exp(secretKey.neg().mul(inverseFactor))`.
 
+### The batched decryption proof, from source
+
+The specification's rendering of §8.6's equations is garbled enough by OCR not to be trustworthy
+(it shows `Γ_0^{-v} y' = g^{k_x}` alongside a `PDec_{k_x}(A)` term whose signs do not reconcile), so
+these come from `DistrElGamalSessionBasic` instead.
+
+**Verification** (`verifyCombined`) is a plain combined Chaum–Pedersen, two equations:
+
+```java
+combinedy.inv().exp(v).mul(combinedyp).equals(g.exp(combinedk_x))   //  y^-v · y' = g^k_x
+&& combinedB.exp(v).mul(combinedBp).equals(A.exp(combinedk_x))      //  B^v · B' = A^k_x
+```
+
+**The honest prover** therefore picks a random `r` and sets
+
+```text
+y' = g^r        B' = A^r        k_x = r − v·x
+```
+
+Both equations then hold, since `B = A^{−x}`: the first gives `g^{−xv + r} = g^{k_x}`, the second
+`A^{−xv + r} = A^{k_x}`, and they agree on `k_x = r − vx`. `A` is the batched first components
+`∏ u_i^{e_i}` and `B` the batched combined factors `∏ f_i^{e_i}`.
+
+**The α trick**, which is what makes the combination cheap (`prodFactor`,
+`modifiedLagrangeCoefficient`):
+
+1. `α = lcm(1,…,k)²`, computed as `∏_{p ≤ k prime} p^{⌊log_p k⌋}` squared.
+2. Each party scales its secret down: `f_l = u^{−x_l/α}`.
+3. Combination uses the exponent `α·c_l`, which α makes an **integer** rather than a field element,
+   so `∏_l f_l^{α c_l} = u^{−Σ c_l x_l} = u^{−x}` and the α cancels.
+4. That integer is then reduced to the representative of **smallest absolute value**, choosing
+   between `res` and `res − q` — so **it may be negative**. This is the point of the whole
+   manoeuvre: exponents stay small integers instead of full-width scalars.
+
+**Δ is the first λ true entries** of `CorrectIndices.bt`, not an arbitrary subset — the loops in
+`modifiedLagrangeCoefficients` stop at `threshold`. braid always has exactly λ participants, so it
+must mark exactly λ true; marking more would silently select a prefix.
+
 P-256 is no longer a caveat: the encoding gap is closed and braid's full protocol — DKG, mix,
 threshold decryption, board union — runs over it.
 
