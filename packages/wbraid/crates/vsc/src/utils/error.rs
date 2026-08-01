@@ -54,6 +54,11 @@ pub enum Error {
     #[error("Mismatched permutation length")]
     MismatchedPermutationLength,
 
+    /// Occurs when [`multi_exp`][`crate::traits::groups::GroupElement::multi_exp`]
+    /// is given base and exponent lists of different lengths.
+    #[error("Mismatched multi-exponentiation length: {0} bases, {1} exponents")]
+    MismatchedMultiExpLength(usize, usize),
+
     /// Occurs when shuffling zero ciphertexts
     #[error("Empty shuffle")]
     EmptyShuffle,

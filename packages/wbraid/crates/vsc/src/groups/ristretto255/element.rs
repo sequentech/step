@@ -10,7 +10,7 @@ use crate::utils::error::Error as CryptographyError;
 use crate::utils::rng;
 use core::fmt::Debug;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
-use curve25519_dalek::traits::Identity;
+use curve25519_dalek::traits::{Identity, MultiscalarMul};
 use sha3::digest::Digest;
 use sha3::digest::typenum::U64;
 
@@ -68,6 +68,30 @@ impl GroupElement for RistrettoElement {
         // curve arithmetic
         #[allow(clippy::arithmetic_side_effects)]
         RistrettoElement(self.0 * scalar.0)
+    }
+
+    /// Straus' algorithm via curve25519-dalek's [`MultiscalarMul`], rather than
+    /// the trait's naive per-base default.
+    ///
+    /// Constant-time in the scalars, matching [`Self::exp`] and the contract on
+    /// [`GroupElement::multi_exp`]. dalek also offers a variable-time
+    /// implementation which is faster still, but it is only sound for public
+    /// scalars, so adopting it would need a separate method with that
+    /// precondition in its name.
+    fn multi_exp(
+        bases: &[&Self],
+        exponents: &[Self::Scalar],
+    ) -> Result<Self, CryptographyError> {
+        if bases.len() != exponents.len() {
+            return Err(CryptographyError::MismatchedMultiExpLength(
+                bases.len(),
+                exponents.len(),
+            ));
+        }
+        Ok(RistrettoElement(RistrettoPoint::multiscalar_mul(
+            exponents.iter().map(|s| s.0),
+            bases.iter().map(|b| b.0),
+        )))
     }
 
     #[inline]

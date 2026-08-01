@@ -665,3 +665,88 @@ fn test_scalar_repl_equals_scalar<C: Context>() {
     let distinct_element = C::Scalar::random(&mut rng);
     assert!(!distinct_element.repl_equals(&array_all_common));
 }
+
+// -------------------------------------------------------------------------
+// Multi-exponentiation
+// -------------------------------------------------------------------------
+
+/// `dist_multi_exp` must agree with the product written out by hand.
+///
+/// Run over both backends, which matters because they do not share a code path:
+/// Ristretto delegates to dalek's Straus implementation while P-256 falls
+/// through to the naive default, and this is what pins them to the same answer.
+#[test]
+fn test_dist_multi_exp_ristretto() {
+    test_dist_multi_exp::<RCtx>();
+}
+
+#[test]
+fn test_dist_multi_exp_p256() {
+    test_dist_multi_exp::<PCtx>();
+}
+
+fn test_dist_multi_exp<C: Context>() {
+    const W: usize = 3;
+    const N: usize = 6;
+    let mut rng = C::get_rng();
+
+    let bases: Vec<[C::Element; W]> = (0..N)
+        .map(|_| <[C::Element; W]>::random(&mut rng))
+        .collect();
+    let exponents: Vec<C::Scalar> = (0..N).map(|_| C::Scalar::random(&mut rng)).collect();
+
+    // The same product, componentwise, without the primitive.
+    let mut expected = <[C::Element; W]>::one();
+    for (base, exponent) in bases.iter().zip(&exponents) {
+        expected = expected.mul(&base.dist_exp(exponent));
+    }
+
+    let actual = <[C::Element; W]>::dist_multi_exp(&bases, &exponents).unwrap();
+    assert_eq!(actual, expected);
+}
+
+/// A backend override must not disagree with the trait's default body. Ristretto
+/// is the only backend that currently overrides `multi_exp`, so without this the
+/// specialization is unchecked.
+#[test]
+fn test_multi_exp_override_matches_the_naive_default() {
+    const N: usize = 5;
+    let mut rng = RCtx::get_rng();
+
+    let bases: Vec<<RCtx as Context>::Element> =
+        (0..N).map(|_| <RCtx as Context>::Element::random(&mut rng)).collect();
+    let refs: Vec<&<RCtx as Context>::Element> = bases.iter().collect();
+    let exponents: Vec<<RCtx as Context>::Scalar> =
+        (0..N).map(|_| <RCtx as Context>::Scalar::random(&mut rng)).collect();
+
+    let specialized = <RCtx as Context>::Element::multi_exp(&refs, &exponents).unwrap();
+
+    let naive = bases
+        .iter()
+        .zip(&exponents)
+        .fold(<RCtx as Context>::Element::one(), |acc, (base, exponent)| {
+            acc.mul(&base.exp(exponent))
+        });
+
+    assert_eq!(specialized, naive);
+}
+
+/// Degenerate shapes, where an off-by-one or a bad identity would hide.
+#[test]
+fn test_multi_exp_edge_cases() {
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    // Empty is the identity.
+    assert_eq!(E::multi_exp(&[], &[]).unwrap(), E::one());
+
+    // A single base at exponent one is that base.
+    let base = E::random(&mut rng);
+    assert_eq!(E::multi_exp(&[&base], &[S::one()]).unwrap(), base);
+
+    // Mismatched lengths are an error rather than a silent truncation.
+    let two = [&base, &base];
+    assert!(E::multi_exp(&two, &[S::one()]).is_err());
+    assert!(<[E; 2]>::dist_multi_exp(&[[base, base]], &[]).is_err());
+}

@@ -182,6 +182,57 @@ pub trait GroupElement: Sized + Debug + Eq + std::hash::Hash {
     fn exp(&self, scalar: &Self::Scalar) -> Self;
 
     /**
+     * Multi-exponentiation: the product `∏_i bases[i]^{exponents[i]}`
+     *
+     * Returns [`one`](GroupElement::one) for empty input.
+     *
+     * # Why this is a trait method
+     *
+     * The default body below is the naive one — a full exponentiation per base,
+     * multiplied together — and is only a correct placeholder, not a fast one.
+     * Backends are expected to override it: a windowed or Pippenger
+     * implementation costs roughly `n/log(n)` exponentiations rather than `n`,
+     * and for a group whose backing crate already provides one, overriding is a
+     * few lines. This is the reason the operation is expressed here at all
+     * rather than being written out at each call site.
+     *
+     * # Timing
+     *
+     * Implementations must be constant-time in the exponents, exactly as
+     * [`exp`](GroupElement::exp) is — callers may pass secret scalars. A
+     * variable-time variant would be a *separate* method, since its safety
+     * depends on the caller's inputs being public.
+     *
+     * # Why `bases` is a slice of references
+     *
+     * So that a product group can gather one component column out of
+     * `&[[T; N]]` without copying points, and thereby delegate to `T`'s
+     * specialized implementation — see
+     * [`dist_multi_exp`](DistGroupOps::dist_multi_exp). Taking `&[Self]` would
+     * require a `Clone` bound on `GroupElement`, which it does not currently
+     * carry. Callers holding a `&[Self]` can `.iter().collect()`, which copies
+     * pointers rather than group elements.
+     *
+     * # Errors
+     *
+     * - `MismatchedMultiExpLength` if `bases` and `exponents` differ in length.
+     */
+    fn multi_exp(bases: &[&Self], exponents: &[Self::Scalar]) -> Result<Self, Error> {
+        if bases.len() != exponents.len() {
+            return Err(Error::MismatchedMultiExpLength(
+                bases.len(),
+                exponents.len(),
+            ));
+        }
+        Ok(bases
+            .iter()
+            .zip(exponents)
+            .fold(Self::one(), |acc, (base, exponent)| {
+                acc.mul(&base.exp(exponent))
+            }))
+    }
+
+    /**
      * Equality test between two group elements
      *
      * @traceability Cryptol predicate `T'eq` of [CyclicGroupI.cry](../../../../../../../../../models/cryptography/cryptol/Algebra/CyclicGroupI.cry)
@@ -229,6 +280,38 @@ pub trait DistGroupOps<Rhs: GroupElement>: GroupElement {
      * components of a product group element `self`
      */
     fn dist_exp(&self, other: &Rhs::Scalar) -> Self::Result;
+
+    /**
+     * Distributed multi-exponentiation: `∏_i bases[i]^{exponents[i]}`, with one
+     * **base-group** scalar per base, broadcast across the components.
+     *
+     * This is to [`multi_exp`](GroupElement::multi_exp) exactly what
+     * [`dist_exp`](DistGroupOps::dist_exp) is to [`exp`](GroupElement::exp), and
+     * the distinction is the same one:
+     *
+     * ```text
+     * exp            [g1, g2].exp([s1, s2])          one scalar per component
+     * dist_exp       [g1, g2].dist_exp(s)            one scalar, broadcast
+     *
+     * multi_exp      bases: &[[T; N]]  exps: &[[T::Scalar; N]]   per component
+     * dist_multi_exp bases: &[[T; N]]  exps: &[T::Scalar]        broadcast
+     * ```
+     *
+     * The broadcast form is the one batching needs: a ciphertext of width `ω`
+     * is raised to a *single* batching exponent, not to `ω` independent ones.
+     *
+     * There is no `repl` counterpart, since replicating one element across many
+     * exponents degenerates to `g^{Σ e_i}`.
+     *
+     * Implementations should delegate per component to
+     * [`multi_exp`](GroupElement::multi_exp) so that a backend's specialized
+     * implementation is inherited here rather than reimplemented.
+     *
+     * # Errors
+     *
+     * - `MismatchedMultiExpLength` if `bases` and `exponents` differ in length.
+     */
+    fn dist_multi_exp(bases: &[Self], exponents: &[Rhs::Scalar]) -> Result<Self::Result, Error>;
 
     /**
      * Conjunctive evaluation of equality of the components of a product
