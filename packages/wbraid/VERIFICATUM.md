@@ -540,8 +540,21 @@ signal, so a conforming integration would be misled.
 **Status.** Understood, reproduced, and pinned by two tests in `braid/tests/vmn_verifier.rs`
 (`vmnv_exit_code_alone_is_not_sufficient` and `vmnv_is_silent_about_a_failed_shuffle`) that will fail
 if it is ever fixed upstream. **Not yet reported to the Verificatum maintainers** — that is the
-outstanding action. Until then, **do not rely on `vmnv`'s exit code alone** for a shuffling proof;
-run it with `-v` and check the output, or verify in a full mixing context.
+outstanding action.
+
+**How this project is protected.** The danger for us is not the bug itself but what it hides: if
+braid's transcript layer ever drifts, the emitted proofs stop verifying and `vmnv` reports that by
+exiting 0, so an exit-code-only check would stay green while the interop was silently broken. So:
+
+- `vmnv_accepts()` in `vmn_verifier.rs` is the single place that decides acceptance, and it requires
+  a zero exit **and** `Verify proof of shuffle... done.` in the output. Every test asks through it.
+- `vmnv_would_catch_emitter_drift` perturbs the prefix to simulate exactly that regression, asserts
+  `vmnv` exits 0 on the result — confirming the trap is real — and asserts our check rejects anyway.
+  The guard is demonstrated, not just claimed.
+- If this interop later grows a CI job or tooling, it must use that predicate, never `$?`.
+- When `-mix` becomes reachable, note that full `-mix` rejects these cases only via its downstream
+  plaintext comparison; **`-mix -nodec` is affected exactly like `-shuffle`** and must not be treated
+  as a safe way to check the mixing phase alone.
 
 (Separately, `vmnv` exits 1 on rejection, not the `-1`/255 that §10.1 specifies.)
 

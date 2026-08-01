@@ -27,6 +27,19 @@
 //!
 //! The session parameters below must match `VMNV_PROTINFO`, because the global
 //! prefix rho is derived from them and the verifier recomputes it.
+//!
+//! # Never check `vmnv`'s exit code on its own
+//!
+//! `vmnv` exits 0 on shuffling proofs it has itself rejected — see
+//! [`vmnv_exit_code_alone_is_not_sufficient`] for the root cause. Ask
+//! [`vmnv_accepts`] instead, and if this interop later grows a CI job or tooling,
+//! that predicate is what it should use.
+//!
+//! When the decryption side is implemented and `-mix` becomes reachable, note
+//! that full `-mix` happens to reject these cases via its downstream plaintext
+//! comparison, but **`-mix -nodec` does not** — it is affected exactly like
+//! `-shuffle`. Do not treat `-nodec` as a safe way to check the mixing phase
+//! alone.
 
 #![cfg(feature = "native")]
 
@@ -121,6 +134,24 @@ fn run_vmnv(env: &Env, dir: &PathBuf, verbose: bool) -> (i32, String) {
     (output.status.code().unwrap_or(-1), text)
 }
 
+/// Did `vmnv` accept this proof? **Use this rather than the exit code.**
+///
+/// `vmnv`'s exit status is not a sound accept/reject signal for a shuffling
+/// proof: it exits 0 on proofs it has itself rejected (see
+/// [`vmnv_exit_code_alone_is_not_sufficient`]). A correct check therefore has to
+/// require both a zero exit *and* positive confirmation that the shuffle
+/// verification ran to completion.
+///
+/// This matters beyond documenting someone else's bug. If braid's emitter ever
+/// drifts — a change to `VmnChallenges`, the generator derivation, or the byte
+/// encoding — the proofs become invalid, and `vmnv` would report that by exiting
+/// 0. Anything checking only the exit status would see a passing test.
+/// [`vmnv_would_catch_emitter_drift`] demonstrates that this predicate does not.
+fn vmnv_accepts(env: &Env, dir: &PathBuf) -> bool {
+    let (code, output) = run_vmnv(env, dir, true);
+    code == 0 && output.contains("Verify proof of shuffle... done.")
+}
+
 /// Rewrite a proof directory to claim the output is the input, i.e. that nothing
 /// was shuffled. The proof is then invalid for that statement.
 fn claim_no_shuffling_happened(dir: &PathBuf) {
@@ -131,9 +162,16 @@ fn claim_no_shuffling_happened(dir: &PathBuf) {
 
 /// Produce a shuffle and write it as a Verificatum proof directory.
 fn emit(dir: &PathBuf) {
+    emit_with_drift(dir, false);
+}
+
+/// As [`emit`], but `drift` perturbs the global prefix to stand in for a
+/// regression in braid's transcript layer — the realistic way this interop
+/// breaks. The resulting proof is well-formed but does not verify.
+fn emit_with_drift(dir: &PathBuf, drift: bool) {
     let _ = std::fs::remove_dir_all(dir);
 
-    let rho = global_prefix(
+    let mut rho = global_prefix(
         Hashfunction::Sha256,
         &PrefixParams {
             version: "3.1.0".into(),
@@ -147,6 +185,9 @@ fn emit(dir: &PathBuf) {
             rohash: "SHA-256".into(),
         },
     );
+    if drift {
+        rho[0] ^= 0x01;
+    }
 
     let keypair: KeyPair<P256Ctx> = KeyPair::generate();
     let input: Vec<Ciphertext<P256Ctx, W>> = (0..N)
@@ -189,12 +230,42 @@ fn vmnv_accepts_a_braid_shuffle_proof() {
     let dir = std::env::temp_dir().join("braid_vmnv_accept");
     emit(&dir);
 
-    let (code, output) = run_vmnv(&env, &dir, true);
-    eprintln!("{output}");
-    assert_eq!(code, 0, "vmnv must accept a proof braid produced");
     assert!(
-        output.contains("Verify proof of shuffle... done."),
-        "vmnv must actually run the shuffle verification, not skip it"
+        vmnv_accepts(&env, &dir),
+        "vmnv must accept a proof braid produced"
+    );
+}
+
+/// Guards the interop against a silent regression in **our** code.
+///
+/// This is the failure mode that the `vmnv` exit-code defect makes dangerous for
+/// this project. If braid's transcript layer drifts, the emitted proofs stop
+/// verifying — and `vmnv` reports that by exiting **0**, so a CI job checking
+/// only the exit status would stay green while the interop was broken.
+///
+/// Here a deliberately perturbed prefix stands in for such a regression. The
+/// exit code is asserted to be 0, confirming the trap is real, and
+/// [`vmnv_accepts`] is asserted to reject anyway — which is what makes the
+/// positive test above trustworthy.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_would_catch_emitter_drift() {
+    let Some(env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+
+    let dir = std::env::temp_dir().join("braid_vmnv_drift");
+    emit_with_drift(&dir, true);
+
+    let (code, _) = run_vmnv(&env, &dir, true);
+    assert_eq!(
+        code, 0,
+        "the trap this test exists for: vmnv exits 0 on the broken proof"
+    );
+    assert!(
+        !vmnv_accepts(&env, &dir),
+        "but our acceptance check must still reject it"
     );
 }
 
@@ -230,6 +301,10 @@ fn vmnv_rejects_tampered_braid_proofs() {
 
         let (code, _) = run_vmnv(&env, &dir, true);
         assert_ne!(code, 0, "vmnv must reject a proof with {name} corrupted");
+        assert!(
+            !vmnv_accepts(&env, &dir),
+            "and our acceptance check must agree for {name}"
+        );
         eprintln!("ok: {name} corrupted -> vmnv exit {code}");
     }
 }
@@ -281,6 +356,10 @@ fn vmnv_exit_code_alone_is_not_sufficient() {
     assert_eq!(
         code, 0,
         "documenting vmnv's actual behaviour: it reports the failure but still exits 0"
+    );
+    assert!(
+        !vmnv_accepts(&env, &dir),
+        "our acceptance check must reject it despite the zero exit"
     );
 }
 
