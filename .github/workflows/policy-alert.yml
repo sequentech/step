@@ -20,12 +20,28 @@ on:
   pull_request:
     types: [labeled, review_requested]
 
+  # Manual escape hatch. Nothing here reaches Slack until a policy is actually
+  # breached, which makes "is the webhook configured for this repository?"
+  # unanswerable without waiting for a real violation. Dispatching this sends
+  # one test message and answers it.
+  #
+  # Only `step` carries a repository-level SLACK_WEBHOOK_URL; `gitops` resolves
+  # an organisation secret. Whether that secret's repository selection covers
+  # `beyond` is unverified — dispatch this there to find out.
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Policy label to simulate (e.g. policy:repo-scope)"
+        required: true
+        default: "policy:governance"
+
 permissions: {}
 
 jobs:
   notify:
     name: Notify Slack
     if: >-
+      github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.label.name, 'policy:') ||
       github.event.requested_team.slug == 'architects'
     runs-on: ubuntu-24.04
@@ -35,7 +51,7 @@ jobs:
       - name: Compose the alert
         id: alert
         env:
-          LABEL: ${{ github.event.label.name }}
+          LABEL: ${{ inputs.label || github.event.label.name }}
           TEAM: ${{ github.event.requested_team.slug }}
         run: |
           case "${LABEL:-team:${TEAM}}" in
