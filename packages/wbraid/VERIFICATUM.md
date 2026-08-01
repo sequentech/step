@@ -624,6 +624,17 @@ The file cannot simply be omitted: the verifier's `readArray` calls `failStop` o
 every `l ∈ [1, k]` needs one. For P-256 the identity is the point at infinity,
 `node(leaf(−1), leaf(−1))`, which `vcompat::arithm::point_at_infinity` already emits.
 
+**The same applies to the proof files, and there the values are load-bearing.**
+`DecrFactCommitment<l>.bt` and `DecrFactReply<l>.bt` are also read for every party, and
+`DistrElGamalSessionBasic` falls back to `yp[l] = getONE(); Bp[l] = getONE()` and
+`k_x[l] = getZERO()`, which `DistrElGamalSession` then writes out. Those are not free to choose even
+though the party is excluded from Δ: `getCommitment()` builds its container over **all `k`** parties
+and that container is hashed into the decryption challenge, so a different placeholder moves `v` and
+breaks the participants' proofs. `vmnv_accepts_a_mixing_proof_with_an_inactive_party` asserts exactly
+this, by substituting a well-formed commitment over the generator and requiring rejection — the
+substitute has to parse, because `setCommitment` falls back to the identity on a malformed file and
+a corrupted one would leave the challenge unchanged.
+
 So the emitter's rule is: **`DecryptionFactors<l>.bt` for a non-participant is an all-identity array
 of the same shape as a real one, and `CorrectIndices.bt` marks that party false.** Δ is then exactly
 braid's participant set, whose size is already λ — which matches VMN's requirement that `|Δ| = λ`
@@ -748,15 +759,27 @@ every genuine Verificatum mixing proof with more than one party. It is a documen
 than a soundness one, but it lands directly on the goal this investigation exists to serve: the
 specification is not by itself sufficient to write an independent verifier against.
 
+### The non-participant path — also confirmed
+
+`vmnv_accepts_a_mixing_proof_with_an_inactive_party` runs the same emitter at `k = 3`, `λ = 2`
+against a 3-of-2 info file, with **party 2 taking no part** — Δ is `{1, 3}` rather than `{1, 2}` so
+the gap sits in the middle, where an off-by-one in party indexing would show. `α` is still
+`lcm(1,2,3)² = 36`, a function of `k` and not of the threshold, and the coefficients are `54` and
+`−18`.
+
+This is the case braid's own model does not produce: braid only computes decryption factors for the
+trustees selected for the mix, whereas VMN expects a file from every party and names Δ separately.
+The bridge is the all-identity factor array, identity commitment and zero reply described under
+"Non-participating parties" below, and this test is what confirms it against `vmnv` rather than
+against a reading of the source.
+
 ### What Stage 4 did not cover
 
-- **The non-participant path.** `k = λ = 3` means every party decrypts. The all-identity factor
-  array and the `false` flag (established from source above, and unit-tested in `vmn_decrypt.rs`)
-  have not yet been put in front of `vmnv`. Doing so needs a protocol info file with `thres < nopart`
-  — the two shipped files are 1-of-1 and 3-of-3.
-- **Wiring to the live protocol.** The test drives the DKG, shuffle and decryption directly rather
-  than through `Trustee::step` and the board, so it proves the cryptography and the emitter, not the
+- **Wiring to the live protocol.** The tests drive the DKG, shuffle and decryption directly rather
+  than through `Trustee::step` and the board, so they prove the cryptography and the emitter, not the
   session plumbing.
+- **Anything but P-256 at width 2.** Which is inherent — `vmnv` supports no group braid also
+  supports other than the standard curves.
 
 ---
 
@@ -791,8 +814,7 @@ three-mixer chain. See the Stage 3 results.
 **Stage 4 — decryption, `vmnv -mix`. ✅ DONE** (see "Stage 4 results" above). The batched decryption
 proof (§2.5), Γ from braid's per-dealer commitments (§2.4), and the decryption files. Unlike
 everything before it this was new cryptography rather than a translation, so it was done on its own
-branch. Remaining within it: the non-participant path, which needs an info file with
-`thres < nopart`.
+branch. The non-participant path is covered too, at `k = 3`, `λ = 2`.
 
 Stages 1–3 were the real experiment, and they passed. If Stage 2 had proved intractable everything
 after it would have been moot; it did not.
@@ -814,9 +836,9 @@ after it would have been moot; it did not.
 - **Prover-side tooling is Unix-bound.** Reproducing the Stage 0 corpus needs WSL (or Linux); only
   the verifier runs natively on Windows. Harmless for the design, mildly annoying for CI.
 - **Validation status.** The central claim is no longer an analysis: unmodified `vmnv -mix` accepts
-  a complete braid session (Stage 4). What that covers is the cryptography and the emitter at
-  `k = λ = 3` over P-256 and width 2. What it does not cover is the non-participant path
-  (`λ < k`), the live protocol plumbing, and any other group or width.
+  a complete braid session (Stage 4), at `k = λ = 3` and again at `k = 3, λ = 2` with a party that
+  did not decrypt. What that covers is the cryptography and the emitter over P-256 at width 2; what
+  it does not cover is the live protocol plumbing, or any other group or width.
 - **The specification alone is not enough to write a verifier.** Two places where a strict reading of
   VMNV would produce a verifier that disagrees with `vmnv`: the α placement in the decryption proof
   (Stage 4), and `Γ`, which Algorithm 24 checks but `vmnv -shuffle` does not read. Both were found

@@ -123,6 +123,27 @@ pub fn inactive_factors<const W: usize>(ciphertexts: usize) -> Vec<[P256Element;
     vec![std::array::from_fn(|_| P256Element::one()); ciphertexts]
 }
 
+/// The commitment and reply Verificatum records for a party whose contribution
+/// is absent or unparseable: `τ = node(1, 1)` and `σ = 0`.
+///
+/// `DistrElGamalSessionBasic.setCommitment` falls back to
+/// `yp[l] = getONE(); Bp[l] = getONE()` and `setReply` to `k_x[l] = getZERO()`,
+/// and `DistrElGamalSession` then writes those defaults out to
+/// `DecrFactCommitment<l>.bt` and `DecrFactReply<l>.bt`.
+///
+/// These values are **not** free to choose even though the party is excluded
+/// from Δ: every party's commitment is hashed into the decryption challenge
+/// (`getCommitment()` builds the container over all `k`), so getting them wrong
+/// moves `v` and breaks the participants' proofs. Pair with
+/// [`inactive_factors`] and a `false` flag in `CorrectIndices.bt`.
+pub fn inactive_proof<const W: usize>() -> BatchedDecryptionProof<W> {
+    BatchedDecryptionProof {
+        y_prime: P256Element::one(),
+        b_prime: std::array::from_fn(|_| P256Element::one()),
+        k_x: P256Scalar::zero(),
+    }
+}
+
 /// Extract each dealer's coefficient commitments from braid's `Shares` bodies,
 /// in dealer order.
 pub fn dealer_commitments(shares: &[Shares<P256Ctx>]) -> Vec<Vec<P256Element>> {

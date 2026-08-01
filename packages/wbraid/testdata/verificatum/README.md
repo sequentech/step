@@ -132,13 +132,16 @@ three-mixer chain with no DKG, the second a full `type = mixing` session includi
 three-party DKG, so `PolynomialInExponent.bt` there is genuine rather than the placeholder a
 shuffling proof carries.
 
-Because `thres` equals `nopart`, it cannot exercise a party that fails to decrypt. That case needs
-an info file with `thres < nopart`, which neither shipped file provides.
+Because `thres` equals `nopart`, it cannot exercise a party that fails to decrypt. That is what
+`protInfo-3party-t2.xml` is for: `nopart = 3`, `thres = 2`, everything else identical, supporting
+`vmnv_accepts_a_mixing_proof_with_an_inactive_party`. Regenerate it the same way with
+`-nopart 3 -thres 2`.
 
-Regenerate it exactly as above but with `-nopart 3 -thres 3`, running the `vmni -party` step once per
-party and merging all three. Note ρ is unaffected by the party count — it commits to the version,
-session identifier, bit lengths, group and hash functions, but not to `nopart` or `thres` — so both
-info files share a prefix and the same session constants in the tests.
+Regenerate either exactly as above but with `-nopart 3` and the matching `-thres`, running the
+`vmni -party` step once per party and merging all three. Note ρ is unaffected by the party count and
+the threshold — it commits to the version, session identifier, bit lengths, group and hash
+functions, but not to `nopart` or `thres` — so all three info files share a prefix and the same
+session constants in the tests.
 
 ## Running the `vmnv` tests
 
@@ -185,3 +188,18 @@ Then:
 ```
 cargo test -p braid --test vmn_verifier -- --ignored --nocapture
 ```
+
+### `vmnv` is not safe to run concurrently by default
+
+Verificatum spools large integer arrays into a working directory under
+`/tmp/com.verificatum`, picks the same one for every process when `-wd` is
+absent, and deletes it on exit. Two `vmnv` runs at once therefore destroy each
+other's scratch space part-way through, surfacing as `File not found!` or
+`Unable to delete storage directory!` in whichever run lost — under `cargo
+test`'s default parallelism, that looks like unrelated tests failing at random.
+
+`run_vmnv_mode` passes a unique `-wd` per invocation, so the tests do not need
+`--test-threads=1`. Anything else driving `vmnv` in parallel must do the same.
+`-wd` has to be a *relative* name: `TempFile.init` treats a path as absolute only
+if it begins with `/`, so a Windows path would be appended to the default root
+rather than replacing it.
