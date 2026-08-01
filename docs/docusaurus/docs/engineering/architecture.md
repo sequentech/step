@@ -25,6 +25,14 @@ is the rule; this file is the baseline it compares against.
 **If a change makes something here untrue, the change must update this file.**
 A stale architecture document is worse than none, because it is trusted.
 
+> **Last verified against `main`: 2026-08-01** — see
+> [meta#12676](https://github.com/sequentech/meta/issues/12676).
+>
+> `60-architectural-changes.md` catches *change*; nothing catches *decay*. Every
+> statement below was checked against the repository on that date. Re-verify at
+> least quarterly, and move this date when you do — an unmoved date is itself
+> the finding.
+
 ## What this document covers
 
 The components built in this repository, and the interfaces between them.
