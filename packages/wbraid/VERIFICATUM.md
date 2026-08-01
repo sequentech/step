@@ -566,12 +566,24 @@ previous output, verifying all three proofs. The emitter writes the per-party fi
 real `activethreshold`. Corrupting any single mixer's reply breaks the chain, so acceptance is not
 carried by the other members.
 
-One finding along the way corrected a claim made earlier here: **`PolynomialInExponent.bt` is not
-read for a shuffling proof**, despite VMNV §9.3 step 5 describing key reading as unconditional.
-Deleting the file leaves `vmnv -shuffle` at exit 0, and "Read polynomial in exponent" appears only in
-a `-mix` run. So a shuffling session needs no DKG at all, and the polynomial is now an optional
-input to the emitter rather than a threshold-1-only stand-in. Deriving it properly —
-`Γ_s = ∏_d C_{d,s}` from braid's per-dealer commitments (§2.4) — belongs to the decryption work.
+**A note on step 5, where an early reading of ours was wrong.** VMNV §9.3 step 5 reads the keys, and
+Algorithm 24 splits that into two parts: read the joint public key `pk`, then read the polynomial in
+the exponent `Γ` and *reject if `Γ_0 ≠ y`*. `vmnv` does the first unconditionally and the second only
+when verifying decryption — deleting `FullPublicKey.bt` fails a `-shuffle` run outright, while
+deleting `PolynomialInExponent.bt` leaves it at exit 0.
+
+Both halves matter, for different reasons. `pk` is genuinely required by a shuffling proof: Algorithm
+25 takes it as an input and it appears in the fifth verification equation, which is why step 5 sits
+ahead of the type branch. `Γ` is *not* among Algorithm 25's inputs, so skipping it is sound for
+`vmnv` — but a verifier written to the specification still reads it and cross-checks it against `pk`.
+
+braid's emitter therefore writes it, rather than relying on `vmnv`'s leniency: a proof that passes
+only because one implementation skips half a step is not the property this exercise is buying. Since
+Algorithm 24 *checks* the file rather than merely requiring it, supplying a wrong `Γ` would be worse
+than omitting it — so the emitter validates `Γ_0 = y` and refuses otherwise.
+
+Deriving `Γ` from a real DKG — `Γ_s = ∏_d C_{d,s}` over braid's per-dealer commitments (§2.4) —
+belongs to the decryption work, where the shares are actually used.
 
 **Decryption — remaining.** Shuffle only so far. `vmnv -mix` needs the batched decryption proof braid
 does not yet have (§2.5), plus the `Dec.s`/`Dec.v` transcript, the decryption artifacts in the proof

@@ -99,8 +99,14 @@ fn emit_a_verificatum_shuffling_proof() {
         width: W,
         public_key: &keypair.pkey.y,
         input: &input,
-        mixers: &[MixerStep { output: &output, proof: &proof }],
-        polynomial_in_exponent: None,
+        mixers: &[MixerStep {
+            output: &output,
+            proof: &proof,
+        }],
+        // This session's protocol info declares threshold 1, so the polynomial
+        // in the exponent is the single element (y). Algorithm 24 checks
+        // Gamma_0 == y, so it has to be exactly this.
+        polynomial_in_exponent: Some(&[keypair.pkey.y]),
     }
     .write(&out)
     .expect("write proof directory");
@@ -115,8 +121,10 @@ fn emit_a_verificatum_shuffling_proof() {
         "Ciphertexts.bt",
         "ShuffledCiphertexts.bt",
         "proofs/activethreshold",
-        // PolynomialInExponent.bt is deliberately absent: vmnv does not read it
-        // for a shuffling proof, so such a session needs no DKG at all.
+        // vmnv does not read this for a shuffling proof, but VMNV §9.3 step 5
+        // does, and checks Gamma_0 against the public key, so a complete
+        // directory carries it.
+        "proofs/PolynomialInExponent.bt",
         "proofs/Ciphertexts01.bt",
         "proofs/PermutationCommitment01.bt",
         "proofs/PoSCommitment01.bt",
@@ -131,4 +139,27 @@ fn emit_a_verificatum_shuffling_proof() {
     }
 
     eprintln!("wrote a shuffling proof for N={N} width={W} to {}", out.display());
+
+    // The polynomial must satisfy Gamma_0 = y, which is what Algorithm 24
+    // checks. Emitting a directory that fails it would turn a proof vmnv accepts
+    // into one a spec-following verifier rejects, for a reason having nothing to
+    // do with the shuffle -- so the emitter refuses rather than writing it.
+    let wrong_gamma = [P256Ctx::random_element()];
+    let rejected = ShufflingProof::<W> {
+        version: "3.1.0",
+        auxsid: AUXSID,
+        width: W,
+        public_key: &keypair.pkey.y,
+        input: &input,
+        mixers: &[MixerStep {
+            output: &output,
+            proof: &proof,
+        }],
+        polynomial_in_exponent: Some(&wrong_gamma),
+    }
+    .write(&out.join("rejected"));
+    assert!(
+        rejected.is_err(),
+        "a polynomial inconsistent with the public key must be refused"
+    );
 }

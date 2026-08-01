@@ -49,6 +49,7 @@ use std::process::Command;
 use braid::vmn::proof_dir::{MixerStep, ShufflingProof};
 use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators};
 use cryptography::context::{Context, P256Ctx};
+use cryptography::groups::p256::element::P256Element;
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
 use cryptography::zkp::shuffle::Shuffler;
 use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
@@ -213,7 +214,7 @@ fn emit_with_drift(dir: &PathBuf, drift: bool) {
         public_key: &keypair.pkey.y,
         input: &input,
         mixers: &[MixerStep { output: &output, proof: &proof }],
-        polynomial_in_exponent: None,
+        polynomial_in_exponent: Some(&polynomial_in_exponent(&keypair.pkey.y, 1)),
     }
     .write(dir)
     .expect("write proof directory");
@@ -235,6 +236,27 @@ fn vmnv_accepts_a_braid_shuffle_proof() {
         vmnv_accepts(&env, &dir),
         "vmnv must accept a proof braid produced"
     );
+}
+
+/// A polynomial in the exponent `Γ = (Γ_0, ..., Γ_{λ-1})` with `Γ_0 = y`.
+///
+/// `vmnv` does not read this for a shuffling proof, but VMNV §9.3 step 5 and
+/// §9.1 both say a proof directory contains it, and VMN's own prover writes it
+/// even for shuffling sessions. Emitting it keeps braid's proofs acceptable to a
+/// verifier written strictly to the specification, rather than only to one that
+/// shares `vmnv`'s leniency — which is the entire point of the exercise.
+///
+/// The higher coefficients are arbitrary group elements. Every element of a
+/// prime-order group is `g^γ` for some `γ`, so this is a well-formed degree
+/// `λ-1` polynomial whose constant term is the real secret; a shuffling session
+/// never decrypts, so the coefficients above it are never used.
+fn polynomial_in_exponent(y: &P256Element, threshold: usize) -> Vec<P256Element> {
+    let mut gamma = Vec::with_capacity(threshold);
+    gamma.push(*y);
+    for _ in 1..threshold {
+        gamma.push(P256Ctx::random_element());
+    }
+    gamma
 }
 
 /// A chain of `parties` mixers, each shuffling the previous output, written as
@@ -288,6 +310,8 @@ fn emit_chain(dir: &PathBuf, parties: usize) {
         proofs.push(proof);
     }
 
+    let gamma = polynomial_in_exponent(&keypair.pkey.y, 3);
+
     let mixers: Vec<MixerStep<W>> = outputs
         .iter()
         .zip(proofs.iter())
@@ -301,7 +325,7 @@ fn emit_chain(dir: &PathBuf, parties: usize) {
         public_key: &keypair.pkey.y,
         input: &input,
         mixers: &mixers,
-        polynomial_in_exponent: None,
+        polynomial_in_exponent: Some(&gamma),
     }
     .write(dir)
     .expect("write proof directory");

@@ -22,12 +22,19 @@
 //!
 //! - `ShuffledCiphertexts.bt` (the session output `L_λa`) and the last mixer's
 //!   `Ciphertexts<l>.bt` are the same list, but both files are required.
-//! - `PolynomialInExponent.bt` is **not** read for a shuffling proof, despite
-//!   VMNV §9.3 step 5 describing key reading as unconditional. Verified against
-//!   the implementation: deleting the file leaves `vmnv -shuffle` at exit 0, and
-//!   "Read polynomial in exponent" appears only in a `-mix` run. It is written
-//!   anyway when a caller supplies it, since a conforming verifier may expect a
-//!   complete directory, but a shuffling proof does not need a DKG to exist.
+//! - VMNV §9.3 step 5 reads the keys, which Algorithm 24 splits into two: the
+//!   joint public key `pk`, and the polynomial in the exponent `Γ` with the
+//!   check `Γ_0 ≠ y ⇒ reject`. `vmnv` does the first unconditionally and the
+//!   second only when verifying decryption. Verified against the
+//!   implementation: deleting `FullPublicKey.bt` fails a `-shuffle` run
+//!   outright, while deleting `PolynomialInExponent.bt` leaves it at exit 0.
+//!
+//!   `pk` is genuinely needed by a shuffling proof — Algorithm 25 takes it as an
+//!   input, and it appears in the fifth verification equation. `Γ` is not among
+//!   Algorithm 25's inputs, which is why skipping it is sound for `vmnv`. But a
+//!   verifier written to the specification will still read it *and* check it
+//!   against `pk`, so an emitter should supply it: **if present it must satisfy
+//!   `Γ_0 = y`**, and it must have `λ` entries.
 
 use std::fs;
 use std::path::Path;
@@ -68,8 +75,15 @@ pub struct ShufflingProof<'a, const W: usize> {
     /// its length is the active threshold `λ_a`, and the last output is the
     /// session result `L_λa`.
     pub mixers: &'a [MixerStep<'a, W>],
-    /// The polynomial in the exponent, if known. Unused by `vmnv -shuffle` (see
-    /// the module docs), so a shuffling session need not run a DKG.
+    /// The polynomial in the exponent `Γ`, if known.
+    ///
+    /// `vmnv -shuffle` does not read it, but a verifier following VMNV §9.3
+    /// step 5 does, and checks it against the public key, so supplying it is
+    /// what makes a proof directory acceptable to more than just `vmnv`.
+    ///
+    /// **If supplied it must satisfy `Γ_0 = y`** (Algorithm 24 rejects
+    /// otherwise) and hold `λ` entries for the session's threshold. Omitting it
+    /// is safer than supplying a wrong one.
     pub polynomial_in_exponent: Option<&'a [P256Element]>,
 }
 
@@ -78,6 +92,22 @@ impl<const W: usize> ShufflingProof<'_, W> {
     pub fn write(&self, dir: &Path) -> Result<()> {
         if self.mixers.is_empty() {
             return Err(anyhow!("a shuffling proof needs at least one mixer"));
+        }
+        // Algorithm 24 rejects a proof whose polynomial disagrees with the
+        // public key, so catch that here rather than emitting a directory that a
+        // spec-following verifier would refuse for a reason unrelated to the
+        // shuffle. `vmnv -shuffle` would not notice either way.
+        if let Some(gamma) = self.polynomial_in_exponent {
+            match gamma.first() {
+                None => return Err(anyhow!("the polynomial in the exponent is empty")),
+                Some(gamma_0) if gamma_0 != self.public_key => {
+                    return Err(anyhow!(
+                        "polynomial in the exponent is inconsistent with the public key: \
+                         Gamma_0 != y"
+                    ))
+                }
+                Some(_) => {}
+            }
         }
         let proofs = dir.join("proofs");
         fs::create_dir_all(&proofs)?;
