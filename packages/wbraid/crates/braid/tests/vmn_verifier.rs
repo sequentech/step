@@ -88,8 +88,13 @@ fn env() -> Option<Env> {
 }
 
 /// `vmnv -shuffle <protInfo> <dir>`; returns the exit code and combined output.
-fn run_vmnv(env: &Env, dir: &PathBuf) -> (i32, String) {
-    let output = Command::new(&env.java)
+///
+/// `verbose` adds `-v`. It matters more than it looks: `vmnv` reports some
+/// failures only when verbose, so a non-verbose run can be silent about a proof
+/// it rejected internally (see `vmnv_is_silent_about_a_failed_shuffle`).
+fn run_vmnv(env: &Env, dir: &PathBuf, verbose: bool) -> (i32, String) {
+    let mut command = Command::new(&env.java);
+    command
         .arg("-cp")
         .arg(&env.classpath)
         .arg(VERIFY_TOOL)
@@ -97,11 +102,11 @@ fn run_vmnv(env: &Env, dir: &PathBuf) -> (i32, String) {
         .arg("vmnv")
         .arg(&env.random_source)
         .arg(&env.random_seed)
-        .arg("-shuffle")
-        // Verbose, so the assertions can check which steps actually ran rather
-        // than trusting the exit code alone -- which this file shows is not
-        // always sufficient.
-        .arg("-v")
+        .arg("-shuffle");
+    if verbose {
+        command.arg("-v");
+    }
+    let output = command
         .arg("-auxsid")
         .arg(AUXSID)
         .arg("-width")
@@ -114,6 +119,14 @@ fn run_vmnv(env: &Env, dir: &PathBuf) -> (i32, String) {
     let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
     text.push_str(&String::from_utf8_lossy(&output.stderr));
     (output.status.code().unwrap_or(-1), text)
+}
+
+/// Rewrite a proof directory to claim the output is the input, i.e. that nothing
+/// was shuffled. The proof is then invalid for that statement.
+fn claim_no_shuffling_happened(dir: &PathBuf) {
+    let input = std::fs::read(dir.join("Ciphertexts.bt")).unwrap();
+    std::fs::write(dir.join("ShuffledCiphertexts.bt"), &input).unwrap();
+    std::fs::write(dir.join("proofs/Ciphertexts01.bt"), &input).unwrap();
 }
 
 /// Produce a shuffle and write it as a Verificatum proof directory.
@@ -176,7 +189,7 @@ fn vmnv_accepts_a_braid_shuffle_proof() {
     let dir = std::env::temp_dir().join("braid_vmnv_accept");
     emit(&dir);
 
-    let (code, output) = run_vmnv(&env, &dir);
+    let (code, output) = run_vmnv(&env, &dir, true);
     eprintln!("{output}");
     assert_eq!(code, 0, "vmnv must accept a proof braid produced");
     assert!(
@@ -215,25 +228,35 @@ fn vmnv_rejects_tampered_braid_proofs() {
         bytes[offset] ^= 0xFF;
         std::fs::write(&path, &bytes).expect("write tampered artifact");
 
-        let (code, _) = run_vmnv(&env, &dir);
+        let (code, _) = run_vmnv(&env, &dir, true);
         assert_ne!(code, 0, "vmnv must reject a proof with {name} corrupted");
         eprintln!("ok: {name} corrupted -> vmnv exit {code}");
     }
 }
 
-/// A `vmnv` behaviour worth pinning, because it is surprising and an integration
-/// could be built on the wrong assumption.
+/// A defect in `vmnv`, pinned here so the behaviour is not mistaken for ours and
+/// so a fix upstream is noticed.
 ///
-/// Replacing the output list with the input makes the proof invalid, and `vmnv`
-/// says so — it prints `Verify proof of shuffle... failed.` and `Too few proofs
-/// are valid!` — but it still **exits 0**. This follows from the multi-server
-/// semantics of VMNV §2.3, where a mix-server whose proof fails is skipped, but
-/// §10.1 designates the exit code as the accept/reject signal, so the two
-/// disagree. Verificatum's own proofs behave identically, so this is `vmnv`'s
-/// behaviour rather than anything about braid's emitter.
+/// Claiming the output is the input makes the shuffle proof invalid. `vmnv`
+/// detects that and says so under `-v` — `Verify proof of shuffle... failed.`
+/// and `Too few proofs are valid! (0)` — and then **exits 0**.
 ///
-/// The consequence for callers: **do not rely on `vmnv`'s exit code alone** for
-/// a single-server shuffle; check its output too.
+/// The cause is visible in `MixNetElGamalVerifyFiatShamirSession`, which reaches
+/// the right conclusion and routes it to the wrong handler:
+///
+/// ```java
+/// if (validProofs < v.threshold) {
+///     v.failInfo("Too few proofs are valid! (" + validProofs + ")");
+/// }
+/// ```
+///
+/// `failInfo` only prints, and only when verbose. Its sibling `failStop` throws
+/// `ProtocolError` and halts. `validProofs < threshold` is exactly VMNV §2.3's
+/// reject condition ("If less than λ proofs are valid, then reject"), so the
+/// condition is evaluated correctly and then not enforced.
+///
+/// Callers must therefore **not rely on `vmnv`'s exit code alone** for a
+/// shuffling proof.
 #[test]
 #[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
 fn vmnv_exit_code_alone_is_not_sufficient() {
@@ -244,13 +267,9 @@ fn vmnv_exit_code_alone_is_not_sufficient() {
 
     let dir = std::env::temp_dir().join("braid_vmnv_identity");
     emit(&dir);
+    claim_no_shuffling_happened(&dir);
 
-    // Claim the output is the input, i.e. that nothing was shuffled.
-    let input = std::fs::read(dir.join("Ciphertexts.bt")).unwrap();
-    std::fs::write(dir.join("ShuffledCiphertexts.bt"), &input).unwrap();
-    std::fs::write(dir.join("proofs/Ciphertexts01.bt"), &input).unwrap();
-
-    let (code, output) = run_vmnv(&env, &dir);
+    let (code, output) = run_vmnv(&env, &dir, true);
     assert!(
         output.contains("Verify proof of shuffle... failed."),
         "vmnv should report the shuffle proof as failed, got:\n{output}"
@@ -262,5 +281,35 @@ fn vmnv_exit_code_alone_is_not_sufficient() {
     assert_eq!(
         code, 0,
         "documenting vmnv's actual behaviour: it reports the failure but still exits 0"
+    );
+}
+
+/// The same defect without `-v`, which is the dangerous shape of it.
+///
+/// `failInfo` prints only when verbose, so a non-verbose run of a shuffling
+/// proof that `vmnv` internally rejected produces **no output at all and exits
+/// 0** — indistinguishable from success. A shuffling session is VMN's documented
+/// mode for re-randomising without decrypting (VMNV §2.4), so accepting one in
+/// which no mixing occurred means accepting a mix-net that provided no privacy.
+///
+/// If this assertion ever fails, `vmnv` has been fixed and the interop notes in
+/// `VERIFICATUM.md` should be revisited.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_is_silent_about_a_failed_shuffle() {
+    let Some(env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+
+    let dir = std::env::temp_dir().join("braid_vmnv_silent");
+    emit(&dir);
+    claim_no_shuffling_happened(&dir);
+
+    let (code, output) = run_vmnv(&env, &dir, false);
+    assert_eq!(code, 0, "vmnv exits 0 on a shuffle proof it rejected");
+    assert!(
+        output.trim().is_empty(),
+        "and says nothing about it without -v; got:\n{output}"
     );
 }

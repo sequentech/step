@@ -483,10 +483,10 @@ Four independent tampering controls are correctly **rejected** (exit 1): a flipp
 `PoSReply01.bt`, in `PoSCommitment01.bt`, in `PermutationCommitment01.bt`, and in the input
 ciphertexts. So the acceptance is discriminating, not vacuous.
 
-### A `vmnv` behaviour worth knowing about
+### A defect found in `vmnv`
 
-One control was *accepted*: replacing the output list with the input. Investigating with `-v` shows
-`vmnv` **does** detect it —
+One control was *accepted*: replacing the output list with the input, so the proof no longer holds.
+`vmnv` **detects** this and, under `-v`, says so —
 
 ```
 Verify proof of shuffle... failed.
@@ -494,16 +494,56 @@ Verify proof of shuffle... failed.
 --> Too few proofs are valid! (0)
 ```
 
-— and then exits **0** anyway. Verificatum's *own* proof behaves identically under the same
-tampering, so this is a property of `vmnv`, not of braid's emitter.
+— then exits **0**. Verificatum's own proofs behave identically under the same tampering, so this is
+`vmnv`'s behaviour, not braid's emitter.
 
-It follows from the documented multi-server semantics (VMNV §2.3: a mix-server whose proof fails is
-skipped, `L_l = L_{l-1}`), but the accompanying "less than λ proofs valid ⇒ reject" is reported and
-then not reflected in the exit status. VMNV §10.1 specifies the exit code as the accept/reject
-signal, so **an integration must not rely on `vmnv`'s exit code alone** for a single-server shuffle;
-parse the output, or verify in a mixing context. Worth raising upstream.
+**Root cause.** `MixNetElGamalVerifyFiatShamirSession` reaches the right conclusion and routes it to
+the wrong handler:
 
-(Also note `vmnv` exits 1 on rejection, not the `-1`/255 that §10.1 specifies.)
+```java
+if (validProofs < v.threshold) {
+    v.failInfo("Too few proofs are valid! (" + validProofs + ")");
+}
+```
+
+`failInfo` only prints, and only when verbose:
+
+```java
+void failInfo(final String message) {
+    if (verbose) { println("--> " + message); }
+}
+```
+
+Its sibling `failStop` prints a `FAIL!` banner and `throw new ProtocolError(...)`, halting.
+`validProofs < threshold` is exactly VMNV §2.3's reject condition — *"If less than λ proofs are
+valid, then reject"* — so the condition is evaluated correctly and then not enforced. This reads as a
+straightforward bug rather than an intentional semantic: the guard exists, and one identifier is
+wrong.
+
+**Scope**, established by experiment:
+
+| Invocation | Result on a proof `vmnv` internally rejected |
+|---|---|
+| `-shuffle` with `-v` | exits 0, prints the failure |
+| `-shuffle` without `-v` | **exits 0 with no output at all** |
+| `-mix -nodec` | exits 0 |
+| `-mix` (full) | exits 1 — rejected |
+
+The full mixing path is safe, but only *incidentally*: the downstream plaintext comparison catches
+it, not the shuffle check. Disabling decryption verification — a documented option — re-exposes it.
+
+**Why it matters.** A shuffling session is VMN's documented mode for re-randomising without
+decrypting (§2.4). Accepting one in which no mixing occurred means accepting a mix-net that provided
+no privacy, silently, with a zero exit status. §10.1 designates the exit code as *the* accept/reject
+signal, so a conforming integration would be misled.
+
+**Status.** Understood, reproduced, and pinned by two tests in `braid/tests/vmn_verifier.rs`
+(`vmnv_exit_code_alone_is_not_sufficient` and `vmnv_is_silent_about_a_failed_shuffle`) that will fail
+if it is ever fixed upstream. **Not yet reported to the Verificatum maintainers** — that is the
+outstanding action. Until then, **do not rely on `vmnv`'s exit code alone** for a shuffling proof;
+run it with `-v` and check the output, or verify in a full mixing context.
+
+(Separately, `vmnv` exits 1 on rejection, not the `-1`/255 that §10.1 specifies.)
 
 ### Caveats
 
