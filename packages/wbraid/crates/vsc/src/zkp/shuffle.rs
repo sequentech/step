@@ -89,6 +89,110 @@ pub struct Shuffler<C: Context, const W: usize> {
     pk: elgamal::PublicKey<C>,
 }
 
+/**
+ * Source of the two Fiat-Shamir challenges in a proof of shuffle.
+ *
+ * The Terelius-Wikstrom proof fixes the *algebra* but not how its challenges are
+ * derived from the transcript; any derivation works as long as prover and
+ * verifier agree. Factoring the derivation out behind this trait lets the same,
+ * tested proof implementation serve a second transcript convention — in
+ * particular Verificatum's, so that proofs braid produces can be checked by an
+ * independently written verifier (see `VERIFICATUM.md`).
+ *
+ * [`NativeChallenges`] is the default and reproduces the previous behaviour
+ * exactly, so [`Shuffler::shuffle`] and [`Shuffler::verify`] are unchanged.
+ *
+ * Implementors must derive both challenges deterministically from public data
+ * only. Note the batching challenges are handed the generators and the Pedersen
+ * commitments as well as the ciphertexts: braid's own derivation ignores them,
+ * but Verificatum's commits to them, and they are available at the point the
+ * challenge is needed.
+ */
+pub trait ShuffleChallenges<C: Context, const W: usize> {
+    /// The batching vector `e = (e_1, ..., e_N)`.
+    ///
+    /// Values are reduced into the scalar field. That is sound for any
+    /// convention whose challenges are wider than the group order, because these
+    /// values are only ever used as exponents and `g^e = g^(e mod q)`.
+    fn batching_challenges(
+        &self,
+        generators: &[C::Element],
+        pedersen_commitments: &[C::Element],
+        pk: &elgamal::PublicKey<C>,
+        ciphertexts: &[Ciphertext<C, W>],
+        permuted_ciphertexts: &[Ciphertext<C, W>],
+        context: &[u8],
+    ) -> Result<Vec<C::Scalar>, Error>;
+
+    /// The single challenge `v`, derived from the proof commitments.
+    fn challenge(
+        &self,
+        pk: &elgamal::PublicKey<C>,
+        commitments: &ShuffleCommitments<C, W>,
+        context: &[u8],
+    ) -> Result<C::Scalar, Error>;
+}
+
+/// braid's own challenge derivation: hashing with domain-separation tags into
+/// full-width scalars. The default, and the behaviour of [`Shuffler::shuffle`]
+/// and [`Shuffler::verify`].
+pub struct NativeChallenges;
+
+impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
+    fn batching_challenges(
+        &self,
+        _generators: &[C::Element],
+        _pedersen_commitments: &[C::Element],
+        pk: &elgamal::PublicKey<C>,
+        ciphertexts: &[Ciphertext<C, W>],
+        permuted_ciphertexts: &[Ciphertext<C, W>],
+        context: &[u8],
+    ) -> Result<Vec<C::Scalar>, Error> {
+        let a = [
+            pk.ser(),
+            ciphertexts.to_vec().ser(),
+            permuted_ciphertexts.to_vec().ser(),
+            context.to_vec(),
+        ];
+        let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
+
+        let mut hasher = C::get_hasher();
+        hash::update_hasher(&mut hasher, &input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_E);
+        let bytes = hasher.finalize();
+
+        let mut ret = Vec::with_capacity(ciphertexts.len());
+        for i in 0..ciphertexts.len() {
+            // Cannot use platform dependent type in random oracle
+            let i_u64 = i as u64;
+            let prefix = bytes.clone();
+            let inputs: &[&[u8]] = &[prefix.as_slice(), &i_u64.to_be_bytes()];
+            let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
+            ret.push(C::G::hash_to_scalar(inputs, ds_tags)?);
+        }
+        Ok(ret)
+    }
+
+    fn challenge(
+        &self,
+        pk: &elgamal::PublicKey<C>,
+        commitments: &ShuffleCommitments<C, W>,
+        context: &[u8],
+    ) -> Result<C::Scalar, Error> {
+        let a = [
+            pk.ser(),
+            commitments.big_b_n.ser(),
+            commitments.big_a_prime.ser(),
+            commitments.big_b_prime_n.ser(),
+            commitments.big_c_prime.ser(),
+            commitments.big_d_prime.ser(),
+            commitments.big_f_prime.ser(),
+            context.to_vec(),
+        ];
+        let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
+        C::G::hash_to_scalar(&input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_V)
+    }
+}
+
 impl<C: Context, const W: usize> Shuffler<C, W> {
     /// Construct a Shuffler with the given values.
     pub fn new(h_generators: Vec<C::Element>, pk: elgamal::PublicKey<C>) -> Self {
@@ -144,6 +248,21 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ciphertexts: &Vec<Ciphertext<C, W>>,
         context: &[u8],
     ) -> Result<(Vec<Ciphertext<C, W>>, ShuffleProof<C, W>), Error> {
+        self.shuffle_with(ciphertexts, context, &NativeChallenges)
+    }
+
+    /// As [`shuffle`](Self::shuffle), but deriving the two Fiat-Shamir
+    /// challenges through `challenges` instead of braid's own convention.
+    ///
+    /// The proof algebra is identical; only the transcript differs. This is what
+    /// lets braid emit a proof another implementation's verifier will accept
+    /// (see [`ShuffleChallenges`]).
+    pub fn shuffle_with<X: ShuffleChallenges<C, W>>(
+        &self,
+        ciphertexts: &Vec<Ciphertext<C, W>>,
+        context: &[u8],
+        challenges: &X,
+    ) -> Result<(Vec<Ciphertext<C, W>>, ShuffleProof<C, W>), Error> {
         if ciphertexts.is_empty() {
             return Err(Error::EmptyShuffle);
         }
@@ -165,7 +284,14 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 1 /////////////////
 
         // Challenge e
-        let e_n = self.challenge_e_n(ciphertexts, &permuted_ciphertexts, context)?;
+        let e_n = challenges.batching_challenges(
+            &self.h_generators,
+            &pedersen_commitments,
+            &self.pk,
+            ciphertexts,
+            &permuted_ciphertexts,
+            context,
+        )?;
         // the calculation of A and F is moved to Step 5
 
         ///////////////// Step 2 /////////////////
@@ -268,9 +394,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 3 /////////////////
 
         // Challenge v
-        let (input, dsts) = self.challenge_input_v(&commitments, context);
-        let input: Vec<&[u8]> = input.iter().map(Vec::as_slice).collect();
-        let v = C::G::hash_to_scalar(&input, &dsts)?;
+        let v = challenges.challenge(&self.pk, &commitments, context)?;
 
         ///////////////// Step 4 /////////////////
 
@@ -371,6 +495,20 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         proof: &ShuffleProof<C, W>,
         context: &[u8],
     ) -> Result<bool, Error> {
+        self.verify_with(ciphertexts, permuted_ciphertexts, proof, context, &NativeChallenges)
+    }
+
+    /// As [`verify`](Self::verify), but deriving the challenges through
+    /// `challenges`. Must be paired with the matching
+    /// [`shuffle_with`](Self::shuffle_with) convention.
+    pub fn verify_with<X: ShuffleChallenges<C, W>>(
+        &self,
+        ciphertexts: &Vec<Ciphertext<C, W>>,
+        permuted_ciphertexts: &Vec<Ciphertext<C, W>>,
+        proof: &ShuffleProof<C, W>,
+        context: &[u8],
+        challenges: &X,
+    ) -> Result<bool, Error> {
         if ciphertexts.is_empty() {
             return Err(Error::EmptyShuffle);
         }
@@ -394,10 +532,15 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let responses = &proof.responses;
         let g = C::generator();
 
-        let e_n = self.challenge_e_n(ciphertexts, permuted_ciphertexts, context)?;
-        let (input, dsts) = self.challenge_input_v(commitments, context);
-        let input: Vec<&[u8]> = input.iter().map(Vec::as_slice).collect();
-        let v = C::G::hash_to_scalar(&input, &dsts)?;
+        let e_n = challenges.batching_challenges(
+            &self.h_generators,
+            &commitments.u_n,
+            &self.pk,
+            ciphertexts,
+            permuted_ciphertexts,
+            context,
+        )?;
+        let v = challenges.challenge(&self.pk, commitments, context)?;
 
         ///////////////// Step 5 /////////////////
 
@@ -569,49 +712,6 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         b"shuffle_proof_challenge_e_context",
     ];
 
-    /// Compute the e-challenge input for the proof of shuffle.
-    ///
-    /// See `EVS`: Protocol 12.3, Step 1
-    ///
-    /// # Params
-    ///
-    /// - `w_n`: The original ciphertexts, of width `W`
-    /// - `w_prime_n`: The shuffled ciphertexts, of width `W`
-    /// - `proof_context`: proof context label (ZKP CONTEXT)
-    ///
-    /// Returns byte arrays for input values and domain separation tags.
-    /// These values will be passed to the hash function to compute
-    /// the challenge.
-    fn challenge_e_n(
-        &self,
-        w_n: &Vec<Ciphertext<C, W>>,
-        w_prime_n: &Vec<Ciphertext<C, W>>,
-        context: &[u8],
-    ) -> Result<Vec<C::Scalar>, Error> {
-        #[crate::warning("Serialization of vectors is serial")]
-        let a = [self.pk.ser(), w_n.ser(), w_prime_n.ser(), context.to_vec()];
-        let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
-
-        let mut hasher = C::get_hasher();
-        hash::update_hasher(&mut hasher, &input, &Self::DS_TAGS_CHALLENGE_E);
-        #[crate::warning("Verify that this double hashing set up is ok")]
-        let bytes = hasher.finalize();
-        let mut ret = vec![];
-
-        #[crate::warning("The following code is not optimized. Parallelize with rayon")]
-        for i in 0..w_n.len() {
-            // Cannot use platform dependent type in random oracle
-            let i_u64 = i as u64;
-            let prefix = bytes.clone();
-            let inputs: &[&[u8]] = &[prefix.as_slice(), &i_u64.to_be_bytes()];
-            let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
-            let scalar = C::G::hash_to_scalar(inputs, ds_tags)?;
-            ret.push(scalar);
-        }
-
-        Ok(ret)
-    }
-
     /// Domain separation tags for the v-challenge input
     #[crate::warning(
         "Challenge inputs are incomplete. Also add generators, pedersen commitments, pk, and ciphertexts"
@@ -627,41 +727,6 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         b"shuffle_challenge_input_v_context",
     ];
 
-    /// Compute the v-challenge input for the proof of shuffle.
-    ///
-    /// See `EVS`: Protocol 12.3, Step 3
-    ///
-    /// # Params
-    ///
-    /// - `big_b_n`: Bridging commitments
-    /// - `big_a_prime`: Proof commitment
-    /// - `big_b_prime_n`: Proof commitment
-    /// - `big_c_prime`: Proof commitment
-    /// - `big_d_prime`: Proof commitment
-    /// - `big_f_prime`: Proof commitment
-    /// - `proof_context`: proof context label (ZKP CONTEXT)
-    ///
-    /// Returns byte arrays for input values and domain separation tags.
-    /// These values will be passed to the hash function to compute
-    /// the challenge.
-    fn challenge_input_v(
-        &self,
-        commitments: &ShuffleCommitments<C, W>,
-        context: &[u8],
-    ) -> ([Vec<u8>; 8], [&'static [u8]; 8]) {
-        #[crate::warning("Serialization of vectors is serial")]
-        let a = [
-            self.pk.ser(),
-            commitments.big_b_n.ser(),
-            commitments.big_a_prime.ser(),
-            commitments.big_b_prime_n.ser(),
-            commitments.big_c_prime.ser(),
-            commitments.big_d_prime.ser(),
-            commitments.big_f_prime.ser(),
-            context.to_vec(),
-        ];
-        (a, Self::DS_TAGS_CHALLENGE_V)
-    }
 }
 
 /// Convenience structure to hold re-encryption and permutation data
