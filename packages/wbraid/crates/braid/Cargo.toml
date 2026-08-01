@@ -17,6 +17,10 @@ rand = "0.9"
 
 vsc = { path="../vsc", optional = true }
 b4 = { path="../b4", optional = true, default-features = false }
+# Verificatum wire format + transcript (see VERIFICATUM.md). Native-only: the
+# emitter writes proof directories to disk. vcompat itself knows nothing about
+# vsc -- the adapter between the two lives here, in `crate::vmn`.
+vcompat = { path="../vcompat", optional = true }
 ascent = { version = "0.8", default-features = false, features = ["wasm-bindgen"] }
 enum_dispatch = "0.3.13"
 
@@ -123,6 +127,7 @@ default = ["native"]
 # Native build with gRPC, filesystem, SQLite  
 native = [
     "dep:vsc",
+    "dep:vcompat",
     "vsc/server",
     "dep:rayon",
     "dep:tonic",

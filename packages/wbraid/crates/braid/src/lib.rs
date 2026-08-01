@@ -104,5 +104,8 @@ pub mod trustee;
 // Platform-specific modules
 #[cfg(feature = "native")]
 pub mod native;
+/// Verificatum interoperability (experimental; see the repo-root `VERIFICATUM.md`).
+#[cfg(feature = "native")]
+pub mod vmn;
 #[cfg(feature = "wasm-core")]
 pub mod wasm;
