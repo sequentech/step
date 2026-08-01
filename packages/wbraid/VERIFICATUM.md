@@ -108,9 +108,12 @@ avoids them. The corpus above was therefore generated under WSL, inside an unpri
 outside that process tree. This is a Stage-0 inconvenience only: in the real interop design braid is
 the prover and VMN is never anything but the verifier.
 
-Artefacts live in the session scratchpad under `corpus/` (proof directory, `protInfo.xml`,
-`testvectors.txt`, public key, ciphertexts, plaintexts) and in WSL at `~/vmnpoc/`. They contain
-throwaway demo key material and are not intended for the repository as-is.
+This corpus is now checked in at **`testdata/verificatum/`** — the proof directory, `protInfo.xml`
+and `testvectors.txt` — because the interop tests depend on it. Its `README.md` documents how it was
+generated and, importantly, **which constants in the tests are pinned to it** and would need
+updating if it were regenerated. No secret material is included (`privInfo.xml` is deliberately
+absent). The tests find it automatically, so a plain `cargo test` exercises them rather than
+silently skipping.
 
 ---
 

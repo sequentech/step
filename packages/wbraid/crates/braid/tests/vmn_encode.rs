@@ -9,8 +9,8 @@
 //! link: they take elements produced by braid's cryptography and check the
 //! resulting byte trees against VMN's own output.
 //!
-//! Corpus-backed checks are opt-in via `VCOMPAT_CORPUS` (the corpus is throwaway
-//! demo key material and is not checked in); the rest are self-contained.
+//! Corpus-backed checks use the in-repo reference corpus (`testdata/verificatum/`,
+//! overridable with `VCOMPAT_CORPUS`); the rest are self-contained.
 
 #![cfg(feature = "native")]
 
@@ -23,8 +23,16 @@ use cryptography::groups::p256::element::P256Element;
 use cryptography::traits::groups::{CryptographicGroup, GroupElement};
 use vcompat::bytetree::ByteTree;
 
+/// The reference proof directory: the in-repo corpus by default, overridable
+/// with `VCOMPAT_CORPUS`. See `testdata/verificatum/README.md`.
 fn corpus_dir() -> Option<PathBuf> {
-    let path = PathBuf::from(std::env::var("VCOMPAT_CORPUS").ok()?);
+    if let Ok(raw) = std::env::var("VCOMPAT_CORPUS") {
+        let path = PathBuf::from(raw);
+        assert!(path.is_dir(), "VCOMPAT_CORPUS is not a directory");
+        return Some(path);
+    }
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum/nizkp");
     path.is_dir().then_some(path)
 }
 

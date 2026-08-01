@@ -14,8 +14,8 @@
 //! That is what this test does: it reads a real VMN shuffle proof off disk,
 //! rebuilds it as vsc types, and verifies it with vsc's own code.
 //!
-//! Opt in with `VCOMPAT_CORPUS` pointing at a VMN `nizkp` directory (the corpus
-//! is throwaway demo key material and is not checked in).
+//! Runs against the in-repo reference corpus (`testdata/verificatum/`), or set
+//! `VCOMPAT_CORPUS` to point at a freshly generated one.
 
 #![cfg(feature = "native")]
 
@@ -38,8 +38,16 @@ const PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
 0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
 05502d323536";
 
+/// The reference proof directory: the in-repo corpus by default, overridable
+/// with `VCOMPAT_CORPUS`. See `testdata/verificatum/README.md`.
 fn corpus_dir() -> Option<PathBuf> {
-    let path = PathBuf::from(std::env::var("VCOMPAT_CORPUS").ok()?);
+    if let Ok(raw) = std::env::var("VCOMPAT_CORPUS") {
+        let path = PathBuf::from(raw);
+        assert!(path.is_dir(), "VCOMPAT_CORPUS is not a directory");
+        return Some(path);
+    }
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum/nizkp");
     path.is_dir().then_some(path)
 }
 
@@ -146,10 +154,10 @@ fn braid_verifies_a_verificatum_shuffle_proof() {
         vmn_generators(Hashfunction::Sha256, &rho, N_R, w.len()).expect("derive generators");
 
     let shuffler = Shuffler::<P256Ctx, W>::new(generators, pk);
-    let vmn = VmnChallenges::new(Hashfunction::Sha256, rho, N_E, N_V, W);
+    let challenges = VmnChallenges::new(Hashfunction::Sha256, rho, N_E, N_V, W);
 
     let ok = shuffler
-        .verify_with(&w, &w_prime, &proof, &[], &vmn)
+        .verify_with(&w, &w_prime, &proof, &[], &challenges)
         .expect("verification must not error");
 
     assert!(
@@ -173,10 +181,10 @@ fn braid_verifies_a_verificatum_shuffle_proof() {
         vmn_generators(Hashfunction::Sha256, &wrong_rho, N_R, w.len()).unwrap();
     let wrong_shuffler =
         Shuffler::<P256Ctx, W>::new(wrong_generators, PublicKey::<P256Ctx>::new(y));
-    let vmn2 = VmnChallenges::new(Hashfunction::Sha256, reference_rho(), N_E, N_V, W);
+    let challenges_right_rho = VmnChallenges::new(Hashfunction::Sha256, reference_rho(), N_E, N_V, W);
     assert!(
         !wrong_shuffler
-            .verify_with(&w, &w_prime, &proof, &[], &vmn2)
+            .verify_with(&w, &w_prime, &proof, &[], &challenges_right_rho)
             .unwrap_or(false),
         "wrong independent generators must be rejected"
     );
@@ -185,10 +193,10 @@ fn braid_verifies_a_verificatum_shuffle_proof() {
     let generators2 =
         vmn_generators(Hashfunction::Sha256, &reference_rho(), N_R, w.len()).unwrap();
     let shuffler2 = Shuffler::<P256Ctx, W>::new(generators2, PublicKey::<P256Ctx>::new(y));
-    let vmn3 = VmnChallenges::new(Hashfunction::Sha256, wrong_rho, N_E, N_V, W);
+    let challenges_wrong_rho = VmnChallenges::new(Hashfunction::Sha256, wrong_rho, N_E, N_V, W);
     assert!(
         !shuffler2
-            .verify_with(&w, &w_prime, &proof, &[], &vmn3)
+            .verify_with(&w, &w_prime, &proof, &[], &challenges_wrong_rho)
             .unwrap_or(false),
         "a mismatched random-oracle prefix must be rejected"
     );
@@ -199,10 +207,10 @@ fn braid_verifies_a_verificatum_shuffle_proof() {
     let generators3 =
         vmn_generators(Hashfunction::Sha256, &reference_rho(), N_R, w.len()).unwrap();
     let shuffler3 = Shuffler::<P256Ctx, W>::new(generators3, PublicKey::<P256Ctx>::new(y));
-    let vmn4 = VmnChallenges::new(Hashfunction::Sha256, reference_rho(), N_E, N_V, W);
+    let challenges_for_swap = VmnChallenges::new(Hashfunction::Sha256, reference_rho(), N_E, N_V, W);
     assert!(
         !shuffler3
-            .verify_with(&w, &swapped, &proof, &[], &vmn4)
+            .verify_with(&w, &swapped, &proof, &[], &challenges_for_swap)
             .unwrap_or(false),
         "tampered output ciphertexts must be rejected"
     );

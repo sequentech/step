@@ -74,17 +74,19 @@ fn emit_a_verificatum_shuffling_proof() {
     let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
     let shuffler = Shuffler::<P256Ctx, W>::new(generators.clone(), keypair.pkey.clone());
 
-    let prover = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
+    // A separate instance per proof: VmnChallenges caches the batching seed, so
+    // it is single-use (see its type docs).
+    let proving_challenges = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
     let (output, proof) = shuffler
-        .shuffle_with(&input, &[], &prover)
+        .shuffle_with(&input, &[], &proving_challenges)
         .expect("shuffle must succeed");
 
     // Self-check before writing: the proof must verify under the same
     // convention it was produced with.
-    let checker = VmnChallenges::new(Hashfunction::Sha256, rho, N_E, N_V, W);
+    let verifying_challenges = VmnChallenges::new(Hashfunction::Sha256, rho, N_E, N_V, W);
     assert!(
         shuffler
-            .verify_with(&input, &output, &proof, &[], &checker)
+            .verify_with(&input, &output, &proof, &[], &verifying_challenges)
             .expect("verification must not error"),
         "a proof produced under the Verificatum convention must verify under it"
     );
