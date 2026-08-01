@@ -18,6 +18,15 @@ export enum VotesTimeRange {
     NINETY_DAYS = "90d",
 }
 
+const votesTimeResolutions = new Set<string>(Object.values(VotesTimeResolution))
+const votesTimeRanges = new Set<string>(Object.values(VotesTimeRange))
+
+export const isVotesTimeResolution = (value: string): value is VotesTimeResolution =>
+    votesTimeResolutions.has(value)
+
+export const isVotesTimeRange = (value: string): value is VotesTimeRange =>
+    votesTimeRanges.has(value)
+
 export interface VotesTimeSelection {
     resolution: VotesTimeResolution
     range: VotesTimeRange

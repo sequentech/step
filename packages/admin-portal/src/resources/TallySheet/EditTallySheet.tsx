@@ -36,6 +36,8 @@ import {
     EEnableCheckableLists,
     ICandidatePresentation,
     IContestPresentation,
+    TallySheetVotingChannel,
+    isTallySheetVotingChannel,
 } from "@sequentech/ui-core"
 import {validate_area_contest_results_js} from "sequent-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
@@ -52,10 +54,7 @@ const StyledError = styled(Typography)`
     font-size: 0.85rem;
 `
 
-const votingChannels = [
-    {id: "PAPER", name: "PAPER"},
-    {id: "POSTAL", name: "POSTAL"},
-]
+const votingChannels = [TallySheetVotingChannel.Paper, TallySheetVotingChannel.Postal] as const
 
 interface EditTallySheetProps {
     election: Sequent_Backend_Election
@@ -110,7 +109,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [contestList, setContestList] = useState<IContest[]>([])
-    const [channel, setChannel] = React.useState<string | null>(null)
+    const [channel, setChannel] = React.useState<TallySheetVotingChannel | null>(null)
     const [results, setResults] = useState<IAreaContestResults>(() =>
         normalizeAreaContestResults({
             area_id: tallySheet?.area_id || "",
@@ -297,7 +296,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }
                 setResults(contentTemp)
             }
-            setChannel(tallySheetTemp.channel)
+            setChannel(
+                tallySheetTemp.channel && isTallySheetVotingChannel(tallySheetTemp.channel)
+                    ? tallySheetTemp.channel
+                    : null
+            )
         }
     }, [tallySheet, candidates, i18n.language])
 
@@ -649,12 +652,15 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         name="channel"
                         value={channel || ""}
                         label={String(t("tallysheet.label.channel"))}
-                        onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
+                        onChange={(e: SelectChangeEvent) => {
+                            const value = e.target.value
+                            setChannel(isTallySheetVotingChannel(value) ? value : null)
+                        }}
                         required
                     >
-                        {votingChannels.map((item) => (
-                            <MenuItem key={item.id} value={item.id}>
-                                {item.name}
+                        {votingChannels.map((votingChannel) => (
+                            <MenuItem key={votingChannel} value={votingChannel}>
+                                {votingChannel}
                             </MenuItem>
                         ))}
                     </Select>

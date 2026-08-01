@@ -38,14 +38,28 @@ jest.mock("./ChartPanel", () => {
     }
 })
 
+// ui-core's built dist is unavailable when this package's tests run alone, so
+// load the canonical channel module from source instead of duplicating its values.
 jest.mock(
     "@sequentech/ui-core",
-    () => ({
-        formatPercentOne: (value: number) => `${(value * 100).toFixed(1)}%`,
-    }),
+    () => {
+        const votingChannels = jest.requireActual<typeof import("@sequentech/ui-core")>(
+            "../../../../ui-core/src/types/VotingChannel"
+        )
+
+        return {
+            ...votingChannels,
+            formatPercentOne: (value: number) => `${(value * 100).toFixed(1)}%`,
+        }
+    },
     {virtual: true}
 )
 
+import {
+    TallySheetVotingChannel,
+    VotingStatusChannel,
+    parseParticipationChannel,
+} from "@sequentech/ui-core"
 import {ParticipationByChannel} from "./ParticipationByChannel"
 import {ParticipationSummaryChart} from "./ParticipationSummary"
 import type {ResultsParticipationSummary} from "./types"
@@ -96,10 +110,10 @@ describe("ParticipationByChannel", () => {
                 result={{
                     eligibleCensus: 20,
                     votesByChannel: {
-                        PAPER: 3,
-                        ONLINE: 5,
-                        POSTAL: 0,
-                        FUTURE_CHANNEL: 2,
+                        [TallySheetVotingChannel.Paper]: 3,
+                        [VotingStatusChannel.Online]: 5,
+                        [TallySheetVotingChannel.Postal]: 0,
+                        [parseParticipationChannel("FUTURE_CHANNEL")]: 2,
                     },
                 }}
             />
@@ -129,9 +143,9 @@ describe("ParticipationByChannel", () => {
                 result={{
                     eligibleCensus: 10,
                     votesByChannel: {
-                        A_B: 1,
-                        AA: 1,
-                        ONLINE: 1,
+                        [parseParticipationChannel("A_B")]: 1,
+                        [parseParticipationChannel("AA")]: 1,
+                        [VotingStatusChannel.Online]: 1,
                     },
                 }}
             />
@@ -151,12 +165,20 @@ describe("ParticipationByChannel", () => {
             <ParticipationByChannel
                 result={{
                     eligibleCensus: 1,
-                    votesByChannel: {ONLINE: 3, PAPER: 1},
+                    votesByChannel: {
+                        [VotingStatusChannel.Online]: 3,
+                        [TallySheetVotingChannel.Paper]: 1,
+                    },
                 }}
             />
         )
         const zeroCensus = renderToStaticMarkup(
-            <ParticipationByChannel result={{eligibleCensus: 0, votesByChannel: {ONLINE: 1}}} />
+            <ParticipationByChannel
+                result={{
+                    eligibleCensus: 0,
+                    votesByChannel: {[VotingStatusChannel.Online]: 1},
+                }}
+            />
         )
 
         expect(markup).toContain("75.0%")

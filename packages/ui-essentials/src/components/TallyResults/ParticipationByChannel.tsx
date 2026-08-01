@@ -21,30 +21,36 @@ import {
     TALLY_RESULTS_PIE_PANEL_WIDTH,
 } from "./constants"
 import {Chart, ChartPanel} from "./ChartPanel"
-import type {ResultsAndParticipationLabels, ResultsParticipationSummary} from "./types"
+import {
+    PARTICIPATION_CHANNEL_ORDER,
+    isKnownParticipationChannel,
+    parseParticipationChannel,
+    type KnownParticipationChannel,
+    type ParticipationChannel,
+} from "@sequentech/ui-core"
+import type {
+    ResultsAndParticipationLabelOverrides,
+    ResultsAndParticipationLabels,
+    ResultsParticipationSummary,
+} from "./types"
 import {mergeLabels, toFiniteNumber} from "./utils"
 
 interface ParticipationByChannelProps {
     result: ResultsParticipationSummary
     chartName?: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 }
 
-const CHANNEL_ORDER = [
-    "ONLINE",
-    "KIOSK",
-    "EARLY_VOTING",
-    "TELEPHONE",
-    "PAPER",
-    "POSTAL",
-    "IN_PERSON",
-] as const
-
-const channelOrder = new Map<string, number>(
-    CHANNEL_ORDER.map((channel, index) => [channel, index])
+const channelOrder = new Map<KnownParticipationChannel, number>(
+    PARTICIPATION_CHANNEL_ORDER.map((channel, index) => [channel, index] as const)
 )
 
-const fallbackChannelLabel = (channel: string): string =>
+const getChannelOrder = (channel: ParticipationChannel): number =>
+    isKnownParticipationChannel(channel)
+        ? (channelOrder.get(channel) ?? Number.MAX_SAFE_INTEGER)
+        : Number.MAX_SAFE_INTEGER
+
+const fallbackChannelLabel = (channel: ParticipationChannel): string =>
     channel
         .toLowerCase()
         .split("_")
@@ -52,20 +58,15 @@ const fallbackChannelLabel = (channel: string): string =>
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(" ") || channel
 
-const channelLabel = (channel: string, labels: ResultsAndParticipationLabels): string => {
-    const knownLabels: Record<string, string> = {
-        ONLINE: labels.channelOnline,
-        KIOSK: labels.channelKiosk,
-        EARLY_VOTING: labels.channelEarlyVoting,
-        TELEPHONE: labels.channelTelephone,
-        PAPER: labels.channelPaper,
-        POSTAL: labels.channelPostal,
-        IN_PERSON: labels.channelInPerson,
-    }
-    return knownLabels[channel] ?? fallbackChannelLabel(channel)
-}
+const channelLabel = (
+    channel: ParticipationChannel,
+    labels: ResultsAndParticipationLabels
+): string =>
+    isKnownParticipationChannel(channel)
+        ? labels.channelNames[channel]
+        : fallbackChannelLabel(channel)
 
-const compareChannelKeys = (left: string, right: string): number => {
+const compareChannelKeys = (left: ParticipationChannel, right: ParticipationChannel): number => {
     if (left === right) return 0
     return left < right ? -1 : 1
 }
@@ -86,15 +87,21 @@ export const ParticipationByChannel: React.FC<ParticipationByChannelProps> = ({
     const rows = useMemo(
         () =>
             Object.entries(result.votesByChannel ?? {})
-                .map(([channel, value]) => ({channel, total: toFiniteNumber(value)}))
+                .map(([channel, value]) => ({
+                    channel: parseParticipationChannel(channel),
+                    total: toFiniteNumber(value),
+                }))
                 .filter(
-                    (row): row is {channel: string; total: number} =>
-                        row.total !== null && row.total > 0
+                    (
+                        row
+                    ): row is {
+                        channel: ParticipationChannel
+                        total: number
+                    } => row.total !== null && row.total > 0
                 )
                 .sort(
                     (left, right) =>
-                        (channelOrder.get(left.channel) ?? Number.MAX_SAFE_INTEGER) -
-                            (channelOrder.get(right.channel) ?? Number.MAX_SAFE_INTEGER) ||
+                        getChannelOrder(left.channel) - getChannelOrder(right.channel) ||
                         compareChannelKeys(left.channel, right.channel)
                 ),
         [result.votesByChannel]

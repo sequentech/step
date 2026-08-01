@@ -12,7 +12,8 @@ import {toVotesPerDayChartData} from "./votesPerDayData"
 import {getVotesPerDayChartOptions} from "./votesPerDayOptions"
 import {
     getVotesTimeRangeOptions,
-    VotesTimeRange,
+    isVotesTimeRange,
+    isVotesTimeResolution,
     VotesTimeResolution,
     VotesTimeSelection,
     withVotesTimeResolution,
@@ -70,11 +71,12 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
                         "aria-label": String(t("dashboard.timeResolution")),
                     }}
                     MenuProps={compactMenuProps}
-                    onChange={(event) =>
-                        onSelectionChange(
-                            withVotesTimeResolution(event.target.value as VotesTimeResolution)
-                        )
-                    }
+                    onChange={(event) => {
+                        const resolution = event.target.value
+                        if (isVotesTimeResolution(resolution)) {
+                            onSelectionChange(withVotesTimeResolution(resolution))
+                        }
+                    }}
                 >
                     {Object.values(VotesTimeResolution).map((resolution) => (
                         <MenuItem key={resolution} value={resolution}>
@@ -92,12 +94,15 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({
                         "aria-label": String(t("dashboard.timeRange")),
                     }}
                     MenuProps={compactMenuProps}
-                    onChange={(event) =>
-                        onSelectionChange({
-                            ...selection,
-                            range: event.target.value as VotesTimeRange,
-                        })
-                    }
+                    onChange={(event) => {
+                        const range = event.target.value
+                        if (
+                            isVotesTimeRange(range) &&
+                            rangeOptions.some((option) => option.value === range)
+                        ) {
+                            onSelectionChange({...selection, range})
+                        }
+                    }}
                 >
                     {rangeOptions.map(({value, label}) => (
                         <MenuItem key={value} value={value}>

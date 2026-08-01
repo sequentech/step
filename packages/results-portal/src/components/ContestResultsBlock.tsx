@@ -4,14 +4,15 @@
 
 import React, {useMemo} from "react"
 import {Box, Chip, Stack, Typography} from "@mui/material"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
+import {ICountingAlgorithm, TallySheetVotingChannel, VotingStatusChannel} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {
     CandidateResultRow,
     PreferentialProcessResults,
     ResultsAndParticipation,
-    ResultsAndParticipationLabels,
+    ResultsAndParticipationLabelOverrides,
     ResultsParticipationSummary,
+    VotesByChannel,
 } from "@sequentech/ui-essentials"
 import {ResultsManifestContest, ResultsRow, ResultsSqliteDataset} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
@@ -49,7 +50,7 @@ const sameId = (left: unknown, right: unknown): boolean =>
 interface ResultAnnotations {
     extended_metrics?: {
         weight?: unknown
-        votes_by_channel?: Record<string, number | string | null>
+        votes_by_channel?: VotesByChannel
     }
     process_results?: PreferentialProcessResults
 }
@@ -179,7 +180,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
         ? `${electionName} - ${title} - ${areaName}`
         : `${electionName} - ${title}`
     const isPublished = manifestContest.publication_state === "published"
-    const labels = useMemo<Partial<ResultsAndParticipationLabels>>(
+    const labels = useMemo<ResultsAndParticipationLabelOverrides>(
         () => ({
             participationSummary: t("resultsPortal.resultsAndParticipation.participationSummary"),
             candidateResults: t("resultsPortal.resultsAndParticipation.candidateResults"),
@@ -216,13 +217,29 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                 "resultsPortal.resultsAndParticipation.participationByChannel"
             ),
             channel: t("resultsPortal.resultsAndParticipation.channel"),
-            channelOnline: t("resultsPortal.resultsAndParticipation.channelOnline"),
-            channelKiosk: t("resultsPortal.resultsAndParticipation.channelKiosk"),
-            channelEarlyVoting: t("resultsPortal.resultsAndParticipation.channelEarlyVoting"),
-            channelTelephone: t("resultsPortal.resultsAndParticipation.channelTelephone"),
-            channelPaper: t("resultsPortal.resultsAndParticipation.channelPaper"),
-            channelPostal: t("resultsPortal.resultsAndParticipation.channelPostal"),
-            channelInPerson: t("resultsPortal.resultsAndParticipation.channelInPerson"),
+            channelNames: {
+                [VotingStatusChannel.Online]: t(
+                    "resultsPortal.resultsAndParticipation.channelOnline"
+                ),
+                [VotingStatusChannel.Kiosk]: t(
+                    "resultsPortal.resultsAndParticipation.channelKiosk"
+                ),
+                [VotingStatusChannel.EarlyVoting]: t(
+                    "resultsPortal.resultsAndParticipation.channelEarlyVoting"
+                ),
+                [VotingStatusChannel.Telephone]: t(
+                    "resultsPortal.resultsAndParticipation.channelTelephone"
+                ),
+                [TallySheetVotingChannel.Paper]: t(
+                    "resultsPortal.resultsAndParticipation.channelPaper"
+                ),
+                [TallySheetVotingChannel.Postal]: t(
+                    "resultsPortal.resultsAndParticipation.channelPostal"
+                ),
+                [TallySheetVotingChannel.InPerson]: t(
+                    "resultsPortal.resultsAndParticipation.channelInPerson"
+                ),
+            },
         }),
         [t]
     )

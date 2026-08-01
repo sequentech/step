@@ -24,6 +24,7 @@ import {Chart, ChartPanel} from "./ChartPanel"
 import {ParticipationByChannel} from "./ParticipationByChannel"
 import type {
     NumericValue,
+    ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
     ResultsParticipationSummary,
 } from "./types"
@@ -32,13 +33,13 @@ import {mergeLabels, percentOrDash, toFiniteNumber, valueOrDash} from "./utils"
 interface ParticipationSummaryChartProps {
     result: ResultsParticipationSummary
     chartName: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 }
 
 interface ParticipationSummaryProps {
     result?: ResultsParticipationSummary | null
     chartName: string
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
     showWeight?: boolean
 }
 

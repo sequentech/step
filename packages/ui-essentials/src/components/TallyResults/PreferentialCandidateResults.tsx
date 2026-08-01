@@ -24,6 +24,7 @@ import type {
     CandidateResultRow,
     PreferentialProcessResults,
     PreferentialRound,
+    ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
 } from "./types"
 import {mergeLabels} from "./utils"
@@ -34,7 +35,7 @@ type NavigationDirection = "left" | "right"
 interface PreferentialCandidateResultsProps {
     processResults: PreferentialProcessResults
     candidates: CandidateResultRow[]
-    labels?: Partial<ResultsAndParticipationLabels>
+    labels?: ResultsAndParticipationLabelOverrides
 }
 
 interface RoundWindow {

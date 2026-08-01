@@ -2,21 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {VOTING_STATUS_CHANNELS, VotingStatusChannel} from "@sequentech/ui-core"
+
 export interface PersistedVotersByChannel {
     channel: string
     count: number
 }
 
-export enum CastVoteChannel {
-    ONLINE = "ONLINE",
-    KIOSK = "KIOSK",
-    EARLY_VOTING = "EARLY_VOTING",
-    TELEPHONE = "TELEPHONE",
-}
-
 export interface TotalVotersRow {
     count: number
-    channel: CastVoteChannel
+    channel: VotingStatusChannel
 }
 
 export const toVotersByChannelRows = (
@@ -24,7 +19,8 @@ export const toVotersByChannelRows = (
 ): TotalVotersRow[] => {
     const counts = new Map(data?.map(({channel, count}) => [channel, count]) ?? [])
 
-    return Object.values(CastVoteChannel)
-        .map((channel) => ({channel, count: counts.get(channel) ?? 0}))
-        .filter(({count}) => count > 0)
+    return VOTING_STATUS_CHANNELS.map((channel) => ({
+        channel,
+        count: counts.get(channel) ?? 0,
+    })).filter(({count}) => count > 0)
 }

@@ -2,12 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export enum EVotingChannel {
-    PAPER = "PAPER",
-    POSTAL = "POSTAL",
-    IN_PERSON = "IN_PERSON",
-}
-
 export enum EStatus {
     PENDING = "PENDING",
     APPROVED = "APPROVED",

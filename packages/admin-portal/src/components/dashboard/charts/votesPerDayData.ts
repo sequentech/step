@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {CastVoteChannel} from "./votersByChannelData"
+import {VOTING_STATUS_CHANNELS, VotingStatusChannel} from "@sequentech/ui-core"
 
 export interface PersistedVotesPerDay {
     day: string
@@ -12,7 +12,7 @@ export interface PersistedVotesPerDay {
 }
 
 export interface VotesPerDaySeries {
-    channel: CastVoteChannel
+    channel: VotingStatusChannel
     data: number[]
 }
 
@@ -32,12 +32,10 @@ export const toVotesPerDayChartData = (
         counts.set(key, (counts.get(key) ?? 0) + day_count)
     }
 
-    const series = Object.values(CastVoteChannel)
-        .map((channel) => ({
-            channel,
-            data: buckets.map((bucket) => counts.get(`${bucket}:${channel}`) ?? 0),
-        }))
-        .filter(({data: channelData}) => channelData.some((count) => count > 0))
+    const series = VOTING_STATUS_CHANNELS.map((channel) => ({
+        channel,
+        data: buckets.map((bucket) => counts.get(`${bucket}:${channel}`) ?? 0),
+    })).filter(({data: channelData}) => channelData.some((count) => count > 0))
 
     return {buckets, series}
 }

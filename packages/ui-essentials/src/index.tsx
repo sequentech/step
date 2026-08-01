@@ -61,6 +61,8 @@ export {
 export type {
     CandidateReference,
     CandidateResultRow,
+    ParticipationChannelNames,
+    ResultsAndParticipationLabelOverrides,
     ResultsAndParticipationLabels,
     ResultsAndParticipationProps,
     ResultsParticipationSummary,
