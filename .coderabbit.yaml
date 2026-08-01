@@ -66,8 +66,10 @@ reviews:
     - label: "policy:governance"
       instructions: |
         Apply when the change modifies the policy system itself: .coderabbit.yaml,
-        any file under .github/policies/, .github/CODEOWNERS, or
-        .github/workflows/policy-alert.yml. See
+        any file under .github/policies/, .github/CODEOWNERS,
+        .github/workflows/policy-alert.yml, .github/workflows/policy-consistency.yml,
+        .github/workflows/policy-heartbeat.yml, or
+        .github/scripts/check_policy_consistency.py. See
         .github/policies/50-governance.md. This is allowed but must never pass
         unremarked, so apply the label even when the change looks routine.
 
