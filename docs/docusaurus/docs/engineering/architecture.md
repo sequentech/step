@@ -1,3 +1,9 @@
+---
+id: architecture
+title: Architecture
+sidebar_position: 1
+---
+
 <!--
 SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 
@@ -13,7 +19,7 @@ technology each one is, and how they talk to each other.
 It exists for one reason. A pull request that changes one of these decisions —
 swapping the identity provider, replacing the queue, adding a datastore, moving
 a responsibility from one service to another — is not an ordinary change, and it
-must not merge as if it were. [`.github/policies/60-architectural-changes.md`](../.github/policies/60-architectural-changes.md)
+must not merge as if it were. [`.github/policies/60-architectural-changes.md`](https://github.com/sequentech/step/blob/main/.github/policies/60-architectural-changes.md)
 is the rule; this file is the baseline it compares against.
 
 **If a change makes something here untrue, the change must update this file.**
@@ -90,12 +96,12 @@ architectural change.
 | # | Decision | Current choice | Where it is expressed |
 |---|---|---|---|
 | A1 | Identity and access management | **Keycloak**, extended with in-house Java providers | `packages/keycloak-extensions/`, `packages/Dockerfile.keycloak` |
-| A2 | Tenancy model in the IdP | **One Keycloak realm per tenant, and one per election event** | [`docs/permissions.md`](permissions.md) |
+| A2 | Tenancy model in the IdP | **One Keycloak realm per tenant, and one per election event** | [`docs/permissions.md`](https://github.com/sequentech/step/blob/main/docs/permissions.md) |
 | A3 | API layer | **Hasura GraphQL Engine** over PostgreSQL, with actions calling `harvest` | `hasura/`, `packages/harvest/` |
-| A4 | API authorisation | **Keycloak-issued JWT**, validated by Hasura against the realm's JWKS; permissions carried as `x-hasura-*` claims | [`docs/hasura-auth.md`](hasura-auth.md), [`docs/permissions.md`](permissions.md) |
+| A4 | API authorisation | **Keycloak-issued JWT**, validated by Hasura against the realm's JWKS; permissions carried as `x-hasura-*` claims | [`docs/hasura-auth.md`](https://github.com/sequentech/step/blob/main/docs/hasura-auth.md), [`docs/permissions.md`](https://github.com/sequentech/step/blob/main/docs/permissions.md) |
 | A5 | Primary datastore | **PostgreSQL** | `hasura/migrations/`, `packages/b4/src/db.rs` |
-| A6 | Tamper-evident log | **ImmuDB**, three distinct uses (cryptographic board, electoral log, audit log) | [`docs/immutable-logs.md`](immutable-logs.md), `packages/immu-board/`, `packages/immudb-rs/` |
-| A7 | Asynchronous work | **Celery protocol over RabbitMQ**, workers in Rust | `packages/windmill/`, [`docs/task_execution_model.md`](task_execution_model.md) |
+| A6 | Tamper-evident log | **ImmuDB**, three distinct uses (cryptographic board, electoral log, audit log) | [`docs/immutable-logs.md`](https://github.com/sequentech/step/blob/main/docs/immutable-logs.md), `packages/immu-board/`, `packages/immudb-rs/` |
+| A7 | Asynchronous work | **Celery protocol over RabbitMQ**, workers in Rust | `packages/windmill/`, [`docs/task_execution_model.md`](https://github.com/sequentech/step/blob/main/docs/task_execution_model.md) |
 | A8 | Object storage | **S3 API** (MinIO in development) | `packages/sequent-core` `s3` feature, `packages/b4/src/s3.rs` |
 | A9 | Ballot secrecy | **Verifiable re-encryption mixnet** with independent trustees | `packages/braid/` |
 | A10 | Cryptographic primitives | **Curve25519/Ristretto, Ed25519, SHA-2/SHA-3** | `packages/strand/` |
@@ -188,7 +194,7 @@ architectural even when the diff is small.
 - **Checks** on every pull request: REUSE licensing, lint and format
   (frontend, Hasura, Rust, Java), unit tests, SonarQube, WASM build, and the
   documentation build. What each one actually reaches is written down in
-  [`.github/policies/40-changes-must-be-checked.md`](../.github/policies/40-changes-must-be-checked.md).
+  [`.github/policies/40-changes-must-be-checked.md`](https://github.com/sequentech/step/blob/main/.github/policies/40-changes-must-be-checked.md).
 
 Adding a component means adding it to those jobs in the same pull request. A
 service no CI job builds is not part of the architecture; it is a liability.
@@ -212,7 +218,7 @@ should be caught:
   kind of architectural change this document covers.
 - **The platform is open source.** This repository is AGPL-3.0-only and must
   stay independently buildable — see
-  [`.github/policies/10-repository-scope.md`](../.github/policies/10-repository-scope.md).
+  [`.github/policies/10-repository-scope.md`](https://github.com/sequentech/step/blob/main/.github/policies/10-repository-scope.md).
 
 ---
 

@@ -37,9 +37,10 @@ These files are the system:
 .github/workflows/policy-alert.yml   the Slack alert
 ```
 
-`docs/architecture.md` is also Architect-owned in `CODEOWNERS`, but it is not
-part of this policy. It is the baseline the review compares against, not part of
-the machinery that decides; a change to it is
+The architecture document —
+`docs/docusaurus/docs/engineering/architecture.md` — is also Architect-owned in
+`CODEOWNERS`, but it is not part of this policy. It is the baseline the review
+compares against, not part of the machinery that decides; a change to it is
 [`60-architectural-changes.md`](60-architectural-changes.md)'s business.
 
 ## What to do when this label appears

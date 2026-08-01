@@ -8,8 +8,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 > **Label:** `policy:architecture-change`
 > **Reviewers:** `@sequentech/Architects`
-> **If breached:** an Architect must approve, and the change must update
-> [`docs/architecture.md`](../../docs/architecture.md).
+> **If breached:** an Architect must approve, and the change must update the
+> [architecture document](../../docs/docusaurus/docs/engineering/architecture.md).
 
 Some changes decide what the system *is*. Which identity provider issues our
 tokens, which database holds the votes, which queue carries the work, whether
@@ -31,8 +31,7 @@ they are standing.
 ## The rule
 
 **An architectural change is allowed. It must pull in an Architect, and it must
-update [`docs/architecture.md`](../../docs/architecture.md) in the same pull
-request.**
+update the [architecture document](../../docs/docusaurus/docs/engineering/architecture.md) in the same pull request.**
 
 Two obligations, and the second is the one people forget. A decision that is
 made but not recorded is a decision the next person will unknowingly contradict.
@@ -77,8 +76,8 @@ deliberately pinned, is architectural regardless of the version delta.
 
 ### Contradicts the architecture document
 
-If the change makes any statement in [`docs/architecture.md`](../../docs/architecture.md)
-untrue and does not update it, **that is the finding** — even when the change is
+If the change makes any statement in the
+[architecture document](../../docs/docusaurus/docs/engineering/architecture.md) untrue and does not update it, **that is the finding** — even when the change is
 otherwise fine and well reviewed. Say which section is now wrong.
 
 This half of the rule matters more than it looks. The first half is caught by
@@ -113,8 +112,7 @@ When the label appears:
    code does, but what is being chosen and what it replaces.
 2. **Say why**, including what was considered and rejected. The next person to
    ask this question deserves the reasoning, not just the outcome.
-3. **Update [`docs/architecture.md`](../../docs/architecture.md)** — the affected
-   row, the diagram, and anything elsewhere in it that the change contradicts.
+3. **Update the [architecture document](../../docs/docusaurus/docs/engineering/architecture.md)** — the affected row, the diagram, and anything elsewhere in it that the change contradicts.
 4. **Link the `meta` issue** where the decision was taken.
 
 If you conclude the change is not architectural, say so and why. A short
@@ -125,7 +123,7 @@ explanation resolves a mislabel; silence leaves the reviewer guessing.
 | Mechanism | What it does |
 |---|---|
 | This label | Pulls in an Architect automatically and announces the change in Slack. |
-| `.github/CODEOWNERS` | An Architect must approve a change to `docs/architecture.md`. This is what stops the record being quietly rewritten to match the code. |
+| `.github/CODEOWNERS` | An Architect must approve a change to the architecture document. This is what stops the record being quietly rewritten to match the code. |
 | The review itself | Names which part of the architecture document the change contradicts. |
 
 Note what CODEOWNERS covers and what it does not: it gates *edits to the

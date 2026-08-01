@@ -25,4 +25,4 @@
 # match whatever just merged, "the change must update the document" costs
 # nothing. This entry is what makes updating it a decision rather than a
 # formality.
-/docs/architecture.md                @sequentech/Architects
+/docs/docusaurus/docs/engineering/architecture.md  @sequentech/Architects

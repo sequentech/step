@@ -45,7 +45,7 @@ jobs:
               ;;
             policy:architecture-change)
               icon=":building_construction:"
-              what="An architectural decision changed, or the change contradicts docs/architecture.md"
+              what="An architectural decision changed, or the change contradicts the architecture document"
               ;;
             policy:secrets)
               icon=":rotating_light:"
