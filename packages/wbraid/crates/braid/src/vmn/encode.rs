@@ -28,6 +28,7 @@ use anyhow::{anyhow, Result};
 use cryptography::context::P256Ctx;
 use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::groups::p256::element::P256Element;
+use cryptography::groups::p256::scalar::P256Scalar;
 use cryptography::traits::groups::GroupElement;
 
 use vcompat::arithm;
@@ -126,6 +127,58 @@ fn ciphertext_parts<const W: usize>(
     c: &Ciphertext<P256Ctx, W>,
 ) -> (Vec<P256Element>, Vec<P256Element>) {
     (c.0[0].to_vec(), c.0[1].to_vec())
+}
+
+/// Decode an array of width-`W` ciphertexts (the inverse of
+/// [`ciphertexts_to_tree`], undoing the transposition).
+pub fn tree_to_ciphertexts<const W: usize>(
+    tree: &ByteTree,
+) -> Result<Vec<Ciphertext<P256Ctx, W>>> {
+    let sides = tree
+        .as_node_of(2)
+        .map_err(|e| anyhow!("ciphertext array is not (u, v): {e}"))?;
+    let u_rows =
+        arithm::product_array_rows(&sides[0]).map_err(|e| anyhow!("u untranspose failed: {e}"))?;
+    let v_rows =
+        arithm::product_array_rows(&sides[1]).map_err(|e| anyhow!("v untranspose failed: {e}"))?;
+    if u_rows.len() != v_rows.len() {
+        return Err(anyhow!("u and v halves have different lengths"));
+    }
+
+    u_rows
+        .iter()
+        .zip(v_rows.iter())
+        .map(|(u, v)| {
+            if u.len() != W || v.len() != W {
+                return Err(anyhow!("expected width {W}, found {}/{}", u.len(), v.len()));
+            }
+            let mut parts = [[P256Element::one(); W], [P256Element::one(); W]];
+            for i in 0..W {
+                parts[0][i] = tree_to_element(&u[i])?;
+                parts[1][i] = tree_to_element(&v[i])?;
+            }
+            Ok(Ciphertext(parts))
+        })
+        .collect()
+}
+
+/// Decode a fixed-width field element into a scalar.
+///
+/// Values written by a conforming implementation are canonical (below the group
+/// order), so the reduction is a no-op; it is used only to avoid rejecting on a
+/// representation quirk.
+pub fn tree_to_scalar(tree: &ByteTree) -> Result<P256Scalar> {
+    let bytes = tree.as_leaf().map_err(|e| anyhow!("not a scalar: {e}"))?;
+    Ok(P256Scalar::from_bytes_reduced(&fixed32(bytes)?))
+}
+
+/// Decode an array of scalars.
+pub fn tree_to_scalars(tree: &ByteTree) -> Result<Vec<P256Scalar>> {
+    tree.as_node()
+        .map_err(|e| anyhow!("not a scalar array: {e}"))?
+        .iter()
+        .map(tree_to_scalar)
+        .collect()
 }
 
 /// The full public key `pk = (g, y)` as VMN stores it in `FullPublicKey.bt`.

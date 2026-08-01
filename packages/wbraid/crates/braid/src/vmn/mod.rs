@@ -28,4 +28,6 @@
 //! curves and Ristretto255 — braid's default context — is not among them, so
 //! only P-256 executions can be checked this way.
 
+pub mod challenges;
 pub mod encode;
+pub mod generators;

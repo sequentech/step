@@ -841,6 +841,51 @@ impl<C: Context, const W: usize> ShuffleCommitments<C, W> {
             u_n,
         }
     }
+
+    /// Bridging commitments `B`.
+    #[must_use]
+    pub fn big_b_n(&self) -> &[C::Element] {
+        &self.big_b_n
+    }
+
+    /// Proof commitment `A'`.
+    #[must_use]
+    pub fn big_a_prime(&self) -> &C::Element {
+        &self.big_a_prime
+    }
+
+    /// Proof commitments `B'`.
+    #[must_use]
+    pub fn big_b_prime_n(&self) -> &[C::Element] {
+        &self.big_b_prime_n
+    }
+
+    /// Proof commitment `C'`.
+    #[must_use]
+    pub fn big_c_prime(&self) -> &C::Element {
+        &self.big_c_prime
+    }
+
+    /// Proof commitment `D'`.
+    #[must_use]
+    pub fn big_d_prime(&self) -> &C::Element {
+        &self.big_d_prime
+    }
+
+    /// Proof commitment `F'`.
+    #[must_use]
+    pub fn big_f_prime(&self) -> &Ciphertext<C, W> {
+        &self.big_f_prime
+    }
+
+    /// The Pedersen commitments to the permutation, `u`.
+    ///
+    /// Carried inside this struct, but note other implementations may store it
+    /// as a separate artifact alongside the proof commitments.
+    #[must_use]
+    pub fn u_n(&self) -> &[C::Element] {
+        &self.u_n
+    }
 }
 
 /**

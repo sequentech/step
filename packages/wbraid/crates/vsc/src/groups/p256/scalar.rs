@@ -25,6 +25,22 @@ impl P256Scalar {
     pub fn new(scalar: Scalar) -> Self {
         P256Scalar(scalar)
     }
+
+    /// Reduce a 32-byte big-endian value into the scalar field.
+    ///
+    /// Unlike deserialization, this accepts any 32-byte input rather than
+    /// requiring a canonical representative below the group order. That is what
+    /// is needed when adopting another implementation's challenge convention:
+    /// challenges are often specified as integers of a fixed bit length that may
+    /// exceed the order, and reducing is sound because such values are only ever
+    /// used as exponents, where `g^e = g^(e mod q)`.
+    #[must_use]
+    pub fn from_bytes_reduced(bytes: &[u8; 32]) -> Self {
+        use p256::elliptic_curve::ops::Reduce;
+        P256Scalar(<Scalar as Reduce<p256::U256>>::reduce(
+            &p256::U256::from_be_slice(bytes),
+        ))
+    }
 }
 
 #[allow(clippy::arithmetic_side_effects)]
