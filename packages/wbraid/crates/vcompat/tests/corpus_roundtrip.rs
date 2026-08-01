@@ -281,6 +281,63 @@ fn shuffle_seed_matches_vmn() {
     eprintln!("shuffle batching seed s reproduced exactly");
 }
 
+/// The decryption transcript, checked against `vmnv -t Dec.s,Dec.v`.
+///
+/// The first step of the decryption work (VERIFICATUM.md Stage 4), and
+/// deliberately the cheapest: it settles whether we have the *transcript* right
+/// before any of the batched-proof algebra is written. Everything here comes
+/// from the corpus, which is a full `mixing` proof and so carries the decryption
+/// artifacts.
+#[test]
+fn decryption_transcript_matches_vmn() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory to run this test");
+        return;
+    };
+
+    // Golden values printed by `vmnv -t Dec.s,Dec.v` for this proof.
+    const GOLDEN_DEC_S: &str =
+        "b3b0803472e0f921e6ec1efe0207b34a23a44c717f079406f7efd32441d56734";
+    const GOLDEN_DEC_V: &str =
+        "9393f014a1ddd07120e5c9f474c0371186162e52f7883a018496a0f9b2c82940";
+
+    let read_tree = |name: &str| {
+        ByteTree::from_bytes(&std::fs::read(dir.join(name)).expect("read corpus file"))
+            .expect("parse byte tree")
+    };
+    let rho = reference_rho();
+
+    // The list being decrypted is the final shuffled output, not the input; with
+    // one mixer that is Ciphertexts01.bt. `g` enters unwidened.
+    let seed = vcompat::crypto::dec_seed(
+        vcompat::crypto::Hashfunction::Sha256,
+        &rho,
+        &marshal::p256::generator(),
+        &read_tree("proofs/Ciphertexts01.bt"),
+        &read_tree("proofs/PolynomialInExponent.bt"),
+        &[read_tree("proofs/DecryptionFactors01.bt")],
+    );
+    assert_eq!(
+        hex_string(&seed),
+        GOLDEN_DEC_S,
+        "decryption batching seed must match vmnv -t Dec.s"
+    );
+
+    let v = vcompat::crypto::dec_challenge(
+        vcompat::crypto::Hashfunction::Sha256,
+        256, // n_v
+        &rho,
+        &seed,
+        &[read_tree("proofs/DecrFactCommitment01.bt")],
+    );
+    assert_eq!(
+        hex_string(&v),
+        GOLDEN_DEC_V,
+        "decryption challenge must match vmnv -t Dec.v"
+    );
+    eprintln!("decryption seed and challenge reproduced exactly");
+}
+
 /// Derive the independent generators ourselves and check them against
 /// `vmnv -t bas.h` (VMNV §6.8).
 ///

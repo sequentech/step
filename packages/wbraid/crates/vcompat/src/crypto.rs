@@ -302,6 +302,57 @@ pub fn pos_seed(
     oracle_query(hash, hash.outlen_bits(), rho, &data)
 }
 
+/// The batching seed `s` of a proof of correct decryption (VMNV §8.6):
+///
+/// ```text
+/// s = RO_seed(rho | node( node(g, w), node(Gamma, node(f_1, ..., f_k)) ))
+/// ```
+///
+/// Two asymmetries with [`pos_seed`] that are easy to get wrong:
+///
+/// - `g` is the **plain** group generator, not widened to omega, even though `w`
+///   is a width-omega ciphertext array. (The shuffle's query widens its public
+///   key; this one does not widen `g`.)
+/// - `w` is the list being decrypted, i.e. the *final* shuffled output
+///   `L_lambda_a`, not the original input ciphertexts.
+///
+/// `factors` holds one decryption-factor array per party, in party order, for
+/// **all** `k` parties — not only those in the correct-indices set.
+pub fn dec_seed(
+    hash: Hashfunction,
+    rho: &[u8],
+    g: &ByteTree,
+    ciphertexts: &ByteTree,
+    gamma: &ByteTree,
+    factors: &[ByteTree],
+) -> Vec<u8> {
+    let bt_in = ByteTree::node(vec![g.clone(), ciphertexts.clone()]);
+    let bt_out = ByteTree::node(vec![gamma.clone(), ByteTree::node(factors.to_vec())]);
+    let data = ByteTree::node(vec![bt_in, bt_out]);
+    oracle_query(hash, hash.outlen_bits(), rho, &data)
+}
+
+/// The challenge `v` of a proof of correct decryption (VMNV §8.6):
+///
+/// ```text
+/// v = RO_challenge(rho | node(leaf(s), node(tau_1^dec, ..., tau_k^dec)))
+/// ```
+///
+/// `commitments` holds one commitment per party, in party order.
+pub fn dec_challenge(
+    hash: Hashfunction,
+    n_v: usize,
+    rho: &[u8],
+    seed: &[u8],
+    commitments: &[ByteTree],
+) -> Vec<u8> {
+    let data = ByteTree::node(vec![
+        ByteTree::leaf(seed.to_vec()),
+        ByteTree::node(commitments.to_vec()),
+    ]);
+    oracle_query(hash, n_v, rho, &data)
+}
+
 /// The challenge `v` of a proof of a shuffle (VMNV §8.3):
 ///
 /// ```text
