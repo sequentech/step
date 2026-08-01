@@ -37,7 +37,9 @@ These files are the system:
 .github/workflows/policy-alert.yml   the Slack alert
 .github/workflows/policy-consistency.yml     asserts the chain above agrees
 .github/workflows/policy-heartbeat.yml       goes red when the reviewer stops
-.github/scripts/check_policy_consistency.py  what the consistency job runs
+.github/scripts/check_policy_consistency.py  what the consistency job runs —
+                                             the only copy; other repositories
+                                             fetch this one
 ```
 
 The architecture document —

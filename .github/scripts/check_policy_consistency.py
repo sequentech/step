@@ -13,15 +13,15 @@ cleanly and silently reduce what the system reports.
 This is the check `40-changes-must-be-checked.md` asks for, applied to the
 policy system itself.
 
-This repository is self-contained by policy — see
-`.github/policies/10-repository-scope.md`. Its CI may not depend on anything it
-cannot clone anonymously, so it carries its own copy of this checker rather than
-fetching one. That is a deliberate duplicate, not an oversight.
+This file is the **single** copy. It is written to be repository-agnostic and
+lives here, in the public repository, so that any repository running this policy
+system can fetch it anonymously — no token, no duplicate to drift.
 
 Run: python3 check_policy_consistency.py [repository-root]
 
 The root defaults to two directories above this file, which is right when the
-script sits in the repository it is checking.
+script sits in the repository it is checking. Pass it explicitly when the script
+has been checked out from here into somewhere else.
 
 Exit: 0 when consistent, 1 otherwise. No third-party dependencies.
 """
