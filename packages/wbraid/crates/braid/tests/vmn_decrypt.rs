@@ -180,9 +180,10 @@ fn combined_batched_proof_satisfies_the_verification_equations() {
                 }
             })
             .collect();
-    // c_l alone, for combining the proof pieces (the factors use alpha * c_l).
-    let inv_alpha = decrypt::negated_inverse_alpha(k).unwrap().neg();
-    let c: Vec<P256Scalar> = alpha_c.iter().map(|ac| ac.mul(&inv_alpha)).collect();
+    // `alpha * c_l` combines everything -- factors, commitments and replies
+    // alike (`DistrElGamalSessionBasic.combine`). 1/alpha appears only inside
+    // each party's scaled share.
+    let inv_alpha = decrypt::inverse_alpha(k).unwrap();
 
     // Ciphertext first components, and each party's factors u^{-x_l/alpha}.
     let u: Vec<[P256Element; W]> = (0..N)
@@ -214,7 +215,7 @@ fn combined_batched_proof_satisfies_the_verification_equations() {
         .collect();
     let b = batch(&combined, &e).unwrap();
 
-    // Each party proves over its own unscaled share.
+    // Each party proves over its own share scaled by 1/alpha.
     let v = P256Scalar::random(&mut rng);
     let randomizers: Vec<P256Scalar> =
         delta.iter().map(|_| P256Scalar::random(&mut rng)).collect();
@@ -222,20 +223,21 @@ fn combined_batched_proof_satisfies_the_verification_equations() {
         .iter()
         .enumerate()
         .map(|(position, &l)| {
-            prove_decryption::<W>(&evaluate(l as u64), &a, &v, &randomizers[position])
+            let scaled = evaluate(l as u64).mul(&inv_alpha);
+            prove_decryption::<W>(&scaled, &a, &v, &randomizers[position])
         })
         .collect();
 
-    // Combine by Lagrange coefficient.
+    // Combine by modified Lagrange coefficient.
     let mut y_prime = P256Element::one();
     let mut b_prime: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
     let mut k_x = P256Scalar::zero();
     for (position, proof) in proofs.iter().enumerate() {
-        y_prime = y_prime.mul(&proof.y_prime.exp(&c[position]));
+        y_prime = y_prime.mul(&proof.y_prime.exp(&alpha_c[position]));
         for w in 0..W {
-            b_prime[w] = b_prime[w].mul(&proof.b_prime[w].exp(&c[position]));
+            b_prime[w] = b_prime[w].mul(&proof.b_prime[w].exp(&alpha_c[position]));
         }
-        k_x = k_x.add(&c[position].mul(&proof.k_x));
+        k_x = k_x.add(&alpha_c[position].mul(&proof.k_x));
     }
 
     assert!(

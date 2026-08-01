@@ -35,10 +35,12 @@ to VMN's spec, and unmodified `vmnv` verifies them. That preserves the entire po
 — the verifier is a separate Java codebase by different authors, sharing no code with braid — while
 moving the compatibility burden to braid's prover, where it is tractable.
 
-Cost estimate: **substantial but bounded**, and unusually well-supported by tooling (VMN ships test
-vectors and a `vmnv -t` mode that prints intermediate values, so each layer can be validated in
-isolation). The single largest work item is a byte-tree + VMN-random-oracle layer in Rust; the
-second is replacing braid's per-ciphertext decryption proofs with VMN's batched form.
+**That emitter now exists and works.** Unmodified `vmnv -mix` accepts a complete braid session — a
+three-party DKG, a three-mixer chain, and threshold decryption — over P-256 at width 2 (Stage 4).
+The two largest work items were the byte-tree and VMN-random-oracle layer (now the `vcompat` crate)
+and replacing braid's per-ciphertext decryption proofs with VMN's batched form (now
+`vmn::decrypt`). VMN's own test vectors and `vmnv -t` mode made each layer checkable in isolation,
+which is most of why the estimate held.
 
 ---
 
@@ -674,6 +676,90 @@ threshold decryption, board union — runs over it.
 
 ---
 
+## Stage 4 results — EXECUTED, `vmnv -mix` accepts a complete braid session
+
+**Unmodified `vmnv -mix` accepts a full braid mixing session**: a real three-party DKG, a chain of
+three shuffles, and threshold decryption with the batched proof. This is the whole exercise, not
+just the shuffle half.
+
+`vmn_verifier.rs::vmnv_accepts_a_braid_mixing_proof` runs it at `k = λ = 3` against
+`protInfo-3party.xml`:
+
+```text
+============ Verify decryption. ================================
+Read indices of correct decryption factors... done.
+Read decryption factors... done.
+Combine indicated decryption factors... done.
+Batch input... done.          Batch combined decryption factors... done.
+Combined proofs... done.      Verify combined proof of decryption... done.
+Compute plaintexts... done.   Read plaintexts... done.
+Match computed plaintexts with plaintexts... done.
+```
+
+`k = λ = 3` is chosen deliberately. Every party decrypts, so the non-participant path is not
+exercised — but nothing else is degenerate: `α = lcm(1,2,3)² = 36`, and the modified Lagrange
+coefficients over `{1,2,3}` are `108`, `−108` and `36`, none of them the identity that the
+single-party corpus collapses to. Unlike `-shuffle`, `-mix`'s exit code *is* a sound signal here,
+because the downstream plaintext comparison uses `failStop` (see the `vmnv` defect above); the test
+still asserts on the transcript as well.
+
+Emitting requires, beyond the shuffle files: `Plaintexts.bt`, `CorrectIndices.bt`, and per party
+`DecryptionFactors<l>.bt`, `DecrFactCommitment<l>.bt`, `DecrFactReply<l>.bt` — written by
+`vmn::proof_dir::MixingProof` — plus a real `Γ` from braid's per-dealer commitments, which is now
+derived by `vmn::decrypt::polynomial_in_exponent` and cross-checked against the DKG's own joint key.
+
+### VMNV §8.6 and Verificatum disagree about where α goes
+
+This is the substantive finding of the stage, and it cost the most to establish.
+
+**The specification.** Algorithm 22 combines the factors by the modified coefficients and the proof
+pieces by the plain ones:
+
+```text
+f_i = ∏_{l∈Δ} f_{l,i}^{α c_l}     y' = ∏ (y'_l)^{c_l}     B' = ∏ (B'_l)^{c_l}     k_x = Σ c_l k_{x,l}
+```
+
+§2.4 agrees, saying the party computes `f_l = PDec_{x_l/α}(L_λa)` and then "proves that the secret
+key `x_l` it used is given by `y_l = g^{x_l}`" — the *unscaled* share, so `k_{x,l} = r_l − v·x_l`.
+
+**The implementation.** `DistrElGamalSessionBasic.combine` applies `modifiedLagrangeCoefficients`,
+i.e. `α c_l`, to all four:
+
+```java
+combinedyp  = combinedyp.mul(yp[l].exp(exponents[t]));
+combinedBp  = combinedBp.mul(Bp[l].exp(exponents[t]));
+combinedk_x = combinedk_x.add(k_x[l].mul(exponents[t]));
+```
+
+and its prover replies over the scaled share, `k_x[j] = x.neg().mul(inverseFactor).mul(v).add(r)`,
+that is `r_l − v·x_l/α`. The per-party check agrees: `y[l].inv().exp(inverseFactor.mul(v))`.
+
+Both conventions are internally consistent — the combined reply reduces to `r − v·x` either way —
+and they produce **different bytes**. Emit the specification's version and the combination yields
+`r − v·α·x` where the verifier expects `r − v·x`, so the first equation fails. They coincide only
+when `α = 1`, i.e. `k = 1`, which is exactly why the single-party reference corpus cannot tell them
+apart, and why this had to wait for a multi-party run to settle.
+
+braid follows the implementation (`vmn::decrypt::prove_decryption` takes `x_l/α`), and the `-mix`
+test above is the adjudication.
+
+**Why it matters beyond us.** A third implementation written strictly from VMNV §8.6 would reject
+every genuine Verificatum mixing proof with more than one party. It is a documentation defect rather
+than a soundness one, but it lands directly on the goal this investigation exists to serve: the
+specification is not by itself sufficient to write an independent verifier against.
+
+### What Stage 4 did not cover
+
+- **The non-participant path.** `k = λ = 3` means every party decrypts. The all-identity factor
+  array and the `false` flag (established from source above, and unit-tested in `vmn_decrypt.rs`)
+  have not yet been put in front of `vmnv`. Doing so needs a protocol info file with `thres < nopart`
+  — the two shipped files are 1-of-1 and 3-of-3.
+- **Wiring to the live protocol.** The test drives the DKG, shuffle and decryption directly rather
+  than through `Trustee::step` and the board, so it proves the cryptography and the emitter, not the
+  session plumbing.
+
+---
+
 ## 5. Recommended path
 
 Staged, each stage independently checkable, ordered so the cheapest disproof comes first.
@@ -702,10 +788,11 @@ braid's full protocol runs over P-256; it was needed before anything could be em
 **Multi-party shuffling. ✅ DONE** (not in the original plan, done after Stage 3): `vmnv` verifies a
 three-mixer chain. See the Stage 3 results.
 
-**Stage 4 — decryption, `vmnv -mix`. ← the only stage remaining.** Implement the batched decryption
-proof (§2.5), derive Γ from braid's per-dealer commitments (§2.4), and emit the decryption files.
-Unlike everything before it this is new cryptography rather than a translation, so it is being done
-on its own branch.
+**Stage 4 — decryption, `vmnv -mix`. ✅ DONE** (see "Stage 4 results" above). The batched decryption
+proof (§2.5), Γ from braid's per-dealer commitments (§2.4), and the decryption files. Unlike
+everything before it this was new cryptography rather than a translation, so it was done on its own
+branch. Remaining within it: the non-participant path, which needs an info file with
+`thres < nopart`.
 
 Stages 1–3 were the real experiment, and they passed. If Stage 2 had proved intractable everything
 after it would have been moot; it did not.
@@ -726,8 +813,11 @@ after it would have been moot; it did not.
   as currently deployed — unless deployment moves to P-256.
 - **Prover-side tooling is Unix-bound.** Reproducing the Stage 0 corpus needs WSL (or Linux); only
   the verifier runs natively on Windows. Harmless for the design, mildly annoying for CI.
-- **Validation status.** The compatibility analysis (§2) is from specification and source reading,
-  plus two executed checks: braid's TW shuffle proof verifies over P-256, and the Stage 0 corpus
-  confirms VMN's side end to end. What remains unproven by execution is the *conjunction* — that a
-  braid-produced proof can be made to satisfy `vmnv`. That is precisely what Stages 1–3 test, and
-  Stage 2 (the random-oracle layer) is the go/no-go gate.
+- **Validation status.** The central claim is no longer an analysis: unmodified `vmnv -mix` accepts
+  a complete braid session (Stage 4). What that covers is the cryptography and the emitter at
+  `k = λ = 3` over P-256 and width 2. What it does not cover is the non-participant path
+  (`λ < k`), the live protocol plumbing, and any other group or width.
+- **The specification alone is not enough to write a verifier.** Two places where a strict reading of
+  VMNV would produce a verifier that disagrees with `vmnv`: the α placement in the decryption proof
+  (Stage 4), and `Γ`, which Algorithm 24 checks but `vmnv -shuffle` does not read. Both were found
+  only by reading Verificatum's Java. Anyone reusing this work should expect more of them.

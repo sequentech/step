@@ -35,10 +35,10 @@
 //! [`vmnv_accepts`] instead, and if this interop later grows a CI job or tooling,
 //! that predicate is what it should use.
 //!
-//! When the decryption side is implemented and `-mix` becomes reachable, note
-//! that full `-mix` happens to reject these cases via its downstream plaintext
-//! comparison, but **`-mix -nodec` does not** — it is affected exactly like
-//! `-shuffle`. Do not treat `-nodec` as a safe way to check the mixing phase
+//! Full `-mix` happens to reject these cases via its downstream plaintext
+//! comparison, so [`vmnv_accepts_a_braid_mixing_proof`] can assert on the exit
+//! code. **`-mix -nodec` cannot** — it skips that comparison and is affected
+//! exactly like `-shuffle`, so it is not a safe way to check the mixing phase
 //! alone.
 
 #![cfg(feature = "native")]
@@ -108,6 +108,12 @@ fn env() -> Option<Env> {
 /// failures only when verbose, so a non-verbose run can be silent about a proof
 /// it rejected internally (see `vmnv_is_silent_about_a_failed_shuffle`).
 fn run_vmnv(env: &Env, dir: &PathBuf, verbose: bool) -> (i32, String) {
+    run_vmnv_mode(env, dir, "-shuffle", verbose)
+}
+
+/// As [`run_vmnv`], with the session type selected by `mode` (`-shuffle` or
+/// `-mix`).
+fn run_vmnv_mode(env: &Env, dir: &PathBuf, mode: &str, verbose: bool) -> (i32, String) {
     let mut command = Command::new(&env.java);
     command
         .arg("-cp")
@@ -117,7 +123,7 @@ fn run_vmnv(env: &Env, dir: &PathBuf, verbose: bool) -> (i32, String) {
         .arg("vmnv")
         .arg(&env.random_source)
         .arg(&env.random_seed)
-        .arg("-shuffle");
+        .arg(mode);
     if verbose {
         command.arg("-v");
     }
@@ -567,4 +573,273 @@ fn vmnv_is_silent_about_a_failed_shuffle() {
         output.trim().is_empty(),
         "and says nothing about it without -v; got:\n{output}"
     );
+}
+
+/// **The decryption result**: unmodified `vmnv -mix` accepts a full braid
+/// session — a real DKG, a chain of shuffles, and threshold decryption.
+///
+/// Run at `k = λ = 3` against the three-party info file, so every party decrypts
+/// and no inactive one is involved. That isolates the two unknowns: this test
+/// settles where `α` belongs in the proof, and leaves the all-identity
+/// convention for a non-participant to a later one. It is still far from
+/// degenerate — `α = lcm(1,2,3)² = 36` and the modified Lagrange coefficients
+/// over `{1,2,3}` are `3`, `−3`, `1` times `α`, none of them the identity the
+/// single-party corpus collapses to.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_accepts_a_braid_mixing_proof() {
+    use braid::vmn::decrypt::{self, batch, prove_decryption};
+    use braid::vmn::encode;
+    use braid::vmn::proof_dir::{DecryptingParty, MixingProof};
+    use cryptography::cryptosystem::elgamal::PublicKey;
+    use cryptography::dkgd::dealer::{Dealer, VerifiableShare};
+    use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
+    use cryptography::groups::p256::scalar::P256Scalar;
+    use cryptography::traits::groups::{GroupElement, GroupScalar};
+    use vcompat::bytetree::ByteTree;
+    use vcompat::crypto::{dec_challenge, dec_seed, Prg};
+
+    // The info file declares nopart = thres = 3, so k and lambda are both 3.
+    const K: usize = 3;
+
+    let Some(mut env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+    env.protinfo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum/protInfo-3party.xml");
+    if !env.protinfo.is_file() {
+        eprintln!("skipping: no three-party protocol info file");
+        return;
+    }
+
+    let rho = global_prefix(
+        Hashfunction::Sha256,
+        &PrefixParams {
+            version: "3.1.0".into(),
+            sid: SID.into(),
+            auxsid: AUXSID.into(),
+            n_r: N_R as u32,
+            n_v: N_V as u32,
+            n_e: N_E as u32,
+            prg: "SHA-256".into(),
+            pgroup: PGROUP.into(),
+            rohash: "SHA-256".into(),
+        },
+    );
+
+    // --- the distributed key generation ---------------------------------
+    let dealers: Vec<Dealer<P256Ctx, K, K>> = (0..K).map(|_| Dealer::generate()).collect();
+    let dealt: Vec<_> = dealers.iter().map(|d| d.get_verifiable_shares()).collect();
+
+    let gamma = decrypt::polynomial_in_exponent(
+        &dealt
+            .iter()
+            .map(|s| s.checking_values.to_vec())
+            .collect::<Vec<_>>(),
+    )
+    .expect("polynomial in the exponent");
+
+    // Each party verifies every dealer's contribution and keeps its share.
+    let mut secrets = Vec::with_capacity(K);
+    let mut joint_key = None;
+    for party in 1..=K {
+        let shares: [VerifiableShare<P256Ctx, K>; K] = std::array::from_fn(|d| {
+            VerifiableShare::new(
+                dealt[d].shares[party - 1].clone(),
+                dealt[d].checking_values.clone(),
+            )
+        });
+        let (y, _vk, x_l) = Recipient::<P256Ctx, K, K>::verify_shares(
+            &ParticipantPosition::from_usize(party),
+            &shares,
+        )
+        .expect("shares must verify");
+        joint_key = Some(y);
+        secrets.push(x_l);
+    }
+    let y = joint_key.expect("a joint public key");
+    assert!(gamma[0].equals(&y), "Gamma_0 must be the joint public key");
+
+    // --- the shuffle chain ------------------------------------------------
+    let pk = PublicKey::<P256Ctx>::new(y);
+    let input: Vec<Ciphertext<P256Ctx, W>> = (0..N)
+        .map(|_| {
+            let m: [<P256Ctx as Context>::Element; W] =
+                std::array::from_fn(|_| P256Ctx::random_element());
+            pk.encrypt(&m)
+        })
+        .collect();
+
+    let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
+    let shuffler = Shuffler::<P256Ctx, W>::new(generators, pk.clone());
+
+    let mut current = input.clone();
+    let mut outputs = Vec::with_capacity(K);
+    let mut shuffle_proofs = Vec::with_capacity(K);
+    for _ in 0..K {
+        let challenges = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
+        let (output, proof) = shuffler
+            .shuffle_with(&current, &[], &challenges)
+            .expect("shuffle");
+        current = output.clone();
+        outputs.push(output);
+        shuffle_proofs.push(proof);
+    }
+    let mixed = outputs.last().expect("a non-empty chain").clone();
+
+    // --- decryption factors, in Verificatum's convention -------------------
+    // Each party scales its share by 1/alpha once; the factors use the negation
+    // of that scalar and the proof reply uses it directly.
+    let inv_alpha = decrypt::inverse_alpha(K).expect("1/alpha");
+    let scaled: Vec<P256Scalar> = secrets.iter().map(|x| x.mul(&inv_alpha)).collect();
+
+    let u: Vec<[P256Element; W]> = mixed.iter().map(|c| c.0[0]).collect();
+    let factors: Vec<Vec<[P256Element; W]>> = scaled
+        .iter()
+        .map(|z| {
+            let exponent = z.neg();
+            u.iter()
+                .map(|ui| std::array::from_fn(|w| ui[w].exp(&exponent)))
+                .collect()
+        })
+        .collect();
+
+    // --- the batched proof transcript --------------------------------------
+    let factor_trees: Vec<ByteTree> = factors
+        .iter()
+        .map(|f| encode::component_array_to_tree(f).expect("encode factors"))
+        .collect();
+    let seed = dec_seed(
+        Hashfunction::Sha256,
+        &rho,
+        &encode::element_to_tree(&P256Element::generator()).expect("encode g"),
+        &encode::ciphertexts_to_tree(&mixed).expect("encode ciphertexts"),
+        &encode::elements_to_tree(&gamma).expect("encode gamma"),
+        &factor_trees,
+    );
+
+    // One n_e-bit batching exponent per ciphertext, as in the shuffle.
+    let component = N_E.div_ceil(8);
+    let stream = Prg::new(Hashfunction::Sha256, &seed).generate(component * N);
+    let e: Vec<P256Scalar> = stream.chunks(component).map(scalar_from).collect();
+    let a = batch(&u, &e).expect("batch the first components");
+
+    // The commitments do not depend on the challenge, so they are fixed first
+    // and then hashed into it.
+    let mut rng = P256Ctx::get_rng();
+    let randomizers: Vec<P256Scalar> = (0..K).map(|_| P256Scalar::random(&mut rng)).collect();
+    let zero = P256Scalar::zero();
+    let commitments: Vec<_> = randomizers
+        .iter()
+        .map(|r| prove_decryption::<W>(&zero, &a, &zero, r))
+        .collect();
+    let commitment_trees: Vec<ByteTree> = commitments
+        .iter()
+        .map(|c| {
+            ByteTree::node(vec![
+                encode::element_to_tree(&c.y_prime).expect("encode y'"),
+                encode::elements_to_tree(&c.b_prime).expect("encode B'"),
+            ])
+        })
+        .collect();
+
+    let v = scalar_from(&dec_challenge(
+        Hashfunction::Sha256,
+        N_V,
+        &rho,
+        &seed,
+        &commitment_trees,
+    ));
+    let proofs: Vec<_> = (0..K)
+        .map(|l| prove_decryption::<W>(&scaled[l], &a, &v, &randomizers[l]))
+        .collect();
+
+    // --- the plaintexts -----------------------------------------------------
+    let alpha_c: Vec<P256Scalar> =
+        vcompat::lagrange::p256_modified_lagrange_coefficients(&[1, 2, 3], K)
+            .into_iter()
+            .map(|(negative, magnitude)| {
+                let s = P256Scalar::from_bytes_reduced(&magnitude);
+                if negative {
+                    s.neg()
+                } else {
+                    s
+                }
+            })
+            .collect();
+    let plaintexts: Vec<[P256Element; W]> = (0..N)
+        .map(|i| {
+            let mut combined: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
+            for l in 0..K {
+                for w in 0..W {
+                    combined[w] = combined[w].mul(&factors[l][i][w].exp(&alpha_c[l]));
+                }
+            }
+            std::array::from_fn(|w| mixed[i].0[1][w].mul(&combined[w]))
+        })
+        .collect();
+
+    // --- emit and verify ----------------------------------------------------
+    let dir = std::env::temp_dir().join("braid_vmnv_mix");
+    let _ = std::fs::remove_dir_all(&dir);
+    let mixers: Vec<MixerStep<W>> = outputs
+        .iter()
+        .zip(shuffle_proofs.iter())
+        .map(|(output, proof)| MixerStep { output, proof })
+        .collect();
+    let parties: Vec<DecryptingParty<W>> = (0..K)
+        .map(|l| DecryptingParty {
+            factors: &factors[l],
+            proof: &proofs[l],
+            participated: true,
+        })
+        .collect();
+
+    MixingProof::<W> {
+        shuffle: ShufflingProof {
+            version: "3.1.0",
+            auxsid: AUXSID,
+            width: W,
+            threshold: K,
+            public_key: &y,
+            input: &input,
+            mixers: &mixers,
+            polynomial_in_exponent: Some(&gamma),
+        },
+        plaintexts: &plaintexts,
+        parties: &parties,
+    }
+    .write(&dir)
+    .expect("write the mixing proof");
+
+    let (code, output) = run_vmnv_mode(&env, &dir, "-mix", true);
+    eprintln!("{output}");
+    assert_eq!(code, 0, "vmnv -mix must accept a braid mixing proof");
+    assert!(
+        output.contains("Verify combined proof of decryption... done."),
+        "the batched decryption proof must verify; got:\n{output}"
+    );
+    assert!(
+        output.contains("Match computed plaintexts with plaintexts... done."),
+        "the plaintexts must match the combined factors; got:\n{output}"
+    );
+    assert_eq!(
+        output.matches("Verify proof of shuffle... done.").count(),
+        K,
+        "every mixer's shuffle must verify too; got:\n{output}"
+    );
+}
+
+/// Interpret a big-endian byte string as a scalar, reducing modulo the group
+/// order.
+///
+/// Verificatum reads these as unbounded non-negative integers and exponentiates
+/// by them, which is the same thing in a group of prime order.
+fn scalar_from(bytes: &[u8]) -> cryptography::groups::p256::scalar::P256Scalar {
+    use cryptography::groups::p256::scalar::P256Scalar;
+    assert!(bytes.len() <= 32, "value wider than a P-256 scalar");
+    let mut fixed = [0u8; 32];
+    fixed[32 - bytes.len()..].copy_from_slice(bytes);
+    P256Scalar::from_bytes_reduced(&fixed)
 }

@@ -85,6 +85,20 @@ fn coefficients_are_small_signed_integers() {
     }
 }
 
+/// The 3-of-3 case, pinned because it is what `braid`'s `vmnv -mix` interop test
+/// runs on and what `VERIFICATUM.md` quotes.
+///
+/// With alpha = lcm(1,2,3)^2 = 36: c_1 = (2/1)(3/2) = 3, c_2 = (1/-1)(3/1) = -3,
+/// c_3 = (1/-2)(2/-1) = 1.
+#[test]
+fn the_three_of_three_coefficients() {
+    let coefficients = modified_lagrange_coefficients(&[1, 2, 3], 3, &q());
+    assert_eq!(
+        coefficients,
+        vec![BigInt::from(108), BigInt::from(-108), BigInt::from(36)]
+    );
+}
+
 #[test]
 fn coefficients_reconstruct_a_shared_secret() {
     // The defining property: for a degree lambda-1 polynomial p, evaluating at

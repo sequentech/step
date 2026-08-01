@@ -66,9 +66,11 @@ pub fn polynomial_in_exponent(dealer_commitments: &[Vec<P256Element>]) -> Result
     Ok(gamma)
 }
 
-/// The scalar `−1/α` for `k` parties, the exponent converting one of braid's
-/// decryption factors into Verificatum's.
-pub fn negated_inverse_alpha(k: usize) -> Result<P256Scalar> {
+/// The scalar `1/α` for `k` parties.
+///
+/// A party scales its share by this once and uses the result for both its
+/// decryption factors and its proof reply.
+pub fn inverse_alpha(k: usize) -> Result<P256Scalar> {
     let alpha = lagrange::alpha(k);
     let bytes = alpha.to_bytes_be();
     if bytes.len() > 32 {
@@ -77,11 +79,15 @@ pub fn negated_inverse_alpha(k: usize) -> Result<P256Scalar> {
     let mut fixed = [0u8; 32];
     fixed[32 - bytes.len()..].copy_from_slice(&bytes);
 
-    let scalar = P256Scalar::from_bytes_reduced(&fixed);
-    let inverse = scalar
+    P256Scalar::from_bytes_reduced(&fixed)
         .inv()
-        .ok_or_else(|| anyhow!("alpha is not invertible for k = {k}"))?;
-    Ok(inverse.neg())
+        .ok_or_else(|| anyhow!("alpha is not invertible for k = {k}"))
+}
+
+/// The scalar `−1/α` for `k` parties, the exponent converting one of braid's
+/// decryption factors into Verificatum's.
+pub fn negated_inverse_alpha(k: usize) -> Result<P256Scalar> {
+    Ok(inverse_alpha(k)?.neg())
 }
 
 /// Convert one of braid's decryption factors, `u^{x_l}`, into Verificatum's
@@ -154,24 +160,38 @@ pub struct BatchedDecryptionProof<const W: usize> {
 /// equal `A^{−x}`. Substituting gives `y' = g^r`, `B' = A^r` and `k_x = r − v·x`
 /// for a random `r`.
 ///
-/// The combination is by Lagrange coefficient, `y' = ∏_l (y'_l)^{c_l}` and
-/// `k_x = Σ_l c_l k_{x,l}`, so each party contributing
+/// # α is inside the reply, not outside it
+///
+/// `scaled_secret` is `x_l/α`, **not** the raw share — the same value the party's
+/// decryption factors are computed from, without the negation.
+///
+/// The reason is that `DistrElGamalSessionBasic.combine` applies the *modified*
+/// Lagrange coefficients `α·c_l` to `y'`, `B'` and `k_x`, exactly as
+/// `combineDecryptionFactors` does to the factors. So a party contributing
 ///
 /// ```text
-/// y'_l = g^{r_l}      B'_l = A^{r_l}      k_{x,l} = r_l − v·x_l
+/// y'_l = g^{r_l}    B'_l = A^{r_l}    k_{x,l} = r_l − v·(x_l/α)
 /// ```
 ///
-/// reconstructs exactly that, with `r = Σ c_l r_l` and `x = Σ c_l x_l`.
+/// gives `k_x = Σ_l α c_l k_{x,l} = Σ_l α c_l r_l − v Σ_l c_l x_l = r − v·x`,
+/// with `r = Σ_l α c_l r_l`, and the same `α c_l` combination reproduces
+/// `y' = g^r` and `B' = A^r`. The α cancels inside the reply rather than being
+/// absent from it.
 ///
-/// Note `α` does **not** appear here: it scales the *factors*
-/// ([`to_vmn_factors`]) and is cancelled by the `α·c_l` combination exponents,
-/// leaving the proof itself over the unscaled `x_l`.
+/// **This is where VMNV §8.6 and Verificatum disagree.** Algorithm 22 combines
+/// the factors by `α c_l` but the proof pieces by the plain `c_l`, which needs a
+/// reply over the unscaled `x_l`; §2.4 matches, saying the party "proves that the
+/// secret key `x_l` it used is given by `y_l = g^{x_l}`". Both conventions are
+/// internally consistent and they differ in the emitted bytes, so an emitter has
+/// to pick one — and they coincide only when `α = 1`, i.e. `k = 1`, which is why
+/// the single-party reference corpus cannot tell them apart. We follow the
+/// implementation, because the implementation is what `vmnv` runs.
 ///
-/// `secret` is the party's share `x_l`, which braid reconstructs locally during
-/// decryption and never publishes — so unlike the other conversions here, this
-/// cannot be produced after the fact from board data.
+/// The scaled share is derived from `x_l`, which braid reconstructs locally
+/// during decryption and never publishes — so unlike the other conversions here,
+/// this cannot be produced after the fact from board data.
 pub fn prove_decryption<const W: usize>(
-    secret: &P256Scalar,
+    scaled_secret: &P256Scalar,
     batched_u: &[P256Element; W],
     challenge: &P256Scalar,
     randomizer: &P256Scalar,
@@ -179,7 +199,7 @@ pub fn prove_decryption<const W: usize>(
     BatchedDecryptionProof {
         y_prime: P256Element::generator().exp(randomizer),
         b_prime: std::array::from_fn(|i| batched_u[i].exp(randomizer)),
-        k_x: randomizer.sub(&challenge.mul(secret)),
+        k_x: randomizer.sub(&challenge.mul(scaled_secret)),
     }
 }
 

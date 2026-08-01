@@ -124,11 +124,16 @@ the size-prediction test would keep passing while describing a corpus that no lo
 ## The three-party protocol info file
 
 `protInfo-3party.xml` declares `nopart = 3`, `thres = 3`, with every other parameter identical to
-`protInfo.xml`. It supports `vmnv_accepts_a_three_party_chain`, which needs a session declaring more
-than one party.
+`protInfo.xml`. It supports the two tests that need a session declaring more than one party:
+`vmnv_accepts_a_three_party_chain` and `vmnv_accepts_a_braid_mixing_proof`.
 
-It has **no matching proof directory and needs none**: a shuffling proof carries no DKG, because
-`vmnv` does not read `PolynomialInExponent.bt` for one. The test emits its own chain.
+It has **no matching proof directory and needs none.** Both tests emit their own — the first a
+three-mixer chain with no DKG, the second a full `type = mixing` session including a real
+three-party DKG, so `PolynomialInExponent.bt` there is genuine rather than the placeholder a
+shuffling proof carries.
+
+Because `thres` equals `nopart`, it cannot exercise a party that fails to decrypt. That case needs
+an info file with `thres < nopart`, which neither shipped file provides.
 
 Regenerate it exactly as above but with `-nopart 3 -thres 3`, running the `vmni -party` step once per
 party and merging all three. Note ρ is unaffected by the party count — it commits to the version,
