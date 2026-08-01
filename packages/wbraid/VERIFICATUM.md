@@ -744,8 +744,9 @@ f_i = ∏_{l∈Δ} f_{l,i}^{α c_l}     y' = ∏ (y'_l)^{c_l}     B' = ∏ (B'_l
 §2.4 agrees, saying the party computes `f_l = PDec_{x_l/α}(L_λa)` and then "proves that the secret
 key `x_l` it used is given by `y_l = g^{x_l}`" — the *unscaled* share, so `k_{x,l} = r_l − v·x_l`.
 
-**The implementation.** `DistrElGamalSessionBasic.combine` applies `modifiedLagrangeCoefficients`,
-i.e. `α c_l`, to all four:
+**The implementation.** The factors are combined in `combineDecryptionFactors`, exactly as the
+specification says. But the proof pieces are combined in `DistrElGamalSessionBasic.combine`, which
+reaches for the *same* `modifiedLagrangeCoefficients` — `α c_l` — for all three of them:
 
 ```java
 combinedyp  = combinedyp.mul(yp[l].exp(exponents[t]));
@@ -756,7 +757,35 @@ combinedk_x = combinedk_x.add(k_x[l].mul(exponents[t]));
 and its prover replies over the scaled share, `k_x[j] = x.neg().mul(inverseFactor).mul(v).add(r)`,
 that is `r_l − v·x_l/α`. The per-party check agrees: `y[l].inv().exp(inverseFactor.mul(v))`.
 
-Both conventions are internally consistent — the combined reply reduces to `r − v·x` either way —
+### The accounting, since it is easy to lose track of
+
+There are **two** α cancellations in the implementation, structurally identical, and one of them is
+avoidable:
+
+| | each party publishes | combined with | result |
+|---|---|---|---|
+| factors | `f_{l,i} = u_i^{−x_l/α}` | `α c_l` | `u_i^{−x}` — α cancels |
+| reply | `k_{x,l} = r_l − v·(x_l/α)` | `α c_l` | `R − v·x` — α cancels |
+
+`y'` and `B'` cancel nothing: they are `g^{r_l}` and `A^{r_l}`, with no α in them. They take the same
+coefficients only so that the `R = Σ α c_l r_l` they define is the same `R` sitting inside the
+combined `k_x`. That is consistency, not cancellation — but it means the choice of coefficients has
+to be uniform across all three proof pieces.
+
+**Only the factor row is forced.** `α c_l` is the unique exponent set that undoes the `1/α` the
+factors were computed with. The proof pieces are under no such constraint: the only thing the
+verification equations require is
+
+```text
+Σ_l γ_l · w_l = x
+```
+
+for whatever `γ_l` combines the proof pieces and `w_l` each party proves over. `γ_l = c_l, w_l = x_l`
+satisfies it (the specification) and so does `γ_l = α c_l, w_l = x_l/α` (the implementation).
+Verificatum reused the coefficient array it already had, and that reuse — not any requirement of the
+scheme — is what forces the witness to be scaled.
+
+Both conventions are internally consistent — the combined reply reduces to `R − v·x` either way —
 and they produce **different bytes**. Emit the specification's version and the combination yields
 `r − v·α·x` where the verifier expects `r − v·x`, so the first equation fails. They coincide only
 when `α = 1`, i.e. `k = 1`, which is exactly why the single-party reference corpus cannot tell them
