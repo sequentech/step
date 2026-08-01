@@ -209,3 +209,18 @@ pub fn public_key_to_tree(y: &P256Element) -> Result<ByteTree> {
         element_to_tree(y)?,
     ]))
 }
+
+/// Encode an array of width-`W` elements of the plaintext group `M_{κ,ω}`.
+///
+/// The shape of `Plaintexts.bt` and of each `DecryptionFactors<l>.bt`: `W`
+/// arrays of `N` components, transposed as in [`ciphertexts_to_tree`], but with
+/// only one side rather than a `(u, v)` pair.
+pub fn component_array_to_tree<const W: usize>(
+    elements: &[[P256Element; W]],
+) -> Result<ByteTree> {
+    let rows = elements
+        .iter()
+        .map(|e| e.iter().map(element_to_tree).collect::<Result<Vec<_>>>())
+        .collect::<Result<Vec<_>>>()?;
+    arithm::product_array(&rows, W).map_err(|e| anyhow!("transpose failed: {e}"))
+}

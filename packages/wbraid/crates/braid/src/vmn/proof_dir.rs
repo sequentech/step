@@ -48,6 +48,7 @@ use cryptography::zkp::shuffle::ShuffleProof;
 
 use vcompat::bytetree::ByteTree;
 
+use super::decrypt::BatchedDecryptionProof;
 use super::{challenges::commitments_to_tree, encode};
 
 /// One mixer's contribution to the chain: the list it produced and the proof
@@ -218,4 +219,88 @@ fn write_ascii(path: &Path, value: &str) -> Result<()> {
 fn write_tree(path: &Path, tree: &ByteTree) -> Result<()> {
     fs::write(path, tree.to_bytes())?;
     Ok(())
+}
+
+/// One party's decryption contribution.
+///
+/// Every party in `1..=k` needs one, including those that took no part: the
+/// verifier reads factors, commitments and replies over the full range, and all
+/// of them are hashed into the decryption challenge. A non-participant supplies
+/// an all-identity factor array ([`super::decrypt::inactive_factors`]) and is
+/// marked `participated = false`, which excludes it from Δ.
+pub struct DecryptingParty<'a, const W: usize> {
+    /// This party's decryption factors in Verificatum's convention,
+    /// `u^{−x_l/α}`, one per ciphertext.
+    pub factors: &'a [[P256Element; W]],
+    /// The batched proof of correctness.
+    pub proof: &'a BatchedDecryptionProof<W>,
+    /// Whether this party is in Δ. Exactly λ parties must be true, and Δ is
+    /// taken as the **first** λ true flags.
+    pub participated: bool,
+}
+
+/// A `type = mixing` proof: a shuffle chain followed by threshold decryption.
+pub struct MixingProof<'a, const W: usize> {
+    /// The shuffle half, identical to a shuffling proof's.
+    pub shuffle: ShufflingProof<'a, W>,
+    /// The decrypted plaintexts, undecoded.
+    pub plaintexts: &'a [[P256Element; W]],
+    /// Every party, in index order starting at 1.
+    pub parties: &'a [DecryptingParty<'a, W>],
+}
+
+impl<const W: usize> MixingProof<'_, W> {
+    /// Write the proof directory at `dir`.
+    pub fn write(&self, dir: &Path) -> Result<()> {
+        // The shuffle half first, then correct `type` and add the decryption
+        // artifacts on top.
+        self.shuffle.write(dir)?;
+        let proofs = dir.join("proofs");
+        write_ascii(&dir.join("type"), "mixing")?;
+
+        // A mixing proof publishes plaintexts rather than shuffled ciphertexts.
+        let _ = fs::remove_file(dir.join("ShuffledCiphertexts.bt"));
+        write_tree(
+            &dir.join("Plaintexts.bt"),
+            &encode::component_array_to_tree(self.plaintexts)?,
+        )?;
+
+        let participating = self.parties.iter().filter(|p| p.participated).count();
+        if participating != self.shuffle.threshold {
+            return Err(anyhow!(
+                "{participating} parties marked correct but the threshold is {}",
+                self.shuffle.threshold
+            ));
+        }
+
+        // CorrectIndices is a boolean array of length k+1; entry 0 is ignored.
+        let mut flags = Vec::with_capacity(self.parties.len() + 1);
+        flags.push(false);
+        flags.extend(self.parties.iter().map(|p| p.participated));
+        write_tree(
+            &proofs.join("CorrectIndices.bt"),
+            &vcompat::arithm::bool_array(&flags),
+        )?;
+
+        for (index, party) in self.parties.iter().enumerate() {
+            let l = index + 1;
+            write_tree(
+                &proofs.join(format!("DecryptionFactors{l:02}.bt")),
+                &encode::component_array_to_tree(party.factors)?,
+            )?;
+            write_tree(
+                &proofs.join(format!("DecrFactCommitment{l:02}.bt")),
+                &ByteTree::node(vec![
+                    encode::element_to_tree(&party.proof.y_prime)?,
+                    encode::elements_to_tree(&party.proof.b_prime)?,
+                ]),
+            )?;
+            write_tree(
+                &proofs.join(format!("DecrFactReply{l:02}.bt")),
+                &encode::scalar_to_tree(&party.proof.k_x)?,
+            )?;
+        }
+
+        Ok(())
+    }
 }
