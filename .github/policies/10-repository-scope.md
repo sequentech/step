@@ -6,6 +6,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Repository scope and self-containment
 
+> **Label:** `policy:architecture`
+> **Reviewers:** `@sequentech/Architects`
+> **If breached:** an Architect must approve before this can merge.
+
 This repository is the public, open-source home of the Sequent voting platform.
 It holds the platform's own source code, its tests, and its documentation.
 

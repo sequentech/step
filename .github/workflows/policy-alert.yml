@@ -1,0 +1,102 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Posts a Slack alert when a policy label lands on a pull request, or when the
+# Architects team is pulled in as a reviewer.
+#
+# CodeRabbit applies the labels and requests the reviews (see `.coderabbit.yaml`);
+# both are ordinary GitHub events, so this file needs no integration of its own.
+# CodeRabbit's built-in Slack support is org-level UI configuration and notifies
+# on reviews generally — this fires only when a specific policy was breached, and
+# says which one.
+#
+# To add an alert for a new policy: add a case below. To make a policy silent,
+# leave it out — it still gets labelled, it just does not page anyone.
+
+name: Policy alert
+
+on:
+  pull_request:
+    types: [labeled, review_requested]
+
+permissions: {}
+
+jobs:
+  notify:
+    name: Notify Slack
+    if: >-
+      startsWith(github.event.label.name, 'policy:') ||
+      github.event.requested_team.slug == 'architects'
+    runs-on: ubuntu-24.04
+    steps:
+      # Label names and team slugs come from GitHub and reach the script through
+      # env, never interpolated into the shell.
+      - name: Compose the alert
+        id: alert
+        env:
+          LABEL: ${{ github.event.label.name }}
+          TEAM: ${{ github.event.requested_team.slug }}
+        run: |
+          case "${LABEL:-team:${TEAM}}" in
+            policy:architecture)
+              icon=":rotating_light:"
+              what="Repository scope — a change adds a dependency on something not publicly available"
+              ;;
+            policy:secrets)
+              icon=":rotating_light:"
+              what="Possible credential or per-deployment configuration committed"
+              ;;
+            policy:governance)
+              icon=":lock:"
+              what="The policy system itself was changed"
+              ;;
+            policy:coverage)
+              icon=":mag:"
+              what="New code or documentation with no CI job covering it"
+              ;;
+            team:architects)
+              icon=":eyes:"
+              what="Architect review requested"
+              ;;
+            *)
+              # Labelled, deliberately silent.
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          echo "icon=${icon}" >> "$GITHUB_OUTPUT"
+          echo "what=${what}" >> "$GITHUB_OUTPUT"
+
+      - name: Slack notification
+        if: steps.alert.outputs.skip != 'true'
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ steps.alert.outputs.icon }} *Policy review* — `${{ github.repository }}`\n${{ steps.alert.outputs.what }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Pull request:*\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Author:*\n${{ github.event.pull_request.user.login }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

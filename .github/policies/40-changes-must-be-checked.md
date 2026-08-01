@@ -6,6 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # New code and documentation must be covered by this repository's checks
 
+> **Label:** `policy:coverage`
+> **Reviewers:** `@sequentech/DevOps`
+> **If breached:** flagged for the author. A change that *narrows* an
+> existing check's reach must not merge without DevOps.
+
 A check that does not run is worse than no check, because it looks like
 protection. The same is true of a test nobody executes, a linter nobody invokes,
 a package nobody builds, a scan that silently skipped, and a documentation page
@@ -100,14 +105,15 @@ Report a violation when a change:
   matrix, or marking a test skipped — without saying why in the pull request
   description.
 
-## Severity
+## How seriously to take it
 
-Report at **`warning`** by default: these are gaps rather than breaches, and the
-fix is usually small.
+Most of these are gaps rather than breaches, and the fix is usually small — flag
+them for the author and move on.
 
-Report at **`blocker`** when a change **weakens the reach of an existing check**.
-That silently reduces coverage for everything afterwards, not just for the code
-in this pull request, and it is the failure mode that compounds.
+**A change that weakens the reach of an existing check is different, and must
+not merge without DevOps.** It silently reduces coverage for everything
+afterwards, not just for the code in this pull request, and it is the failure
+mode that compounds.
 
 ## What does not break it
 

@@ -178,38 +178,9 @@ jobs:
   # Sends a Slack notification to the dev channel when the test job fails.
   # Runs on the GCP runner — it will be a fresh pod, not the one that failed.
   # ===========================================================================
-  run-policy-review-tests:
-    name: Run policy review engine tests
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        working-directory: .github/policy-review
-        run: |
-          python -m pip install --quiet --upgrade pip
-          python -m pip install --quiet --disable-pip-version-check \
-            -r requirements.txt
-
-      - name: Run unit tests
-        working-directory: .github/policy-review
-        run: python -m unittest discover -s tests -t . -v
-
-      # Run again on its own so the constraint it enforces is visible as a
-      # named step: the engine is public and must reference no other repository.
-      - name: Check the engine carries no private policy content
-        working-directory: .github/policy-review
-        run: python -m unittest tests.test_public_safety -v
-
   notify-on-failure:
     name: Notify on failure
-    needs: [run-tests, run-windmill-tests, run-frontend-tests, run-policy-review-tests]
+    needs: [run-tests, run-windmill-tests, run-frontend-tests]
     if: failure()
     runs-on: ubuntu-24.04
     steps:

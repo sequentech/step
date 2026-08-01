@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Ownership of the policy system.
+#
+# CodeRabbit reads `.coderabbit.yaml` from the pull request's own branch, so a
+# pull request can in principle weaken the rules it is about to be judged by.
+# These entries are what stops that: with "Require review from Code Owners"
+# enabled on `main`, such a change cannot merge without an Architect, which is
+# stronger than any warning the review itself could print.
+#
+# Deliberately narrow. This file claims only the policy system, not the
+# repository.
+
+/.coderabbit.yaml                    @sequentech/Architects
+/.github/policies/                   @sequentech/Architects
+/.github/CODEOWNERS                  @sequentech/Architects
+/.github/workflows/policy-alert.yml  @sequentech/Architects

@@ -6,6 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # No credentials, no per-deployment configuration
 
+> **Label:** `policy:secrets`
+> **Reviewers:** `@sequentech/Architects`
+> **If breached:** an Architect must approve, and a committed credential
+> must be rotated before it is removed.
+
 Source code and deployment configuration are different things with different
 lifecycles, and secrets belong to neither. This repository holds the platform's
 code; it is not where a particular deployment is described, and it is never

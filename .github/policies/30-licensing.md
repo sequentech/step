@@ -6,6 +6,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Licensing and attribution
 
+> **Label:** `policy:coverage`
+> **Reviewers:** `@sequentech/DevOps`
+> **If breached:** the `reuse` check will fail anyway — this is the
+> faster feedback.
+
 This repository is distributed under AGPL-3.0-only and follows the
 [REUSE](https://reuse.software/) specification: every file carries its copyright
 and licence, either inline or through an entry in `REUSE.toml`.

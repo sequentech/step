@@ -1,0 +1,111 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# ==============================================================================
+# CodeRabbit configuration
+# ==============================================================================
+#
+# This file is a routing table, not a rulebook. The rules live in
+# `.github/policies/*.md`; everything here says what happens when one is
+# breached — which label lands on the pull request, and who gets pulled in.
+#
+# Each policy owns one label. Adding a policy means three declarative edits:
+# the Markdown file, a `labeling_instructions` entry here, and a case in
+# `.github/workflows/policy-alert.yml`.
+#
+# See `.github/policies/README.md`.
+# ==============================================================================
+
+language: "en-US"
+
+reviews:
+  profile: chill
+  # Submit a formal "changes requested" review, so branch protection can gate
+  # the merge on it rather than on someone noticing a comment.
+  request_changes_workflow: true
+
+  auto_review:
+    enabled: true
+    # Drafts churn and each push would cost a review. A draft is reviewed the
+    # moment it is marked ready.
+    drafts: false
+
+  # --------------------------------------------------------------------------
+  # Labels. `auto_apply_labels` is what makes these land on the pull request
+  # rather than merely appear in the walkthrough — the alert workflow watches
+  # for the label event, so without this nothing downstream fires.
+  # --------------------------------------------------------------------------
+  auto_apply_labels: true
+  labeling_instructions:
+    - label: "policy:architecture"
+      instructions: |
+        Apply when the change makes this repository depend on something that is
+        not publicly available — a workflow checking out a repository the public
+        cannot clone, an action from a private source, a submodule pointing
+        somewhere unreachable, or a build step needing internal credentials.
+        See .github/policies/10-repository-scope.md. Only new or newly-worsened
+        dependencies count; pre-existing ones are out of scope.
+
+    - label: "policy:secrets"
+      instructions: |
+        Apply when the change adds a credential of any kind — password, API key,
+        token, private key, or a connection string containing a password — or
+        adds configuration specific to one deployment or customer. See
+        .github/policies/20-secrets-and-environment-config.md. Apply it even
+        when the value might be a placeholder, and say so in the review.
+
+    - label: "policy:coverage"
+      instructions: |
+        Apply when code or documentation is added that no CI job builds, tests,
+        lints, scans or licenses — or when the change narrows the reach of an
+        existing check. Includes a missing SPDX header. See
+        .github/policies/40-changes-must-be-checked.md and
+        .github/policies/30-licensing.md.
+
+    - label: "policy:governance"
+      instructions: |
+        Apply when the change modifies the policy system itself: .coderabbit.yaml,
+        any file under .github/policies/, .github/CODEOWNERS, or
+        .github/workflows/policy-alert.yml. See
+        .github/policies/50-governance.md. This is allowed but must never pass
+        unremarked, so apply the label even when the change looks routine.
+
+  # --------------------------------------------------------------------------
+  # Reviewer routing. `auto_assign_reviewers` is what actually requests the
+  # review; without it these are only listed in the walkthrough.
+  # --------------------------------------------------------------------------
+  suggested_reviewers: true
+  auto_assign_reviewers: true
+  suggested_reviewers_instructions:
+    - reviewers:
+        - handle: "architects"
+          type: group
+      instructions: |
+        Assign when the change makes this repository depend on something not
+        publicly available, commits a credential, or modifies the policy system
+        itself.
+
+    - reviewers:
+        - handle: "devops"
+          type: group
+      instructions: |
+        Assign when code or documentation is added without the CI job that
+        covers it, or when the change narrows an existing check's reach.
+
+# ----------------------------------------------------------------------------
+# The policies themselves.
+#
+# The object form matters. A guideline file is otherwise scoped to its own
+# directory and below, which would make these govern only `.github/policies/`.
+# `applyTo` points them at the whole repository.
+#
+# Do NOT list these under `reviews.path_instructions` — CodeRabbit would then
+# review them as code rather than use them as guidance.
+# ----------------------------------------------------------------------------
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - files: ".github/policies/*.md"
+        applyTo: "**"
