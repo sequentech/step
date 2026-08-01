@@ -13,6 +13,15 @@
 #
 # To add an alert for a new policy: add a case below. To make a policy silent,
 # leave it out — it still gets labelled, it just does not page anyone.
+#
+# WHERE THIS POSTS. `SLACK_WEBHOOK_URL` is a shared organisation secret pointing
+# at #deployments-internal-production. That channel carries every deployment
+# notification, so a policy alert lands among dozens of routine messages — and a
+# rule that is never read is a rule that is not enforced.
+#
+# Set `POLICY_SLACK_WEBHOOK_URL` on the repository (or the organisation) to route
+# these somewhere the Architects actually watch. It takes precedence when set;
+# the shared webhook remains the fallback, so nothing breaks until you do.
 
 name: Policy alert
 
@@ -53,31 +62,42 @@ jobs:
         env:
           LABEL: ${{ inputs.label || github.event.label.name }}
           TEAM: ${{ github.event.requested_team.slug }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ACTOR: ${{ github.actor }}
         run: |
           case "${LABEL:-team:${TEAM}}" in
             policy:repo-scope)
               icon=":rotating_light:"
               what="Repository scope — a change adds a dependency on something not publicly available"
+              policy=".github/policies/10-repository-scope.md"
               ;;
             policy:architecture-change)
               icon=":building_construction:"
               what="An architectural decision changed, or the change contradicts the architecture document"
+              policy=".github/policies/60-architectural-changes.md"
               ;;
             policy:secrets)
               icon=":rotating_light:"
               what="Possible credential or per-deployment configuration committed"
+              policy=".github/policies/20-secrets-and-environment-config.md"
               ;;
             policy:governance)
               icon=":lock:"
               what="The policy system itself was changed"
+              policy=".github/policies/50-governance.md"
               ;;
             policy:coverage)
               icon=":mag:"
               what="New code or documentation with no CI job covering it"
+              policy=".github/policies/40-changes-must-be-checked.md"
               ;;
             team:architects)
               icon=":eyes:"
               what="Architect review requested"
+              policy=""
               ;;
             *)
               # Labelled, deliberately silent.
@@ -87,17 +107,28 @@ jobs:
           esac
           echo "icon=${icon}" >> "$GITHUB_OUTPUT"
           echo "what=${what}" >> "$GITHUB_OUTPUT"
+          echo "policy=${policy}" >> "$GITHUB_OUTPUT"
+
+          # A dispatch run has no pull request. Fall back to the run itself so
+          # the test message is not three blank fields.
+          if [ -n "${PR_URL}" ]; then
+            echo "where=<${PR_URL}|#${PR_NUM}>" >> "$GITHUB_OUTPUT"
+            echo "who=${PR_AUTHOR}" >> "$GITHUB_OUTPUT"
+          else
+            echo "where=<${RUN_URL}|manual test>" >> "$GITHUB_OUTPUT"
+            echo "who=${ACTOR}" >> "$GITHUB_OUTPUT"
+          fi
 
       # A missing webhook must not fail the check. This job runs on pull
       # requests, and `secrets` are not available to one raised from a fork —
-      # an unset `SLACK_WEBHOOK_URL` would otherwise put a red X on an outside
-      # contributor's pull request for a Slack message nobody was owed.
-      # Degrade to silent, and say so in the log.
+      # an unset webhook would otherwise put a red X on an outside contributor's
+      # pull request for a Slack message nobody was owed. Degrade to silent, and
+      # say so in the log.
       - name: Check the webhook is configured
         id: webhook
         if: steps.alert.outputs.skip != 'true'
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.POLICY_SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
         run: |
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
@@ -126,16 +157,20 @@ jobs:
                   "fields": [
                     {
                       "type": "mrkdwn",
-                      "text": "*Pull request:*\n<${{ github.event.pull_request.html_url }}|#${{ github.event.pull_request.number }}>"
+                      "text": "*Pull request:*\n${{ steps.alert.outputs.where }}"
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Author:*\n${{ github.event.pull_request.user.login }}"
+                      "text": "*Author:*\n${{ steps.alert.outputs.who }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Policy:*\n`${{ steps.alert.outputs.policy }}`"
                     }
                   ]
                 }
               ]
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.POLICY_SLACK_WEBHOOK_URL || secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
