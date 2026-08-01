@@ -311,13 +311,24 @@ pub fn pos_seed(
 /// Two asymmetries with [`pos_seed`] that are easy to get wrong:
 ///
 /// - `g` is the **plain** group generator, not widened to omega, even though `w`
-///   is a width-omega ciphertext array. (The shuffle's query widens its public
-///   key; this one does not widen `g`.)
+///   is a width-omega ciphertext array. [`pos_seed`] widens *its* public key
+///   ([`wide_public_key`]), so neither "always widen" nor "never widen" is a
+///   safe rule — each query has to be checked against the implementation.
 /// - `w` is the list being decrypted, i.e. the *final* shuffled output
 ///   `L_lambda_a`, not the original input ciphertexts.
 ///
-/// `factors` holds one decryption-factor array per party, in party order, for
-/// **all** `k` parties — not only those in the correct-indices set.
+/// # `factors` covers every party
+///
+/// One decryption-factor array per party, in party order, for **all `k`
+/// parties** — not only those named by `CorrectIndices.bt`. That set (`Δ`,
+/// of size `λ`) selects which factors are Lagrange-combined *later*; the seed
+/// commits to all of them regardless.
+///
+/// **This is not covered by the reference corpus**, which has `k = 1` and so
+/// cannot distinguish "all parties" from "only the correct ones" — both produce
+/// the same bytes. It is taken from the verifier's source
+/// (`getDecryptionFactorsBT` loops to `v.k`), and only becomes testable with a
+/// multi-party decryption corpus.
 pub fn dec_seed(
     hash: Hashfunction,
     rho: &[u8],

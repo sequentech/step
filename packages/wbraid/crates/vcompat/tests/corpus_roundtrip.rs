@@ -288,6 +288,15 @@ fn shuffle_seed_matches_vmn() {
 /// before any of the batched-proof algebra is written. Everything here comes
 /// from the corpus, which is a full `mixing` proof and so carries the decryption
 /// artifacts.
+///
+/// # What this does not establish
+///
+/// The corpus has `k = 1`, so the seed's factor list has a single entry and this
+/// test cannot distinguish hashing **all** parties' decryption factors from
+/// hashing only those in the correct-indices set — the two coincide. The
+/// implementation follows the former, per the verifier's source, but that choice
+/// is unverified here and needs a multi-party decryption corpus to pin down.
+/// Same for the Lagrange combination, which is the identity at `λ = 1`.
 #[test]
 fn decryption_transcript_matches_vmn() {
     let Some(dir) = corpus_dir() else {
