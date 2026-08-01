@@ -734,65 +734,66 @@ Which is why the discrepancy is invisible from inside Verificatum. Real VMN proo
 real `vmnv` because the same class writes and reads them; only a third implementation, written from
 the document, would find them wrong.
 
-**The specification.** Algorithm 22 combines the factors by the modified coefficients and the proof
-pieces by the plain ones:
+**They agree on the verification equations.** Both check
 
 ```text
-f_i = ∏_{l∈Δ} f_{l,i}^{α c_l}     y' = ∏ (y'_l)^{c_l}     B' = ∏ (B'_l)^{c_l}     k_x = Σ c_l k_{x,l}
+Γ_0^{−v} · y' = g^{k_x}          B^v · B' = A^{k_x}
 ```
 
-§2.4 agrees, saying the party computes `f_l = PDec_{x_l/α}(L_λa)` and then "proves that the secret
-key `x_l` it used is given by `y_l = g^{x_l}`" — the *unscaled* share, so `k_{x,l} = r_l − v·x_l`.
+with no α anywhere. These are stated over the **combined** values, and by the time `B` is formed the
+α has already cancelled: `B` is the batching of `f_i = ∏_l f_{l,i}^{α c_l} = u_i^{−x}`. So the proof
+never sees α at all, which is why VMNV §2.4 can speak of the unscaled `x_l` even though `x_l/α` is
+what was physically exponentiated.
 
-**The implementation.** The factors are combined in `combineDecryptionFactors`, exactly as the
-specification says. But the proof pieces are combined in `DistrElGamalSessionBasic.combine`, which
-reaches for the *same* `modifiedLagrangeCoefficients` — `α c_l` — for all three of them:
+**They disagree one level down, on how the combined values are built** from the parties' pieces:
 
-```java
-combinedyp  = combinedyp.mul(yp[l].exp(exponents[t]));
-combinedBp  = combinedBp.mul(Bp[l].exp(exponents[t]));
-combinedk_x = combinedk_x.add(k_x[l].mul(exponents[t]));
+```text
+specification    y' = ∏ (y'_l)^{c_l}       B' = ∏ (B'_l)^{c_l}       k_x = Σ c_l · k_{x,l}
+implementation   y' = ∏ (y'_l)^{α c_l}     B' = ∏ (B'_l)^{α c_l}     k_x = Σ α c_l · k_{x,l}
 ```
 
-and its prover replies over the scaled share, `k_x[j] = x.neg().mul(inverseFactor).mul(v).add(r)`,
-that is `r_l − v·x_l/α`. The per-party check agrees: `y[l].inv().exp(inverseFactor.mul(v))`.
+(The *factors* are combined by `α c_l` in both — that part is not in dispute.) Since the combined
+`k_x` has to come out as `R − v·x` either way, the two rules demand different replies from the
+prover: `k_{x,l} = r_l − v·x_l` for the specification, `r_l − v·(x_l/α)` for the implementation
+(`k_x[j] = x.neg().mul(inverseFactor).mul(v).add(r)`).
 
-### The accounting, since it is easy to lose track of
+### Why α may be included or omitted here
 
-There are **two** α cancellations in the implementation, structurally identical, and one of them is
-avoidable:
-
-| | each party publishes | combined with | result |
-|---|---|---|---|
-| factors | `f_{l,i} = u_i^{−x_l/α}` | `α c_l` | `u_i^{−x}` — α cancels |
-| reply | `k_{x,l} = r_l − v·(x_l/α)` | `α c_l` | `R − v·x` — α cancels |
-
-`y'` and `B'` cancel nothing: they are `g^{r_l}` and `A^{r_l}`, with no α in them. They take the same
-coefficients only so that the `R = Σ α c_l r_l` they define is the same `R` sitting inside the
-combined `k_x`. That is consistency, not cancellation — but it means the choice of coefficients has
-to be uniform across all three proof pieces.
-
-**Only the factor row is forced.** `α c_l` is the unique exponent set that undoes the `1/α` the
-factors were computed with. The proof pieces are under no such constraint: the only thing the
-verification equations require is
+The only constraint the verification equations place on the proof combination is
 
 ```text
 Σ_l γ_l · w_l = x
 ```
 
-for whatever `γ_l` combines the proof pieces and `w_l` each party proves over. `γ_l = c_l, w_l = x_l`
-satisfies it (the specification) and so does `γ_l = α c_l, w_l = x_l/α` (the implementation).
-Verificatum reused the coefficient array it already had, and that reuse — not any requirement of the
-scheme — is what forces the witness to be scaled.
+for whatever `γ_l` combines the pieces and `w_l` each party replies over — because that sum is what
+appears in `k_x`, and it has to match the `x` inside `Γ_0` and `B`. Two solutions:
 
-Both conventions are internally consistent — the combined reply reduces to `R − v·x` either way —
-and they produce **different bytes**. Emit the specification's version and the combination yields
-`r − v·α·x` where the verifier expects `r − v·x`, so the first equation fails. They coincide only
-when `α = 1`, i.e. `k = 1`, which is exactly why the single-party reference corpus cannot tell them
-apart, and why this had to wait for a multi-party run to settle.
+| | `γ_l` | `w_l` |
+|---|---|---|
+| specification | `c_l` | `x_l` |
+| implementation | `α c_l` | `x_l/α` |
 
-braid follows the implementation (`vmn::decrypt::prove_decryption` takes `x_l/α`), and the `-mix`
-test above is the adjudication.
+Both satisfy it, and they differ in the emitted bytes. `y'` and `B'` cancel nothing — they are
+`g^{r_l}` and `A^{r_l}`, with no α in them — but they must use the same `γ_l` as `k_x`, so that the
+`R = Σ γ_l r_l` they define is the `R` sitting inside the reply.
+
+Only the **factor** combination is genuinely forced to `α c_l`: that is the unique exponent set
+undoing the `1/α` the factors were computed with, and it is the whole reason α exists, since
+`combineDecryptionFactors` is then an `expProd` with small integer exponents over all `N`
+ciphertexts. The proof pieces are under no such constraint. Verificatum reused the coefficient array
+it already had — `combine` calls the same `modifiedLagrangeCoefficients` — and that reuse, not any
+requirement of the scheme, is what forces its witness to be scaled.
+
+They coincide only when `α = 1`, i.e. `k = 1`, which is exactly why the single-party reference corpus
+cannot tell them apart, and why this had to wait for a multi-party run to settle. braid follows the
+implementation (`vmn::decrypt::prove_decryption` takes `x_l/α`), and the `-mix` test above is the
+adjudication.
+
+**Why the defect is quiet.** VMNV is a *verifier* specification: it contains no prover algorithm for
+decryption, and `k_{x,l}` appears in the whole document exactly twice — once as a type declaration
+and once inside the combination formula. So the document holds no wrong formula to notice, only a
+combination rule whose implied prover is not the one Verificatum ships. It surfaces only when
+someone builds a prover from the document and watches real `vmnv` reject the result.
 
 **Why it matters beyond us.** A third implementation written strictly from VMNV §8.6 would reject
 every genuine Verificatum mixing proof with more than one party — and every braid proof too, since
