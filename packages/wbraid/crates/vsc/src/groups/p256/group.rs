@@ -219,7 +219,7 @@ impl P256Group {
         ))
     }
 
-    /// Recover the 30 payload bytes embedded by [`encode_30_bytes`].
+    /// Recover the 30 payload bytes embedded by [`Self::encode_30_bytes`].
     ///
     /// # Errors
     ///

@@ -21,12 +21,12 @@ use vser_derive::VSerializable as VSer;
  * and `y_1 = g_1^secret_x`. The values `y_0` and `g_0` are of width 1,
  * whereas the values `y_1` and `g_1` are of arbitrary width `W`. This
  * is required to prove correctness of decryption in the Joint-Feldman
- * distributed [decryption][`crate::dkgd::recipient::Recipient::decryption_factor`]
+ * distributed [decryption][`crate::dkgd::recipient::Recipient::partial_decrypt`]
  * protocol.
  *
  * See `EVS`: Protocol 10.3
  *
- * See [`Recipient::decryption_factor`][`crate::dkgd::recipient::Recipient::decryption_factor`]
+ * See [`Recipient::partial_decrypt`][`crate::dkgd::recipient::Recipient::partial_decrypt`]
  *
  * # Examples
  * ```
@@ -85,7 +85,7 @@ impl<C: Context, const W: usize> DlogEqProof<C, W> {
     /// - `secret_x`: The secret scalar
     /// - `proof_context`: proof context label (ZKP CONTEXT)
     ///
-    /// See also [`Recipient::decryption_factor`][`crate::dkgd::recipient::Recipient::decryption_factor`]
+    /// See also [`Recipient::partial_decrypt`][`crate::dkgd::recipient::Recipient::partial_decrypt`]
     ///
     /// # Errors
     ///
@@ -124,7 +124,7 @@ impl<C: Context, const W: usize> DlogEqProof<C, W> {
     /// - `y1`: The second group elements of width `W`
     /// - `proof_context`: proof context label (ZKP CONTEXT)
     ///
-    /// See also [`Recipient::decryption_factor`][`crate::dkgd::recipient::Recipient::decryption_factor`]
+    /// See also [`Recipient::partial_decrypt`][`crate::dkgd::recipient::Recipient::partial_decrypt`]
     ///
     /// # Errors
     ///

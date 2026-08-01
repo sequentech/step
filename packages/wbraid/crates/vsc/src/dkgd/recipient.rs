@@ -57,7 +57,7 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactors};
+ * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -86,19 +86,24 @@ use vser_derive::VSerializable;
  * let message: [RistrettoElement; W] = array::from_fn(|_| RCtx::random_element());
  * let encrypted = vec![pk.encrypt(&message)];
  *
- * // in a real protocol execution, verification keys can be obtained via Recipient::verification_key
- * let verification_keys: [RistrettoElement; T] =
- *     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
+ * // partial decryption: factors for every ciphertext plus one proof covering
+ * // them all, attributed to its author. In a real execution the position comes
+ * // from the authenticated message and the key from the DKG public key --
+ * // never from the contribution itself.
+ * let contributions: [AttributedDecryption<RCtx, W, P>; P] = recipients.map(|r| {
+ *     let partial = r.0.partial_decrypt(&encrypted, &vec![]).unwrap();
+ *     AttributedDecryption::new(
+ *         partial,
+ *         r.0.get_position().clone(),
+ *         r.0.get_verification_key().clone(),
+ *     )
+ * });
  *
- * // partial decryption
- * let dfactors: [DecryptionFactors<RCtx, W, P>; P] =
- *     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
- *
- * let threshold: &[DecryptionFactors<RCtx, W, P>; T] =
- *     dfactors[0..T].try_into().expect("slice matches array: T == T");
+ * let threshold: &[AttributedDecryption<RCtx, W, P>; T] =
+ *     contributions[0..T].try_into().expect("slice matches array: T == T");
  *
  * // combine the decryption factors into the plaintext
- * let decrypted = combine(&encrypted, &threshold, &verification_keys, &vec![]).unwrap();
+ * let decrypted = combine(&encrypted, threshold, &vec![]).unwrap();
  *
  * assert!(message == decrypted[0]);
  * ```
@@ -149,6 +154,16 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// Returns a reference to this recipient's verification key.
     pub fn get_verification_key(&self) -> &C::Element {
         &self.verification_key
+    }
+
+    /// Returns a reference to this recipient's position.
+    ///
+    /// Note this is the recipient's *own* view of its position. A verifier must
+    /// not take a participant's position from anything the participant sends —
+    /// see [`PartialDecryption`] — so this is for a participant reasoning about
+    /// itself, not for attributing someone else's contribution.
+    pub fn get_position(&self) -> &ParticipantPosition<P> {
+        &self.position
     }
 
     /// Construct a `Recipient` from its shares.
@@ -299,7 +314,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// use cryptography::context::RistrettoCtx as RCtx;
     /// use cryptography::groups::ristretto255::RistrettoElement;
     /// use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
-    /// use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactors};
+    /// use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
     ///
     /// const P: usize = 3;
     /// const T: usize = 2;
@@ -321,19 +336,23 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// let message: [RistrettoElement; W] = array::from_fn(|_| RCtx::random_element());
     /// let encrypted = vec![pk.encrypt(&message)];
     ///
-    /// let verification_keys: [RistrettoElement; T] =
-    ///     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
+    /// // each recipient computes its partial decryption: one factor per
+    /// // ciphertext, and a single proof covering all of them
+    /// let contributions: [AttributedDecryption<RCtx, W, P>; P] = recipients.map(|r| {
+    ///     let partial = r.0.partial_decrypt(&encrypted, &vec![]).unwrap();
+    ///     AttributedDecryption::new(
+    ///         partial,
+    ///         r.0.get_position().clone(),
+    ///         r.0.get_verification_key().clone(),
+    ///     )
+    /// });
     ///
-    /// // each recipient computes their partial decryption, which includes a proof of correctness
-    /// let dfactors: [DecryptionFactors<RCtx, W, P>; P] =
-    ///     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
-    ///
-    /// // select the first T decryption factors
-    /// let threshold: &[DecryptionFactors<RCtx, W, P>; T] =
-    ///     dfactors[0..T].try_into().expect("slice matches array: T == T");
+    /// // select the first T contributions
+    /// let threshold: &[AttributedDecryption<RCtx, W, P>; T] =
+    ///     contributions[0..T].try_into().expect("slice matches array: T == T");
     ///
     /// // combine the decryption factors into the plaintext
-    /// let decrypted = combine(&encrypted, &threshold, &verification_keys, &vec![]).unwrap();
+    /// let decrypted = combine(&encrypted, threshold, &vec![]).unwrap();
     ///
     /// assert!(message == decrypted[0]);
     /// ```
@@ -345,36 +364,44 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///
     /// # Errors
     ///
-    /// - `HashToElementError` if challenge generation for [`DlogEqProof`] computation returns error
+    /// - `HashToElementError` if challenge generation returns error
+    /// - `MismatchedMultiExpLength` if batching is given inconsistent lengths
     ///
-    /// Returns [`DecryptionFactors`] containing partial decryptions for all input ciphertexts.
-    /// The returned struct includes this recipient's position and a vector of decryption factors,
-    /// one per ciphertext, each with its proof of correctness.
-    pub fn decryption_factor<const W: usize>(
+    /// Returns a [`PartialDecryption`]: one factor per input ciphertext, in the
+    /// ciphertexts' order, and **one** proof covering all of them. It carries no
+    /// position — see [`PartialDecryption`] for why that must come from the
+    /// authenticated envelope instead.
+    pub fn partial_decrypt<const W: usize>(
         &self,
         ciphertexts: &[DkgCiphertext<C, W, T>],
         proof_context: &[u8],
-    ) -> Result<DecryptionFactors<C, W, P>, Error> {
-        let factors: Result<Vec<DecryptionFactor<C, W>>, Error> = ciphertexts
+    ) -> Result<PartialDecryption<C, W>, Error> {
+        let factors: Vec<[C::Element; W]> = ciphertexts
             .iter()
-            .map(|c| {
-                let dfactor = c.u().dist_exp(&self.sk);
-
-                let g = C::generator();
-                let proof = DlogEqProof::<C, W>::prove(
-                    &self.sk,
-                    &g,
-                    &self.verification_key,
-                    c.u(),
-                    &dfactor,
-                    proof_context,
-                )?;
-
-                Ok(DecryptionFactor::new(dfactor, proof))
-            })
+            .map(|c| c.u().dist_exp(&self.sk))
             .collect();
 
-        Ok(DecryptionFactors::new(factors?, self.position.clone()))
+        let bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|c| c.u().clone()).collect();
+        let exponents =
+            batching_exponents::<C, W>(&self.verification_key, &bases, &factors, proof_context)?;
+
+        // The batched statement: `A = ∏ u_i^{e_i}` and `B = ∏ f_i^{e_i}`. Since
+        // every `f_i = u_i^{sk}`, `B = A^{sk}` — the same discrete-log equality
+        // the per-ciphertext proofs asserted, over one pair of bases instead of
+        // `N`.
+        let a = <[C::Element; W]>::dist_multi_exp(&bases, &exponents)?;
+        let b = <[C::Element; W]>::dist_multi_exp(&factors, &exponents)?;
+
+        let proof = DlogEqProof::<C, W>::prove(
+            &self.sk,
+            &C::generator(),
+            &self.verification_key,
+            &a,
+            &b,
+            proof_context,
+        )?;
+
+        Ok(PartialDecryption { factors, proof })
     }
 
     /// Compute a factor of the verification key for a `Recipient` at `position`.
@@ -436,60 +463,155 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
 }
 
 /**
- * A partial decryption of an `ElGamal` ciphertext.
+ * One participant's contribution to decrypting a list of ciphertexts: a factor
+ * `u_i^{sk}` for every ciphertext, and a **single** proof covering all of them.
  *
- * Contains the partial decryption value and proof of correctness for a single ciphertext.
- * This is the basic cryptographic data without participant position information.
+ * This is what a participant publishes. It is produced by
+ * [`Recipient::partial_decrypt`] and consumed, once attributed to its author, by
+ * [`combine`].
+ *
+ * # There is deliberately no position field
+ *
+ * A participant must not be able to assert *which* participant it is in data it
+ * controls — otherwise it could claim another's position and be checked against
+ * the wrong verification key. The position is recovered from the authenticated
+ * envelope this is carried in (for braid, the signed message's sender), and
+ * attached separately in [`AttributedDecryption`]. Adding a `source` field here
+ * would move a security-critical value into attacker-controlled data.
+ *
+ * # One proof, not `N`
+ *
+ * The proof is over a random linear combination of the ciphertexts rather than
+ * over each one: with `A = ∏ u_i^{e_i}` and `B = ∏ f_i^{e_i}` for exponents
+ * derived from the factors themselves, `B = A^{sk}` holds if and only if every
+ * `f_i = u_i^{sk}`, except with negligible probability. The exponents must be
+ * derived *after* the factors are fixed, which
+ * the batching-exponent derivation enforces by hashing them.
  */
 #[derive(Debug, Clone, VSerializable, PartialEq)]
-pub struct DecryptionFactor<C: Context, const W: usize> {
-    /// The partial decryption of the ciphertext
-    pub value: [C::Element; W],
-    /// The proof of decryption correctness
+pub struct PartialDecryption<C: Context, const W: usize> {
+    /// The partial decryption of each ciphertext, in the ciphertexts' order
+    pub factors: Vec<[C::Element; W]>,
+    /// A single proof that every factor was computed with the same secret key,
+    /// and that this key matches the author's verification key
     pub proof: DlogEqProof<C, W>,
 }
 
-impl<C: Context, const W: usize> DecryptionFactor<C, W> {
-    /// Constructs a new [`DecryptionFactor`] from the given values.
+impl<C: Context, const W: usize> PartialDecryption<C, W> {
+    /// Constructs a new [`PartialDecryption`] from the given values.
     ///
-    /// The standard way to compute decryption factors is through the [`Recipient::decryption_factor`] method,
-    /// passing in the ciphertext to be partially decrypted.
-    pub(crate) fn new(
-        value: [C::Element; W],
-        proof: DlogEqProof<C, W>,
-    ) -> Self {
-        Self {
-            value,
-            proof,
-        }
+    /// The standard way to produce one is [`Recipient::partial_decrypt`].
+    #[must_use]
+    pub fn new(factors: Vec<[C::Element; W]>, proof: DlogEqProof<C, W>) -> Self {
+        Self { factors, proof }
     }
 }
 
 /**
- * A collection of partial decryptions from a single participant.
+ * A [`PartialDecryption`] together with everything needed to check it, none of
+ * which the author supplied.
  *
- * Contains multiple [`DecryptionFactor`]s (one per ciphertext) together with
- * the participant position. At least `T` [`DecryptionFactors`] from different
- * participants are needed to decrypt ciphertexts encrypted with the joint public key.
- * These are combined to compute the plaintext using the [`combine`] function.
+ * [`combine`] takes `T` of these. Bundling the three per-participant values —
+ * rather than passing parallel arrays — means they cannot be misaligned against
+ * each other, which was previously the caller's responsibility to get right.
  */
 #[derive(Debug, Clone, PartialEq)]
-pub struct DecryptionFactors<C: Context, const W: usize, const P: usize> {
-    /// The partial decryptions for multiple ciphertexts
-    pub factors: Vec<DecryptionFactor<C, W>>,
-    /// The position of the participant who computed these partial decryptions
+pub struct AttributedDecryption<C: Context, const W: usize, const P: usize> {
+    /// The published contribution
+    pub partial: PartialDecryption<C, W>,
+    /// Who published it, from the authenticated envelope rather than the body
     pub source: ParticipantPosition<P>,
+    /// That participant's verification key, from the DKG public key
+    pub verification_key: C::Element,
 }
 
-impl<C: Context, const W: usize, const P: usize> DecryptionFactors<C, W, P> {
-    /// Constructs a new [`DecryptionFactors`] from the given values.
+impl<C: Context, const W: usize, const P: usize> AttributedDecryption<C, W, P> {
+    /// Constructs a new [`AttributedDecryption`] from the given values.
     #[must_use]
     pub fn new(
-        factors: Vec<DecryptionFactor<C, W>>,
+        partial: PartialDecryption<C, W>,
         source: ParticipantPosition<P>,
+        verification_key: C::Element,
     ) -> Self {
-        Self { factors, source }
+        Self {
+            partial,
+            source,
+            verification_key,
+        }
     }
+}
+
+/// Domain separation tags for the batching seed.
+const BATCH_SEED_TAGS: [&[u8]; 4] = [
+    b"batch_verification_key",
+    b"batch_ciphertexts",
+    b"batch_factors",
+    b"batch_proof_context",
+];
+
+/// Domain separation tags for each batching exponent.
+const BATCH_EXPONENT_TAGS: [&[u8]; 2] = [b"batch_seed", b"batch_index"];
+
+/// The exponents `e_i` batching a participant's decryption factors into a single
+/// discrete-log equality statement.
+///
+/// # Why these must be derived, not chosen
+///
+/// Batching is only sound if the prover cannot pick its factors after learning
+/// the exponents. Hashing the factors into the seed fixes them first, which is
+/// the Fiat–Shamir analogue of the verifier sending `e` after receiving them. A
+/// caller supplying its own exponents could produce a proof for factors that are
+/// individually wrong but happen to satisfy the combination.
+///
+/// The verification key is included so a proof cannot be replayed as another
+/// participant's, and the ciphertexts so it cannot be replayed onto a different
+/// list.
+///
+/// # Two stages, deliberately
+///
+/// The transcript is hashed **once** into a seed, and the `N` exponents are then
+/// derived from `(seed, i)`. Hashing the whole transcript per exponent would be
+/// quadratic in the number of ciphertexts.
+///
+/// # Errors
+///
+/// - `MismatchedMultiExpLength` if `ciphertexts` and `factors` differ in length
+/// - `HashToElementError` if scalar derivation fails
+fn batching_exponents<C: Context, const W: usize>(
+    verification_key: &C::Element,
+    ciphertexts: &[[C::Element; W]],
+    factors: &[[C::Element; W]],
+    proof_context: &[u8],
+) -> Result<Vec<C::Scalar>, Error> {
+    use crate::traits::groups::CryptographicGroup;
+    use crate::utils::hash::{update_hasher, Hasher};
+    use crate::utils::serialization::VSerializable as _;
+    use sha3::Digest as _;
+
+    if ciphertexts.len() != factors.len() {
+        return Err(Error::MismatchedMultiExpLength(
+            ciphertexts.len(),
+            factors.len(),
+        ));
+    }
+
+    let seed_input = [
+        verification_key.ser(),
+        ciphertexts.to_vec().ser(),
+        factors.to_vec().ser(),
+        proof_context.to_vec(),
+    ];
+    let slices: Vec<&[u8]> = seed_input.iter().map(Vec::as_slice).collect();
+    let mut hasher = C::Hasher::hasher();
+    update_hasher(&mut hasher, &slices, &BATCH_SEED_TAGS);
+    let seed = hasher.finalize();
+
+    (0..factors.len())
+        .map(|index| {
+            let index: u64 = index.try_into().expect("length fits in u64");
+            C::G::hash_to_scalar(&[&seed, &index.to_be_bytes()], &BATCH_EXPONENT_TAGS)
+        })
+        .collect()
 }
 
 /**
@@ -544,9 +666,9 @@ impl<C: Context, const T: usize> DkgPublicKey<C, T> {
 /**
  * A newtype around a plain `ElGamal` ciphertext, parameterized by the threshold `T`.
  *
- * Ciphertexts can be partially decrypted using the [`Recipient::decryption_factor`] method,
- * which will partially decrypt this ciphertext to produce a [`DecryptionFactor`]. Given
- * `T` decryption factors, the plaintext can be computed using the [`combine`]
+ * Ciphertexts can be partially decrypted using the [`Recipient::partial_decrypt`] method,
+ * which produces a [`PartialDecryption`] covering the whole list. Given
+ * `T` of these, the plaintext can be computed using the [`combine`]
  * function.
  */
 #[derive(Debug, PartialEq, VSerializable)]
@@ -613,84 +735,84 @@ impl<const P: usize> ParticipantPosition<P> {
     }
 }
 
-/// Combine the decryption factors and apply them to the ciphertext
-/// to yield the plaintext.
+/// Combine `T` participants' partial decryptions and apply them to the
+/// ciphertexts to yield the plaintexts.
+///
+/// Each contribution's batched proof is verified before its factors are used, so
+/// a failure names the participant responsible rather than only reporting that
+/// the set as a whole is bad — which is why each participant proves separately
+/// instead of the `T` proofs being combined into one.
 ///
 /// # Parameters
 ///
 /// - `ciphertexts`: the ciphertexts to decrypt, marked with matching `T` parameters
-/// - `dfactors`: the decryption factors (partial decryptions) for the `T` participants
-/// - `verification_keys`: the verification keys for the `T` participants
-/// - `context`: proof context label (ZKP CONTEXT)
-///
-/// NOTE: It is the callers responsibility to ensure that the `dfactors` and `verification_keys`
-/// correspond to each other at the same indices: the dfactor at index `i` must be computed by the
-/// participant whose verification key is at index `i`.
-///
-/// This function includes verification of partial decryptions correctness.
+/// - `contributions`: the `T` participants' partial decryptions, each carrying its
+///   own author and verification key
+/// - `proof_context`: proof context label (ZKP CONTEXT)
 ///
 /// # Errors
 ///
+/// - `MismatchedMultiExpLength` if a contribution has a factor count other than
+///   the number of ciphertexts
 /// - `HashToElementError` if any challenge generation for [`DlogEqProof`] verification returns error
 /// - `DecryptProofFailed` if any of the decryption proofs fail to verify.
 pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
     ciphertexts: &[DkgCiphertext<C, W, T>],
-    dfactors: &[DecryptionFactors<C, W, P>; T],
-    verification_keys: &[C::Element; T],
+    contributions: &[AttributedDecryption<C, W, P>; T],
     proof_context: &[u8],
 ) -> Result<Vec<[C::Element; W]>, Error> {
     // get the participants
-    let present: [ParticipantPosition<P>; T] = array::from_fn(|i| dfactors[i].source.clone());
+    let present: [ParticipantPosition<P>; T] = array::from_fn(|i| contributions[i].source.clone());
+    let bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|c| c.u().clone()).collect();
     let mut divisors_acc: Vec<[C::Element; W]> = vec![<[C::Element; W]>::one(); ciphertexts.len()];
 
-    // ensure uniqueness for dfactors and verification_keys
-    // let vk_set = HashSet::<C::Element>::from_iter(verification_keys.clone().into_iter());
-    // It is not easy to construct a set for [DecryptionFactors<C, P, W>]
-    // let dfactors_set = HashSet::<DecryptionFactors<C, P, W>>::from_iter(dfactors.clone().into_iter());
-    #[crate::warning("Ensure that both dfactors and verification_keys are unique.")]
-    for (i, dfactor_set) in dfactors.iter().enumerate() {
-        let iter = dfactor_set.factors.iter().zip(ciphertexts.iter());
-        let lagrange = lagrange::<C, T, P>(&dfactor_set.source, &present);
+    #[crate::warning("Ensure that the contributions are from distinct participants.")]
+    for contribution in contributions {
+        let factors = &contribution.partial.factors;
+        if factors.len() != ciphertexts.len() {
+            return Err(Error::MismatchedMultiExpLength(
+                ciphertexts.len(),
+                factors.len(),
+            ));
+        }
 
-        let c_lambda = iter.map(|(df, c)| {
-            let g = C::generator();
-            let proof_ok =
-                df.proof
-                    .verify(&g, &verification_keys[i], c.u(), &df.value, proof_context)?;
+        // Rebuild the batched statement from the published factors. The
+        // exponents are a function of those factors, so a participant cannot
+        // have chosen them to suit a set of wrong ones.
+        let exponents = batching_exponents::<C, W>(
+            &contribution.verification_key,
+            &bases,
+            factors,
+            proof_context,
+        )?;
+        let a = <[C::Element; W]>::dist_multi_exp(&bases, &exponents)?;
+        let b = <[C::Element; W]>::dist_multi_exp(factors, &exponents)?;
 
-            if proof_ok {
-                Ok(df.value.dist_exp(&lagrange))
-            } else {
-                Err(Error::DecryptProofFailed(
-                    "Failed to verify decryption proof".into(),
-                ))
-            }
-        });
+        let proof_ok = contribution.partial.proof.verify(
+            &C::generator(),
+            &contribution.verification_key,
+            &a,
+            &b,
+            proof_context,
+        )?;
+        if !proof_ok {
+            return Err(Error::DecryptProofFailed(format!(
+                "Failed to verify decryption proof of participant {}",
+                contribution.source.0
+            )));
+        }
 
-        let next: Result<Vec<[C::Element; W]>, Error> = divisors_acc
-            .iter()
-            .zip(c_lambda)
-            .map(|(divisor, c_lambda)| {
-                let c_lambda = c_lambda?;
-
-                Ok(c_lambda.mul(divisor))
-            })
-            .collect();
-
-        divisors_acc = next?;
+        let lagrange = lagrange::<C, T, P>(&contribution.source, &present);
+        for (divisor, factor) in divisors_acc.iter_mut().zip(factors) {
+            *divisor = divisor.mul(&factor.dist_exp(&lagrange));
+        }
     }
 
-    let ret: Result<Vec<[C::Element; W]>, Error> = divisors_acc
+    Ok(divisors_acc
         .iter()
         .zip(ciphertexts.iter())
-        .map(|(d, c)| {
-            let ret = c.v().mul(&d.inv());
-
-            Ok(ret)
-        })
-        .collect();
-
-    ret
+        .map(|(d, c)| c.v().mul(&d.inv()))
+        .collect())
 }
 
 #[crate::warning("Rustdoc needs a reference to lagrange coeff. calculation")]

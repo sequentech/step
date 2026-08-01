@@ -29,8 +29,9 @@
 //!      received privately
 //!
 //!   Recipients can compute partially decryptions of ciphertexts producing
-//!   instances of type [`DecryptionFactor`][`crate::dkgd::recipient::DecryptionFactor`],
-//!   that contain decryption factors and corresponding [proofs][`crate::zkp::dlogeq`] of correctness.
+//!   instances of type [`PartialDecryption`][`crate::dkgd::recipient::PartialDecryption`],
+//!   that contain a decryption factor per ciphertext and a single [proof][`crate::zkp::dlogeq`]
+//!   of correctness covering all of them.
 //!
 //! # Distributed key generation
 //!

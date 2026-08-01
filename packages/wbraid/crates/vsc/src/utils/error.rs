@@ -46,7 +46,7 @@ pub enum Error {
     #[error("{0}")]
     ShareVerificationFailed(String),
 
-    /// Occurs when [decryption proofs][`crate::dkgd::recipient::DecryptionFactor`] fail to verify.
+    /// Occurs when [decryption proofs][`crate::dkgd::recipient::PartialDecryption`] fail to verify.
     #[error("{0}")]
     DecryptProofFailed(String),
 

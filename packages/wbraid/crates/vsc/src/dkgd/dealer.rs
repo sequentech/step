@@ -50,7 +50,7 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactors};
+ * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -79,19 +79,24 @@ use vser_derive::VSerializable;
  * let message: [RistrettoElement; W] = array::from_fn(|_| RCtx::random_element());
  * let encrypted = vec![pk.encrypt(&message)];
  *
- * // in a real protocol execution, verification keys can be obtained via Recipient::verification_key
- * let verification_keys: [RistrettoElement; T] =
- *     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
+ * // partial decryption: each participant publishes its factors with one proof
+ * // covering all of them, attributed to its author. In a real execution the
+ * // position and key come from the authenticated message and the DKG public
+ * // key, never from the contribution itself.
+ * let contributions: [AttributedDecryption<RCtx, W, P>; P] = recipients.map(|r| {
+ *     let partial = r.0.partial_decrypt(&encrypted, &vec![]).unwrap();
+ *     AttributedDecryption::new(
+ *         partial,
+ *         r.0.get_position().clone(),
+ *         r.0.get_verification_key().clone(),
+ *     )
+ * });
  *
- * // partial decryption
- * let dfactors: [DecryptionFactors<RCtx, W, P>; P] =
- *     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
- *
- * let threshold: &[DecryptionFactors<RCtx, W, P>; T] =
- *     dfactors[0..T].try_into().expect("slice matches array: T == T");
+ * let threshold: &[AttributedDecryption<RCtx, W, P>; T] =
+ *     contributions[0..T].try_into().expect("slice matches array: T == T");
  *
  * // combine the decryption factors into the plaintext
- * let decrypted = combine(&encrypted, &threshold, &verification_keys, &vec![]).unwrap();
+ * let decrypted = combine(&encrypted, threshold, &vec![]).unwrap();
  *
  * assert!(message == decrypted[0]);
  * ```

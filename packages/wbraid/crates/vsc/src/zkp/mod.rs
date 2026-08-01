@@ -19,7 +19,7 @@
 //! See `EVS`: Protocol 10.3
 //!
 //! This proof is used to verify partial decryption correctness.
-//! See [`decryption_factor`][`crate::dkgd::recipient::Recipient::decryption_factor`]
+//! See [`partial_decrypt`][`crate::dkgd::recipient::Recipient::partial_decrypt`]
 //!
 //! # [Plaintext equality][`crate::zkp::pleq`]
 //!

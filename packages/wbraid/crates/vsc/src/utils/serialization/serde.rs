@@ -7,7 +7,7 @@
 use crate::context::{Context, P256Ctx, RistrettoCtx};
 use crate::cryptosystem::{elgamal, naoryung};
 use crate::dkgd::dealer::{DealerShares, VerifiableShare};
-use crate::dkgd::recipient::{DecryptionFactor, DkgCiphertext, DkgPublicKey};
+use crate::dkgd::recipient::{DkgCiphertext, DkgPublicKey, PartialDecryption};
 use crate::utils::serialization::{FDeserializable, FSerializable};
 use crate::utils::serialization::{VDeserializable, VSerializable};
 use crate::zkp::{
@@ -99,8 +99,8 @@ implement_serde_f!(DkgCiphertext<C, W, T>, const W: usize, const T: usize);
 // VerifiableShare
 implement_serde_f!(VerifiableShare<C, T>, const T: usize);
 
-// DecryptionFactor
-implement_serde_f!(DecryptionFactor<C, P, W>, const P: usize, const W: usize);
+// PartialDecryption (variable length: one factor per ciphertext)
+implement_serde_v!(PartialDecryption<C, W>, const W: usize);
 
 // dkgd::DealerShares
 implement_serde_f!(DealerShares<C, T, P>, const T: usize, const P: usize);
