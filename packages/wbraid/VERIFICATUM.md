@@ -560,15 +560,22 @@ exiting 0, so an exit-code-only check would stay green while the interop was sil
 
 ### Caveats
 
-Two axes remain, and they are **independent** — neither blocks the other.
+**Multiple parties — DONE.** `vmnv` accepts a chain of three braid mixers, each shuffling the
+previous output, verifying all three proofs. The emitter writes the per-party files
+(`Ciphertexts<l>.bt`, `PermutationCommitment<l>.bt`, `PoSCommitment<l>.bt`, `PoSReply<l>.bt`) and a
+real `activethreshold`. Corrupting any single mixer's reply breaks the chain, so acceptance is not
+carried by the other members.
 
-- **Decryption.** Shuffle only so far. `vmnv -mix` needs the batched decryption proof braid does not
-  yet have (§2.5), plus the `Dec.s`/`Dec.v` transcript and the decryption artifacts in the proof
-  directory. This is new cryptography, not a translation.
-- **Multiple parties.** Single mix-server, threshold 1 so far. Needs per-party proof files, a real
-  `activethreshold`, the intermediate `Ciphertexts<l>.bt` chain, and a genuine
-  `PolynomialInExponent.bt` — which for threshold λ is λ elements derived from braid's per-dealer
-  commitments as `Γ_s = ∏_d C_{d,s}` (§2.4), not the one-element stand-in the current emitter writes.
+One finding along the way corrected a claim made earlier here: **`PolynomialInExponent.bt` is not
+read for a shuffling proof**, despite VMNV §9.3 step 5 describing key reading as unconditional.
+Deleting the file leaves `vmnv -shuffle` at exit 0, and "Read polynomial in exponent" appears only in
+a `-mix` run. So a shuffling session needs no DKG at all, and the polynomial is now an optional
+input to the emitter rather than a threshold-1-only stand-in. Deriving it properly —
+`Γ_s = ∏_d C_{d,s}` from braid's per-dealer commitments (§2.4) — belongs to the decryption work.
+
+**Decryption — remaining.** Shuffle only so far. `vmnv -mix` needs the batched decryption proof braid
+does not yet have (§2.5), plus the `Dec.s`/`Dec.v` transcript, the decryption artifacts in the proof
+directory, and the real `Γ` above. This is new cryptography, not a translation.
 
 P-256 is no longer a caveat: the encoding gap is closed and braid's full protocol — DKG, mix,
 threshold decryption, board union — runs over it.

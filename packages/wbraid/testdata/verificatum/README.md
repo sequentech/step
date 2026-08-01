@@ -116,7 +116,21 @@ the widths or the hash functions and it moves.
 |---|---|---|
 | `W = 2` (ciphertext width ω) | all the interop tests | must equal `<width>`; several tests assert it structurally |
 | `N = 10`, `W = 2` size literals | `vcompat/tests/spec_examples.rs`, `predicted_sizes_match_the_real_corpus` | the seven expected file sizes are computed for this shape. That test is self-contained — it does not read the corpus — so it will keep passing while silently no longer describing it. **Recompute it if N or ω change.** |
-| single party, threshold 1 | `braid/tests/vmn_verifier.rs`, `vmn::proof_dir` | the emitter writes `activethreshold = 1` and a one-element `PolynomialInExponent` |
+| party count and threshold | `protInfo.xml` vs `protInfo-3party.xml` | the emitter derives `activethreshold` from the number of mixers, so this is a property of the info file the test picks, not of the emitter |
 
 The trap in group 3 is worth restating: everything else fails loudly against a mismatched corpus, but
 the size-prediction test would keep passing while describing a corpus that no longer exists.
+
+## The three-party protocol info file
+
+`protInfo-3party.xml` declares `nopart = 3`, `thres = 3`, with every other parameter identical to
+`protInfo.xml`. It supports `vmnv_accepts_a_three_party_chain`, which needs a session declaring more
+than one party.
+
+It has **no matching proof directory and needs none**: a shuffling proof carries no DKG, because
+`vmnv` does not read `PolynomialInExponent.bt` for one. The test emits its own chain.
+
+Regenerate it exactly as above but with `-nopart 3 -thres 3`, running the `vmni -party` step once per
+party and merging all three. Note ρ is unaffected by the party count — it commits to the version,
+session identifier, bit lengths, group and hash functions, but not to `nopart` or `thres` — so both
+info files share a prefix and the same session constants in the tests.

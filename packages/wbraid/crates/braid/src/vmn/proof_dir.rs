@@ -20,13 +20,14 @@
 //!
 //! Two details that are easy to miss:
 //!
-//! - The verifier reads the **keys** unconditionally (VMNV §9.3 step 5), even
-//!   for a shuffle-only proof that never decrypts, so `PolynomialInExponent.bt`
-//!   must be present. For a single party with threshold 1 it is the one-element
-//!   array `(Gamma_0)` with `Gamma_0 = y`.
-//! - With one mix server the final output `ShuffledCiphertexts.bt` and that
-//!   server's intermediate output `Ciphertexts01.bt` are the same list, but both
-//!   files are required.
+//! - `ShuffledCiphertexts.bt` (the session output `L_λa`) and the last mixer's
+//!   `Ciphertexts<l>.bt` are the same list, but both files are required.
+//! - `PolynomialInExponent.bt` is **not** read for a shuffling proof, despite
+//!   VMNV §9.3 step 5 describing key reading as unconditional. Verified against
+//!   the implementation: deleting the file leaves `vmnv -shuffle` at exit 0, and
+//!   "Read polynomial in exponent" appears only in a `-mix` run. It is written
+//!   anyway when a caller supplies it, since a conforming verifier may expect a
+//!   complete directory, but a shuffling proof does not need a DKG to exist.
 
 use std::fs;
 use std::path::Path;
@@ -42,7 +43,16 @@ use vcompat::bytetree::ByteTree;
 
 use super::{challenges::commitments_to_tree, encode};
 
-/// Everything needed to write a one-server shuffling proof.
+/// One mixer's contribution to the chain: the list it produced and the proof
+/// relating it to the previous one.
+pub struct MixerStep<'a, const W: usize> {
+    /// This mixer's output `L_l`.
+    pub output: &'a [Ciphertext<P256Ctx, W>],
+    /// Proof that `L_l` is a re-encryption and permutation of `L_{l-1}`.
+    pub proof: &'a ShuffleProof<P256Ctx, W>,
+}
+
+/// Everything needed to write a shuffling proof.
 pub struct ShufflingProof<'a, const W: usize> {
     /// VMN version the proof claims conformance with; must match the verifier.
     pub version: &'a str,
@@ -54,15 +64,21 @@ pub struct ShufflingProof<'a, const W: usize> {
     pub public_key: &'a P256Element,
     /// Input ciphertexts `L_0`.
     pub input: &'a [Ciphertext<P256Ctx, W>],
-    /// Output ciphertexts `L_1`, which for one server is also `L_lambda_a`.
-    pub output: &'a [Ciphertext<P256Ctx, W>],
-    /// The proof of a shuffle relating them.
-    pub proof: &'a ShuffleProof<P256Ctx, W>,
+    /// The mixers in order, each consuming the previous list. Must be non-empty;
+    /// its length is the active threshold `λ_a`, and the last output is the
+    /// session result `L_λa`.
+    pub mixers: &'a [MixerStep<'a, W>],
+    /// The polynomial in the exponent, if known. Unused by `vmnv -shuffle` (see
+    /// the module docs), so a shuffling session need not run a DKG.
+    pub polynomial_in_exponent: Option<&'a [P256Element]>,
 }
 
 impl<const W: usize> ShufflingProof<'_, W> {
     /// Write the proof directory at `dir`, creating it if absent.
     pub fn write(&self, dir: &Path) -> Result<()> {
+        if self.mixers.is_empty() {
+            return Err(anyhow!("a shuffling proof needs at least one mixer"));
+        }
         let proofs = dir.join("proofs");
         fs::create_dir_all(&proofs)?;
 
@@ -81,30 +97,49 @@ impl<const W: usize> ShufflingProof<'_, W> {
             &dir.join("Ciphertexts.bt"),
             &encode::ciphertexts_to_tree(self.input)?,
         )?;
-        let output_tree = encode::ciphertexts_to_tree(self.output)?;
-        write_tree(&dir.join("ShuffledCiphertexts.bt"), &output_tree)?;
+        // The session output is the final mixer's list.
+        let last = self.mixers.last().expect("mixers is non-empty");
+        write_tree(
+            &dir.join("ShuffledCiphertexts.bt"),
+            &encode::ciphertexts_to_tree(last.output)?,
+        )?;
 
-        // --- proofs: keys and intermediate values ------------------------
-        write_ascii(&proofs.join("activethreshold"), "1")?;
-        // Threshold 1: the Shamir polynomial in the exponent is just (y).
-        write_tree(
-            &proofs.join("PolynomialInExponent.bt"),
-            &ByteTree::node(vec![encode::element_to_tree(self.public_key)?]),
+        // --- proofs: session-level values --------------------------------
+        write_ascii(
+            &proofs.join("activethreshold"),
+            &self.mixers.len().to_string(),
         )?;
-        write_tree(&proofs.join("Ciphertexts01.bt"), &output_tree)?;
+        if let Some(gamma) = self.polynomial_in_exponent {
+            write_tree(
+                &proofs.join("PolynomialInExponent.bt"),
+                &encode::elements_to_tree(gamma)?,
+            )?;
+        }
 
-        // --- proofs: the proof of a shuffle ------------------------------
-        let commitments = &self.proof.commitments;
-        write_tree(
-            &proofs.join("PermutationCommitment01.bt"),
-            &encode::elements_to_tree(commitments.u_n())?,
-        )?;
-        write_tree(
-            &proofs.join("PoSCommitment01.bt"),
-            &commitments_to_tree(commitments)
-                .map_err(|e| anyhow!("failed to encode proof commitment: {e:?}"))?,
-        )?;
-        write_tree(&proofs.join("PoSReply01.bt"), &responses_to_tree(self.proof)?)?;
+        // --- proofs: one set of files per mixer --------------------------
+        for (index, mixer) in self.mixers.iter().enumerate() {
+            // File suffixes are 1-based and zero-padded to two digits (§9.1).
+            let l = index + 1;
+            write_tree(
+                &proofs.join(format!("Ciphertexts{l:02}.bt")),
+                &encode::ciphertexts_to_tree(mixer.output)?,
+            )?;
+
+            let commitments = &mixer.proof.commitments;
+            write_tree(
+                &proofs.join(format!("PermutationCommitment{l:02}.bt")),
+                &encode::elements_to_tree(commitments.u_n())?,
+            )?;
+            write_tree(
+                &proofs.join(format!("PoSCommitment{l:02}.bt")),
+                &commitments_to_tree(commitments)
+                    .map_err(|e| anyhow!("failed to encode proof commitment: {e:?}"))?,
+            )?;
+            write_tree(
+                &proofs.join(format!("PoSReply{l:02}.bt")),
+                &responses_to_tree(mixer.proof)?,
+            )?;
+        }
 
         Ok(())
     }

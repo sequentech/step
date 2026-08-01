@@ -46,7 +46,8 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators, proof_dir::ShufflingProof};
+use braid::vmn::proof_dir::{MixerStep, ShufflingProof};
+use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators};
 use cryptography::context::{Context, P256Ctx};
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
 use cryptography::zkp::shuffle::Shuffler;
@@ -211,8 +212,8 @@ fn emit_with_drift(dir: &PathBuf, drift: bool) {
         width: W,
         public_key: &keypair.pkey.y,
         input: &input,
-        output: &output,
-        proof: &proof,
+        mixers: &[MixerStep { output: &output, proof: &proof }],
+        polynomial_in_exponent: None,
     }
     .write(dir)
     .expect("write proof directory");
@@ -234,6 +235,155 @@ fn vmnv_accepts_a_braid_shuffle_proof() {
         vmnv_accepts(&env, &dir),
         "vmnv must accept a proof braid produced"
     );
+}
+
+/// A chain of `parties` mixers, each shuffling the previous output, written as
+/// one multi-party shuffling proof.
+///
+/// The independent generators are a **session-level** value derived once from
+/// the prefix; every mixer shares them. Only the per-mixer statement differs,
+/// since each batching seed commits to that mixer's own permutation commitment
+/// and its input/output pair.
+fn emit_chain(dir: &PathBuf, parties: usize) {
+    let _ = std::fs::remove_dir_all(dir);
+
+    let rho = global_prefix(
+        Hashfunction::Sha256,
+        &PrefixParams {
+            version: "3.1.0".into(),
+            sid: SID.into(),
+            auxsid: AUXSID.into(),
+            n_r: N_R as u32,
+            n_v: N_V as u32,
+            n_e: N_E as u32,
+            prg: "SHA-256".into(),
+            pgroup: PGROUP.into(),
+            rohash: "SHA-256".into(),
+        },
+    );
+
+    let keypair: KeyPair<P256Ctx> = KeyPair::generate();
+    let input: Vec<Ciphertext<P256Ctx, W>> = (0..N)
+        .map(|_| {
+            let m: [<P256Ctx as Context>::Element; W] =
+                std::array::from_fn(|_| P256Ctx::random_element());
+            keypair.encrypt(&m)
+        })
+        .collect();
+
+    let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
+    let shuffler = Shuffler::<P256Ctx, W>::new(generators, keypair.pkey.clone());
+
+    // Run the chain, keeping each mixer's output and proof.
+    let mut current = input.clone();
+    let mut outputs = Vec::with_capacity(parties);
+    let mut proofs = Vec::with_capacity(parties);
+    for _ in 0..parties {
+        let challenges = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
+        let (output, proof) = shuffler
+            .shuffle_with(&current, &[], &challenges)
+            .expect("shuffle");
+        current = output.clone();
+        outputs.push(output);
+        proofs.push(proof);
+    }
+
+    let mixers: Vec<MixerStep<W>> = outputs
+        .iter()
+        .zip(proofs.iter())
+        .map(|(output, proof)| MixerStep { output, proof })
+        .collect();
+
+    ShufflingProof::<W> {
+        version: "3.1.0",
+        auxsid: AUXSID,
+        width: W,
+        public_key: &keypair.pkey.y,
+        input: &input,
+        mixers: &mixers,
+        polynomial_in_exponent: None,
+    }
+    .write(dir)
+    .expect("write proof directory");
+}
+
+/// **Multi-party interop**: `vmnv` accepts a chain of three mixers braid ran.
+///
+/// Needs a protocol info file declaring three parties, so it is skipped unless
+/// `VMNV_PROTINFO_MULTI` points at one (`testdata/verificatum/protInfo-3party.xml`
+/// is the shipped one). The session parameters are otherwise identical, which is
+/// why the prefix is unchanged: rho commits to the widths, hashes and group, but
+/// not to the party count.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_accepts_a_three_party_chain() {
+    let Some(mut env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+    env.protinfo = match std::env::var("VMNV_PROTINFO_MULTI") {
+        Ok(p) => PathBuf::from(p),
+        Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../testdata/verificatum/protInfo-3party.xml"),
+    };
+    if !env.protinfo.is_file() {
+        eprintln!("skipping: no three-party protocol info file");
+        return;
+    }
+
+    let dir = std::env::temp_dir().join("braid_vmnv_chain");
+    emit_chain(&dir, 3);
+
+    let (code, output) = run_vmnv(&env, &dir, true);
+    eprintln!("{output}");
+    assert_eq!(code, 0, "vmnv must accept the chain");
+
+    // Every mixer's proof must have been verified, not just the first.
+    for party in 1..=3 {
+        assert!(
+            output.contains(&format!("Verify shuffle of Party {party}.")),
+            "vmnv must verify party {party}; got:\n{output}"
+        );
+    }
+    assert_eq!(
+        output.matches("Verify proof of shuffle... done.").count(),
+        3,
+        "all three shuffle proofs must verify; got:\n{output}"
+    );
+}
+
+/// Corrupting any single mixer's proof must sink the whole chain, so a chain is
+/// not accepted on the strength of its other members.
+#[test]
+#[ignore = "requires a JVM and the Verificatum jars; see the module docs"]
+fn vmnv_rejects_a_chain_with_one_bad_mixer() {
+    let Some(mut env) = env() else {
+        eprintln!("skipping: VMNV_* environment not configured");
+        return;
+    };
+    env.protinfo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum/protInfo-3party.xml");
+    if !env.protinfo.is_file() {
+        eprintln!("skipping: no three-party protocol info file");
+        return;
+    }
+
+    for party in 1..=3 {
+        let dir = std::env::temp_dir().join("braid_vmnv_chain_bad");
+        emit_chain(&dir, 3);
+
+        let path = dir.join(format!("proofs/PoSReply{party:02}.bt"));
+        let mut bytes = std::fs::read(&path).expect("read reply");
+        bytes[200] ^= 0xFF;
+        std::fs::write(&path, &bytes).expect("write tampered reply");
+
+        let (_, output) = run_vmnv(&env, &dir, true);
+        assert!(
+            output.matches("Verify proof of shuffle... done.").count() < 3,
+            "corrupting party {party} must break the chain; got:\n{output}"
+        );
+        eprintln!("ok: party {party} corrupted -> chain not fully verified");
+    }
 }
 
 /// Guards the interop against a silent regression in **our** code.

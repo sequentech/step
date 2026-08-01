@@ -17,7 +17,8 @@
 
 use std::path::PathBuf;
 
-use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators, proof_dir::ShufflingProof};
+use braid::vmn::proof_dir::{MixerStep, ShufflingProof};
+use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators};
 use cryptography::context::{Context, P256Ctx};
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
 use cryptography::zkp::shuffle::Shuffler;
@@ -98,8 +99,8 @@ fn emit_a_verificatum_shuffling_proof() {
         width: W,
         public_key: &keypair.pkey.y,
         input: &input,
-        output: &output,
-        proof: &proof,
+        mixers: &[MixerStep { output: &output, proof: &proof }],
+        polynomial_in_exponent: None,
     }
     .write(&out)
     .expect("write proof directory");
@@ -114,7 +115,8 @@ fn emit_a_verificatum_shuffling_proof() {
         "Ciphertexts.bt",
         "ShuffledCiphertexts.bt",
         "proofs/activethreshold",
-        "proofs/PolynomialInExponent.bt",
+        // PolynomialInExponent.bt is deliberately absent: vmnv does not read it
+        // for a shuffling proof, so such a session needs no DKG at all.
         "proofs/Ciphertexts01.bt",
         "proofs/PermutationCommitment01.bt",
         "proofs/PoSCommitment01.bt",
