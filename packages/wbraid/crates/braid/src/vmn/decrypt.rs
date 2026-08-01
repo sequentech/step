@@ -199,14 +199,18 @@ pub struct BatchedDecryptionProof<const W: usize> {
 /// `y' = g^r` and `B' = A^r`. The α cancels inside the reply rather than being
 /// absent from it.
 ///
-/// **This is where VMNV §8.6 and Verificatum disagree.** Algorithm 22 combines
-/// the factors by `α c_l` but the proof pieces by the plain `c_l`, which needs a
-/// reply over the unscaled `x_l`; §2.4 matches, saying the party "proves that the
-/// secret key `x_l` it used is given by `y_l = g^{x_l}`". Both conventions are
-/// internally consistent and they differ in the emitted bytes, so an emitter has
-/// to pick one — and they coincide only when `α = 1`, i.e. `k = 1`, which is why
-/// the single-party reference corpus cannot tell them apart. We follow the
-/// implementation, because the implementation is what `vmnv` runs.
+/// **Verificatum's specification and Verificatum's implementation disagree
+/// here.** VMNV §8.6 (Algorithm 22) combines the factors by `α c_l` but the
+/// proof pieces by the plain `c_l`, which needs a reply over the unscaled `x_l`;
+/// §2.4 matches, saying the party "proves that the secret key `x_l` it used is
+/// given by `y_l = g^{x_l}`". `DistrElGamalSessionBasic` does the above instead
+/// — and it is both what VMN's prover writes replies with and what `vmnv` checks
+/// them with, so the document is the only place the other convention appears.
+///
+/// Both are internally consistent and they differ in the emitted bytes, so an
+/// emitter has to pick one. They coincide only when `α = 1`, i.e. `k = 1`, which
+/// is why the single-party reference corpus cannot tell them apart. We follow
+/// the implementation, because the implementation is what `vmnv` runs.
 ///
 /// The scaled share is derived from `x_l`, which braid reconstructs locally
 /// during decryption and never publishes — so unlike the other conversions here,

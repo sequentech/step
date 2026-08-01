@@ -719,9 +719,20 @@ Emitting requires, beyond the shuffle files: `Plaintexts.bt`, `CorrectIndices.bt
 `vmn::proof_dir::MixingProof` — plus a real `Γ` from braid's per-dealer commitments, which is now
 derived by `vmn::decrypt::polynomial_in_exponent` and cross-checked against the DKG's own joint key.
 
-### VMNV §8.6 and Verificatum disagree about where α goes
+### Verificatum's specification disagrees with Verificatum's implementation about where α goes
 
-This is the substantive finding of the stage, and it cost the most to establish.
+This is the substantive finding of the stage, and it cost the most to establish. Both sides of the
+disagreement are Verificatum's own:
+
+- **the specification** — `vmnv-3.1.0`, *How to Implement a Stand-Alone Verifier for the Verificatum
+  Mix-Net*, cited throughout this document as "VMNV §N";
+- **the implementation** — the Java in `verificatum-vmn`, specifically `DistrElGamalSessionBasic`.
+  That one class serves *both* roles: VMN's prover calls it to write `DecrFactReply<l>.bt`, and
+  `vmnv` calls it to check them.
+
+Which is why the discrepancy is invisible from inside Verificatum. Real VMN proofs verify against
+real `vmnv` because the same class writes and reads them; only a third implementation, written from
+the document, would find them wrong.
 
 **The specification.** Algorithm 22 combines the factors by the modified coefficients and the proof
 pieces by the plain ones:
@@ -755,9 +766,11 @@ braid follows the implementation (`vmn::decrypt::prove_decryption` takes `x_l/α
 test above is the adjudication.
 
 **Why it matters beyond us.** A third implementation written strictly from VMNV §8.6 would reject
-every genuine Verificatum mixing proof with more than one party. It is a documentation defect rather
-than a soundness one, but it lands directly on the goal this investigation exists to serve: the
-specification is not by itself sufficient to write an independent verifier against.
+every genuine Verificatum mixing proof with more than one party — and every braid proof too, since
+braid now emits the same bytes VMN does. It is a documentation defect rather than a soundness one,
+but it lands directly on the goal this investigation exists to serve: `vmnv-3.1.0` exists precisely
+so that stand-alone verifiers can be written from it, and on this point it is not sufficient for
+that.
 
 ### The non-participant path — also confirmed
 
