@@ -616,13 +616,19 @@ needs no DKG work: emit `PermutationCommitment`, `PoSCommitment`, `PoSReply` fro
 whose challenges were derived VMN-style, with `type = shuffling`. Getting exit code 0 here proves
 the concept.
 
-**Stage 4 — decryption, `vmnv -mix`.** Implement the batched decryption proof (§2.5), derive Γ from
-braid's per-dealer commitments (§2.4), and emit the decryption files.
+**Stage 5 — P-256 DKG. ✅ DONE (done early, out of order).** The four `todo!()`s are filled in and
+braid's full protocol runs over P-256; it was needed before anything could be emitted at all.
 
-**Stage 5 — P-256 DKG.** Fill in the four `todo!()`s so braid runs end-to-end on P-256.
+**Multi-party shuffling. ✅ DONE** (not in the original plan, done after Stage 3): `vmnv` verifies a
+three-mixer chain. See the Stage 3 results.
 
-Stages 1–3 are the real experiment. If Stage 2 proves intractable, stop there — everything after it
-depends on it.
+**Stage 4 — decryption, `vmnv -mix`. ← the only stage remaining.** Implement the batched decryption
+proof (§2.5), derive Γ from braid's per-dealer commitments (§2.4), and emit the decryption files.
+Unlike everything before it this is new cryptography rather than a translation, so it is being done
+on its own branch.
+
+Stages 1–3 were the real experiment, and they passed. If Stage 2 had proved intractable everything
+after it would have been moot; it did not.
 
 ## 6. Risks and honest caveats
 

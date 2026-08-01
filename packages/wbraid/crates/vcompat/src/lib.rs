@@ -17,9 +17,12 @@
 //! crate is that emitting/parsing layer, built bottom-up and validated against a
 //! real VMN-generated corpus at each step.
 //!
-//! Stage 1 (this code): byte trees and the arithmetic encodings.
-//! Stage 2 (next): VMN's hash, PRG, random oracles, and independent generators —
-//! the go/no-go gate for the whole approach.
+//! Everything here is validated against a real VMN-generated corpus, checked in
+//! at `testdata/verificatum/`.
+//!
+//! The crate stops at the wire format and the transcript; it knows nothing about
+//! vsc's types. The adapter between the two lives in `braid::vmn`, which keeps
+//! the layer whose bytes must match VMN exactly free of the crypto stack.
 //!
 //! ## Module map
 //!
@@ -29,6 +32,8 @@
 //! | [`arithm`] | integers, field elements, curve points, product arrays | VMNV §6 |
 //! | [`marshal`] | group descriptors, `comment::hex` marshalling, P-256 | VMNV §6.7 |
 //! | [`crypto`] | hash, PRG, random oracles, the global prefix ρ | VMNV §5, §9.3 |
+//! | [`generators`] | independent generators via the quadratic-residue walk | VMNV §6.8, §8.2 |
+//! | [`error`] | decoding errors | — |
 //!
 //! ## Two encoding traps
 //!
