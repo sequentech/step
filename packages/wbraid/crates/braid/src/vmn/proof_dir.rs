@@ -69,6 +69,12 @@ pub struct ShufflingProof<'a, const W: usize> {
     pub width: usize,
     /// The joint public key `y` (the generator half is implied).
     pub public_key: &'a P256Element,
+    /// The session threshold `λ`, from the protocol info file's `<thres>`.
+    ///
+    /// Used to check what the directory claims against what the session
+    /// declares: the polynomial must have exactly `λ` entries, and there must be
+    /// at least `λ` mixers, since `λ_a ≥ λ` by construction.
+    pub threshold: usize,
     /// Input ciphertexts `L_0`.
     pub input: &'a [Ciphertext<P256Ctx, W>],
     /// The mixers in order, each consuming the previous list. Must be non-empty;
@@ -93,20 +99,36 @@ impl<const W: usize> ShufflingProof<'_, W> {
         if self.mixers.is_empty() {
             return Err(anyhow!("a shuffling proof needs at least one mixer"));
         }
-        // Algorithm 24 rejects a proof whose polynomial disagrees with the
-        // public key, so catch that here rather than emitting a directory that a
-        // spec-following verifier would refuse for a reason unrelated to the
-        // shuffle. `vmnv -shuffle` would not notice either way.
+        // The active threshold is the number of mixers, and lambda_a >= lambda
+        // by construction, so fewer mixers than the threshold describes a
+        // session that can never satisfy it.
+        if self.mixers.len() < self.threshold {
+            return Err(anyhow!(
+                "{} mixers cannot meet a threshold of {}",
+                self.mixers.len(),
+                self.threshold
+            ));
+        }
+
+        // Algorithm 24 reads Gamma = (Gamma_0, ..., Gamma_{lambda-1}) and
+        // rejects if that read fails or if Gamma_0 != y. Both halves are checked
+        // here rather than emitting a directory a spec-following verifier would
+        // refuse for a reason unrelated to the shuffle -- `vmnv -shuffle` skips
+        // this check entirely, so nothing downstream would catch it for us.
         if let Some(gamma) = self.polynomial_in_exponent {
-            match gamma.first() {
-                None => return Err(anyhow!("the polynomial in the exponent is empty")),
-                Some(gamma_0) if gamma_0 != self.public_key => {
-                    return Err(anyhow!(
-                        "polynomial in the exponent is inconsistent with the public key: \
-                         Gamma_0 != y"
-                    ))
-                }
-                Some(_) => {}
+            if gamma.len() != self.threshold {
+                return Err(anyhow!(
+                    "the polynomial in the exponent has {} entries, expected {} \
+                     (one per threshold)",
+                    gamma.len(),
+                    self.threshold
+                ));
+            }
+            if gamma[0] != *self.public_key {
+                return Err(anyhow!(
+                    "polynomial in the exponent is inconsistent with the public key: \
+                     Gamma_0 != y"
+                ));
             }
         }
         let proofs = dir.join("proofs");

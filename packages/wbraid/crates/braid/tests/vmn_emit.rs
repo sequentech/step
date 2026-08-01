@@ -98,6 +98,7 @@ fn emit_a_verificatum_shuffling_proof() {
         auxsid: AUXSID,
         width: W,
         public_key: &keypair.pkey.y,
+        threshold: 1,
         input: &input,
         mixers: &[MixerStep {
             output: &output,
@@ -140,26 +141,66 @@ fn emit_a_verificatum_shuffling_proof() {
 
     eprintln!("wrote a shuffling proof for N={N} width={W} to {}", out.display());
 
-    // The polynomial must satisfy Gamma_0 = y, which is what Algorithm 24
-    // checks. Emitting a directory that fails it would turn a proof vmnv accepts
-    // into one a spec-following verifier rejects, for a reason having nothing to
-    // do with the shuffle -- so the emitter refuses rather than writing it.
+    // --- the emitter's own preconditions ---------------------------------
+    //
+    // These are checks `vmnv -shuffle` cannot make for us: it never reads the
+    // polynomial, so a directory violating Algorithm 24 would pass it and be
+    // rejected only by a verifier that follows the specification. Nothing
+    // downstream would catch that, which is why the emitter refuses up front.
+    //
+    // Each case below is a distinct way Algorithm 24 would reject:
+    // "attempt to read Gamma = (Gamma_0, ..., Gamma_{lambda-1}) ... if this
+    // fails or if Gamma_0 != y, then reject".
+    let attempt = |threshold: usize, gamma: Option<&[<P256Ctx as Context>::Element]>, mixers: &[MixerStep<W>]| {
+        ShufflingProof::<W> {
+            version: "3.1.0",
+            auxsid: AUXSID,
+            width: W,
+            public_key: &keypair.pkey.y,
+            threshold,
+            input: &input,
+            mixers,
+            polynomial_in_exponent: gamma,
+        }
+        .write(&out.join("rejected"))
+    };
+    let one_mixer = [MixerStep {
+        output: &output,
+        proof: &proof,
+    }];
+
+    // Gamma_0 != y: the one coefficient checkable against an independent source.
     let wrong_gamma = [P256Ctx::random_element()];
-    let rejected = ShufflingProof::<W> {
-        version: "3.1.0",
-        auxsid: AUXSID,
-        width: W,
-        public_key: &keypair.pkey.y,
-        input: &input,
-        mixers: &[MixerStep {
-            output: &output,
-            proof: &proof,
-        }],
-        polynomial_in_exponent: Some(&wrong_gamma),
-    }
-    .write(&out.join("rejected"));
     assert!(
-        rejected.is_err(),
+        attempt(1, Some(&wrong_gamma), &one_mixer).is_err(),
         "a polynomial inconsistent with the public key must be refused"
+    );
+
+    // Too few entries: reading lambda of them fails, so a strict verifier rejects.
+    let short_gamma = [keypair.pkey.y];
+    assert!(
+        attempt(2, Some(&short_gamma), &one_mixer).is_err(),
+        "a polynomial shorter than the threshold must be refused"
+    );
+
+    // Too many entries, same reasoning in the other direction.
+    let long_gamma = [keypair.pkey.y, P256Ctx::random_element()];
+    assert!(
+        attempt(1, Some(&long_gamma), &one_mixer).is_err(),
+        "a polynomial longer than the threshold must be refused"
+    );
+
+    // Fewer mixers than the threshold describes a session that can never meet
+    // it, since lambda_a >= lambda by construction.
+    assert!(
+        attempt(2, None, &one_mixer).is_err(),
+        "fewer mixers than the threshold must be refused"
+    );
+
+    // And the correct shape is still accepted, so the checks above are not
+    // simply rejecting everything.
+    assert!(
+        attempt(1, Some(&[keypair.pkey.y]), &one_mixer).is_ok(),
+        "a well-formed polynomial must still be accepted"
     );
 }
