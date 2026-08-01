@@ -122,3 +122,87 @@ pub fn inactive_factors<const W: usize>(ciphertexts: usize) -> Vec<[P256Element;
 pub fn dealer_commitments(shares: &[Shares<P256Ctx>]) -> Vec<Vec<P256Element>> {
     shares.iter().map(|s| s.commitments.clone()).collect()
 }
+
+/// One party's batched proof that its decryption factors are correct.
+///
+/// Replaces the `N` per-ciphertext DLEQ proofs braid produces with a single
+/// proof covering the whole array, which is the Bellare-style batching
+/// Verificatum uses.
+///
+/// Serializes as `τ^dec = node(y', B')` and `σ^dec = k_x` (VMNV §8.6).
+pub struct BatchedDecryptionProof<const W: usize> {
+    /// `y' = g^r`, the commitment against the party's public key.
+    pub y_prime: P256Element,
+    /// `B' = A^r`, the commitment against the batched first components.
+    pub b_prime: [P256Element; W],
+    /// `k_x = r − v·x_l`, the reply.
+    pub k_x: P256Scalar,
+}
+
+/// Produce one party's batched decryption proof.
+///
+/// # The equations
+///
+/// From `DistrElGamalSessionBasic.verifyCombined`, the combined check is
+///
+/// ```text
+/// y^{−v} · y' = g^{k_x}          B^v · B' = A^{k_x}
+/// ```
+///
+/// where `y` is the joint public key, `A = ∏_i u_i^{e_i}` the batched first
+/// components, and `B = ∏_i f_i^{e_i}` the batched *combined* factors, which
+/// equal `A^{−x}`. Substituting gives `y' = g^r`, `B' = A^r` and `k_x = r − v·x`
+/// for a random `r`.
+///
+/// The combination is by Lagrange coefficient, `y' = ∏_l (y'_l)^{c_l}` and
+/// `k_x = Σ_l c_l k_{x,l}`, so each party contributing
+///
+/// ```text
+/// y'_l = g^{r_l}      B'_l = A^{r_l}      k_{x,l} = r_l − v·x_l
+/// ```
+///
+/// reconstructs exactly that, with `r = Σ c_l r_l` and `x = Σ c_l x_l`.
+///
+/// Note `α` does **not** appear here: it scales the *factors*
+/// ([`to_vmn_factors`]) and is cancelled by the `α·c_l` combination exponents,
+/// leaving the proof itself over the unscaled `x_l`.
+///
+/// `secret` is the party's share `x_l`, which braid reconstructs locally during
+/// decryption and never publishes — so unlike the other conversions here, this
+/// cannot be produced after the fact from board data.
+pub fn prove_decryption<const W: usize>(
+    secret: &P256Scalar,
+    batched_u: &[P256Element; W],
+    challenge: &P256Scalar,
+    randomizer: &P256Scalar,
+) -> BatchedDecryptionProof<W> {
+    BatchedDecryptionProof {
+        y_prime: P256Element::generator().exp(randomizer),
+        b_prime: std::array::from_fn(|i| batched_u[i].exp(randomizer)),
+        k_x: randomizer.sub(&challenge.mul(secret)),
+    }
+}
+
+/// Batch an array of width-`W` elements by the exponents `e`: `∏_i x_i^{e_i}`.
+///
+/// Used for both `A` (over the ciphertexts' first components) and `B` (over the
+/// combined decryption factors).
+pub fn batch<const W: usize>(
+    elements: &[[P256Element; W]],
+    exponents: &[P256Scalar],
+) -> Result<[P256Element; W]> {
+    if elements.len() != exponents.len() {
+        return Err(anyhow!(
+            "{} elements but {} batching exponents",
+            elements.len(),
+            exponents.len()
+        ));
+    }
+    let mut accumulator: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
+    for (element, exponent) in elements.iter().zip(exponents) {
+        for i in 0..W {
+            accumulator[i] = accumulator[i].mul(&element[i].exp(exponent));
+        }
+    }
+    Ok(accumulator)
+}

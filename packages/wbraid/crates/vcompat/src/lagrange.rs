@@ -138,3 +138,36 @@ pub fn modified_lagrange_coefficients(
 fn mod_inverse(a: &BigUint, q: &BigUint) -> BigUint {
     a.modpow(&(q - BigUint::from(2u32)), q)
 }
+
+/// P-256's group order `q`, the modulus the coefficients are computed in.
+pub fn p256_order() -> BigUint {
+    BigUint::parse_bytes(
+        b"ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
+        16,
+    )
+    .expect("valid P-256 group order")
+}
+
+/// The modified Lagrange coefficients for P-256, as `(negative, magnitude)`
+/// pairs with the magnitude big-endian in 32 bytes.
+///
+/// Callers working with curve scalars generally cannot take a bignum, and the
+/// sign matters — these values are deliberately signed (see the module docs) —
+/// so it is returned alongside rather than folded into a modular
+/// representative.
+pub fn p256_modified_lagrange_coefficients(
+    delta: &[usize],
+    k: usize,
+) -> Vec<(bool, [u8; 32])> {
+    let q = p256_order();
+    modified_lagrange_coefficients(delta, k, &q)
+        .into_iter()
+        .map(|coefficient| {
+            let negative = coefficient < BigInt::from(0u32);
+            let magnitude = coefficient.magnitude().to_bytes_be();
+            let mut fixed = [0u8; 32];
+            fixed[32 - magnitude.len()..].copy_from_slice(&magnitude);
+            (negative, fixed)
+        })
+        .collect()
+}

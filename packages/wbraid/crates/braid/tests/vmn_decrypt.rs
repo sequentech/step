@@ -121,3 +121,131 @@ fn inactive_factors_are_all_identity() {
         }
     }
 }
+
+/// End-to-end shape of the batched proof: several parties each prove over their
+/// own share, the pieces are Lagrange-combined, and the two equations `vmnv`
+/// checks must hold.
+///
+/// This is self-consistency, not agreement with Verificatum — `vmnv` adjudicates
+/// that once a mixing proof is emitted. What it does establish is that the
+/// derivation documented on `prove_decryption` closes: the alpha cancellation,
+/// the sign of `k_x`, and the Lagrange combination all have to line up, or the
+/// equations fail.
+#[test]
+fn combined_batched_proof_satisfies_the_verification_equations() {
+    use braid::vmn::decrypt::{batch, prove_decryption};
+    use cryptography::groups::p256::scalar::P256Scalar;
+
+    const W: usize = 2;
+    const N: usize = 4;
+    let k = 3usize;
+    let threshold = 2usize;
+
+    let mut rng = P256Ctx::get_rng();
+    let g = P256Element::generator();
+
+    let scalar_from = |z: u64| {
+        let mut b = [0u8; 32];
+        b[24..].copy_from_slice(&z.to_be_bytes());
+        P256Scalar::from_bytes_reduced(&b)
+    };
+
+    // A degree threshold-1 sharing; the secret is the constant term.
+    let coefficients: Vec<P256Scalar> =
+        (0..threshold).map(|_| P256Scalar::random(&mut rng)).collect();
+    let evaluate = |z: u64| {
+        let point = scalar_from(z);
+        let mut acc = P256Scalar::zero();
+        let mut power = P256Scalar::one();
+        for c in &coefficients {
+            acc = acc.add(&c.mul(&power));
+            power = power.mul(&point);
+        }
+        acc
+    };
+    let x = coefficients[0].clone();
+    let y = g.exp(&x);
+
+    // Delta = {1, 3}, so the Lagrange coefficients are not trivial.
+    let delta = vec![1usize, 3];
+    let alpha_c: Vec<P256Scalar> =
+        vcompat::lagrange::p256_modified_lagrange_coefficients(&delta, k)
+            .into_iter()
+            .map(|(negative, magnitude)| {
+                let s = P256Scalar::from_bytes_reduced(&magnitude);
+                if negative {
+                    s.neg()
+                } else {
+                    s
+                }
+            })
+            .collect();
+    // c_l alone, for combining the proof pieces (the factors use alpha * c_l).
+    let inv_alpha = decrypt::negated_inverse_alpha(k).unwrap().neg();
+    let c: Vec<P256Scalar> = alpha_c.iter().map(|ac| ac.mul(&inv_alpha)).collect();
+
+    // Ciphertext first components, and each party's factors u^{-x_l/alpha}.
+    let u: Vec<[P256Element; W]> = (0..N)
+        .map(|_| std::array::from_fn(|_| <P256Ctx as Context>::G::random_element(&mut rng)))
+        .collect();
+    let factors: Vec<Vec<[P256Element; W]>> = delta
+        .iter()
+        .map(|&l| {
+            let z = evaluate(l as u64).mul(&inv_alpha).neg();
+            u.iter()
+                .map(|ui| std::array::from_fn(|i| ui[i].exp(&z)))
+                .collect()
+        })
+        .collect();
+
+    // Batched values.
+    let e: Vec<P256Scalar> = (0..N).map(|_| P256Scalar::random(&mut rng)).collect();
+    let a = batch(&u, &e).unwrap();
+    let combined: Vec<[P256Element; W]> = (0..N)
+        .map(|i| {
+            let mut acc: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
+            for position in 0..delta.len() {
+                for w in 0..W {
+                    acc[w] = acc[w].mul(&factors[position][i][w].exp(&alpha_c[position]));
+                }
+            }
+            acc
+        })
+        .collect();
+    let b = batch(&combined, &e).unwrap();
+
+    // Each party proves over its own unscaled share.
+    let v = P256Scalar::random(&mut rng);
+    let randomizers: Vec<P256Scalar> =
+        delta.iter().map(|_| P256Scalar::random(&mut rng)).collect();
+    let proofs: Vec<_> = delta
+        .iter()
+        .enumerate()
+        .map(|(position, &l)| {
+            prove_decryption::<W>(&evaluate(l as u64), &a, &v, &randomizers[position])
+        })
+        .collect();
+
+    // Combine by Lagrange coefficient.
+    let mut y_prime = P256Element::one();
+    let mut b_prime: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
+    let mut k_x = P256Scalar::zero();
+    for (position, proof) in proofs.iter().enumerate() {
+        y_prime = y_prime.mul(&proof.y_prime.exp(&c[position]));
+        for w in 0..W {
+            b_prime[w] = b_prime[w].mul(&proof.b_prime[w].exp(&c[position]));
+        }
+        k_x = k_x.add(&c[position].mul(&proof.k_x));
+    }
+
+    assert!(
+        y.exp(&v.neg()).mul(&y_prime).equals(&g.exp(&k_x)),
+        "y^-v . y' = g^k_x must hold"
+    );
+    for w in 0..W {
+        assert!(
+            b[w].exp(&v).mul(&b_prime[w]).equals(&a[w].exp(&k_x)),
+            "B^v . B' = A^k_x must hold for component {w}"
+        );
+    }
+}
