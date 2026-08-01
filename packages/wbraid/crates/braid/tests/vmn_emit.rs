@@ -1,0 +1,130 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! Emit a Verificatum proof directory from a shuffle braid performed.
+//!
+//! This is the other direction of the interop: `vmn_interop.rs` shows braid
+//! verifying Verificatum's proof, and this produces a proof for `vmnv` to check.
+//! The test itself writes the directory and verifies it with braid; running
+//! `vmnv -shuffle` on the output is the external step.
+//!
+//! Set `VMN_EMIT_DIR` to choose where to write (the directory is created).
+//! Without it the test still runs, using a temporary directory, so the emitter
+//! is exercised in CI even when no Java is available.
+
+#![cfg(feature = "native")]
+
+use std::path::PathBuf;
+
+use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators, proof_dir::ShufflingProof};
+use cryptography::context::{Context, P256Ctx};
+use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
+use cryptography::zkp::shuffle::Shuffler;
+use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
+
+const W: usize = 2;
+const N: usize = 8;
+const N_R: usize = 100;
+const N_E: usize = 256;
+const N_V: usize = 256;
+
+/// Must match the `<pgroup>` value in the protocol info file handed to `vmnv`.
+const PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
+0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
+05502d323536";
+
+const SID: &str = "braidpoc";
+const AUXSID: &str = "default";
+
+fn rho() -> Vec<u8> {
+    global_prefix(
+        Hashfunction::Sha256,
+        &PrefixParams {
+            version: "3.1.0".into(),
+            sid: SID.into(),
+            auxsid: AUXSID.into(),
+            n_r: N_R as u32,
+            n_v: N_V as u32,
+            n_e: N_E as u32,
+            prg: "SHA-256".into(),
+            pgroup: PGROUP.into(),
+            rohash: "SHA-256".into(),
+        },
+    )
+}
+
+#[test]
+fn emit_a_verificatum_shuffling_proof() {
+    let out = match std::env::var("VMN_EMIT_DIR") {
+        Ok(d) => PathBuf::from(d),
+        Err(_) => std::env::temp_dir().join("braid_vmn_emit"),
+    };
+    let _ = std::fs::remove_dir_all(&out);
+
+    // --- a shuffle performed by braid ------------------------------------
+    let keypair: KeyPair<P256Ctx> = KeyPair::generate();
+    let messages: Vec<[<P256Ctx as Context>::Element; W]> = (0..N)
+        .map(|_| std::array::from_fn(|_| P256Ctx::random_element()))
+        .collect();
+    let input: Vec<Ciphertext<P256Ctx, W>> =
+        messages.iter().map(|m| keypair.encrypt(m)).collect();
+
+    let rho = rho();
+    let generators = vmn_generators(Hashfunction::Sha256, &rho, N_R, N).expect("generators");
+    let shuffler = Shuffler::<P256Ctx, W>::new(generators.clone(), keypair.pkey.clone());
+
+    let prover = VmnChallenges::new(Hashfunction::Sha256, rho.clone(), N_E, N_V, W);
+    let (output, proof) = shuffler
+        .shuffle_with(&input, &[], &prover)
+        .expect("shuffle must succeed");
+
+    // Self-check before writing: the proof must verify under the same
+    // convention it was produced with.
+    let checker = VmnChallenges::new(Hashfunction::Sha256, rho, N_E, N_V, W);
+    assert!(
+        shuffler
+            .verify_with(&input, &output, &proof, &[], &checker)
+            .expect("verification must not error"),
+        "a proof produced under the Verificatum convention must verify under it"
+    );
+
+    // --- write the proof directory ---------------------------------------
+    ShufflingProof::<W> {
+        version: "3.1.0",
+        auxsid: AUXSID,
+        width: W,
+        public_key: &keypair.pkey.y,
+        input: &input,
+        output: &output,
+        proof: &proof,
+    }
+    .write(&out)
+    .expect("write proof directory");
+
+    // The files vmnv requires for a shuffling proof (VMNV §9.1).
+    for name in [
+        "version",
+        "type",
+        "auxsid",
+        "width",
+        "FullPublicKey.bt",
+        "Ciphertexts.bt",
+        "ShuffledCiphertexts.bt",
+        "proofs/activethreshold",
+        "proofs/PolynomialInExponent.bt",
+        "proofs/Ciphertexts01.bt",
+        "proofs/PermutationCommitment01.bt",
+        "proofs/PoSCommitment01.bt",
+        "proofs/PoSReply01.bt",
+    ] {
+        let path = out.join(name);
+        assert!(path.is_file(), "missing {name}");
+        assert!(
+            std::fs::metadata(&path).unwrap().len() > 0,
+            "{name} is empty"
+        );
+    }
+
+    eprintln!("wrote a shuffling proof for N={N} width={W} to {}", out.display());
+}

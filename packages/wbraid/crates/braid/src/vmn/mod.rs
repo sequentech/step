@@ -31,3 +31,4 @@
 pub mod challenges;
 pub mod encode;
 pub mod generators;
+pub mod proof_dir;

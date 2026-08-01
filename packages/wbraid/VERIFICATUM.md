@@ -442,6 +442,76 @@ emitter in braid, and the layer that was most likely to be intractable is now de
 
 ---
 
+## Stage 3 results — EXECUTED, interop achieved in both directions
+
+**Unmodified `vmnv` verifies a proof of a shuffle produced entirely by braid's cryptography, and
+braid verifies one produced by Verificatum.** The central question of this investigation is answered
+affirmatively.
+
+How it fits together:
+
+- `vsc`'s `Shuffler` takes its two Fiat–Shamir challenges through a `ShuffleChallenges` trait.
+  `NativeChallenges` is the default and preserves braid's existing behaviour exactly.
+- `braid::vmn::challenges` implements Verificatum's convention against that seam;
+  `braid::vmn::generators` supplies VMNV §6.8 generators as vsc elements (required, since `h` feeds
+  both the Pedersen commitments and the batching seed); `braid::vmn::encode` is the sole adapter
+  between vsc types and byte trees; `braid::vmn::proof_dir` writes the directory.
+- `vcompat` remains a pure format-and-transcript library with no dependency on vsc.
+
+### Direction 1 — braid verifies Verificatum
+
+Reads a real VMN shuffle proof off disk, rebuilds it as vsc types, verifies with vsc's own code.
+Passes, exercising encoding, transcript and algebra at once. Three negative controls (generators from
+a different prefix, a mismatched prefix, swapped output ciphertexts) are all rejected.
+
+### Direction 2 — Verificatum verifies braid
+
+braid shuffles 8 width-2 ciphertexts over P-256, writes a `type=shuffling` proof directory, and:
+
+```
+============ Verify shuffle of Party 1. ========================
+Read permutation commitment... done.
+Read output of Party 1... done.
+Verify proof of shuffle... done.
+VMNV_EXIT_CODE=0
+```
+
+Four independent tampering controls are correctly **rejected** (exit 1): a flipped bit in
+`PoSReply01.bt`, in `PoSCommitment01.bt`, in `PermutationCommitment01.bt`, and in the input
+ciphertexts. So the acceptance is discriminating, not vacuous.
+
+### A `vmnv` behaviour worth knowing about
+
+One control was *accepted*: replacing the output list with the input. Investigating with `-v` shows
+`vmnv` **does** detect it —
+
+```
+Verify proof of shuffle... failed.
+--> Replacing output of Party 1 by its input.
+--> Too few proofs are valid! (0)
+```
+
+— and then exits **0** anyway. Verificatum's *own* proof behaves identically under the same
+tampering, so this is a property of `vmnv`, not of braid's emitter.
+
+It follows from the documented multi-server semantics (VMNV §2.3: a mix-server whose proof fails is
+skipped, `L_l = L_{l-1}`), but the accompanying "less than λ proofs valid ⇒ reject" is reported and
+then not reflected in the exit status. VMNV §10.1 specifies the exit code as the accept/reject
+signal, so **an integration must not rely on `vmnv`'s exit code alone** for a single-server shuffle;
+parse the output, or verify in a mixing context. Worth raising upstream.
+
+(Also note `vmnv` exits 1 on rejection, not the `-1`/255 that §10.1 specifies.)
+
+### Caveats
+
+- Shuffle only. The decryption transcript (`Dec.s`, `Dec.v`) and the batched decryption proof braid
+  would need (§2.5) are still not done, so `vmnv -mix` is unreached.
+- Single mix-server, threshold 1. Multi-party proofs need per-party files and an `activethreshold`
+  greater than 1.
+- P-256 only, and braid's DKG still cannot run on P-256 (the four `todo!()`s in §2.1).
+
+---
+
 ## 5. Recommended path
 
 Staged, each stage independently checkable, ordered so the cheapest disproof comes first.
@@ -457,7 +527,9 @@ model validated against seven files.
 reproduce exactly; see "Stage 2 results" above. Remaining within this layer: deriving the independent
 generators (VMNV §6.8's quadratic-residue walk, needs bignum) and the decryption transcript.
 
-**Stage 3 — shuffle-only proof, `vmnv -shuffle`.** The smallest end-to-end win, and the one that
+**Stage 3 — shuffle-only proof, `vmnv -shuffle`. ✅ DONE** (see "Stage 3 results" above).
+
+Original plan: The smallest end-to-end win, and the one that
 needs no DKG work: emit `PermutationCommitment`, `PoSCommitment`, `PoSReply` from a braid shuffle
 whose challenges were derived VMN-style, with `type = shuffling`. Getting exit code 0 here proves
 the concept.

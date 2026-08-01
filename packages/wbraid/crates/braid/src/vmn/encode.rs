@@ -162,6 +162,27 @@ pub fn tree_to_ciphertexts<const W: usize>(
         .collect()
 }
 
+/// Encode a scalar as a fixed-width field element (VMNV §6.2).
+pub fn scalar_to_tree(scalar: &P256Scalar) -> Result<ByteTree> {
+    use cryptography::utils::serialization::FSerializable;
+    let mut bytes = Vec::with_capacity(32);
+    scalar.ser_into(&mut bytes);
+    if bytes.len() != 32 {
+        return Err(anyhow!("expected a 32-byte scalar, got {}", bytes.len()));
+    }
+    arithm::field_element(&bytes, WIDTH).map_err(|e| anyhow!("failed to encode scalar: {e}"))
+}
+
+/// Encode an array of scalars.
+pub fn scalars_to_tree(scalars: &[P256Scalar]) -> Result<ByteTree> {
+    Ok(ByteTree::node(
+        scalars
+            .iter()
+            .map(scalar_to_tree)
+            .collect::<Result<Vec<_>>>()?,
+    ))
+}
+
 /// Decode a fixed-width field element into a scalar.
 ///
 /// Values written by a conforming implementation are canonical (below the group
