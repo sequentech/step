@@ -156,3 +156,195 @@ fn corpus_structures_match_the_specification() {
 
     eprintln!("structural checks passed for N={n}, width=2, P-256");
 }
+
+/// End-to-end Fiat–Shamir check: derive the shuffle proof's challenge `v` the
+/// way VMN does and compare against the value `vmnv` printed for this very
+/// proof.
+///
+/// This is the strongest available evidence that our transcript layer agrees
+/// with Verificatum's, because it combines three independently-derived pieces:
+/// the global prefix ρ we compute ourselves, the golden batching seed `s`, and
+/// the real `PoSCommitment01.bt` bytes parsed from disk. If any of the byte-tree
+/// encoding, the oracle construction, or the query framing were wrong, `v` would
+/// not match.
+#[test]
+fn shuffle_challenge_matches_vmn() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory to run this test");
+        return;
+    };
+
+    // Golden values printed by `vmnv -t PoS.s,PoS.v` for this proof.
+    const GOLDEN_POS_S: &str =
+        "78e66e9d0099c4322d9d18579254ae92e779ad2f5b3a7120cd21c2c84bfa49f5";
+    const GOLDEN_POS_V: &str =
+        "412cddba831caaecce9fc71e7ba6896c8f9761e1d86878e7117c997fe9bef70c";
+
+    let rho = reference_rho();
+    let seed = hex_bytes(GOLDEN_POS_S);
+
+    let tau_pos = ByteTree::from_bytes(
+        &std::fs::read(dir.join("proofs/PoSCommitment01.bt")).unwrap(),
+    )
+    .unwrap();
+
+    let v = vcompat::crypto::pos_challenge(
+        vcompat::crypto::Hashfunction::Sha256,
+        256, // n_v
+        &rho,
+        &seed,
+        &tau_pos,
+    );
+
+    assert_eq!(
+        hex_string(&v),
+        GOLDEN_POS_V,
+        "shuffle challenge v must match vmnv -t PoS.v"
+    );
+    eprintln!("shuffle challenge v reproduced exactly");
+}
+
+/// Closes the Fiat–Shamir loop: derive the batching **seed** `s` from the
+/// statement itself and check it against `vmnv -t PoS.s`.
+///
+/// Where `shuffle_challenge_matches_vmn` takes `s` as given, this one computes
+/// it from `node(g, h, u, pk, w, w')` — so it additionally pins the *order* and
+/// framing of that six-element query, and the reconstruction of group elements
+/// from raw coordinates. Together the two tests cover the whole transcript path
+/// for a proof of a shuffle.
+///
+/// Needs `testvectors.txt` (for `bas.h`, the independent generators) alongside
+/// the corpus directory; skipped if absent.
+#[test]
+fn shuffle_seed_matches_vmn() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory to run this test");
+        return;
+    };
+    let vectors_path = match dir.parent().map(|p| p.join("testvectors.txt")) {
+        Some(p) if p.is_file() => p,
+        _ => {
+            eprintln!("skipping: testvectors.txt not found next to the corpus directory");
+            return;
+        }
+    };
+
+    const GOLDEN_POS_S: &str =
+        "78e66e9d0099c4322d9d18579254ae92e779ad2f5b3a7120cd21c2c84bfa49f5";
+
+    let text = std::fs::read_to_string(&vectors_path).unwrap();
+
+    // Diagnostic: `bas.pk` is printed in the same point-list format AND stored
+    // on disk as FullPublicKey.bt, so parsing it and comparing against the file
+    // isolates the parser from everything else.
+    let parsed_pk = parse_point_list(&text, "bas.pk").expect("bas.pk in test vectors");
+    let file_pk =
+        ByteTree::from_bytes(&std::fs::read(dir.join("FullPublicKey.bt")).unwrap()).unwrap();
+    assert_eq!(
+        parsed_pk, file_pk,
+        "point-list parser must reproduce FullPublicKey.bt exactly"
+    );
+
+    let h = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
+    eprintln!("parsed {} independent generators", h.as_node().unwrap().len());
+
+    let read_tree = |name: &str| {
+        ByteTree::from_bytes(&std::fs::read(dir.join(name)).unwrap()).unwrap()
+    };
+
+    // The key is WIDENED to omega before entering the query -- not the stored
+    // FullPublicKey.bt as VMNV §8.3's "pk in C_kappa" would suggest.
+    let wide_pk =
+        vcompat::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
+
+    let seed = vcompat::crypto::pos_seed(
+        vcompat::crypto::Hashfunction::Sha256,
+        &reference_rho(),
+        &marshal::p256::generator(),        // g
+        &h,                                 // h, the independent generators
+        &read_tree("proofs/PermutationCommitment01.bt"), // u
+        &wide_pk,                           // pk, widened to omega
+        &read_tree("Ciphertexts.bt"),       // w   = L_0
+        &read_tree("proofs/Ciphertexts01.bt"), // w' = L_1
+    );
+
+    assert_eq!(
+        hex_string(&seed),
+        GOLDEN_POS_S,
+        "batching seed s must match vmnv -t PoS.s"
+    );
+    eprintln!("shuffle batching seed s reproduced exactly");
+}
+
+/// Parse a `vmnv -t` point-list vector -- `((x, y),(x, y),...)` in hex -- into a
+/// byte tree array of affine points at P-256's fixed width.
+///
+/// The printed coordinates are plain integers with leading zeros trimmed, so
+/// they are neither fixed-width nor necessarily even-length; [`hex_bytes`]
+/// left-pads accordingly.
+fn parse_point_list(text: &str, name: &str) -> Option<ByteTree> {
+    let marker = format!("{name} - ");
+    let start = text.find(&marker)?;
+    let line = text[start..].lines().nth(1)?.trim();
+
+    // Strip the grouping punctuation and read the flat sequence of coordinates.
+    let flat: String = line.chars().filter(|c| *c != '(' && *c != ')').collect();
+    let coords: Vec<&str> = flat
+        .split(',')
+        .map(str::trim)
+        .filter(|t| !t.is_empty() && t.chars().all(|c| c.is_ascii_hexdigit()))
+        .collect();
+    if coords.is_empty() || coords.len() % 2 != 0 {
+        return None;
+    }
+
+    let points = coords
+        .chunks(2)
+        .map(|xy| arithm::curve_point(&hex_bytes(xy[0]), &hex_bytes(xy[1]), marshal::p256::WIDTH))
+        .collect::<Result<Vec<_>, _>>()
+        .ok()?;
+    Some(ByteTree::node(points))
+}
+
+/// The reference session's global prefix, recomputed from its protocol info
+/// parameters rather than hardcoded, so this test also re-exercises ρ.
+fn reference_rho() -> Vec<u8> {
+    use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
+    const PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
+0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
+05502d323536";
+    global_prefix(
+        Hashfunction::Sha256,
+        &PrefixParams {
+            version: "3.1.0".into(),
+            sid: "braidpoc".into(),
+            auxsid: "default".into(),
+            n_r: 100,
+            n_v: 256,
+            n_e: 256,
+            prg: "SHA-256".into(),
+            pgroup: PGROUP.into(),
+            rohash: "SHA-256".into(),
+        },
+    )
+}
+
+/// Hex to bytes, left-padding an odd-length string with a leading zero nibble
+/// (the printed test vectors trim leading zeros).
+fn hex_bytes(s: &str) -> Vec<u8> {
+    let padded;
+    let s = if s.len() % 2 == 0 {
+        s
+    } else {
+        padded = format!("0{s}");
+        &padded
+    };
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect()
+}
+
+fn hex_string(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}

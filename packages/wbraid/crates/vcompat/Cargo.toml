@@ -3,11 +3,13 @@ name = "vcompat"
 version = "0.1.0"
 edition = "2021"
 
-# Verificatum wire-format compatibility layer. Deliberately dependency-free:
-# this is the layer whose bytes must match VMN exactly, so it should be as small
-# and auditable as possible. `hex` is dev-only, for test vectors.
+# Verificatum wire-format compatibility layer. Kept as small and auditable as
+# possible: these bytes must match VMN exactly. The only runtime dependency is
+# a SHA-2 implementation, which VMN's random oracles are built from (VMNV 5.1)
+# and which is not something to hand-roll. `hex` is dev-only, for test vectors.
 
 [dependencies]
+sha2 = "0.11"
 
 [dev-dependencies]
 hex = "0.4"

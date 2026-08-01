@@ -382,6 +382,57 @@ Both encoding traps from Stage 0 are now pinned by tests — the 33-byte signed 
 
 ---
 
+## Stage 2 results — EXECUTED, THE GATE IS PASSED
+
+Stage 2 was the go/no-go gate: braid's proof *algebra* already matches Verificatum's, so the
+approach lives or dies on whether the **Fiat–Shamir transcript** can be reproduced bit for bit.
+
+**It can.** The whole transcript path for a proof of a shuffle now reproduces exactly, checked
+against values a real `vmnv` printed for the Stage 0 reference proof:
+
+| Value | Derivation | Result |
+|---|---|---|
+| `der.rho` | `H(node(version, sid.auxsid, n_r, n_v, n_e, prg, pgroup, rohash))` | exact match |
+| `PoS.s` | `RO_seed(ρ ‖ node(g, h, u, pk_ω, w, w'))` | exact match |
+| `PoS.v` | `RO_challenge(ρ ‖ node(leaf(s), τ^pos))` | exact match |
+
+The `PoS.v` check is the strongest single result: it combines ρ computed from the protocol info
+parameters, the batching seed, and the **real `PoSCommitment01.bt` bytes parsed off disk** by our own
+byte-tree parser. If the encoding, the oracle construction, or the query framing were wrong anywhere,
+it would not match.
+
+Implemented in `vcompat::crypto`: the three SHA-2 variants, VMN's PRG (`r_i = H(s ‖ bytes₄(i))`), the
+random oracle (output-length-prefixed seed, then PRG expansion, then leading-bit masking), the global
+prefix ρ, and the shuffle proof's seed and challenge queries. 24 tests pass in total.
+
+### Two details the specification does not make obvious
+
+Both were found by reading VMN's Java rather than the prose, and both silently produce a wrong
+challenge with no useful diagnostic:
+
+1. **The public key is widened before it enters the seed query.** VMNV §8.3 lists the input as
+   `pk ∈ C_κ`, which reads like the stored `FullPublicKey.bt`. The verifier actually uses
+   `getWidePublicKey(pk, ω)` — for ω > 1 that is `((g,…,g)_ω, (y,…,y)_ω)`, not `(g, y)`. This cost a
+   debugging cycle; it is now [`crypto::wide_public_key`] with the reasoning recorded.
+2. **ρ's session identifier is a dot-join, and `pgroup` keeps its comment.** ρ commits to
+   `sid ‖ "." ‖ auxsid` as one string, and to the entire `<pgroup>` value *including* the
+   `ECqPGroup(P-256)::` comment prefix, not just the hex payload.
+
+### What Stage 2 did not cover
+
+- **Deriving the independent generators `h`.** The tests take `h` from `vmnv -t bas.h` rather than
+  deriving it. Producing it requires VMNV §6.8's quadratic-residue walk — modular arithmetic
+  (Legendre symbol, square roots mod p) and therefore a bignum dependency. This is required for a
+  real emitter but is ordinary work, not a risk: the derivation is fully specified and `bas.h` is
+  available as a golden value to check against.
+- **The decryption transcript** (`Dec.s`, `Dec.v`) is not yet reproduced. The shuffle path is the
+  representative and harder case, so this is expected to be mechanical — but it is unproven.
+
+**Verdict: the go/no-go gate is passed.** Nothing found so far blocks a Verificatum-compatible
+emitter in braid, and the layer that was most likely to be intractable is now demonstrated working.
+
+---
+
 ## 5. Recommended path
 
 Staged, each stage independently checkable, ordered so the cheapest disproof comes first.
@@ -393,9 +444,9 @@ model validated against seven files.
 **Stage 1 — byte trees and P-256 encoding in Rust. ✅ DONE** — implemented as the `vcompat` crate
 (`crates/vcompat`), standalone and dependency-free. See "Stage 1 results" below.
 
-**Stage 2 — VMN's hash / PRG / random oracle / independent generators.** Validate against VMNV
-Appendix A's PRG test vectors and Stage 0's `vmnv -t` values. This is the layer that decides the
-whole endeavour; if it can be made to agree exactly, the rest is mechanical.
+**Stage 2 — VMN's hash / PRG / random oracle. ✅ DONE (gate passed)** — ρ, `PoS.s` and `PoS.v` all
+reproduce exactly; see "Stage 2 results" above. Remaining within this layer: deriving the independent
+generators (VMNV §6.8's quadratic-residue walk, needs bignum) and the decryption transcript.
 
 **Stage 3 — shuffle-only proof, `vmnv -shuffle`.** The smallest end-to-end win, and the one that
 needs no DKG work: emit `PermutationCommitment`, `PoSCommitment`, `PoSReply` from a braid shuffle

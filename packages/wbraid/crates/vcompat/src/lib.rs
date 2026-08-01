@@ -28,6 +28,7 @@
 //! | [`bytetree`] | the universal serialization format, strict parsing | VMNV §4 |
 //! | [`arithm`] | integers, field elements, curve points, product arrays | VMNV §6 |
 //! | [`marshal`] | group descriptors, `comment::hex` marshalling, P-256 | VMNV §6.7 |
+//! | [`crypto`] | hash, PRG, random oracles, the global prefix ρ | VMNV §5, §9.3 |
 //!
 //! ## Two encoding traps
 //!
@@ -43,6 +44,7 @@
 
 pub mod arithm;
 pub mod bytetree;
+pub mod crypto;
 pub mod error;
 pub mod marshal;
 
