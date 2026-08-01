@@ -76,23 +76,24 @@ pub trait CryptographicGroup {
     /// Returns a random `Scalar`
     fn random_scalar<R: rng::CRng>(rng: &mut R) -> Self::Scalar;
 
-    /// Encode bytes into the given number of Ristretto elements
+    /// Encode bytes into the given number of group elements
+    ///
+    /// Both backends carry 30 payload bytes per element, so `O` must equal
+    /// `I.div_ceil(30)`; each checks this at compile time.
     ///
     /// # Errors
     ///
-    /// - `EncodingError` if using `Ristretto255Group` and a point was not found for the input, with negligible probability
-    /// - undefined if using `P256Group`
-    #[crate::warning("# Errors for this function are incompletely specified")]
+    /// - `EncodingError` if a point was not found for the input, with negligible probability
     fn encode_bytes<const I: usize, const O: usize>(
         bytes: &[u8; I],
     ) -> Result<[Self::Element; O], Error>;
 
-    /// Decode bytes from the given number of Ristretto elements
+    /// Decode bytes from the given number of group elements
     ///
     /// # Errors
     ///
-    /// - undefined if using `P256Group`
-    #[crate::warning("# Errors for this function are incompletely specified")]
+    /// - `EncodingError` if using `P256Group` and an element is the identity,
+    ///   which carries no payload; infallible for `Ristretto255Group`
     fn decode_bytes<const I: usize, const O: usize>(
         element: &[Self::Element; I],
     ) -> Result<[u8; O], Error>;

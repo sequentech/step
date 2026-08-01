@@ -300,3 +300,90 @@ fn test_p256_hash_to_scalar_empty_input() {
     let h = P256Group::hash_to_scalar(&[], &[]);
     assert!(h.is_err())
 }
+
+///////////////////////////////////////////////////////////////////////////
+// Byte/scalar encoding (the P-256 counterpart of the Ristretto codec)
+///////////////////////////////////////////////////////////////////////////
+
+mod encoding {
+    use crate::context::Context;
+    use crate::groups::p256::group::P256Group;
+    use crate::traits::groups::{CryptographicGroup, GroupElement};
+
+    #[test]
+    fn thirty_bytes_round_trip() {
+        for pattern in [0x00u8, 0x01, 0x7f, 0x80, 0xff] {
+            let input = [pattern; 30];
+            let element = P256Group::encode_30_bytes(&input).expect("encode");
+            let output = P256Group::decode_30_bytes(&element).expect("decode");
+            assert_eq!(input, output, "payload must survive the embedding");
+        }
+    }
+
+    #[test]
+    fn encoding_is_deterministic() {
+        let input = [0x5au8; 30];
+        let a = P256Group::encode_30_bytes(&input).unwrap();
+        let b = P256Group::encode_30_bytes(&input).unwrap();
+        assert!(a.equals(&b), "the same payload must give the same point");
+    }
+
+    #[test]
+    fn distinct_payloads_give_distinct_points() {
+        let a = P256Group::encode_30_bytes(&[0u8; 30]).unwrap();
+        let mut other = [0u8; 30];
+        other[29] = 1;
+        let b = P256Group::encode_30_bytes(&other).unwrap();
+        assert!(!a.equals(&b));
+    }
+
+    #[test]
+    fn random_payloads_round_trip() {
+        use rand::Rng;
+        let mut rng = rand::rng();
+        for _ in 0..100 {
+            let mut input = [0u8; 30];
+            rng.fill_bytes(&mut input);
+            let element = P256Group::encode_30_bytes(&input).unwrap();
+            assert_eq!(input, P256Group::decode_30_bytes(&element).unwrap());
+        }
+    }
+
+    #[test]
+    fn scalars_round_trip_through_two_elements() {
+        for _ in 0..50 {
+            let scalar = crate::context::P256Ctx::random_scalar();
+            let elements = P256Group::encode_scalar(&scalar).expect("encode scalar");
+            let back = P256Group::decode_scalar(&elements).expect("decode scalar");
+            assert_eq!(scalar, back);
+        }
+    }
+
+    /// The DKG share path: encrypt a scalar to a public key and recover it.
+    #[test]
+    fn encrypted_scalars_round_trip() {
+        use crate::cryptosystem::elgamal::KeyPair;
+        for _ in 0..20 {
+            let keypair = KeyPair::<crate::context::P256Ctx>::generate();
+            let scalar = crate::context::P256Ctx::random_scalar();
+
+            let ciphertext =
+                P256Group::encrypt_scalar(&scalar, &keypair.pkey.y).expect("encrypt");
+            let recovered =
+                P256Group::decrypt_scalar(&ciphertext, &keypair.skey).expect("decrypt");
+
+            assert_eq!(scalar, recovered, "DKG share must survive encryption");
+        }
+    }
+
+    #[test]
+    fn byte_arrays_round_trip_at_both_supported_sizes() {
+        let single = [0x33u8; 30];
+        let encoded = P256Group::encode_bytes::<30, 1>(&single).unwrap();
+        assert_eq!(P256Group::decode_bytes::<1, 30>(&encoded).unwrap(), single);
+
+        let double = [0x77u8; 32];
+        let encoded = P256Group::encode_bytes::<32, 2>(&double).unwrap();
+        assert_eq!(P256Group::decode_bytes::<2, 32>(&encoded).unwrap(), double);
+    }
+}

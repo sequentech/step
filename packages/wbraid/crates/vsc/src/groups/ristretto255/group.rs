@@ -283,68 +283,7 @@ impl Ristretto255Group {
 
 /// Chunk size for encoding, Ristretto points can hold 30 bytes of data
 const CHUNK_SIZE: usize = 30;
+/// Byte-array chunking into per-element units, shared with the other backends.
+type Codec<const BYTES: usize, const ELEMENTS: usize> =
+    crate::groups::codec::Codec<CHUNK_SIZE, BYTES, ELEMENTS>;
 
-/// Generic encoding/decoding of byte arrays into fixed-size element arrays
-struct Codec<const BYTES: usize, const ELEMENTS: usize> {}
-
-impl<const BYTES: usize, const ELEMENTS: usize> Codec<BYTES, ELEMENTS> {
-    /// Split input into chunks
-    const CHECK: () = {
-        assert!(CHUNK_SIZE > 0);
-        assert!(ELEMENTS > 0);
-        assert!(BYTES > 0);
-        assert!(ELEMENTS == BYTES.div_ceil(CHUNK_SIZE));
-        let max = ELEMENTS.checked_mul(CHUNK_SIZE);
-        assert!(max.is_some());
-    };
-
-    /// Split an array into chunks
-    ///
-    /// Fills each chunk sequentially up to the `CHUNK_SIZE`
-    fn split(input: &[u8; BYTES]) -> [[u8; CHUNK_SIZE]; ELEMENTS] {
-        #[allow(path_statements)]
-        Self::CHECK;
-
-        let mut result = [[0u8; CHUNK_SIZE]; ELEMENTS];
-        let mut input_pos = 0;
-
-        for chunk in &mut result {
-            let remaining = BYTES.checked_sub(input_pos).expect("input_pos <= BYTES");
-            let to_copy = remaining.min(CHUNK_SIZE);
-            let upper = input_pos
-                .checked_add(to_copy)
-                .expect("ELEMENTS * CHUNK_SIZE <= usize::MAX");
-            chunk[0..to_copy].copy_from_slice(&input[input_pos..upper]);
-            input_pos = input_pos
-                .checked_add(to_copy)
-                .expect("ELEMENTS * CHUNK_SIZE <= usize::MAX");
-        }
-
-        result
-    }
-
-    /// Join chunks back into original byte array
-    ///
-    /// Takes data sequentially from each chunk to reconstruct the original input
-    fn join(chunks: &[[u8; CHUNK_SIZE]; ELEMENTS]) -> [u8; BYTES] {
-        #[allow(path_statements)]
-        Self::CHECK;
-
-        let mut result = [0u8; BYTES];
-        let mut output_pos = 0;
-
-        for chunk in chunks {
-            let remaining = BYTES.checked_sub(output_pos).expect("output_pos <= BYTES");
-            let to_copy = remaining.min(CHUNK_SIZE);
-            let upper = output_pos
-                .checked_add(to_copy)
-                .expect("ELEMENTS * CHUNK_SIZE <= usize::MAX");
-            result[output_pos..upper].copy_from_slice(&chunk[0..to_copy]);
-            output_pos = output_pos
-                .checked_add(to_copy)
-                .expect("ELEMENTS * CHUNK_SIZE <= usize::MAX");
-        }
-
-        result
-    }
-}

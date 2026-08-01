@@ -49,6 +49,9 @@
 //! let es_r = es.dist_exp(&r);
 //! ```
 
+/// Shared chunking of byte arrays into per-element units.
+pub(crate) mod codec;
+
 /// Group over curve P-256, backed by the [p256](https://github.com/RustCrypto/elliptic-curves/tree/master/p256) crate
 pub mod p256;
 
