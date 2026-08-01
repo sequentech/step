@@ -346,6 +346,42 @@ For a first PoC with all trustees participating, both are constants.
 
 ---
 
+## Stage 1 results — EXECUTED, acceptance criterion met
+
+Implemented as **`crates/vcompat`**, a standalone, dependency-free crate (`hex` is dev-only). It is
+deliberately small and auditable, because this is the layer whose bytes must match VMN exactly.
+
+| Module | Role |
+|---|---|
+| `bytetree` | leaf/node encoding, **strict** parsing (trailing bytes rejected) |
+| `arithm` | signed integers, fixed-width field elements, curve points, product-array transposition, boolean arrays |
+| `marshal` | `comment::hex` group descriptors, P-256 parameters |
+
+**Acceptance: all 12 byte trees in the Stage 0 corpus parse and re-emit byte-identically**, and
+`serialized_len()` agrees with every file size. Structural checks pass too — the public key's `g`
+decodes to the standard P-256 base point, `Ciphertexts.bt` transposes cleanly into 10 width-2
+ciphertexts, `τ^pos` has its 6 components with `|B| = |B'| = 10`, and `σ^pos` has its 6 with
+`|k_B| = |k_E| = 10` and `|k_F| = ω = 2`.
+
+Fourteen tests in total: twelve conformance tests drawn from the VMNV worked examples (§4, §6.1,
+§6.2, §6.3, §6.7) plus the size predictions, and two corpus tests. The corpus is throwaway demo key
+material and is **not** checked in; the corpus tests are opt-in via `VCOMPAT_CORPUS`:
+
+```
+VCOMPAT_CORPUS=/path/to/nizkp/default cargo test -p vcompat
+```
+
+Without it they report a skip and pass, so the suite stays green anywhere.
+
+Parsing strictness is deliberate rather than incidental: these bytes are hashed into Fiat–Shamir
+transcripts, so a parser that accepted two encodings of one value would be a malleability surface.
+
+Both encoding traps from Stage 0 are now pinned by tests — the 33-byte signed coordinate width
+(`p256_width_is_33_not_32`) and the product-array transposition
+(`example_14_product_arrays_are_transposed`).
+
+---
+
 ## 5. Recommended path
 
 Staged, each stage independently checkable, ordered so the cheapest disproof comes first.
@@ -354,10 +390,8 @@ Staged, each stage independently checkable, ordered so the cheapest disproof com
 P-256/width-2, verified by unmodified `vmnv` with exit 0, golden test vectors captured, byte-tree
 model validated against seven files.
 
-**Stage 1 — byte trees and P-256 encoding in Rust.** Standalone, no braid dependency. Validate by
-round-tripping the Stage 0 corpus: parse VMN's own `.bt` files and re-emit them byte-identically.
-Mind the 33-byte signed coordinate encoding and the product-group transposition; the seven size
-predictions above make good unit tests.
+**Stage 1 — byte trees and P-256 encoding in Rust. ✅ DONE** — implemented as the `vcompat` crate
+(`crates/vcompat`), standalone and dependency-free. See "Stage 1 results" below.
 
 **Stage 2 — VMN's hash / PRG / random oracle / independent generators.** Validate against VMNV
 Appendix A's PRG test vectors and Stage 0's `vmnv -t` values. This is the layer that decides the
