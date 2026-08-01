@@ -46,6 +46,7 @@ pub mod arithm;
 pub mod bytetree;
 pub mod crypto;
 pub mod error;
+pub mod generators;
 pub mod marshal;
 
 pub use bytetree::ByteTree;

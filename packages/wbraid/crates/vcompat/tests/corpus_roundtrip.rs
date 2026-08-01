@@ -276,6 +276,87 @@ fn shuffle_seed_matches_vmn() {
     eprintln!("shuffle batching seed s reproduced exactly");
 }
 
+/// Derive the independent generators ourselves and check them against
+/// `vmnv -t bas.h` (VMNV §6.8).
+///
+/// This closes the last gap in the shuffle transcript: with `h` derived rather
+/// than borrowed, every input to the batching seed can be produced from the
+/// protocol parameters alone.
+#[test]
+fn independent_generators_match_vmn() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory to run this test");
+        return;
+    };
+    let vectors_path = match dir.parent().map(|p| p.join("testvectors.txt")) {
+        Some(p) if p.is_file() => p,
+        _ => {
+            eprintln!("skipping: testvectors.txt not found next to the corpus directory");
+            return;
+        }
+    };
+    let text = std::fs::read_to_string(&vectors_path).unwrap();
+    let expected = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
+    let count = expected.as_node().unwrap().len();
+
+    let derived = vcompat::generators::independent_generators(
+        vcompat::crypto::Hashfunction::Sha256,
+        &reference_rho(),
+        &vcompat::generators::CurveParams::p256(),
+        100, // n_r = statdist
+        count,
+    )
+    .expect("derive generators");
+
+    assert_eq!(derived, expected, "derived generators must match vmnv -t bas.h");
+    eprintln!("derived {count} independent generators matching VMN exactly");
+}
+
+/// With `h` derived rather than taken from a test vector, the batching seed is
+/// reproducible from the protocol parameters and the proof files alone — which
+/// is the position a real emitter is in.
+#[test]
+fn shuffle_seed_from_fully_derived_inputs() {
+    let Some(dir) = corpus_dir() else {
+        eprintln!("skipping: set VCOMPAT_CORPUS to a VMN nizkp directory to run this test");
+        return;
+    };
+    const GOLDEN_POS_S: &str =
+        "78e66e9d0099c4322d9d18579254ae92e779ad2f5b3a7120cd21c2c84bfa49f5";
+
+    let read_tree = |name: &str| {
+        ByteTree::from_bytes(&std::fs::read(dir.join(name)).unwrap()).unwrap()
+    };
+    let w = read_tree("Ciphertexts.bt");
+    // N is the number of ciphertexts, which also fixes how many generators the
+    // shuffle proof needs.
+    let n = arithm::product_array_rows(&w.as_node_of(2).unwrap()[0]).unwrap().len();
+
+    let rho = reference_rho();
+    let h = vcompat::generators::independent_generators(
+        vcompat::crypto::Hashfunction::Sha256,
+        &rho,
+        &vcompat::generators::CurveParams::p256(),
+        100,
+        n,
+    )
+    .unwrap();
+
+    let seed = vcompat::crypto::pos_seed(
+        vcompat::crypto::Hashfunction::Sha256,
+        &rho,
+        &marshal::p256::generator(),
+        &h,
+        &read_tree("proofs/PermutationCommitment01.bt"),
+        &vcompat::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap(),
+        &w,
+        &read_tree("proofs/Ciphertexts01.bt"),
+    );
+
+    assert_eq!(hex_string(&seed), GOLDEN_POS_S);
+    eprintln!("batching seed reproduced from fully derived inputs (N={n})");
+}
+
 /// Parse a `vmnv -t` point-list vector -- `((x, y),(x, y),...)` in hex -- into a
 /// byte tree array of affine points at P-256's fixed width.
 ///

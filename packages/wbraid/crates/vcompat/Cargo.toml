@@ -10,6 +10,10 @@ edition = "2021"
 
 [dependencies]
 sha2 = "0.11"
+# Modular arithmetic for deriving independent generators (VMNV 6.8): Legendre
+# symbols and square roots mod p. Correctness is pinned against VMN's own
+# `bas.h` output, and the values derived are public generators.
+num-bigint = "0.4"
 
 [dev-dependencies]
 hex = "0.4"

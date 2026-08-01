@@ -418,13 +418,22 @@ challenge with no useful diagnostic:
    `sid ‖ "." ‖ auxsid` as one string, and to the entire `<pgroup>` value *including* the
    `ECqPGroup(P-256)::` comment prefix, not just the hex payload.
 
+### Independent generators — also DONE
+
+Subsequently closed: `vcompat::generators` implements VMNV §6.8's quadratic-residue walk (PRG →
+45-byte candidates → mask to `n_p + n_r` bits → reduce mod p → keep those where `f(z)` is a quadratic
+residue), and **the derived generators match `vmnv -t bas.h` exactly**. With `h` derived rather than
+borrowed, the batching seed now reproduces from the protocol parameters and proof files alone — the
+position a real emitter is in.
+
+A third trap, caught by that golden test: **the root choice is normalised one level above `sqrt`.**
+`ECqPGroup.sqrt` returns `v^((p+1)/4)`, which is the larger root about half the time; it is
+`randomElementArray` that then applies `y' = p - y; if (y' < y) y = y'`. Implementing from `sqrt`
+alone yields every x-coordinate right and half the y-coordinates inverted — which is precisely the
+signature the failing test showed, and why it was diagnosable in one step.
+
 ### What Stage 2 did not cover
 
-- **Deriving the independent generators `h`.** The tests take `h` from `vmnv -t bas.h` rather than
-  deriving it. Producing it requires VMNV §6.8's quadratic-residue walk — modular arithmetic
-  (Legendre symbol, square roots mod p) and therefore a bignum dependency. This is required for a
-  real emitter but is ordinary work, not a risk: the derivation is fully specified and `bas.h` is
-  available as a golden value to check against.
 - **The decryption transcript** (`Dec.s`, `Dec.v`) is not yet reproduced. The shuffle path is the
   representative and harder case, so this is expected to be mechanical — but it is unproven.
 
