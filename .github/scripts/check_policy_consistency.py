@@ -13,7 +13,16 @@ cleanly and silently reduce what the system reports.
 This is the check `40-changes-must-be-checked.md` asks for, applied to the
 policy system itself.
 
-Run: python3 .github/scripts/check_policy_consistency.py
+This repository is self-contained by policy — see
+`.github/policies/10-repository-scope.md`. Its CI may not depend on anything it
+cannot clone anonymously, so it carries its own copy of this checker rather than
+fetching one. That is a deliberate duplicate, not an oversight.
+
+Run: python3 check_policy_consistency.py [repository-root]
+
+The root defaults to two directories above this file, which is right when the
+script sits in the repository it is checking.
+
 Exit: 0 when consistent, 1 otherwise. No third-party dependencies.
 """
 
@@ -25,7 +34,10 @@ import os
 import re
 import sys
 
-ROOT = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.realpath(
+    sys.argv[1] if len(sys.argv) > 1
+    else os.path.join(os.path.dirname(__file__), "..", "..")
+)
 POLICY_DIR = os.path.join(ROOT, ".github", "policies")
 CODERABBIT = os.path.join(ROOT, ".coderabbit.yaml")
 ALERT = os.path.join(ROOT, ".github", "workflows", "policy-alert.yml")

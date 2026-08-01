@@ -59,6 +59,12 @@ traffic. A policy alert arriving among routine notifications is one nobody
 reads. The dedicated name lets these go somewhere quiet without disturbing
 anything else.
 
+:::tip Prefer the dedicated name
+`POLICY_SLACK_WEBHOOK_URL` with its own channel is the intended setup. The
+fallback exists so nothing breaks before it is configured, not as an equally
+good alternative.
+:::
+
 ---
 
 ## 2. Create a Slack webhook
