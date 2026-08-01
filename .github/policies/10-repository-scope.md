@@ -6,9 +6,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Repository scope and self-containment
 
-> **Label:** `policy:architecture`
+> **Label:** `policy:repo-scope`
 > **Reviewers:** `@sequentech/Architects`
 > **If breached:** an Architect must approve before this can merge.
+
+This policy asks *does this repository stay self-contained and public?* For the
+separate question of whether a change alters **what the system is** — the
+identity provider, a datastore, a cryptographic primitive — see
+[`60-architectural-changes.md`](60-architectural-changes.md). A change can trip
+both.
 
 This repository is the public, open-source home of the Sequent voting platform.
 It holds the platform's own source code, its tests, and its documentation.

@@ -39,9 +39,13 @@ jobs:
           TEAM: ${{ github.event.requested_team.slug }}
         run: |
           case "${LABEL:-team:${TEAM}}" in
-            policy:architecture)
+            policy:repo-scope)
               icon=":rotating_light:"
               what="Repository scope — a change adds a dependency on something not publicly available"
+              ;;
+            policy:architecture-change)
+              icon=":building_construction:"
+              what="An architectural decision changed, or the change contradicts docs/architecture.md"
               ;;
             policy:secrets)
               icon=":rotating_light:"

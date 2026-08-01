@@ -38,7 +38,7 @@ reviews:
   # --------------------------------------------------------------------------
   auto_apply_labels: true
   labeling_instructions:
-    - label: "policy:architecture"
+    - label: "policy:repo-scope"
       instructions: |
         Apply when the change makes this repository depend on something that is
         not publicly available — a workflow checking out a repository the public
@@ -71,6 +71,35 @@ reviews:
         .github/policies/50-governance.md. This is allowed but must never pass
         unremarked, so apply the label even when the change looks routine.
 
+    - label: "policy:architecture-change"
+      instructions: |
+        Apply when the change alters what the system IS, rather than where its
+        code lives — this is a different question from policy:repo-scope, and
+        a change can warrant both labels or either alone. See
+        .github/policies/60-architectural-changes.md, and check the change
+        against docs/architecture.md, which records the current decisions.
+
+        Apply when the change: replaces or adds a foundational technology
+        (identity provider, token format or permission model, API engine,
+        datastore, message broker or task protocol, object storage, any
+        cryptographic primitive or protocol, a language or runtime the
+        repository does not already build); adds, removes, splits or merges a
+        service; moves a responsibility between components, or between the
+        browser and the server; changes an interface between components (task
+        message shape, API action contract, serialisation shared with WASM); or
+        changes a deliberately pinned or forked dependency, such as
+        wasm-bindgen or the celery fork.
+
+        Also apply — on its own, and this is half the policy — when the change
+        makes any statement in docs/architecture.md untrue without updating it.
+        Say which section is now wrong. This holds even when the change is
+        otherwise correct and well reviewed.
+
+        Do NOT apply to ordinary feature work inside the existing structure, to
+        dependency updates that keep the same technology, to refactoring that
+        leaves component boundaries intact, or to documentation that describes
+        the architecture as it already is.
+
   # --------------------------------------------------------------------------
   # Reviewer routing. `auto_assign_reviewers` is what actually requests the
   # review; without it these are only listed in the walkthrough.
@@ -83,8 +112,10 @@ reviews:
           type: group
       instructions: |
         Assign when the change makes this repository depend on something not
-        publicly available, commits a credential, or modifies the policy system
-        itself.
+        publicly available, commits a credential, modifies the policy system
+        itself, or alters an architectural decision recorded in
+        docs/architecture.md — including a change that contradicts that
+        document without updating it.
 
     - reviewers:
         - handle: "devops"

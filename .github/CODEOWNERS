@@ -10,10 +10,19 @@
 # enabled on `main`, such a change cannot merge without an Architect, which is
 # stronger than any warning the review itself could print.
 #
-# Deliberately narrow. This file claims only the policy system, not the
-# repository.
+# Deliberately narrow. This file claims the policy system and the architecture
+# document it judges against — not the repository.
 
 /.coderabbit.yaml                    @sequentech/Architects
 /.github/policies/                   @sequentech/Architects
 /.github/CODEOWNERS                  @sequentech/Architects
 /.github/workflows/policy-alert.yml  @sequentech/Architects
+
+# The architecture document, for the same reason.
+#
+# `60-architectural-changes.md` requires a change to update this file. That
+# obligation is only as strong as the file: if the record can be rewritten to
+# match whatever just merged, "the change must update the document" costs
+# nothing. This entry is what makes updating it a decision rather than a
+# formality.
+/docs/architecture.md                @sequentech/Architects

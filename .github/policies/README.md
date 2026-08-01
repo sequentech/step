@@ -17,10 +17,16 @@ Each policy owns one label, and the label decides what happens:
 
 | Policy | Label | Reviewers | Slack |
 |---|---|---|---|
-| `10-repository-scope` | `policy:architecture` | Architects | 🔴 |
+| `10-repository-scope` | `policy:repo-scope` | Architects | 🔴 |
 | `20-secrets-and-environment-config` | `policy:secrets` | Architects | 🔴 |
 | `30-licensing`, `40-changes-must-be-checked` | `policy:coverage` | DevOps | 🔵 |
 | `50-governance` | `policy:governance` | Architects | 🟠 |
+| `60-architectural-changes` | `policy:architecture-change` | Architects | 🏗️ |
+
+`policy:repo-scope` and `policy:architecture-change` ask different questions
+and are not interchangeable. The first asks whether code is in the **right
+repository**; the second asks whether the change alters **what the system is**.
+A change can trip both, one, or neither.
 
 CodeRabbit applies the label and requests the review; both are ordinary GitHub
 events, which is how [`policy-alert.yml`](../workflows/policy-alert.yml) can post
