@@ -145,6 +145,18 @@ session constants in the tests.
 
 ## Running the `vmnv` tests
 
+**The short way**, from the repo root — it does everything in this section for
+you, including creating the random source:
+
+```powershell
+.\vmnv.ps1                # the three-party shuffle chain
+.\vmnv.ps1 -All           # every interop test, including -mix
+.\vmnv.ps1 -Java C:\path\to\java.exe
+```
+
+The rest of this section is what that script automates, for anyone reproducing
+it by hand or on a platform without PowerShell.
+
 `crates/braid/tests/vmn_verifier.rs` shells out to a JVM and is `#[ignore]`d, so
 it needs four environment variables. Only `VMNV_RANDOM_SOURCE`/`_SEED` need
 creating; the rest point at things already in the repo.
@@ -192,11 +204,19 @@ cargo test -p braid --test vmn_verifier -- --ignored --nocapture
 ### `vmnv` is not safe to run concurrently by default
 
 Verificatum spools large integer arrays into a working directory under
-`/tmp/com.verificatum`, picks the same one for every process when `-wd` is
-absent, and deletes it on exit. Two `vmnv` runs at once therefore destroy each
-other's scratch space part-way through, surfacing as `File not found!` or
-`Unable to delete storage directory!` in whichever run lost — under `cargo
-test`'s default parallelism, that looks like unrelated tests failing at random.
+`/tmp/com.verificatum` and deletes it on exit, so two `vmnv` runs sharing one
+destroy each other's scratch space part-way through. That surfaces as `File not
+found!` or `Unable to delete storage directory!` in whichever run lost — under
+`cargo test`'s default parallelism, it looks like unrelated tests failing at
+random.
+
+Without `-wd`, `TempFile.init` names that directory from
+`randomSource.getBytes(10)`, so it is unique only if the random source is. **Ours
+is not**: the seeded PRG below is deterministic, and concurrent runs all read the
+same seed file before any of them rewrites it. On Unix with
+`vog -rndinit RandomDevice /dev/urandom` the source is genuinely random and this
+does not arise, so it is an artifact of the Windows setup rather than an upstream
+bug.
 
 `run_vmnv_mode` passes a unique `-wd` per invocation, so the tests do not need
 `--test-threads=1`. Anything else driving `vmnv` in parallel must do the same.
