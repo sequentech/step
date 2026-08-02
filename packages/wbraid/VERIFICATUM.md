@@ -270,9 +270,7 @@ Three conventions still differ, and the emitter still bridges them:
   braid computes `u^{+x_l}` and divides during combination.
 - **The α trick.** Verificatum computes `f_l = PDec_{x_l/α}` with `α = lcm(1,…,k)²`, cancelling it
   in the Lagrange combination so the coefficients stay small integers (VMNV §2.2). braid keeps plain
-  Lagrange over the unscaled share. Adopting α was considered and rejected: its payoff is a
-  small-exponent multi-exponentiation, and braid's `multi_exp` does not yet exploit small exponents,
-  so it would import the complication without the benefit.
+  Lagrange over the unscaled share — **deferred, not rejected on principle**; see below.
 - **The batching transcript.** braid derives its exponents from its own hash of the verification key,
   ciphertexts and factors; Verificatum derives them from `RO_seed` over a byte-tree of `Γ` and *all
   k* parties' factors. These are necessarily different, so a braid proof is not a VMN proof.
@@ -280,6 +278,32 @@ Three conventions still differ, and the emitter still bridges them:
 The consequence for the emitter is unchanged: `vmn::decrypt::prove_decryption` still produces
 Verificatum's proof from the secret rather than converting braid's, and the factors are still
 re-exponentiated by `−1/α` at the boundary.
+
+#### Why α is deferred for braid's own path
+
+Not because it conflicts with anything. The design space collapsed to a single question, and α is the
+only variable left in it:
+
+- **Combining the parties' proofs into one is ruled out**, because it needs a shared `A` and a shared
+  challenge, hence batching exponents seeded over *every* party's factors, hence factors published
+  before anyone can commit. That is Verificatum's three-round decryption. braid publishes factors and
+  proof together in one round and keeps proofs per party so a failure names its author, which the
+  board needs in order to make progress. Ruling out the extra rounds rules out combining.
+- **Given per-party proofs, α is a pure performance choice** confined to `combine`. Two shapes work:
+  keep factors at `u^{x_l}`, combine by `α·c_l` and take one α-th root per ciphertext (proof
+  untouched); or scale the witness as VMN does (no root, proof carries α). The first is less invasive
+  here.
+
+What blocks it is neither of those: `C::Scalar` is a fixed-width field element, so `α·c_l = 108` at
+`k = 3` costs exactly what a 256-bit scalar costs — constant-time scalar multiplication walks all 256
+bits by design. Realising the ~34× on that step needs a small-exponent entry point in the group API,
+variable-time in an exponent that is public here but not in general. Verificatum has the equivalent:
+`combineDecryptionFactors` passes the coefficients' maximum bit length into `expProd` precisely so
+the ladder runs 7 iterations instead of 256.
+
+And the step is `λN` of `combine`'s `3λN`, so even fully realised it is worth roughly a fifth. There
+is no lock-in — α would live entirely inside `combine` — so this is a decision to take against a
+profile, not now.
 
 ### 2.6 Fiat–Shamir transcript: THE dominant incompatibility
 
