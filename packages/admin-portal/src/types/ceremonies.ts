@@ -38,6 +38,7 @@ export enum ITallyExecutionStatus {
     STARTED = "STARTED",
     CONNECTED = "CONNECTED",
     IN_PROGRESS = "IN_PROGRESS",
+    AWAITING_INPUT = "AWAITING_INPUT",
     SUCCESS = "SUCCESS",
     CANCELLED = "CANCELLED",
 }

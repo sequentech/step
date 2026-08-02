@@ -24,9 +24,11 @@ const StyledButton = styled(Button)<ButtonProps>(
 `
 )
 
-const LanguageMenu: React.FC<{languagesList?: Array<string>; label?: string}> = ({
-    languagesList = ["en"],
-}) => {
+const LanguageMenu: React.FC<{
+    languagesList?: Array<string>
+    label?: string
+    onChange?: (lang: string) => void
+}> = ({languagesList = ["en"], onChange}) => {
     const {t, i18n} = useTranslation()
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
@@ -42,6 +44,9 @@ const LanguageMenu: React.FC<{languagesList?: Array<string>; label?: string}> = 
     const changeLanguage = async (lang: string) => {
         handleClose()
         await i18n.changeLanguage(lang)
+        if (onChange) {
+            onChange(lang)
+        }
     }
 
     return (

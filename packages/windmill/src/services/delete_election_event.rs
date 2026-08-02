@@ -48,7 +48,7 @@ pub async fn delete_event_b3(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
-    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None).await?;
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id).await?;
     board_client.delete_board(board_name.as_str()).await?;
 
     for election in elections {
@@ -68,7 +68,7 @@ pub async fn delete_election_event_b3(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
     let mut board_client = get_b3_pgsql_client().await?;
-    let existing: Option<b3::client::pgsql::B3IndexRow> =
+    let existing: Option<b4::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
 
     if existing.is_some() {
@@ -77,7 +77,7 @@ pub async fn delete_election_event_b3(
 
     for election_id in election_ids {
         let board_name = get_election_board(tenant_id, &election_id, &slug);
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
+        let existing: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 
         if existing.is_some() {
@@ -116,8 +116,23 @@ pub async fn delete_election_event_related_documents(
 ) -> Result<()> {
     let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
     let bucket = s3::get_private_bucket()?;
-    s3::delete_files_from_s3(bucket, documents_prefix, false)
+    s3::delete_files_from_s3(bucket, documents_prefix.clone(), s3::S3Endpoint::Server)
         .await
         .map_err(|err| anyhow!("Error delete private files from s3: {err:?}"))?;
+
+    // Also delete the public files related to the election event, such as the election event config
+    let public_bucket = s3::get_public_bucket()?;
+    s3::delete_files_from_s3(
+        public_bucket.clone(),
+        documents_prefix,
+        s3::S3Endpoint::Server,
+    )
+    .await
+    .map_err(|err| anyhow!("Error delete public files from s3: {err:?}"))?;
+
+    let results_index_key = format!("results-index/{election_event_id}.json");
+    s3::delete_files_from_s3(public_bucket, results_index_key, s3::S3Endpoint::Server)
+        .await
+        .map_err(|err| anyhow!("Error delete public results index from s3: {err:?}"))?;
     Ok(())
 }

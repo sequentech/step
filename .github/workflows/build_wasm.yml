@@ -13,7 +13,7 @@ on:
 
 jobs:
   build_wasm:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Repository
@@ -49,12 +49,57 @@ jobs:
             exit 1
           fi
 
-      - name: Check that WASM build works
+      - name: Print tool versions
         working-directory: packages/sequent-core
         run: |
-          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+          nix develop --command bash -c '
+            wasm-opt --version
+            wasm-bindgen --version
+            wasm-pack --version
+          '
 
-      - name: Check that WASM pack works
+      - name: Check that WASM build and pack works
         working-directory: packages/sequent-core
         run: |
-          nix develop --command wasm-pack -v pack .
+          nix develop --command bash -c '
+            set -euo pipefail
+            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
+            wasm-pack -v pack .
+          '
+
+      # Note: Commented out because this doesn't work, probably because the paths in the devcontainer and the GitHub Action runner are different, so the hash of the built package doesn't match the hash in yarn.lock.
+      # Keeping the commented-out code here for now in case we want to revisit this approach in the future
+      # - name: Check that yarn.lock hash matches freshly built package
+      #   working-directory: packages
+      #   run: |
+      #     new_hash=$(sha1sum sequent-core/pkg/sequent-core-0.1.0.tgz | awk '{printf $1}')
+      #     lock_hash=$(grep "file:./admin-portal/rust/sequent-core-" yarn.lock | awk -F'#' '{printf $2}' | tr -d '"')
+      #     echo "New build hash: $new_hash"
+      #     echo "yarn.lock hash: $lock_hash"
+      #     if [ -z "$new_hash" ] || [ -z "$lock_hash" ]; then
+      #       echo "Error: could not extract one or both hashes"
+      #       exit 1
+      #     fi
+      #     if [ "$new_hash" != "$lock_hash" ]; then
+      #       echo "Error: sequent-core WASM package is out of date."
+      #       echo "Run rebuild.sequent-core.full (VSCode task) or rebuild-sequent-core-full.sh and commit the results."
+      #       exit 1
+      #     fi
+      #     echo "Hashes match: sequent-core WASM is up to date"
+
+      - name: Set Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Install JS dependencies
+        working-directory: packages
+        run: yarn install
+
+      - name: Build ui-core
+        working-directory: packages
+        run: yarn build:ui-core
+
+      - name: Build ui-essentials
+        working-directory: packages
+        run: yarn build:ui-essentials

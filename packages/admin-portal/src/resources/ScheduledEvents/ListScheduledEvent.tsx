@@ -277,7 +277,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             label={String(t("eventsScreen.fields.electionId"))}
             choices={elections?.map((election) => ({
                 id: election.id,
-                name: election.alias || election.name || "-",
+                name: aliasRenderer(election),
             }))}
             onChange={(e: any) => {
                 setEventScreenElectionId(e.target.value)

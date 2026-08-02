@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::ballot::CandidatePresentation;
+use std::collections::HashMap;
 
 #[derive(Args)]
 #[command(about = "Create a new candidate", long_about = None)]
@@ -43,7 +45,11 @@ impl CreateCandidate {
             &self.contest_id,
         ) {
             Ok(id) => {
-                println!("Success! Candidate created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Candidate created successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create candidate: {}", err)
@@ -61,14 +67,19 @@ fn create_candidate(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
+    let mut presentation = CandidatePresentation::default();
+
+    presentation.i18n = Some(HashMap::from([(
+        "en".to_string(),
+        HashMap::from([("name".to_string(), Some(name.to_string()))]),
+    )]));
+
     let variables = insert_candidate::Variables {
-        name: name.to_string(),
         description: Some(description.to_string()),
         election_event_id: election_event_id.to_string(),
         contest_id: contest_id.to_string(),
         tenant_id: config.tenant_id.clone(),
-
-        presentation: None,
+        presentation: Some(serde_json::to_value(presentation)?),
     };
 
     let request_body = InsertCandidate::build_query(variables);

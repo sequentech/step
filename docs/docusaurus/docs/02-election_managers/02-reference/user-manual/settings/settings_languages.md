@@ -8,9 +8,10 @@ title: Languages
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+Manage language options for the Tenant in the Admin Portal.
 
-
-
-This is a placeholder page for the section: Languages.
-
-Content will be added here soon.
+- Use radio buttons to select the languages available.
+- Set the default language by selecting **Default** next to the appropriate language.
+- **Language Detection Policy**:
+  - **Browser Detect**: The default language will be determined by the browser.
+  - **Force Default**: The default language will be the one selected as **Default**.

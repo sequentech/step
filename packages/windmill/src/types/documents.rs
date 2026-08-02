@@ -20,6 +20,9 @@ pub enum EDocuments {
     ROLES_PERMISSIONS_CONFIG,
     PUBLICATIONS,
     TALLY,
+    IMAGES,
+    ELECTION_EVENT_CONFIG,
+    CERTIFICATES,
 }
 
 impl EDocuments {
@@ -39,6 +42,9 @@ impl EDocuments {
             EDocuments::ROLES_PERMISSIONS_CONFIG => "export_permissions",
             EDocuments::PUBLICATIONS => "export_publications",
             EDocuments::TALLY => "export_tally_data",
+            EDocuments::IMAGES => "images",
+            EDocuments::ELECTION_EVENT_CONFIG => "election_event_config",
+            EDocuments::CERTIFICATES => "export_certificates",
         }
     }
 }

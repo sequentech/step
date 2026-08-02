@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS sequent_backend.cast_vote_participation_election_idx;
+DROP INDEX IF EXISTS sequent_backend.cast_vote_participation_event_idx;

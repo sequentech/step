@@ -3,23 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Dialog} from "@sequentech/ui-essentials"
-import {isString} from "@sequentech/ui-core"
+import {
+    isString,
+    isValidVotingPortalDateTimePattern,
+    VOTING_PORTAL_DATETIME_FORMAT_KEY,
+} from "@sequentech/ui-core"
 import React, {useMemo, useState} from "react"
 import {
     Button,
     Datagrid,
     Identifier,
-    List,
     SaveButton,
     SimpleForm,
-    SortPayload,
     TextField,
     TextInput,
     WrapperField,
-    useListContext,
     useNotify,
     useRecordContext,
     useUpdate,
+    useList,
+    ListContextProvider,
 } from "react-admin"
 import EditIcon from "@mui/icons-material/Edit"
 import Add from "@mui/icons-material/Add"
@@ -39,70 +42,33 @@ import {
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import _ from "lodash"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
 
 interface LocalizationListProps {
     selectedLanguage: string
-    election_event_id: string
     actions: Action[]
 }
 
-const LocalizationList: React.FC<LocalizationListProps> = ({
-    selectedLanguage,
-    election_event_id,
-    actions,
-}) => {
-    const {data, isLoading} = useListContext()
+const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, actions}) => {
     const {t} = useTranslation()
-    const [page, setPage] = useState(0)
-    const [pageSize, setPageSize] = useState(10)
-    const [sort, setSort] = useState<SortPayload>({
-        field: "id",
-        order: "ASC",
+    const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
+
+    const translationData = useMemo(() => {
+        return Object.entries(record?.presentation?.i18n?.[selectedLanguage] || {}).map(
+            ([key, value]) => ({
+                id: key,
+                value: value as string,
+            })
+        )
+    }, [record?.presentation?.i18n, selectedLanguage])
+
+    const listContext = useList({
+        data: translationData,
     })
 
-    const targetElectionEvent = useMemo(() => {
-        return data?.find((e) => e.id === election_event_id)
-    }, [data, isLoading, election_event_id])
-
-    const translationData = Object.entries(
-        targetElectionEvent?.presentation?.i18n?.[selectedLanguage] || {}
-    ).map(([key, value]) => ({
-        id: key,
-        value: value,
-    }))
-
-    const sortedTranslationData = useMemo(() => {
-        //@ts-ignore
-        return _.orderBy(translationData, [sort.field], [sort.order.toLowerCase()])
-    }, [translationData, sort])
-
-    const paginatedData = useMemo(() => {
-        return _.chunk(sortedTranslationData, pageSize)
-    }, [sortedTranslationData, pageSize])
-
-    if (isLoading) {
-        return <p>{t("loading")}</p>
-    }
-
-    const handlePageChange = (e: any, page: number) => {
-        setPage(page)
-    }
-
-    const handleRowsChange = (v: number) => {
-        setPageSize(v)
-    }
-
     return (
-        <>
-            <Datagrid
-                data={paginatedData[page]}
-                total={translationData.length}
-                bulkActionButtons={false}
-                sort={sort}
-                setSort={setSort}
-            >
+        <ListContextProvider value={listContext}>
+            <Datagrid bulkActionButtons={false}>
                 <TextField
                     source="id"
                     label={String(t("electionEventScreen.localization.labels.key"))}
@@ -116,22 +82,29 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
                 </WrapperField>
             </Datagrid>
             <TablePagination
-                page={page}
-                rowsPerPage={pageSize}
-                count={translationData.length || 0}
-                onPageChange={handlePageChange}
-                onRowsPerPageChange={(e) => handleRowsChange(parseInt(e.target.value))}
+                component="div"
+                page={listContext.page - 1}
+                rowsPerPage={listContext.perPage}
+                count={listContext.total || 0}
+                onPageChange={(e, page) => listContext.setPage(page + 1)}
+                onRowsPerPageChange={(e) => listContext.setPerPage(parseInt(e.target.value, 10))}
             />
-        </>
+        </ListContextProvider>
     )
 }
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
-    const [update, {isLoading}] = useUpdate()
+    const [update] = useUpdate()
 
     const {t} = useTranslation()
     const notify = useNotify()
+
+    // The Voting Portal date/time override is a free string typed by an operator. It is
+    // validated by the same parser the voter-facing helper uses, so an invalid pattern is
+    // rejected at save time instead of silently falling back to the preset at render time.
+    const isInvalidDateTimeOverride = (key: string, value: string): boolean =>
+        key === VOTING_PORTAL_DATETIME_FORMAT_KEY && !isValidVotingPortalDateTimePattern(value)
 
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code ?? "en"
@@ -176,7 +149,13 @@ const EditElectionEventTextDataTable = () => {
         if (!e || !e?.presentation || !e?.presentation?.i18n) return
         const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
         const newValue: string = e?.presentation?.i18n?.[selectedLanguage]?.newVal ?? ""
-        if (!newValue || !newValue) return
+        if (!newValue || !newKey) return
+        if (isInvalidDateTimeOverride(newKey, newValue)) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+            return
+        }
         update(
             "sequent_backend_election_event",
             {
@@ -212,6 +191,12 @@ const EditElectionEventTextDataTable = () => {
         if (!e || !recordId) return
         const editVal: string = e?.editableVal ?? ""
         if (!editVal) return
+        if (isInvalidDateTimeOverride(recordId as string, editVal)) {
+            notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
+                type: "error",
+            })
+            return
+        }
         update(
             "sequent_backend_election_event",
             {
@@ -377,13 +362,9 @@ const EditElectionEventTextDataTable = () => {
                         </Drawer>
                     </div>
                 </Box>
-                <List actions={false} sx={{flexGrow: 1, width: "100%"}} pagination={false}>
-                    <LocalizationList
-                        selectedLanguage={selectedLanguage}
-                        election_event_id={record?.id}
-                        actions={actions}
-                    />
-                </List>
+                <Box sx={{flexGrow: 1, width: "100%"}}>
+                    <LocalizationList selectedLanguage={selectedLanguage} actions={actions} />
+                </Box>
             </SimpleForm>
 
             <Drawer
@@ -418,7 +399,9 @@ const EditElectionEventTextDataTable = () => {
                             label={String(t("electionEventScreen.localization.labels.value"))}
                             defaultValue={
                                 recordId
-                                    ? record?.presentation?.i18n[selectedLanguage][recordId]
+                                    ? record?.presentation?.i18n[selectedLanguage][
+                                          recordId as string
+                                      ]
                                     : undefined
                             }
                             multiline

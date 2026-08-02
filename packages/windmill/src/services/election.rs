@@ -4,6 +4,8 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::services::translations::{Alias, Name};
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,20 +13,26 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::postgres::election::get_elections;
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionHead {
     pub id: String,
     pub name: String,
     pub alias: Option<String>,
+    pub external_id: Option<String>,
 }
 
-impl TryFrom<Row> for ElectionHead {
+impl TryFrom<Election> for ElectionHead {
     type Error = anyhow::Error;
-    fn try_from(item: Row) -> Result<Self> {
+    fn try_from(item: Election) -> Result<Self> {
+        let default_language = item.get_default_language();
+        let election = item.clone();
         Ok(ElectionHead {
-            id: item.try_get::<_, Uuid>("id")?.to_string(),
-            name: item.get("name"),
-            alias: item.get("alias"),
+            id: election.id.clone(),
+            name: election.get_name(&default_language),
+            alias: election.get_alias(&default_language),
+            external_id: election.external_id,
         })
     }
 }
@@ -35,28 +43,11 @@ pub async fn get_election_event_elections(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ElectionHead>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let elections_statement = hasura_transaction
-        .prepare(
-            r#"
-                SELECT
-                    id, name, alias
-                FROM sequent_backend.election
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2;
-            "#,
-        )
+    let election_event_elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
-        .with_context(|| "Error preparing election statement")?;
-    let rows: Vec<Row> = hasura_transaction
-        .query(&elections_statement, &[&tenant_uuid, &election_event_uuid])
-        .await
-        .with_context(|| "Error running the election query")?;
-    let elections = rows
+        .with_context(|| "Error get election event elections")?;
+
+    let elections = election_event_elections
         .into_iter()
         .map(|row| -> Result<ElectionHead> { row.try_into() })
         .collect::<Result<Vec<ElectionHead>>>()

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm as builder
+FROM rust:1.96.0-slim-bookworm as builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid/Cargo.toml ./braid/Cargo.toml
-COPY ./b3/Cargo.toml ./b3/Cargo.toml
+COPY ./b4/Cargo.toml ./b4/Cargo.toml
 COPY ./electoral-log/Cargo.toml ./electoral-log/Cargo.toml
 COPY ./harvest/Cargo.toml ./harvest/Cargo.toml
 COPY ./strand/Cargo.toml ./strand/Cargo.toml
@@ -58,8 +58,8 @@ RUN mkdir -p ./strand/benches \
     && echo "// dummy file" > ./strand/benches/encrypt.rs \
     && echo "// dummy file" > ./strand/benches/shuffle.rs \
     && echo "// dummy file" > ./strand/benches/verify_ballot.rs
-RUN mkdir -p ./b3/src \
-    && echo "// dummy file" > ./b3/src/lib.rs
+RUN mkdir -p ./b4/src \
+    && echo "// dummy file" > ./b4/src/lib.rs
 RUN mkdir -p ./electoral-log/src \
     && echo "// dummy file" > ./electoral-log/src/lib.rs
 RUN mkdir -p ./sequent-core/src \

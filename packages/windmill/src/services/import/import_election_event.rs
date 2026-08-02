@@ -7,9 +7,12 @@ use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::import::import_publications::import_ballot_publications;
+use crate::services::import::import_publications::{
+    import_ballot_publications, import_election_event_config_file,
+};
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
+use crate::services::keycloak::read_realm_config_from_s3;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -22,7 +25,8 @@ use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
-use sequent_core::ballot::AllowTallyStatus;
+use keycloak::types::RealmEventsConfigRepresentation;
+use once_cell::sync::Lazy;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -30,11 +34,13 @@ use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::{AllowTallyStatus, LanguageDetectionPolicy};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::{
-    get_client_credentials, get_event_realm, replace_realm_ids, KeycloakAdminClient,
+    generate_client_secret, get_client_credentials, get_event_realm, replace_realm_ids,
+    KeycloakAdminClient,
 };
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::Application;
@@ -42,7 +48,12 @@ use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::locale::iso_639_2t_to_bcp47;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
+use sequent_core::util::version::{
+    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION, HISTORICAL_DEFAULT_VERSION,
+    VERSION_KEY,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -60,16 +71,23 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
+const KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: &str =
+    "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY";
+
 use super::import_users::import_users_file;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
+use crate::postgres::certificate_authority::{
+    insert_certificate_authority, CertificateAuthorityRecord,
+};
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
 use crate::services::documents::upload_and_return_document;
@@ -85,10 +103,13 @@ use crate::services::protocol_manager::{
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
+use sequent_core::types::keycloak::{
+    CERTIFICATES_IDP_ALIAS, DEFAULT_IVR_SERVICE_CLIENT_ID, IVR_VOTING_CLIENT_ID,
+};
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
@@ -103,6 +124,13 @@ pub struct ImportElectionEventSchema {
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
     pub applications: Option<Vec<Application>>,
+    #[serde(default = "default_version")]
+    pub version: String,
+}
+
+/// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
+fn default_version() -> String {
+    HISTORICAL_DEFAULT_VERSION.to_string()
 }
 
 #[instrument(err)]
@@ -122,7 +150,7 @@ pub async fn upsert_b3_and_elog(
     let mut board_client = get_b3_pgsql_client().await?;
 
     // Create board and protocol manager keys for election event (assert)
-    let existing: Option<b3::client::pgsql::B3IndexRow> =
+    let existing: Option<b4::client::pgsql::B3IndexRow> =
         board_client.get_board(board_name.as_str()).await?;
     // insert into the index of boards
     board_client.create_index_ine().await?;
@@ -157,7 +185,7 @@ pub async fn upsert_b3_and_elog(
         // Create board and protocol manager keys for election (insert, not asssert)
         let board_name = get_election_board(tenant_id, &election_id, &slug);
 
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
+        let existing: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 
         // assert board table
@@ -195,34 +223,96 @@ pub async fn upsert_b3_and_elog(
 }
 
 #[instrument(err)]
-pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
-        .with_context(|| "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set")?;
-    let realm_config = fs::read_to_string(&realm_config_path)
-        .with_context(|| "Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}")?;
-    deserialize_str(&realm_config)
-        .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
+pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> {
+    read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await
 }
 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
-    // set a specific client secret for a specific client id by env config
-    let client_id = env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
-    let client_secret =
-        env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
-    // we remove secrets and certs so that keycloak regenerates them
-    // remove client secrets
     let mut realm_copy = realm.clone();
+
+    // Collect well-known clients and their secrets to set.
+    let keycloak_client_id = env::var("KEYCLOAK_CLIENT_ID")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .with_context(|| "KEYCLOAK_CLIENT_ID can't be empty")?;
+    let keycloak_client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .with_context(|| "KEYCLOAK_CLIENT_SECRET can't be empty")?;
+    let mut known_clients = vec![
+        // Keycloak client is always known and required, as checked (and failed if required) above.
+        (keycloak_client_id, Some(keycloak_client_secret)),
+        // IVR specific clients are optional, their secrets may or may not be configured during deployment.
+        // This is not considered a failure, it will be ignored, and a new secret will be generated.
+        (
+            env::var("KEYCLOAK_IVR_SERVICE_CLIENT_ID")
+                .unwrap_or(DEFAULT_IVR_SERVICE_CLIENT_ID.to_string()),
+            env::var("KEYCLOAK_IVR_SERVICE_CLIENT_SECRET").ok(),
+        ),
+        (
+            IVR_VOTING_CLIENT_ID.to_string(),
+            env::var("KEYCLOAK_IVR_VOTING_CLIENT_SECRET").ok(),
+        ),
+    ];
+
+    // For each IDP that has both clientId and clientSecret configured,
+    // look if it is the special CERTIFICATES_IDP_ALIAS, then generate a
+    // new secret, update the IDP config, and record (clientId -> newSecret) in the known_clients so the
+    // matching Keycloak client can be given the same credential in the client's loop below.
+    if let Some(identity_providers) = realm_copy.identity_providers.clone() {
+        let new_identity_providers = identity_providers
+            .iter()
+            .map(|idp| {
+                let mut idp_copy = idp.clone();
+                match idp_copy.config.clone() {
+                    Some(config) if idp.alias.as_deref() == Some(CERTIFICATES_IDP_ALIAS) => {
+                        let mut new_config = config.clone();
+                        if let Some(idp_client_id) = new_config.get("clientId").cloned() {
+                            if new_config.contains_key("clientSecret") {
+                                let new_secret = generate_client_secret();
+                                new_config.insert("clientSecret".to_string(), new_secret.clone());
+                                known_clients.push((idp_client_id, Some(new_secret)));
+                            }
+                        }
+                        idp_copy.config = Some(new_config);
+                    }
+                    _ => {
+                        // no config, nothing to do
+                    }
+                }
+                idp_copy
+            })
+            .collect();
+        realm_copy.identity_providers = Some(new_identity_providers);
+    }
+
+    // For each client, assign its secret:
+    // 1. The known Keycloak clients (such as service-account, or ivr clients) get the configured env var secret.
+    // 2. The client that was configured in IDP CERTIFICATES_IDP_ALIAS gets the generated client secret (becomes a "known client").
+    // 3. All others have their secret cleared so Keycloak regenerates it.
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                if client.client_id == Some(client_id.clone()) {
-                    client_copy.secret = Some(client_secret.clone());
-                } else {
-                    client_copy.secret = None;
-                }
+                // Check if the client matches with any known client.
+                // If not, we'll leave None, and Keycloak will regenerate it.
+                client_copy.secret = client.client_id.as_deref().and_then(|client_id| {
+                    known_clients
+                        .iter()
+                        .find(|(known_id, _)| client_id == known_id)
+                        .and_then(|(known_id, known_secret)| {
+                            // Don't accept empty values
+                            let secret = known_secret.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+                            if secret.is_none() {
+                                tracing::warn!("Known client '{known_id}' had no secret configured, regenerating");
+                            }
+                            secret
+                        })
+                });
                 client_copy
             })
             .collect()
@@ -262,13 +352,29 @@ pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
+    default_locale: Option<String>,
 ) -> Result<()> {
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
-        let realm = read_default_election_event_realm()?;
+        let realm = read_default_election_event_realm().await?;
         realm
     };
+
+    if let Some(default_language) = default_locale {
+        // Keycloak uses BCP 47 locale codes; convert from ISO 639-2/T if needed
+        let keycloak_locale = iso_639_2t_to_bcp47(&default_language).to_string();
+        realm.default_locale = Some(keycloak_locale);
+        let mut attrs = realm.attributes.clone().unwrap_or_default();
+        attrs.insert(
+            "language_detection_policy".to_string(),
+            "force-default".to_string(),
+        );
+        // Store the internal locale code so the login template can set USER_LANGUAGE correctly
+        attrs.insert("forced_language_code".to_string(), default_language.clone());
+        realm.attributes = Some(attrs);
+    }
+
     realm = remove_keycloak_realm_secrets(&realm)?;
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
@@ -318,7 +424,6 @@ pub async fn insert_election_event_db(
     let new_election_input = ElectionEvent {
         id: election_event_id.clone(),
         tenant_id: object.tenant_id.clone(),
-        name: object.name.clone(),
         description: object.description.clone(),
         public_key: object.public_key.clone(),
         status: object.status.clone(),
@@ -337,11 +442,11 @@ pub async fn insert_election_event_db(
             .unwrap_or("RSA256".to_string()),
         is_audit: object.is_audit.clone(),
         audit_election_event_id: object.audit_election_event_id.clone(),
-        alias: object.alias.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
+        external_id: None,
     };
 
     insert_election_event(&hasura_transaction, &new_election_input).await?;
@@ -358,7 +463,7 @@ pub async fn insert_election_event_db(
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
 /// * `original_data` - The parsed ImportElectionEventSchema structure
-/// * `id_opt` - Optional election event ID to use. If None, a new UUID will be generated
+/// * `event_id` - Optional election event ID to use. If None, a new UUID will be generated
 /// * `tenant_id` - The tenant ID to use (may differ from the original)
 ///
 /// # Returns
@@ -369,14 +474,14 @@ pub async fn insert_election_event_db(
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
-    id_opt: Option<String>,
+    event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Prepare tenant_id replacement - always replace to ensure consistency
     let tenant_id_replacement = Some((original_data.tenant_id.to_string(), tenant_id.clone()));
 
     // Prepare election_event_id replacement if a specific one was provided
-    let election_event_id_replacement = id_opt
+    let election_event_id_replacement = event_id
         .as_ref()
         .map(|new_id| (original_data.election_event.id.clone(), new_id.clone()));
 
@@ -461,14 +566,29 @@ pub async fn decrypt_document(
     Ok(temp_file_path)
 }
 
+/// Get the election event schma and also:
+/// - Check version compatibility
+/// - Replace IDs and return a mapping of old to new IDs (for preserving references in other documents like voters)
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
-    id: Option<String>,
+    event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
+    // Catch a version missmatch early and return a clear error message about it, rather than having it fail later on
+    // with a more obscure error when trying to deserialize data that is incompatible with the current version.
+    let raw: serde_json::Value = serde_json::from_str(data_str)
+        .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
+    let default_ver = default_version();
+    let imported_version = raw
+        .get(VERSION_KEY)
+        .and_then(|v| v.as_str())
+        .unwrap_or(&default_ver);
+    let current_version = std::env::var(ENV_VAR_APP_VERSION)
+        .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
+    check_version_compatibility(imported_version, &current_version)?;
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
-    replace_ids(data_str, &original_data, id, tenant_id.clone())
+    replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
 
 #[instrument(err, skip_all)]
@@ -487,7 +607,7 @@ pub async fn process_election_event_file(
         tenant_id.clone(),
     )
     .await
-    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
+    .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
 
     let election_ids: Vec<String> = data
         .elections
@@ -528,8 +648,10 @@ pub async fn process_election_event_file(
 
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
                 serde_json::to_value(status)
@@ -542,10 +664,17 @@ pub async fn process_election_event_file(
         .collect::<Result<Vec<Election>>>()
         .with_context(|| "Error processing elections")?;
 
+    let language_detection_policy = data.election_event.get_language_detection_policy();
+    let mut default_language = None;
+    if language_detection_policy == LanguageDetectionPolicy::FORCE_DEFAULT {
+        default_language = Some(data.election_event.get_default_language());
+    }
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
+        default_language
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
@@ -808,13 +937,62 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
-#[instrument(err, skip(hasura_transaction, temp_file_path))]
-pub async fn process_s3_files(
+async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
+    // Regex to match the UUID after "document_"
+    let re = Regex::new(
+        r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+    )
+    .ok()
+    .ok_or_else(|| anyhow!("Invalid regex"))?;
+
+    let uuid = re
+        .captures(filename)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str()));
+    Ok(uuid)
+}
+
+async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
+    let re = Regex::new(
+        r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
+    )
+    .ok()
+    .ok_or_else(|| anyhow!("Invalid regex"))?;
+
+    let name = re
+        .captures(filename)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str()));
+    Ok(name)
+}
+
+static UUID_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b").unwrap()
+});
+
+pub fn replace_ids_in_filename(
+    file_name: &str,
+    replacement_map: &HashMap<String, String>,
+) -> String {
+    UUID_RE
+        .replace_all(file_name, |caps: &regex::Captures| {
+            let id = caps.get(0).unwrap().as_str();
+            replacement_map
+                .get(id)
+                .map(String::as_str)
+                .unwrap_or(id)
+                .to_owned()
+        })
+        .into_owned()
+}
+
+#[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
+pub async fn process_s3_file(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
     file_name: &str,
-    election_event_id: String,
+    election_event_id: Option<String>,
     tenant_id: String,
+    replacement_map: HashMap<String, String>,
+    is_public: bool,
 ) -> Result<()> {
     let file_path_string = temp_file_path.path().to_string_lossy().to_string();
 
@@ -828,6 +1006,21 @@ pub async fn process_s3_files(
         .ok_or(anyhow!("Empty file suffix"))?;
     let document_type = get_mime_types(file_suffix)[0];
 
+    let document_uuid = extract_document_uuid(file_name)
+        .await
+        .map_err(|e| anyhow!("Error extracting document UUID from filename: {e}"))?
+        .ok_or_else(|| anyhow!("Error extracting document UUID as str"))?;
+
+    let new_document_id = replacement_map
+        .get(document_uuid)
+        .ok_or_else(|| anyhow!("Error finding document UUID in replacement map"))?;
+
+    let file_name = extract_document_name(file_name)
+        .await
+        .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
+        .ok_or_else(|| anyhow!("Error getting document name as str"))?;
+
+    let new_file_name = replace_ids_in_filename(&file_name, &replacement_map);
     // Upload the file and return the document
     let _document = upload_and_return_document(
         hasura_transaction,
@@ -835,10 +1028,10 @@ pub async fn process_s3_files(
         file_size,
         &document_type,
         &tenant_id,
-        Some(election_event_id.to_string()),
-        file_name,
-        None,
-        false,
+        election_event_id,
+        &new_file_name,
+        Some(new_document_id.to_string()),
+        is_public.clone(),
     )
     .await?;
 
@@ -862,7 +1055,9 @@ pub async fn get_zip_entries(
                 for i in 0..zip.len() {
                     let mut file = zip.by_index(i)?;
                     let file_name = file.name().to_string();
-                    if file_name.ends_with(".json") {
+                    if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
+                        && file_name.ends_with(".json")
+                    {
                         // Regular JSON document processing
                         let mut file_str = String::new();
                         file.read_to_string(&mut file_str)?;
@@ -948,6 +1143,7 @@ pub async fn process_document(
     let results_event_file = zip_entries
         .iter()
         .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+
     let mut tally_files_content: Option<String> = None;
     if let (Some(tally_session_file), Some(results_event_file)) =
         (tally_session_file, results_event_file)
@@ -1040,10 +1236,10 @@ pub async fn process_document(
                 .context("Failed to import reports")?;
             }
 
-            if file_name.contains(&format!("/{}/", EDocuments::S3_FILES.to_file_name())) {
+            if file_name.contains(&format!("{}/", EDocuments::S3_FILES.to_file_name())) {
                 let folder_path: Vec<_> = file_name.split("/").collect();
                 // Skips the OS created files
-                if (folder_path[1] == EDocuments::VOTERS.to_file_name()) {
+                if folder_path[1] == EDocuments::VOTERS.to_file_name() {
                     continue;
                 }
 
@@ -1056,13 +1252,38 @@ pub async fn process_document(
                     .context("Failed to copy S3 contents to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
 
-                // process the directory instead of a single file
-                process_s3_files(
+                process_s3_file(
                     &hasura_transaction,
                     &temp_file,
                     &file_name,
-                    election_event_schema.election_event.id.clone(),
+                    Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
+                    replacement_map.clone(),
+                    false,
+                )
+                .await
+                .context("Failed to import S3 files")?;
+            }
+            if file_name.contains(&format!("{}/", EDocuments::IMAGES.to_file_name())) {
+                let folder_path: Vec<_> = file_name.split("/").collect();
+
+                // Write the file contents to a new file within this directory
+                let mut temp_file =
+                    generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
+                        .context("Error generating temp file")?;
+
+                io::copy(&mut cursor, &mut temp_file)
+                    .context("Failed to copy S3 contents to temporary file")?;
+                temp_file.as_file_mut().rewind()?;
+
+                process_s3_file(
+                    &hasura_transaction,
+                    &temp_file,
+                    &file_name,
+                    None,
+                    election_event_schema.tenant_id.to_string(),
+                    replacement_map.clone(),
+                    true,
                 )
                 .await
                 .context("Failed to import S3 files")?;
@@ -1124,6 +1345,28 @@ pub async fn process_document(
                 .await
                 .with_context(|| "Error importing publications")?;
             }
+            if file_name.contains(&format!(
+                "{}",
+                EDocuments::ELECTION_EVENT_CONFIG.to_file_name()
+            )) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create election event config temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of election event config file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_election_event_config_file(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error importing election event config file")?;
+            }
 
             if file_name.contains(&format!(
                 "{}",
@@ -1162,7 +1405,7 @@ pub async fn process_document(
                     .split(".")
                     .next()
                     .ok_or(anyhow!("Unexpected tally without extension"))?;
-                println!("tally_file_name:: {:?}", &tally_file_name);
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,
@@ -1173,6 +1416,41 @@ pub async fn process_document(
                 )
                 .await
                 .context("Failed to import tally_file")?;
+            }
+
+            if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
+                let pem_content = String::from_utf8(file_contents.clone())
+                    .context("Failed to decode certificates PEM as UTF-8")?;
+                let tenant_uuid = election_event_schema.tenant_id;
+                let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
+                    .context("Failed to parse election event UUID")?;
+                let pem_chunks = split_pem_bundle(&pem_content);
+                for pem_chunk in pem_chunks {
+                    let pem_chunk_owned = pem_chunk.clone();
+                    let parsed = tokio::task::spawn_blocking(move || {
+                        parse_certificate_pem(&pem_chunk_owned)
+                    })
+                    .await
+                    .context("Failed to spawn blocking task for cert parsing")?
+                    .context("Failed to parse certificate PEM")?;
+                    let record = CertificateAuthorityRecord {
+                        id: Uuid::new_v4(),
+                        tenant_id: tenant_uuid,
+                        election_event_id: election_event_uuid,
+                        common_name: parsed.common_name,
+                        subject: parsed.subject,
+                        issuer_common_name: parsed.issuer_common_name,
+                        issuer: parsed.issuer,
+                        not_before: parsed.not_before,
+                        not_after: parsed.not_after,
+                        fingerprint_sha256: parsed.fingerprint_sha256,
+                        serial_number: parsed.serial_number,
+                        pem: parsed.pem,
+                    };
+                    insert_certificate_authority(hasura_transaction, record)
+                        .await
+                        .context("Failed to insert certificate authority")?;
+                }
             }
         }
     };

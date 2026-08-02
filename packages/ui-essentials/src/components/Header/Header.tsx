@@ -131,6 +131,7 @@ export interface HeaderProps {
     languagesList?: Array<string>
     errorVariant?: HeaderErrorVariant
     expiry?: IExpiryCountdown
+    onChangeLanguage?: (lang: string) => void
 }
 
 export default function Header({
@@ -143,6 +144,7 @@ export default function Header({
     languagesList,
     errorVariant,
     expiry = undefined,
+    onChangeLanguage,
 }: HeaderProps) {
     const {t} = useTranslation()
     const [openModal, setOpenModal] = useState<boolean>(false)
@@ -176,7 +178,10 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "0.0.0"}} />
                             <Version header="hash.header" version={appHash ?? {main: "-"}} />
-                            <LanguageMenu languagesList={languagesList} />
+                            <LanguageMenu
+                                languagesList={languagesList}
+                                onChange={onChangeLanguage}
+                            />
                             {errorVariant === HeaderErrorVariant.HIDE_PROFILE && !!logoutFn ? (
                                 <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                                     <StyledButton

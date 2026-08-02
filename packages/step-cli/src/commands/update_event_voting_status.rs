@@ -1,51 +1,33 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use std::str::FromStr;
-
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-use update_event_voting_status::{VotingStatus, VotingStatusChannel};
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
+use update_event_voting_status::{
+    VotingStatus as CliVotingStatus, VotingStatusChannel as CliVotingStatusChannel,
+};
 
-pub const VOTING_STATUS_OPEN: &str = "OPEN";
-pub const VOTING_STATUS_CLOSE: &str = "CLOSE";
-pub const VOTING_STATUS_PAUSE: &str = "PAUSE";
-
-pub const VOTING_CHANNEL_ONLINE: &str = "ONLINE";
-pub const VOTING_CHANNEL_KIOSK: &str = "KIOSK";
-pub const VOTING_CHANNEL_EARLY_VOTING: &str = "EARLY_VOTING";
-
-impl FromStr for VotingStatus {
-    type Err = String;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            VOTING_STATUS_OPEN => Ok(VotingStatus::OPEN),
-            VOTING_STATUS_CLOSE => Ok(VotingStatus::CLOSED),
-            VOTING_STATUS_PAUSE => Ok(VotingStatus::PAUSED),
-            // …and so on for every variant in your schema’s VotingStatus enum
-            _ => Err(format!(
-                "Invalid voting status, status must be one of: {}, {}, {}",
-                VOTING_STATUS_OPEN, VOTING_STATUS_CLOSE, VOTING_STATUS_PAUSE
-            )),
+impl From<VotingStatus> for CliVotingStatus {
+    fn from(v: VotingStatus) -> Self {
+        match v {
+            VotingStatus::OPEN => CliVotingStatus::OPEN,
+            VotingStatus::CLOSED => CliVotingStatus::CLOSED,
+            VotingStatus::PAUSED => CliVotingStatus::PAUSED,
+            VotingStatus::NOT_STARTED => CliVotingStatus::NOT_STARTED,
         }
     }
 }
 
-impl FromStr for VotingStatusChannel {
-    type Err = String;
-
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        match input {
-            VOTING_CHANNEL_ONLINE => Ok(VotingStatusChannel::ONLINE),
-            VOTING_CHANNEL_KIOSK => Ok(VotingStatusChannel::KIOSK),
-            VOTING_CHANNEL_EARLY_VOTING => Ok(VotingStatusChannel::EARLY_VOTING),
-            _ => Err(format!(
-                "Invalid voting channel, channel must be one of: {}, {}, {}",
-                VOTING_CHANNEL_ONLINE, VOTING_CHANNEL_KIOSK, VOTING_CHANNEL_EARLY_VOTING
-            )),
+impl From<VotingStatusChannel> for CliVotingStatusChannel {
+    fn from(v: VotingStatusChannel) -> Self {
+        match v {
+            VotingStatusChannel::ONLINE => CliVotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK => CliVotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING => CliVotingStatusChannel::EARLY_VOTING,
+            VotingStatusChannel::TELEPHONE => CliVotingStatusChannel::TELEPHONE,
         }
     }
 }
@@ -79,10 +61,17 @@ impl UpdateElectionEventVotingStatus {
             &self.voting_status,
             &self.voting_channel,
         ) {
-            Ok(id) => {
+            Ok(Some(id)) => {
                 println!(
-                    "Success! Updated successfully! ID: {}",
-                    id.unwrap_or_else(|| "None".to_string())
+                    "{} {}",
+                    "Success! Updated successfully! ID:".green(),
+                    id.cyan()
+                );
+            }
+            Ok(None) => {
+                eprintln!(
+                    "Error! Failed to update election event: {} ",
+                    self.election_event_id
                 );
             }
             Err(err) => {
@@ -100,15 +89,13 @@ pub fn update_event_voting_status(
 
     let client = reqwest::blocking::Client::new();
 
-    let voting_channels: Option<Vec<Option<VotingStatusChannel>>> = match voting_channel {
-        Some(channel) => Some(vec![Some(channel.clone())]),
-        None => None,
-    };
+    let voting_channels: Option<Vec<Option<CliVotingStatusChannel>>> =
+        voting_channel.map(|c| vec![Some(c.into())]);
 
     let variables = update_event_voting_status::Variables {
         election_event_id: election_event_id.to_string(),
-        voting_status: voting_status.clone(),
-        voting_channel: voting_channels.clone(),
+        voting_status: (*voting_status).into(),
+        voting_channels,
     };
 
     let request_body = UpdateEventVotingStatus::build_query(variables);

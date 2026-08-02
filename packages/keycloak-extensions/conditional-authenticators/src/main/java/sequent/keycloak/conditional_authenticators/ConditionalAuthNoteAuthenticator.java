@@ -43,6 +43,11 @@ public class ConditionalAuthNoteAuthenticator implements ConditionalAuthenticato
         authConfig
             .getConfig()
             .get(ConditionalAuthNoteAuthenticatorFactory.CONDITIONAL_AUTH_NOTE_VALUE);
+    boolean valueIsRegex =
+        Boolean.parseBoolean(
+            authConfig
+                .getConfig()
+                .get(ConditionalAuthNoteAuthenticatorFactory.CONF_VALUE_IS_REGEX));
     boolean negateOutput =
         Boolean.parseBoolean(
             authConfig.getConfig().get(ConditionalAuthNoteAuthenticatorFactory.CONF_NEGATE));
@@ -57,13 +62,29 @@ public class ConditionalAuthNoteAuthenticator implements ConditionalAuthenticato
       log.infov("matchCondition(): requiredAuthNoteKey={0} not present", requiredAuthNoteKey);
       return false;
     }
-    boolean authNoteMatch =
-        requiredAuthNoteValue == null
-            ? authNoteValue.isBlank() || authNoteValue.isEmpty()
-            : requiredAuthNoteValue.equals(authNoteValue);
+    boolean authNoteMatch;
+    if (requiredAuthNoteValue == null) {
+      authNoteMatch = authNoteValue.isBlank() || authNoteValue.isEmpty();
+    } else if (valueIsRegex) {
+      try {
+        authNoteMatch = authNoteValue.matches(requiredAuthNoteValue);
+      } catch (java.util.regex.PatternSyntaxException e) {
+        log.warnv(
+            "matchCondition(): invalid regex pattern [{0}]: {1}",
+            requiredAuthNoteValue, e.getMessage());
+        authNoteMatch = false;
+      }
+    } else {
+      authNoteMatch = requiredAuthNoteValue.equals(authNoteValue);
+    }
     log.infov(
-        "matchCondition(): requiredAuthNoteKey={0}, requiredAuthNoteValue={1}, authNoteValue={2}, negateOutput[{3}] != authNoteMatch[{4}]",
-        requiredAuthNoteKey, requiredAuthNoteValue, authNoteValue, negateOutput, authNoteMatch);
+        "matchCondition(): key={0}, value={1}, note={2}, regex={3}, negate[{4}] != match[{5}]",
+        requiredAuthNoteKey,
+        requiredAuthNoteValue,
+        authNoteValue,
+        valueIsRegex,
+        negateOutput,
+        authNoteMatch);
     return negateOutput != authNoteMatch;
   }
 

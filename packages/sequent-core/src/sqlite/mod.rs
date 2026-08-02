@@ -15,4 +15,5 @@ pub mod results_contest_candidate;
 pub mod results_election;
 pub mod results_election_area;
 pub mod results_event;
+pub mod tally_session_resolution;
 pub mod utils;

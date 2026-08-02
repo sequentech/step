@@ -229,6 +229,8 @@ body {
 
 .menu-button-links {
     margin-left: auto;
+    position: relative;
+    display: inline-flex;
 }
 
 button#kc-current-locale-link::after {
@@ -262,7 +264,7 @@ button#kc-current-locale-link img {
     }
 }
 
-.pf-c-dropdown__menu {
+#kc-locale-dropdown {
     position: relative;
 }
 
@@ -274,7 +276,12 @@ button#kc-current-locale-link img {
 }
 
 #kc-locale ul {
-    top: 0;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: auto;
+    margin-top: 0;
+    z-index: 10000;
 }
 
 /* Move Language dropdown to top right */
@@ -462,4 +469,305 @@ button#resend-otp-btn:hover {
 
 .col-md-10 {
     width: 100% !important;
+}
+
+/* Error page */
+.login-pf-page:has(#kc-error-message) #kc-title {
+    display: none;
+}
+
+.card-pf:has(#kc-error-message) {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    max-width: 100%;
+    padding: 204px 20px;
+}
+
+#kc-error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    zoom: 0.80;
+}
+
+.kc-error-title {
+    font-family: 'Manrope', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 48px;
+    line-height: 66px;
+    text-align: center;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #000000;
+    margin: 0 0 30px;
+}
+
+.kc-error-alert {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 6px 16px;
+    width: fit-content;
+    max-width: 600px;
+    background: #FDEDED;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.kc-error-alert-icon-wrap {
+    display: flex;
+    align-items: flex-start;
+    padding: 7px 12px 7px 0;
+    flex-shrink: 0;
+}
+
+.kc-error-alert-icon {
+    width: 22px;
+    height: 22px;
+    fill: #D32F2F;
+}
+
+.kc-error-alert-text {
+    padding: 8px 0;
+    font-family: 'Roboto', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0.15px;
+    color: #5F2120;
+}
+
+.kc-error-back-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 22px;
+    width: 100%;
+    max-width: 474px;
+    height: 42px;
+    background: #0F054C;
+    box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.12), 0px 2px 2px rgba(0, 0, 0, 0.14), 0px 3px 1px -2px rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-family: 'Roboto', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 26px;
+    letter-spacing: 0.46px;
+    text-transform: uppercase;
+    color: #FFFFFF !important;
+    text-decoration: none !important;
+    box-sizing: border-box;
+}
+
+.kc-error-back-btn:hover {
+    color: #FFFFFF !important;
+    text-decoration: none !important;
+}
+
+#kc-social-providers hr {
+    display: none;
+}
+
+#kc-social-providers h4 {
+    font-family: 'Roboto', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.68);
+}
+
+/* ── OID4VP wallet page ──────────────────────────────────────────────────
+   Scoped via #oid4vpForm, a unique ID rendered by login-oid4vp-idp.ftl.
+   Now that our oid4vp-template.ftl delegates to template.ftl, the page
+   shares the standard admin-portal HTML structure. */
+
+#oid4vp-open-wallet,
+#oid4vp-open-wallet:hover {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+/* Constrain wallet button to QR code border-box width (250px img + 2×10px padding)
+   and center it so all three elements (button, QR, IDP button) share the same axis. */
+#oid4vp-open-wallet {
+    max-width: 270px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#oid4vpForm ~ div p {
+    text-align: center;
+}
+
+/* Alternative-provider list in OID4VP: override default grid/inline-flex layout
+   so each <li> becomes block and the pf-m-block <a> inside it fills to 270px. */
+#oid4vpForm ~ div ul {
+    display: block;
+    padding-left: 0;
+    list-style: none;
+}
+
+#oid4vpForm ~ div ul li a {
+    display: block;
+    max-width: 270px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 6px 10px;
+    text-align: center;
+}
+
+/* ── End OID4VP wallet page ─────────────────────────────────────────────── */
+
+/* login.ftl IDP buttons — scoped to #kc-social-providers so specificity
+   (0,1,1,0) beats .login-pf-page a (0,0,1,1) and suppresses underlines.
+   Not applied in OID4VP context, which has no #kc-social-providers wrapper. */
+#kc-social-providers .kc-social-item {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 22px;
+    width: 100%;
+    height: 42px;
+    background: rgba(2, 136, 209, 0.04);
+    border: 1px solid rgba(2, 136, 209, 0.5);
+    border-radius: 4px;
+    align-self: stretch;
+    text-decoration: none;
+}
+
+#kc-social-providers .kc-social-item:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Digital-cert button in OID4VP context (outside #kc-social-providers).
+   Uses ID selector (specificity 0,1,0,0) to beat .login-pf-page a.
+   No display:flex/width:100% override — pf-m-block handles layout. */
+#social-digital-certificates {
+    background: rgba(2, 136, 209, 0.04);
+    border: 1px solid rgba(2, 136, 209, 0.5);
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+#social-digital-certificates:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Structured credentials progressively enhance the ordinary password input. */
+[data-structured-credential][data-structured-credential-enhanced="true"] {
+    align-items: center;
+    background: var(--pf-global--BackgroundColor--100);
+    border: 1px solid var(--pf-global--palette--black-500);
+    border-radius: 4px;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]:focus-within {
+    border-color: var(--pf-global--primary-color--100);
+    box-shadow: 0 0 0 1px var(--pf-global--primary-color--100);
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    .structured-credential__input {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    box-sizing: border-box;
+    caret-color: transparent;
+    direction: ltr;
+    flex: 1 1 auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    height: 44px;
+    letter-spacing: 0.08em;
+    line-height: 24px;
+    min-width: 0;
+    padding-block: 10px;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    .structured-credential__input:focus {
+    outline: 0;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle] {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    display: inline-flex;
+    flex: 0 0 44px;
+    height: 44px;
+    justify-content: center;
+    margin-left: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle]:focus-visible {
+    outline: 2px solid var(--pf-global--primary-color--100);
+    outline-offset: -4px;
+}
+
+[data-structured-credential][data-structured-credential-enhanced="true"]
+    [data-structured-credential-toggle]::after {
+    border: 0;
+}
+
+[data-structured-credential][data-structured-credential-invalid="true"] {
+    border-color: var(--pf-global--danger-color--100);
+}
+
+.structured-credential__hint {
+    margin-top: 6px;
+}
+
+[data-structured-credential-error][hidden] {
+    display: none;
+}
+
+.structured-credential__status {
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+@media (forced-colors: active) {
+    [data-structured-credential][data-structured-credential-enhanced="true"]:focus-within {
+        box-shadow: none;
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+    }
+
+    [data-structured-credential][data-structured-credential-enhanced="true"]
+        [data-structured-credential-toggle]:focus-visible {
+        outline-color: Highlight;
+    }
 }

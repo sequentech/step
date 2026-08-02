@@ -33,6 +33,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_ballot_publications: IPermissions.PUBLISH_WRITE,
     delete_sequent_backend_ballot_publication: IPermissions.PUBLISH_WRITE,
     delete_sequent_backend_ballot_publications: IPermissions.PUBLISH_WRITE,
+    // tally_results_publication
+    sequent_backend_tally_results_publication: IPermissions.PUBLISH_RESULTS_READ,
+    sequent_backend_tally_results_publications: IPermissions.PUBLISH_RESULTS_READ,
     // ballot_style
     sequent_backend_ballot_style: IPermissions.PUBLISH_READ,
     sequent_backend_ballot_styles: IPermissions.PUBLISH_READ,
@@ -51,6 +54,11 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_candidates: IPermissions.CANDIDATE_WRITE,
     delete_sequent_backend_candidate: IPermissions.CANDIDATE_DELETE,
     delete_sequent_backend_candidates: IPermissions.CANDIDATE_DELETE,
+    // certificate_authority
+    sequent_backend_certificate_authority: IPermissions.CA_READ,
+    sequent_backend_certificate_authorities: IPermissions.CA_READ,
+    delete_sequent_backend_certificate_authority_by_pk: IPermissions.CA_WRITE,
+    delete_sequent_backend_certificate_authorities: IPermissions.CA_WRITE,
     // cast_vote
     sequent_backend_cast_vote: IPermissions.CAST_VOTE_READ,
     sequent_backend_cast_votes: IPermissions.CAST_VOTE_READ,
@@ -150,6 +158,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // tally_session_execution
     sequent_backend_tally_session_execution: IPermissions.ADMIN_CEREMONY,
     sequent_backend_tally_session_executions: IPermissions.ADMIN_CEREMONY,
+    // tally_session_resolution
+    sequent_backend_tally_session_resolution: IPermissions.TALLY_RESOLUTION_SUBMIT,
+    sequent_backend_tally_session_resolutions: IPermissions.TALLY_RESOLUTION_SUBMIT,
     // tally_sheet
     sequent_backend_tally_sheet: IPermissions.TALLY_SHEET_VIEW,
     sequent_backend_tally_sheets: IPermissions.TALLY_SHEET_VIEW,
@@ -168,6 +179,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_trustees: IPermissions.TRUSTEE_WRITE,
     delete_sequent_backend_trustee: IPermissions.TRUSTEE_WRITE,
     delete_sequent_backend_trustees: IPermissions.TRUSTEE_WRITE,
+    //preview
+    sequent_backend_preview: IPermissions.PREVIEW_READ,
+    sequent_backend_previews: IPermissions.PREVIEW_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

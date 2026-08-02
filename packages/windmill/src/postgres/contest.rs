@@ -4,10 +4,46 @@
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::pin_mut;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Contest;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::row::Row;
+use tokio_postgres::types::{ToSql, Type};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+/// Contest column for insert operation
+const CONTEST_COPY_COLUMNS: &str = "id, tenant_id, election_event_id, election_id, created_at,
+last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation,
+min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, 
+conditions, winning_candidates_num, image_document_id, external_id";
+
+/// Contest columns types for insert operation (same order as the columns)
+const CONTEST_COPY_TYPES: &[Type] = &[
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::UUID,
+    Type::TIMESTAMPTZ,
+    Type::TIMESTAMPTZ,
+    Type::JSONB,
+    Type::JSONB,
+    Type::BOOL,
+    Type::BOOL,
+    Type::TEXT,
+    Type::JSONB,
+    Type::INT4,
+    Type::INT4,
+    Type::VARCHAR,
+    Type::VARCHAR,
+    Type::BOOL,
+    Type::JSONB,
+    Type::JSONB,
+    Type::INT4,
+    Type::TEXT,
+    Type::TEXT,
+];
 
 pub struct ContestWrapper(pub Contest);
 
@@ -30,8 +66,6 @@ impl TryFrom<Row> for ContestWrapper {
             annotations: item.try_get("annotations")?,
             is_acclaimed: item.try_get("is_acclaimed")?,
             is_active: item.try_get("is_active")?,
-            name: item.try_get("name")?,
-            alias: item.try_get("alias")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
             min_votes: min_votes.map(|val| val as i64),
@@ -43,6 +77,7 @@ impl TryFrom<Row> for ContestWrapper {
             tally_configuration: item.try_get("tally_configuration")?,
             image_document_id: item.try_get("image_document_id")?,
             conditions: item.try_get("conditions")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -52,52 +87,68 @@ pub async fn insert_contest(
     hasura_transaction: &Transaction<'_>,
     data: &ImportElectionEventSchema,
 ) -> Result<()> {
+    if data.contests.is_empty() {
+        return Ok(());
+    }
+
+    let now = chrono::Utc::now();
+    let copy_sql =
+        format!("COPY sequent_backend.contest ({CONTEST_COPY_COLUMNS}) FROM STDIN BINARY");
+
+    let sink = hasura_transaction
+        .copy_in(&copy_sql)
+        .await
+        .with_context(|| format!("Error preparing contest COPY IN: {copy_sql}"))?;
+    let writer = BinaryCopyInWriter::new(sink, CONTEST_COPY_TYPES);
+    pin_mut!(writer);
+
     for contest in &data.contests {
         contest.validate()?;
 
-        let statement = hasura_transaction
-        .prepare(
-            r#"
-                INSERT INTO sequent_backend.contest
-                (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, alias, image_document_id)
-                VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
-            "#,
-        )
-        .await?;
+        let id = parse_uuid_v4(&contest.id)?;
+        let tenant_id = parse_uuid_v4(&contest.tenant_id)?;
+        let election_event_id = parse_uuid_v4(&contest.election_event_id)?;
+        let election_id = parse_uuid_v4(&contest.election_id)?;
+        let min_votes = contest.min_votes.map(|val| val as i32);
+        let max_votes = contest.max_votes.map(|val| val as i32);
+        let winning_candidates_num = contest.winning_candidates_num.map(|val| val as i32);
 
-        let rows: Vec<Row> = hasura_transaction
-            .query(
-                &statement,
-                &[
-                    &Uuid::parse_str(&contest.id)?,
-                    &Uuid::parse_str(&contest.tenant_id)?,
-                    &Uuid::parse_str(&contest.election_event_id)?,
-                    &Uuid::parse_str(&contest.election_id)?,
-                    &contest.labels,
-                    &contest.annotations,
-                    &contest.is_acclaimed,
-                    &contest.is_active,
-                    &contest.name,
-                    &contest.description,
-                    &contest.presentation,
-                    &contest.min_votes.and_then(|val| Some(val as i32)),
-                    &contest.max_votes.and_then(|val| Some(val as i32)),
-                    &contest.voting_type,
-                    &contest.counting_algorithm,
-                    &contest.is_encrypted,
-                    &contest.tally_configuration,
-                    &contest.conditions,
-                    &contest
-                        .winning_candidates_num
-                        .and_then(|val| Some(val as i32)),
-                    &contest.alias,
-                    &contest.image_document_id,
-                ],
-            )
+        let row: [&(dyn ToSql + Sync); 22] = [
+            &id,
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+            &now,
+            &now,
+            &contest.labels,
+            &contest.annotations,
+            &contest.is_acclaimed,
+            &contest.is_active,
+            &contest.description,
+            &contest.presentation,
+            &min_votes,
+            &max_votes,
+            &contest.voting_type,
+            &contest.counting_algorithm,
+            &contest.is_encrypted,
+            &contest.tally_configuration,
+            &contest.conditions,
+            &winning_candidates_num,
+            &contest.image_document_id,
+            &contest.external_id,
+        ];
+
+        writer
+            .as_mut()
+            .write(&row)
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error writing contest COPY row: {err}"))?;
     }
+
+    writer
+        .finish()
+        .await
+        .context("Error finishing contest COPY IN transaction")?;
 
     Ok(())
 }
@@ -112,7 +163,7 @@ pub async fn export_contests(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, alias, image_document_id
+                    id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id
                 FROM
                     sequent_backend.contest
                 WHERE
@@ -126,8 +177,8 @@ pub async fn export_contests(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -149,39 +200,96 @@ pub async fn get_contest_by_id(
     tenant_id: &str,
     election_event_id: &str,
     contest_id: &str,
-) -> Result<Contest> {
+) -> Result<Option<Contest>> {
     let statement = hasura_transaction
         .prepare(
             r#"
-                SELECT *
+                SELECT
+                    *
                 FROM
                     sequent_backend.contest
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2;
-                    contest_id = $3;
+                    election_event_id = $2 AND
+                    id = $3;
             "#,
         )
         .await?;
 
-    let row: Option<Row> = hasura_transaction
-        .query_opt(
+    let rows: Vec<Row> = hasura_transaction
+        .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;
 
-    if let Some(row) = row {
-        let contest: Contest = row
-            .try_into()
-            .map(|res: ContestWrapper| -> Contest { res.0 })?;
-        Ok(contest as Contest)
-    } else {
-        Err(anyhow::anyhow!("No contest found with the provided id"))
+    let elements: Vec<Contest> = rows
+        .into_iter()
+        .map(|row| -> Result<Contest> {
+            row.try_into()
+                .map(|res: ContestWrapper| -> Contest { res.0 })
+        })
+        .collect::<Result<Vec<Contest>>>()?;
+
+    Ok(elements.first().cloned())
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_contest_by_external_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    external_id: &str,
+) -> Result<Option<Contest>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    *
+                FROM
+                    sequent_backend.contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    external_id = $3;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &external_id,
+            ],
+        )
+        .await?;
+
+    let elements: Vec<Contest> = rows
+        .into_iter()
+        .map(|row| -> Result<Contest> {
+            row.try_into()
+                .map(|res: ContestWrapper| -> Contest { res.0 })
+        })
+        .collect::<Result<Vec<Contest>>>()?;
+
+    match elements.len() {
+        0 => Ok(None),
+        1 => Ok(elements.first().cloned()),
+        count => Err(anyhow!(
+            "Contest external id '{}' matched {} contests in election event {}. \
+            Contest external_id must be unique within an election event for tally \
+            sheet import to work — rename the duplicate(s) before importing.",
+            external_id,
+            count,
+            election_event_id
+        )),
     }
 }
 
@@ -211,9 +319,9 @@ pub async fn get_contest_by_election_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -236,12 +344,12 @@ pub async fn get_contest_by_election_ids(
     election_event_id: &str,
     election_ids: &Vec<String>,
 ) -> Result<Vec<Contest>> {
-    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
-    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
+    let uuid_election_event_id = parse_uuid_v4(election_event_id)?;
 
     let uuid_election_ids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
 
     let statement = hasura_transaction

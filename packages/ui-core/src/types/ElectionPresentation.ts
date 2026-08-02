@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {IVotingScreenBackPolicy} from "sequent-core"
 import {ILanguageConf} from "./LanguageConf"
+
+export type {IVotingScreenBackPolicy}
 
 export enum ContestsOrder {
     RANDOM = "random",
@@ -30,6 +33,11 @@ export enum EStartScreenTitlePolicy {
     ELECTION_EVENT = "election-event",
 }
 
+export enum EConsolidatedReportPolicy {
+    GENERATE = "generate",
+    DO_NOT_GENERATE = "do-not-generate",
+}
+
 export interface IScheduledEventDates {
     scheduled_at?: string
     stopped_at?: string
@@ -47,6 +55,7 @@ export interface IElectionDates {
 
 export interface IElectionPresentation {
     i18n?: Record<string, Record<string, string>>
+    css?: string
     language_conf?: ILanguageConf
     contests_order?: ContestsOrder
     sort_order?: number
@@ -60,6 +69,9 @@ export interface IElectionPresentation {
     initialization_report_generated?: EInitializeReportPolicy
     voting_period_end?: EVotingPeriodEnd
     security_confirmation_policy?: ESecurityConfirmationPolicy
+    consolidated_report_policy: EConsolidatedReportPolicy
+    decline_to_vote_policy?: EDeclineToVotePolicy
+    voting_screen_back_policy?: IVotingScreenBackPolicy
     // more missing
 }
 
@@ -77,4 +89,9 @@ export enum EGracePeriodPolicy {
 export enum EInitializeReportPolicy {
     REQUIRED = "required",
     NOT_REQUIRED = "not-required",
+}
+
+export enum EDeclineToVotePolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
 }

@@ -8,6 +8,7 @@ use ordered_float::NotNan;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -82,9 +83,9 @@ pub async fn insert_results_contest_candidates(
         pub cast_votes_percent: Option<f64>,
     }
 
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)?;
-    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let results_event_uuid = parse_uuid_v4(results_event_id)?;
 
     let insert_data: Vec<InsertResultsContestCandidate> = contest_candidates
         .iter()
@@ -93,9 +94,9 @@ pub async fn insert_results_contest_candidates(
                 tenant_id: tenant_uuid,
                 election_event_id: election_event_uuid,
                 results_event_id: results_event_uuid,
-                election_id: Uuid::parse_str(&contest_candidate.election_id)?,
-                contest_id: Uuid::parse_str(&contest_candidate.contest_id)?,
-                candidate_id: Uuid::parse_str(&contest_candidate.candidate_id)?,
+                election_id: parse_uuid_v4(&contest_candidate.election_id)?,
+                contest_id: parse_uuid_v4(&contest_candidate.contest_id)?,
+                candidate_id: parse_uuid_v4(&contest_candidate.candidate_id)?,
                 cast_votes: contest_candidate.cast_votes,
                 winning_position: contest_candidate.winning_position,
                 points: contest_candidate.points,
@@ -176,9 +177,9 @@ pub async fn get_event_results_contest_candidates(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsContestCandidate>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
@@ -246,13 +247,13 @@ pub async fn insert_many_results_contest_candidates(
             let documents_json = c.documents.map(|d| serde_json::to_value(&d)).transpose()?;
 
             Ok(InsertableResultsContestCandidate {
-                id: Uuid::parse_str(&c.id)?,
-                tenant_id: Uuid::parse_str(&c.tenant_id)?,
-                election_event_id: Uuid::parse_str(&c.election_event_id)?,
-                election_id: Uuid::parse_str(&c.election_id)?,
-                contest_id: Uuid::parse_str(&c.contest_id)?,
-                candidate_id: Uuid::parse_str(&c.candidate_id)?,
-                results_event_id: Uuid::parse_str(&c.results_event_id)?,
+                id: parse_uuid_v4(&c.id)?,
+                tenant_id: parse_uuid_v4(&c.tenant_id)?,
+                election_event_id: parse_uuid_v4(&c.election_event_id)?,
+                election_id: parse_uuid_v4(&c.election_id)?,
+                contest_id: parse_uuid_v4(&c.contest_id)?,
+                candidate_id: parse_uuid_v4(&c.candidate_id)?,
+                results_event_id: parse_uuid_v4(&c.results_event_id)?,
                 cast_votes: c.cast_votes,
                 winning_position: c.winning_position,
                 points: c.points,

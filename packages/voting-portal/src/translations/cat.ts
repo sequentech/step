@@ -10,11 +10,20 @@ const catalanTranslation: TranslationType = {
             showMore: "Mostra'n més",
             showLess: "Mostra'n menys",
         },
+        candidatesList: {
+            collapseToggle: "Alternar llista {{listTitle}}",
+            showCandidates: "Mostra els candidats",
+            hideCandidates: "Amaga els candidats",
+            selectedCandidate: "{{count}} candidat seleccionat",
+            selectedCandidates: "{{count}} candidats seleccionats",
+            expandAll: "Expandir tot",
+            collapseAll: "Reduir tot",
+        },
         breadcrumbSteps: {
-            electionList: "Llista de Votacions",
+            electionList: "Votacions",
             ballot: "Papereta",
             review: "Revisió",
-            confirmation: "Confirmació",
+            confirmation: "Confirmar",
             audit: "Auditar",
         },
         footer: {
@@ -23,18 +32,18 @@ const catalanTranslation: TranslationType = {
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",
-            clearButton: "Netejar selecció",
+            clearButton: "Netejar opcions",
             ballotHelpDialog: {
-                title: "Informació: Pantalla de votació",
+                title: "Sobre aquesta pantalla",
                 content:
                     "Aquesta pantalla mostra la votació en la qual vostè és elegible per votar. Pot seleccionar la seva secció activant la casella de la dreta Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar selecció</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
                 ok: "D'acord",
             },
             nonVotedDialog: {
-                title: "Vot invàlid o en blanc",
+                title: "El teu vot és invàlid o en blanc",
                 content:
                     "Algunes de les seves respostes podrien fer que la papereta en una o més preguntes sigui invàlida o en blanc.",
-                ok: "Tornar i revisar",
+                ok: "Revisar selecció",
                 continue: "Continuar",
                 cancel: "Cancel·lar",
             },
@@ -49,17 +58,25 @@ const catalanTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Començar a votar",
-            instructionsTitle: "Instruccions",
-            instructionsDescription: "Si us plau, segueixi aquests passos per emetre el seu vot:",
-            step1Title: "1. Seleccioneu la seva opció de vot",
+            declineToVoteButton: "Declinar votar",
+            declineToVoteDialog: {
+                title: "Confirma que vols declinar votar",
+                content:
+                    "Segur que vols declinar votar?<br />Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
+                continue: "Declinar votar",
+                cancel: "Cancel·lar",
+            },
+            instructionsTitle: "Com votar",
+            instructionsDescription: "Seguiu aquests passos per emetre el vostre vot",
+            step1Title: "1. Escolliu les vostres opcions",
             step1Description:
-                "Seleccioneu els seus candidats preferits i respongueu les preguntes de l'elecció una per una a mesura que apareixin. Pot editar la seva papereta fins que estigui llest per continuar.",
-            step2Title: "2. Reviseu la seva papereta",
+                "Escolliu els vostres candidats preferits i responeu cada pregunta de la papereta segons aparegui. Podeu canviar les vostres opcions en qualsevol moment abans d'emetre el vostre vot",
+            step2Title: "2. Reviseu les vostres eleccions",
             step2Description:
-                "Una vegada estigui satisfet amb les seves seleccions, encriptarem la seva papereta i li mostrarem una revisió final de les seves eleccions. També rebrà un ID de seguiment únic per la seva papereta.",
+                "Quan estigueu satisfets amb les vostres seleccions, xifrem la vostra papereta de forma segura i us mostrarem una revisió final. També rebreu un ID de seguiment únic com a referència",
             step3Title: "3. Envieu el vostre vot",
             step3Description:
-                "Envia la teva papereta: Finalment, pots enviar la teva papereta perquè es registri correctament. Alternativament, pots optar per auditar i confirmar que la teva papereta va ser capturada i xifrada correctament.",
+                "Quan estigueu a punt, emeteu la vostra papereta perquè quedi registrada oficialment. O trieu auditar primer per confirmar que va ser capturada i xifrada correctament",
         },
         reviewScreen: {
             title: "Revisa el teu vot",
@@ -68,32 +85,32 @@ const catalanTranslation: TranslationType = {
             descriptionNoAudit:
                 "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota.",
             backButton: "Edita el teu vot",
-            castBallotButton: "Envia el teu vot",
+            castBallotButton: "Envia el vot",
             auditButton: "Auditar papereta",
             reviewScreenHelpDialog: {
-                title: "Informació: Pantalla de revisió",
+                title: "Sobre la pantalla de revisió",
                 content:
-                    "Aquesta pantalla li permet revisar les seves seleccions abans d'emetre el seu vot.",
+                    "Aquesta pantalla us permet revisar les vostres seleccions abans d'emetre el vot",
                 ok: "D'acord",
             },
             ballotIdHelpDialog: {
-                title: "Vot no emès",
+                title: "El teu vot no ha estat emès",
                 content:
-                    "<p>Està a punt de copiar el Localitzador del Vot, però <b>el seu vot encara no s'ha emès</b>. Si intenta buscar el Localitzador del Vot, no el trobarà.</p><p>La raó per la qual mostrem el Localitzador del Vot en aquest moment és perquè pugui auditar la correcció del vot xifrat abans d'emetre'l. Si aquesta és la raó per la qual desitja copiar el Localitzador del Vot, procedeixi a copiar-lo i després auditi el seu vot.</p>",
-                ok: "Accepto que el meu vot NO ha estat emès",
+                    "<p>Aquest és el vostre Localitzador del Vot, però <b>el vostre vot encara no s'ha emès</b>. Si intenteu buscar-lo ara, no apareixerà.</p><p>Mostrem el Localitzador del Vot en aquesta etapa perquè pugueu auditar la papereta xifrada abans d'emetre-la.</p>",
+                ok: "Entenc que el meu vot no ha estat emès",
                 cancel: "Cancel·lar",
             },
             auditBallotHelpDialog: {
-                title: "Realment vols Auditar la teva papereta?",
+                title: "Vols auditar la teva papereta?",
                 content:
-                    "<p>L'auditoria de la papereta l'invalidarà i hauràs de iniciar el procés de votació de nou si desitges emetre el teu vot. El procés d'auditoria de la papereta permet verificar que està codificada correctament. Fer aquest procés requereix que uns coneixements tècnics importants, per això no es recomana si no saps el que estàs fent.</p><p><b>Si el que desitja és emetre el seu vot, en <u>Cancel·lar</u> per tornar a la pantalla de revisió de votació.</b></p>",
-                ok: "Sí, vull INVALIDAR la meva papereta per AUDITAR-LA",
+                    "<p>Auditar la teva papereta l'invalidarà i hauràs de reiniciar el procés de votació. Continua només si et sents còmode amb els passos tècnics avançats. En cas contrari, fes clic a <u>Cancel·la</u> per tornar.</p>",
+                ok: "Sí, descartar la meva papereta per auditar-la",
                 cancel: "Cancel·lar",
             },
             confirmCastVoteDialog: {
                 title: "Esteu segur que voleu emetre el vostre vot?",
-                content: "El vostre vot ja no es podrà editar un cop confirmat.",
-                ok: "Sí, vull EMETRE el meu vot",
+                content: "Un cop confirmeu, el vostre vot serà emès.",
+                ok: "Sí, vull emetre el meu vot",
                 cancel: "Cancel·lar",
             },
             error: {
@@ -188,21 +205,22 @@ const catalanTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
+            declineToVote: "Declinar votar",
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",
             description:
-                "El codi de confirmació que apareix a continuació verifica que <b>el seu vot s'ha emès correctament</b>. Pot utilitzar aquest codi per verificar que el seu vot ha estat comptabilitzat.",
+                "La seva papereta va ser emesa correctament. Usi el codi a continuació per verificar que va ser comptabilitzada",
             ballotId: "Localitzador del Vot",
             printButton: "Imprimir",
             finishButton: "Finalitzar",
-            verifyCastTitle: "Comproveu que el seu vot ha estat emès",
+            verifyCastTitle: "Comproveu que el vostre vot va ser emès",
             verifyCastDescription:
-                "Pot comprovar en tot moment que la seva papereta s'ha emès correctament utilitzant el següent codi QR:",
+                "Podeu verificar en qualsevol moment que la vostra papereta va ser emesa correctament usant el codi QR a continuació",
             confirmationHelpDialog: {
-                title: "Informació: Pantalla de confirmació",
+                title: "Sobre la pantalla de confirmació",
                 content:
-                    "Aquesta pantalla mostra que el seu vot s'ha emès correctament. La informació proporcionada en aquesta pàgina li permet verificar que la papereta ha estat emmagatzemada en l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
+                    "Aquesta pantalla confirma que el vostre vot va ser emès correctament. La informació aquí us permet verificar que la papereta va ser emmagatzemada a l'urna, tant durant el període de votació com després del seu tancament",
                 ok: "D'acord",
             },
             demoPrintDialog: {
@@ -216,15 +234,15 @@ const catalanTranslation: TranslationType = {
                 ok: "D'acord",
             },
             ballotIdHelpDialog: {
-                title: "Informació: Localitzador del Vot",
+                title: "Sobre el Localitzador del Vot",
                 content:
-                    "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta en l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
+                    "El Localitzador del Vot és un codi únic que us permet trobar la vostra papereta a l'urna. No conté informació sobre les vostres seleccions.",
                 ok: "D'acord",
             },
             ballotIdDemoHelpDialog: {
-                title: "Informació: Identificador de papereta de vot",
+                title: "Sobre el Localitzador del Vot",
                 content:
-                    "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
+                    "L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.",
                 ok: "D'acord",
             },
             errorDialogPrintBallotReceipt: {
@@ -237,25 +255,25 @@ const catalanTranslation: TranslationType = {
         auditScreen: {
             printButton: "Imprimir",
             restartButton: "Iniciar votació",
-            title: "Auditeu la seva Papereta",
-            description: "Per verificar la seva papereta haurà de seguir els següents passos:",
-            step1Title: "1. Descarregueu o copieu la següent informació",
+            title: "Comproveu la vostra papereta",
+            description: "Per comprovar la vostra papereta, seguiu els passos a continuació:",
+            step1Title: "1. Deseu les dades següents:",
             step1Description:
-                "El teu <b>Localitzador del Vot</b> que apareix a la part superior de la pantalla i la teva papereta encriptada a continuació:",
+                "el vostre <b>Localitzador del Vot</b> a la part superior de la pantalla i la vostra papereta encriptada a continuació",
             step1HelpDialog: {
-                title: "Copiar el Vot Xifrat",
+                title: "Copiar el codi de la papereta",
                 content:
-                    "Pot descarregar o copiar el seu Vot Xifrat per auditar-lo i verificar que el contingut encriptat conté les seves seleccions.",
+                    "Podeu descarregar o copiar el codi de la vostra papereta per verificar que reflecteix correctament les vostres seleccions.",
                 ok: "D'acord",
             },
             downloadButton: "Descarregar",
-            step2Title: "2. Verifica la teva papereta",
+            step2Title: "2. Comproveu la vostra papereta",
             step2Description:
-                "<VerifierLink>Accedeix al verificador del vot</VerifierLink>, que s'obrirà una nova pestanya al teu navegador.",
+                "Feu clic a <VerifierLink>Comprova el codi de la teva papereta</VerifierLink>. S'obrirà en una nova pestanya",
             step2HelpDialog: {
-                title: "Tutorial sobre l'Auditoria del Vot",
+                title: "Com comprovar el codi de la papereta",
                 content:
-                    "Per auditar el seu vot haurà de seguir els passos indicats al tutorial, que inclouen la descàrrega d'una aplicació d'escriptori utilitzada per verificar el vot xifrat independentment del lloc web.",
+                    "Per comprovar el codi de la vostra papereta, seguiu els passos de la guia. Inclou la descàrrega d'una aplicació d'escriptori per verificar la vostra papereta de forma independent al lloc web.",
                 ok: "D'acord",
             },
             bottomWarning:
@@ -263,23 +281,24 @@ const catalanTranslation: TranslationType = {
         },
         electionSelectionScreen: {
             title: "Llista de Votacions",
-            description: "Seleccioneu la votació que desitgeu votar",
+            description: "Seleccioneu la papereta en la qual voleu votar",
             chooserHelpDialog: {
-                title: "Informació: Llista de Votacions",
+                title: "Sobre la Llista de Votacions",
                 content:
-                    "Benvingut a la cabina de votació, aquesta pantalla mostra la llista d'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert.",
+                    "Aquesta pantalla mostra la llista de paperetes a les quals podeu accedir. Poden estar obertes, programades o tancades. Només podeu votar en les que estan obertes",
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
+            resultsButton: "Veure resultats",
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:
-                    "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
-                ok: "Accepto que el meu vot NO serà comptabilitzat",
+                    "Esteu entrant en una cabina de votació de demostració. <strong>El vostre vot no serà comptabilitzat.</strong> Aquesta cabina és només per a fins de demostració.",
+                ok: "Entenc que el meu vot no serà comptabilitzat",
             },
             errors: {
                 noVotingArea:
-                    "Àrea de votació no assignada al votant. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                    "No esteu registrat com a votant en aquesta elecció. Si us plau, contacteu amb el suport.",
                 networkError:
                     "Hi ha hagut un problema de xarxa. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 unableToFetchData:
@@ -300,57 +319,60 @@ const catalanTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "No hi ha prou opcions per desxifrar",
-                writeInChoiceOutOfRange: "Opció de vot escrita fora de rang: {{index}}",
-                writeInNotEndInZero: "Opció de vot escrita no finalitza en 0",
+                notEnoughChoices: "No hi ha prou opcions per descodificar",
+                writeInChoiceOutOfRange: "Opció d'escriptura lliure fora de rang: {{index}}",
+                writeInNotEndInZero: "L'escriptura lliure no acaba en 0",
                 writeInCharsExceeded:
-                    "Opció de vot escrita excedeix el nombre de caràcters per {{numCharsExceeded}} caràcters. Requereix arranjament.",
+                    "L'escriptura lliure supera la longitud màxima en {{numCharsExceeded}} caràcters. Si us plau, escurceu-la.",
                 bytesToUtf8Conversion:
-                    "Error convertint bytes d'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
-                ballotTooLarge: "Vot més gran de l'esperat",
+                    "Error en convertir l'escriptura lliure de bytes a cadena UTF-8: {{errorMessage}}",
+                ballotTooLarge: "La papereta és més gran de l'esperada",
             },
             implicit: {
                 selectedMax:
-                    "Sobrevot: El nombre d'opcions seleccionades {{numSelected}} és major que el màxim {{max}}",
+                    "Vot en excés: el nombre d'opcions seleccionades {{numSelected}} supera el màxim {{max}}",
                 selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és menor que el mínim {{min}}",
+                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al mínim {{min}}",
                 maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} és major que el màxim {{max}}",
+                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} supera el màxim {{max}}",
                 underVote:
-                    "Subvot: El nombre d'opcions seleccionades {{numSelected}} és inferior al màxim permès de {{max}}",
+                    "Vot incomplet: el nombre d'opcions seleccionades {{numSelected}} és inferior al màxim {{max}}",
                 overVoteDisabled:
-                    "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
-                blankVote: "Vot en Blanc: 0 opcions seleccionades",
-                preferenceOrderWithGaps: "L'ordre de preferència té un o més buits.",
-                duplicatedPosition:
-                    "La mateixa posició va ser seleccionada per a dos o més candidats.",
+                    "Màxim assolit: heu seleccionat el màxim de {{numSelected}} opcions. Per canviar la vostra selecció, desseleccioneu primer una altra opció.",
+                blankVote: "Vot en blanc: 0 opcions seleccionades",
             },
             explicit: {
-                notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
-                alert: "La selecció marcada es considerarà vot invàlid.",
+                notAllowed:
+                    "La papereta està marcada com explícitament invàlida, però la pregunta no ho permet",
+                alert: "Aquesta selecció es comptarà com un vot invàlid",
             },
             page: {
                 oopsWithStatus: "Vaja! {{status}}",
                 oopsWithoutStatus: "Vaja! Error Inesperat",
                 somethingWrong: "Alguna cosa ha anat malament.",
+                certAuthFailedTitle: "Error d'Autenticació amb Certificat",
+                certAuthFailedMessage:
+                    "No s'ha pogut verificar el vostre certificat. Comproveu que esteu utilitzant un certificat de votant vàlid i torneu-ho a intentar.",
             },
         },
         materials: {
             common: {
                 label: "Materials de Suport",
-                back: "Tornar a la Llista de Votacions",
+                back: "Tornar a la llista de votacions",
                 close: "Tancar",
                 preview: "Vista prèvia",
             },
         },
         ballotLocator: {
-            title: "Localitza la teva Papereta",
-            titleResult: "Resultat de la cerca de la teva Papereta",
-            description: "Verifica que la teva Papereta ha estat emesa correctament",
-            locate: "Localitza la teva Papereta",
-            locateAgain: "Localitza una altra Papereta",
-            found: "El teu ID de Papereta {{ballotId}} ha estat localitzat",
-            notFound: "El teu ID de Papereta {{ballotId}} no ha estat localitzat",
+            title: "Troba la teva Papereta",
+            titleResult: "Resultats de la cerca de la teva Papereta",
+            description: "Confirma que la teva papereta va ser emesa correctament",
+            locate: "Troba la teva Papereta",
+            locateAgain: "Troba una altra Papereta",
+            found: "El teu ID de Papereta {{ballotId}} ha estat trobat",
+            notFound: "El teu ID de Papereta {{ballotId}} no ha estat trobat",
+            ambiguous:
+                "Més d'una de les teves paperetes coincideix amb {{ballotId}}. Utilitza l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:
@@ -358,13 +380,13 @@ const catalanTranslation: TranslationType = {
             filterByBallotId: "Filtra per ID de la Papereta",
             totalBallots: "Paperetes: {{total}}",
             steps: {
-                lookup: "Localitza la teva Papereta",
+                lookup: "Troba la teva Papereta",
                 result: "Resultat",
             },
             titleHelpDialog: {
-                title: "Informació: pantalla de Localització de la teva Papereta",
+                title: "Sobre el Cercador de Paperetes",
                 content:
-                    "Aquesta pantalla permet al votant trobar la seva Papereta utilitzant l'ID de la Papereta per recuperar-la. Aquest procediment permet comprovar que el seu vot va ser emès correctament i que el vot registrat coincideix amb el vot xifrat que va emetre.",
+                    "El Cercador de Paperetes us permet introduir el vostre ID de Papereta per localitzar el vostre vot i confirmar que va ser registrat correctament.",
                 ok: "D'acord",
             },
             tabs: {

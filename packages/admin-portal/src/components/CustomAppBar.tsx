@@ -5,7 +5,13 @@ import {Header, adminTheme} from "@sequentech/ui-essentials"
 import React, {useContext, useEffect, useState} from "react"
 import {AppBar, useGetOne} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
+import {
+    getValueFromCookie,
+    ITenantSettings,
+    ITenantTheme,
+    setCookie,
+    USER_LANGUAGE_COOKIE_NAME,
+} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Tenant} from "@/gql/graphql"
@@ -55,6 +61,12 @@ export const CustomAppBar: React.FC = () => {
         }
     }, [(tenant?.annotations as ITenantTheme | undefined)?.logo_url, logoUrl, isFetching])
 
+    const onChangeLanguage = (lang: string) => {
+        if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
+            setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+        }
+    }
+
     return (
         <AppBar
             toolbar={<></>}
@@ -80,6 +92,7 @@ export const CustomAppBar: React.FC = () => {
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
                 languagesList={langList}
                 logoUrl={logoImg}
+                onChangeLanguage={onChangeLanguage}
             />
         </AppBar>
     )

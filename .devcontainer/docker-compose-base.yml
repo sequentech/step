@@ -67,11 +67,11 @@ services:
     volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
-      - b3_db_logs:/b3_logs
+      - b4_db_logs:/b4_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b3_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -148,6 +148,8 @@ services:
     build:
       context: ./minio
       dockerfile: Dockerfile
+    volumes:
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/keycloak/import:/realm-configs:ro,z"
     depends_on:
       minio:
         condition: service_healthy
@@ -159,6 +161,8 @@ services:
       - MINIO_PRIVATE_URI=${AWS_S3_PRIVATE_URI}
       - MINIO_PUBLIC_BUCKET=${AWS_S3_PUBLIC_BUCKET}
       - MINIO_BUCKET=${AWS_S3_BUCKET}
+      - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
+      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
@@ -450,12 +454,13 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_IVR_SERVICE_CLIENT_ID: ${KEYCLOAK_IVR_SERVICE_CLIENT_ID}
+      KEYCLOAK_IVR_SERVICE_CLIENT_SECRET: ${KEYCLOAK_IVR_SERVICE_CLIENT_SECRET}
+      KEYCLOAK_IVR_VOTING_CLIENT_SECRET: ${KEYCLOAK_IVR_VOTING_CLIENT_SECRET}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
@@ -497,18 +502,25 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       ENV_SLUG: ${ENV_SLUG}
+      APP_VERSION: ${APP_VERSION}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3030/ready || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 30s
 
   trustee1:
     profiles: ["full"]
@@ -528,10 +540,10 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B3_URL: ${B3_URL}
+        B4_URL: ${B4_URL}
     depends_on:
       - immudb
-      - b3
+      - b4
 
   trustee2:
     profiles: ["full"]
@@ -553,7 +565,7 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-        B3_URL: ${B3_URL}
+        B4_URL: ${B4_URL}
 
   # trustee3:
   #   profiles: ["full"]
@@ -575,7 +587,7 @@ services:
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
   #       VAULT_TOKEN: ${VAULT_TOKEN}
-  #       B3_URL: ${B3_URL}
+  #       B4_URL: ${B4_URL}
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -597,9 +609,9 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - harvest
+      harvest:
+        condition: service_started
     volumes:
-      - ./keycloak/import:/import:z
       - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
@@ -715,8 +727,12 @@ services:
     volumes_from:
       - devcontainer
     depends_on:
-      - devcontainer
-      - rabbitmq
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      configure-minio:
+        condition: service_completed_successfully
       #- postgres
       #- postgres-keycloak
     environment:
@@ -753,14 +769,18 @@ services:
       MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
 
-      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
-      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
+      KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      KEYCLOAK_IVR_SERVICE_CLIENT_ID: ${KEYCLOAK_IVR_SERVICE_CLIENT_ID}
+      KEYCLOAK_IVR_SERVICE_CLIENT_SECRET: ${KEYCLOAK_IVR_SERVICE_CLIENT_SECRET}
+      KEYCLOAK_IVR_VOTING_CLIENT_SECRET: ${KEYCLOAK_IVR_VOTING_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      RESULTS_PORTAL_URL: ${RESULTS_PORTAL_URL}
       KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
@@ -786,15 +806,16 @@ services:
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
       APP_VERSION: ${APP_VERSION}
       APP_HASH: ${APP_HASH}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
       ENV_SLUG: ${ENV_SLUG}
@@ -810,8 +831,12 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
-      - devcontainer
-      - harvest
+      devcontainer:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      harvest:
+        condition: service_started
     working_dir: /workspaces/step/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
@@ -836,20 +861,20 @@ services:
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
 
-  postgres-b3:
+  postgres-b4:
     profiles: ["full", "base"]
-    image: sequentech.local/postgresql-b3
-    container_name: postgres-b3
+    image: sequentech.local/postgresql-b4
+    container_name: postgres-b4
     build:
-      context: ./postgresql-b3
+      context: ./postgresql-b4
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
-      - b3_db_data:/var/lib/postgresql
-      - b3_db_logs:/logs
+      - b4_db_data:/var/lib/postgresql
+      - b4_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
-      POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
+      POSTGRES_PASSWORD: ${B4_PG_PASSWORD}
     user: "999:999"  # This ensures that the postgres user inside the container is used
     healthcheck:
       test: ["CMD-SHELL", "pg_isready  -U postgres"]
@@ -860,11 +885,11 @@ services:
     depends_on:
       - postgres-volume-init
 
-  b3:
+  b4:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: b3
+    container_name: b4
     restart: always
     ports:
       - "50051:50051"
@@ -875,8 +900,8 @@ services:
       - devcontainer
     depends_on:
       #- devcontainer
-      - postgres-b3
-    working_dir: /workspaces/step/packages/b3
+      - postgres-b4
+    working_dir: /workspaces/step/packages/b4
     entrypoint: [
       "cargo",
       "watch",
@@ -886,21 +911,23 @@ services:
       "--ignore",
       "rust-local-target/",
       "--features",
-      "\"server sqlcopy\"",
+      "\"native monitor\"",
       "-x",
-      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
+      "run --bin b4 --release -- --host $B4_PG_HOST --port $B4_PG_PORT --username $B4_PG_USER --password $B4_PG_PASSWORD --database $B4_PG_DATABASE --bind $B4_BIND",
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      B4_BIND: ${B4_BIND}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
 
 volumes:
   db_data:
@@ -916,5 +943,5 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  b3_db_logs:
-  b3_db_data:
+  b4_db_logs:
+  b4_db_data:

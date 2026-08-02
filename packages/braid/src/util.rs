@@ -10,7 +10,7 @@ use std::fs;
 use std::path::PathBuf;
 use thiserror::Error;
 
-use b3::messages::statement::StatementType;
+use b4::messages::statement::StatementType;
 use strand::hash::Hash;
 use strand::util::StrandError;
 
@@ -45,6 +45,8 @@ pub enum ProtocolError {
     BoardOverwriteAttempt(String),
     #[error("{0}")]
     InternalError(String),
+    #[error("WASM implementation not yet available")]
+    WasmNotImplemented,
 }
 /// Allows attaching a context string to a ProtocolError result.
 ///
@@ -112,10 +114,15 @@ pub fn ensure_directory(folder: PathBuf) -> Result<()> {
     }
 }
 
+#[cfg(feature = "native")]
 use tracing_subscriber::filter::LevelFilter;
+#[cfg(feature = "native")]
 use tracing_subscriber::reload::Handle;
+#[cfg(feature = "native")]
 use tracing_subscriber::{filter, reload};
+#[cfg(feature = "native")]
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
+#[cfg(feature = "native")]
 use tracing_tree::HierarchicalLayer;
 
 /// Initialize the tracing log, returning a handle that
@@ -125,6 +132,7 @@ use tracing_tree::HierarchicalLayer;
 /// call stack. To do this you must mark function definitions
 /// you wish to track with the #[instrument] annotation.
 /// See https://docs.rs/tracing-attributes/latest/tracing_attributes/attr.instrument.html
+#[cfg(feature = "native")]
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)

@@ -38,6 +38,8 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
+import {TallyResolutionPanel} from "./TallyResolutionPanel"
+import {ResultsWebsitePublication} from "./ResultsWebsitePublication"
 import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
@@ -47,10 +49,12 @@ import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     EAllowTally,
     EElectionEventCeremoniesPolicy,
+    EElectionEventContestEncryptionPolicy,
     EInitializeReportPolicy,
     EInitReport,
     EVotingStatus,
     isArray,
+    parseResultsWebsitePolicy,
 } from "@sequentech/ui-core"
 
 import {
@@ -294,6 +298,8 @@ export const TallyCeremony: React.FC = () => {
     }, [tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
     const tallySessionDataRef = useRef(tallySessionData)
 
+    const electionEventName = record ? aliasRenderer(record) : "event"
+
     useEffect(() => {
         tallySessionDataRef.current = tallySessionData
     }, [tallySessionData])
@@ -331,8 +337,6 @@ export const TallyCeremony: React.FC = () => {
         }
     )
 
-    const [hasFinalResults, setHasFinalResults] = useState(false)
-
     const sortedKeysCeremonies = useMemo(() => {
         // Ensure keysCeremonies and its nested properties exist
         const items = keysCeremonies?.list_keys_ceremony?.items
@@ -363,22 +367,22 @@ export const TallyCeremony: React.FC = () => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
             // Only mark as completed if we have the resultsEventId
             if (resultsEventId) {
+                // The results event can be created before its documents are uploaded. Refresh it
+                // once the execution is complete so export actions do not retain that stale state.
+                void refetch()
                 setIsTallyCompleted(true)
-                setHasFinalResults(true)
             } else {
                 // Force a refetch if we don't have resultsEventId yet
                 refetchTallySession()
             }
         }
-    }, [tallySession?.is_execution_completed, isTallyCompleted, resultsEventId])
-
-    useEffect(() => {
-        // Additional check in case resultsEventId comes after is_execution_completed
-        if (tallySession?.is_execution_completed && resultsEventId && !hasFinalResults) {
-            setIsTallyCompleted(true)
-            setHasFinalResults(true)
-        }
-    }, [resultsEventId, tallySession?.is_execution_completed, hasFinalResults])
+    }, [
+        tallySession?.is_execution_completed,
+        isTallyCompleted,
+        resultsEventId,
+        refetch,
+        refetchTallySession,
+    ])
 
     useEffect(() => {
         if (tallySession) {
@@ -395,7 +399,10 @@ export const TallyCeremony: React.FC = () => {
                 setPage(WizardSteps.Ceremony)
                 return
             }
-            if (tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+            if (
+                tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
+                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+            ) {
                 setPage(WizardSteps.Tally)
                 return
             }
@@ -672,11 +679,17 @@ export const TallyCeremony: React.FC = () => {
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: aliasRenderer(record) ?? "event",
+                  name: electionEventName,
                   class_type: "event",
               }
             : null
-    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
+    }, [
+        resultsEventId,
+        resultsEvent,
+        resultsEvent?.[0]?.id,
+        resultsEvent?.[0]?.name,
+        i18n.language,
+    ])
 
     const handleMiruExportSuccess = (e: {
         election_id?: string
@@ -798,6 +811,10 @@ export const TallyCeremony: React.FC = () => {
         steps.push("tally.breadcrumbSteps.results")
         return steps
     }
+
+    const isMultiContest =
+        tally?.configuration?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
     return (
         <TallyStyles.WizardContainer>
@@ -983,13 +1000,17 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
+                                        isMultiContest={isMultiContest}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expandedData["tally-data-results"]}
+                                expanded={
+                                    expandedData["tally-data-results"] ||
+                                    tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+                                }
                                 onChange={() =>
                                     setExpandedData((prev: IExpanded) => ({
                                         ...prev,
@@ -1014,6 +1035,19 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            {tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT &&
+                                tally?.election_event_id &&
+                                contests && (
+                                    <TallyResolutionPanel
+                                        tallySession={tally}
+                                        contests={contests}
+                                        elections={elections ?? []}
+                                        electionEventId={tally.election_event_id}
+                                        tenantId={tenantId}
+                                        onResolutionSubmitted={refetchTallySession}
+                                    />
+                                )}
                         </>
                     )}
 
@@ -1085,6 +1119,7 @@ export const TallyCeremony: React.FC = () => {
                                         electionEventId={tally?.election_event_id}
                                         electionIds={tally?.election_ids}
                                         resultsEventId={resultsEventId}
+                                        isMultiContest={isMultiContest}
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
@@ -1134,7 +1169,7 @@ export const TallyCeremony: React.FC = () => {
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }
-                                                itemName={aliasRenderer(record) ?? "event"}
+                                                itemName={electionEventName}
                                                 tenantId={tenantId}
                                                 resultsEventId={resultsEventId}
                                             />
@@ -1152,6 +1187,47 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            <Accordion sx={{width: "100%"}}>
+                                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                    <WizardStyles.AccordionTitle>
+                                        {t("tally.resultsPublication.sectionTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    {tenantId && record?.id ? (
+                                        <ResultsWebsitePublication
+                                            tenantId={tenantId}
+                                            electionEventId={record.id}
+                                            tallySession={tally}
+                                            tallySessionExecution={tallySessionExecutions?.[0]}
+                                            resultsEventId={resultsEventId}
+                                            contests={contests ?? []}
+                                            elections={elections ?? []}
+                                            resultsWebsitePolicy={
+                                                parseResultsWebsitePolicy(
+                                                    record.presentation?.results_website
+                                                ) ?? null
+                                            }
+                                        />
+                                    ) : (
+                                        <Alert severity="info">
+                                            {t("tally.resultsPublication.loadingElectionContext")}
+                                        </Alert>
+                                    )}
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
+
+                            {tally?.election_event_id && contests && (
+                                <TallyResolutionPanel
+                                    tallySession={tally}
+                                    contests={contests}
+                                    elections={elections ?? []}
+                                    electionEventId={tally.election_event_id}
+                                    tenantId={tenantId}
+                                    onResolutionSubmitted={refetchTallySession}
+                                />
+                            )}
                         </>
                     )}
                 </WizardStyles.WizardWrapper>
@@ -1172,7 +1248,8 @@ export const TallyCeremony: React.FC = () => {
                         </CancelButton>
                     ) : null}
                     {page < WizardSteps.Results &&
-                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
+                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                        tally?.execution_status !== ITallyExecutionStatus.AWAITING_INPUT && (
                             <NextButton
                                 key="tally-next-button"
                                 color="primary"

@@ -5,6 +5,7 @@
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use clap::Args;
+use colored::Colorize;
 use csv::{ReaderBuilder, StringRecord, WriterBuilder};
 use rand::thread_rng;
 use rand::Rng;
@@ -35,7 +36,7 @@ impl HashPasswords {
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match runtime.block_on(self.run_hash_password()) {
-            Ok(_) => println!("Successfully generated hashed passwords"),
+            Ok(_) => println!("{}", "Successfully generated hashed passwords".green()),
             Err(err) => eprintln!("Error! Failed to generate hashed password: {err:?}"),
         }
     }

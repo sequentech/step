@@ -79,22 +79,42 @@ const tagalogTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Hindi sapat ang mga pagpipilian upang i-decode",
-                writeInChoiceOutOfRange: "Ang write-in choice ay nasa labas ng saklaw: {{index}}",
-                writeInNotEndInZero: "Ang write-in ay hindi nagtatapos sa 0",
+                notEnoughChoices: "Hindi sapat ang mga pagpipilian para ma-decode",
+                writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
+                writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
+                writeInCharsExceeded:
+                    "Ang Write-in ay lumampas ng {{numCharsExceeded}} sa maximum na bilang ng mga karakter. Kailangang ayusin.",
                 bytesToUtf8Conversion:
-                    "Error sa pag-convert ng write-in mula sa bytes patungo sa UTF-8 string: {{errorMessage}}",
+                    "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Ang bilang ng mga pinili {{numSelected}} ay higit sa maximum {{max}}",
+                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
                 selectedMin:
-                    "Ang bilang ng mga pinili {{numSelected}} ay mas mababa kaysa sa minimum {{min}}",
+                    "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
+                maxSelectionsPerType:
+                    "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
+                underVote:
+                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
+                overVoteDisabled:
+                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
+                blankVote: "Blank Vote: Walang pinili",
+                preferenceOrderWithGaps:
+                    "Di-wastong boto! Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
+                duplicatedPosition:
+                    "Di-wastong boto! Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
             },
             explicit: {
                 notAllowed:
-                    "Ang balota ay tahasang minarkahan na invalid ngunit hindi ito pinapayagan ng tanong",
+                    "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
+                alert: "Ang minarkahang pagpili ay ituturing na hindi wastong boto.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Hindi wastong configuration ng balota: may {{count}} tahasang invalid na kandidato sa contest, ngunit isa lamang ang pinapayagan.",
+                multipleExplicitBlankCandidates:
+                    "Hindi wastong configuration ng balota: may {{count}} tahasang blankong kandidato sa contest, ngunit isa lamang ang pinapayagan.",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",

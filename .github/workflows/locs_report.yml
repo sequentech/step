@@ -11,7 +11,7 @@ on:
 
 jobs:
   locs:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Checkout code

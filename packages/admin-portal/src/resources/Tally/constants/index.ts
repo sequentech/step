@@ -42,6 +42,8 @@ export const statusColor: (status: string) => string = (status) => {
         return theme.palette.info.main
     } else if (status === ITallyExecutionStatus.IN_PROGRESS) {
         return theme.palette.info.main
+    } else if (status === ITallyExecutionStatus.AWAITING_INPUT) {
+        return theme.palette.warning.main
     } else if (
         status === ITallyExecutionStatus.SUCCESS ||
         status === IApplicationsStatus.ACCEPTED

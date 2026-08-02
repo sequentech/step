@@ -79,19 +79,39 @@ const englishTranslation = {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write in doesn't end on 0",
+                writeInNotEndInZero: "Write-in doesn't end on 0",
+                writeInCharsExceeded:
+                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
             implicit: {
                 selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
                 selectedMin:
                     "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                maxSelectionsPerType:
+                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                underVote:
+                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
+                blankVote: "Blank Vote: 0 choices selected",
+                preferenceOrderWithGaps:
+                    "Invalid vote! The order of preference has one or more gaps.",
+                duplicatedPosition:
+                    "Invalid vote! The same position was selected for two or more candidates.",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "Selection marked will be considered invalid vote.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Invalid ballot configuration: the contest defines {{count}} explicitly invalid candidates, but only one is allowed.",
+                multipleExplicitBlankCandidates:
+                    "Invalid ballot configuration: the contest defines {{count}} explicit blank candidates, but only one is allowed.",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

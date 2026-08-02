@@ -7,6 +7,7 @@ import {isArray} from "@sequentech/ui-core"
 import React, {useEffect, useState} from "react"
 import {useInput} from "react-admin"
 import DraggableElement from "../DraggableElement"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 type CustomOrderInputProps = {
     source: string
@@ -20,6 +21,7 @@ const CustomOrderInput = ({source}: CustomOrderInputProps) => {
     const [data, setData] = useState<Array<any>>(value ?? [])
     const [dragIndex, setDragIndex] = useState<number>(-1)
     const [overIndex, setOverIndex] = useState<number | null>(null)
+    const aliasRenderer = useAliasRenderer()
 
     useEffect(() => {
         if (isArray(value) && value.length > 0) {
@@ -70,7 +72,7 @@ const CustomOrderInput = ({source}: CustomOrderInputProps) => {
                             key={lineItem.id}
                             index={index}
                             id={lineItem.id}
-                            name={lineItem?.name ?? ""}
+                            name={aliasRenderer(lineItem)}
                             onDragStart={onDragStart}
                             onDragOver={onDragOver}
                             onDrop={onDrop}

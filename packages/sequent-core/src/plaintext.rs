@@ -40,6 +40,9 @@ pub struct InvalidPlaintextError {
 pub struct DecodedVoteContest {
     pub contest_id: String,
     pub is_explicit_invalid: bool,
+    /// Whether the Voter has declined to vote (can be true only for multi-contest ballots with decline to vote policy enabled).
+    /// and will be the same for all contests in the ballot.
+    pub is_decline_to_vote: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub invalid_alerts: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,
@@ -57,6 +60,11 @@ impl DecodedVoteContest {
                 .iter()
                 .all(|choice| choice.selected < 0)
     }
+    /// Get the value of is_decline_to_vote.
+    #[must_use]
+    pub fn is_decline_to_vote(&self) -> bool {
+        self.is_decline_to_vote
+    }
 
     /// Check the validity of the preference order.
     /// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
@@ -64,36 +72,45 @@ impl DecodedVoteContest {
     /// handle it depending on the policy or jurisdiction rules.
     /// Returns Ok if the order is valid after sorting it and if it is
     /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
+    /// Returns Err with a Vec of all errors found (may contain multiple variants).
     pub fn validate_preferencial_order(
         &self,
-    ) -> Result<(), PreferencialOrderErrorType> {
-        let mut valid_choices: Vec<DecodedVoteChoice> = self
+    ) -> Result<(), Vec<PreferencialOrderErrorType>> {
+        let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
+
+        // Discard the unselected choices and sort the selected ones by their preference order
+        let choices: Vec<i64> = self
             .choices
             .iter()
             .filter(|choice| choice.selected >= 0)
-            .cloned()
+            .map(|choice| choice.selected)
             .collect();
-
-        valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
-        let valid_choices_order: Vec<i64> =
-            valid_choices.iter().map(|choice| choice.selected).collect();
 
         // After removing the unselected choices we check that there are no duplicates in
         // the preference order
-        let valid_choices_unique_set =
-            valid_choices_order.iter().collect::<HashSet<_>>();
-        if valid_choices_order.len() != valid_choices_unique_set.len() {
-            return Err(PreferencialOrderErrorType::DuplicatedPosition);
+        let choices_unique_set = choices.iter().collect::<HashSet<_>>();
+        if choices.len() != choices_unique_set.len() {
+            errors.push(PreferencialOrderErrorType::DuplicatedPosition);
         }
 
-        // If there are no duplicates and the set has the same length, the only
-        // thing left to check is that there are no gaps
+        // Check that there are no gaps in the ordered choices
+        let mut ordered_choices = choices_unique_set
+            .into_iter()
+            .cloned()
+            .collect::<Vec<i64>>();
+        ordered_choices.sort();
         let expected_order: Vec<i64> =
-            (0..valid_choices_order.len() as i64).collect();
-        if valid_choices_order != expected_order {
-            return Err(PreferencialOrderErrorType::PreferenceOrderWithGaps);
+            (0..ordered_choices.len() as i64).collect();
+
+        if ordered_choices != expected_order {
+            errors.push(PreferencialOrderErrorType::PreferenceOrderWithGaps);
         }
-        Ok(())
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }
 
@@ -189,7 +206,8 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
 
         let decoded_contest = DecodedVoteContest {
             contest_id: contest_id,
-            is_explicit_invalid: decoded_ballot_choices.is_explicit_invalid,
+            is_explicit_invalid: found_ballot_choices.is_explicit_invalid,
+            is_decline_to_vote: decoded_ballot_choices.is_explicit_invalid,
             invalid_errors: found_ballot_choices.invalid_errors.clone(),
             invalid_alerts: found_ballot_choices.invalid_alerts.clone(),
             choices,

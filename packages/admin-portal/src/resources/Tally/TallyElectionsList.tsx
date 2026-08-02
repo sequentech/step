@@ -15,6 +15,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
     id: string
     active: boolean
+    name: string
 }
 interface TallyElectionsListProps {
     elections: Sequent_Backend_Election[] | undefined
@@ -28,7 +29,7 @@ interface TallyElectionsListProps {
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
     const {disabled, elections, update, keysCeremonyId, tallySession: tallyData} = props
 
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
@@ -42,7 +43,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     const sortedfilteredElections = useMemo(() => {
         // Ensure filteredElections and its nested properties exist
-        const items = filteredElections
+        const items = electionsData
         if (!items) return []
 
         // Create a shallow copy and sort it
@@ -51,18 +52,21 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             return a.name.localeCompare(b.name)
         })
         // Dependency array: re-run only when the original items array changes
-    }, [filteredElections])
+    }, [electionsData])
 
     useEffect(() => {
         if (filteredElections) {
-            const temp: Array<Sequent_Backend_Election_Extended> = sortedfilteredElections
-                .map((election, index) => ({
-                    ...election,
-                    rowId: index,
-                    id: election.id || "",
-                    name: election.name,
-                    active: true,
-                }))
+            const temp: Array<Sequent_Backend_Election_Extended> = filteredElections
+                .map((election, index) => {
+                    const electionName = aliasRenderer(election.presentation)
+                    return {
+                        ...election,
+                        rowId: index,
+                        id: election.id || "",
+                        name: electionName,
+                        active: true,
+                    }
+                })
                 .filter((election) =>
                     tallyData ? (tallyData.election_ids || []).includes(election.id) : true
                 )
@@ -81,12 +85,12 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     const columns: GridColDef[] = [
         {
-            field: "name",
+            field: `presentation.i18n[${i18n.language}].alias`,
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
             valueGetter(value, row) {
-                return aliasRenderer(row)
+                return value ? value : aliasRenderer(row)
             },
         },
         {
@@ -119,7 +123,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     return (
         <DataGrid
-            rows={electionsData}
+            rows={sortedfilteredElections}
             sx={{width: "100%"}}
             columns={columns}
             initialState={{

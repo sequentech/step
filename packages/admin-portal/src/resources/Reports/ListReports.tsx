@@ -316,7 +316,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             label={String(t("reportsScreen.fields.electionId"))}
             choices={elections?.map((election) => ({
                 id: election.id,
-                name: election.alias || election.name || "-",
+                name: aliasRenderer(election),
             }))}
         />,
         <FilterTextInput label="Template" source="template_alias" key={0} />,
@@ -492,7 +492,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 }
                 disableSyncWithLocation
             >
-                <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
+                <DataGridContainerStyle
+                    isOpenSideBar={isOpenSidebar}
+                    omit={OMIT_FIELDS}
+                    rowClick={false}
+                >
                     <TextField source="id" />
                     <FunctionField
                         label={String(t("reportsScreen.fields.reportType"))}

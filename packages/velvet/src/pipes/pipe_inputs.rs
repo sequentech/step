@@ -8,8 +8,9 @@ use crate::{
     utils::parse_file,
 };
 use sequent_core::{
-    ballot::{BallotStyle, Contest, ReportDates, StringifiedPeriodDates},
+    ballot::{BallotStyle, Contest, ElectionPresentation, ReportDates, StringifiedPeriodDates},
     services::area_tree::TreeNodeArea,
+    types::participation::VotesByChannel,
     util::path::get_folder_name,
 };
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,7 @@ pub const PREFIX_ELECTION: &str = "election__";
 pub const PREFIX_CONTEST: &str = "contest__";
 pub const PREFIX_AREA: &str = "area__";
 pub const PREFIX_TALLY_SHEET: &str = "tally_sheet__";
+pub const PREFIX_ALL_AREAS: &str = "all_areas";
 
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
@@ -87,6 +89,17 @@ impl PipeInputs {
                 path.push(format!("{}{}", PREFIX_AREA, area_id));
             }
         }
+
+        path
+    }
+
+    #[instrument(skip_all)]
+    pub fn build_consolidated_report_path(root: &Path, election_id: &Uuid) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{}", PREFIX_ALL_AREAS));
 
         path
     }
@@ -205,6 +218,7 @@ impl PipeInputs {
             census: election.census,
             total_votes: election.total_votes,
             areas: election.areas,
+            presentation: election.presentation,
         })
     }
 
@@ -295,6 +309,7 @@ pub struct InputElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
+    pub presentation: Option<ElectionPresentation>,
 }
 
 #[derive(Debug, Clone)]
@@ -366,6 +381,7 @@ pub struct ElectionConfig {
     pub ballot_styles: Vec<BallotStyle>,
     pub areas: Vec<TreeNodeArea>,
     pub dates: Option<StringifiedPeriodDates>,
+    pub presentation: Option<ElectionPresentation>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -378,6 +394,8 @@ pub struct AreaConfig {
     pub census: u64,
     pub parent_id: Option<Uuid>,
     pub auditable_votes: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 impl Into<TreeNodeArea> for &AreaConfig {

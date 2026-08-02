@@ -735,6 +735,60 @@
         "attributes": {}
       },
       {
+        "id": "b79ac682-20f0-4d8b-88d3-e5f59f5627e1",
+        "name": "keycloak-realm-attributes-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "a13e45b8-7bc8-4f86-bbe2-4b919f39ba9d",
+        "name": "keycloak-realm-attributes-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "d1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
+        "name": "election-event-cas-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "7f9d0130-c877-490d-9c23-c05e18061672",
+        "name": "election-event-ivr-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
+        "name": "ca-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
+        "name": "ca-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "62e04181-bbc4-4b50-a54e-d66c5d5fd97c",
         "name": "election-events-logs-filters",
         "description": "",
@@ -1149,6 +1203,15 @@
         "attributes": {}
       },
       {
+        "id": "82c938c9-6b22-4337-a9e5-31b0742837a5",
+        "name": "publish-results-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "be6acccc-ea93-405d-8440-b4add13c3236",
         "name": "transmission-report-generate",
         "description": "",
@@ -1187,6 +1250,15 @@
       {
         "id": "11567034-d3d1-41af-87e6-8108a3d9d8d2",
         "name": "publish-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee80dcde-cda1-4019-9ce6-409fa40cac01",
+        "name": "publish-results-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1455,8 +1527,8 @@
         "attributes": {}
       },
       {
-        "id": "7c279e73-acd2-4b14-946e-800e99915a86",
-        "name": "tally-sheet-delete",
+        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
+        "name": "tally-sheet-review",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1464,8 +1536,35 @@
         "attributes": {}
       },
       {
-        "id": "ed56c0d1-9ef0-46ec-95e4-604216baadb9",
-        "name": "tally-sheet-publish",
+        "id": "8bc561d0-16cd-4124-bcab-a4bcf194f507",
+        "name": "tally-sheet-import-view",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "2c79a478-d35a-4748-9aa6-56f11033719f",
+        "name": "tally-sheet-import-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "86b944b0-b53b-48f8-8ee2-a140ffd01410",
+        "name": "tally-sheet-import-review",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee8a4f92-1174-489f-af73-32f835987daa",
+        "name": "tally-recount-execute",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1716,6 +1815,15 @@
         "attributes": {}
       },
       {
+        "id": "2f6b8e4a-9c1d-4e3f-8a7b-5d0c6f2a1b3e",
+        "name": "election-event-voter-list-reconciliation",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "93fc971f-1d2e-4bff-8440-da937436f423",
         "name": "voter-import",
         "description": "",
@@ -1781,6 +1889,69 @@
       {
         "id": "cc897637-20fb-4922-9c84-534f29248390",
         "name": "voter-email-tlf-edit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5640710d-b40b-44cb-888f-f6b7277efedd",
+        "name": "generate-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "50ef5e3e-42c6-4588-b46a-bb938aa8d849",
+        "attributes": {}
+      },
+      {
+        "id": "bddb99dc-bf6d-44a9-8f0a-d4830ce1b92d",
+        "name": "preview-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "50ef5e3e-42c6-4588-b46a-bb938aa8d849",
+        "attributes": {}
+      },
+      {
+        "id": "3a1e8f2b-7c4d-4e9a-b5f0-1d2c3e4a5b6c",
+        "name": "tally-resolution-submit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5581273b-21f1-4cad-a0db-e2a52b4fd2e3",
+        "name": "phone-blacklist-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "92171f8a-3cfc-4847-9f32-b7a45b6dffab",
+        "name": "phone-blacklist-create",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "0b57621a-2429-49c0-8802-bc0219682e77",
+        "name": "phone-blacklist-update",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "92fb4a5d-f1bb-4983-b33a-90c7223fffe7",
+        "name": "phone-blacklist-delete",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2203,6 +2374,12 @@
         "support-material-write",
         "user-write",
         "election-event-write",
+        "election-event-ivr-tab",
+        "keycloak-realm-attributes-read",
+        "keycloak-realm-attributes-write",
+        "election-event-cas-tab",
+        "ca-read",
+        "ca-write",
         "tally-sheet-create",
         "election-event-delete",
         "templates-menu",
@@ -2259,7 +2436,11 @@
         "settings-menu",
         "role-assign",
         "voting-channel-read",
-        "tally-sheet-publish",
+        "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "contest-read",
         "document-upload",
         "notification-write",
@@ -2289,12 +2470,12 @@
         "voter-create",
         "election-event-data-tab",
         "user-create",
-        "tally-sheet-delete",
         "voter-read",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",
         "publish-write",
+        "publish-results-write",
         "tasks-read",
         "support-material-read",
         "contest-create",
@@ -2339,6 +2520,7 @@
         "contest-write",
         "election-type-create",
         "publish-read",
+        "publish-results-read",
         "publish-create",
         "publish-regenerate",
         "publish-export",
@@ -2362,6 +2544,7 @@
         "voter-export",
         "voter-import",
         "voter-manually-verify",
+        "election-event-voter-list-reconciliation",
         "election-event-tally-columns",
         "election-event-tally-back-button",
         "transmition-ceremony",
@@ -2373,7 +2556,14 @@
         "election-dashboard-tab",
         "voter-voted-edit",
         "voter-email-tlf-edit",
-        "transmission-report-generate"
+        "transmission-report-generate",
+        "preview-read",
+        "generate-preview",
+        "tally-resolution-submit",
+        "phone-blacklist-read",
+        "phone-blacklist-create",
+        "phone-blacklist-update",
+        "phone-blacklist-delete"
       ],
       "clientRoles": {}
     },
@@ -2387,8 +2577,10 @@
         "election-event-publish-tab",
         "admin-user",
         "publish-write",
+        "publish-results-write",
         "election-event-read",
-        "publish-read"
+        "publish-read",
+        "publish-results-read"
       ],
       "clientRoles": {}
     },
@@ -2405,6 +2597,10 @@
         "tally-write",
         "user-write",
         "election-event-write",
+        "election-event-ivr-tab",
+        "election-event-cas-tab",
+        "ca-read",
+        "ca-write",
         "notification-send",
         "user-permission-write",
         "tally-sheet-create",
@@ -2421,7 +2617,11 @@
         "voter-write",
         "role-assign",
         "voting-channel-read",
-        "tally-sheet-publish",
+        "tally-sheet-review",
+        "tally-sheet-import-view",
+        "tally-sheet-import-create",
+        "tally-sheet-import-review",
+        "tally-recount-execute",
         "document-upload",
         "user-permission-read",
         "election-event-create",
@@ -2449,12 +2649,12 @@
         "tenant-read",
         "tally-start",
         "voter-create",
-        "tally-sheet-delete",
         "user-create",
         "voter-read",
         "tenant-create",
         "election-type-write",
         "publish-write",
+        "publish-results-write",
         "support-material-read",
         "communication-template-read",
         "document-write",
@@ -2462,7 +2662,8 @@
         "tenant-write",
         "document-download",
         "election-type-create",
-        "publish-read"
+        "publish-read",
+        "publish-results-read"
       ],
       "clientRoles": {}
     },
@@ -3212,26 +3413,26 @@
           }
         },
         {
-        "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
-        "name": "auth_time",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usersessionmodel-note-mapper",
-        "consentRequired": false,
-        "config": {
-          "user.session.note": "AUTH_TIME",
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/auth_time",
-          "jsonType.label": "long",
-          "access.tokenResponse.claim": "false"
-        }
-      },
-       {
-        "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
-        "name": "x-hasura-allowed-roles",
+          "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/auth_time",
+            "jsonType.label": "long",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
+          "name": "x-hasura-allowed-roles",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
           "consentRequired": false,
@@ -3243,58 +3444,58 @@
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
             "jsonType.label": "String"
           }
-      },
-      {
-        "id": "31417714-666b-41c7-ae05-a9c3a4948443",
-        "name": "x-hasura-permission-labels",
-        "protocol": "openid-connect",
-        "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "permission_labels",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
-          "jsonType.label": "String"
-        }
-      },
-      {
-        "id": "04319485-b298-4701-a8db-76c1ab682378",
-        "name": "x-hasura-user-id",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usermodel-property-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "id",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
-          "jsonType.label": "String"
-        }
-      },
-      {
-        "id": "5c333dda-dcd9-49eb-b680-d5c082304e27",
-        "name": "trustee",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usermodel-attribute-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "trustee",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "trustee",
-          "jsonType.label": "String"
-        }
-      },
+        },
+        {
+          "id": "31417714-666b-41c7-ae05-a9c3a4948443",
+          "name": "x-hasura-permission-labels",
+          "protocol": "openid-connect",
+          "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "permission_labels",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "04319485-b298-4701-a8db-76c1ab682378",
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "5c333dda-dcd9-49eb-b680-d5c082304e27",
+          "name": "trustee",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "trustee",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "trustee",
+            "jsonType.label": "String"
+          }
+        },
         {
           "id": "046b121c-b86d-4bb5-82cf-98da389b7eb2",
           "name": "Client Host",
@@ -4951,36 +5152,40 @@
       ]
     },
     {
-    "id": "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
-    "alias": "LoA step-up",
-    "description": "",
-    "providerId": "basic-flow",
-    "topLevel": false,
-    "builtIn": false,
-    "authenticationExecutions": [ {
-      "authenticatorConfig": "gold - LoA2",
-      "authenticator": "conditional-level-of-authentication",
-      "authenticatorFlow": false,
-      "requirement": "REQUIRED",
-      "priority": 0,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    }, {
-      "authenticator": "direct-grant-validate-username",
-      "authenticatorFlow": false,
-      "requirement": "REQUIRED",
-      "priority": 1,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    }, {
-      "authenticator": "direct-grant-validate-password",
-      "authenticatorFlow": false,
-      "requirement": "DISABLED",
-      "priority": 2,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    } ]
-  },
+      "id": "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
+      "alias": "LoA step-up",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "gold - LoA2",
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "direct-grant-validate-username",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "direct-grant-validate-password",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
     {
       "id": "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
       "alias": "Message OTP Subflow",
@@ -5513,20 +5718,21 @@
       ]
     },
     {
-        "id": "7191847e-d249-4a3d-b513-84d16d1de9a2",
-        "alias": "gold direct grant",
-        "description": "OpenID Connect Resource Owner Grant",
-        "providerId": "basic-flow",
-        "topLevel": true,
-        "builtIn": false,
-        "authenticationExecutions": [ {
+      "id": "7191847e-d249-4a3d-b513-84d16d1de9a2",
+      "alias": "gold direct grant",
+      "description": "OpenID Connect Resource Owner Grant",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
           "priority": 32,
           "autheticatorFlow": true,
           "flowAlias": "LoA step-up",
           "userSetupAllowed": false
-        } 
+        }
       ]
     },
     {
@@ -5829,14 +6035,15 @@
         "loa-max-age": "0"
       }
     },
-      {
+    {
       "id": "d0b1b9bb-22c3-4585-b094-c4e10e32bbe2",
       "alias": "gold - LoA2",
       "config": {
         "loa-condition-level": "2",
         "loa-max-age": "0"
       }
-    }, {
+    },
+    {
       "id": "7caf408d-0ad1-45e7-89f6-095565b1b1a5",
       "alias": "gold - LoA2",
       "config": {

@@ -248,7 +248,7 @@ export const HomeScreen: React.FC<IProps> = ({
         setBallotId(e.target.value)
 
     return (
-        <PageLimit maxWidth="md">
+        <PageLimit maxWidth="md" className="home-screen screen">
             <Box marginTop="48px">
                 <BreadCrumbSteps
                     labels={[

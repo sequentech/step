@@ -64,6 +64,34 @@ export function ErrorPage() {
                 )}
             </>
         )
+    } else if (
+        error instanceof VotingPortalError &&
+        error.type === VotingPortalErrorType.CERT_AUTH_FAILED
+    ) {
+        content = (
+            <>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.certAuthFailedTitle")}
+                </StyledTitle>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.certAuthFailedMessage")}
+                </Typography>
+            </>
+        )
+    } else if (
+        error instanceof VotingPortalError &&
+        error.type === VotingPortalErrorType.INVALID_LOGIN_HINT_PARAMETERS
+    ) {
+        content = (
+            <>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.invalidLoginHintParametersTitle")}
+                </StyledTitle>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.invalidLoginHintParametersMessage")}
+                </Typography>
+            </>
+        )
     } else if (isErrorType) {
         content = (
             <>

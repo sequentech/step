@@ -6,6 +6,7 @@ use crate::types::config::ConfigData;
 use crate::utils::keycloak::refresh_keycloak_token;
 use crate::utils::read_config::{get_config_dir, read_config, CREATE_CONFIG_FILE_NAME};
 use clap::Args;
+use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
@@ -57,8 +58,12 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(&config_file, json_data)?;
 
     println!(
-        "Success! Configuration refreshed successfully at {:?}",
-        config_file
+        "{}",
+        format!(
+            "Success! Configuration refreshed successfully at {:?}",
+            config_file
+        )
+        .green(),
     );
     Ok(())
 }

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use tokio_postgres::row::Row;
 use tracing::instrument;
-use uuid::Uuid;
 
 #[instrument(skip(transaction), err)]
 pub async fn update_election_statistics(
@@ -43,9 +43,9 @@ pub async fn update_election_statistics(
         .query(
             &update_stats_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
                 &inc_emails_sent,
                 &inc_sms_sent,
             ],
@@ -53,52 +53,6 @@ pub async fn update_election_statistics(
         .await?;
 
     Ok(())
-}
-
-#[instrument(skip(transaction), err)]
-pub async fn get_count_distinct_voters(
-    transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-) -> Result<i64> {
-    let total_distinct_voters_statement = transaction
-        .prepare(
-            r#"
-            SELECT
-                COUNT(DISTINCT voter_id_string) AS total_distinct_voters
-            FROM
-                sequent_backend.election el
-            LEFT JOIN 
-                sequent_backend.cast_vote cv ON el.id = cv.election_id
-            WHERE
-                el.tenant_id = $1 AND
-                el.election_event_id = $2 AND
-                el.id = $3;
-            "#,
-        )
-        .await?;
-
-    let rows: Vec<Row> = transaction
-        .query(
-            &total_distinct_voters_statement,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
-            ],
-        )
-        .await?;
-
-    // all rows contain the count and if there's no rows well, count is clearly
-    // zero
-    let total_distinct_voters: i64 = if rows.len() == 0 {
-        0
-    } else {
-        rows[0].try_get::<&str, i64>("total_distinct_voters")?
-    };
-
-    Ok(total_distinct_voters)
 }
 
 #[instrument(skip(transaction), err)]
@@ -137,9 +91,9 @@ pub async fn get_count_areas(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;

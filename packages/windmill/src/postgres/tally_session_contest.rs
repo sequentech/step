@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use b3::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::BatchNumber;
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TallySessionContest;
 use serde::Serialize;
 use serde_json::value::Value;
@@ -60,9 +61,9 @@ pub async fn update_tally_session_contests_annotations(
                 &statement,
                 &[
                     &contest.annotations,
-                    &Uuid::parse_str(&contest.id)?,
-                    &Uuid::parse_str(&contest.tenant_id)?,
-                    &Uuid::parse_str(&contest.election_event_id)?,
+                    &parse_uuid_v4(&contest.id)?,
+                    &parse_uuid_v4(&contest.tenant_id)?,
+                    &parse_uuid_v4(&contest.election_event_id)?,
                 ],
             )
             .await?;
@@ -91,7 +92,7 @@ pub async fn insert_tally_session_contest(
     tally_session_id: &str,
     election_id: &str,
 ) -> Result<TallySessionContest> {
-    let contest_uuid = contest_id.map(|val| Uuid::parse_str(&val)).transpose()?;
+    let contest_uuid = contest_id.map(|val| parse_uuid_v4(&val)).transpose()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -117,13 +118,13 @@ pub async fn insert_tally_session_contest(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(area_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(area_id)?,
                 &contest_uuid,
                 &(session_id as i32),
-                &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await
@@ -168,8 +169,8 @@ pub async fn get_tally_session_highest_batch(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -225,9 +226,9 @@ pub async fn get_tally_session_contests(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
             ],
         )
         .await
@@ -266,8 +267,8 @@ pub async fn get_event_tally_session_contest(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -312,18 +313,18 @@ pub async fn insert_many_tally_session_contests(
         .into_iter()
         .map(|c| {
             Ok(InsertableTallySessionContest {
-                id: Uuid::parse_str(&c.id)?,
-                tenant_id: Uuid::parse_str(&c.tenant_id)?,
-                election_event_id: Uuid::parse_str(&c.election_event_id)?,
-                area_id: Uuid::parse_str(&c.area_id)?,
-                contest_id: c.contest_id.map(|s| Uuid::parse_str(&s)).transpose()?,
+                id: parse_uuid_v4(&c.id)?,
+                tenant_id: parse_uuid_v4(&c.tenant_id)?,
+                election_event_id: parse_uuid_v4(&c.election_event_id)?,
+                area_id: parse_uuid_v4(&c.area_id)?,
+                contest_id: c.contest_id.map(|s| parse_uuid_v4(&s)).transpose()?,
                 session_id: c.session_id.clone(),
                 created_at: c.created_at,
                 last_updated_at: c.last_updated_at,
                 labels: c.labels.clone(),
                 annotations: c.annotations.clone(),
-                tally_session_id: Uuid::parse_str(&c.tally_session_id)?,
-                election_id: Uuid::parse_str(&c.election_id)?,
+                tally_session_id: parse_uuid_v4(&c.tally_session_id)?,
+                election_id: parse_uuid_v4(&c.election_id)?,
             })
         })
         .collect::<Result<_>>()?;

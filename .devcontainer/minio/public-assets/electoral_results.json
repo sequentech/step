@@ -11,7 +11,10 @@
   "reports": [
     {
       "election_id": "1",
+      "election_event_id": "12",
+      "tenant_id": "123",
       "election_name": "TOKYO PE",
+      "election_alias": "TOKYO",
       "election_description": "",
       "election_dates": {
         "first_started_at": "2024-11-08T00:00:00Z",
@@ -279,11 +282,28 @@
           "winning_position": 3
         }
       ],
+      "participation_by_channel": [
+        {
+          "channel": "ONLINE",
+          "label": "Online",
+          "total": 3000000,
+          "percentage": 60.6
+        },
+        {
+          "channel": "PAPER",
+          "label": "Paper",
+          "total": 1950000,
+          "percentage": 39.4
+        }
+      ],
       "channel_type": "Online Voting"
     },
     {
-      "election_id": "1",
+      "election_id": "2",
+      "election_event_id": "21",
+      "tenant_id": "213",
       "election_name": "NEW YORK PCG",
+      "election_alias": "NEW YORK",
       "election_description": "",
       "area_annotations": {
         "registered_voters": "10000000"

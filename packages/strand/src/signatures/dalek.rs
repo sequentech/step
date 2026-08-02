@@ -16,7 +16,7 @@
 //! let msg = b"message";
 //! let mut rng = StrandRng;
 //! // generate signing (private) and verification (public) keys
-//! let sk = StrandSignatureSk::gen().unwrap();
+//! let sk = StrandSignatureSk::generate().unwrap();
 //! let vk = StrandSignaturePk::from_sk(&sk).unwrap();
 //! // sign data
 //! let sig = sk.sign(msg);
@@ -40,9 +40,6 @@ use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
-use rcgen::CertificateSigningRequestParams;
-use rustls_pki_types::CertificateSigningRequestDer;
-use rustls_pki_types::PrivatePkcs8KeyDer;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
@@ -52,9 +49,6 @@ use std::io::{Error, ErrorKind};
 use crate::rng::StrandRng;
 use crate::util;
 use crate::util::StrandError;
-
-use x509_parser::certificate::X509Certificate;
-use x509_parser::prelude::FromDer;
 
 /// An ed25519-dalek backed signature.
 #[derive(Clone)]
@@ -123,7 +117,7 @@ impl StrandSignaturePk {
     /// Parses a spki der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignaturePk, StrandError> {
         let sk = VerifyingKey::from_public_key_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
 
         Ok(StrandSignaturePk(sk))
     }
@@ -152,49 +146,6 @@ impl StrandSignaturePk {
 
         Ok(StrandSignaturePk(sk))
     }
-
-    /// Parses a x509 der representation and extracts a StrandSignaturePk.
-    pub fn from_x509_der(
-        x509: &[u8],
-    ) -> Result<StrandSignaturePk, StrandError> {
-        let (_, res) = X509Certificate::from_der(&x509)?;
-        let pk_bytes: &[u8] =
-            res.tbs_certificate.subject_pki.subject_public_key.as_ref();
-        let pk_bytes: [u8; 32] = util::to_u8_array(pk_bytes)?;
-        let ret = StrandSignaturePk::from_bytes(pk_bytes)?;
-
-        Ok(ret)
-    }
-
-    /// Verify and extract the StrandSignaturePk from a x509 der representation.
-    /// If a CA StrandSignaturePk is passed the verification will be
-    /// with respect to it, otherwise it is assumed this is a self-signed
-    /// certificate.
-    pub fn verify_x509_der(
-        x509: &[u8],
-        ca_pk: Option<&StrandSignaturePk>,
-    ) -> Result<StrandSignaturePk, StrandError> {
-        let (_, res) = X509Certificate::from_der(&x509)?;
-        let sig_bytes: [u8; 64] =
-            util::to_u8_array(res.signature_value.as_ref())?;
-        let sig = StrandSignature::from_bytes(sig_bytes)?;
-
-        let pk_bytes: &[u8] =
-            res.tbs_certificate.subject_pki.subject_public_key.as_ref();
-        let pk_bytes: [u8; 32] = util::to_u8_array(pk_bytes)?;
-        let ret = StrandSignaturePk::from_bytes(pk_bytes)?;
-
-        let verifying_pk = if ca_pk.is_some() {
-            ca_pk.expect("impossible")
-        } else {
-            // Self-signed.
-            &ret
-        };
-
-        let _ = verifying_pk.verify(&sig, &res.tbs_certificate.as_ref())?;
-
-        Ok(ret)
-    }
 }
 
 /// An ed25519-dalek backed signing key.
@@ -202,7 +153,7 @@ impl StrandSignaturePk {
 pub struct StrandSignatureSk(SigningKey);
 impl StrandSignatureSk {
     /// Generates a key using randomness from rng::StrandRng.
-    pub fn gen() -> Result<StrandSignatureSk, StrandError> {
+    pub fn generate() -> Result<StrandSignatureSk, StrandError> {
         let mut rng = StrandRng;
         let sk = SigningKey::generate(&mut rng);
         Ok(StrandSignatureSk(sk))
@@ -233,7 +184,7 @@ impl StrandSignatureSk {
     /// Parses a pkcs#8 v1 or v2 der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignatureSk, StrandError> {
         let sk = SigningKey::from_pkcs8_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
 
         Ok(StrandSignatureSk(sk))
     }
@@ -250,71 +201,6 @@ impl StrandSignatureSk {
     ) -> Result<StrandSignatureSk, StrandError> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(b64_der)?;
         Self::from_der(&bytes)
-    }
-
-    /// Returns a pkcs#10 csr der representation.
-    pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
-        let cert_sk_der = self.to_der()?;
-        let der_sk = PrivatePkcs8KeyDer::from(cert_sk_der);
-        let der_sk = rustls_pki_types::PrivateKeyDer::Pkcs8(der_sk);
-
-        let cert_kp = rcgen::KeyPair::from_der_and_sign_algo(
-            // &cert_sk_der,
-            &der_sk,
-            &rcgen::PKCS_ED25519,
-        )?;
-        let mut cert_params = rcgen::CertificateParams::default();
-        let dname = rcgen::string::PrintableString::try_from(name)?;
-        let mut dn = rcgen::DistinguishedName::new();
-        dn.push(
-            rcgen::DnType::CommonName,
-            rcgen::DnValue::PrintableString(dname),
-        );
-        cert_params.distinguished_name = dn;
-        let csr = cert_params.serialize_request(&cert_kp)?;
-        let der = csr.der();
-        let der_bytes: Vec<u8> = der.to_vec();
-
-        Ok(der_bytes)
-    }
-
-    /// Signs a certificate csr and returns a x509 der representation.
-    pub fn sign_csr(
-        &self,
-        self_der: &[u8],
-        name: String,
-        csr_der: &[u8],
-    ) -> Result<Vec<u8>, StrandError> {
-        println!("Signing CSR...");
-
-        let self_sk = PrivatePkcs8KeyDer::from(self_der);
-        println!("Self SK loaded");
-        let self_sk = rustls_pki_types::PrivateKeyDer::Pkcs8(self_sk);
-        print!("Self SK parsed...");
-        let self_kp = rcgen::KeyPair::from_der_and_sign_algo(
-            &self_sk,
-            &rcgen::PKCS_ED25519,
-        )
-        .unwrap();
-        print!("Self KP parsed...");
-
-        let mut self_params = rcgen::CertificateParams::default();
-        let dname = rcgen::string::PrintableString::try_from(name)?;
-        let mut dn = rcgen::DistinguishedName::new();
-        dn.push(
-            rcgen::DnType::CommonName,
-            rcgen::DnValue::PrintableString(dname),
-        );
-        self_params.distinguished_name = dn;
-
-        let self_issuer = rcgen::Issuer::from_params(&self_params, &self_kp);
-
-        let csr_der = CertificateSigningRequestDer::from(csr_der);
-        let csr = CertificateSigningRequestParams::from_der(&csr_der)?;
-        let signed = csr.signed_by(&self_issuer)?;
-        let signed_der = signed.der();
-
-        Ok(signed_der.to_vec())
     }
 }
 
@@ -485,9 +371,6 @@ pub(crate) mod tests {
     use super::*;
     use crate::serialization::{StrandDeserialize, StrandSerialize};
 
-    // openssl req -key test25519.der -new -x509 -days 365 -outform der -out
-    // cert.der
-    const CERT_B64: &'static str = "MIIBnzCCAVGgAwIBAgIUCh7appwg9HoaP4N4EQoL+s3M/2AwBQYDK2VwMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMjMxMTEwMTcyNzA5WhcNMjQxMTA5MTcyNzA5WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMCowBQYDK2VwAyEADntlxtaHoKmOPGnBb5nxPVrjTnj4BvQP6xBiW6r5EIqjUzBRMB0GA1UdDgQWBBTb8bPCHkrsXroe/AMIzoFT1F3SQjAfBgNVHSMEGDAWgBTb8bPCHkrsXroe/AMIzoFT1F3SQjAPBgNVHRMBAf8EBTADAQH/MAUGAytlcANBAEGyHlwmhiu8KC/Lo3pDUnkmOab3rbNUFV70U0Ae1NQEclLTuqNRO6OiIQALk06ri032wQCkVc2zSkK7EMJ+5g0=";
     /*
         openssl genpkey -algorithm ed25519 -outform DER -out test25519.der
         openssl base64 -in test25519.der -out test25519.b64
@@ -537,7 +420,7 @@ pub(crate) mod tests {
         let msg2 = b"not_ok";
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let sk_der = sk.to_der().unwrap();
             let sk_d = StrandSignatureSk::from_der(&sk_der).unwrap();
 
@@ -627,48 +510,6 @@ pub(crate) mod tests {
 
         assert!(ok.is_ok());
     }
-
-    #[test]
-    fn test_parse_x509() {
-        let cert_der: Vec<u8> =
-            general_purpose::STANDARD.decode(CERT_B64).unwrap();
-        // Verify self-signed signature
-        let ok = StrandSignaturePk::verify_x509_der(&cert_der, None);
-
-        assert!(ok.is_ok());
-    }
-
-    /*
-    #[test]
-    fn test_gen_sign_x509() {
-        // Get CA certificate
-        let ca_sk_der: Vec<u8> =
-            general_purpose::STANDARD.decode(SK_STR).unwrap();
-        let ca_sk = StrandSignatureSk::from_der(&ca_sk_der).unwrap();
-        let ca_der: Vec<u8> =
-            general_purpose::STANDARD.decode(CERT_B64).unwrap();
-
-        // Generate new certificate
-        let cert_sk = StrandSignatureSk::gen().unwrap();
-        let csr_der = cert_sk.csr_der("TEST".to_string()).unwrap();
-        // Sign generated certificate with CA
-        let der = ca_sk
-            .sign_csr(&ca_der, "TEST".to_string(), &csr_der)
-            .unwrap();
-
-        // Parse and validate the certificate we just generated with respect to
-        // the CA pk
-        let ca_pk: StrandSignaturePk =
-            StrandSignaturePk::from_der_b64_string(PK_STR).unwrap();
-        let ok = StrandSignaturePk::verify_x509_der(&der, Some(&ca_pk));
-        assert!(ok.is_ok());
-
-        // Since it is not a self-signed certificate, this validation should
-        // fail
-        let not_ok = StrandSignaturePk::verify_x509_der(&der, None);
-
-        assert!(!not_ok.is_ok());
-    }*/
 }
 
 pub fn info() -> String {

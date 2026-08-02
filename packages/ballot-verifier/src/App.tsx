@@ -1,11 +1,17 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
-import {IElectionEventPresentation} from "@sequentech/ui-core"
+import {
+    applyConfigurationLanguagePolicy,
+    IElectionEventPresentation,
+    setCookie,
+    USER_LANGUAGE_COOKIE_NAME,
+    getValueFromCookie,
+} from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
@@ -16,9 +22,17 @@ import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextPro
 import {LoginScreen} from "./screens/LoginScreen"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {useAppSelector} from "./store/hooks"
-import {selectFirstBallotStyle} from "./store/ballotStyles/ballotStylesSlice"
+import {
+    selectBallotStyleByElectionId,
+    selectBallotStyleElectionIds,
+    selectFirstBallotStyle,
+} from "./store/ballotStyles/ballotStylesSlice"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+
+const StyledAppWrapper = styled(Stack)<{customCss: string}>`
+    ${({customCss}) => customCss}
+`
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -42,6 +56,12 @@ const HeaderWithContext: React.FC = () => {
               ? SequentLogo
               : presentation?.logo_url
 
+    const onChangeLanguage = (lang: string) => {
+        if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
+            setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+        }
+    }
+
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
@@ -55,6 +75,7 @@ const HeaderWithContext: React.FC = () => {
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             languagesList={languagesList}
             logoUrl={logoImg}
+            onChangeLanguage={onChangeLanguage}
         />
     )
 }
@@ -67,6 +88,13 @@ const App = () => {
     const [fileName, setFileName] = useState("")
     const ballotService = provideBallotService()
 
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+    const ballotStyle = useAppSelector((state) =>
+        ballotStyleElectionIds.length > 0
+            ? selectBallotStyleByElectionId(String(ballotStyleElectionIds[0]))(state)
+            : undefined
+    )
+
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
             navigate(
@@ -75,73 +103,86 @@ const App = () => {
         }
     }, [navigate])
 
+    useEffect(() => {
+        applyConfigurationLanguagePolicy(ballotStyle?.ballot_eml?.election_event_presentation)
+    }, [ballotStyle?.ballot_eml?.election_event_presentation])
+
+    const customCss = useMemo(
+        () =>
+            confirmationBallot?.election_config?.election_event_presentation?.css ??
+            ballotStyle?.ballot_eml?.election_event_presentation?.css ??
+            "",
+        [confirmationBallot, ballotStyle]
+    )
+
     return (
-        <StyledApp>
-            {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-            <PageBanner marginBottom="auto">
-                <Routes>
-                    <Route path="*" element={<NotFoundScreen />} />
-                    <Route
-                        path="/"
-                        element={
-                            <Navigate
-                                replace
-                                to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
-                            />
-                        }
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/login"
-                        element={
-                            <RouteParameterProvider>
-                                <ApolloContextProvider>
-                                    <ApolloWrapper>
-                                        <LoginScreen />
-                                    </ApolloWrapper>
-                                </ApolloContextProvider>
-                            </RouteParameterProvider>
-                        }
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/start"
-                        element={
-                            <RouteParameterProvider>
-                                <ApolloContextProvider>
-                                    <ApolloWrapper>
-                                        <HomeScreen
-                                            confirmationBallot={confirmationBallot}
-                                            setConfirmationBallot={setConfirmationBallot}
-                                            ballotId={ballotId}
-                                            setBallotId={setBallotId}
-                                            fileName={fileName}
-                                            setFileName={setFileName}
-                                            ballotService={ballotService}
-                                        />
-                                    </ApolloWrapper>
-                                </ApolloContextProvider>
-                            </RouteParameterProvider>
-                        }
-                    />
-                    <Route
-                        path="/tenant/:tenantId/event/:eventId/confirmation"
-                        element={
-                            <RouteParameterProvider>
-                                <ApolloContextProvider>
-                                    <ApolloWrapper>
-                                        <ConfirmationScreen
-                                            confirmationBallot={confirmationBallot}
-                                            ballotId={ballotId}
-                                            ballotService={ballotService}
-                                        />
-                                    </ApolloWrapper>
-                                </ApolloContextProvider>
-                            </RouteParameterProvider>
-                        }
-                    />
-                </Routes>
-            </PageBanner>
-            <Footer />
-        </StyledApp>
+        <StyledAppWrapper customCss={customCss}>
+            <StyledApp className="ballot-verifier app-root">
+                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                <PageBanner marginBottom="auto">
+                    <Routes>
+                        <Route path="*" element={<NotFoundScreen />} />
+                        <Route
+                            path="/"
+                            element={
+                                <Navigate
+                                    replace
+                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
+                                />
+                            }
+                        />
+                        <Route
+                            path="/tenant/:tenantId/event/:eventId/login"
+                            element={
+                                <RouteParameterProvider>
+                                    <ApolloContextProvider>
+                                        <ApolloWrapper>
+                                            <LoginScreen />
+                                        </ApolloWrapper>
+                                    </ApolloContextProvider>
+                                </RouteParameterProvider>
+                            }
+                        />
+                        <Route
+                            path="/tenant/:tenantId/event/:eventId/start"
+                            element={
+                                <RouteParameterProvider>
+                                    <ApolloContextProvider>
+                                        <ApolloWrapper>
+                                            <HomeScreen
+                                                confirmationBallot={confirmationBallot}
+                                                setConfirmationBallot={setConfirmationBallot}
+                                                ballotId={ballotId}
+                                                setBallotId={setBallotId}
+                                                fileName={fileName}
+                                                setFileName={setFileName}
+                                                ballotService={ballotService}
+                                            />
+                                        </ApolloWrapper>
+                                    </ApolloContextProvider>
+                                </RouteParameterProvider>
+                            }
+                        />
+                        <Route
+                            path="/tenant/:tenantId/event/:eventId/confirmation"
+                            element={
+                                <RouteParameterProvider>
+                                    <ApolloContextProvider>
+                                        <ApolloWrapper>
+                                            <ConfirmationScreen
+                                                confirmationBallot={confirmationBallot}
+                                                ballotId={ballotId}
+                                            />
+                                        </ApolloWrapper>
+                                    </ApolloContextProvider>
+                                </RouteParameterProvider>
+                            }
+                        />
+                    </Routes>
+                </PageBanner>
+                <Footer />
+            </StyledApp>
+        </StyledAppWrapper>
     )
 }
 

@@ -31,13 +31,11 @@ Understand our release process and support policies:
 
 ## Latest Release
 
-Check out the [latest release notes](../08-releases/06-release-9.3/release-9.3.0.md) to see what's new.
+Check out the [latest release notes](../08-releases/06-release-9.4/release-9.4.0.md) to see what's new.
 
 ## Need Help?
 
-- **Discord**: Join our [Discord community](https://discord.gg/WfvSTmcdY8)
-- **GitHub**: Report issues or contribute at [github.com/sequentech/step](https://github.com/sequentech/step)
-- **Documentation**: Browse the sidebar for detailed guides and references
+Check out [Support](../09-support/01-support.md).
 
 ## Getting Started
 
@@ -45,8 +43,8 @@ Choose your path based on your role:
 
 ### 🗳️ For Election Managers
 Learn how to create and manage elections:
-- [Setting Up Your First Election](../02-election_managers/01-tutorials/02-admin_portal_tutorials_create-election.md)
-- [Admin Portal Overview](../02-election_managers/01-tutorials/01-admin_portal_tutorials_system-navigation.md)
+- [Setting Up Your First Election](../02-election_managers/01-election_management.md)
+- [Admin Portal Overview](../02-election_managers/01-tutorials/02-admin_portal_tutorials_create-election.md)
 
 ### 👥 For Voters
 Understand the voting process:

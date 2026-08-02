@@ -79,21 +79,42 @@ const dutchTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write in doesn't end on 0",
+                notEnoughChoices: "Niet genoeg keuzes om te decoderen",
+                writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
+                writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
+                writeInCharsExceeded:
+                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
+                ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
                 selectedMax:
-                    "Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
+                maxSelectionsPerType:
+                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
+                underVote:
+                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
+                blankVote: "Blanco stem: 0 keuzes geselecteerd",
+                preferenceOrderWithGaps:
+                    "Ongeldige stem! De voorkeursvolgorde heeft een of meer hiaten.",
+                duplicatedPosition:
+                    "Ongeldige stem! Dezelfde positie is geselecteerd voor twee of meer kandidaten.",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed:
+                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
+                alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
+                multipleExplicitBlankCandidates:
+                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

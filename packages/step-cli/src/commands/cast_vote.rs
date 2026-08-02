@@ -4,6 +4,7 @@
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -26,7 +27,7 @@ impl CastVote {
     pub fn run(&self) {
         match cast_vote(&self.election_id) {
             Ok(id) => {
-                println!("Success! Vote cast! ID: {}", id);
+                println!("{} {}", "Success! Vote cast! ID:".green(), id.cyan());
             }
             Err(err) => {
                 eprintln!("Error! Failed to cast vote: {}", err)

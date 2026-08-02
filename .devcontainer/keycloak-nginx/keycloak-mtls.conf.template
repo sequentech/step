@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Terminates TLS and optionally mTLS in front of Keycloak (dev).
+# Passes the client certificate (if any) to Keycloak via the
+# ssl-client-cert header, which is read by the nginx x509cert lookup
+# provider (KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx).
+#
+# - ssl_verify_client optional_no_ca: cert is never forced; if presented,
+#   nginx forwards it raw without validating it against any CA. All cert
+#   chain validation is done by Keycloak via UrlTruststoreProvider
+#   (trust-proxy-verification=false). This mirrors production behaviour
+#   and means no CA bundle is needed in the nginx image.
+# - Large proxy buffers: client certs in headers can be ~2 KB URL-encoded.
+
+log_format mtls '$remote_addr - ssl_verify=$ssl_client_verify';
+
+server {
+    listen 8443 ssl;
+    server_name localhost 127.0.0.1;
+
+    ssl_certificate     /etc/nginx/certs/nginx-tls.crt;
+    ssl_certificate_key /etc/nginx/certs/nginx-tls.key;
+
+    ssl_verify_client      optional_no_ca;
+    
+    # Uncomment the following lines if you want to enable client certificate authentication
+    # at nginx. Make sure to provide the appropriate client CA certificate at the specified path.
+    # ssl_client_certificate /etc/nginx/client-ca/client-ca.pem;
+    # ssl_verify_client      optional;
+    # ssl_verify_depth       2;
+    
+    # Disable TLS session resumption so every connection triggers a fresh
+    # TLS handshake with a new CertificateRequest. Without this, the browser
+    # reuses the session from a previous "no cert" choice and never prompts
+    # the user for a certificate again within the same browser session.
+    ssl_session_cache   off;
+    ssl_session_tickets off;
+
+    # Force new TCP connection per request so session resumption via
+    # keepalive connections is also prevented.
+    keepalive_timeout 0;
+
+    proxy_buffer_size   16k;
+    proxy_buffers       4 16k;
+    proxy_busy_buffers_size 16k;
+
+    # Re-resolve keycloak hostname on each request so stale IPs after
+    # container restarts don't cause 502s. 127.0.0.11 is Docker's internal DNS.
+    resolver 127.0.0.11 valid=10s;
+
+    access_log /dev/stdout mtls;
+    # Note: with optional_no_ca, $ssl_client_verify is "NONE" (no cert) or
+    # "FAILED:..." (cert present but unverified). It is never "SUCCESS".
+
+    location / {
+        set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
+        proxy_pass $keycloak_upstream;
+
+        # Intercept Keycloak-proxied 400s so the server-block error_page above
+        # can redirect them. proxy_buffering on is required with variable-based
+        # proxy_pass, otherwise proxy_intercept_errors has no effect.
+        proxy_buffering on;
+        proxy_intercept_errors on;
+
+        proxy_set_header Host               $host;
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  https;
+        proxy_set_header X-Forwarded-Host   $host;
+        proxy_set_header X-Forwarded-Port   8443;
+
+        # Client certificate forwarded to Keycloak (URL-encoded PEM).
+        # Empty string when no cert is presented — Keycloak treats that as
+        # "no cert" and falls through to the next authenticator.
+        proxy_set_header ssl-client-cert    $ssl_client_escaped_cert;
+    }
+}

@@ -10,17 +10,31 @@ use std::str::FromStr;
 
 use crate::{
     ballot::{
-        ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
-        DelegatedVotingPolicy,
+        ConsolidatedReportPolicy, ContestEncryptionPolicy,
+        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{
-            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+            AutomaticRecountPolicy, CeremoniesPolicy,
+            KeysCeremonyExecutionStatus, KeysCeremonyStatus,
         },
-        tally_sheets::AreaContestResults,
+        participation::VotesByChannel,
+        tally_sheets::{AreaContestResults, TallySheetStatus},
     },
 };
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Preview {
+    pub id: String,
+    pub tenant_id: String,
+    pub document_id: String,
+    pub url: String,
+    pub requested_by: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub annotations: Option<Value>,
+}
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {
@@ -80,7 +94,6 @@ pub struct ElectionEvent {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
-    pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub bulletin_board_reference: Option<Value>,
@@ -92,8 +105,21 @@ pub struct ElectionEvent {
     pub is_audit: Option<bool>,
     pub audit_election_event_id: Option<String>,
     pub public_key: Option<String>,
-    pub alias: Option<String>,
     pub statistics: Option<Value>,
+    pub external_id: Option<String>,
+}
+
+impl ElectionEvent {
+    pub fn automatic_recount_policy(&self) -> AutomaticRecountPolicy {
+        let presentation = self.presentation.as_ref().unwrap_or(&Value::Null);
+        presentation
+            .get("automatic_recount_policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| AutomaticRecountPolicy::DISABLED.to_string())
+            .parse::<AutomaticRecountPolicy>()
+            .unwrap_or(AutomaticRecountPolicy::DISABLED)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -105,16 +131,15 @@ pub struct Election {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub status: Option<Value>,
     pub eml: Option<String>,
+    pub external_id: Option<String>,
     pub num_allowed_revotes: Option<i64>,
     pub is_consolidated_ballot_encoding: Option<bool>,
     pub spoil_ballot_option: Option<bool>,
     pub is_kiosk: Option<bool>,
-    pub alias: Option<String>,
     pub voting_channels: Option<Value>,
     pub image_document_id: Option<String>,
     pub statistics: Option<Value>,
@@ -136,8 +161,6 @@ pub struct Contest {
     pub annotations: Option<Value>,
     pub is_acclaimed: Option<bool>,
     pub is_active: Option<bool>,
-    pub name: Option<String>,
-    pub alias: Option<String>,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub min_votes: Option<i64>,
@@ -149,6 +172,7 @@ pub struct Contest {
     pub tally_configuration: Option<Value>,
     pub image_document_id: Option<String>,
     pub conditions: Option<Value>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -161,13 +185,12 @@ pub struct Candidate {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub name: Option<String>,
-    pub alias: Option<String>,
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub presentation: Option<Value>,
     pub is_public: Option<bool>,
     pub image_document_id: Option<String>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -287,6 +310,18 @@ pub struct AreaContest {
     pub contest_id: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+pub struct PhoneBlacklistEntry {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub phone_e164: String,
+    pub reason: Option<String>,
+    pub created_at: DateTime<Local>,
+    pub created_by: String,
+    pub updated_at: DateTime<Local>,
+}
+
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySheet {
     pub id: String,
@@ -299,12 +334,16 @@ pub struct TallySheet {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub published_at: Option<DateTime<Local>>,
-    pub published_by_user_id: Option<String>,
+    pub reviewed_at: Option<DateTime<Local>>,
+    pub reviewed_by_user_id: Option<String>,
     pub content: Option<AreaContestResults>,
     pub channel: Option<String>,
-    pub deleted_at: Option<DateTime<Local>>,
+    pub deleted_at: Option<DateTime<Local>>, /* Mark as deleted when a new
+                                              * version is created. */
     pub created_by_user_id: String,
+    pub status: TallySheetStatus,
+    pub version: i32,
+    pub import_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -361,6 +400,7 @@ pub struct TallySessionConfiguration {
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
     pub decoded_ballots_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
+    pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -374,6 +414,9 @@ impl TallySessionConfiguration {
         self.decoded_ballots_inclusion_policy
             .clone()
             .unwrap_or_default()
+    }
+    pub fn get_consolidated_report_policy(&self) -> ConsolidatedReportPolicy {
+        self.consolidated_report_policy.clone().unwrap_or_default()
     }
 }
 
@@ -401,6 +444,8 @@ pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
     pub ballots_without_voter: u64,
     pub casted_ballots: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -477,4 +522,30 @@ pub struct Tenant {
     pub voting_channels: Option<Value>,
     pub settings: Option<Value>,
     pub test: Option<i32>,
+}
+
+#[cfg(test)]
+mod tally_session_contest_annotations_tests {
+    use super::*;
+
+    #[test]
+    fn distinguishes_legacy_missing_channels_from_a_current_empty_breakdown() {
+        let legacy: TallySessionContestAnnotations =
+            serde_json::from_value(serde_json::json!({
+                "elegible_voters": 0,
+                "ballots_without_voter": 0,
+                "casted_ballots": 0
+            }))
+            .unwrap();
+        assert_eq!(legacy.votes_by_channel, None);
+
+        let current = TallySessionContestAnnotations {
+            elegible_voters: 0,
+            ballots_without_voter: 0,
+            casted_ballots: 0,
+            votes_by_channel: Some(VotesByChannel::new()),
+        };
+        let serialized = serde_json::to_value(current).unwrap();
+        assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+    }
 }

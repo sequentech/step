@@ -21,6 +21,9 @@ use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
 use crate::types::ceremonies::CountingAlgType;
+use crate::util::locale::{
+    iso_639_2t_to_bcp47, locale_to_internal_language_code,
+};
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -37,6 +40,7 @@ use serde_wasm_bindgen;
 use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
+use strum::IntoEnumIterator;
 
 // use base64;
 // use borsh::{from_slice, to_vec, BorshDeserialize, BorshSerialize};
@@ -1106,6 +1110,26 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()
 }
 
+#[wasm_bindgen]
+pub fn get_default_duplicated_rank_policy_js() -> Result<JsValue, JsValue> {
+    let policy = EDuplicatedRankPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default duplicated rank policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn get_default_preference_gaps_policy_js() -> Result<JsValue, JsValue> {
+    let policy = EPreferenceGapsPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default preference gaps policy: {err}"
+        ))
+    })
+}
+
 // returns true/false if verified/no-signature, error if the signature can't be
 // verified
 #[wasm_bindgen]
@@ -1202,4 +1226,73 @@ pub fn verify_multi_ballot_signature_js(
     serde_wasm_bindgen::to_value(&result.is_some())
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
+    let policy: ConsolidatedReportPolicy = ConsolidatedReportPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default consolidated report policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn get_default_language_detection_policy_js() -> Result<JsValue, JsValue> {
+    let policy: LanguageDetectionPolicy = LanguageDetectionPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default language detection policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn iso_639_2t_to_bcp47_js(lang: &str) -> String {
+    iso_639_2t_to_bcp47(lang).to_string()
+}
+
+#[wasm_bindgen]
+pub fn locale_to_internal_language_code_js(lang: &str) -> String {
+    locale_to_internal_language_code(lang)
+}
+
+#[wasm_bindgen]
+/// Returns the default decline to vote policy
+pub fn get_default_decline_to_vote_policy_js() -> Result<JsValue, JsValue> {
+    let policy: DeclineToVotePolicy = DeclineToVotePolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default decline to vote policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const IVOTING_SCREEN_BACK_POLICY: &'static str = r#"
+type IVotingScreenBackPolicy = "election-selection-screen" | "start-screen";
+"#;
+
+#[wasm_bindgen]
+/// Returns the default voting screen back policy
+pub fn get_default_voting_screen_back_policy_js() -> Result<JsValue, JsValue> {
+    let policy: VotingScreenBackPolicy = VotingScreenBackPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default voting screen back policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+/// Returns all the voting screen back policy values
+pub fn get_voting_screen_back_policy_values_js() -> Result<JsValue, JsValue> {
+    let values: Vec<VotingScreenBackPolicy> =
+        VotingScreenBackPolicy::iter().collect();
+    serde_wasm_bindgen::to_value(&values).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing voting screen back policy values: {err}"
+        ))
+    })
 }

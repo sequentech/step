@@ -17,7 +17,7 @@ import {
 import {styled} from "@mui/system"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {useNavigate} from "react-router"
+import {useNavigate} from "react-router-dom"
 import {adminTheme, Header} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"

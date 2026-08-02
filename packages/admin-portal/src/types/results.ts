@@ -8,8 +8,12 @@ export enum EExportFormat {
     HTML = "html",
     TAR_GZ = "tar_gz",
     TAR_GZ_PDFS = "tar_gz_pdfs",
+    ALL_AREAS_HTML = "all_areas_html",
+    ALL_AREAS_JSON = "all_areas_json",
 }
 
 export type IResultDocuments = {
     [F in EExportFormat]?: string
 }
+
+export const ALL_AREAS_PREFIX = "all_areas"

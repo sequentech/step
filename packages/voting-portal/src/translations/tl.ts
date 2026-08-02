@@ -10,11 +10,20 @@ const tagalogTranslation: TranslationType = {
             showMore: "Lakihan ang nakikita",
             showLess: "Bawasan ang nakikita",
         },
+        candidatesList: {
+            collapseToggle: "I-toggle ang listahan {{listTitle}}",
+            showCandidates: "Ipakita ang mga kandidato",
+            hideCandidates: "Itago ang mga kandidato",
+            selectedCandidate: "{{count}} kandidatong napili",
+            selectedCandidates: "{{count}} kandidatong napili",
+            expandAll: "Palawakin lahat",
+            collapseAll: "Bawasan lahat",
+        },
         breadcrumbSteps: {
-            electionList: "Listahan ng mga Balota",
+            electionList: "Mga Balota",
             ballot: "Balota",
             review: "Suriin",
-            confirmation: "Kumpirmasyon",
+            confirmation: "Kumpirmahin",
             audit: "Audit",
         },
         footer: {
@@ -25,9 +34,9 @@ const tagalogTranslation: TranslationType = {
             reviewButton: "Susunod",
             clearButton: "Burahin ang mga napili",
             ballotHelpDialog: {
-                title: "Impormasyon: Screen ng Balota",
+                title: "Tungkol sa screen ng balota",
                 content:
-                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. Maaari kang pumili sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang pagpili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
+                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. I-activate ang checkbox sa kanan para pumili ng Kandidato/Sagot. I-reset sa “<b>Burahin ang pagpili</b>”, pumunta sa susunod sa “<b>Susunod</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -49,29 +58,37 @@ const tagalogTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
-            instructionsTitle: "Mga Tagubilin",
-            instructionsDescription: "Sundin ang mga hakbang na ito upang ikaw ay makaboto:",
+            declineToVoteButton: "Tumangging bumoto",
+            declineToVoteDialog: {
+                title: "Kumpirmahin ang pagtangging bumoto",
+                content:
+                    "Sigurado ka bang nais mong tumangging bumoto?<br />Dadalhin ka diretso sa review at mase-save ang iyong status ng partisipasyon bilang <b>Tumangging bumoto</b>.",
+                continue: "Tumangging bumoto",
+                cancel: "Kanselahin",
+            },
+            instructionsTitle: "Paano bumoto",
+            instructionsDescription: "Sundin ang mga hakbang na ito para bumoto:",
             step1Title: "1. Piliin ang iyong mga sagot",
             step1Description:
-                "Sagutin ang mga tanong ng halalan isa-isa habang ipinapakita ang mga ito. Maaari mong i-edit ang iyong balota hanggang handa ka nang magpatuloy.",
+                "Sagutin ang mga tanong isa-isa. Maaari mong i-edit ang iyong balota hanggang handa ka.",
             step2Title: "2. Suriin ang iyong balota",
             step2Description:
-                "Kapag ikaw ay kontento na sa iyong mga napili, aming i-eencript ang iyong balota at ipapakita sa iyo ang huling pagsusuri ng iyong mga napili. Makakatanggap ka rin ng natatanging tracker ID para sa iyong balota.",
+                "Ie-encrypt namin ang iyong balota at ipapakita ang huling pagsusuri. Makakatanggap ka ng natatanging tracker ID.",
             step3Title: "3. I-submit ang iyong balota",
             step3Description:
-                "I-submit ang iyong balota: Sa wakas, maaari mo nang i-submit ang iyong balota upang ito ay tamang maitala. Maaari mo ring piliing i-audit at tiyakin na ang iyong balota ay tama ang pagkakalista at pagkaka-encrypt.",
+                "I-submit ang iyong balota upang ito ay tamang maitala, o suriin ito upang tiyakin na ito ay tama ang pagkaka-encrypt.",
         },
         reviewScreen: {
             title: "Suriin ang iyong balota",
             description:
-                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba.",
+                "I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, “<b>I-submit ang balota</b>” para kumpirmahin, o “<b>Suriin ang balota</b>” para sa audit.",
             descriptionNoAudit:
-                "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba.",
+                "I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, o “<b>I-submit ang balota</b>” para kumpirmahin.",
             backButton: "I-edit ang balota",
-            castBallotButton: "I-submit ang iyong balota",
-            auditButton: "I-audit ang balota",
+            castBallotButton: "I-submit ang balota",
+            auditButton: "Suriin ang balota",
             reviewScreenHelpDialog: {
-                title: "Impormasyon: Screen ng Pagsusuri",
+                title: "Tungkol sa screen ng pagsusuri",
                 content:
                     "Maaari mo ditong suriin ang iyong mga napili bago i-submit ang iyong balota.",
                 ok: "OK",
@@ -80,20 +97,20 @@ const tagalogTranslation: TranslationType = {
                 title: "Hindi pa na-submit ang boto",
                 content:
                     "<p>Ito ang iyong Ballot Tracker ID, ngunit <b>hindi pa nai-submit ang iyong boto</b>. Kung susubukan mong i-track ang balota, hindi mo ito mahahanap.</p><p>Ang dahilan kung bakit ipinapakita namin ang Ballot Tracker ID sa yugtong ito ay upang masuri mo ang pagiging tama ng naka-encrypt na balota bago ito i-submit.</p>",
-                ok: "Tinatanggap ko na HINDI pa nai-susubmit ang aking boto",
+                ok: "Naiintindihan ko na hindi pa nai-submit ang aking boto",
                 cancel: "Kanselahin",
             },
             auditBallotHelpDialog: {
                 title: "Nais mo bang i-audit ang balota?",
                 content:
-                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</b></p>",
-                ok: "Oo, nais kong IBASURA ang aking balota upang i-audit ito",
+                    "<p>Pakitandaan na ang pag-audit ng iyong balota ay magpapawalang-bisa dito, at kakailanganin mong magsimulang muli sa proseso ng pagboto. Sa proseso ng audit, maari mong tiyakin na ang iyong balota ay tamang naka-encode, ngunit ito ay nangangailangan ng mga advanced na teknikal na hakbang. Inirerekomenda naming magpatuloy ka lang kung ikaw ay kumpiyansa sa iyong kakayahang teknikal. Kung nais mo lamang i-submit ang iyong balota, i-click ang <u>Kanselahin</u> upang bumalik sa screen ng pagsusuri ng balota.</p>",
+                ok: "Oo, nais kong ibasura ang aking balota upang suriin ito",
                 cancel: "Kanselahin",
             },
             confirmCastVoteDialog: {
                 title: "Sigurado ka bang nais mong i-submit ang iyong boto?",
-                content: "Ang iyong boto ay hindi na maaring baguhin kung ikaw ang magkumpirma.",
-                ok: "Oo, nais kong I-SUBMIT ang aking boto",
+                content: "Pagkatapos mong kumpirmahin, ang iyong boto ay mai-susubmit.",
+                ok: "Oo, nais kong i-submit ang aking boto",
                 cancel: "Kanselahin",
             },
             error: {
@@ -185,6 +202,7 @@ const tagalogTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
+            declineToVote: "Tumangging bumoto",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",
@@ -197,9 +215,9 @@ const tagalogTranslation: TranslationType = {
             verifyCastDescription:
                 "Maaari mong tiyakin na ang iyong balota ay nai-submit nang tama anumang oras gamit ang sumusunod na QR code:",
             confirmationHelpDialog: {
-                title: "Impormasyon: Screen ng Kumpirmasyon",
+                title: "Tungkol sa screen ng kumpirmasyon",
                 content:
-                    "Ipinapakita ng screen na ito na ang iyong boto ay matagumpay na nai-submit. Ang impormasyong sa pahinang ito ay nagtitiyak na ang balota ay nai-submit sa ballot box, ang prosesong ito ay maaaring isagawa anumang oras sa panahon ng pagboto at pagkatapos na maisara ang Eleksyon.",
+                    "Ipinapakita ng screen na ito na ang iyong boto ay matagumpay na nai-submit. Maaari mong tiyakin na ang balota ay nai-submit sa ballot box.",
                 ok: "OK",
             },
             demoPrintDialog: {
@@ -213,15 +231,15 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Impormasyon: ID ng Balota",
+                title: "Tungkol sa ID ng Balota",
                 content:
                     "Ang ID ng Balota ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Impormasyon: Ballot ID",
+                title: "Tungkol sa Ballot ID",
                 content:
-                    "<p>Ang Ballot ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.</p><p><b>Paalala:</b> Ang voting booth na ito ay para sa layuning demonstrasyon lamang. Ang iyong boto ay HINDI pa naipapasa.</p>",
+                    "Ang Ballot ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -235,8 +253,7 @@ const tagalogTranslation: TranslationType = {
             printButton: "I-print",
             restartButton: "Simulan ang Pagboto",
             title: "Suriin ang Iyong Balota",
-            description:
-                "Upang i-verify ang iyong balota, mangyaring sundin ang mga hakbang sa ibaba:",
+            description: "Upang suriin ang iyong balota, sundin ang mga hakbang sa ibaba:",
             step1Title: "1. I-download o kopyahin ang sumusunod na impormasyon",
             step1Description:
                 "Ang iyong <b>Ballot ID</b> na makikita sa taas ng screen at ang iyong naka-encrypt na balota sa ibaba:",
@@ -260,24 +277,24 @@ const tagalogTranslation: TranslationType = {
                 "Para sa mga dahilan ng seguridad, kapag sinusuri mo ang iyong balota, kailangan itong ipawalang-bisa. Upang magpatuloy sa proseso ng pagboto, kailangan mong i-click ang ‘<b>Simulan ang Pagboto</b>’ sa ibaba.",
         },
         electionSelectionScreen: {
-            title: "Listahan ng Balota",
+            title: "Mga Balota",
             description: "Pumili ng Balota na nais mong botohan",
             chooserHelpDialog: {
-                title: "Impormasyon: Listahan ng Balota",
+                title: "Tungkol sa listahan ng balota",
                 content:
-                    "Maligayang pagdating sa Voting Booth, ipinapakita ng screen na ito ang listahan ng mga Balota na maaari mong botohan. Ang mga balota na nakalista dito ay maaaring nakabukas para sa pagboto, naka-schedule, o sarado. Magkakaroon ka lamang ng access sa balota kung nakabukas ang panahon ng pagboto.",
+                    "Ipinapakita ng screen na ito ang listahan ng mga Balota na maaari mong botohan. Magkakaroon ka ng access kung nakabukas ang panahon ng pagboto.",
                 ok: "OK",
             },
             noResults: "Walang mga balota sa ngayon.",
+            resultsButton: "Tingnan ang mga resulta",
             demoDialog: {
                 title: "Demo Voting Booth",
                 content:
-                    "Ikaw ay nasa isang demo voting booth. <strong>Ang iyong boto ay HINDI mai-susubmit.</strong> Ang voting booth na ito ay para lamang sa layunin ng demonstrasyon.",
-                ok: "Tinatanggap ko na ang aking boto ay hindi mai-susubmit",
+                    "Ikaw ay nasa isang demo voting booth. <strong>Ang iyong boto ay hindi mai-susubmit.</strong> Para lamang sa layunin ng demonstrasyon.",
+                ok: "Naiintindihan ko na ang aking boto ay hindi mai-susubmit",
             },
             errors: {
-                noVotingArea:
-                    "Walang nakatalagang lugar ng halalan para sa botante. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
+                noVotingArea: "Walang nakatalagang lugar ng halalan. Subukan muli mamaya.",
                 networkError:
                     "Nagkaroon ng problema sa network. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 unableToFetchData:
@@ -298,47 +315,46 @@ const tagalogTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Hindi sapat ang mga pagpipilian para ma-decode",
-                writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
-                writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
+                notEnoughChoices: "Hindi sapat ang mga pagpili para ma-decode",
+                writeInChoiceOutOfRange: "Ang write-in na pagpili ay wala sa saklaw: {{index}}",
+                writeInNotEndInZero: "Ang write-in ay hindi nagtatapos sa 0",
                 writeInCharsExceeded:
-                    "Ang Write-in ay lumampas ng {{numCharsExceeded}} sa maximum na bilang ng mga karakter. Kailangang ayusin.",
+                    "Ang write-in ay lumagpas sa pinakamataas na haba ng {{numCharsExceeded}} na karakter. Pakipaikliin ito.",
                 bytesToUtf8Conversion:
-                    "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
+                    "Error sa pag-convert ng write-in mula sa bytes patungong UTF-8 na string: {{errorMessage}}",
                 ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
+                    "Labis na pagboto: ang bilang ng mga napiling pagpili {{numSelected}} ay mas malaki kaysa sa maximum na {{max}}",
                 selectedMin:
-                    "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
+                    "Ang bilang ng mga napiling pagpili {{numSelected}} ay mas mababa kaysa sa minimum na {{min}}",
                 maxSelectionsPerType:
-                    "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
+                    "Ang bilang ng mga napiling pagpili {{numSelected}} para sa listahan {{type}} ay mas malaki kaysa sa maximum na {{max}}",
                 underVote:
-                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
+                    "Kulang na pagboto: ang bilang ng mga napiling pagpili {{numSelected}} ay mas mababa kaysa sa maximum na {{max}}",
                 overVoteDisabled:
-                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
-                blankVote: "Blank Vote: Walang pinili",
-                preferenceOrderWithGaps:
-                    "Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
-                duplicatedPosition:
-                    "Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
+                    "Naabot na ang maximum: napili mo na ang maximum na {{numSelected}} na pagpili. Upang baguhin ang iyong pagpili, alisin muna ang isa pang opsyon.",
+                blankVote: "Blangkong boto: 0 na pagpili ang napili",
             },
             explicit: {
                 notAllowed:
-                    "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
-                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
+                    "Ang balota ay tahasang minarkahang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                alert: "Ang pagpiling ito ay biblangin bilang isang hindi wastong boto",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",
                 somethingWrong: "May nangyaring hindi tama.",
+                certAuthFailedTitle: "Nabigo ang Pagpapatunay ng Sertipiko",
+                certAuthFailedMessage:
+                    "Hindi ma-verify ang iyong sertipiko. Pakitiyak na gumagamit ka ng wastong sertipiko ng botante at subukang muli.",
             },
         },
         materials: {
             common: {
                 label: "Mga Pangsuportang Materyales",
-                back: "Bumalik sa Listahan ng mga Balota",
+                back: "Bumalik sa listahan ng mga balota",
                 close: "Isara",
                 preview: "Silipin",
             },
@@ -351,6 +367,8 @@ const tagalogTranslation: TranslationType = {
             locateAgain: "Hanapin ang Isa Pang Balota",
             found: "Ang iyong ballot ID {{ballotId}} ay natagpuan",
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
+            ambiguous:
+                "Higit sa isa sa iyong mga balota ang tumutugma sa {{ballotId}}. Gamitin ang buong Ballot ID.",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
@@ -361,14 +379,14 @@ const tagalogTranslation: TranslationType = {
                 result: "Resulta",
             },
             titleHelpDialog: {
-                title: "Impormasyon: Screen ng Locator ng Balota",
+                title: "Tungkol sa Tagahanap ng Balota",
                 content:
-                    "Sa screen na ito maaring hanapin ng botante ang kaniyang boto gamit ang Ballot ID upang matagpuan ito. Sa ganitong pamamaraan, maaring suriin kung ang balota ay nai-submit nang tama at kung ang naitalang balota ay tumutugma sa encrypted na balota na kanilang ipinadala.",
+                    "Ang Tagahanap ng Balota ay nagbibigay-daan sa iyo na ilagay ang Ballot ID upang hanapin ang iyong boto at tiyakin na ito ay tamang nairehistro.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Lokaliseer uw Stembiljet",
+                ballotLocator: "Tagahanap ng Balota",
             },
             column: {
                 statement_kind: "Uri",

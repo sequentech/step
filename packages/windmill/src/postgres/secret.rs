@@ -5,6 +5,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -49,12 +50,12 @@ pub async fn get_secret_by_key(
     election_event_id: Option<&str>,
     key: &str,
 ) -> Result<Option<Secret>> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
 
     let election_event_uuid = election_event_id
         .map(|id| {
-            Uuid::parse_str(id)
+            parse_uuid_v4(id)
                 .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
         })
         .transpose()?;
@@ -102,11 +103,11 @@ pub async fn insert_secret(
     key: &str,
     encrypted_bytes: &Vec<u8>,
 ) -> Result<Secret> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid = election_event_id
         .map(|id| {
-            Uuid::parse_str(id)
+            parse_uuid_v4(id)
                 .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
         })
         .transpose()?;

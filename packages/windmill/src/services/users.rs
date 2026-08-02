@@ -4,7 +4,7 @@
 
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::get_users_with_vote_info;
+use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -25,6 +25,9 @@ use std::{
     convert::From,
 };
 use strum_macros::{Display, EnumString};
+
+use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
@@ -38,6 +41,186 @@ pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-valida
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
+/// A voter's current Sequent-side state, as far as reconciliation cares.
+#[derive(Debug, Clone)]
+pub struct VoterSnapshot {
+    pub username: String,
+    /// Keycloak's own internal user id (`user_entity.id`) — same value
+    /// `cast_vote.voter_id_string` carries (as text there), so this is what
+    /// actually matches against the event-wide cast-vote state map;
+    /// `username` is a separate, mutable-in-theory identifier not safe to key
+    /// that lookup on.
+    pub voter_id: Uuid,
+    pub enabled: bool,
+    /// The voter's resolved area name (`WARD-SCHOOLBOARD-POLL`, uppercased —
+    /// see `reconciliation::snapshot`), `None` if their `area-id` attribute
+    /// doesn't resolve to a known area (or is unset).
+    pub area_name: Option<String>,
+    pub dob: Option<String>,
+    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
+    /// comparisons normalize this value explicitly at the boundary.
+    pub voted_channel: Option<String>,
+    pub has_valid_internet_vote: bool,
+    pub has_unresolved_internet_vote: bool,
+    /// Raw `disable-comment` attribute value (`sequent_core::types::keycloak::DISABLE_COMMENT`),
+    /// used by `diff.rs` to classify an already-disabled voter — see the
+    /// classification rules in `reconciliation::diff::classify_file_row`.
+    pub disable_comment: Option<String>,
+}
+
+const VOTER_SNAPSHOT_PAGE_SIZE: i64 = 5_000;
+
+/// One keyset-paginated page of the realm's voter-group users, ordered by
+/// username, with every attribute. Restricting the query to the configured
+/// voter group prevents service accounts and administrators in the same
+/// realm from being emitted as Sequent-only voters. `after_username` is the
+/// last username of the previous page (`None` for the first page); an empty
+/// result means the scan is done.
+///
+/// Kept as a direct query against Keycloak's own Postgres rather than the
+/// Admin REST API (`GET /admin/realms/{realm}/users`, see
+/// `sequent_core::services::keycloak::admin_client`): that endpoint only
+/// offers offset-based (`first`/`max`) pagination, which is not
+/// concurrency-safe — a user created or deleted elsewhere in the realm while
+/// a scan is in progress shifts every later offset, silently skipping or
+/// duplicating voters. The keyset scan here (`username > $2`) doesn't have
+/// that failure mode, which reconciliation (needing to see every voter
+/// exactly once) depends on.
+#[instrument(skip(keycloak_transaction, areas_by_id), err)]
+pub async fn fetch_realm_voter_snapshots_page(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    voter_group_name: &str,
+    after_username: Option<&str>,
+    areas_by_id: &HashMap<String, String>,
+) -> Result<Vec<VoterSnapshot>> {
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+                SELECT
+                    u.id AS voter_id,
+                    u.username,
+                    u.enabled,
+                    json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
+                FROM user_entity u
+                INNER JOIN realm AS ra ON ra.id = u.realm_id
+                INNER JOIN user_group_membership ugm ON ugm.user_id = u.id
+                INNER JOIN keycloak_group kg ON kg.id = ugm.group_id AND kg.realm_id = u.realm_id
+                LEFT JOIN user_attribute ua ON ua.user_id = u.id
+                WHERE ra.name = $1
+                    AND kg.name = $2
+                    AND u.username > $3
+                GROUP BY u.id, u.username, u.enabled
+                ORDER BY u.username
+                LIMIT $4
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(
+            &statement,
+            &[
+                &realm,
+                &voter_group_name,
+                &after_username.unwrap_or(""),
+                &VOTER_SNAPSHOT_PAGE_SIZE,
+            ],
+        )
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| voter_snapshot_row_to_snapshot(row, areas_by_id))
+        .collect())
+}
+
+/// Batch-fetches voter-group snapshots for exactly the usernames named in
+/// `usernames` (typically one reconciliation-file batch's worth of
+/// `VoterID`s), in a single round trip via `= ANY($2)` — the file-driven
+/// counterpart to `fetch_realm_voter_snapshots_page`'s Sequent-driven
+/// pagination, so reconciliation never needs the whole file's rows resident
+/// in memory to look voters up. A username with no matching row simply
+/// isn't present in the result; the caller treats that as "this file row's
+/// voter doesn't exist in Sequent" (D, forward direction).
+#[instrument(skip(keycloak_transaction, areas_by_id, usernames), err)]
+pub async fn fetch_realm_voter_snapshots_by_usernames(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    voter_group_name: &str,
+    usernames: &[String],
+    areas_by_id: &HashMap<String, String>,
+) -> Result<Vec<VoterSnapshot>> {
+    if usernames.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let statement = keycloak_transaction
+        .prepare(
+            r#"
+                SELECT
+                    u.id AS voter_id,
+                    u.username,
+                    u.enabled,
+                    json_object_agg(ua.name, ua.value) FILTER (WHERE ua.name IS NOT NULL) AS attributes
+                FROM user_entity u
+                INNER JOIN realm AS ra ON ra.id = u.realm_id
+                INNER JOIN user_group_membership ugm ON ugm.user_id = u.id
+                INNER JOIN keycloak_group kg ON kg.id = ugm.group_id AND kg.realm_id = u.realm_id
+                LEFT JOIN user_attribute ua ON ua.user_id = u.id
+                WHERE ra.name = $1
+                    AND kg.name = $2
+                    AND u.username = ANY($3)
+                GROUP BY u.id, u.username, u.enabled
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &[&realm, &voter_group_name, &usernames])
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| voter_snapshot_row_to_snapshot(row, areas_by_id))
+        .collect())
+}
+
+#[instrument(skip(row, areas_by_id))]
+fn voter_snapshot_row_to_snapshot(
+    row: Row,
+    areas_by_id: &HashMap<String, String>,
+) -> Option<VoterSnapshot> {
+    let voter_id: String = row.get("voter_id");
+    let voter_id = Uuid::parse_str(&voter_id).ok()?;
+    let username: String = row.get("username");
+    let enabled: bool = row.get("enabled");
+    let attributes: Option<serde_json::Value> = row.get("attributes");
+    let attributes = attributes.unwrap_or(serde_json::Value::Null);
+
+    let attr = |key: &str| -> Option<String> {
+        attributes
+            .get(key)
+            .and_then(|value| value.as_str())
+            .map(str::to_string)
+    };
+
+    let area_id = attr(AREA_ID_ATTR_NAME);
+    let area_name = area_id.and_then(|id| areas_by_id.get(&id).cloned());
+
+    Some(VoterSnapshot {
+        username,
+        voter_id,
+        enabled,
+        area_name,
+        dob: attr(DATE_OF_BIRTH),
+        voted_channel: attr(VOTED_CHANNEL),
+        has_valid_internet_vote: false, // filled in by reconciliation's event-wide vote-state query
+        has_unresolved_internet_vote: false, // filled in by reconciliation's event-wide vote-state query
+        disable_comment: attr(DISABLE_COMMENT),
+    })
+}
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -47,9 +230,9 @@ async fn get_area_ids(
     area_id: Option<String>,
     param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let tenant_uuid = Uuid::parse_str(&tenant_id)?;
+    let tenant_uuid = parse_uuid_v4(&tenant_id)?;
     let election_event_uuid: Option<Uuid> = election_event_id
-        .map(|val| Uuid::parse_str(&val))
+        .map(|val| parse_uuid_v4(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
@@ -57,7 +240,7 @@ async fn get_area_ids(
         return Ok((None, "".to_string(), "".to_string()));
     }
     let election_uuid: Option<Uuid> = election_id
-        .map(|val| Uuid::parse_str(&val))
+        .map(|val| parse_uuid_v4(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
@@ -155,7 +338,13 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         "".to_string()
     };
 
-    // COPY does not support parameters so we have to add them using format
+    // COPY does not support parameters so we have to add them using format.
+    // Validate area_id as v4 UUID before interpolating into SQL.
+    parse_uuid_v4(area_id)?;
+    let realm_escaped = escape_sql_literal(realm);
+    let area_id_escaped = escape_sql_literal(area_id);
+    let election_alias_escaped = escape_sql_literal(election_alias);
+
     let statement = format!(
         r#"
         SELECT
@@ -170,10 +359,10 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         LEFT JOIN
             user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
-            ra.name = '{realm}' AND
+            ra.name = '{realm_escaped}' AND
             u.enabled IS TRUE AND
-            ua_area.value = '{area_id}' AND
-            (ua_elections.value = '{election_alias}' OR ua_elections.value IS NULL)
+            ua_area.value = '{area_id_escaped}' AND
+            (ua_elections.value = '{election_alias_escaped}' OR ua_elections.value IS NULL)
         GROUP BY
             u.id
         ORDER BY
@@ -209,6 +398,15 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     Ok(())
 }
 
+/// SQL boolean operator used to chain filter clauses in WHERE conditions.
+#[derive(Debug, Clone, Copy, EnumString, Display)]
+pub enum SqlBooleanOperator {
+    #[strum(serialize = " AND")]
+    And,
+    #[strum(serialize = "")]
+    None,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
@@ -240,8 +438,12 @@ impl FilterOption {
         &self,
         col_name: &str,
         param_number: i32,
-        operator: &str,
+        operator: SqlBooleanOperator,
     ) -> (String, Option<String>) {
+        // col_name is always supplied by internal code (hardcoded string
+        // literals), never from user input. We still escape it as a SQL
+        // identifier as defense-in-depth.
+        let col_name = escape_sql_identifier(col_name);
         match self {
             Self::IsLike(pattern) => (
                 format!(
@@ -253,7 +455,7 @@ impl FilterOption {
                 let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
                 (
                     format!(
-                        r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
+                        r#"(${param_number}::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
                     ),
                     Some(format!("%{}%", pattern)),
                 )
@@ -479,8 +681,11 @@ pub async fn count_keycloak_users(
         ("username", &filter.username),
     ] {
         if let Some(filter_obj) = filter_option {
-            let (clause, param) =
-                filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+            let (clause, param) = filter_obj.get_sql_filter_clause(
+                col_name,
+                next_param_number,
+                SqlBooleanOperator::And,
+            );
             filters_clause.push_str(&clause);
             if let Some(param) = param {
                 next_param_number += 1;
@@ -628,8 +833,11 @@ pub async fn list_users(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+                let (clause, param) = filter_obj.get_sql_filter_clause(
+                    col_name,
+                    next_param_number,
+                    SqlBooleanOperator::And,
+                );
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -913,8 +1121,11 @@ pub async fn list_users_ids(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+                let (clause, param) = filter_obj.get_sql_filter_clause(
+                    col_name,
+                    next_param_number,
+                    SqlBooleanOperator::And,
+                );
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -1163,8 +1374,11 @@ pub async fn lookup_users(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "");
+                let (clause, param) = filter_obj.get_sql_filter_clause(
+                    col_name,
+                    next_param_number,
+                    SqlBooleanOperator::None,
+                );
                 let clause = format!(
                     r#"
                     SELECT
@@ -1600,31 +1814,29 @@ pub async fn count_have_voted(
     filter: &ListUsersFilter,
     tenant_id: &str,
 ) -> Result<(i32)> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![Box::new(tenant_uuid)];
-    let mut filter_clauses: Vec<String> = vec![];
-    let mut next_param_number = 2;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
+        Box::new(tenant_uuid),
+        Box::new(CastVoteStatus::Valid.to_string()),
+    ];
+    let mut filter_clauses: Vec<String> = vec!["status = $2".to_string()];
+    let mut next_param_number = 3;
 
     if let Some(election_event_id_str) = &filter.election_event_id {
-        let election_event_id_uuid = Uuid::parse_str(election_event_id_str)?;
+        let election_event_id_uuid = parse_uuid_v4(election_event_id_str)?;
         let clause = format!("election_event_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_event_id_uuid));
         next_param_number += 1;
     }
     if let Some(election_id_str) = &filter.election_id {
-        let election_id_uuid = Uuid::parse_str(election_id_str)?;
+        let election_id_uuid = parse_uuid_v4(election_id_str)?;
         let clause = format!("election_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_id_uuid));
         next_param_number += 1;
     }
-    // If there are no filters, the WHERE clause would be empty and cause a SQL error.
-    let filter_clause = if filter_clauses.is_empty() {
-        "TRUE".to_string()
-    } else {
-        filter_clauses.join(" AND\n                    ")
-    };
+    let filter_clause = filter_clauses.join(" AND\n                    ");
 
     let statement_str = format!(
         r#"
@@ -1756,4 +1968,21 @@ pub async fn list_users_has_voted(
     };
 
     Ok((final_users, final_total))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sql_boolean_operator_and_format() {
+        let clause = format!("(col = $1){}", SqlBooleanOperator::And);
+        assert_eq!(clause, "(col = $1) AND");
+    }
+
+    #[test]
+    fn test_sql_boolean_operator_none_format() {
+        let clause = format!("(col = $1){}", SqlBooleanOperator::None);
+        assert_eq!(clause, "(col = $1)");
+    }
 }

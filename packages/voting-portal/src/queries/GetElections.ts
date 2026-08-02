@@ -15,13 +15,12 @@ export const GET_ELECTIONS = gql`
             is_consolidated_ballot_encoding
             labels
             last_updated_at
-            name
             num_allowed_revotes
             presentation
             spoil_ballot_option
             status
             tenant_id
-            alias
+            voting_channels
         }
     }
 `

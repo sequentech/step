@@ -11,7 +11,7 @@ use crate::services::{
     protocol_manager::{get_election_board, get_event_board},
 };
 use anyhow::{anyhow, Context, Result};
-use b3::client::pgsql::B3MessageRow;
+use b4::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
 use csv::StringRecord;
@@ -100,7 +100,7 @@ pub async fn import_protocol_manager_keys(
     temp_file: NamedTempFile,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
-    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None).await?;
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
     let mut keys_map: HashMap<Option<String>, String> = HashMap::new();
     let separator = b',';
 
@@ -267,7 +267,7 @@ pub async fn import_bulletin_boards(
         );
         let mut board_client = get_b3_pgsql_client().await?;
 
-        let existing_board: Option<b3::client::pgsql::B3IndexRow> =
+        let existing_board: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 
         if existing_board.is_none() {

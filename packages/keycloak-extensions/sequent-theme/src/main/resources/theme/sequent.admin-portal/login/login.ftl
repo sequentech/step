@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled??; section>
+<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
@@ -13,33 +13,61 @@ SPDX-License-Identifier: AGPL-3.0-only
           <div id="kc-form-wrapper">
             <#if realm.password>
                 <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
+                    <#-- Number of fields rendered ahead of the password field -->
+                    <#assign fieldCount = (matchAttributes?? && matchAttributes?has_content)?then(matchAttributes?size, 1)>
                     <#if !usernameHidden??>
-                        <div class="${properties.kcFormGroupClass!}">
-                            <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
+                        <#if matchAttributes?? && matchAttributes?has_content>
+                            <#if matchAttributes?filter(f -> f.type == "tel")?has_content>
+                                <#include "intl-tel-input.ftl">
+                            </#if>
+                            <#list matchAttributes as field>
+                                <div class="${properties.kcFormGroupClass!}">
+                                    <label for="${field.name}" class="${properties.kcLabelClass!}">${msg(field.name)}</label>
 
-                            <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="off"
-                                   aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
-                            />
+                                    <#if field.type == "tel">
+                                        <@renderIntlTelInput id=field.name name=field.name autofocus=(field?index == 0)/>
+                                    <#else>
+                                        <input tabindex="${field?index + 1}" id="${field.name}" class="${properties.kcInputClass!}" name="${field.name}" type="${field.type!'text'}"
+                                               <#if field?index == 0>autofocus</#if> autocomplete="off"
+                                               aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                        />
+                                    </#if>
+                                </div>
+                            </#list>
 
                             <#if messagesPerField.existsError('username','password')>
                                 <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
                                         ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
                                 </span>
                             </#if>
+                        <#else>
+                            <div class="${properties.kcFormGroupClass!}">
+                                <label for="username" class="${properties.kcLabelClass!}"><#if !realm.loginWithEmailAllowed>${msg("username")}<#elseif !realm.registrationEmailAsUsername>${msg("usernameOrEmail")}<#else>${msg("email")}</#if></label>
 
-                        </div>
+                                <input tabindex="1" id="username" class="${properties.kcInputClass!}" name="username" type="text" autofocus autocomplete="off"
+                                       aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
+                                />
+
+                                <#if messagesPerField.existsError('username','password')>
+                                    <span id="input-error" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                            ${kcSanitize(messagesPerField.getFirstError('username','password'))?no_esc}
+                                    </span>
+                                </#if>
+
+                            </div>
+                        </#if>
                     </#if>
 
                     <div class="${properties.kcFormGroupClass!}">
                         <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label>
 
                         <div class="${properties.kcInputGroup!}">
-                            <input tabindex="3" id="password" class="${properties.kcInputClass!}" name="password" type="password"   
+                            <input tabindex="${fieldCount + 2}" id="password" class="${properties.kcInputClass!}" name="password" type="password"
                                     autocomplete="off"
                                    aria-invalid="<#if messagesPerField.existsError('username','password')>true</#if>"
                             />
                             <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg("showPassword")}"
-                                    aria-controls="password" data-password-toggle tabindex="4"
+                                    aria-controls="password" data-password-toggle tabindex="${fieldCount + 3}"
                                     data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
                                     data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
                                 <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>

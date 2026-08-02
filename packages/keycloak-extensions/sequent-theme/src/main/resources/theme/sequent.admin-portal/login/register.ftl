@@ -10,7 +10,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "user-profile-commons.ftl" as userProfileCommons>
 <#import "register-commons.ftl" as registerCommons>
 <#include "intl-tel-input.ftl">
-<@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
+<#assign loginMode = formMode?? && formMode == 'LOGIN'>
+<#assign passwordRequired = passwordRequired!false>
+<#assign structuredCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'structured'>
+<#assign credentialFieldError = messagesPerField.existsError('username','password')>
+<#assign structuredCredentialHasError = structuredCredentialLogin && credentialFieldError>
+<@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true displaySocialProviders=(formMode?? && formMode = 'LOGIN' && (social.providers)?has_content); section>
     <#if section = "header">
         <#if formMode?? && formMode = 'LOGIN'>
             ${msg('loginTitle',(realm.displayName!''))}
@@ -36,7 +41,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
                             <div class="${properties.kcFormGroupClass!}">
                                 <div class="${properties.kcLabelWrapperClass!}">
-                                    <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
+                                    <label id="structured-credential-label" for="password" class="${properties.kcLabelClass!}"><#if structuredCredentialLogin>${msg("structuredCredentialLabel")}<#else>${msg("password")}</#if></label> *
                                 </div>
                                 <div class="${properties.kcInputWrapperClass!}">
                                     <#--  You can add a custom passwordHelperTextBefore to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
@@ -44,18 +49,36 @@ SPDX-License-Identifier: AGPL-3.0-only
                                         <div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextBefore))?no_esc}</div>
                                     </#if>
 
-                                    <div class="${properties.kcInputGroup!}">
+                                    <div class="${properties.kcInputGroup!}"<#if structuredCredentialLogin>
+                                         data-structured-credential
+                                         data-credential-pattern="${realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'}"
+                                         data-group-status="${msg('structuredCredentialGroupStatus')}"
+                                         data-paste-error="${msg('structuredCredentialPasteError')}"
+                                         data-format-error="${msg('structuredCredentialFormatError')}"
+                                         data-label-id="structured-credential-label"
+                                         data-hint-id="structured-credential-hint"
+                                         data-error-id="structured-credential-error"</#if>>
                                         <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
-                                               autocomplete="new-password"
-                                               aria-invalid="<#if messagesPerField.existsError('password','password-confirm')>true</#if>"
+                                               <#if structuredCredentialLogin>autocomplete="current-password"<#else>autocomplete="new-password"</#if>
+                                               <#if structuredCredentialLogin>inputmode="numeric"</#if>
+                                               <#if structuredCredentialLogin>aria-describedby="structured-credential-hint structured-credential-error"</#if>
+                                               <#if structuredCredentialHasError || messagesPerField.existsError('password','password-confirm')>aria-invalid="true"</#if>
                                         />
-                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
-                                                aria-controls="password"  data-password-toggle
+                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="<#if structuredCredentialLogin>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
+                                                aria-controls="password" <#if structuredCredentialLogin>data-structured-credential-toggle<#else>data-password-toggle</#if>
                                                 data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                                data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                                data-label-show="<#if structuredCredentialLogin>${msg('showStructuredCredential')}<#else>${msg('showPassword')}</#if>"
+                                                data-label-hide="<#if structuredCredentialLogin>${msg('hideStructuredCredential')}<#else>${msg('hidePassword')}</#if>">
                                             <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
                                         </button>
                                     </div>
+
+                                    <#if structuredCredentialLogin>
+                                        <div id="structured-credential-hint" class="structured-credential__hint">${msg("structuredCredentialHint")}</div>
+                                        <span id="structured-credential-error" data-structured-credential-error class="${properties.kcInputErrorMessageClass!}" role="alert"<#if !structuredCredentialHasError> hidden</#if>>
+                                            ${msg("structuredCredentialError")}
+                                        </span>
+                                    </#if>
 
                                     <#--  You can add a password strength bar if passwordStrengthBar is set to either username or email depending on realm.registrationEmailAsUsername settings to add a strength bar -->
                                     <#if attribute.annotations.passwordStrengthBar?? && formMode?? && (formMode!"REGISTRATION") != "LOGIN">
@@ -66,7 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                         </div>
                                     </#if>
 
-                                    <#if messagesPerField.existsError('password')>
+                                    <#if messagesPerField.existsError('password') && !structuredCredentialLogin>
                                         <span id="input-error-password" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 		                                ${kcSanitize(messagesPerField.get('password'))?no_esc}
 		                            </span>
@@ -141,7 +164,11 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </div>
             </div>
         </form>
-        <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
+        <#if structuredCredentialLogin>
+            <script type="module" src="${url.resourcesPath}/js/structured-credential.js"></script>
+        <#else>
+            <script type="module" src="${url.resourcesPath}/js/passwordVisibility.js"></script>
+        </#if>
 
         <#--  Adding intel-tel-input  -->
         <#--  https://github.com/jackocnr/intl-tel-input/tree/master  -->
@@ -216,5 +243,28 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#--  https://github.com/dropbox/zxcvbn  -->
         <script type="text/javascript" src="${url.resourcesPath}/js/zxcvbn.js"></script>
         <script type="text/javascript" src="${url.resourcesPath}/js/keycloak-password-strength.js"></script>
+    <#elseif section = "socialProviders" >
+        <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
+        <#if realm.password && visibleProviders?has_content>
+            <hr/>
+            <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
+            <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
+                <#list visibleProviders as p>
+                    <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
+                        <li>
+                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
+                                    type="button" href="${p.loginUrl}">
+                                <#if p.iconClasses?has_content>
+                                    <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
+                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
+                                <#else>
+                                    <span class="${properties.kcFormSocialAccountNameClass!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
+                                </#if>
+                            </a>
+                        </li>
+                    </ul>
+                </#list>
+            </div>
+        </#if>
     </#if>
 </@layout.registrationLayout>

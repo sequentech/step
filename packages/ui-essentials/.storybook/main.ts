@@ -51,6 +51,10 @@ const config: StorybookConfig = {
             build: {
                 sourcemap: configType === "DEVELOPMENT",
             },
+
+            optimizeDeps: {
+                exclude: ["sequent-core"],
+            },
         })
     },
 }

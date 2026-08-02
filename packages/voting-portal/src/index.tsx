@@ -16,6 +16,7 @@ import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider, useLocation, useMatch} from "react-router-dom"
 import {ErrorPage} from "./routes/ErrorPage"
+import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import {Loader} from "@sequentech/ui-essentials"
@@ -67,8 +68,17 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
+export const ThrowCertAuthError = (): React.ReactElement => {
+    throw new VotingPortalError(VotingPortalErrorType.CERT_AUTH_FAILED)
+}
+
 const router = createBrowserRouter(
     [
+        {
+            path: "/cert-auth-error",
+            element: <ThrowCertAuthError />,
+            errorElement: <ErrorPage />,
+        },
         {
             path: "/",
             element: <App />,

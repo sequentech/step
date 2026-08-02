@@ -27,7 +27,7 @@ import {ListDocument} from "./resources/Document/ListDocument"
 import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {Messages} from "./screens/Messages"
-import {Navigate, Route, useLocation} from "react-router-dom"
+import {Navigate, Route} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -62,17 +62,20 @@ import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
+import {TrusteeDashboard} from "./screens/TrusteeDashboard"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{css: string}>`
-    ${({css}) => css}
+const StyledApp = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "customCss",
+})<{customCss: string}>`
+    ${({customCss}) => customCss}
 `
 
 export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
-        <StyledApp className="styled-app-atom" css={css}>
+        <StyledApp className="styled-app-atom" customCss={css}>
             {children}
         </StyledApp>
     )
@@ -150,6 +153,7 @@ const App: React.FC<AppProps> = () => {
                     {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
+                    <Route path="/trustee" element={<TrusteeDashboard />} />
                     <Route path="/messages" element={<Messages />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
                 </CustomRoutes>
@@ -214,6 +218,7 @@ const App: React.FC<AppProps> = () => {
                     create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
+                <Resource name="sequent_backend_certificate_authority" />
                 <Resource
                     name="sequent_backend_area"
                     edit={UpsertArea}

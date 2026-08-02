@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
@@ -14,9 +15,9 @@ use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
 use anyhow::{anyhow, Context, Result};
-use b3::messages::message::Message;
-use b3::messages::newtypes::BatchNumber;
-use b3::messages::newtypes::TrusteeSet;
+use b4::messages::message::Message;
+use b4::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::TrusteeSet;
 use base64::{
     alphabet,
     engine::{self, general_purpose},
@@ -33,6 +34,7 @@ use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use serde_json::json;
 use std::collections::HashMap;
@@ -58,6 +60,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
+    skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
@@ -104,7 +107,7 @@ pub async fn insert_ballots_messages(
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
-            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
+            .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
             .collect();
 
     // Collect all futures for parallel execution
@@ -168,6 +171,33 @@ pub async fn insert_ballots_messages(
                         ballots_temp_file.path()
                     );
 
+                    // Backstop for the tally-session guard: never extract
+                    // ballots while this contest area has an unresolved vote.
+                    let tenant_uuid = parse_uuid_v4(&tenant_id_clone)
+                        .with_context(|| "Error parsing tenant_id")?;
+                    let election_event_uuid = parse_uuid_v4(&election_event_id_clone)
+                        .with_context(|| "Error parsing election_event_id")?;
+                    let election_uuid = parse_uuid_v4(&tally_session_contest.election_id)
+                        .with_context(|| "Error parsing election_id")?;
+                    let area_uuid = parse_uuid_v4(&tally_session_contest.area_id)
+                        .with_context(|| "Error parsing area_id")?;
+                    let unresolved_count = count_unresolved_cast_votes(
+                        &hasura_transaction_clone,
+                        &tenant_uuid,
+                        &election_event_uuid,
+                        &election_uuid,
+                        &area_uuid,
+                    )
+                    .await?;
+                    if unresolved_count > 0 {
+                        return Err(anyhow!(
+                            "Refusing to extract ballots for election {} area {}: \
+                             {unresolved_count} cast vote(s) have an unresolved Datafix outcome",
+                            tally_session_contest.election_id,
+                            tally_session_contest.area_id,
+                        ));
+                    }
+
                     find_area_ballots(
                         &hasura_transaction_clone,
                         &tenant_id_clone,
@@ -210,6 +240,7 @@ pub async fn insert_ballots_messages(
 
                     // Use a join function to filter and extract the ballot content
                     let ballots_output_index = 1;
+                    let ballots_channel_index = 2;
                     let ballots_join_indexes = 0;
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
@@ -217,54 +248,21 @@ pub async fn insert_ballots_messages(
                     // Add the index where the username of the delegated vote is if the election has delegation enabled.
                     let delegate_count_index = if is_delegated { Some(1) } else { None };
 
-                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                        merge_join_csv(
-                            &ballots_temp_file,
-                            &users_temp_file,
-                            ballots_join_indexes,
-                            users_join_idexes,
-                            ballots_output_index,
-                            delegate_count_index,
-                        )?;
-
-                    let ciphertexts = ballot_contents
-                        .into_iter()
-                        .map(|ballot_str| {
-                            info!("ballot_str: {ballot_str}");
-                            let ciphertext: Ciphertext<RistrettoCtx> =
-                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                    == contest_encryption_policy_clone
-                                {
-                                    let hashable_multi_ballot: HashableMultiBallot =
-                                        deserialize_str(&ballot_str)?;
-
-                                    let hashable_multi_ballot_contests = hashable_multi_ballot
-                                        .deserialize_contests()
-                                        .map_err(|err| anyhow!("{:?}", err))?;
-                                    Some(hashable_multi_ballot_contests.ciphertext)
-                                } else {
-                                    let hashable_ballot: HashableBallot =
-                                        deserialize_str(&ballot_str)?;
-                                    let contests = hashable_ballot
-                                        .deserialize_contests()
-                                        .map_err(|err| anyhow!("{:?}", err))?;
-                                    contests
-                                        .iter()
-                                        .find(|contest| {
-                                            contest.contest_id
-                                                == contest_id.clone().unwrap_or_default()
-                                        })
-                                        .map(|contest| contest.ciphertext.clone())
-                                }
-                                .ok_or(anyhow!("Could not get ciphertext"))?;
-                            Ok(ciphertext)
-                        })
-                        .collect::<Result<Vec<_>>>()?;
+                    let merge_result = merge_join_csv(
+                        &ballots_temp_file,
+                        &users_temp_file,
+                        ballots_join_indexes,
+                        users_join_idexes,
+                        ballots_output_index,
+                        Some(ballots_channel_index),
+                        delegate_count_index,
+                    )?;
 
                     let annotations = TallySessionContestAnnotations {
-                        elegible_voters,
-                        ballots_without_voter,
-                        casted_ballots,
+                        elegible_voters: merge_result.eligible_voters,
+                        ballots_without_voter: merge_result.ballots_without_voter,
+                        casted_ballots: merge_result.casted_ballots,
+                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
                     };
 
                     let annotations = serde_json::to_value(&annotations)?;
@@ -284,26 +282,63 @@ pub async fn insert_ballots_messages(
                         election_id: tally_session_contest.election_id.clone(),
                     };
 
-                    event!(
-                        Level::INFO,
-                        "insertable_ballots len: {:?}",
-                        ciphertexts.len()
-                    );
+                    if !skip_board_posting {
+                        let ciphertexts = merge_result
+                            .ballot_contents
+                            .into_iter()
+                            .map(|ballot_str| {
+                                info!("ballot_str: {ballot_str}");
+                                let ciphertext: Ciphertext<RistrettoCtx> =
+                                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                        == contest_encryption_policy_clone
+                                    {
+                                        let hashable_multi_ballot: HashableMultiBallot =
+                                            deserialize_str(&ballot_str)?;
 
-                    let mut board = get_b3_pgsql_client().await?;
-                    let batch = tally_session_contest.session_id.clone() as BatchNumber;
-                    add_ballots_to_board(
-                        &protocol_manager_arc_clone, // Use the Arc clone here
-                        &mut board,
-                        &board_name_clone,
-                        &board_messages_clone, // Use the cloned board_messages
-                        &configuration_clone,
-                        public_key_hash_clone,
-                        selected_trustees_clone,
-                        ciphertexts,
-                        batch,
-                    )
-                    .await?;
+                                        let hashable_multi_ballot_contests = hashable_multi_ballot
+                                            .deserialize_contests()
+                                            .map_err(|err| anyhow!("{:?}", err))?;
+                                        Some(hashable_multi_ballot_contests.ciphertext)
+                                    } else {
+                                        let hashable_ballot: HashableBallot =
+                                            deserialize_str(&ballot_str)?;
+                                        let contests = hashable_ballot
+                                            .deserialize_contests()
+                                            .map_err(|err| anyhow!("{:?}", err))?;
+                                        contests
+                                            .iter()
+                                            .find(|contest| {
+                                                contest.contest_id
+                                                    == contest_id.clone().unwrap_or_default()
+                                            })
+                                            .map(|contest| contest.ciphertext.clone())
+                                    }
+                                    .ok_or(anyhow!("Could not get ciphertext"))?;
+                                Ok(ciphertext)
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+
+                        event!(
+                            Level::INFO,
+                            "insertable_ballots len: {:?}",
+                            ciphertexts.len()
+                        );
+
+                        let mut board = get_b3_pgsql_client().await?;
+                        let batch = tally_session_contest.session_id.clone() as BatchNumber;
+                        add_ballots_to_board(
+                            &protocol_manager_arc_clone, // Use the Arc clone here
+                            &mut board,
+                            &board_name_clone,
+                            &board_messages_clone, // Use the cloned board_messages
+                            &configuration_clone,
+                            public_key_hash_clone,
+                            selected_trustees_clone,
+                            ciphertexts,
+                            batch,
+                        )
+                        .await?;
+                    }
 
                     Ok(updated_tally_session_contest)
                 })
@@ -330,7 +365,7 @@ pub async fn get_elections_end_dates(
     election_event_id: &str,
 ) -> Result<HashMap<String, Option<DateTime<Utc>>>> {
     // Use ballot publications instead?
-    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .map_err(|err| anyhow!("Error getting elections {:?}", err))?;
 

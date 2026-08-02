@@ -21,6 +21,8 @@ interface GenerateReportProps {
     electionEventId: string
     tallySessionId: string
     handleClose: () => void
+    documentTypeToConvertFrom?: EExportFormat
+    label?: string
 }
 
 export const GeneratePDF: React.FC<GenerateReportProps> = ({
@@ -29,6 +31,8 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     electionEventId,
     tallySessionId,
     handleClose,
+    documentTypeToConvertFrom = EExportFormat.HTML,
+    label,
 }) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
@@ -43,10 +47,13 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     })
 
     useEffect(() => {
-        if (!documentId && documents?.[EExportFormat.HTML]) {
-            setDocumentId(documents?.[EExportFormat.HTML])
+        if (documentTypeToConvertFrom && !documentId) {
+            const id = documents?.[documentTypeToConvertFrom] ?? null
+            if (id) {
+                setDocumentId(id)
+            }
         }
-    }, [documents?.[EExportFormat.PDF]])
+    }, [documents, documentTypeToConvertFrom, documentId])
 
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
@@ -101,15 +108,19 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
                 }}
             >
                 <span
-                    title={t("common.label.exportFormat", {
-                        item: name,
-                        format: EExportFormat.PDF.toUpperCase(),
-                    })}
+                    title={
+                        label ??
+                        t("common.label.exportFormat", {
+                            item: name,
+                            format: EExportFormat.PDF.toUpperCase(),
+                        })
+                    }
                 >
-                    {t("common.label.exportFormat", {
-                        item: name,
-                        format: EExportFormat.PDF.toUpperCase(),
-                    })}
+                    {label ??
+                        t("common.label.exportFormat", {
+                            item: name,
+                            format: EExportFormat.PDF.toUpperCase(),
+                        })}
                     {outputDocumentId ? (
                         <DownloadDocument
                             documentId={outputDocumentId}

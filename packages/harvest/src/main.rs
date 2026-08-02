@@ -36,6 +36,14 @@ async fn rocket() -> _ {
                 routes::error_catchers::default
             ],
         )
+        .register(
+            "/api/datafix",
+            catchers![
+                routes::error_catchers::datafix_invalid_request,
+                routes::error_catchers::datafix_malformed_body,
+                routes::error_catchers::datafix_forbidden
+            ],
+        )
         .mount(
             "/api/datafix",
             routes![
@@ -97,6 +105,8 @@ async fn rocket() -> _ {
                 routes::permissions::get_permissions,
                 routes::permissions::set_role_permission,
                 routes::permissions::delete_role_permission,
+                routes::phone_blacklist::create_phone_blacklist_entry,
+                routes::phone_blacklist::delete_phone_blacklist_entry,
                 routes::upload_document::get_upload_url,
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_private_key,
@@ -104,10 +114,18 @@ async fn rocket() -> _ {
                 routes::keys_ceremony::list_keys_ceremonies,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::restore_private_key,
+                routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
                 routes::tally_ceremony::update_tally_ceremony,
-                routes::tally_sheets::publish_tally_sheet,
+                routes::tally_ceremony::recount_tally_session,
+                routes::tally_sheets::create_new_tally_sheet,
+                routes::tally_sheets::review_tally_sheet,
+                routes::tally_sheets::preview_tally_sheet_import,
+                routes::tally_sheets::create_tally_sheet_import,
+                routes::tally_sheets::review_tally_sheet_import,
+                routes::external_reconciliation::create_reconciliation_import,
+                routes::external_reconciliation::apply_reconciliation_changes,
                 routes::create_ballot_receipt::create_ballot_receipt,
                 routes::election_dates::manage_election_dates,
                 routes::custom_urls::update_custom_url,
@@ -125,15 +143,28 @@ async fn rocket() -> _ {
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
+                routes::results_publication::configure_results_website_policy,
+                routes::results_publication::publish_results_website,
+                routes::results_publication::resolve_results_publication,
+                routes::results_publication::fetch_results_artifact,
+                routes::results_publication::revoke_results_publication,
+                routes::results_publication::refresh_results_publication_index,
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
+                routes::realm_attributes::get_realm_attributes_route,
+                routes::realm_attributes::update_realm_attributes_route,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
+                routes::generate_preview_url::generate_preview_url,
+                routes::import_certificate_authority::import_certificate_authority,
+                routes::delete_certificate_authority::delete_certificate_authority_route,
+                routes::export_certificate_authority::export_certificate_authority_route,
+                routes::get_certificate_authorities_pem::get_cas_pem,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

@@ -259,7 +259,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
-                        You have been invited to participate in a Keys ceremony. Please
+                        You have been invited to participate in a Key Ceremony. Please
                         <NotificationLink
                             onClick={(e: any) => {
                                 // TODO: this onClick is not being called!

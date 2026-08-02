@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,9 +10,9 @@ use super::*;
 /// in addition to general validation already performed in
 /// Configuration::is_valid, which is called when
 /// the trustee's LocalBoard is bootstrapped.
-pub(super) fn sign_config<C: Ctx>(
+pub(super) fn sign_config<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(configuration_h)?;
     // FIXME assert

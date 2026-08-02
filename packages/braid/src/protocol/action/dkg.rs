@@ -1,13 +1,13 @@
 #![allow(clippy::too_many_arguments)]
 
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
 use crate::protocol::datalog;
 use anyhow::Result;
-use b3::messages::artifact::Channel;
+use b4::messages::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 
@@ -26,13 +26,13 @@ use strand::zkp::Zkp;
 /// key corresponding to the public key.
 ///
 /// Returns a Message of type Channel signed by this trustee.
-pub(super) fn gen_channel<C: Ctx>(
-    configuration_hash: &ConfigurationHash,
-    trustee: &Trustee<C>,
+pub(super) fn gen_channel<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+    configuration_h: &ConfigurationHash,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let ctx: C = Default::default();
 
-    let cfg = trustee.get_configuration(configuration_hash)?;
+    let cfg = trustee.get_configuration(configuration_h)?;
 
     // Generate a keypair for share transport
     let sk = strand::elgamal::PrivateKey::gen(&ctx);
@@ -53,12 +53,12 @@ pub(super) fn gen_channel<C: Ctx>(
 /// their own Channel's private key by decrypting it.
 ///
 /// Returns a Message of type ChannelsAllSigned signed by this trustee.
-pub(super) fn sign_channels<C: Ctx>(
+pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
     self_pos: &TrusteePosition,
     num_trustees: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let ctx: C = Default::default();
     let cfg = trustee.get_configuration(configuration_h)?;
@@ -112,12 +112,12 @@ pub(super) fn sign_channels<C: Ctx>(
 /// Returns a Message of type Shares signed by this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-pub(super) fn compute_shares<C: Ctx>(
+pub(super) fn compute_shares<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
     num_trustees: &TrusteeCount,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(configuration_h)?;
@@ -160,14 +160,14 @@ pub(super) fn compute_shares<C: Ctx>(
 ///
 /// Returns a Message of type PublicKey signed by
 /// this trustee.
-pub(super) fn compute_pk<C: Ctx>(
+pub(super) fn compute_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
     channels_hs: &ChannelsHashes,
     self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let pk = compute_pk_(
@@ -193,7 +193,7 @@ pub(super) fn compute_pk<C: Ctx>(
 ///
 /// Returns a Message of type PublicKeySigned signed by
 /// this trustee.
-pub(super) fn sign_pk<C: Ctx>(
+pub(super) fn sign_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     pk_h: &PublicKeyHash,
     shares_hs: &SharesHashes,
@@ -201,7 +201,7 @@ pub(super) fn sign_pk<C: Ctx>(
     self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     info!(
@@ -252,14 +252,14 @@ pub(super) fn sign_pk<C: Ctx>(
 /// all trustees.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-fn compute_pk_<C: Ctx>(
+fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
     channels_hs: &ChannelsHashes,
-    self_p: &TrusteePosition,
+    self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
-    trustee: &Trustee<C>,
+    trustee: &Trustee<C, S>,
 ) -> Result<(C::E, Vec<C::E>), ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
@@ -281,24 +281,24 @@ fn compute_pk_<C: Ctx>(
             *vk = vk.mul(&vkf).modp(&ctx);
 
             // Our share is sent from trustee i to j, when j = us
-            if j == *self_p {
+            if j == *self_pos {
                 // Construct our private key to decrypt our share
                 let my_channel_h =
                     channels_hs
                         .0
-                        .get(*self_p)
+                        .get(*self_pos)
                         .ok_or(ProtocolError::InternalError(
                             "Could not retrieve channel hash for self".to_string(),
                         ))?;
 
                 let my_channel = trustee
-                    .get_channel(&ChannelHash(*my_channel_h), *self_p)
+                    .get_channel(&ChannelHash(*my_channel_h), *self_pos)
                     .add_context("Retrieving channel for self")?;
 
                 let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
                 // Decrypt the share sent from i to us
-                let value = ctx.decrypt_exp(&share.encrypted_shares[*self_p], sk)?;
+                let value = ctx.decrypt_exp(&share.encrypted_shares[*self_pos], sk)?;
                 // Verify the share
                 let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
                 if !ok {

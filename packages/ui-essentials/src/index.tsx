@@ -21,12 +21,13 @@ export {default as PageBanner} from "./components/PageBanner/PageBanner"
 export {default as PageLimit} from "./components/PageLimit/PageLimit"
 export {default as Version} from "./components/Version/Version"
 export {default as VerticalBox} from "./components/VerticalBox/VerticalBox"
-export {default as WarnBox} from "./components/WarnBox/WarnBox"
+export {default as WarnBox, warnIdToClassName} from "./components/WarnBox/WarnBox"
 export {
     default as BreadCrumbSteps,
     BreadCrumbStepsVariant,
 } from "./components/BreadCrumbSteps/BreadCrumbSteps"
 export {default as Candidate} from "./components/Candidate/Candidate"
+export {getOrdinalSuffix} from "./components/Candidate/ordinalUtils"
 export {default as BallotHash} from "./components/BallotHash/BallotHash"
 export {default as QRCode} from "./components/QRCode/QRCode"
 export {default as CandidatesList} from "./components/CandidatesList/CandidatesList"
@@ -37,3 +38,47 @@ export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
 export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
 export {default as Loader} from "./components/Loader/Loader"
 export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"
+export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
+export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export {
+    CandidateResults,
+    CandidateResultsChart,
+    default as ResultsAndParticipation,
+    defaultResultsAndParticipationLabels,
+    ParticipationSummary,
+    ParticipationSummaryChart,
+    ParticipationByChannel,
+    PreferentialCandidateResults,
+    sortCandidateResults,
+    TALLY_RESULTS_PIE_HEIGHT,
+    TALLY_RESULTS_PIE_PANEL_WIDTH,
+} from "./components/TallyResults/TallyResults"
+export {
+    default as ResultsSelectorTabs,
+    ResultsSelectorTabs as ResultsSelectorTabsComponent,
+} from "./components/TallyResults/ResultsSelectorTabs"
+export type {
+    CandidateReference,
+    CandidateResultRow,
+    ParticipationChannelNames,
+    ResultsAndParticipationLabelOverrides,
+    ResultsAndParticipationLabels,
+    ResultsAndParticipationProps,
+    ResultsParticipationSummary,
+    VotesByChannel,
+    PreferentialProcessResults,
+    PreferentialRound,
+} from "./components/TallyResults/TallyResults"
+export type {
+    ResultsSelectorAreaOption,
+    ResultsSelectorLabels,
+    ResultsSelectorOption,
+    ResultsSelectorSelection,
+    ResultsSelectorTabsProps,
+} from "./components/TallyResults/ResultsSelectorTabs"
+export {default as ReviewChangesTable} from "./components/ReviewChangesTable/ReviewChangesTable"
+export type {
+    ReviewChangesRow,
+    ReviewChangesTableProps,
+} from "./components/ReviewChangesTable/ReviewChangesTable"

@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use base64::engine::general_purpose;
 use base64::Engine;
-use braid::protocol::trustee2::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;
 
@@ -54,7 +54,7 @@ fn main() {
 ///
 /// Prints configuration to standard out.
 fn gen_trustee_config<C: Ctx>() {
-    let sk = StrandSignatureSk::gen().unwrap();
+    let sk = StrandSignatureSk::generate().unwrap();
     let pk = StrandSignaturePk::from_sk(&sk).unwrap();
     let encryption_key: symm::SymmetricKey = symm::gen_key();
 
@@ -82,7 +82,7 @@ fn gen_trustee_config<C: Ctx>() {
 ///
 /// Prints configuration to standard out.
 fn gen_protocol_manager_config<C: Ctx>() {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,

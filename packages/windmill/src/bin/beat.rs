@@ -15,6 +15,7 @@ use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::review_boards::review_boards;
+use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 
@@ -25,8 +26,10 @@ struct CeleryOpt {
     review_boards_interval: u64,
     #[arg(short = 's', long, default_value = "10")]
     schedule_events_interval: u64,
-    #[arg(short = 'c', long, default_value = "10")]
+    #[arg(short = 'c', long, default_value = "60")]
     schedule_reports_interval: u64,
+    #[arg(short = 'v', long, default_value = "90")]
+    review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
 }
@@ -56,6 +59,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().schedule_reports_interval)),
                 args = (CeleryOpt::parse().schedule_events_interval),
             },
+            review_cast_votes::NAME => {
+                review_cast_votes,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().review_cast_votes_interval)),
+                args = (),
+            },
             electoral_log_batch_dispatcher::NAME => {
                 electoral_log_batch_dispatcher,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().electoral_log_interval)),
@@ -66,6 +74,7 @@ async fn main() -> Result<()> {
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
+            review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
         ],
     ).await?;

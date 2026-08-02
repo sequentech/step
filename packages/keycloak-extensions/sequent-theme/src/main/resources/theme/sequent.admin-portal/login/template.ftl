@@ -4,7 +4,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayCard=true>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayCard=true displaySocialProviders=false>
 <!DOCTYPE html>
 <html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if> translate="no">
 
@@ -47,7 +47,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     <script type="importmap">
         {
             "imports": {
-                "rfc4648": "${url.resourcesCommonPath}/node_modules/rfc4648/lib/rfc4648.js"
+                "rfc4648": "${url.resourcesCommonPath}/vendor/rfc4648/rfc4648.js"
             }
         }
     </script>
@@ -58,9 +58,9 @@ SPDX-License-Identifier: AGPL-3.0-only
         </#list>
     </#if>
     <script type="module">
-        import { checkCookiesAndSetTimer } from "${url.resourcesPath}/js/authChecker.js";
+        import { startSessionPolling } from "${url.resourcesPath}/js/authChecker.js";
 
-        checkCookiesAndSetTimer(
+        startSessionPolling(
           "${url.ssoLoginInOtherTabsUrl?no_esc}"
         );
     </script>
@@ -99,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#assign i = 1>
                                 <#list locale.supported as l>
                                     <li class="${properties.kcLocaleListItemClass!}" role="none">
-                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}">${l.label}</a>
+                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}" data-lang="${l.languageTag!}">${l.label}</a>
                                     </li>
                                     <#assign i++>
                                 </#list>
@@ -194,7 +194,10 @@ SPDX-License-Identifier: AGPL-3.0-only
               </form>
           </#if>
 
-          <#nested "socialProviders">
+
+          <#if displaySocialProviders>
+           <#nested "socialProviders">
+          </#if>
 
           <#if displayInfo>
               <div id="kc-info" class="${properties.kcSignUpClass!}">
@@ -213,6 +216,165 @@ SPDX-License-Identifier: AGPL-3.0-only
         <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
   </main>
+<script>
+    (function () {
+        function getCookie(name) {
+            var cookies = document.cookie ? document.cookie.split("; ") : [];
+            for (var i = 0; i < cookies.length; i++) {
+                var parts = cookies[i].split("=");
+                if (parts[0] === name) {
+                    return decodeURIComponent(parts.slice(1).join("="));
+                }
+            }
+            return null;
+        }
+
+        function isIpAddress(hostname) {
+            return /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.indexOf(":") !== -1;
+        }
+
+        function buildCookie(name, value, domain, expires) {
+            var cookie =
+                name + "=" + encodeURIComponent(value) +
+                "; Path=/" +
+                "; SameSite=Lax";
+
+            if (domain) {
+                cookie += "; Domain=" + domain;
+            }
+
+            if (expires) {
+                cookie += "; Expires=" + expires;
+            }
+
+            if (window.location.protocol === "https:") {
+                cookie += "; Secure";
+            }
+
+            return cookie;
+        }
+
+        function clearCookie(name, domain) {
+            document.cookie = buildCookie(name, "", domain, "Thu, 01 Jan 1970 00:00:00 GMT");
+        }
+
+        function canSetCookieOnDomain(domain) {
+            var probeName =
+                "__sequent_cookie_domain_probe__" + Math.random().toString(36).slice(2);
+            var probeValue = Math.random().toString(36).slice(2);
+
+            document.cookie = buildCookie(probeName, probeValue, domain);
+            var accepted = getCookie(probeName) === probeValue;
+
+            clearCookie(probeName, domain);
+            clearCookie(probeName, null);
+
+            return accepted;
+        }
+
+        function getCookieDomain(hostname) {
+            if (!hostname || hostname === "localhost" || hostname.indexOf(".") === -1) {
+                return null;
+            }
+
+            if (isIpAddress(hostname)) {
+                return null;
+            }
+
+            var parts = hostname.split(".");
+            for (var i = 2; i <= parts.length; i++) {
+                var candidate = parts.slice(-i).join(".");
+                if (canSetCookieOnDomain(candidate)) {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        var domain = getCookieDomain(window.location.hostname);
+
+        function toInternalLang(lang) {
+            if (!lang) {
+                return null;
+            }
+            var primary = lang.toLowerCase().split("-")[0];
+            // Keep this fallback tiny: this template runs outside the app and
+            // cannot use the shared sequent-core WASM helpers.
+            return primary === "ca" ? "cat" : primary;
+        }
+
+        function toKeycloakLocale(lang) {
+            var internalLang = toInternalLang(lang);
+            if (!internalLang) {
+                return null;
+            }
+            return internalLang === "cat" ? "ca" : internalLang;
+        }
+
+        function setSessionLangCookie(lang) {
+            if (!lang) {
+                return;
+            }
+            document.cookie = buildCookie("USER_LANGUAGE", lang, domain);
+        }
+
+        function getLangFromHref(href) {
+            var u = new URL(href, window.location.origin);
+            return u.searchParams.get("kc_locale") || u.searchParams.get("locale");
+        }
+
+        function getSupportedLocalesWithUrls() {
+            return [
+                <#list locale.supported as l>
+                    {
+                        "languageTag": "${l.languageTag}",
+                        "url": "${l.url?js_string}"
+                    }<#if l_has_next>,</#if>
+                </#list>
+            ];
+        }
+
+        <#if (realm.attributes["language_detection_policy"]!"") == "force-default">
+        (function enforceDefaultLocale() {
+            var kcLocale = "${realm.defaultLocale!}";
+            var internalLocale = "${(realm.attributes["forced_language_code"])!realm.defaultLocale!}";
+            var cookieLang = toInternalLang(getCookie("USER_LANGUAGE"));
+            var selectedInternalLocale = cookieLang || toInternalLang(internalLocale);
+            var selectedKcLocale = toKeycloakLocale(selectedInternalLocale) || kcLocale;
+            if (!selectedKcLocale) {
+                return;
+            }
+            var supportedLocales = getSupportedLocalesWithUrls();
+            var targetLocale = supportedLocales.find(function (l) { return l.languageTag === selectedKcLocale; });
+            if (!targetLocale) {
+                var fallbackUrl = new URL(window.location.href);
+                fallbackUrl.searchParams.set("kc_locale", selectedKcLocale);
+                if (fallbackUrl.toString() !== window.location.href) {
+                    window.location.replace(fallbackUrl.toString());
+                    return;
+                }
+                setSessionLangCookie(selectedInternalLocale);
+                return;
+            }
+            if ("${locale.currentLanguageTag!}" !== targetLocale.languageTag) {
+                window.location.replace(targetLocale.url);
+                return;
+            }
+            setSessionLangCookie(selectedInternalLocale);
+        })();
+        </#if>
+
+        document.querySelectorAll("#language-switch1 a[href]").forEach(function (link) {
+            link.addEventListener("click", function () {
+                var lang = toInternalLang(getLangFromHref(link.href));
+                if (lang) {
+                    setSessionLangCookie(lang);
+                }
+            });
+        });
+    })();
+</script>
 </body>
 </html>
 </#macro>

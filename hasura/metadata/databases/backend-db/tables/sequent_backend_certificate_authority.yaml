@@ -1,0 +1,140 @@
+table:
+    name: certificate_authority
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - common_name
+              - subject
+              - issuer_common_name
+              - issuer
+              - not_before
+              - not_after
+              - fingerprint_sha256
+              - serial_number
+              - pem
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - common_name
+              - subject
+              - issuer_common_name
+              - issuer
+              - not_before
+              - not_after
+              - fingerprint_sha256
+              - serial_number
+              - pem
+              - created_at
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - common_name
+              - subject
+              - issuer_common_name
+              - issuer
+              - not_before
+              - not_after
+              - fingerprint_sha256
+              - serial_number
+              - pem
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - common_name
+              - subject
+              - issuer_common_name
+              - issuer
+              - not_before
+              - not_after
+              - fingerprint_sha256
+              - serial_number
+              - created_at
+              - pem
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: ca-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - common_name
+              - subject
+              - issuer_common_name
+              - issuer
+              - not_before
+              - not_after
+              - fingerprint_sha256
+              - serial_number
+              - created_at
+              - pem
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-event-cas-tab
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - common_name
+              - subject
+              - issuer_common_name
+              - issuer
+              - not_before
+              - not_after
+              - fingerprint_sha256
+              - serial_number
+              - pem
+              - created_at
+          filter: {}
+      role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: ca-write
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

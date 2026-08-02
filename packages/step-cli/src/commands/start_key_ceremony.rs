@@ -7,6 +7,7 @@ use crate::{
     utils::{read_config::read_config, trustees::get::GetTrustees},
 };
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -46,10 +47,14 @@ impl StartKeyCeremony {
             self.name.as_deref(),
         ) {
             Ok(id) => {
-                println!("Success! Successfully started key ceremony. ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Successfully started Keys Ceremony. ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
-                eprintln!("Error! Failed to start key ceremony: {}", err)
+                eprintln!("Error! Failed to start Keys Ceremony: {}", err)
             }
         }
     }

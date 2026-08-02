@@ -23,7 +23,6 @@ pub async fn create_election_sqlite(
             last_updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             labels TEXT,
             annotations TEXT,
-            name TEXT NOT NULL,
             description TEXT,
             presentation TEXT,
             status TEXT,
@@ -31,7 +30,7 @@ pub async fn create_election_sqlite(
             num_allowed_revotes INTEGER,
             is_consolidated_ballot_encoding BOOLEAN,
             spoil_ballot_option BOOLEAN,
-            alias TEXT,
+            external_id TEXT,
             voting_channels TEXT,
             is_kiosk BOOLEAN DEFAULT FALSE,
             image_document_id TEXT,
@@ -46,16 +45,16 @@ pub async fn create_election_sqlite(
     let mut statement = sqlite_transaction.prepare(
         "INSERT INTO election (
                 id, tenant_id, election_event_id, created_at, last_updated_at, labels,
-                annotations, name, description, presentation, status, eml,
+                annotations, description, presentation, status, eml,
                 num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option,
-                alias, voting_channels, is_kiosk, image_document_id, statistics,
+                external_id, voting_channels, is_kiosk, image_document_id, statistics,
                 receipts, permission_label, keys_ceremony_id, initialization_report_generated
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6,
                 ?7, ?8, ?9, ?10, ?11, ?12,
                 ?13, ?14, ?15,
                 ?16, ?17, ?18, ?19, ?20,
-                ?21, ?22, ?23, ?24
+                ?21, ?22, ?23
             )",
     )?;
 
@@ -79,44 +78,42 @@ pub async fn create_election_sqlite(
                 .as_ref()
                 .and_then(|v| to_string(v).ok()),
             // 8
-            election.name,
-            // 9
             election.description,
-            // 10
+            // 9
             election
                 .presentation
                 .as_ref()
                 .and_then(|v| to_string(v).ok()),
-            // 11
+            // 10
             election.status.as_ref().and_then(|v| to_string(v).ok()),
-            // 12
+            // 11
             election.eml,
-            // 13
+            // 12
             election.num_allowed_revotes,
-            // 14
+            // 13
             election.is_consolidated_ballot_encoding,
-            // 15
+            // 14
             election.spoil_ballot_option,
+            // 15
+            election.external_id,
             // 16
-            election.alias,
-            // 17
             election
                 .voting_channels
                 .as_ref()
                 .and_then(|v| to_string(v).ok()),
-            // 18
+            // 17
             election.is_kiosk.unwrap_or(false),
-            // 19
+            // 18
             election.image_document_id,
-            // 20
+            // 19
             election.statistics.as_ref().and_then(|v| to_string(v).ok()),
-            // 21
+            // 20
             election.receipts.as_ref().and_then(|v| to_string(v).ok()),
-            // 22
+            // 21
             election.permission_label,
-            // 23
+            // 22
             election.keys_ceremony_id,
-            // 24
+            // 23
             election.initialization_report_generated,
         ])?;
     }

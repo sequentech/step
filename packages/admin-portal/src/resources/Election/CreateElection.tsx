@@ -36,6 +36,7 @@ import {useMutation} from "@apollo/client"
 import {CREATE_ELECTION} from "@/queries/CreateElection"
 import {CreateElectionMutation} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {serializeIvrEntityAnnotations} from "@/utils/ivr"
 
 const Hidden = styled(Box)`
     display: none;
@@ -85,6 +86,7 @@ export const CreateElection: React.FC = () => {
             i18n,
             language_conf: tenantLangConf,
         }
+        data.annotations = serializeIvrEntityAnnotations(data.annotations)
         return {
             ...data,
             presentation,
@@ -95,6 +97,7 @@ export const CreateElection: React.FC = () => {
         let electionSubmit = input0 as {
             name: string
             description?: string
+            external_id: string
             presentation: IElectionPresentation
         }
         let i18n = addDefaultTranslationsToElement(electionSubmit)
@@ -123,7 +126,7 @@ export const CreateElection: React.FC = () => {
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
-                    name: electionSubmit.name,
+                    externalId: electionSubmit.external_id,
                     presentation: electionSubmit.presentation,
                     description: electionSubmit.description,
                 },
@@ -151,8 +154,13 @@ export const CreateElection: React.FC = () => {
         >
             <Typography variant="h4">{t("common.resources.election")}</Typography>
             <Typography variant="body2">{t("createResource.election")}</Typography>
-            <TextInput source="name" />
-            <TextInput source="description" />
+            <TextInput source="name" required label={String(t("electionScreen.field.name"))} />
+            <TextInput
+                source="external_id"
+                label={String(t("electionScreen.field.externalId"))}
+                required
+            />
+            <TextInput source="description" label={String(t("electionScreen.field.description"))} />
             <Hidden>
                 <BooleanInput source="is_consolidated_ballot_encoding" />
                 <BooleanInput source="spoil_ballot_option" />

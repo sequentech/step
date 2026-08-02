@@ -6,6 +6,7 @@ use crate::utils::read_config::load_external_config;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use clap::Args;
+use colored::Colorize;
 use electoral_log::messages::message::{Message, Sender};
 use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::messages::statement::{
@@ -45,7 +46,7 @@ impl CreateElectoralLogs {
         match runtime
             .block_on(self.run_create_electoral_logs(&self.working_directory, self.num_logs))
         {
-            Ok(_) => println!("Successfully created electoral logs."),
+            Ok(_) => println!("{}", "Successfully created electoral logs.".green()),
             Err(err) => eprintln!("Error! Failed to create electoral logs: {err:?}"),
         }
     }
@@ -124,18 +125,22 @@ impl CreateElectoralLogs {
             .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
 
         let keycloak_query = "\
-            SELECT 
-                ue.id,
-                ue.username
+            SELECT ue.id, ue.username \
             FROM user_entity AS ue \
             JOIN realm AS r ON ue.realm_id = r.id \
-            JOIN user_attribute AS ua ON ue.id = ua.user_id \
-            WHERE r.name = $1 AND ua.name = 'area-id' AND ua.value = $2 \
-            LIMIT $3 OFFSET 0";
+            WHERE r.name = $1 \
+            LIMIT $2 OFFSET 0";
 
-        let users = kc_client
-            .query(keycloak_query, &[&realm_name, &area_id, &(num_logs as i64)])
-            .await?;
+        let users = match kc_client
+            .query(keycloak_query, &[&realm_name, &(num_logs as i64)])
+            .await
+        {
+            Ok(rows) => rows,
+            Err(e) => {
+                println!("It was not possible to query Keycloak: {e:?}");
+                vec![]
+            }
+        };
 
         let existing_users: Vec<Voter> = users
             .iter()
@@ -147,7 +152,15 @@ impl CreateElectoralLogs {
             .collect();
 
         let mut logs_params: Vec<Vec<NamedParam>> = Vec::new();
-        for user in existing_users {
+        for i in 0..num_logs {
+            let user = if existing_users.is_empty() {
+                Voter {
+                    id: None,
+                    username: None,
+                }
+            } else {
+                existing_users[i % existing_users.len()].clone()
+            };
             let username = Some(user.username.clone().unwrap_or_else(|| Username(EN).fake()));
             let user_id_cloned = user.id.clone();
 
@@ -226,16 +239,22 @@ impl CreateElectoralLogs {
             logs_params.push(params);
         }
 
-        provide_immudb_transaction(
-            |client, tx_id| {
-                let logs_params = logs_params.clone();
-                Box::pin(async move { insert_logs(client, &tx_id, logs_params).await })
-            },
-            immudb_db.as_str(),
-        )
-        .await?;
+        println!("Concatenated {} logs.", logs_params.len());
 
-        println!("Inserted {} logs.", num_logs);
+        let batch_size = 1000;
+        for chunk in logs_params.chunks(batch_size) {
+            let chunk = chunk.to_vec();
+            provide_immudb_transaction(
+                |client, tx_id| {
+                    let chunk = chunk.clone();
+                    Box::pin(async move { insert_logs(client, &tx_id, chunk).await })
+                },
+                immudb_db.as_str(),
+            )
+            .await?;
+        }
+
+        println!("Inserted {} logs.", logs_params.len());
 
         Ok(())
     }
@@ -246,37 +265,30 @@ async fn insert_logs(
     tx_id: &str,
     logs_params: Vec<Vec<NamedParam>>,
 ) -> Result<()> {
-    let batch_size = env::var("DEFAULT_SQL_BATCH_SIZE")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(1000);
+    let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
+    let mut values_clauses = Vec::new();
+    let mut all_params: Vec<NamedParam> = Vec::new();
+    let mut row_index = 1;
 
-    for batch in logs_params.chunks(batch_size) {
-        let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
-        let mut values_clauses = Vec::new();
-        let mut all_params: Vec<NamedParam> = Vec::new();
-        let mut row_index = 1;
-
-        for row in batch {
-            let mut clause_parts = Vec::new();
-            for param in row {
-                let new_name = format!("{}{}", param.name, row_index);
-                clause_parts.push(format!("@{}", new_name));
-                all_params.push(NamedParam {
-                    name: new_name,
-                    value: param.value.clone(),
-                });
-            }
-            row_index += 1;
-            values_clauses.push(format!("({})", clause_parts.join(", ")));
+    for row in &logs_params {
+        let mut clause_parts = Vec::new();
+        for param in row {
+            let new_name = format!("{}{}", param.name, row_index);
+            clause_parts.push(format!("@{}", new_name));
+            all_params.push(NamedParam {
+                name: new_name,
+                value: param.value.clone(),
+            });
         }
-
-        query.push_str(&values_clauses.join(", "));
-        client
-            .tx_sql_exec(&query, &(tx_id.to_string()), all_params)
-            .await
-            .map_err(|e| anyhow!("Failed to execute query: {:?}", e))?;
+        row_index += 1;
+        values_clauses.push(format!("({})", clause_parts.join(", ")));
     }
+
+    query.push_str(&values_clauses.join(", "));
+    client
+        .tx_sql_exec(&query, &(tx_id.to_string()), all_params)
+        .await
+        .map_err(|e| anyhow!("Failed to execute query: {:?}", e))?;
 
     Ok(())
 }

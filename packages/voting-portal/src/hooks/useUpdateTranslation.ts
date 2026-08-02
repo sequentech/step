@@ -15,6 +15,9 @@ const useUpdateTranslation = (
     setDefaultLanguageTouched: (value: boolean) => void
 ) => {
     // Overwrites translations based on the election event presentation
+    // Update Language based on presentation only if default language has not been touched,
+    // So search param "lang" > user selected locale (saved in cookie) >
+    // language detection policy (force default) > browser settings
     useEffect(() => {
         if (!electionEvent?.presentation) {
             return

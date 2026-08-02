@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::AreaContest;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -72,11 +73,11 @@ pub async fn insert_area_contests(
             .query(
                 &statement,
                 &[
-                    &Uuid::parse_str(&area_contest.id)?,
-                    &Uuid::parse_str(tenant_id)?,
-                    &Uuid::parse_str(election_event_id)?,
-                    &Uuid::parse_str(&area_contest.contest_id)?,
-                    &Uuid::parse_str(&area_contest.area_id)?,
+                    &parse_uuid_v4(&area_contest.id)?,
+                    &parse_uuid_v4(tenant_id)?,
+                    &parse_uuid_v4(election_event_id)?,
+                    &parse_uuid_v4(&area_contest.contest_id)?,
+                    &parse_uuid_v4(&area_contest.area_id)?,
                 ],
             )
             .await
@@ -110,8 +111,8 @@ pub async fn export_area_contests(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -153,9 +154,9 @@ pub async fn get_areas_by_contest_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;
@@ -167,6 +168,46 @@ pub async fn get_areas_by_contest_id(
 }
 
 #[instrument(err, skip_all)]
+pub async fn area_contest_exists(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    contest_id: &str,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id
+                FROM
+                    sequent_backend.area_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    area_id = $3 AND
+                    contest_id = $4
+                LIMIT 1;
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(contest_id)?,
+            ],
+        )
+        .await?;
+
+    Ok(!rows.is_empty())
+}
+
+#[instrument(err, skip_all)]
 pub async fn get_area_contests_by_area_contest_ids(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -174,15 +215,15 @@ pub async fn get_area_contests_by_area_contest_ids(
     area_ids: &Vec<String>,
     contest_ids: &Vec<String>,
 ) -> Result<Vec<AreaContest>> {
-    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
-    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
+    let uuid_election_event_id = parse_uuid_v4(election_event_id)?;
     let uuid_area_ids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
     let uuid_contest_ids: Vec<Uuid> = contest_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
 
     let statement = hasura_transaction

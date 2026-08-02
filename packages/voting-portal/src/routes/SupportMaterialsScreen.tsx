@@ -6,7 +6,7 @@ import {Box, Button, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
-import {stringToHtml, translate, translateElection} from "@sequentech/ui-core"
+import {stringToHtml, translate, translateFromPresentation} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -102,6 +102,7 @@ const SupportMaterialsScreen: React.FC = () => {
     }, [materials])
 
     const [materialsTitles, setMaterialsTitles] = useState<IElectionEvent | undefined>()
+    const defaultLanguageCode = materialsTitles?.presentation?.language_conf?.default_language_code
 
     useEffect(() => {
         if (electionEvent) {
@@ -131,10 +132,11 @@ const SupportMaterialsScreen: React.FC = () => {
                     <StyledTitle variant="h1">
                         <Box>
                             {materialsTitles &&
-                                (translateElection(
+                                (translateFromPresentation(
                                     materialsTitles,
                                     "materialsTitle",
-                                    i18n.language
+                                    i18n.language,
+                                    {defaultLanguageCode}
                                 ) ??
                                     "-")}
                         </Box>
@@ -142,10 +144,11 @@ const SupportMaterialsScreen: React.FC = () => {
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                         {stringToHtml(
                             materialsTitles
-                                ? (translateElection(
+                                ? (translateFromPresentation(
                                       materialsTitles,
                                       "materialsSubtitle",
-                                      i18n.language
+                                      i18n.language,
+                                      {defaultLanguageCode}
                                   ) ?? "-")
                                 : ""
                         )}

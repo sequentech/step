@@ -5,12 +5,12 @@
 use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-
 #[derive(Args, Debug)]
 #[command(about = "Export an election event", long_about = None)]
 pub struct ExportElectionEventCommand {
@@ -76,7 +76,10 @@ impl ExportElectionEventCommand {
             self.encrypted,
         ) {
             Ok(_) => {
-                println!("Success! Election event exported successfully!");
+                println!(
+                    "{}",
+                    "Success! Election event exported successfully!".green()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to export election event: {}", err)
@@ -122,6 +125,7 @@ pub fn export_election_event(
             reports: Some(reports),
             applications: Some(applications),
             tally: Some(tally),
+            include_certificates: Some(true),
         }),
     };
 

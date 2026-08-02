@@ -18,12 +18,12 @@ use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
-lazy_static! {
-    static ref SAFE_CHARS_RE: Regex = Regex::new(r"[^a-zA-Z0-9._-]").unwrap();
-}
+static SAFE_CHARS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("Failed to build safe chars regex"));
 
 pub const USER_FIELDS: [&str; 8] = [
     "id",

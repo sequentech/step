@@ -22,6 +22,7 @@ import {COUNTRIES} from "@/lib/countries"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ListActions} from "@/components/ListActions"
 import {Sequent_Backend_Election} from "@/gql/graphql"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const ListStyle = styled(List)`
     button.RaFilterFormInput-hideButton {
@@ -54,6 +55,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
+    const aliasRenderer = useAliasRenderer()
     const record = useRecordContext<Sequent_Backend_Election>()
 
     const electionEventId = record?.election_event_id ?? record?.id
@@ -135,10 +137,13 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
                         sortable={false}
                         label={t(`dashboard.ipAddress.VoteCount`)}
                     />
-                    <TextField
-                        source="election_name"
+                    <FunctionField
+                        source="election_presentation"
                         sortable={false}
                         label={t(`dashboard.ipAddress.ElectionName`)}
+                        render={(record) => {
+                            return aliasRenderer(record.election_presentation)
+                        }}
                     />
                     <TextField
                         source="voters_id"

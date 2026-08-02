@@ -55,6 +55,7 @@ export interface IAnswerProps {
     explicitBlank: boolean
     setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
+    showWhenListSelected?: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -76,6 +77,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     explicitBlank,
     setExplicitBlank,
     setIsTouched,
+    showWhenListSelected,
 }) => {
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = useMemo(() => {
@@ -110,15 +112,10 @@ export const Answer: React.FC<IAnswerProps> = ({
     const isChecked = (): boolean => {
         if (isInvalidVote) {
             return !isUndefined(questionState) && questionState.is_explicit_invalid
-        } else if (isExplicitBlankVote) {
-            return (
-                !isUndefined(questionState) &&
-                !!ballotService.checkIsBlank(questionState) &&
-                explicitBlank
-            )
-        } else {
-            return !isUndefined(selectionState) && selectionState.selected > -1
         }
+        // Explicit blank candidates intentionally use the standard
+        // selection logic.
+        return !isUndefined(selectionState) && selectionState.selected > -1
     }
     const setInvalidVote = (value: boolean) => {
         dispatch(
@@ -136,6 +133,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             setBallotSelectionBlankVote({
                 ballotStyle,
                 contestId,
+                candidateId: answer.id,
             })
         )
     }
@@ -175,6 +173,17 @@ export const Answer: React.FC<IAnswerProps> = ({
                 setBlankVote()
             } else {
                 setExplicitBlank(false)
+                dispatch(
+                    setBallotSelectionVoteChoice({
+                        ballotStyle,
+                        contestId,
+                        voteChoice: {
+                            id: answer.id,
+                            selected: -1,
+                            write_in_text: selectionState?.write_in_text,
+                        },
+                    })
+                )
             }
             return
         } else if (value && explicitBlank) {
@@ -207,7 +216,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    const shouldDisable = disableSelect && selectionState?.selected === -1
+    const shouldDisable = disableSelect && !isChecked()
 
     const isWriteIn = checkIsWriteIn(answer)
     const allowWriteIns = question && checkAllowWriteIns(question)
@@ -231,11 +240,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
-    if (isReview && !isChecked()) {
-        return null
-    }
-
-    if (isReview && !!isExplicitBlankVote) {
+    if (isReview && !isChecked() && !showWhenListSelected) {
         return null
     }
 
@@ -243,6 +248,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         <Candidate
             isPreferentialVote={isPreferentialVote}
             totalCandidates={totalCandidates}
+            maxVotes={contest.max_votes}
             title={translate(answer, "name", i18n.language)}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isSelectable={isSelectable}

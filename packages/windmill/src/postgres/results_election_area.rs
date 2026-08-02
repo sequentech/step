@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::{ResultDocuments, ResultsElectionArea};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -51,16 +52,16 @@ pub async fn insert_results_election_area_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid =
+        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -103,9 +104,9 @@ pub async fn get_event_results_election_area(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsElectionArea>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
@@ -169,12 +170,12 @@ pub async fn insert_many_results_elections_areas(
             let documents_json = a.documents.map(|v| serde_json::to_value(&v)).transpose()?;
 
             Ok(InsertableResultsElectionArea {
-                id: Uuid::parse_str(&a.id)?,
-                tenant_id: Uuid::parse_str(&a.tenant_id)?,
-                election_event_id: Uuid::parse_str(&a.election_event_id)?,
-                election_id: Uuid::parse_str(&a.election_id)?,
-                area_id: Uuid::parse_str(&a.area_id)?,
-                results_event_id: Uuid::parse_str(&a.results_event_id)?,
+                id: parse_uuid_v4(&a.id)?,
+                tenant_id: parse_uuid_v4(&a.tenant_id)?,
+                election_event_id: parse_uuid_v4(&a.election_event_id)?,
+                election_id: parse_uuid_v4(&a.election_id)?,
+                area_id: parse_uuid_v4(&a.area_id)?,
+                results_event_id: parse_uuid_v4(&a.results_event_id)?,
                 created_at: a.created_at,
                 last_updated_at: a.last_updated_at,
                 documents: documents_json,

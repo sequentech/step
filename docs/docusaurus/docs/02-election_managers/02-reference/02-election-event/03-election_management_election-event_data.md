@@ -51,6 +51,10 @@ Manage language options for your Election Event. The selected languages will be 
 
 - Use radio buttons to select the languages available.
 - Set the default language by selecting **Default** next to the appropriate language.
+- **Language Detection Policy**: 
+  Affects the default language in the Voting Portal.
+  - **Browser Detect**: The default language will be determined by the browser.
+  - **Force Default**: The default language will be the one selected as **Default**.
 
 ## Ballot Design
 
@@ -62,7 +66,7 @@ Manage how the ballot appears in the Voting Portal.
 - **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
-- **Custom CSS**: Apply custom styles to the ballot design.
+- **Custom CSS**: Apply custom styles to the ballot design. Ballot error and warning messages expose stable CSS classes that can be targeted here — see [Styling Ballot Errors and Warnings with Custom CSS](../08-ballot-errors-custom-css.md).
 
 ## Voting Channels Allowed
 

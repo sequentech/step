@@ -1,25 +1,38 @@
 
 <div class="content">
-  <h1 class="title">Election Results "{{ reports.0.election_name }}"</h1>
+  <h1 class="title">Election Results "{{ reports.0.election_name }}" {{#if reports.0.election_alias}}<span>("{{ reports.0.election_alias }}")<span>{{/if}}</h1>
   <div id="dateDiv">
     {{ timestamp }}
   </div>
   
   {{ #each reports as |report| }}
+  <div class="page">
     {{#if report.channel_type}}
       <h2>Channel: {{ sanitize_html report.channel_type }}</h2>
     {{/if}}
     <div style="margin: 12px 0;">
-      <h2 style="margin: 0;">Question: {{ sanitize_html report.contest.name }}</h2>
-      {{#if report.area}}
-        <h2 style="margin: 0;">Area: {{ report.area.name}}</h2>
+      {{#if report.election_results}}
+        <h2 style="margin: 0;">Election: {{ sanitize_html report.election_name}}</h2>
+      {{else}}
+      {{#if report.contest}}
+        <h2 style="margin: 0;">Contest: {{ sanitize_html report.contest.name }}</h2>
       {{/if}}
+      {{#if report.area}}
+          <h2 style="margin: 0;">Area: {{ report.area.name}}</h2>
+      {{/if}}
+       {{#if report.contest}}
       {{#if report.contest.max_votes}}
-        <p class="vote-for">Vote for {{format_u64 report.contest.max_votes}}</p>
+          <p class="vote-for">Vote for {{format_u64 report.contest.max_votes}}</p>
+      {{/if}}
+      {{/if}}
       {{/if}}
     </div>
+    {{#if report.contest}}
     <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
+    {{/if}}
+    
 
+{{#if report.contest}}
     <table>
       <tr>
         <th colspan="2">Configuration Data</th>
@@ -39,7 +52,9 @@
         <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
       </tr>
     </table>
+    {{/if}}
 
+{{#if report.contest}}
     <table>
       <tr>
         <th colspan="3">Participation</th>
@@ -85,10 +100,61 @@
         <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
       </tr>
     </table>
+    {{/if}}
 
+    {{#if report.participation_by_channel}}
+    <table class="section">
+      <tr>
+        <th colspan="3">Participation by channel</th>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Channel</td>
+        <td style="width: 22.5%;">Total</td>
+        <td style="width: 22.5%;">%</td>
+      </tr>
+      {{#each report.participation_by_channel}}
+      <tr>
+        <td style="width: 55%;">{{ sanitize_html label }}</td>
+        <td style="width: 22.5%;">{{ format_u64 total }}</td>
+        <td style="width: 22.5%;">{{ format_percentage_one percentage }}%</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{/if}}
 
+    {{#if report.election_results}}
+    <table>
+      <tr>
+        <th colspan="3">Participation</th>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Summary</td>
+        <td style="width: 22.5%;">Total</td>
+        <td style="width: 22.5%;">%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Eligible Voters</td>
+        <td style="width: 22.5%;">{{ format_u64 report.election_results.census }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.election_results.percentage_census }}%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Total Voters</td>
+        <td style="width: 22.5%;">{{ format_u64 report.election_results.total_votes}}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.election_results.percentage_total_votes }}%</td> 
+      </tr>
+      {{#is_some report.election_results.total_decline_to_vote}}
+      <tr>
+        <td style="width: 55%;">Total Declined to Vote</td>
+        <td style="width: 22.5%;">{{ format_u64 report.election_results.total_decline_to_vote }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.election_results.percentage_total_decline_to_vote }}%</td>
+      </tr>
+      {{/is_some}}
+    </table>
+    {{/if}}
+
+    {{#if report.contest}}
         {{#eq report.contest.counting_algorithm "plurality-at-large"}}
-          <table>
+          <table class="section">
             <tr>
               <th colspan="4">Candidate result</th>
             </tr>
@@ -115,6 +181,7 @@
               {{#each processResults.rounds as |round1 round1Index|}}
                 {{!-- Only create table for even indices (0, 2, 4...) using modulo --}}
                 {{#eq (modulo round1Index 2) "0"}}
+                <div class="section">
                   <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc2 round1Index}}</h3>
                       
                       <table class="candidates">
@@ -179,11 +246,14 @@
                           {{/each}}
                         </tbody>
                       </table>
+                    </div>
                 {{/eq}}
               {{/each}}
             {{/with}}
           {{/if}}
         {{/eq}}
+      {{/if}}
+      </div>
   {{/each}}
 
 </div>

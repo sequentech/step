@@ -13,13 +13,13 @@ use sequent_core::{
 };
 use serde_json::Value as JsonValue;
 use std::fs::File;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-}
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to compile header regex"));
 
 #[instrument(err, skip_all)]
 pub async fn upsert_tenant(

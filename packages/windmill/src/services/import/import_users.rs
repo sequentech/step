@@ -5,6 +5,7 @@
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
@@ -18,37 +19,38 @@ use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::num::NonZeroU32;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-    static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
-    static ref NUMBER_OF_ITERATIONS_COL_NAME: String = String::from("num_of_iterations");
-    static ref SALT_COL_NAME: String = String::from("password_salt");
-    static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
-    static ref PASSWORD_COL_NAME: String = String::from("password");
-    static ref USERNAME_COL_NAME: String = String::from("username");
-    static ref EMAIL_COL_NAME: String = String::from("email");
-    static ref EMAIL_VERIFIED_COL_NAME: String = String::from("email_verified");
-    static ref GROUP_COL_NAME: String = String::from("group_name");
-    static ref AREA_NAME_COL_NAME: String = String::from("area_name");
-    static ref ELECTION_COL_PREFIX: String = String::from("election__");
-    static ref RESERVED_COL_NAMES: Vec<String> = vec![
-        HASHED_PASSWORD_COL_NAME.clone(),
-        SALT_COL_NAME.clone(),
-        PASSWORD_COL_NAME.clone(),
-        GROUP_COL_NAME.clone(),
-        NUMBER_OF_ITERATIONS_COL_NAME.clone(),
-        EMAIL_VERIFIED_COL_NAME.clone()
-    ];
-}
-
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
+static PBKDF2_ITERATIONS: LazyLock<NonZeroU32> =
+    LazyLock::new(|| NonZeroU32::new(27_500).expect("PBKDF2_ITERATIONS must be non-zero"));
+const NUMBER_OF_ITERATIONS_COL_NAME: &str = "num_of_iterations";
+const SALT_COL_NAME: &str = "password_salt";
+const HASHED_PASSWORD_COL_NAME: &str = "hashed_password";
+const PASSWORD_COL_NAME: &str = "password";
+const USERNAME_COL_NAME: &str = "username";
+const EMAIL_COL_NAME: &str = "email";
+const EMAIL_VERIFIED_COL_NAME: &str = "email_verified";
+const GROUP_COL_NAME: &str = "group_name";
+const AREA_NAME_COL_NAME: &str = "area_name";
+const ELECTION_COL_PREFIX: &str = "election__";
+const RESERVED_COL_NAMES: [&str; 6] = [
+    HASHED_PASSWORD_COL_NAME,
+    SALT_COL_NAME,
+    PASSWORD_COL_NAME,
+    GROUP_COL_NAME,
+    NUMBER_OF_ITERATIONS_COL_NAME,
+    EMAIL_VERIFIED_COL_NAME,
+];
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
@@ -113,7 +115,7 @@ fn get_copy_from_query(
     let input_column_names = headers_vec
         .iter()
         .map(|column_name| match column_name.as_str() {
-            column_name if column_name == *AREA_NAME_COL_NAME => AREA_ID_ATTR_NAME.to_string(),
+            column_name if column_name == AREA_NAME_COL_NAME => AREA_ID_ATTR_NAME.to_string(),
             _ => column_name.clone(),
         })
         .collect::<Vec<String>>();
@@ -125,44 +127,43 @@ fn get_copy_from_query(
     let processed_column_names = headers_vec
         .iter()
         .filter_map(|column_name| match column_name.as_str() {
-            column_name if column_name == *AREA_NAME_COL_NAME => {
-                Some(AREA_ID_ATTR_NAME.to_string())
-            }
-            column_name if column_name == *PASSWORD_COL_NAME => None,
-            column_name if column_name == *SALT_COL_NAME => None,
-            column_name if column_name == *HASHED_PASSWORD_COL_NAME => None,
-            column_name if column_name == *NUMBER_OF_ITERATIONS_COL_NAME => None,
+            column_name if column_name == AREA_NAME_COL_NAME => Some(AREA_ID_ATTR_NAME.to_string()),
+            column_name if column_name == PASSWORD_COL_NAME => None,
+            column_name if column_name == SALT_COL_NAME => None,
+            column_name if column_name == HASHED_PASSWORD_COL_NAME => None,
+            column_name if column_name == NUMBER_OF_ITERATIONS_COL_NAME => None,
             _ => Some(column_name.clone()),
         })
-        .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
+        .chain(if headers_vec.iter().any(|s| s == PASSWORD_COL_NAME) {
             vec![
-                SALT_COL_NAME.clone(),
-                HASHED_PASSWORD_COL_NAME.clone(),
-                NUMBER_OF_ITERATIONS_COL_NAME.clone(),
+                SALT_COL_NAME.to_string(),
+                HASHED_PASSWORD_COL_NAME.to_string(),
+                NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
             ]
             .into_iter()
-        } else if headers_vec.contains(&HASHED_PASSWORD_COL_NAME) {
+        } else if headers_vec.iter().any(|s| s == HASHED_PASSWORD_COL_NAME) {
             vec![
-                SALT_COL_NAME.clone(),
-                HASHED_PASSWORD_COL_NAME.clone(),
-                NUMBER_OF_ITERATIONS_COL_NAME.clone(),
+                SALT_COL_NAME.to_string(),
+                HASHED_PASSWORD_COL_NAME.to_string(),
+                NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
             ]
             .into_iter()
         } else {
             Vec::new().into_iter()
         })
         // note that in this case, username is at the end
-        .chain(if !headers_vec.contains(&USERNAME_COL_NAME) {
-            vec![USERNAME_COL_NAME.clone()].into_iter()
+        .chain(if !headers_vec.iter().any(|s| s == USERNAME_COL_NAME) {
+            vec![USERNAME_COL_NAME.to_string()].into_iter()
         } else {
             Vec::new().into_iter()
         })
         .collect::<Vec<String>>();
 
     // Create the table creation query
+    let quoted_table_name = escape_sql_identifier(&temp_table_name);
     let create_table_query = format!(
         "CREATE TEMP TABLE {} ({});",
-        temp_table_name,
+        quoted_table_name,
         processed_column_names
             .iter()
             .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
@@ -171,7 +172,7 @@ fn get_copy_from_query(
     );
 
     // Create the COPY FROM STDIN query
-    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", temp_table_name);
+    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", quoted_table_name);
 
     let processed_column_types = processed_column_names
         .iter()
@@ -202,6 +203,14 @@ fn get_insert_user_query(
     voters_table: String,
     voters_table_columns: &Vec<String>,
 ) -> anyhow::Result<String> {
+    parse_uuid_v4(&tenant_id)
+        .with_context(|| format!("invalid v4 UUID for tenant_id: {}", tenant_id))?;
+    parse_uuid_v4(&realm_id)
+        .with_context(|| format!("invalid v4 UUID for realm_id: {}", realm_id))?;
+    let realm_id = escape_sql_literal(&realm_id);
+    let tenant_id = escape_sql_literal(&tenant_id);
+    let voters_table = escape_sql_identifier(&voters_table);
+
     // Build the INSERT query for user_entity
     let user_entity_columns = vec![
         "id",
@@ -289,8 +298,8 @@ fn get_insert_user_query(
         .into_iter()
         .filter(|col| {
             !user_entity_columns.contains(&col.as_str())
-                && !RESERVED_COL_NAMES.contains(&col)
-                && !col.starts_with(&*ELECTION_COL_PREFIX)
+                && !RESERVED_COL_NAMES.iter().any(|&s| s == col)
+                && !col.starts_with(ELECTION_COL_PREFIX)
         })
         .collect::<Vec<String>>();
 
@@ -337,8 +346,8 @@ fn get_insert_user_query(
         String::new()
     };
 
-    let group_name = if voters_table_columns.contains(&*GROUP_COL_NAME) {
-        format!("v.{}", &*GROUP_COL_NAME)
+    let group_name = if voters_table_columns.iter().any(|s| s == GROUP_COL_NAME) {
+        format!("v.{GROUP_COL_NAME}")
     } else {
         "'voter'".to_string()
     };
@@ -376,12 +385,17 @@ fn get_insert_user_query(
     );
 
     // Inserts password credentials if need be
-    let salt_col_name = &*SALT_COL_NAME;
-    let hashed_password_col_name = &*HASHED_PASSWORD_COL_NAME;
-    // let num_iterations = &*PBKDF2_ITERATIONS;
-    let credentials_query = if voters_table_columns.contains(hashed_password_col_name) {
-        let num_iterations = if voters_table_columns.contains(&*NUMBER_OF_ITERATIONS_COL_NAME) {
-            format!("v.{}", &*NUMBER_OF_ITERATIONS_COL_NAME)
+    let salt_col_name = SALT_COL_NAME;
+    let hashed_password_col_name = HASHED_PASSWORD_COL_NAME;
+    let credentials_query = if voters_table_columns
+        .iter()
+        .any(|s| s == hashed_password_col_name)
+    {
+        let num_iterations = if voters_table_columns
+            .iter()
+            .any(|s| s == NUMBER_OF_ITERATIONS_COL_NAME)
+        {
+            format!("v.{NUMBER_OF_ITERATIONS_COL_NAME}")
         } else {
             PBKDF2_ITERATIONS.to_string()
         };
@@ -629,23 +643,23 @@ pub async fn import_users_file(
                             }
                         }
                     }
-                    column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
-                    column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
-                    column_name if column_name == &*EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == USERNAME_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == EMAIL_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
                     _ => data.to_string(),
                 };
 
-            if column_name == &*PASSWORD_COL_NAME {
+            if column_name == PASSWORD_COL_NAME {
                 info!("password = {processed_data}");
                 password = Some(data.to_string());
-            } else if column_name == &*NUMBER_OF_ITERATIONS_COL_NAME {
+            } else if column_name == NUMBER_OF_ITERATIONS_COL_NAME {
                 num_of_iterations = match data.parse::<u32>() {
                     Ok(value) => NonZeroU32::new(value).unwrap_or(*PBKDF2_ITERATIONS),
                     Err(_) => *PBKDF2_ITERATIONS,
                 };
-            } else if column_name == &*SALT_COL_NAME {
+            } else if column_name == SALT_COL_NAME {
                 password_salt = Some(data.to_string());
-            } else if column_name == &*HASHED_PASSWORD_COL_NAME {
+            } else if column_name == HASHED_PASSWORD_COL_NAME {
                 hashed_password = Some(data.to_string());
             } else {
                 owned_data.push(processed_data);
@@ -663,13 +677,19 @@ pub async fn import_users_file(
             );
         }
 
-        if voters_table_processed_columns_names.contains(&*HASHED_PASSWORD_COL_NAME) {
+        if voters_table_processed_columns_names
+            .iter()
+            .any(|s| s == HASHED_PASSWORD_COL_NAME)
+        {
             owned_data.push(password_salt.ok_or_else(|| anyhow!("Password salt empty"))?);
             owned_data.push(hashed_password.ok_or_else(|| anyhow!("Hashed password empty"))?);
             owned_data.push(num_of_iterations.get().to_string());
         }
 
-        if !voters_table_input_columns_names.contains(&*USERNAME_COL_NAME) {
+        if !voters_table_input_columns_names
+            .iter()
+            .any(|s| s == USERNAME_COL_NAME)
+        {
             let username = Uuid::new_v4().to_string();
             owned_data.push(username);
         }

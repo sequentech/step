@@ -44,6 +44,8 @@ path = [
 	"packages/voting-portal/src/gql/**",
 	"packages/voting-portal/tests_output/**",
 	"packages/voting-portal/reports/**",
+	"packages/results-portal/graphql.schema.json",
+	"packages/results-portal/src/gql/**",
 	"packages/windmill/src/graphql/**",
 	"packages/immudb-rs/proto/immudb/**",
 	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
@@ -54,7 +56,8 @@ path = [
 	".devcontainer/minio/public-assets/**",
 	".devcontainer/minio/certs.json",
 	"packages/orare/doc_renderer/assets/**",
-	"packages/windmill/external-bin/janitor/**.xlsx"
+	"packages/windmill/external-bin/janitor/**.xlsx",
+	"packages/strand/browserstack/package-lock.json"
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2025 Sequent Tech <legal@sequentech.io>"

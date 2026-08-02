@@ -6,6 +6,7 @@
 name = "step-cli"
 version = "0.1.0"
 edition = "2021"
+default-run = "step-cli"
 
 [dependencies]
 anyhow = "1.0"
@@ -36,6 +37,8 @@ hex = "0.4"
 ring = "0.17"
 sha2 = "0.10"
 base64 = "0.22"
+
+colored = "3.0"
 
 url = "2"
 

@@ -15,6 +15,7 @@ use crate::{
     },
 };
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -42,7 +43,11 @@ impl PublishChanges {
             self.election_id.as_ref().map(String::as_str),
         ) {
             Ok(id) => {
-                println!("Success! Published successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Published successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to publish: {}", err)
@@ -61,7 +66,6 @@ pub fn publish_changes(
 
     let ballot_publication_id =
         GenerateBallotPublication::generate(election_event_id, election_id)?;
-    println!("Ballot Publication ID: {}", ballot_publication_id);
 
     // Wait for publication to generate
     // Poll for the publication to be available

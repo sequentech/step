@@ -273,6 +273,7 @@ export const PreferentialVote: Story = {
         url: "https://google.com",
         isPreferentialVote: true,
         totalCandidates: 10,
+        maxVotes: 3,
     },
     parameters: {
         viewport: {

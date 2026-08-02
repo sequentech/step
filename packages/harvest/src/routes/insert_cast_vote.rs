@@ -7,17 +7,20 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::VoterPermissions;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::Duration;
 use std::time::Instant;
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
+use windmill::services::celery_app::get_celery_app;
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
     InsertCastVoteOutput, InsertCastVoteResult,
 };
+use windmill::tasks::process_cast_vote;
 
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
@@ -49,6 +52,10 @@ pub async fn insert_cast_vote(
             ErrorCode::Unauthorized,
         )
     })?;
+    let auth_time = &claims.auth_time.or_else(|| {
+        matches!(voting_channel, VotingStatusChannel::TELEPHONE)
+            .then_some(claims.iat)
+    });
 
     info!("insert-cast-vote: starting");
 
@@ -61,7 +68,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.user_id,
                 &area_id,
                 voting_channel,
-                &claims.auth_time,
+                auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
                     .country_code
@@ -81,7 +88,11 @@ pub async fn insert_cast_vote(
     let insert_result = match insert_result_wrapped {
         Ok(insert_cv_result) => match insert_cv_result {
             InsertCastVoteResult::Success(inserted_cast_vote) => {
-                Ok(inserted_cast_vote)
+                Ok((inserted_cast_vote, None))
+            }
+            InsertCastVoteResult::PendingDatafix(inserted_cast_vote) => {
+                let cast_vote_id = inserted_cast_vote.id.clone();
+                Ok((inserted_cast_vote, Some(cast_vote_id)))
             }
             InsertCastVoteResult::SkipRetryFailure(cast_vote_error) => {
                 Err(cast_vote_error)
@@ -90,7 +101,7 @@ pub async fn insert_cast_vote(
         Err(e) => Err(e),
     };
 
-    let inserted_cast_vote = insert_result
+    let (inserted_cast_vote, pending_cast_vote_id) = insert_result
     .map_err(|cast_vote_err| {
         let duration = start.elapsed();
         info!(
@@ -112,6 +123,11 @@ pub async fn insert_cast_vote(
                     ErrorCode::ElectionEventNotFound,
                 )
             }
+            CastVoteError::InvalidDatafixConfiguration(_) => ErrorResponse::new(
+                Status::InternalServerError,
+                "Invalid Datafix election event configuration",
+                ErrorCode::InternalServerError,
+            ),
             CastVoteError::ElectoralLogNotFound(_) => {
                 ErrorResponse::new(
                     Status::NotFound,
@@ -133,6 +149,11 @@ pub async fn insert_cast_vote(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
+            ),
+            CastVoteError::VoterStateLocked(_) => ErrorResponse::new(
+                Status::Conflict,
+                "The voter state is being updated; retry the vote",
+                ErrorCode::CheckStatusFailed,
             ),
             CastVoteError::CheckPreviousVotesFailed(msg) => {
                 ErrorResponse::new(
@@ -272,6 +293,29 @@ pub async fn insert_cast_vote(
         "insert-cast-vote took {} ms to complete and succeeded.",
         duration.as_millis()
     );
-    debug!(cast_vote = ?inserted_cast_vote, "CastVote inserted: ");
+
+    if let Some(cast_vote_id) = pending_cast_vote_id {
+        // The Datafix vote is already committed: an enqueue failure must not
+        // fail the request. The review beat recovers in-progress rows.
+        let celery_app = get_celery_app().await;
+        match celery_app
+            .send_task(process_cast_vote::process_cast_vote::new(
+                inserted_cast_vote.tenant_id.clone(),
+                inserted_cast_vote.election_event_id.clone(),
+                cast_vote_id.clone(),
+            ))
+            .await
+        {
+            Ok(celery_task) => {
+                info!("Sent process_cast_vote task {}", celery_task.task_id);
+            }
+            Err(e) => {
+                error!(
+                    "Error sending process_cast_vote task for cast vote {cast_vote_id}: {e:?}; the review_cast_votes beat will retry it"
+                );
+            }
+        }
+    }
+
     Ok(Json(inserted_cast_vote))
 }

@@ -4,6 +4,7 @@
 
 package sequent.keycloak.conditional_authenticators;
 
+import java.util.Arrays;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.authenticators.conditional.ConditionalAuthenticator;
@@ -22,6 +23,14 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 public class ConditionalClientAuthenticator implements ConditionalAuthenticator {
   public static final ConditionalClientAuthenticator SINGLETON =
       new ConditionalClientAuthenticator();
+
+  static boolean matchesConfiguredClient(String configuredClientIds, String clientId) {
+    return configuredClientIds != null
+        && clientId != null
+        && Arrays.stream(configuredClientIds.split(","))
+            .map(String::trim)
+            .anyMatch(clientId::equals);
+  }
 
   @Override
   public boolean matchCondition(AuthenticationFlowContext context) {
@@ -53,7 +62,7 @@ public class ConditionalClientAuthenticator implements ConditionalAuthenticator 
       log.infov("matchCondition(): NULL found client={0}", client);
       return false;
     }
-    boolean clientIdMatch = requiredClientId.equals(client.getClientId());
+    boolean clientIdMatch = matchesConfiguredClient(requiredClientId, client.getClientId());
     log.infov(
         "matchCondition(): client.getClientId()={0}, requiredClientId={1}, negateOutput[{2}] != clientIdMatch[{3}]",
         client.getClientId(), requiredClientId, negateOutput, clientIdMatch);

@@ -20,7 +20,7 @@ import {
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useSetAtom} from "jotai"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useEffect, useMemo} from "react"
 import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
 import {isString} from "@sequentech/ui-core"
 import {IResultDocuments} from "@/types/results"
@@ -47,166 +47,205 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
 
     const contestIds = useMemo(() => contests.map((c) => c.id), [contests])
 
-    const {isLoading: isDbLoading, error: dbError} = useManagedDatabase(
+    const {isReady: isDbReady, error: dbError} = useManagedDatabase(
         databaseName,
         electionEventId ? electionEventId : undefined
     )
 
-    const {data: area} = useSQLQuery(
+    const {data: area, isReady: isAreaReady} = useSQLQuery(
         `SELECT * FROM area WHERE election_event_id = ? and tenant_id = ?`,
         [electionEventId, tenantId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!electionEventId && !!tenantId,
         }
     )
 
-    const {data: area_contest} = useSQLQuery(
+    const {data: area_contest, isReady: isAreaContestReady} = useSQLQuery(
         `SELECT * FROM area_contest WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
             .map(() => "?")
             .join(",")})`,
         [electionEventId, tenantId, ...contestIds],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!electionEventId && !!tenantId && contestIds.length > 0,
+            enabled: isDbReady && !!electionEventId && !!tenantId && contestIds.length > 0,
         }
     )
 
-    const {data: election} = useSQLQuery(
+    const {data: election, isReady: isElectionReady} = useSQLQuery(
         `SELECT * FROM election WHERE election_event_id = ? and tenant_id = ? and id in (${electionIds
             .map(() => "?")
             .join(",")})`,
         [electionEventId, tenantId, ...electionIds],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!electionEventId && !!tenantId && electionIds.length > 0,
+            enabled: isDbReady && !!electionEventId && !!tenantId && electionIds.length > 0,
         }
     )
 
-    const {data: candidate} = useSQLQuery(
+    const {data: candidate, isReady: isCandidateReady} = useSQLQuery(
         `SELECT * FROM candidate WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
             .map(() => "?")
             .join(",")})`,
         [electionEventId, tenantId, ...contestIds],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!electionEventId && !!tenantId && contestIds.length > 0,
+            enabled: isDbReady && !!electionEventId && !!tenantId && contestIds.length > 0,
         }
     )
 
-    const {data: contest} = useSQLQuery(
+    const {data: contest, isReady: isContestReady} = useSQLQuery(
         `SELECT * FROM contest WHERE election_event_id = ? and tenant_id = ? and id in (${contestIds
             .map(() => "?")
             .join(",")})`,
         [electionEventId, tenantId, ...contestIds],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!electionEventId && !!tenantId && contestIds.length > 0,
+            enabled: isDbReady && !!electionEventId && !!tenantId && contestIds.length > 0,
         }
     )
 
-    const {data: results_event} = useSQLQuery(
+    const {data: results_event, isReady: isResultsEventReady} = useSQLQuery(
         `SELECT * FROM results_event WHERE election_event_id = ? and tenant_id = ? and id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
         }
     )
 
-    const {data: results_election} = useSQLQuery(
+    const {data: results_election, isReady: isResultsElectionReady} = useSQLQuery(
         `SELECT * FROM results_election WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
         }
     )
 
-    const {data: results_contest_candidate} = useSQLQuery(
+    const {data: results_contest_candidate, isReady: isResultsContestCandidateReady} = useSQLQuery(
         `SELECT * FROM results_contest_candidate WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
         }
     )
 
-    const {data: results_contest} = useSQLQuery(
+    const {data: results_contest, isReady: isResultsContestReady} = useSQLQuery(
         `SELECT * FROM results_contest WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
         }
     )
 
-    const {data: results_area_contest_candidate} = useSQLQuery(
-        `SELECT * FROM results_area_contest_candidate WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
-        [electionEventId, tenantId, resultsEventId],
-        {
-            databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
-        }
-    )
+    const {data: results_area_contest_candidate, isReady: isResultsAreaCandidateReady} =
+        useSQLQuery(
+            `SELECT * FROM results_area_contest_candidate WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
+            [electionEventId, tenantId, resultsEventId],
+            {
+                databaseName: databaseName,
+                enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
+            }
+        )
 
-    const {data: results_area_contest} = useSQLQuery(
+    const {data: results_area_contest, isReady: isResultsAreaContestReady} = useSQLQuery(
         `SELECT * FROM results_area_contest WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
         }
     )
 
-    const {data: results_election_area} = useSQLQuery(
+    const {data: results_election_area, isReady: isResultsElectionAreaReady} = useSQLQuery(
         `SELECT * FROM results_election_area WHERE election_event_id = ? and tenant_id = ? and results_event_id = ?`,
         [electionEventId, tenantId, resultsEventId],
         {
             databaseName: databaseName,
-            enabled: !isDbLoading && !!resultsEventId && !!electionEventId && !!tenantId,
+            enabled: isDbReady && !!resultsEventId && !!electionEventId && !!tenantId,
         }
     )
 
-    let tallyData: GetTallyDataQuery = {
-        sequent_backend_area: area as Sequent_Backend_Area[],
-        sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
-        sequent_backend_election: election as Sequent_Backend_Election[],
-        sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
-        sequent_backend_contest: contest as Sequent_Backend_Contest[],
-        sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
-        sequent_backend_results_election: results_election as Sequent_Backend_Results_Election[],
-        sequent_backend_results_contest_candidate:
-            results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
-        sequent_backend_results_contest: results_contest.map((contest) => {
-            if (isString(contest.documents)) {
-                try {
-                    contest.documents = JSON.parse(contest.documents) as IResultDocuments
-                } catch (e) {
-                    console.error("error parsing contest documents" + e)
+    const tallyData = useMemo<GetTallyDataQuery>(
+        () => ({
+            sequent_backend_area: area as Sequent_Backend_Area[],
+            sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
+            sequent_backend_election: election as Sequent_Backend_Election[],
+            sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
+            sequent_backend_contest: contest as Sequent_Backend_Contest[],
+            sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
+            sequent_backend_results_election:
+                results_election as Sequent_Backend_Results_Election[],
+            sequent_backend_results_contest_candidate:
+                results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
+            sequent_backend_results_contest: results_contest.map((contest) => {
+                if (isString(contest.documents)) {
+                    try {
+                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                    } catch (e) {
+                        console.error("error parsing contest documents" + e)
+                    }
                 }
-            }
-            return contest
-        }) as Sequent_Backend_Results_Contest[],
-        sequent_backend_results_area_contest_candidate:
-            results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
-        sequent_backend_results_area_contest: results_area_contest.map((contest) => {
-            if (isString(contest.documents)) {
-                try {
-                    contest.documents = JSON.parse(contest.documents) as IResultDocuments
-                } catch (e) {
-                    console.error("error parsing contest documents" + e)
+                return contest
+            }) as Sequent_Backend_Results_Contest[],
+            sequent_backend_results_area_contest_candidate:
+                results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
+            sequent_backend_results_area_contest: results_area_contest.map((contest) => {
+                if (isString(contest.documents)) {
+                    try {
+                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                    } catch (e) {
+                        console.error("error parsing contest documents" + e)
+                    }
                 }
-            }
-            return contest
-        }) as Sequent_Backend_Results_Area_Contest[],
-        sequent_backend_results_election_area:
-            results_election_area as Sequent_Backend_Results_Election_Area[],
-    }
+                return contest
+            }) as Sequent_Backend_Results_Area_Contest[],
+            sequent_backend_results_election_area:
+                results_election_area as Sequent_Backend_Results_Election_Area[],
+        }),
+        [
+            area,
+            area_contest,
+            election,
+            candidate,
+            contest,
+            results_event,
+            results_election,
+            results_contest_candidate,
+            results_contest,
+            results_area_contest_candidate,
+            results_area_contest,
+            results_election_area,
+        ]
+    )
+
+    const allQueriesReady =
+        isDbReady &&
+        isAreaReady &&
+        isAreaContestReady &&
+        isElectionReady &&
+        isCandidateReady &&
+        isContestReady &&
+        isResultsEventReady &&
+        isResultsElectionReady &&
+        isResultsContestCandidateReady &&
+        isResultsContestReady &&
+        isResultsAreaCandidateReady &&
+        isResultsAreaContestReady &&
+        isResultsElectionAreaReady
 
     useEffect(() => {
-        setTallyQueryData(tallyData ?? null)
-    }, [tallyData])
+        setTallyQueryData(null)
+    }, [databaseName, electionEventId, resultsEventId, setTallyQueryData])
+
+    useEffect(() => {
+        if (allQueriesReady && !dbError) {
+            setTallyQueryData(tallyData)
+        }
+    }, [allQueriesReady, dbError, setTallyQueryData, tallyData])
 
     return <></>
 }

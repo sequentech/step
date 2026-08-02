@@ -6,6 +6,7 @@ use anyhow::Result;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotPublication;
 use tokio::try_join;
 use tokio_postgres::row::Row;
@@ -70,9 +71,9 @@ pub async fn get_ballot_publication_by_id(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(ballot_publication_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(ballot_publication_id)?,
             ],
         )
         .await?;
@@ -121,9 +122,9 @@ pub async fn update_ballot_publication_status(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(ballot_publication_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(ballot_publication_id)?,
                 &is_generated,
                 &published_at,
             ],
@@ -173,9 +174,9 @@ pub async fn update_ballot_publication(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(ballot_publication_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(ballot_publication_id)?,
                 &is_generated,
                 &published_at,
             ],
@@ -223,8 +224,8 @@ pub async fn get_latest_ballot_publication(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -265,8 +266,8 @@ pub async fn get_ballot_publication(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -292,12 +293,12 @@ pub async fn insert_ballot_publication(
     election_id: Option<String>,
 ) -> Result<Option<BallotPublication>> {
     let election_id_uuid = election_id
-        .map(|id_str| Uuid::parse_str(&id_str))
+        .map(|id_str| parse_uuid_v4(&id_str))
         .transpose()?;
 
     let election_ids_uuid: Vec<Uuid> = election_ids
         .iter()
-        .map(|s| Uuid::parse_str(s))
+        .map(|s| parse_uuid_v4(s))
         .collect::<Result<Vec<Uuid>, _>>()?;
 
     let query = hasura_transaction
@@ -318,8 +319,8 @@ pub async fn insert_ballot_publication(
             &query,
             &[
                 &election_ids_uuid,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
                 &user_id,
                 &election_id_uuid,
             ],
@@ -380,9 +381,9 @@ pub async fn get_previous_publication_election(
         .query(
             &query,
             &[
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_id)?,
                 &published_at,
             ],
         )
@@ -438,8 +439,8 @@ pub async fn get_previous_publication(
         .query(
             &query,
             &[
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
                 &published_at,
             ],
         )
@@ -464,12 +465,12 @@ pub async fn soft_delete_other_ballot_publications(
     tenant_id: &str,
     election_id: Option<String>,
 ) -> Result<(Vec<String>, Vec<String>)> {
-    let ballot_pub_uuid = Uuid::parse_str(ballot_publication_id)?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)?;
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let ballot_pub_uuid = parse_uuid_v4(ballot_publication_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
 
     let election_uuid = election_id
-        .map(|id_str| Uuid::parse_str(&id_str))
+        .map(|id_str| parse_uuid_v4(&id_str))
         .transpose()?;
 
     let election_id_str = match election_uuid {

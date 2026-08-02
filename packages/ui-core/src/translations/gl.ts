@@ -79,21 +79,42 @@ const galegoTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Non hai suficientes opcións para descifrar",
-                writeInChoiceOutOfRange: "Opción escrita fóra do rango: {{index}}",
-                writeInNotEndInZero: "O candidato escrito non remata en 0",
+                notEnoughChoices: "Non hai suficientes opcións para descodificar",
+                writeInChoiceOutOfRange: "A opción escrita está fóra do rango: {{index}}",
+                writeInNotEndInZero: "A opción escrita non remata en 0",
+                writeInCharsExceeded:
+                    "Supera o límite de caracteres permitidos por {{numCharsExceeded}}. Precísase corrixilo.",
                 bytesToUtf8Conversion:
-                    "Erro ao converter o candidato escrito de bytes a cadea UTF-8: {{errorMessage}}",
+                    "Erro ao converter a opción escrita de bytes a unha cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
             },
             implicit: {
                 selectedMax:
-                    "O número de opcións seleccionadas {{numSelected}} supera o máximo {{max}}",
+                    "Voto excedido: Número de opcións seleccionadas {{numSelected}} supera o máximo {{max}}",
                 selectedMin:
-                    "O número de opcións seleccionadas {{numSelected}} é menor que o mínimo {{min}}",
+                    "Número de opcións seleccionadas {{numSelected}} está por debaixo do mínimo {{min}}",
+                maxSelectionsPerType:
+                    "Número de opcións seleccionadas {{numSelected}} para a lista {{type}} supera o máximo {{max}}",
+                underVote:
+                    "Voto insuficiente: Número de opcións seleccionadas {{numSelected}} está por debaixo do máximo {{max}}",
+                overVoteDisabled:
+                    "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
+                blankVote: "Voto en branco: 0 opcións seleccionadas",
+                preferenceOrderWithGaps:
+                    "Voto non válido! A orde de preferencia ten un ou máis ocos.",
+                duplicatedPosition:
+                    "Voto non válido! A mesma posición foi seleccionada para dous ou máis candidatos.",
             },
             explicit: {
-                notAllowed: "Papeleta marcada como inválida pero a pregunta non o permite",
+                notAllowed:
+                    "A papeleta está marcada como explícitamente inválida, pero a pregunta non o permite",
+                alert: "A selección marcada será considerada voto inválido.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Configuración de voto inválida: o concurso define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
+                multipleExplicitBlankCandidates:
+                    "Configuración de voto inválida: o concurso define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
             },
         },
         ballotHash: "O teu ID de Papeleta: {{ballotId}}",

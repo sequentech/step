@@ -5,11 +5,12 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {sleep} from "@sequentech/ui-core"
+import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../types/keycloak"
+import {appendLoginHints, enrollmentRedirectUrl, LoginHints} from "../utils/loginHints"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -62,7 +63,13 @@ export interface AuthContextValues {
      */
     keycloakAccessToken: string | undefined
 
-    setTenantEvent: (tenantId: string, eventId: string, authType?: "register" | "login") => void
+    setTenantEvent: (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string,
+        loginHints?: LoginHints
+    ) => void
 
     /**
      * Open accountManagement from Keycloak
@@ -95,7 +102,13 @@ const defaultAuthContextValues: AuthContextValues = {
     keycloakAccessToken: undefined,
     logout: () => {},
     getExpiry: () => undefined,
-    setTenantEvent: (_tenantId: string, _eventId: string) => {},
+    setTenantEvent: (
+        _tenantId: string,
+        _eventId: string,
+        _authType,
+        _defaultLocale,
+        _loginHints
+    ) => {},
     hasRole: () => false,
     isKiosk: () => false,
     openProfileLink: () => new Promise(() => undefined),
@@ -138,6 +151,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
+    const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
+    const [loginHints, setLoginHints] = useState<LoginHints>({})
 
     const {i18n} = useTranslation()
 
@@ -155,7 +170,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const searchParams = new URLSearchParams(window.location.search)
                 const isKiosk = searchParams.has("kiosk")
 
-                if (!isKiosk) {
+                return defaultUrl
+                /*if (!isKiosk) {
                     return defaultUrl
                 }
 
@@ -173,7 +189,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } catch (error) {
                     console.error("Invalid URL provided:", defaultUrl)
                     return defaultUrl // Fallback to the original URL if an error occurs
-                }
+                }*/
             }
 
             /**
@@ -268,12 +284,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 /**
                  * KeycloakInitOptions configures the Keycloak client.
                  */
+                const rawLocale =
+                    getLanguageFromURL() ||
+                    getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) ||
+                    defaultLocale
                 const keycloakInitOptions: KeycloakInitOptions = {
                     // Configure that Keycloak will check if a user is already authenticated (when
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
                     checkLoginIframe: false,
-                    locale: getLanguageFromURL(),
+                    // Keycloak expects BCP 47 locale codes (e.g. "ca" for Catalan, not "cat")
+                    locale: rawLocale ? toBCP47(rawLocale) : undefined,
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
@@ -282,15 +303,31 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     if (authType === "register") {
                         const baseUrl = window.location.origin + window.location.pathname
                         const queryString = window.location.search
-
-                        return await keycloak.register({
+                        const registerOptions = {
                             ...keycloakInitOptions,
                             // after successful enrollment, we should redirect to login
-                            redirectUri: baseUrl.endsWith("/enroll")
-                                ? baseUrl.replace(/\/enroll$/, "/login") + queryString
-                                : undefined,
-                        })
+                            redirectUri: enrollmentRedirectUrl(baseUrl, queryString),
+                            loginHint: loginHints.username,
+                        }
+
+                        if (Object.keys(loginHints).length > 0) {
+                            const registerUrl = await keycloak.createRegisterUrl(registerOptions)
+                            window.location.assign(appendLoginHints(registerUrl, loginHints))
+                            return
+                        }
+
+                        return await keycloak.register(registerOptions)
                     } else {
+                        if (Object.keys(loginHints).length > 0) {
+                            const loginUrl = await keycloak.createLoginUrl({
+                                ...keycloakInitOptions,
+                                // Stock username forms only understand the standard OIDC hint.
+                                loginHint: loginHints.username,
+                            })
+                            window.location.assign(appendLoginHints(loginUrl, loginHints))
+                            return
+                        }
+
                         return await keycloak.login(keycloakInitOptions)
                     }
                 }
@@ -314,7 +351,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak && !isAuthenticated && !isKeycloakInitialized) {
             initializeKeycloak()
         }
-    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType])
+    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType, defaultLocale, loginHints])
 
     /**
      * Returns true only if the JWT has gold permissions and the JWT
@@ -337,7 +374,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             await keycloak?.login({
                 acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
                 redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
-                locale: i18n.language,
+                locale: toBCP47(i18n.language),
             })
         } catch (error) {
             console.error("Re-authentication failed:", error)
@@ -352,6 +389,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
+
                 setUserProfile((val) => ({
                     ...val,
                     userId: profile?.id || val?.userId,
@@ -378,22 +416,36 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (tenantId: string, eventId: string, authType?: "register" | "login") => {
+    const setTenantEvent = (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string,
+        initialLoginHints?: LoginHints
+    ) => {
         setTenantId(tenantId)
         setEventId(eventId)
+        setDefaultLocale(defaultLocale)
         authType && setAuthType(authType)
+        setLoginHints(initialLoginHints ?? {})
     }
 
     const getRedirectUrl = (redirectUrl?: string) => {
         if (redirectUrl) {
             return redirectUrl
         } else {
+            const origin = window.location.origin
+            const searchParams = new URLSearchParams(window.location.search)
+            const isKiosk = searchParams.has("kiosk")
+            if (isKiosk) {
+                return `${origin}/tenant/${tenantId}/event/${eventId}/?kiosk`
+            }
             const currentPath = window.location.pathname
             const pathSegments = currentPath.split("/")
             while (pathSegments.length > 5) {
                 pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
             }
-            return pathSegments.join("/")
+            return origin + pathSegments.join("/")
         }
     }
 

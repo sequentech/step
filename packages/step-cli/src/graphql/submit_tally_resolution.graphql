@@ -1,0 +1,15 @@
+mutation SubmitTallyResolutionMutation(
+    $election_event_id: uuid!
+    $tally_session_id: uuid!
+    $resolutions: [TallyResolutionInput!]!
+) {
+    submit_tally_resolution(
+        election_event_id: $election_event_id
+        tally_session_id: $tally_session_id
+        resolutions: $resolutions
+    ) {
+        success
+        tally_session_id
+        resolved_count
+    }
+}

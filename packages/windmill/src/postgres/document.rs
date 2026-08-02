@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{Document, SupportMaterial};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
@@ -82,15 +83,15 @@ pub async fn get_document(
     document_id: &str,
 ) -> Result<Option<Document>> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid: Option<uuid::Uuid> = match election_event_id {
         Some(ref id) if !id.is_empty() => {
-            Some(Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?)
+            Some(parse_uuid_v4(id).with_context(|| "Error parsing election_event_id as UUID")?)
         }
         _ => None,
     };
     let document_uuid: uuid::Uuid =
-        Uuid::parse_str(document_id).with_context(|| "Error parsing document_id as UUID")?;
+        parse_uuid_v4(document_id).with_context(|| "Error parsing document_id as UUID")?;
 
     let document_statement = hasura_transaction
         .prepare(
@@ -126,6 +127,44 @@ pub async fn get_document(
     Ok(documents.get(0).cloned())
 }
 
+#[instrument(err, skip(hasura_transaction, document_ids))]
+pub async fn delete_documents(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    document_ids: &[String],
+) -> Result<u64> {
+    if document_ids.is_empty() {
+        return Ok(0);
+    }
+
+    let document_ids = document_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                DELETE FROM sequent_backend.document
+                WHERE tenant_id = $1
+                  AND election_event_id = $2
+                  AND id = ANY($3::uuid[]);
+            "#,
+        )
+        .await?;
+
+    Ok(hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &document_ids,
+            ],
+        )
+        .await?)
+}
+
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
 /// associated with a given election event.
 #[instrument(err, skip(hasura_transaction))]
@@ -135,8 +174,8 @@ pub async fn get_support_material_documents(
     election_event_id: &str,
 ) -> Result<Option<Vec<(SupportMaterial, Document)>>> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let document_statement = hasura_transaction
@@ -207,11 +246,10 @@ pub async fn insert_document(
     document_id: Option<String>,
 ) -> Result<Document> {
     let document_uuid: uuid::Uuid = document_id
-        .map(|id| Uuid::parse_str(&id))
+        .map(|id| parse_uuid_v4(&id))
         .unwrap_or(Ok(Uuid::new_v4()))?;
-    let election_event_uuid: Option<uuid::Uuid> = election_event_id
-        .map(|id| Uuid::parse_str(&id))
-        .transpose()?;
+    let election_event_uuid: Option<uuid::Uuid> =
+        election_event_id.map(|id| parse_uuid_v4(&id)).transpose()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -258,7 +296,7 @@ pub async fn insert_document(
             &statement,
             &[
                 &document_uuid,
-                &Uuid::parse_str(tenant_id)?,
+                &parse_uuid_v4(tenant_id)?,
                 &election_event_uuid,
                 &name,
                 &media_type,

@@ -5,11 +5,8 @@ set -euo pipefail
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# This is to resolve an issue where nix -fzero-call-used-regs=used-gpr hardening
-# flag, which is not supported when compiling C code for WebAssembly targets
-# (used by the ring cryptographic library):
-export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="-O3 -ffunction-sections -fdata-sections -fno-exceptions"; 
+# Note: NIX_HARDENING_ENABLE and CFLAGS are now configured in flake.nix shellHook
+# wasm-bindgen-cli is pinned to a version in flake.nix to match Cargo.toml
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"
@@ -22,15 +19,19 @@ wasm-pack --version
 which wasm-bindgen
 wasm-bindgen --version
 
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
 wasm-pack -v pack . 2>&1 | tee output.log
 
 cd ..
 hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
-hash="${hash}\\\""
 awk -v hash="${hash}" '
+  /^"sequent-core@file:/ { in_sequent = 1 }
+  /^"[^"]+":$/ && !/^"sequent-core@file:/ { in_sequent = 0 }
   /sequent-core-0.1.0.tgz#/ {
-    sub(/#.*/, "#"hash"")
+    sub(/#.*/, "#"hash"\"")
+  }
+  /^  uid "/ && in_sequent {
+    sub(/"[^"]*"$/, "\""hash"\"")
   }
   { print }
 ' yarn.lock > yarn.lock.tmp

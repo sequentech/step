@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, useMemo, PropsWithChildren} from "react"
+import React, {useState, useEffect, useMemo, PropsWithChildren, useContext} from "react"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
@@ -10,9 +10,7 @@ import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
-import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {IDecodedVoteContest, checkIsBlank} from "@sequentech/ui-core"
-import Button from "@mui/material/Button"
+import {IConfirmationBallot} from "../services/BallotService"
 import {
     faCircleQuestion,
     faTimesCircle,
@@ -20,21 +18,21 @@ import {
     faAngleLeft,
 } from "@fortawesome/free-solid-svg-icons"
 import {
-    Candidate,
     Icon,
     IconButton,
     BreadCrumbSteps,
     PageLimit,
-    WarnBox,
     Dialog,
     theme,
-    BlankAnswer,
+    ActionsContainer,
+    StyledButton,
+    PlaintextVoteContest,
 } from "@sequentech/ui-essentials"
-import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/ui-core"
+import {sortContestList} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
-import Image from "mui-image"
-import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
-import {provideBallotService} from "../services/BallotService"
+import {useElectionClassName} from "./hooks/useElectionClassName"
+import {SettingsContext} from "../providers/SettingsContextProvider"
+import {EDeclineToVotePolicy, EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -60,165 +58,6 @@ const OneLine = styled(Paper)`
     overflow: hidden;
     text-overflow: ellipsis;
 `
-
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 20px;
-    margin-top: 10px;
-    gap: 2px;
-`
-
-const StyledButton = styled(Button)`
-    display flex;
-    padding: 5px;
-
-    span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 5px;
-    }
-`
-
-const CandidatesWrapper = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 12px 0;
-`
-
-interface VoteChoiceProps {
-    text?: string
-    points: number | null
-    ordered: boolean
-}
-
-const VoteChoice: React.FC<VoteChoiceProps> = ({text, points, ordered}) => {
-    const {t, i18n} = useTranslation()
-
-    const content = (
-        <Typography variant="body2">
-            <li>
-                <span>
-                    {text} {points ? <>{t("confirmationScreen.points", {points})}</> : null}
-                </span>
-            </li>
-        </Typography>
-    )
-
-    return ordered ? <ol>{content}</ol> : <ul>{content}</ul>
-}
-
-interface CandidateChoiceProps {
-    answer?: ICandidate
-    points: number | null
-    ordered: boolean
-    isWriteIn: boolean
-    writeInValue: string | undefined
-    isPreferentialVote?: boolean
-    selectedPosition?: number | null
-}
-
-const CandidateChoice: React.FC<CandidateChoiceProps> = ({
-    answer,
-    isWriteIn,
-    writeInValue,
-    isPreferentialVote,
-    selectedPosition,
-}) => {
-    const imageUrl = answer && getImageUrl(answer)
-
-    return (
-        <Candidate
-            title={answer?.name || ""}
-            description={answer?.description}
-            isWriteIn={isWriteIn}
-            writeInValue={writeInValue}
-            shouldDisable={false}
-            isPreferentialVote={isPreferentialVote}
-            selectedPosition={selectedPosition}
-        >
-            {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
-        </Candidate>
-    )
-}
-
-interface PlaintextVoteQuestionProps {
-    questionPlaintext: IDecodedVoteContest
-    question: IContest | null
-    ballotService: IBallotService
-}
-
-const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
-    questionPlaintext,
-    question,
-    ballotService,
-}) => {
-    const {t, i18n} = useTranslation()
-    const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
-    if (!question) {
-        return (
-            <>
-                {t("confirmationScreen.contestNotFound", {contestId: questionPlaintext.contest_id})}
-            </>
-        )
-    }
-
-    const {isPreferential} = provideBallotService()
-    const isPreferentialVote = isPreferential(question.counting_algorithm)
-
-    const explicitInvalidAnswer =
-        (questionPlaintext.is_explicit_invalid &&
-            question.presentation?.invalid_vote_policy !== EInvalidVotePolicy.NOT_ALLOWED &&
-            question.candidates.find((answer) => checkIsInvalidVote(answer))) ||
-        null
-    const answersById = keyBy(question.candidates, (a) => a.id)
-    const properties = ballotService.getLayoutProperties(question)
-    const showPoints = !!question.presentation?.show_points
-    const isBlank = checkIsBlank(questionPlaintext)
-
-    return (
-        <>
-            <Typography variant="body2" fontWeight={"bold"}>
-                {translate(question, "name", i18n.language) || ""}
-            </Typography>
-            {isBlank ? <BlankAnswer /> : null}
-            {questionPlaintext.invalid_errors.map((error, index) => (
-                <WarnBox variant="warning" key={index}>
-                    {t(
-                        error.message || "",
-                        error.message_map && Object.fromEntries(error.message_map)
-                    )}
-                </WarnBox>
-            ))}
-            {questionPlaintext.is_explicit_invalid ? (
-                <VoteChoice
-                    text={explicitInvalidAnswer?.name || t("confirmationScreen.markedInvalid")}
-                    points={null}
-                    ordered={properties?.ordered || false}
-                />
-            ) : null}
-            <CandidatesWrapper>
-                {selectedAnswers.map((answer, index) => (
-                    <CandidateChoice
-                        key={index}
-                        answer={answersById[answer.id]}
-                        points={(showPoints && ballotService.getPoints(question, answer)) || null}
-                        ordered={properties?.ordered || false}
-                        isWriteIn={checkIsWriteIn(answersById[answer.id])}
-                        writeInValue={answer.write_in_text}
-                        isPreferentialVote={isPreferentialVote}
-                        selectedPosition={answer.selected + 1}
-                    />
-                ))}
-            </CandidatesWrapper>
-        </>
-    )
-}
 
 enum VariantType {
     Info = "info",
@@ -376,7 +215,7 @@ const ActionButtons: React.FC<ActionButtonProps> = () => {
     const triggerPrint = () => window.print()
 
     return (
-        <ActionsContainer>
+        <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
             <StyledLink to="/" sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Icon icon={faAngleLeft} size="sm" />
@@ -402,18 +241,44 @@ const ActionButtons: React.FC<ActionButtonProps> = () => {
 interface VerifySelectionsSectionProps {
     isLoading: boolean
     confirmationBallot: IConfirmationBallot | null
-    ballotService: IBallotService
 }
 
 const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     isLoading,
     confirmationBallot,
-    ballotService,
 }) => {
     const {t} = useTranslation()
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
     const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
+    const contestsOrderType =
+        confirmationBallot?.election_config.election_presentation?.contests_order
+    const sortedPlaintextVoteQuestions = useMemo(() => {
+        if (!plaintextVoteQuestions.length) {
+            return []
+        }
+
+        const sortedContests = sortContestList(
+            confirmationBallot?.election_config.contests || [],
+            contestsOrderType
+        )
+        const contestIndexMap = new Map(
+            sortedContests.map((contest, index) => [contest.id, index] as const)
+        )
+
+        return [...plaintextVoteQuestions].sort((a, b) => {
+            const firstIndex = contestIndexMap.get(a.contest_id) ?? Number.MAX_SAFE_INTEGER
+            const secondIndex = contestIndexMap.get(b.contest_id) ?? Number.MAX_SAFE_INTEGER
+            return firstIndex - secondIndex
+        })
+    }, [confirmationBallot?.election_config.contests, contestsOrderType, plaintextVoteQuestions])
+    const {globalSettings} = useContext(SettingsContext)
+
+    const isDeclineToVotePolicyEnabled =
+        confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
+            EDeclineToVotePolicy.ENABLED &&
+        confirmationBallot?.election_config?.election_event_presentation
+            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
     return (
         <>
@@ -468,12 +333,19 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                 </>
             ) : (
                 <>
-                    {plaintextVoteQuestions.map((voteQuestion) => (
-                        <PlaintextVoteQuestion
+                    {sortedPlaintextVoteQuestions.map((voteQuestion) => (
+                        <PlaintextVoteContest
                             questionPlaintext={voteQuestion}
                             question={questionsMap[voteQuestion.contest_id] ?? null}
-                            ballotService={ballotService}
                             key={voteQuestion.contest_id}
+                            publicBucketUrl={globalSettings.PUBLIC_BUCKET_URL}
+                            contestNotFoundLabel={t("confirmationScreen.contestNotFound", {
+                                contestId: voteQuestion.contest_id,
+                            })}
+                            markedInvalidLabel={t("confirmationScreen.markedInvalid")}
+                            pointsLabel={(points) => t("confirmationScreen.points", {points})}
+                            isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
+                            declineToVoteLabel={t("confirmationScreen.declineToVote")}
                         />
                     ))}
                 </>
@@ -484,18 +356,14 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
 
 interface IProps {
     confirmationBallot: IConfirmationBallot | null
-    ballotService: IBallotService
     ballotId: string
     label?: string
 }
 
-export const ConfirmationScreen: React.FC<IProps> = ({
-    confirmationBallot,
-    ballotService,
-    ballotId,
-}) => {
+export const ConfirmationScreen: React.FC<IProps> = ({confirmationBallot, ballotId}) => {
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
+    useElectionClassName(confirmationBallot)
 
     useEffect(() => {
         setIsLoading(confirmationBallot === null)
@@ -505,7 +373,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({
     }, [confirmationBallot])
 
     return (
-        <PageLimit maxWidth="md">
+        <PageLimit maxWidth="md" className="confirmation-screen screen">
             <Box marginTop="48px" marginBottom="24px">
                 <BreadCrumbSteps
                     labels={[
@@ -521,7 +389,6 @@ export const ConfirmationScreen: React.FC<IProps> = ({
                 <VerifySelectionsSection
                     confirmationBallot={confirmationBallot}
                     isLoading={isLoading}
-                    ballotService={ballotService}
                 />
             ) : null}
             <ActionButtons />

@@ -1,19 +1,21 @@
-use crate::postgres::application::get_applications_by_election;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::application::get_applications_by_election;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::candidate::export_candidates;
+use crate::postgres::certificate_authority::get_certificate_authorities_pem;
 use crate::postgres::contest::export_contests;
+use crate::postgres::document::get_document;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication;
+use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
@@ -30,15 +32,19 @@ use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
-use sequent_core::types::hasura::core::Election;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::KeysCeremony;
+use sequent_core::types::hasura::core::{Candidate, Contest, Election};
+use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use strand::hash::hash_sha256_file;
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, TempPath};
+use tokio::io::{self, AsyncWriteExt};
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::write::FileOptions;
@@ -58,7 +64,7 @@ pub async fn read_export_data(
     tenant_id: &str,
     election_event_id: &str,
     export_config: &ExportOptions,
-) -> Result<ImportElectionEventSchema> {
+) -> Result<(ImportElectionEventSchema, Vec<TempPath>)> {
     let client = KeycloakAdminClient::new().await?;
     let other_client = KeycloakAdminClient::pub_new().await?;
     let board_name = get_event_realm(tenant_id, election_event_id);
@@ -108,6 +114,7 @@ pub async fn read_export_data(
 
     let export_elections = if !export_config.bulletin_board {
         elections
+            .clone()
             .into_iter()
             .map(|election| Election {
                 keys_ceremony_id: None,
@@ -115,7 +122,7 @@ pub async fn read_export_data(
             })
             .collect()
     } else {
-        elections
+        elections.clone()
     };
 
     let export_keys_ceremonies = if export_config.bulletin_board {
@@ -136,20 +143,29 @@ pub async fn read_export_data(
         vec![]
     };
 
-    Ok(ImportElectionEventSchema {
-        tenant_id: Uuid::parse_str(&tenant_id)?,
+    let version =
+        std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
+
+    let import_election_event_schema = ImportElectionEventSchema {
+        tenant_id: parse_uuid_v4(&tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event: election_event,
         elections: export_elections,
-        contests: contests,
-        candidates: candidates,
+        contests: contests.clone(),
+        candidates: candidates.clone(),
         areas: areas,
         area_contests: area_contests,
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
-    })
+        version,
+    };
+
+    let images_files_path =
+        process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
+
+    Ok((import_election_event_schema, images_files_path))
 }
 
 #[instrument(err)]
@@ -166,7 +182,7 @@ pub async fn generate_encrypted_zip(
 
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string(&data)?;
+    let data_str = serde_json::to_string_pretty(&data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -191,6 +207,126 @@ fn get_export_election_event_filename(
     Ok(format!(
         "election-event-{election_event_id}-export-sha256-{election_event_hash}.{extension}"
     ))
+}
+
+#[instrument(err, skip(hasura_transaction, s3_bucket))]
+pub async fn get_image_file_from_s3(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    document_id: &str,
+    s3_bucket: &str,
+) -> Result<Option<TempPath>> {
+    let Some(document) = get_document(hasura_transaction, tenant_id, None, document_id).await?
+    else {
+        return Ok(None);
+    };
+
+    let doc_name = document.name.unwrap_or_default();
+    let s3_path = s3::get_document_key(tenant_id, None, document_id, &doc_name);
+
+    let bytes = s3::get_file_from_s3(s3_bucket.to_owned(), s3_path).await?;
+
+    let file_name = format!("document_{}_{}", document_id, doc_name);
+    let temp_file = generate_temp_file("", &file_name).context("generating temp file")?;
+
+    let std_file = temp_file
+        .reopen()
+        .context("reopening temp file for async I/O")?;
+
+    let mut async_file = tokio::fs::File::from_std(std_file);
+    async_file
+        .write_all(&bytes)
+        .await
+        .context("writing S3 bytes to temp file")?;
+
+    Ok(Some(temp_file.into_temp_path()))
+}
+
+#[instrument(err, skip(hasura_transaction, items, s3_bucket, get_document_id))]
+async fn process_images<T, F>(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    items: Vec<T>,
+    s3_bucket: &str,
+    get_document_id: F,
+) -> Result<Vec<TempPath>>
+where
+    F: Fn(&T) -> Option<&str> + Send + Sync,
+{
+    let mut s3_files = Vec::new();
+
+    for item in &items {
+        let Some(document_id) = get_document_id(item) else {
+            continue;
+        };
+
+        if let Some(temp_path) =
+            get_image_file_from_s3(hasura_transaction, tenant_id, document_id, s3_bucket).await?
+        {
+            s3_files.push(temp_path);
+        }
+    }
+
+    Ok(s3_files)
+}
+
+pub async fn process_election_images(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    elections: Vec<Election>,
+    s3_bucket: &str,
+) -> Result<Vec<TempPath>> {
+    process_images(hasura_transaction, tenant_id, elections, s3_bucket, |e| {
+        e.image_document_id.as_deref()
+    })
+    .await
+}
+
+pub async fn process_contests_images(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    contests: Vec<Contest>,
+    s3_bucket: &str,
+) -> Result<Vec<TempPath>> {
+    process_images(hasura_transaction, tenant_id, contests, s3_bucket, |c| {
+        c.image_document_id.as_deref()
+    })
+    .await
+}
+
+pub async fn process_candidates_images(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    candidates: Vec<Candidate>,
+    s3_bucket: &str,
+) -> Result<Vec<TempPath>> {
+    process_images(hasura_transaction, tenant_id, candidates, s3_bucket, |c| {
+        c.image_document_id.as_deref()
+    })
+    .await
+}
+
+#[instrument(err, skip(hasura_transaction, elections, contests, candidates))]
+pub async fn process_event_images(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    elections: Vec<Election>,
+    contests: Vec<Contest>,
+    candidates: Vec<Candidate>,
+) -> Result<Vec<TempPath>> {
+    let s3_public_bucket = s3::get_public_bucket()?;
+
+    let (elections_s3_images, contests_s3_images, candidates_s3_images) = try_join!(
+        process_election_images(hasura_transaction, tenant_id, elections, &s3_public_bucket),
+        process_contests_images(hasura_transaction, tenant_id, contests, &s3_public_bucket),
+        process_candidates_images(hasura_transaction, tenant_id, candidates, &s3_public_bucket),
+    )?;
+
+    let mut s3_files = Vec::new();
+    s3_files.extend(elections_s3_images);
+    s3_files.extend(contests_s3_images);
+    s3_files.extend(candidates_s3_images);
+    Ok(s3_files)
 }
 
 #[instrument(err)]
@@ -222,7 +358,7 @@ pub async fn process_export_zip(
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
-    let export_data = read_export_data(
+    let (export_data, event_images_files_path) = read_export_data(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -235,6 +371,7 @@ pub async fn process_export_zip(
         EDocuments::ELECTION_EVENT.to_file_name(),
         election_event_id
     );
+
     zip_writer
         .start_file(&election_event_filename, options)
         .map_err(|e| anyhow!("Error starting file in ZIP: {e:?}"))?;
@@ -244,6 +381,28 @@ pub async fn process_export_zip(
     std::io::copy(&mut election_event_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying election event file to ZIP: {e:?}"))?;
 
+    let images_folder_name = format!("{}", EDocuments::IMAGES.to_file_name());
+
+    for file_path in event_images_files_path {
+        let file_name = file_path
+            .file_name()
+            .ok_or(anyhow!(
+                "Error getting file name from path: {:?}",
+                file_path
+            ))?
+            .to_string_lossy()
+            .to_string();
+
+        let file_name_in_zip = format!("{}/{}", images_folder_name, file_name);
+        zip_writer
+            .start_file(&file_name_in_zip, options)
+            .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
+
+        let mut s3_file =
+            File::open(&file_path).map_err(|e| anyhow!("Error opening S3 file: {e:?}"))?;
+        std::io::copy(&mut s3_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying S3 file to ZIP: {e:?}"))?;
+    }
     // Add voters data file to the ZIP archive if required
     if export_config.include_voters {
         let temp_voters_file_path = export_users_file(
@@ -385,18 +544,21 @@ pub async fn process_export_zip(
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
 
-        let s3_files = s3::get_files_from_s3(bucket, documents_prefix)
+        let s3_files = s3::get_files_from_s3(bucket, documents_prefix.clone())
             .await
             .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
-        let mut file_counter = 1;
 
         for file_path in s3_files {
             let file_name = file_path
                 .file_name()
-                .ok_or(anyhow!("Empty filename"))?
+                .ok_or(anyhow!(
+                    "Error getting file name from path: {:?}",
+                    file_path
+                ))?
                 .to_string_lossy()
                 .to_string();
-            let file_name_in_zip = format!("{}/{}-{}", s3_folder_name, file_counter, file_name);
+
+            let file_name_in_zip = format!("{}/{}", s3_folder_name, file_name);
             zip_writer
                 .start_file(&file_name_in_zip, options)
                 .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
@@ -405,8 +567,6 @@ pub async fn process_export_zip(
                 File::open(&file_path).map_err(|e| anyhow!("Error opening S3 file: {e:?}"))?;
             std::io::copy(&mut s3_file, &mut zip_writer)
                 .map_err(|e| anyhow!("Error copying S3 file to ZIP: {e:?}"))?;
-
-            file_counter += 1;
         }
     }
 
@@ -471,6 +631,26 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error opening temporary ballot publications file: {e:?}"))?;
         std::io::copy(&mut ballot_publication_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
+
+        // Handle election event config file (which is created in ballot publication)
+        let election_event_config = format!(
+            "{}-{}.json",
+            EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
+            election_event_id
+        );
+
+        zip_writer
+            .start_file(&election_event_config, options)
+            .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
+        let election_event_config_temp_path =
+            export_election_event_config_file(tenant_id, election_event_id)
+                .await
+                .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
+
+        let mut election_event_config_file = File::open(election_event_config_temp_path)
+            .map_err(|e| anyhow!("Error opening temporary election event config file: {e:?}"))?;
+        std::io::copy(&mut election_event_config_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
     }
 
     // add protocol manager secrets
@@ -546,6 +726,27 @@ pub async fn process_export_zip(
                 .map_err(|e| anyhow!("Error opening {file_name} file: {e:?}"))?;
             std::io::copy(&mut tally_file, &mut zip_writer)
                 .map_err(|e| anyhow!("Error copying tally file to ZIP: {e:?}"))?;
+        }
+    }
+
+    if export_config.include_certificates {
+        let election_event_uuid = parse_uuid_v4(election_event_id)?;
+        let pems = get_certificate_authorities_pem(&hasura_transaction, election_event_uuid)
+            .await
+            .map_err(|e| anyhow!("Error fetching certificate authorities: {e:?}"))?;
+        if !pems.is_empty() {
+            let certs_filename = format!(
+                "{}-{}.pem",
+                EDocuments::CERTIFICATES.to_file_name(),
+                election_event_id
+            );
+            let pem_bundle = pems.join("\n");
+            zip_writer
+                .start_file(&certs_filename, options)
+                .map_err(|e| anyhow!("Error starting certificates file in ZIP: {e:?}"))?;
+            zip_writer
+                .write_all(pem_bundle.as_bytes())
+                .map_err(|e| anyhow!("Error writing certificates to ZIP: {e:?}"))?;
         }
     }
 

@@ -4,6 +4,7 @@
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
+use crate::services::cast_votes::CastVoteStatus;
 use crate::services::temp_path::*;
 
 use anyhow::{anyhow, Context, Result};
@@ -13,6 +14,7 @@ use sequent_core::util::temp_path::*;
 
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
@@ -124,12 +126,12 @@ impl TemplateRenderer for BallotTemplate {
                 }
             };
 
-        let tennant_uuid = Uuid::parse_str(self.get_tenant_id().as_str())
+        let tennant_uuid = parse_uuid_v4(self.get_tenant_id().as_str())
             .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
-        let election_event_uuid = Uuid::parse_str(self.get_election_event_id().as_str())
+        let election_event_uuid = parse_uuid_v4(self.get_election_event_id().as_str())
             .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
 
-        let ballot_uui = Uuid::parse_str(election_id.as_str())
+        let ballot_uui = parse_uuid_v4(election_id.as_str())
             .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
 
         let cast_votes = postgres::cast_vote::get_cast_votes(
@@ -138,6 +140,11 @@ impl TemplateRenderer for BallotTemplate {
             &election_event_uuid,
             &ballot_uui,
             voter_id,
+            &[
+                CastVoteStatus::InProgress,
+                CastVoteStatus::Valid,
+                CastVoteStatus::Discarded,
+            ],
         )
         .await?;
 

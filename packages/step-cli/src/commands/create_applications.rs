@@ -5,6 +5,7 @@ use crate::utils::keycloak::get_keyckloak_pool;
 use crate::utils::read_config::load_external_config;
 use anyhow::Result;
 use clap::Args;
+use colored::Colorize;
 use deadpool_postgres::Transaction;
 use fake::faker::number::raw::NumberWithFormat;
 use fake::locales::EN;
@@ -21,6 +22,7 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::types::application::{ApplicationStatus, ApplicationType};
+
 #[derive(Args)]
 #[command(about)]
 pub struct CreateApplications {
@@ -50,7 +52,7 @@ impl CreateApplications {
             self.status.clone(),
             self.r#type.clone(),
         )) {
-            Ok(_) => println!("Successfully created applications"),
+            Ok(_) => println!("{}", "Successfully created applications".green()),
             Err(err) => eprintln!("Error! Failed to create applications: {err:?}"),
         }
     }

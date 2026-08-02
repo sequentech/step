@@ -8,18 +8,17 @@ insert_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - alias
               - annotations
               - contest_id
               - created_at
               - description
+              - external_id
               - election_event_id
               - id
               - image_document_id
               - is_public
               - labels
               - last_updated_at
-              - name
               - presentation
               - tenant_id
               - type
@@ -31,13 +30,12 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -53,13 +51,12 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -75,13 +72,12 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -94,18 +90,17 @@ insert_permissions:
       permission:
           check: {}
           columns:
-              - alias
               - annotations
               - contest_id
               - created_at
               - description
+              - external_id
               - election_event_id
               - id
               - image_document_id
               - is_public
               - labels
               - last_updated_at
-              - name
               - presentation
               - tenant_id
               - type
@@ -115,18 +110,17 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - alias
               - annotations
               - contest_id
               - created_at
               - description
+              - external_id
               - election_event_id
               - id
               - image_document_id
               - is_public
               - labels
               - last_updated_at
-              - name
               - presentation
               - tenant_id
               - type
@@ -139,13 +133,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -162,13 +155,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -185,13 +177,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -208,13 +199,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -231,13 +221,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -254,13 +243,12 @@ select_permissions:
           allow_aggregations: true
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -276,18 +264,17 @@ select_permissions:
       permission:
           allow_aggregations: true
           columns:
-              - alias
               - annotations
               - contest_id
               - created_at
               - description
+              - external_id
               - election_event_id
               - id
               - image_document_id
               - is_public
               - labels
               - last_updated_at
-              - name
               - presentation
               - tenant_id
               - type
@@ -297,13 +284,12 @@ select_permissions:
       permission:
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -322,18 +308,17 @@ update_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           columns:
-              - alias
               - annotations
               - contest_id
               - created_at
               - description
+              - external_id
               - election_event_id
               - id
               - image_document_id
               - is_public
               - labels
               - last_updated_at
-              - name
               - presentation
               - tenant_id
               - type
@@ -348,13 +333,12 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -371,13 +355,12 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_public
-              - name
               - type
               - annotations
               - labels
               - presentation
-              - alias
               - description
+              - external_id
               - image_document_id
               - created_at
               - last_updated_at
@@ -393,18 +376,17 @@ update_permissions:
       permission:
           check: {}
           columns:
-              - alias
               - annotations
               - contest_id
               - created_at
               - description
+              - external_id
               - election_event_id
               - id
               - image_document_id
               - is_public
               - labels
               - last_updated_at
-              - name
               - presentation
               - tenant_id
               - type

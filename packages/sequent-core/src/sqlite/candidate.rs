@@ -24,13 +24,12 @@ pub async fn create_candidate_sqlite(
             last_updated_at TEXT,
             labels TEXT,
             annotations TEXT,
-            name TEXT,
-            alias TEXT,
             description TEXT,
             type TEXT,
             presentation TEXT,
             is_public BOOLEAN,
-            image_document_id TEXT
+            image_document_id TEXT,
+            external_id TEXT
         );",
     )?;
 
@@ -46,9 +45,9 @@ pub async fn import_candidate_sqlite(
         let mut insert = sqlite_transaction.prepare(
             "INSERT INTO candidate (
                 id, tenant_id, election_event_id, contest_id, created_at, last_updated_at,
-                labels, annotations, name, alias, description, type, presentation,
-                is_public, image_document_id
-            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
+                labels, annotations, description, type, presentation,
+                is_public, image_document_id, external_id
+            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
         )?;
 
         let mut rdr = ReaderBuilder::new()
@@ -67,10 +66,10 @@ pub async fn import_candidate_sqlite(
                 }
             }
 
-            let is_public = match rec.get(13).unwrap_or("") {
+            let is_public = match rec.get(11).unwrap_or("") {
                 "t" | "true" => Some(true),
                 "f" | "false" => Some(false),
-                _ if rec.get(13).unwrap_or("").is_empty() => None,
+                _ if rec.get(11).unwrap_or("").is_empty() => None,
                 other => {
                     return Err(anyhow!(
                         "Invalid boolean in is_public column: {}",
@@ -98,21 +97,19 @@ pub async fn import_candidate_sqlite(
                 opt(rec
                     .get(7)
                     .with_context(|| "Error fetching String record")?),
-                rec.get(8).with_context(|| "Error fetching String record")?,
                 opt(rec
-                    .get(9)
+                    .get(8)
                     .with_context(|| "Error fetching String record")?),
+                rec.get(9).with_context(|| "Error fetching String record")?,
                 opt(rec
                     .get(10)
                     .with_context(|| "Error fetching String record")?),
-                rec.get(11)
-                    .with_context(|| "Error fetching String record")?,
+                is_public,
                 opt(rec
                     .get(12)
                     .with_context(|| "Error fetching String record")?),
-                is_public,
                 opt(rec
-                    .get(14)
+                    .get(13)
                     .with_context(|| "Error fetching String record")?),
             ])?;
         }

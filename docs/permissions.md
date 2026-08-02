@@ -28,6 +28,7 @@ CRUD endpoints for:
 
 - tenant-create|read|write
 - election-event-create|read|write|delete|archive
+- keycloak-realm-attributes-read|write
 - election-create|read|write|delete
 - voter-create|read|write
 - user-create|read|write
@@ -42,6 +43,7 @@ CRUD endpoints for:
 - trustee-create|read|write
 - tally-read|start|write
 - tally-results-read
+- tally-resolution-submit
 - publish-read|write
 - logs-read
 - keys-read
@@ -50,3 +52,4 @@ CRUD endpoints for:
 - election-data-tab|approvals-tab
 - election-event-areas-tab|data-tab|keys-tab|logs-tab|publish-tab|reports-tab|scheduled-tab|tally-tab|tasks-tab|voters-tab|approvals-tab
 - election-publish-tab|voters-tab
+- election-event-voter-list-reconciliation

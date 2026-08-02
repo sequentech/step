@@ -1,21 +1,27 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
-
-import BallotLocator from "../routes/BallotLocator"
-
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
         common: {
-            goBack: "Go back",
-            showMore: "Show More",
-            showLess: "Show Less",
+            goBack: "Back",
+            showMore: "Show more",
+            showLess: "Show less",
+        },
+        candidatesList: {
+            collapseToggle: "Toggle list {{listTitle}}",
+            showCandidates: "Show candidates",
+            hideCandidates: "Hide candidates",
+            selectedCandidate: "{{count}} candidate selected",
+            selectedCandidates: "{{count}} candidates selected",
+            expandAll: "Expand all",
+            collapseAll: "Collapse all",
         },
         breadcrumbSteps: {
-            electionList: "Ballot List",
+            electionList: "Ballots",
             ballot: "Ballot",
             review: "Review",
-            confirmation: "Confirmation",
+            confirmation: "Confirm",
             audit: "Audit",
         },
         footer: {
@@ -24,18 +30,18 @@ const englishTranslation = {
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
-            clearButton: "Clear selection",
+            clearButton: "Clear choices",
             ballotHelpDialog: {
-                title: "Information: Ballot screen",
+                title: "About this screen",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
+                    "This screen shows the contest you are eligible to vote in. You can make your selection by activating the checkbox next to the candidate or answer. To reset your selections, click the “<b>Clear choices</b>” button. To move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
-                title: "Invalid or blank vote",
+                title: "Your vote is invalid or blank",
                 content:
-                    "Some of your answers will render the ballot in one or more questions invalid or blank.",
-                ok: "Back and review",
+                    "Some of your answers will make one or more ballot questions invalid or blank",
+                ok: "Review selection",
                 continue: "Continue",
                 cancel: "Cancel",
             },
@@ -50,17 +56,25 @@ const englishTranslation = {
         },
         startScreen: {
             startButton: "Start Voting",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "Please follow these steps to cast your ballot:",
-            step1Title: "1. Select your options",
+            declineToVoteButton: "Decline to Vote",
+            declineToVoteDialog: {
+                title: "Confirm decline to vote",
+                content:
+                    "Are you sure you want to decline to vote?<br />You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
+                continue: "Decline to vote",
+                cancel: "Cancel",
+            },
+            instructionsTitle: "How to vote",
+            instructionsDescription: "Follow these steps to cast your ballot",
+            step1Title: "1. Choose your options",
             step1Description:
-                "Choose your preferred candidates and answer the Ballot questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
-            step2Title: "2. Review your ballot",
+                "Pick your preferred candidates and answer each ballot question as it appears. You can change your ballot anytime before casting your vote",
+            step2Title: "2. Review your choices",
             step2Description:
-                "Once you are satisfied with your selections, we will encrypt your ballot and show you a final review of your choices. You will also receive a unique tracker ID for your ballot.",
+                "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
             step3Title: "3. Cast your ballot",
             step3Description:
-                "Cast your ballot: Finally, you can cast your ballot so it is properly registered. Alternatively, you can opt to audit and confirm that your ballot was correctly captured and encrypted.",
+                "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
             title: "Review your ballot",
@@ -69,91 +83,91 @@ const englishTranslation = {
             descriptionNoAudit:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below.",
             backButton: "Edit ballot",
-            castBallotButton: "Cast your ballot",
+            castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
             reviewScreenHelpDialog: {
-                title: "Information: Review Screen",
-                content:
-                    "This screen allows you to review your selections before casting your ballot.",
+                title: "About the review screen",
+                content: "This screen lets you review your selections before casting your ballot",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Vote has not been cast",
+                title: "Your vote has not been cast",
                 content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track the ballot, you will not find it.</p><p>The reason we show the Ballot Tracker ID at this stage is to allow you to audit the correctness of the encrypted ballot before casting it.</p>",
-                ok: "I accept my vote has NOT been cast",
+                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracker ID at this stage so you can audit the encrypted ballot before casting it.</p>",
+                ok: "I understand my vote is not cast",
                 cancel: "Cancel",
             },
             auditBallotHelpDialog: {
-                title: "Do you want to audit the ballot?",
+                title: "Would you like to audit your ballot",
                 content:
-                    "<p>Please note that auditing your ballot will void it, requiring you to restart the voting process. The audit process lets you verify that your ballot is correctly encoded, but it involves advanced technical steps. We recommend proceeding only if you are confident in your technical skills. If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
-                ok: "Yes, I want to DISCARD my ballot to audit it",
+                    "<p>Auditing your ballot will void it and restart the voting process. Continue only if you’re comfortable with the advanced steps. Otherwise, click <u>Cancel</u> to go back.</p>",
+                ok: "Yes, discard my ballot to audit",
                 cancel: "Cancel",
             },
             confirmCastVoteDialog: {
                 title: "Are you sure you want to cast your vote?",
-                content: "Your vote will no longer be editable once confirmed.",
-                ok: "Yes, I want to CAST my vote",
+                content: "After you confirm, your vote will be cast.",
+                ok: "Yes, I want to cast my vote",
                 cancel: "Cancel",
             },
             error: {
                 NETWORK_ERROR:
-                    "There was a network problem. Please try again later or contact support for assistance.",
+                    "A network problem occurred. Please try again later or contact support",
                 UNABLE_TO_FETCH_DATA:
                     "There was a problem fetching the data. Please try again later or contact support for assistance.",
-                LOAD_ELECTION_EVENT: "Cannot load election event. Please try again later.",
+                LOAD_ELECTION_EVENT: "Unable to load the election event. Please try again later",
                 CAST_VOTE:
-                    "There was an unknown error while casting the vote. Please try again later or contact support for assistance.",
+                    "An unknown error occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_AreaNotFound:
                     "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
                 CAST_VOTE_CheckStatusFailed:
-                    "Election does not allow casting the vote. Election might be closed, archived or you might be trying to vote outside grace period.",
+                    "This election does not allow casting a vote. It may be closed, archived, or outside the allowed voting period",
                 CAST_VOTE_InternalServerError:
-                    "An internal error occurred while casting the vote. Please try again later or contact support for assistance.",
+                    "An internal error occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_QueueError:
-                    "There was a problem processing your vote. Please try again later or contact support for assistance.",
+                    "There was a problem processing your vote. Please try again later or contact support",
                 CAST_VOTE_Unauthorized:
-                    "You are not authorized to cast a vote. Please contact support for assistance.",
+                    "You are not authorized to cast a vote. Please contact support.",
                 CAST_VOTE_ElectionEventNotFound:
-                    "The election event could not be found. Please try again later or contact support for assistance.",
+                    "The election event could not be found. Please try again later or contact support.",
                 CAST_VOTE_ElectoralLogNotFound:
-                    "Your voting record could not be found. Please contact support for assistance.",
+                    "Your voting record could not be found. Please contact support",
                 CAST_VOTE_CheckPreviousVotesFailed:
-                    "An error occurred while checking your voting status. Please try again later or contact support for assistance.",
+                    "An error occurred while checking your voting status. Please try again later or contact support",
                 CAST_VOTE_GetClientCredentialsFailed:
-                    "Failed to verify your credentials. Please try again later or contact support for assistance.",
+                    "Failed to verify your credentials. Please try again later or contact support",
                 CAST_VOTE_GetAreaIdFailed:
-                    "An error occurred verifying your voting area. Please try again later or contact support for assistance.",
+                    "An error occurred while verifying your voting area. Please try again later or contact support",
                 CAST_VOTE_GetTransactionFailed:
-                    "An error occurred processing your vote. Please try again later or contact support for assistance.",
+                    "An error occurred while processing your vote. Please try again later or contact support",
                 CAST_VOTE_DeserializeBallotFailed:
-                    "An error occurred reading your ballot. Please try again later or contact support for assistance.",
+                    "An error occurred while loading your ballot. Please try again later or contact support",
                 CAST_VOTE_DeserializeContestsFailed:
-                    "An error occurred reading your selections. Please try again later or contact support for assistance.",
+                    "An error occurred while loading your selections. Please try again later or contact support.",
                 CAST_VOTE_PokValidationFailed:
-                    "Failed to validate your vote. Please try again later or contact support for assistance.",
+                    "Failed to validate your vote. Please try again later or contact support",
                 CAST_VOTE_UuidParseFailed:
-                    "An error occurred processing your request. Please try again later or contact support for assistance.",
+                    "An error occurred while processing your request. Please try again later or contact support.",
                 CAST_VOTE_unexpected:
-                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                    "An unknown error occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_timeout:
-                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                    "A timeout occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_InsertFailedExceedsAllowedRevotes:
-                    "You have exceeded the revotes limit. Please try again later or contact support for assistance.",
+                    "You have exceeded the revote limit. Please contact support.",
                 CAST_VOTE_CheckRevotesFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "You have exceeded the allowed number of revotes. Please contact support",
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
-                    "You have voted in another area already. Please try again later or contact support for assistance.",
+                    "You have already voted in another area. Please contact support",
                 CAST_VOTE_UnknownError:
-                    "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                    "An unknown error occurred while casting your vote. Please try again later or contact support",
                 NO_BALLOT_SELECTION:
-                    "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
-                NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
-                NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
+                    "The selection state for this election is missing. Please check your choices or contact support",
+                NO_BALLOT_STYLE: "This ballot is not available. Please contact support",
+                NO_AUDITABLE_BALLOT:
+                    "There is no ballot available for audit. Please contact support",
                 INCONSISTENT_HASH:
                     "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
-                ELECTION_EVENT_NOT_OPEN: "The election event is closed. Please contact support.",
+                ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",
                 PARSE_ERROR:
                     "There was an error parsing the ballot. Please try again later or contact support for assistance.",
                 DESERIALIZE_AUDITABLE_ERROR:
@@ -164,67 +178,66 @@ const englishTranslation = {
                     "There was an error converting the ballot. Please try again later or contact support for assistance.",
                 SERIALIZE_ERROR:
                     "There was an error serializing the ballot. Please try again later or contact support for assistance.",
-                UNKNOWN_ERROR:
-                    "There was an error. Please try again later or contact support for assistance.",
+                UNKNOWN_ERROR: "An error occurred. Please try again later or contact support",
                 REAUTH_FAILED:
-                    "Authentication failed. Please try again or contact support for assistance.",
-                SESSION_EXPIRED: "Your session has expired. Please try again from the beginning.",
+                    "Login failed. Your username or password may be incorrect. Please try again or contact support",
+                SESSION_EXPIRED: "Your session has expired. Please start again",
                 CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
                 SESSION_STORAGE_ERROR:
                     "Session storage is not available. Please try again or contact support.",
                 PARSE_BALLOT_DATA_ERROR:
                     "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
-                NOT_VALID_BALLOT_DATA_ERROR:
-                    "Ballot data is not valid. Please try again later or contact support for assistance.",
+                NOT_VALID_BALLOT_DATA_ERROR: "The ballot data is invalid. Please contact support",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Timeout error to fetch the data. Please try again later or contact support for assistance.",
+                    "A timeout occurred while loading the data. Please try again",
                 TO_HASHABLE_BALLOT_ERROR:
                     "Error converting to hashable ballot. Please try again later or contact support for assistance.",
                 INTERNAL_ERROR:
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
+            declineToVote: "Decline to vote",
         },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
-                "The confirmation code below verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
+                "Your ballot was cast successfully. Use the code below to verify that it was counted",
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",
-            verifyCastTitle: "Verify that your ballot has been cast",
+            verifyCastTitle: "Verify that your ballot was cast",
             verifyCastDescription:
-                "You can verify your ballot has been cast correctly at any moment using the following QR code:",
+                "You can verify your ballot was cast correctly at any time using the QR code below",
             confirmationHelpDialog: {
-                title: "Information: Confirmation Screen",
+                title: "About the confirmation screen",
                 content:
-                    "This screen shows that your vote was successfully cast. The information provided on this page allows you to verify that the ballot has been stored in ballot box , this process can be executed at any time during voting period and after the Ballot has been closed.",
+                    "This screen confirms that your vote was successfully cast. The information here allows you to verify that your ballot was stored in the ballot box, both during the voting period and after it has closed",
                 ok: "OK",
             },
             demoPrintDialog: {
                 title: "Printing ballot",
-                content: "Printing disabled in demo mode",
+                content: "Printing is disabled in demo mode",
                 ok: "OK",
             },
             demoBallotUrlDialog: {
                 title: "Ballot Id",
-                content: "Cannot use code, disabled in demo mode.",
+                content: "Code use is disabled in demo mode",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Information: Ballot ID",
+                title: "About the Ballot ID",
                 content:
-                    "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
+                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your choices.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Information: Ballot ID",
+                title: "About the Ballot ID",
                 content:
-                    "<p>The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.</p><p><b>Notice:</b> This voting booth is for demonstration purposes only. Your vote has NOT been cast.</p>",
+                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your choices.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "An error has occured, please try again",
+                content: "An error occurred. Please try again",
                 ok: "OK",
             },
             demoQRText: "Ballot tracker is disabled in demo mode",
@@ -232,25 +245,25 @@ const englishTranslation = {
         auditScreen: {
             printButton: "Print",
             restartButton: "Start Voting",
-            title: "Audit your Ballot",
-            description: "To verify your ballot, please follow the steps below:",
-            step1Title: "1. Download or copy the following information",
+            title: "Check your ballot",
+            description: "To check your ballot, follow the steps below:",
+            step1Title: "1. Save the following details:",
             step1Description:
-                "Your <b>Ballot ID</b> that appears at the top of the screen and your encrypted ballot below:",
+                "your <b>Ballot ID</b> at the top of the screen and your encrypted ballot shown below",
             step1HelpDialog: {
-                title: "Copy the Encrypted Ballot",
+                title: "Copy ballot code",
                 content:
-                    "You can download or copy your encrypted ballot to audit the ballot and verify the encrypted content contains your selections.",
+                    "You can download or copy your ballot code to verify that it correctly reflects your selections.",
                 ok: "OK",
             },
             downloadButton: "Download",
-            step2Title: "2. Verify your ballot",
+            step2Title: "2. Check your ballot",
             step2Description:
-                "<VerifierLink>Access to the ballot verifier</VerifierLink>, a new tab will open in your browser.",
+                "Click <VerifierLink>Check your ballot code</VerifierLink>. It will open in a new tab",
             step2HelpDialog: {
-                title: "Audit ballot tutorial",
+                title: "How to check your ballot code",
                 content:
-                    "To audit your ballot you will need to follow the steps shown in the tutorial, this includes the download of a desktop application used to verify the encrypted ballot independently from the website.",
+                    "To check your ballot code, follow the steps in the how-to guide. This includes downloading a desktop application that lets you verify your ballot independently from the website.",
                 ok: "OK",
             },
             bottomWarning:
@@ -258,25 +271,26 @@ const englishTranslation = {
         },
         electionSelectionScreen: {
             title: "Ballot list",
-            description: "Select the Ballot you want to vote",
+            description: "Select the ballot you want to vote on",
             chooserHelpDialog: {
-                title: "Information: Ballot List",
+                title: "About the Ballot list",
                 content:
-                    "Welcome to the Voting Booth, this screen shows the list of Ballots you can cast a ballot. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
+                    "This screen lists the ballots you can access. Some may be open, scheduled, or closed. You can only vote on ballots that are open",
                 ok: "OK",
             },
             noResults: "No ballots for now.",
+            resultsButton: "View results",
             demoDialog: {
                 title: "Demo voting booth",
                 content:
-                    "You are entering a demo voting booth. <strong>Your vote will NOT be cast.</strong> This voting booth is for demonstration purposes only.",
-                ok: "I accept my vote will Not be cast",
+                    "You are entering a demo voting booth. <strong>Your vote will not be cast.</strong> This booth is for demonstration only.",
+                ok: "I understand that my vote will not be cast",
             },
             errors: {
                 noVotingArea:
-                    "Election area not assigned to voter. Please try again later or contact support for assistance.",
+                    "You are not listed as a voter in this election. Please contact support.",
                 networkError:
-                    "There was a network problem. Please try again later or contact support for assistance.",
+                    "A network problem occurred. Please try again later or contact support",
                 unableToFetchData:
                     "There was a problem fetching the data. Please try again later or contact support for assistance.",
                 noElectionEvent:
@@ -299,7 +313,7 @@ const englishTranslation = {
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
                 writeInCharsExceeded:
-                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
+                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
@@ -316,49 +330,55 @@ const englishTranslation = {
                 overVoteDisabled:
                     "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
                 blankVote: "Blank Vote: 0 choices selected",
-                preferenceOrderWithGaps: "The order of preference has one or more gaps.",
-                duplicatedPosition: "The same position was selected for two or more candidates.",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "Selection marked will be considered invalid vote.",
+                alert: "This selection will be counted as an invalid vote",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Unexpected Error",
                 somethingWrong: "Something went wrong.",
+                certAuthFailedTitle: "Certificate Authentication Failed",
+                certAuthFailedMessage:
+                    "Your certificate could not be verified. Please check that you are using a valid voter certificate and try again.",
+                invalidLoginHintParametersTitle: "Invalid voting link",
+                invalidLoginHintParametersMessage:
+                    "This voting link contains invalid login information. Request a new link and try again.",
             },
         },
         materials: {
             common: {
                 label: "Support Materials",
-                back: "Back to Ballot List",
+                back: "Back to ballot list",
                 close: "Close",
                 preview: "Preview",
             },
         },
         ballotLocator: {
-            title: "Locate your Ballot",
-            titleResult: "Result of your Ballot Lookup",
-            description: "Verify that your Ballot has been correctly submitted",
-            locate: "Locate your Ballot",
-            locateAgain: "Locate another Ballot",
-            found: "Your ballot ID {{ballotId}} has been located",
-            notFound: "Your ballot ID {{ballotId}} has not been located",
+            title: "Find your Ballot",
+            titleResult: "Your Ballot Lookup Results",
+            description: "Confirm your ballot was cast correctly",
+            locate: "Find your Ballot",
+            locateAgain: "Find another Ballot",
+            found: "Your ballot ID {{ballotId}} has been found",
+            notFound: "Your ballot ID {{ballotId}} was not found",
+            ambiguous:
+                "More than one of your ballots matches {{ballotId}}. Use the full ballot ID.",
             contentDesc: "This is your Ballot content: ",
-            wrongFormatBallotId: "Wrong format for Ballot ID",
+            wrongFormatBallotId: "Invalid Ballot ID format",
             ballotIdNotFoundAtFilter:
                 "Not found, check that your Ballot ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Ballot ID",
             totalBallots: "Total Ballots: {{total}}",
             steps: {
-                lookup: "Locate your Ballot",
+                lookup: "Find your Ballot",
                 result: "Result",
             },
             titleHelpDialog: {
-                title: "Information: Ballot Locator screen",
+                title: "About the Ballot Finder Screen",
                 content:
-                    "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
+                    "The Ballot Finder screen lets you enter your Ballot ID to locate your vote and confirm it was recorded correctly.",
                 ok: "OK",
             },
             tabs: {

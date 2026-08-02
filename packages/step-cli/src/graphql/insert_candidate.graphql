@@ -2,7 +2,6 @@ mutation InsertCandidate(
   $tenant_id: uuid!,
   $election_event_id: uuid!,
   $contest_id: uuid!,
-  $name: String!,
   $description: String,
   $presentation: jsonb,
 ) {
@@ -10,7 +9,6 @@ mutation InsertCandidate(
     tenant_id: $tenant_id,
     election_event_id: $election_event_id,
     contest_id: $contest_id,
-    name: $name,
     description: $description,
     presentation: $presentation
   }) {

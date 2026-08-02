@@ -79,20 +79,40 @@ const basqueTranslation: TranslationType = {
             encoding: {
                 notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
                 writeInChoiceOutOfRange: "Idatzitako aukera barrutitik kanpo: {{index}}",
-                writeInNotEndInZero: "Idatzitakoa ez da 0-z bukatzen",
+                writeInNotEndInZero: "Idatzitakoa ez da 0n amaitzen",
+                writeInCharsExceeded:
+                    "Idatzitakoak gehienezko karaktere kopurua {{numCharsExceeded}}z gainditu du. Konponketa behar du.",
                 bytesToUtf8Conversion:
-                    "Errorea idatzitakoa byteetatik UTF-8 katera bihurtzean: {{errorMessage}}",
-                ballotTooLarge: "Txartela espero baino handiagoa da",
+                    "Errorea idatzitakoa byte-etatik UTF-8 kate-ra bihurtzerakoan: {{errorMessage}}",
+                ballotTooLarge: "Bozketa esperotakoa baino handiagoa",
             },
             implicit: {
                 selectedMax:
-                    "Hautatutako aukera kopurua {{numSelected}} maximoa {{max}} baino handiagoa da",
+                    "Gainfoto: Hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gehiago da",
                 selectedMin:
-                    "Hautatutako aukera kopurua {{numSelected}} minimoa {{min}} baino txikiagoa da",
+                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino gutxiago da",
+                maxSelectionsPerType:
+                    "{{type}} zerrendako hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gehiago da",
+                underVote:
+                    "Azpifoto: Hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gutxiago da",
+                overVoteDisabled:
+                    "Gehienezkora heldu: Gehienezko {{numSelected}} aukera hautatu dituzu. Zure hautaketa aldatzeko, mesedez ezgaitu beste aukera bat lehenik.",
+                blankVote: "Boto Zuria: 0 aukera hautatu",
+                preferenceOrderWithGaps:
+                    "Boto baliogabea! Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
+                duplicatedPosition:
+                    "Boto baliogabea! Posizio bera hautatu da bi kandidatu edo gehiagorentzat.",
             },
             explicit: {
                 notAllowed:
-                    "Txartela espresuki baliogabetzat markatuta baina galderak ez du onartzen",
+                    "Bozketa espresuki baliogabe markatu da baina galderak ez du baimentzen",
+                alert: "Markatutako hautaketa baliogabeko bototzat hartuko da.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Boto-konfigurazio baliogabea: lehiaketak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                multipleExplicitBlankCandidates:
+                    "Boto-konfigurazio baliogabea: lehiaketak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
             },
         },
         ballotHash: "Zure Txartelaren IDa: {{ballotId}}",

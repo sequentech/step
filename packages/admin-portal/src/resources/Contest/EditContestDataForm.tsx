@@ -58,10 +58,15 @@ import {
     EBlankVotePolicy,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    EDuplicatedRankPolicy,
+    EPreferenceGapsPolicy,
+    getDefaultDuplicatedRankPolicy,
+    getDefaultPreferenceGapsPolicy,
+    ECollapsibleLists,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {IVotingType} from "./constants"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
+import {ICountingAlgorithm, ITieBreakingPolicy} from "@sequentech/ui-core"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
@@ -72,6 +77,8 @@ import {CircularProgress} from "@mui/material"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
+import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
 type FieldValues = Record<string, any>
 
@@ -294,7 +301,7 @@ export const ContestDataForm: React.FC = () => {
     const notify = useNotify()
     const refresh = useRefresh()
     const authContext = useContext(AuthContext)
-
+    const getImageUrl = useGetDocumentUrl()
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
 
@@ -357,6 +364,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const tieBreakingPolicyChoices = (): Array<EnumChoice<ITieBreakingPolicy>> => {
+        return Object.values(ITieBreakingPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const orderAnswerChoices = (): Array<EnumChoice<CandidatesOrder>> => {
         return Object.values(CandidatesOrder).map((value) => ({
             id: value,
@@ -392,6 +406,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const collapsibleListsChoices = (): Array<EnumChoice<ECollapsibleLists>> => {
+        return Object.values(ECollapsibleLists).map((value) => ({
+            id: value,
+            name: t(`contestScreen.collapsibleListsPolicy.${value}`),
+        }))
+    }
+
     const blankVotePolicyChoices = () => {
         return Object.values(EBlankVotePolicy).map((value) => ({
             id: value,
@@ -403,6 +424,20 @@ export const ContestDataForm: React.FC = () => {
         return Object.values(EOverVotePolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.overVotePolicy.${value}`),
+        }))
+    }
+
+    const duplicatedRankPolicyChoices = () => {
+        return Object.values(EDuplicatedRankPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.duplicatedRankPolicy.${value}`),
+        }))
+    }
+
+    const preferenceGapsPolicyChoices = () => {
+        return Object.values(EPreferenceGapsPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.preferenceGapsPolicy.${value}`),
         }))
     }
 
@@ -425,26 +460,21 @@ export const ContestDataForm: React.FC = () => {
             if (!newContest.presentation.i18n.en) {
                 newContest.presentation.i18n.en = {}
             }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
-            if (!newContest.presentation.i18n.en.alias && newContest.alias) {
-                newContest.presentation.i18n.en.alias = newContest.alias
-            }
             if (!newContest.presentation.i18n.en.description && newContest.description) {
                 newContest.presentation.i18n.en.description = newContest.description
             }
-            newContest.name = newContest.presentation.i18n.en.name
-            newContest.alias = newContest.presentation.i18n.en.alias
             newContest.description = newContest.presentation.i18n.en.description
+            newContest.annotations = parseIvrEntityAnnotations(newContest.annotations)
 
             // defaults
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
             newContest.counting_algorithm =
                 newContest.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
+            const tallyConfig = (newContest.tally_configuration ?? {}) as Record<string, unknown>
+            if (!tallyConfig.tie_breaking_policy) {
+                tallyConfig.tie_breaking_policy = ITieBreakingPolicy.RANDOM
+            }
+            newContest.tally_configuration = tallyConfig
             newContest.min_votes = newContest.min_votes || 0
 
             newContest.presentation.candidates_order =
@@ -456,6 +486,9 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.enable_checkable_lists =
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
+
+            newContest.presentation.collapsible_lists =
+                newContest.presentation.collapsible_lists ?? ECollapsibleLists.DISABLED
 
             newContest.presentation.candidates_icon_checkbox_policy =
                 newContest.presentation.candidates_icon_checkbox_policy ||
@@ -470,8 +503,19 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.over_vote_policy =
                 newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
 
+            newContest.presentation.duplicated_rank_policy =
+                newContest.presentation.duplicated_rank_policy || getDefaultDuplicatedRankPolicy()
+
+            newContest.presentation.preference_gaps_policy =
+                newContest.presentation.preference_gaps_policy || getDefaultPreferenceGapsPolicy()
+
             newContest.presentation.pagination_policy =
                 newContest.presentation.pagination_policy || ""
+
+            // Default allow_writeins to true if not set
+            if (newContest.presentation.allow_writeins === undefined) {
+                newContest.presentation.allow_writeins = false
+            }
 
             return newContest
         },
@@ -527,6 +571,10 @@ export const ContestDataForm: React.FC = () => {
                         <TextInput
                             source={`presentation.i18n[${lang}].description`}
                             label={String(t("electionEventScreen.field.description"))}
+                        />
+                        <TextInput
+                            source={`annotations.${IVR_ENTITY_I18N_ANNOTATION}.${lang}.prompt`}
+                            label={String(t("electionScreen.field.ivrPrompt"))}
                         />
                     </div>
                 </CustomTabPanel>
@@ -591,6 +639,12 @@ export const ContestDataForm: React.FC = () => {
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
 
+                const imageUrl = getImageUrl(
+                    parsedValue?.tenant_id,
+                    parsedValue?.image_document_id,
+                    imageData?.name
+                )
+
                 return (
                     <SimpleForm
                         defaultValues={{candidatesOrder: sortedCandidates}}
@@ -617,6 +671,10 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("contestScreen.edit.externalId"))}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs()}
                                 </Tabs>
@@ -648,6 +706,19 @@ export const ContestDataForm: React.FC = () => {
                                     choices={countingAlgorithmChoices()}
                                     validate={required()}
                                 />
+                                <FormDataConsumer>
+                                    {({formData}) =>
+                                        formData?.counting_algorithm ===
+                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                            <SelectInput
+                                                source="tally_configuration.tie_breaking_policy"
+                                                label={t("contestScreen.tieBreakingPolicy.label")}
+                                                choices={tieBreakingPolicyChoices()}
+                                                validate={required()}
+                                            />
+                                        ) : null
+                                    }
+                                </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
 
@@ -671,8 +742,28 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
+                                <BooleanInput
+                                    source="presentation.allow_writeins"
+                                    label={String(t(`contestScreen.allowWriteins.label`))}
+                                />
                                 <NumberInput source="min_votes" min={0} />
-                                <NumberInput source="max_votes" min={0} />
+                                <FormDataConsumer>
+                                    {({formData}) => (
+                                        <NumberInput
+                                            source="max_votes"
+                                            min={0}
+                                            helperText={String(
+                                                t(
+                                                    formData?.counting_algorithm ===
+                                                        ICountingAlgorithm.INSTANT_RUNOFF
+                                                        ? "contestScreen.maxVotes.helperTextPreferential"
+                                                        : "contestScreen.maxVotes.helperText"
+                                                )
+                                            )}
+                                        />
+                                    )}
+                                </FormDataConsumer>
+                                <Box sx={{marginTop: "1rem"}} />
                                 <NumberInput source="presentation.columns" min={1} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
@@ -719,6 +810,14 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.enable_checkable_lists"
                                     choices={checkableListChoices()}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source="presentation.collapsible_lists"
+                                    choices={collapsibleListsChoices()}
+                                    label={String(t(`contestScreen.collapsibleListsPolicy.label`))}
+                                    defaultValue={ECollapsibleLists.DISABLED}
                                     validate={required()}
                                 />
 
@@ -771,6 +870,39 @@ export const ContestDataForm: React.FC = () => {
                                     validate={required()}
                                 />
 
+                                <FormDataConsumer>
+                                    {({formData}) =>
+                                        formData?.counting_algorithm ===
+                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                            <>
+                                                <SelectInput
+                                                    source={`presentation.duplicated_rank_policy`}
+                                                    choices={duplicatedRankPolicyChoices()}
+                                                    label={String(
+                                                        t(
+                                                            `contestScreen.duplicatedRankPolicy.label`
+                                                        )
+                                                    )}
+                                                    defaultValue={getDefaultDuplicatedRankPolicy()}
+                                                    validate={required()}
+                                                />
+
+                                                <SelectInput
+                                                    source={`presentation.preference_gaps_policy`}
+                                                    choices={preferenceGapsPolicyChoices()}
+                                                    label={String(
+                                                        t(
+                                                            `contestScreen.preferenceGapsPolicy.label`
+                                                        )
+                                                    )}
+                                                    defaultValue={getDefaultPreferenceGapsPolicy()}
+                                                    validate={required()}
+                                                />
+                                            </>
+                                        ) : null
+                                    }
+                                </FormDataConsumer>
+
                                 <SelectInput
                                     source={`presentation.candidates_icon_checkbox_policy`}
                                     choices={candidatesIconCheckboxPolicy()}
@@ -814,8 +946,8 @@ export const ContestDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                alt={imageUrl}
                                             />
                                         ) : null}
                                     </Grid>

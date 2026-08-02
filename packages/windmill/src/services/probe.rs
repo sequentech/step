@@ -27,13 +27,11 @@ pub enum AppName {
 
 const BROKER_CONNECTION_TIMEOUT: u32 = 2;
 
-lazy_static! {
-    static ref DB_TIMEOUTS: Timeouts = Timeouts {
-        wait: Some(Duration::new(5, 0)),
-        create: Some(Duration::new(5, 0)),
-        recycle: Some(Duration::new(5, 0)),
-    };
-}
+const DB_TIMEOUTS: Timeouts = Timeouts {
+    wait: Some(Duration::new(5, 0)),
+    create: Some(Duration::new(5, 0)),
+    recycle: Some(Duration::new(5, 0)),
+};
 
 #[instrument(ret)]
 async fn check_celery(_app_name: &AppName) -> Option<bool> {

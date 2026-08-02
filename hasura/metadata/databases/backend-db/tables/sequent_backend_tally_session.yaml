@@ -1,6 +1,18 @@
 table:
     name: tally_session
     schema: sequent_backend
+array_relationships:
+    - name: resolutions
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  id: tally_session_id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: tally_session_resolution
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:

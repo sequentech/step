@@ -1,0 +1,104 @@
+{{!--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+ SPDX-License-Identifier: AGPL-3.0-only
+--}}
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type="text/css">
+      body {
+        background: #ffffff;
+        color: #111111;
+        font-family: Arial, sans-serif;
+        margin: 0 auto;
+        max-width: 900px;
+        padding: 36px;
+      }
+
+      .report {
+        width: 100%;
+      }
+
+      .report-header {
+        border-bottom: 2px solid #111111;
+        margin-bottom: 28px;
+        padding-bottom: 16px;
+      }
+
+      .eyebrow {
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0;
+        margin: 0 0 8px;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: 24px;
+        line-height: 1.25;
+        margin: 0;
+      }
+
+      h2 {
+        font-size: 16px;
+        line-height: 1.35;
+        margin: 8px 0 0;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #d5d5d5;
+        font-size: 14px;
+        padding: 12px 10px;
+        text-align: left;
+      }
+
+      th {
+        font-weight: bold;
+        width: 45%;
+      }
+
+      td {
+        text-align: right;
+      }
+
+      .metadata {
+        color: #333333;
+        font-size: 11px;
+        margin-top: 32px;
+        word-break: break-word;
+      }
+
+      .metadata p {
+        margin: 4px 0;
+      }
+
+      .metadata span {
+        font-family: monospace;
+      }
+
+      @media print {
+        @page {
+          margin: 0.6in;
+        }
+
+        body {
+          font-size: 11px;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    {{{rendered_user_template}}}
+  </body>
+</html>

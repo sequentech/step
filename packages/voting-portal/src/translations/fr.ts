@@ -10,11 +10,20 @@ const frenchTranslation: TranslationType = {
             showMore: "Afficher plus",
             showLess: "Afficher moins",
         },
+        candidatesList: {
+            collapseToggle: "Basculer la liste {{listTitle}}",
+            showCandidates: "Afficher les candidats",
+            hideCandidates: "Masquer les candidats",
+            selectedCandidate: "{{count}} candidat sélectionné",
+            selectedCandidates: "{{count}} candidats sélectionnés",
+            expandAll: "Tout développer",
+            collapseAll: "Tout réduire",
+        },
         breadcrumbSteps: {
-            electionList: "Liste des Élections",
+            electionList: "Élections",
             ballot: "Bulletin de vote",
             review: "Révision",
-            confirmation: "Confirmation",
+            confirmation: "Confirmer",
             audit: "Auditer",
         },
         footer: {
@@ -25,9 +34,9 @@ const frenchTranslation: TranslationType = {
             reviewButton: "Suivant",
             clearButton: "Effacer la sélection",
             ballotHelpDialog: {
-                title: "Information : Écran de vote",
+                title: "À propos de l'écran de vote",
                 content:
-                    "Cet écran affiche le vote pour lequel vous êtes éligible. Vous pouvez sélectionner votre section en activant la case à droite Candidat/Réponse. Pour réinitialiser vos sélections, cliquez sur le bouton “<b>Effacer la sélection</b>”, pour passer à l'étape suivante, cliquez sur le bouton “<b>Suivant</b>”.",
+                    "Cet écran affiche le vote pour lequel vous êtes éligible. Activez la case à droite pour sélectionner un Candidat/Réponse. Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -49,29 +58,37 @@ const frenchTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Commencer à voter",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "Veuillez suivre ces étapes pour voter :",
+            declineToVoteButton: "S’abstenir de voter",
+            declineToVoteDialog: {
+                title: "Confirmer l’abstention de vote",
+                content:
+                    "Êtes-vous sûr de vouloir vous abstenir de voter ?<br />Vous accéderez directement à la révision et votre statut de participation sera enregistré comme <b>S’est abstenu de voter</b>.",
+                continue: "S’abstenir de voter",
+                cancel: "Annuler",
+            },
+            instructionsTitle: "Comment voter",
+            instructionsDescription: "Suivez ces étapes pour voter :",
             step1Title: "1. Sélectionnez votre option de vote",
             step1Description:
-                "Sélectionnez vos candidats préférés et répondez aux questions de l'élection une par une au fur et à mesure qu'elles apparaissent. Vous pouvez modifier votre bulletin jusqu'à ce que vous soyez prêt à continuer.",
+                "Sélectionnez vos candidats et répondez aux questions. Vous pouvez modifier votre bulletin jusqu'à être prêt.",
             step2Title: "2. Révisez votre bulletin",
             step2Description:
-                "Une fois que vous êtes satisfait de vos sélections, nous chiffrerons votre bulletin et vous montrerons une révision finale de vos choix. Vous recevrez également un ID de suivi unique pour votre bulletin.",
+                "Nous chiffrerons votre bulletin et vous montrerons une révision finale. Vous recevrez un ID de suivi unique.",
             step3Title: "3. Envoyez votre vote",
             step3Description:
-                "Envoyez votre bulletin : Enfin, vous pouvez envoyer votre bulletin pour qu'il soit correctement enregistré. Alternativement, vous pouvez opter pour auditer et confirmer que votre bulletin a été capturé et chiffré correctement.",
+                "Envoyez votre bulletin pour qu'il soit enregistré, ou choisissez d'auditer pour confirmer qu'il a été chiffré correctement.",
         },
         reviewScreen: {
             title: "Révisez votre vote",
             description:
-                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. ",
+                "Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, “<b>Envoyer le vote</b>” pour confirmer, ou “<b>Vérifier le bulletin</b>” pour l'auditer.",
             descriptionNoAudit:
-                "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous. ",
+                "Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, ou “<b>Envoyer le vote</b>” pour confirmer.",
             backButton: "Modifier votre vote",
-            castBallotButton: "Envoyer votre vote",
-            auditButton: "Auditer le bulletin",
+            castBallotButton: "Envoyer le vote",
+            auditButton: "Vérifier le bulletin",
             reviewScreenHelpDialog: {
-                title: "Information : Écran de révision",
+                title: "À propos de l'écran de révision",
                 content: "Cet écran vous permet de réviser vos sélections avant de voter.",
                 ok: "OK",
             },
@@ -79,20 +96,20 @@ const frenchTranslation: TranslationType = {
                 title: "Vote non émis",
                 content:
                     "<p>Vous êtes sur le point de copier le Localisateur de Vote, mais <b>votre vote n'a pas encore été émis</b>. Si vous tentez de rechercher le Localisateur de Vote, vous ne le trouverez pas.</p><p>La raison pour laquelle nous affichons le Localisateur de Vote à ce moment est pour que vous puissiez auditer la correction du vote chiffré avant de l'émettre. Si c'est la raison pour laquelle vous souhaitez copier le Localisateur de Vote, procédez à sa copie puis auditez votre vote.</p>",
-                ok: "J'accepte que mon vote N'A PAS été émis",
+                ok: "Je comprends que mon vote n'a pas été émis",
                 cancel: "Annuler",
             },
             auditBallotHelpDialog: {
                 title: "Voulez-vous vraiment Auditer votre bulletin ?",
                 content:
                     "<p>L'audit du bulletin l'invalidera et vous devrez recommencer le processus de vote si vous souhaitez émettre votre vote. Le processus d'audit du bulletin permet de vérifier qu'il est correctement codé. Ce processus nécessite des connaissances techniques importantes, donc il n'est pas recommandé si vous ne savez pas ce que vous faites.</p><p><b>Si vous souhaitez émettre votre vote, cliquez sur <u>Annuler</u> pour revenir à l'écran de révision du vote.</b></p>",
-                ok: "Oui, je veux INVALIDER mon bulletin pour l'AUDITER",
+                ok: "Oui, je veux invalider mon bulletin pour l'auditer",
                 cancel: "Annuler",
             },
             confirmCastVoteDialog: {
                 title: "Êtes-vous sûr de vouloir voter?",
-                content: "Votre vote ne sera plus modifiable une fois confirmé.",
-                ok: "Oui, je veux VOTER",
+                content: "Après confirmation, votre vote sera émis.",
+                ok: "Oui, je veux voter",
                 cancel: "Annuler",
             },
             error: {
@@ -186,6 +203,7 @@ const frenchTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
+            declineToVote: "S’abstenir de voter",
         },
         confirmationScreen: {
             title: "Votre vote a été émis",
@@ -198,9 +216,9 @@ const frenchTranslation: TranslationType = {
             verifyCastDescription:
                 "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous :",
             confirmationHelpDialog: {
-                title: "Information : Écran de confirmation",
+                title: "À propos de l'écran de confirmation",
                 content:
-                    "Cet écran montre que votre vote a été émis correctement. Les informations fournies sur cette page vous permettent de vérifier que le bulletin a été stocké dans l'urne, ce processus peut être exécuté à tout moment pendant la période de vote et après que l'élection a été clôturée.",
+                    "Cet écran montre que votre vote a été émis correctement. Vous pouvez vérifier que le bulletin a été stocké dans l'urne.",
                 ok: "OK",
             },
             demoPrintDialog: {
@@ -214,15 +232,15 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
             ballotIdHelpDialog: {
-                title: "Information : Localisateur de votre Bulletin",
+                title: "À propos du Localisateur de Bulletin",
                 content:
                     "Le Localisateur de Bulletin est un code qui vous permet de retrouver votre bulletin dans l'urne, ce Localisateur est unique et ne contient aucune information sur vos sélections.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
-                title: "Information : Identifiant de bulletin de vote",
+                title: "À propos de l'identifiant de bulletin",
                 content:
-                    "<p>L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.</p><p><b>Avis :</b> Ce bureau de vote est uniquement à des fins de démonstration. Votre vote n'a PAS été émis.</p>",
+                    "L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -235,8 +253,8 @@ const frenchTranslation: TranslationType = {
         auditScreen: {
             printButton: "Imprimer",
             restartButton: "Démarrer le vote",
-            title: "Auditez votre Bulletin",
-            description: "Pour vérifier votre bulletin, vous devez suivre les étapes suivantes :",
+            title: "Vérifiez votre Bulletin",
+            description: "Pour vérifier votre bulletin, suivez les étapes suivantes :",
             step1Title: "1. Téléchargez ou copiez les informations suivantes",
             step1Description:
                 "Votre <b>Localisateur de Vote</b> qui apparaît en haut de l'écran et votre bulletin chiffré ci-dessous :",
@@ -260,24 +278,24 @@ const frenchTranslation: TranslationType = {
                 "Pour des raisons de sécurité, lorsque vous auditez votre bulletin, vous devrez l'invalider. Pour continuer avec le processus de vote, cliquez sur ‘<b>Démarrer le vote</b>’.",
         },
         electionSelectionScreen: {
-            title: "Liste des Élections",
+            title: "Élections",
             description: "Sélectionnez l'élection pour laquelle vous souhaitez voter",
             chooserHelpDialog: {
-                title: "Information : Liste des Élections",
+                title: "À propos de la liste des élections",
                 content:
-                    "Bienvenue dans le bureau de vote, cet écran montre la liste des élections dans lesquelles vous pouvez voter. Les élections affichées sur cette liste peuvent être ouvertes au vote, programmées ou fermées. Vous ne pourrez accéder au vote que si la période de vote est ouverte.",
+                    "Cet écran montre la liste des élections dans lesquelles vous pouvez voter. L'accès est possible uniquement si la période de vote est ouverte.",
                 ok: "OK",
             },
             noResults: "Il n'y a pas d'élections pour le moment.",
+            resultsButton: "Voir les résultats",
             demoDialog: {
                 title: "Bureau de vote de démonstration",
                 content:
-                    "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera PAS compté.</strong> Ce bureau de vote est uniquement destiné à des fins de démonstration.",
-                ok: "J'accepte que mon vote ne sera pas compté",
+                    "Vous entrez dans un bureau de vote de démonstration. <strong>Votre vote ne sera pas compté.</strong> Uniquement à des fins de démonstration.",
+                ok: "Je comprends que mon vote ne sera pas compté",
             },
             errors: {
-                noVotingArea:
-                    "Zone de vote non assignée à l'électeur. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                noVotingArea: "Zone de vote non assignée. Veuillez réessayer plus tard.",
                 networkError:
                     "Il y a eu un problème de réseau. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 unableToFetchData:
@@ -298,58 +316,60 @@ const frenchTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Il n'y a pas assez d'options pour décoder",
-                writeInChoiceOutOfRange: "Option de vote écrite hors de portée : {{index}}",
-                writeInNotEndInZero: "Option de vote écrite ne finit pas en 0",
+                notEnoughChoices: "Pas assez de choix à décoder",
+                writeInChoiceOutOfRange: "Choix écrit hors de la plage : {{index}}",
+                writeInNotEndInZero: "L'écrit ne se termine pas par 0",
                 writeInCharsExceeded:
-                    "Option de vote écrite dépasse le nombre de caractères de {{numCharsExceeded}} caractères. Nécessite une correction.",
+                    "L'écrit dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
                 bytesToUtf8Conversion:
-                    "Erreur de conversion des octets de l'option de vote écrite en chaîne UTF-8 : {{errorMessage}}",
+                    "Erreur lors de la conversion de l'écrit de bytes en chaîne UTF-8 : {{errorMessage}}",
                 ballotTooLarge: "Bulletin plus grand que prévu",
             },
             implicit: {
                 selectedMax:
-                    "Survote: Le nombre d'options sélectionnées {{numSelected}} est supérieur au maximum {{max}}",
+                    "Surcote : le nombre de choix sélectionnés {{numSelected}} est supérieur au maximum {{max}}",
                 selectedMin:
-                    "Le nombre d'options sélectionnées {{numSelected}} est inférieur au maximum {{min}}",
+                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au minimum {{min}}",
                 maxSelectionsPerType:
-                    "Le nombre d'options sélectionnées {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
+                    "Le nombre de choix sélectionnés {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
                 underVote:
-                    "Sous-vote: Le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum autorisé de {{max}}",
+                    "Sous-vote : le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum {{max}}",
                 overVoteDisabled:
-                    "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
-                blankVote: "Vote Blanc: 0 options sélectionnées",
-                preferenceOrderWithGaps: "L'ordre de préférence comporte un ou plusieurs trous.",
-                duplicatedPosition:
-                    "La même position a été sélectionnée pour deux ou plusieurs candidats.",
+                    "Maximum atteint : vous avez sélectionné le maximum de {{numSelected}} choix. Pour modifier votre sélection, veuillez d'abord désélectionner une autre option.",
+                blankVote: "Vote blanc : 0 choix sélectionnés",
             },
             explicit: {
                 notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
-                alert: "La sélection marquée sera considérée comme un vote invalide.",
+                    "Le bulletin est marqué comme explicitement invalide, mais la question ne le permet pas",
+                alert: "Cette sélection sera comptée comme un vote invalide",
             },
             page: {
                 oopsWithStatus: "Oups ! {{status}}",
                 oopsWithoutStatus: "Oups ! Erreur inattendue",
                 somethingWrong: "Quelque chose s'est mal passé.",
+                certAuthFailedTitle: "Échec de l'Authentification par Certificat",
+                certAuthFailedMessage:
+                    "Votre certificat n'a pas pu être vérifié. Veuillez vérifier que vous utilisez un certificat de votant valide et réessayez.",
             },
         },
         materials: {
             common: {
                 label: "Matériaux de Support",
-                back: "Revenir à la Liste des Élections",
+                back: "Revenir à la liste des élections",
                 close: "Fermer",
                 preview: "Aperçu",
             },
         },
         ballotLocator: {
-            title: "Localisez votre Bulletin",
+            title: "Trouvez votre Bulletin",
             titleResult: "Résultat de la recherche de votre Bulletin",
             description: "Vérifiez que votre bulletin a été émis correctement",
-            locate: "Localisez votre Bulletin",
-            locateAgain: "Localisez un autre Bulletin",
-            found: "Votre ID de Bulletin {{ballotId}} a été localisé",
-            notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
+            locate: "Trouvez votre Bulletin",
+            locateAgain: "Trouvez un autre Bulletin",
+            found: "Votre ID de Bulletin {{ballotId}} a été trouvé",
+            notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été trouvé",
+            ambiguous:
+                "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez l'ID complet du bulletin.",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
             ballotIdNotFoundAtFilter:
@@ -357,18 +377,18 @@ const frenchTranslation: TranslationType = {
             filterByBallotId: "Filtrez par ID de Bulletin",
             totalBallots: "Total: {{total}}",
             steps: {
-                lookup: "Localisez votre Bulletin",
+                lookup: "Trouvez votre Bulletin",
                 result: "Résultat",
             },
             titleHelpDialog: {
-                title: "Information : écran de Localisation de votre Bulletin",
+                title: "À propos du Localisateur de Bulletin",
                 content:
-                    "Cet écran permet au votant de trouver son bulletin en utilisant l'ID du Bulletin pour le récupérer. Cette procédure permet de vérifier que son vote a été émis correctement et que le vote enregistré correspond au vote chiffré émis.",
+                    "Le Localisateur de Bulletin vous permet de saisir l'ID du Bulletin pour trouver votre vote et confirmer qu'il a été enregistré correctement.",
                 ok: "OK",
             },
             tabs: {
                 logs: "Logs",
-                ballotLocator: "Localisez votre Bulletin",
+                ballotLocator: "Recherche de Bulletin",
             },
             column: {
                 statement_kind: "Type",

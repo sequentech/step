@@ -241,10 +241,14 @@ export function useSQLQuery<T = QueryResult>(
     const [data, setData] = useState<T[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [lastExecutedKey, setLastExecutedKey] = useState<string | null>(null)
+    const paramsKey = JSON.stringify(params)
+    const executionKey = `${databaseName ?? ""}\u0000${sql}\u0000${paramsKey}`
 
     const executeQuery = useCallback(async () => {
         // We now check for the databaseName and enabled status right at the start.
         if (!enabled || !databaseName) {
+            setIsLoading(false)
             return
         }
 
@@ -271,15 +275,23 @@ export function useSQLQuery<T = QueryResult>(
             const errorMessage = err instanceof Error ? err.message : "Unknown query error"
             setError(errorMessage)
         } finally {
+            setLastExecutedKey(executionKey)
             setIsLoading(false)
         }
         // By adding `databaseName` and `databases` here, this function is guaranteed
         // to be re-created and re-run when the name changes or when the DB is finally loaded.
-    }, [databaseName, databases, sql, JSON.stringify(params), enabled])
+    }, [databaseName, databases, sql, paramsKey, enabled, executionKey])
 
     useEffect(() => {
         executeQuery()
     }, [executeQuery])
 
-    return {data, isLoading, error, refetch: executeQuery}
+    const isReady =
+        !enabled ||
+        (!!databaseName &&
+            databases.has(databaseName) &&
+            lastExecutedKey === executionKey &&
+            !isLoading)
+
+    return {data, isLoading, isReady, error, refetch: executeQuery}
 }

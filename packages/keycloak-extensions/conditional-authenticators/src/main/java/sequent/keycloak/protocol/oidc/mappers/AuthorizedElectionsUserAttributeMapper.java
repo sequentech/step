@@ -37,6 +37,7 @@ import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
 import org.keycloak.util.JsonSerialization;
+import sequent.keycloak.realm.RealmNames;
 
 /**
  * Mappings UserModel.attribute to an ID Token claim. Token claim name can be a full qualified
@@ -69,6 +70,8 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
   // User attribute name for area_id
   private static final String AREA_ID_ATTRIBUTE = "area_id";
+  static final String HASURA_CLAIMS = "https://hasura.io/jwt/claims";
+  static final String HASURA_ELECTION_EVENT_ID = "x-hasura-election-event-id";
 
   static {
     ProviderConfigProperty property;
@@ -139,19 +142,19 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Collection<String> attributeValue =
         KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
 
-    Map<String, String> electionsAliasIds;
+    Map<String, String> electionsExternalIds;
     String tenantId = null;
     String electionEventId = null;
 
     try {
-      log.infov("Realm id: {0}", userSession.getRealm().getName());
-      String name = userSession.getRealm().getName();
-      String[] ids = name.replaceAll("tenant\\-", "").split("\\-event\\-");
-      tenantId = ids[0];
-      electionEventId = ids[1];
+      String realmName = userSession.getRealm().getName();
+      log.infov("Realm id: {0}", realmName);
+      var eventRealm = RealmNames.parseEventRealmName(realmName).orElseThrow();
+      tenantId = eventRealm.tenantId();
+      electionEventId = eventRealm.electionEventId();
       log.infov("Election Event id: {0}", electionEventId);
       log.infov("Tenant Id: {0}", tenantId);
-      electionsAliasIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
+      electionsExternalIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
     } catch (Exception e) {
       log.error("Error getting elections from election event", e);
       e.printStackTrace();
@@ -160,12 +163,12 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
     List<String> authorizedElectionIds = new ArrayList<>();
 
-    // Priority 1: If user has explicit election assignments (as aliases), use them
+    // Priority 1: If user has explicit election assignments (as external IDs), use them
     if (attributeValue != null && !attributeValue.isEmpty()) {
       log.infov(
           "User has explicitly authorized elections: {0}",
           attributeValue.stream().collect(Collectors.joining("|")));
-      // The attributeValue contains aliases, we'll use them as-is
+      // The attributeValue contains external IDs, we'll use them as-is
       // They will be mapped to IDs later in the stream processing
       authorizedElectionIds.addAll(attributeValue);
     } else {
@@ -186,41 +189,43 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             log.infov(
                 "Found elections for area {0}: {1}",
                 areaId, areaElections.stream().collect(Collectors.joining("|")));
-            // Add election aliases for the elections in this area
+            // Add election external ID for the elections in this area
             for (String electionId : areaElections) {
-              // Find the alias for this election ID
-              String alias =
-                  electionsAliasIds.entrySet().stream()
+              // Find the external ID for this election ID
+              String external_id =
+                  electionsExternalIds.entrySet().stream()
                       .filter(entry -> entry.getValue().equals(electionId))
                       .map(Map.Entry::getKey)
                       .findFirst()
-                      .orElse(electionId); // If no alias found, use the ID itself
-              authorizedElectionIds.add(alias);
+                      .orElse(electionId); // If no external ID found, use the ID itself
+              authorizedElectionIds.add(external_id);
             }
           } else {
             log.warnv("No elections found for area_id: {0}, falling back to all elections", areaId);
-            authorizedElectionIds.addAll(electionsAliasIds.keySet());
+            authorizedElectionIds.addAll(electionsExternalIds.keySet());
           }
         } catch (Exception e) {
           log.error("Error fetching area-based elections, falling back to all elections", e);
-          authorizedElectionIds.addAll(electionsAliasIds.keySet());
+          authorizedElectionIds.addAll(electionsExternalIds.keySet());
         }
       } else {
         // Priority 3: No explicit elections and no area_id - authorize all elections
         log.infov(
             "No authorized elections or area_id found, authorizing all elections: {0}",
-            electionsAliasIds.keySet().stream().collect(Collectors.joining("|")));
-        authorizedElectionIds.addAll(electionsAliasIds.keySet());
+            electionsExternalIds.keySet().stream().collect(Collectors.joining("|")));
+        authorizedElectionIds.addAll(electionsExternalIds.keySet());
       }
     }
 
     Stream<String> mappedAuthorizedElectionIds =
         authorizedElectionIds.stream()
-            // The key is either the alias or the id when alias is null. The value is always the id.
-            // Then when key and value are equal (Ids) is because the alias was found to be null.
-            .filter(electionAlias -> (electionsAliasIds.get(electionAlias) != null))
-            // Map alias to election_id
-            .map(electionAlias -> electionsAliasIds.get(electionAlias));
+            // The key is either the external ID or the id when external_id is null. The value is
+            // always the id.
+            // Then when key and value are equal (Ids) is because the external_id was found to be
+            // null.
+            .filter(electionExternalId -> (electionsExternalIds.get(electionExternalId) != null))
+            // Map external_id to election_id
+            .map(electionExternalId -> electionsExternalIds.get(electionExternalId));
 
     String useArray = mappingModel.getConfig().get(ARRAY_ATTRS);
     if (Boolean.parseBoolean(useArray)) {
@@ -235,6 +240,25 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       log.infov("Result: {0}", result);
       OIDCAttributeMapperHelper.mapClaim(token, mappingModel, result);
     }
+    putElectionEventIdClaim(token, electionEventId);
+  }
+
+  static void putElectionEventIdClaim(IDToken token, String electionEventId) {
+    Object existingClaims = token.getOtherClaims().get(HASURA_CLAIMS);
+    Map<String, Object> hasuraClaims;
+    if (existingClaims instanceof Map<?, ?> existingMap) {
+      hasuraClaims = new HashMap<>();
+      for (var entry : existingMap.entrySet()) {
+        if (entry.getKey() instanceof String key) {
+          hasuraClaims.put(key, entry.getValue());
+        }
+      }
+    } else {
+      hasuraClaims = new HashMap<>();
+    }
+
+    hasuraClaims.put(HASURA_ELECTION_EVENT_ID, electionEventId);
+    token.getOtherClaims().put(HASURA_CLAIMS, hasuraClaims);
   }
 
   public static ProtocolMapperModel createClaimMapper(
@@ -381,8 +405,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             query GetAllElectionsFromEvent {
               sequent_backend_election(where: {election_event_id: {_eq: "%s"}, tenant_id: {_eq: "%s"}}) {
                 id
-                alias
-                name
+                external_id
               }
             }
             """,
@@ -421,16 +444,17 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Map<String, String> electionIds = new HashMap<>();
     for (JsonNode election : electionsNode) {
       String id = election.path("id").asText();
-      // Use asText(null) so that if alias is missing it returns null.
-      String alias = election.hasNonNull("alias") ? election.get("alias").asText() : null;
-      String key = (alias != null && !alias.isEmpty()) ? alias : id;
+      // Use asText(null) so that if external_id is missing it returns null.
+      String external_id =
+          election.hasNonNull("external_id") ? election.get("external_id").asText() : null;
+      String key = (external_id != null && !external_id.isEmpty()) ? external_id : id;
 
-      keyAreaLog.append(String.format("Key: %s, Id: %s, Alias: %s\t", key, id, alias));
+      keyAreaLog.append(String.format("Key: %s, Id: %s, External ID: %s\t", key, id, external_id));
 
       if (electionIds.containsKey(key)) {
         log.infov(
-            "Warning: Two elections found with the same alias: {0} id_1: {1} id_2: {2}",
-            alias, electionIds.get(key), id);
+            "Warning: Two elections found with the same external_id: {0} id_1: {1} id_2: {2}",
+            external_id, electionIds.get(key), id);
       }
       log.info(keyAreaLog.toString());
       electionIds.put(key, id);

@@ -39,7 +39,7 @@ pub async fn update_event_voting_status(
 
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
-    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining elections")?;
 
@@ -83,6 +83,13 @@ pub async fn update_event_voting_status(
             event_channels.push(VotingStatusChannel::EARLY_VOTING)
         }
 
+        if VotingStatusChannel::TELEPHONE
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            event_channels.push(VotingStatusChannel::TELEPHONE)
+        }
+
         event_channels
     } else {
         info!("Default voting channels");
@@ -91,6 +98,7 @@ pub async fn update_event_voting_status(
             VotingStatusChannel::ONLINE,
             VotingStatusChannel::KIOSK,
             VotingStatusChannel::EARLY_VOTING,
+            VotingStatusChannel::TELEPHONE,
         ]
     };
 

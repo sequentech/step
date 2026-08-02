@@ -8,6 +8,7 @@ use ordered_float::NotNan;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -50,8 +51,14 @@ impl TryFrom<Row> for ResultsContestWrapper {
             implicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("implicit_invalid_votes")?
                 .map(|val| val as i64),
-            blank_votes: item
-                .try_get::<_, Option<i32>>("blank_votes")?
+            total_blank_votes: item
+                .try_get::<_, Option<i32>>("total_blank_votes")?
+                .map(|val| val as i64),
+            explicit_blank_votes: item
+                .try_get::<_, Option<i32>>("explicit_blank_votes")?
+                .map(|val| val as i64),
+            implicit_blank_votes: item
+                .try_get::<_, Option<i32>>("implicit_blank_votes")?
                 .map(|val| val as i64),
             voting_type: item.try_get("voting_type")?,
             counting_algorithm: item.try_get("counting_algorithm")?,
@@ -83,9 +90,19 @@ impl TryFrom<Row> for ResultsContestWrapper {
                 .to_f64()
                 .map(NotNan::new)
                 .transpose()?,
-            blank_votes_percent: item
-                .try_get::<&str, Decimal>("blank_votes_percent")?
-                .to_f64()
+            total_blank_votes_percent: item
+                .try_get::<_, Option<Decimal>>("total_blank_votes_percent")?
+                .and_then(|val| val.to_f64())
+                .map(NotNan::new)
+                .transpose()?,
+            explicit_blank_votes_percent: item
+                .try_get::<_, Option<Decimal>>("explicit_blank_votes_percent")?
+                .and_then(|val| val.to_f64())
+                .map(NotNan::new)
+                .transpose()?,
+            implicit_blank_votes_percent: item
+                .try_get::<_, Option<Decimal>>("implicit_blank_votes_percent")?
+                .and_then(|val| val.to_f64())
                 .map(NotNan::new)
                 .transpose()?,
             total_votes: item
@@ -115,15 +132,15 @@ pub async fn update_results_contest_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = Uuid::parse_str(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -178,13 +195,13 @@ pub async fn get_results_contest(
     election_id: &str,
     contest_id: &str,
 ) -> Result<ResultsContest> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = Uuid::parse_str(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -260,17 +277,21 @@ pub async fn insert_results_contests(
         explicit_invalid_votes_percent: Option<f64>,
         implicit_invalid_votes: Option<i64>,
         implicit_invalid_votes_percent: Option<f64>,
-        blank_votes: Option<i64>,
-        blank_votes_percent: Option<f64>,
+        total_blank_votes: Option<i64>,
+        explicit_blank_votes: Option<i64>,
+        implicit_blank_votes: Option<i64>,
+        total_blank_votes_percent: Option<f64>,
+        explicit_blank_votes_percent: Option<f64>,
+        implicit_blank_votes_percent: Option<f64>,
         voting_type: Option<String>,
         counting_algorithm: Option<String>,
         name: Option<String>,
         annotations: Option<serde_json::Value>,
     }
 
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)?;
-    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let results_event_uuid = parse_uuid_v4(results_event_id)?;
 
     let insert_data: Vec<InsertContestData> = contests
         .iter()
@@ -278,8 +299,8 @@ pub async fn insert_results_contests(
             Ok(InsertContestData {
                 tenant_id: tenant_uuid,
                 election_event_id: election_event_uuid,
-                election_id: Uuid::parse_str(&contest.election_id)?,
-                contest_id: Uuid::parse_str(&contest.contest_id)?,
+                election_id: parse_uuid_v4(&contest.election_id)?,
+                contest_id: parse_uuid_v4(&contest.contest_id)?,
                 results_event_id: results_event_uuid,
                 elegible_census: contest.elegible_census,
                 total_votes: contest.total_votes,
@@ -309,8 +330,21 @@ pub async fn insert_results_contests(
                     .implicit_invalid_votes_percent
                     .clone()
                     .map(|n| n.into()),
-                blank_votes: contest.blank_votes,
-                blank_votes_percent: contest.blank_votes_percent.clone().map(|n| n.into()),
+                total_blank_votes: contest.total_blank_votes,
+                explicit_blank_votes: contest.explicit_blank_votes,
+                implicit_blank_votes: contest.implicit_blank_votes,
+                total_blank_votes_percent: contest
+                    .total_blank_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                explicit_blank_votes_percent: contest
+                    .explicit_blank_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
+                implicit_blank_votes_percent: contest
+                    .implicit_blank_votes_percent
+                    .clone()
+                    .map(|n| n.into()),
                 voting_type: contest.voting_type.clone(),
                 counting_algorithm: contest.counting_algorithm.clone(),
                 name: contest.name.clone(),
@@ -343,8 +377,12 @@ pub async fn insert_results_contests(
                 explicit_invalid_votes_percent FLOAT8,
                 implicit_invalid_votes BIGINT,
                 implicit_invalid_votes_percent FLOAT8,
-                blank_votes BIGINT,
-                blank_votes_percent FLOAT8,
+                total_blank_votes BIGINT,
+                explicit_blank_votes BIGINT,
+                implicit_blank_votes BIGINT,
+                total_blank_votes_percent FLOAT8,
+                explicit_blank_votes_percent FLOAT8,
+                implicit_blank_votes_percent FLOAT8,
                 voting_type TEXT,
                 counting_algorithm TEXT,
                 name TEXT,
@@ -370,8 +408,12 @@ pub async fn insert_results_contests(
             explicit_invalid_votes_percent,
             implicit_invalid_votes,
             implicit_invalid_votes_percent,
-            blank_votes,
-            blank_votes_percent,
+            total_blank_votes,
+            explicit_blank_votes,
+            implicit_blank_votes,
+            total_blank_votes_percent,
+            explicit_blank_votes_percent,
+            implicit_blank_votes_percent,
             voting_type,
             counting_algorithm,
             name,
@@ -396,8 +438,12 @@ pub async fn insert_results_contests(
             explicit_invalid_votes_percent,
             implicit_invalid_votes,
             implicit_invalid_votes_percent,
-            blank_votes,
-            blank_votes_percent,
+            total_blank_votes,
+            explicit_blank_votes,
+            implicit_blank_votes,
+            total_blank_votes_percent,
+            explicit_blank_votes_percent,
+            implicit_blank_votes_percent,
             voting_type,
             counting_algorithm,
             name,
@@ -428,9 +474,9 @@ pub async fn get_event_results_contest(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsContest>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
@@ -475,7 +521,9 @@ struct InsertableResultsContest {
     total_valid_votes: Option<i64>,
     explicit_invalid_votes: Option<i64>,
     implicit_invalid_votes: Option<i64>,
-    blank_votes: Option<i64>,
+    total_blank_votes: Option<i64>,
+    explicit_blank_votes: Option<i64>,
+    implicit_blank_votes: Option<i64>,
     voting_type: Option<String>,
     counting_algorithm: Option<String>,
     name: Option<String>,
@@ -488,7 +536,9 @@ struct InsertableResultsContest {
     total_valid_votes_percent: Option<f64>,
     explicit_invalid_votes_percent: Option<f64>,
     implicit_invalid_votes_percent: Option<f64>,
-    blank_votes_percent: Option<f64>,
+    total_blank_votes_percent: Option<f64>,
+    explicit_blank_votes_percent: Option<f64>,
+    implicit_blank_votes_percent: Option<f64>,
     total_votes: Option<i64>,
     total_votes_percent: Option<f64>,
     documents: Option<Value>,
@@ -511,17 +561,19 @@ pub async fn insert_many_results_contests(
             let documents_json = c.documents.map(|d| serde_json::to_value(&d)).transpose()?;
 
             Ok(InsertableResultsContest {
-                id: Uuid::parse_str(&c.id)?,
-                tenant_id: Uuid::parse_str(&c.tenant_id)?,
-                election_event_id: Uuid::parse_str(&c.election_event_id)?,
-                election_id: Uuid::parse_str(&c.election_id)?,
-                contest_id: Uuid::parse_str(&c.contest_id)?,
-                results_event_id: Uuid::parse_str(&c.results_event_id)?,
+                id: parse_uuid_v4(&c.id)?,
+                tenant_id: parse_uuid_v4(&c.tenant_id)?,
+                election_event_id: parse_uuid_v4(&c.election_event_id)?,
+                election_id: parse_uuid_v4(&c.election_id)?,
+                contest_id: parse_uuid_v4(&c.contest_id)?,
+                results_event_id: parse_uuid_v4(&c.results_event_id)?,
                 elegible_census: c.elegible_census,
                 total_valid_votes: c.total_valid_votes,
                 explicit_invalid_votes: c.explicit_invalid_votes,
                 implicit_invalid_votes: c.implicit_invalid_votes,
-                blank_votes: c.blank_votes,
+                total_blank_votes: c.total_blank_votes,
+                explicit_blank_votes: c.explicit_blank_votes,
+                implicit_blank_votes: c.implicit_blank_votes,
                 voting_type: c.voting_type.clone(),
                 counting_algorithm: c.counting_algorithm.clone(),
                 name: c.name.clone(),
@@ -538,7 +590,13 @@ pub async fn insert_many_results_contests(
                 implicit_invalid_votes_percent: c
                     .implicit_invalid_votes_percent
                     .map(|v| v.into_inner()),
-                blank_votes_percent: c.blank_votes_percent.map(|v| v.into_inner()),
+                total_blank_votes_percent: c.total_blank_votes_percent.map(|v| v.into_inner()),
+                explicit_blank_votes_percent: c
+                    .explicit_blank_votes_percent
+                    .map(|v| v.into_inner()),
+                implicit_blank_votes_percent: c
+                    .implicit_blank_votes_percent
+                    .map(|v| v.into_inner()),
                 total_votes: c.total_votes,
                 total_votes_percent: c.total_votes_percent.map(|v| v.into_inner()),
                 documents: documents_json,
@@ -565,7 +623,9 @@ pub async fn insert_many_results_contests(
                 total_valid_votes BIGINT,
                 explicit_invalid_votes BIGINT,
                 implicit_invalid_votes BIGINT,
-                blank_votes BIGINT,
+                total_blank_votes BIGINT,
+                explicit_blank_votes BIGINT,
+                implicit_blank_votes BIGINT,
                 voting_type TEXT,
                 counting_algorithm TEXT,
                 name TEXT,
@@ -578,7 +638,9 @@ pub async fn insert_many_results_contests(
                 total_valid_votes_percent FLOAT8,
                 explicit_invalid_votes_percent FLOAT8,
                 implicit_invalid_votes_percent FLOAT8,
-                blank_votes_percent FLOAT8,
+                total_blank_votes_percent FLOAT8,
+                explicit_blank_votes_percent FLOAT8,
+                implicit_blank_votes_percent FLOAT8,
                 total_votes BIGINT,
                 total_votes_percent FLOAT8,
                 documents JSONB,
@@ -589,20 +651,24 @@ pub async fn insert_many_results_contests(
         INSERT INTO sequent_backend.results_contest (
             id, tenant_id, election_event_id, election_id, contest_id,
             results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
-            implicit_invalid_votes, blank_votes, voting_type, counting_algorithm, name,
+            implicit_invalid_votes, total_blank_votes, explicit_blank_votes,
+            implicit_blank_votes, voting_type, counting_algorithm, name,
             created_at, last_updated_at, labels, annotations, total_invalid_votes,
             total_invalid_votes_percent, total_valid_votes_percent, explicit_invalid_votes_percent,
-            implicit_invalid_votes_percent, blank_votes_percent, total_votes,
+            implicit_invalid_votes_percent, total_blank_votes_percent,
+            explicit_blank_votes_percent, implicit_blank_votes_percent, total_votes,
             total_votes_percent, documents, total_auditable_votes,
             total_auditable_votes_percent
         )
         SELECT
             id, tenant_id, election_event_id, election_id, contest_id,
             results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
-            implicit_invalid_votes, blank_votes, voting_type, counting_algorithm, name,
+            implicit_invalid_votes, total_blank_votes, explicit_blank_votes,
+            implicit_blank_votes, voting_type, counting_algorithm, name,
             created_at, last_updated_at, labels, annotations, total_invalid_votes,
             total_invalid_votes_percent, total_valid_votes_percent, explicit_invalid_votes_percent,
-            implicit_invalid_votes_percent, blank_votes_percent, total_votes,
+            implicit_invalid_votes_percent, total_blank_votes_percent,
+            explicit_blank_votes_percent, implicit_blank_votes_percent, total_votes,
             total_votes_percent, documents, total_auditable_votes,
             total_auditable_votes_percent
         FROM data
