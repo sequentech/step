@@ -293,7 +293,7 @@ const dutchTranslation: TranslationType = {
                 passwordError: "Het PDF-wachtwoord kon niet worden opgehaald",
                 copyError: "Het wachtwoord kon niet worden gekopieerd",
                 guidance:
-                    "Download de PDF en voer dit wachtwoord in wanneer uw PDF-lezer erom vraagt.",
+                    "Het wachtwoord wordt pas geladen nadat u Wachtwoord tonen kiest. Daarna verschijnt hier een alleen-lezen veld met een kopieeroptie.",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -516,6 +516,18 @@ const dutchTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

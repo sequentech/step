@@ -290,7 +290,7 @@ const englishTranslation = {
                 passwordError: "The PDF password could not be retrieved",
                 copyError: "The password could not be copied",
                 guidance:
-                    "Download the PDF and enter this password when your PDF reader asks for it.",
+                    "The password is loaded only after you choose Show password. After it loads, a read-only field with copy appears here.",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -512,6 +512,18 @@ const englishTranslation = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

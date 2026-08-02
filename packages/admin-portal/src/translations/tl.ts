@@ -294,7 +294,7 @@ const tagalogTranslation: TranslationType = {
                 passwordError: "Hindi nakuha ang password ng PDF",
                 copyError: "Hindi makopya ang password",
                 guidance:
-                    "I-download ang PDF at ilagay ang password na ito kapag hiniling ng PDF reader.",
+                    "Nilo-load lamang ang password pagkatapos mong piliin ang Ipakita ang password. Kapag na-load na, lalabas dito ang read-only na field na may opsyong kumopya.",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -517,6 +517,18 @@ const tagalogTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

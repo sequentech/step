@@ -293,7 +293,7 @@ const basqueTranslation: TranslationType = {
                 passwordError: "Ezin izan da PDFaren pasahitza eskuratu",
                 copyError: "Ezin izan da pasahitza kopiatu",
                 guidance:
-                    "Deskargatu PDFa eta idatzi pasahitz hau PDF irakurgailuak eskatzen duenean.",
+                    "Pasahitza Erakutsi pasahitza aukeratu ondoren bakarrik kargatzen da. Kargatu ondoren, kopiatzeko aukera duen irakurtzeko soilik den eremu bat agertuko da hemen.",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -516,6 +516,18 @@ const basqueTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

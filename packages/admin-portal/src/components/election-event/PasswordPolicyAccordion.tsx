@@ -13,9 +13,11 @@ import {
     FormControlLabel,
     Grid,
     TextField,
+    Tooltip,
     Typography,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined"
 import {useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -73,6 +75,28 @@ interface PasswordPolicyAccordionProps {
     onChange: () => void
     onDirty: () => void
 }
+
+interface PasswordPolicyFieldLabelProps {
+    label: string
+    information: string
+}
+
+const PasswordPolicyFieldLabel = ({label, information}: PasswordPolicyFieldLabelProps) => (
+    <Box component="span" sx={{display: "inline-flex", alignItems: "center", gap: 0.5}}>
+        <Typography component="span" variant="body2">
+            {label}
+        </Typography>
+        <Tooltip title={information} arrow placement="top">
+            <InfoOutlinedIcon
+                color="action"
+                fontSize="small"
+                tabIndex={0}
+                aria-label={information}
+                sx={{cursor: "help"}}
+            />
+        </Tooltip>
+    </Box>
+)
 
 export const PasswordPolicyAccordion = forwardRef<
     PasswordPolicyAccordionHandle,
@@ -243,41 +267,63 @@ export const PasswordPolicyAccordion = forwardRef<
                         )}
                         <Grid container spacing={2}>
                             <Grid size={{xs: 12, sm: 6, md: 3}}>
+                                <PasswordPolicyFieldLabel
+                                    label={String(
+                                        t("electionEventScreen.field.passwordPolicy.minimumLength")
+                                    )}
+                                    information={String(
+                                        t(
+                                            "electionEventScreen.field.passwordPolicy.help.minimumLength"
+                                        )
+                                    )}
+                                />
                                 <TextField
                                     fullWidth
                                     type="number"
                                     disabled={inputsDisabled}
-                                    label={t(
-                                        "electionEventScreen.field.passwordPolicy.minimumLength"
-                                    )}
+                                    sx={{marginTop: 1}}
                                     value={passwordPolicy.minimum_length}
                                     onChange={(event) =>
                                         setNumberValue("minimum_length", event.target.value)
                                     }
                                     slotProps={{
                                         htmlInput: {
-                                            min: MIN_PASSWORD_LENGTH,
-                                            max: MAX_PASSWORD_LENGTH,
+                                            "min": MIN_PASSWORD_LENGTH,
+                                            "max": MAX_PASSWORD_LENGTH,
+                                            "aria-label": t(
+                                                "electionEventScreen.field.passwordPolicy.minimumLength"
+                                            ),
                                         },
                                     }}
                                 />
                             </Grid>
                             <Grid size={{xs: 12, sm: 6, md: 3}}>
+                                <PasswordPolicyFieldLabel
+                                    label={String(
+                                        t("electionEventScreen.field.passwordPolicy.maximumLength")
+                                    )}
+                                    information={String(
+                                        t(
+                                            "electionEventScreen.field.passwordPolicy.help.maximumLength"
+                                        )
+                                    )}
+                                />
                                 <TextField
                                     fullWidth
                                     type="number"
                                     disabled={inputsDisabled}
-                                    label={t(
-                                        "electionEventScreen.field.passwordPolicy.maximumLength"
-                                    )}
+                                    sx={{marginTop: 1}}
                                     value={passwordPolicy.maximum_length}
                                     onChange={(event) =>
                                         setNumberValue("maximum_length", event.target.value)
                                     }
                                     slotProps={{
                                         htmlInput: {
-                                            min: MIN_PASSWORD_LENGTH,
-                                            max: MAX_PASSWORD_LENGTH,
+                                            "min": MIN_PASSWORD_LENGTH,
+                                            "max": MAX_PASSWORD_LENGTH,
+                                            "aria-label": t(
+                                                "electionEventScreen.field.passwordPolicy.maximumLength"
+                                            ),
                                         },
                                     }}
                                 />
@@ -307,9 +353,20 @@ export const PasswordPolicyAccordion = forwardRef<
                                         }
                                     />
                                 }
-                                label={t(
-                                    "electionEventScreen.field.passwordPolicy.includeUppercase"
-                                )}
+                                label={
+                                    <PasswordPolicyFieldLabel
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.includeUppercase"
+                                            )
+                                        )}
+                                        information={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.help.includeUppercase"
+                                            )
+                                        )}
+                                    />
+                                }
                             />
                             <FormControlLabel
                                 control={
@@ -324,9 +381,20 @@ export const PasswordPolicyAccordion = forwardRef<
                                         }
                                     />
                                 }
-                                label={t(
-                                    "electionEventScreen.field.passwordPolicy.includeLowercase"
-                                )}
+                                label={
+                                    <PasswordPolicyFieldLabel
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.includeLowercase"
+                                            )
+                                        )}
+                                        information={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.help.includeLowercase"
+                                            )
+                                        )}
+                                    />
+                                }
                             />
                             <FormControlLabel
                                 control={
@@ -338,7 +406,20 @@ export const PasswordPolicyAccordion = forwardRef<
                                         }
                                     />
                                 }
-                                label={t("electionEventScreen.field.passwordPolicy.includeDigits")}
+                                label={
+                                    <PasswordPolicyFieldLabel
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.includeDigits"
+                                            )
+                                        )}
+                                        information={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.help.includeDigits"
+                                            )
+                                        )}
+                                    />
+                                }
                             />
                             <FormControlLabel
                                 control={
@@ -353,9 +434,20 @@ export const PasswordPolicyAccordion = forwardRef<
                                         }
                                     />
                                 }
-                                label={t(
-                                    "electionEventScreen.field.passwordPolicy.includeSpecialCharacters"
-                                )}
+                                label={
+                                    <PasswordPolicyFieldLabel
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.includeSpecialCharacters"
+                                            )
+                                        )}
+                                        information={String(
+                                            t(
+                                                "electionEventScreen.field.passwordPolicy.help.includeSpecialCharacters"
+                                            )
+                                        )}
+                                    />
+                                }
                             />
                         </Box>
                         {validationError && (

@@ -292,7 +292,7 @@ const spanishTranslation: TranslationType = {
                 passwordError: "No se pudo recuperar la contraseña del PDF",
                 copyError: "No se pudo copiar la contraseña",
                 guidance:
-                    "Descargue el PDF e introduzca esta contraseña cuando el lector de PDF la solicite.",
+                    "La contraseña se carga únicamente después de elegir Mostrar contraseña. Una vez cargada, aparecerá aquí un campo de solo lectura con la opción de copiar.",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -515,6 +515,18 @@ const spanishTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

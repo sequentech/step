@@ -293,7 +293,7 @@ const frenchTranslation: TranslationType = {
                 passwordError: "Impossible de récupérer le mot de passe du PDF",
                 copyError: "Impossible de copier le mot de passe",
                 guidance:
-                    "Téléchargez le PDF et saisissez ce mot de passe lorsque votre lecteur PDF le demande.",
+                    "Le mot de passe n'est chargé qu'après avoir choisi Afficher le mot de passe. Une fois chargé, un champ en lecture seule avec une option de copie apparaît ici.",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -515,6 +515,18 @@ const frenchTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

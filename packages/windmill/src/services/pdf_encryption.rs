@@ -4,10 +4,36 @@
 
 use anyhow::{Context, Result};
 use lopdf::encryption::crypt_filters::{Aes128CryptFilter, CryptFilter};
-use lopdf::{Document, EncryptionState, EncryptionVersion, Permissions};
+use lopdf::{Document, EncryptionState, EncryptionVersion, Object, Permissions, StringFormat};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use uuid::Uuid;
+
+fn ensure_file_identifier(document: &mut Document) {
+    let has_file_identifier = document
+        .trailer
+        .get(b"ID")
+        .ok()
+        .and_then(|identifier| identifier.as_array().ok())
+        .and_then(|identifiers| identifiers.first())
+        .and_then(|identifier| identifier.as_str().ok())
+        .is_some();
+
+    if has_file_identifier {
+        return;
+    }
+
+    // Chromium may omit the optional PDF file identifier. lopdf requires its
+    // first value when deriving the encryption key, so add one when needed.
+    let identifier = Uuid::new_v4().as_bytes().to_vec();
+    document.trailer.set(
+        "ID",
+        Object::Array(vec![
+            Object::String(identifier.clone(), StringFormat::Hexadecimal),
+            Object::String(identifier, StringFormat::Hexadecimal),
+        ]),
+    );
+}
 
 /// Applies standard PDF AES-128 user-password encryption. The random owner
 /// password is intentionally discarded: administrators only need the user
@@ -15,6 +41,7 @@ use uuid::Uuid;
 pub fn encrypt_pdf(pdf_bytes: &[u8], user_password: &str) -> Result<Vec<u8>> {
     let mut document = Document::load_mem(pdf_bytes)
         .with_context(|| "Failed to parse the rendered PDF before encryption")?;
+    ensure_file_identifier(&mut document);
     let owner_password = Uuid::new_v4().simple().to_string();
     let filter: Arc<dyn CryptFilter> = Arc::new(Aes128CryptFilter);
     let version = EncryptionVersion::V4 {
@@ -76,17 +103,60 @@ mod tests {
             "Pages" => Object::Reference(pages_id),
         });
         document.trailer.set("Root", Object::Reference(catalog_id));
-        document.trailer.set(
-            "ID",
-            Object::Array(vec![
-                Object::String(vec![1; 16], StringFormat::Literal),
-                Object::String(vec![2; 16], StringFormat::Literal),
-            ]),
-        );
 
         let mut bytes = Vec::new();
         document.save_to(&mut bytes).unwrap();
         bytes
+    }
+
+    #[test]
+    fn adds_a_missing_file_identifier_before_encrypting() {
+        let source = sample_pdf();
+        let source_document = Document::load_mem(&source).unwrap();
+        assert!(source_document.trailer.get(b"ID").is_err());
+
+        let encrypted = encrypt_pdf(&source, "document-password").unwrap();
+        let encrypted_document = Document::load_mem(&encrypted).unwrap();
+        let identifiers = encrypted_document
+            .trailer
+            .get(b"ID")
+            .unwrap()
+            .as_array()
+            .unwrap();
+
+        assert_eq!(identifiers.len(), 2);
+        assert_eq!(identifiers[0].as_str().unwrap().len(), 16);
+        assert_eq!(
+            identifiers[0].as_str().unwrap(),
+            identifiers[1].as_str().unwrap()
+        );
+    }
+
+    #[test]
+    fn preserves_an_existing_file_identifier() {
+        let mut source_document = Document::load_mem(&sample_pdf()).unwrap();
+        let identifiers = vec![
+            Object::String(vec![1; 16], StringFormat::Literal),
+            Object::String(vec![2; 16], StringFormat::Literal),
+        ];
+        source_document
+            .trailer
+            .set("ID", Object::Array(identifiers.clone()));
+        let mut source = Vec::new();
+        source_document.save_to(&mut source).unwrap();
+
+        let encrypted = encrypt_pdf(&source, "document-password").unwrap();
+        let encrypted_document = Document::load_mem(&encrypted).unwrap();
+
+        assert_eq!(
+            encrypted_document
+                .trailer
+                .get(b"ID")
+                .unwrap()
+                .as_array()
+                .unwrap(),
+            &identifiers
+        );
     }
 
     #[test]

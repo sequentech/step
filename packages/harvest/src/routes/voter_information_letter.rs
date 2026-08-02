@@ -4,6 +4,7 @@
 
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
+use anyhow::Context;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -20,7 +21,9 @@ use windmill::postgres::tasks_execution::get_task_by_id;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::{post, update_fail};
-use windmill::services::voter_information_letter::read_secret;
+use windmill::services::voter_information_letter::{
+    read_secret, save_secret, VoterInformationLetterSecret,
+};
 use windmill::types::tasks::ETasksExecution;
 
 const POLICY_ERROR: &str =
@@ -35,6 +38,7 @@ pub struct GenerateVoterInformationLetterInput {
 #[derive(Debug, Serialize)]
 pub struct GenerateVoterInformationLetterOutput {
     document_id: String,
+    pdf_password: String,
     task_execution: TasksExecution,
 }
 
@@ -54,6 +58,30 @@ fn internal_error(message: &str) -> JsonError {
         message,
         ErrorCode::InternalServerError,
     )
+}
+
+async fn store_secret_for_task(
+    tenant_id: &str,
+    election_event_id: &str,
+    task_id: &str,
+    secret: &VoterInformationLetterSecret,
+) -> anyhow::Result<()> {
+    let mut client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get database client")?;
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start secret transaction")?;
+    save_secret(&transaction, tenant_id, election_event_id, task_id, secret)
+        .await
+        .context("Failed to store Voter Information Letter secret")?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit Voter Information Letter secret")
 }
 
 #[instrument(skip_all)]
@@ -115,6 +143,16 @@ pub async fn generate_voter_information_letter(
             )
         })?;
 
+    let secret = VoterInformationLetterSecret {
+        voter_password: policy.generate_password().map_err(|error| {
+            error!(
+                "Failed to generate a credential from the election event password policy: {error:#}"
+            );
+            internal_error("Failed to generate a voter credential")
+        })?,
+        pdf_password: Uuid::new_v4().simple().to_string(),
+    };
+
     let executer_name = claims
         .name
         .clone()
@@ -130,6 +168,29 @@ pub async fn generate_voter_information_letter(
         error!("Failed to create Voter Information Letter task: {error:#}");
         internal_error("Failed to create Voter Information Letter task")
     })?;
+
+    if let Err(error) = store_secret_for_task(
+        &tenant_id,
+        &input.election_event_id,
+        &task_execution.id,
+        &secret,
+    )
+    .await
+    {
+        error!(
+            task_id = %task_execution.id,
+            "Failed to prepare Voter Information Letter document access: {error:#}"
+        );
+        update_fail(
+            &task_execution,
+            "Failed to prepare Voter Information Letter generation",
+        )
+        .await
+        .ok();
+        return Err(internal_error(
+            "Failed to prepare Voter Information Letter generation",
+        ));
+    }
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
@@ -162,6 +223,7 @@ pub async fn generate_voter_information_letter(
 
     Ok(Json(GenerateVoterInformationLetterOutput {
         document_id,
+        pdf_password: secret.pdf_password,
         task_execution,
     }))
 }

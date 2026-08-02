@@ -12,14 +12,20 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::Utc;
 use deadpool_postgres::Transaction;
-use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_realm_attributes, KeycloakAdminClient,
+};
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::types::keycloak::{
+    CredentialInputPolicy, REALM_ATTR_CREDENTIAL_INPUT_PATTERN, REALM_ATTR_CREDENTIAL_INPUT_POLICY,
+};
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::env;
 use std::fmt::{Debug, Formatter};
+use std::str::FromStr;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -138,6 +144,44 @@ fn translated_event_name(presentation: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
+fn apply_structured_pattern(credential: &str, pattern: &str) -> Option<String> {
+    if credential.is_empty() || !credential.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+
+    let mut digits = credential.bytes();
+    let mut formatted = String::with_capacity(pattern.len());
+    for token in pattern.bytes() {
+        match token {
+            b'd' => formatted.push(digits.next()? as char),
+            b'-' => formatted.push('-'),
+            _ => return None,
+        }
+    }
+
+    if digits.next().is_some() {
+        None
+    } else {
+        Some(formatted)
+    }
+}
+
+fn credential_for_presentation(
+    credential: &str,
+    input_policy: Option<&str>,
+    input_pattern: Option<&str>,
+) -> String {
+    let is_structured = input_policy.and_then(|value| CredentialInputPolicy::from_str(value).ok())
+        == Some(CredentialInputPolicy::STRUCTURED);
+    if !is_structured {
+        return credential.to_string();
+    }
+
+    input_pattern
+        .and_then(|pattern| apply_structured_pattern(credential, pattern))
+        .unwrap_or_else(|| credential.to_string())
+}
+
 #[async_trait]
 impl TemplateRenderer for VoterInformationLetterTemplate {
     type UserData = UserData;
@@ -204,6 +248,20 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
             .await?
             .get_user(&realm, voter_id)
             .await?;
+        let realm_attributes =
+            get_realm_attributes(&self.ids.tenant_id, &self.ids.election_event_id)
+                .await
+                .with_context(|| "Failed to load election event credential presentation")?;
+        let password = credential_for_presentation(
+            &self.credential,
+            realm_attributes
+                .get(REALM_ATTR_CREDENTIAL_INPUT_POLICY)
+                .map(String::as_str),
+            realm_attributes
+                .get(REALM_ATTR_CREDENTIAL_INPUT_PATTERN)
+                .map(String::as_str),
+        );
+
         let first_name = voter.first_name.unwrap_or_default();
         let last_name = voter.last_name.unwrap_or_default();
         let username = voter
@@ -221,7 +279,7 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
             voter_first_name: first_name,
             voter_last_name: last_name,
             username,
-            password: self.credential.clone(),
+            password,
             voting_portal_url: format!(
                 "{}/tenant/{}/event/{}/login",
                 portal_base.trim_end_matches('/'),
@@ -251,5 +309,54 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
                 PUBLIC_ASSETS_LOGO_IMG
             ),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::credential_for_presentation;
+
+    #[test]
+    fn formats_matching_structured_credentials() {
+        assert_eq!(
+            credential_for_presentation(
+                "1234567890123456",
+                Some("structured"),
+                Some("dddd-dddd-dddd-dddd"),
+            ),
+            "1234-5678-9012-3456",
+        );
+    }
+
+    #[test]
+    fn leaves_standard_credentials_unchanged() {
+        assert_eq!(
+            credential_for_presentation(
+                "1234567890123456",
+                Some("standard"),
+                Some("dddd-dddd-dddd-dddd"),
+            ),
+            "1234567890123456",
+        );
+    }
+
+    #[test]
+    fn leaves_credentials_unchanged_without_a_pattern() {
+        assert_eq!(
+            credential_for_presentation("1234567890123456", Some("structured"), None),
+            "1234567890123456",
+        );
+    }
+
+    #[test]
+    fn leaves_credentials_unchanged_when_the_pattern_does_not_match() {
+        assert_eq!(
+            credential_for_presentation(
+                "12345678",
+                Some("structured"),
+                Some("dddd-dddd-dddd-dddd"),
+            ),
+            "12345678",
+        );
     }
 }

@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
+use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
+use rocket::Request;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
@@ -517,6 +520,52 @@ pub struct EditUserBody {
 
 const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
 
+pub struct EditUserError(JsonError);
+
+impl std::fmt::Debug for EditUserError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EditUserError")
+            .field("status", &self.0 .0)
+            .field("code", &self.0 .1 .0.extensions.code)
+            .finish()
+    }
+}
+
+impl EditUserError {
+    fn new(status: Status, message: &str, code: ErrorCode) -> Self {
+        Self(ErrorResponse::new(status, message, code))
+    }
+
+    fn password_policy_violation() -> Self {
+        Self::new(
+            Status::BadRequest,
+            "The password does not comply with the election event password policy",
+            ErrorCode::PasswordPolicyViolation,
+        )
+    }
+}
+
+impl From<(Status, String)> for EditUserError {
+    fn from((status, message): (Status, String)) -> Self {
+        let code =
+            if status == Status::Unauthorized || status == Status::Forbidden {
+                ErrorCode::Unauthorized
+            } else if status == Status::InternalServerError {
+                ErrorCode::InternalServerError
+            } else {
+                ErrorCode::UnknownError
+            };
+        Self::new(status, &message, code)
+    }
+}
+
+impl<'r> Responder<'r, 'static> for EditUserError {
+    fn respond_to(self, request: &'r Request<'_>) -> ResponseResult<'static> {
+        self.0.respond_to(request)
+    }
+}
+
 pub async fn check_edit_email_tlf(
     client: &KeycloakAdminClient,
     input: &EditUserBody,
@@ -565,7 +614,7 @@ pub async fn check_edit_email_tlf(
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
-) -> Result<Json<EditUserOutput>, (Status, String)> {
+) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
     let password_only = input.election_event_id.is_some()
         && input.password.is_some()
@@ -639,9 +688,9 @@ pub async fn edit_user(
                 ),
                     )
                 })?;
-        password_policy.validate_password(password).map_err(|_| {
-            (Status::BadRequest, "PasswordPolicyViolation".to_string())
-        })?;
+        password_policy
+            .validate_password(password)
+            .map_err(|_| EditUserError::password_policy_violation())?;
     }
 
     let mut hasura_db_client: DbClient =
@@ -684,14 +733,16 @@ pub async fn edit_user(
                 return Err((
                     Status::InternalServerError,
                     format!("Error listing voter with vote info"),
-                ));
+                )
+                    .into());
             };
             if let Some(votes_info) = voter.votes_info.clone() {
                 if votes_info.len() > 0 {
                     return Err((
                         Status::Unauthorized,
                         format!("Can't edit a voter that has already cast its ballot"),
-                    ));
+                    )
+                        .into());
                 }
             }
         }
@@ -704,7 +755,8 @@ pub async fn edit_user(
         return Err((
             Status::BadRequest,
             "Cannot change tenant-id attribute".to_string(),
-        ));
+        )
+            .into());
     }
 
     if voter_email_tlf_edit {
@@ -804,7 +856,8 @@ pub async fn edit_user(
                 return Err((
                     Status::InternalServerError,
                     format!("Error sending Edit Voter task: {err:?}"),
-                ));
+                )
+                    .into());
             }
 
             info!("Sent EDIT_USER task {}", task_execution.id);
@@ -1136,4 +1189,19 @@ pub async fn get_user_profile_attributes(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(attributes_res))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EditUserError;
+    use rocket::http::Status;
+
+    #[test]
+    fn password_policy_violation_is_a_structured_bad_request() {
+        let response = EditUserError::password_policy_violation();
+
+        assert_eq!(response.0 .0, Status::BadRequest);
+        assert_eq!(response.0 .1 .0.extensions.code, "PasswordPolicyViolation");
+        assert!(!response.0 .1 .0.message.is_empty());
+    }
 }

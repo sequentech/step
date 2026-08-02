@@ -292,7 +292,7 @@ const galegoTranslation: TranslationType = {
                 passwordError: "Non se puido recuperar o contrasinal do PDF",
                 copyError: "Non se puido copiar o contrasinal",
                 guidance:
-                    "Descargue o PDF e introduza este contrasinal cando o lector de PDF o solicite.",
+                    "O contrasinal só se carga despois de escoller Amosar o contrasinal. Unha vez cargado, aparecerá aquí un campo de só lectura coa opción de copiar.",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -515,6 +515,18 @@ const galegoTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

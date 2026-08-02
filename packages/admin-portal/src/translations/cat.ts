@@ -260,7 +260,7 @@ const catalanTranslation: TranslationType = {
                 passwordError: "No s'ha pogut recuperar la contrasenya del PDF",
                 copyError: "No s'ha pogut copiar la contrasenya",
                 guidance:
-                    "Baixeu el PDF i introduïu aquesta contrasenya quan el lector de PDF la demani.",
+                    "La contrasenya només es carrega després de triar Mostra la contrasenya. Després de carregar-la, aquí apareix un camp de només lectura amb l'opció de copiar.",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -515,6 +515,18 @@ const catalanTranslation: TranslationType = {
                     includeLowercase: "Include lowercase letters",
                     includeDigits: "Include digits",
                     includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
                     notConfigured:
                         "No password policy is configured. Saving will apply the defaults below.",
                     errors: {

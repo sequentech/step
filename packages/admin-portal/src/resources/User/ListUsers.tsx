@@ -96,6 +96,7 @@ import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
+import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
@@ -157,6 +158,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
     const [openVoterInformationLetter, setOpenVoterInformationLetter] = useState(false)
+    const [voterInformationLetterPassword, setVoterInformationLetterPassword] = useState<string>()
     const [generatingVoterInformationLetter, setGeneratingVoterInformationLetter] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
     const [deleteId, setDeleteId] = useState<string | undefined>()
@@ -174,7 +176,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const [generateVoterInformationLetter] = useMutation<GenerateVoterInformationLetterMutation>(
         GENERATE_VOTER_INFORMATION_LETTER,
-        {context: {headers: {"x-hasura-role": IPermissions.VOTER_INFORMATION_LETTER}}}
+        {
+            fetchPolicy: "no-cache",
+            context: {headers: {"x-hasura-role": IPermissions.VOTER_INFORMATION_LETTER}},
+        }
     )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
@@ -295,6 +300,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
         setOpenVoterInformationLetter(false)
+        setVoterInformationLetterPassword(undefined)
         setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -380,6 +386,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenEditPassword(false)
         setRecordIds([id])
+        setVoterInformationLetterPassword(undefined)
         setOpenVoterInformationLetter(true)
     }
 
@@ -398,8 +405,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 },
             })
             const taskId = data?.generate_voter_information_letter?.task_execution?.id
-            if (!taskId) {
-                throw new Error("Voter Information Letter task was not returned")
+            const pdfPassword = data?.generate_voter_information_letter?.pdf_password
+            if (!taskId || !pdfPassword) {
+                throw new Error("Voter Information Letter access data was not returned")
             }
 
             const widget = addWidget(ETasksExecution.VOTER_INFORMATION_LETTER, false)
@@ -409,6 +417,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             })
             setOpenVoterInformationLetter(false)
             setRecordIds([])
+            setVoterInformationLetterPassword(pdfPassword)
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : ""
             const isPasswordPolicyMissing =
@@ -1539,6 +1548,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 <FormStyles.ReservedProgressSpace>
                     {generatingVoterInformationLetter ? <FormStyles.ShowProgress /> : null}
                 </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                maxWidth={"sm"}
+                title={String(t("tasksScreen.documentAccess.title"))}
+                ok={String(t("common.label.close"))}
+                open={Boolean(voterInformationLetterPassword)}
+                handleClose={() => setVoterInformationLetterPassword(undefined)}
+            >
+                {voterInformationLetterPassword ? (
+                    <VoterInformationLetterPasswordAccess
+                        pdfPassword={voterInformationLetterPassword}
+                    />
+                ) : null}
             </Dialog>
 
             {openEditPassword && (
