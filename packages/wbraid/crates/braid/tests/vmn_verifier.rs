@@ -151,12 +151,22 @@ fn run_vmnv_mode(env: &Env, dir: &PathBuf, mode: &str, verbose: bool) -> (i32, S
 /// would otherwise share between concurrent runs.
 ///
 /// **`-wd` is the one that actually bites.** Verificatum spools large integer
-/// arrays into a working directory under `/tmp/com.verificatum`, and without
-/// `-wd` every process picks the *same* one and deletes it on exit, so parallel
-/// runs kill each other with `File not found!` or `Unable to delete storage
-/// directory!` part-way through a proof. It must be a relative name: `TempFile`
-/// treats a path as absolute only if it starts with `/`, so a Windows path would
-/// be appended to the default root rather than replacing it.
+/// arrays into a working directory under `/tmp/com.verificatum` and deletes it
+/// on exit, so two processes sharing one kill each other with `File not found!`
+/// or `Unable to delete storage directory!` part-way through a proof.
+///
+/// Without `-wd`, `TempFile.init` names that directory from
+/// `randomSource.getBytes(10)` — which is only as unique as the random source
+/// is. Ours is a **seeded PRG**, because Windows has no `/dev/urandom` (see the
+/// corpus README), so it is deterministic: concurrent runs all read the same
+/// seed file before any of them rewrites it, derive the same bytes, and collide.
+/// On Unix with `vog -rndinit RandomDevice /dev/urandom` the source is genuinely
+/// random and this would not arise, so it is an artifact of the Windows setup
+/// rather than an upstream bug.
+///
+/// It must be a relative name: `TempFile` treats a path as absolute only if it
+/// starts with `/`, so a Windows path would be appended to the default root
+/// rather than replacing it.
 fn private_name(kind: &str) -> String {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static NEXT: AtomicUsize = AtomicUsize::new(0);
@@ -171,10 +181,12 @@ fn private_name(kind: &str) -> String {
 /// A private copy of the seed file for one `vmnv` invocation.
 ///
 /// `vmnv` rewrites its seed on every run — that is what a seeded PRG source does
-/// — so this is the second file concurrent runs would share. Unlike the working
-/// directory it has not been observed to cause a failure, but sharing mutable
-/// state across parallel processes to save a file copy is not a trade worth
-/// making. The random *source* file is only read, and stays shared.
+/// — so this is the second file concurrent runs would share, and sharing mutable
+/// state across processes to save a file copy is not a trade worth making.
+///
+/// Note this does **not** fix the working-directory collision `-wd` addresses:
+/// the copies are byte-identical, so every run still derives the same "random"
+/// bytes from them. The random *source* file is only read, and stays shared.
 fn private_seed(env: &Env) -> PathBuf {
     let path = std::env::temp_dir().join(private_name("seed"));
     std::fs::copy(&env.random_seed, &path).expect("copy the vmnv seed file");
