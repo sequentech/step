@@ -116,11 +116,134 @@ fn voter_password_change_body(
     .context("Failed to serialize voter password-change electoral-log details")
 }
 
+/// A signed voter password-change log entry that can be persisted after the
+/// Hasura transaction which prepared it commits.
+///
+/// This contains no password or generated voter credential. It is serializable
+/// so a task can durably retain the exact signed message until delivery.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PreparedVoterPasswordChangeLog {
+    board: String,
+    message: ElectoralLogMessage,
+}
+
+impl PreparedVoterPasswordChangeLog {
+    #[instrument(skip(self), err)]
+    pub async fn post(&self) -> Result<()> {
+        retry_with_exponential_backoff(
+            || async {
+                let mut client = get_board_client().await?;
+                let mut columns_matcher = WhereClauseBTreeMap::new();
+                columns_matcher.insert(
+                    ElectoralLogVarCharColumn::StatementKind,
+                    (SqlCompOperators::Equal, self.message.statement_kind.clone()),
+                );
+                columns_matcher.insert(
+                    ElectoralLogVarCharColumn::SenderPk,
+                    (SqlCompOperators::Equal, self.message.sender_pk.clone()),
+                );
+                columns_matcher.insert(
+                    ElectoralLogVarCharColumn::Version,
+                    (SqlCompOperators::Equal, self.message.version.clone()),
+                );
+                if let Some(user_id) = &self.message.user_id {
+                    columns_matcher.insert(
+                        ElectoralLogVarCharColumn::UserId,
+                        (SqlCompOperators::Equal, user_id.clone()),
+                    );
+                }
+
+                let existing = client
+                    .get_electoral_log_messages_filtered::<String, String>(
+                        &self.board,
+                        Some(columns_matcher),
+                        Some(self.message.created),
+                        Some(self.message.created),
+                        Some(100),
+                        None,
+                        None,
+                    )
+                    .await?;
+                if existing
+                    .iter()
+                    .any(|candidate| same_electoral_log_message(candidate, &self.message))
+                {
+                    return Ok(());
+                }
+
+                client
+                    .insert_electoral_log_messages(&self.board, &vec![self.message.clone()])
+                    .await
+            },
+            5,
+            Duration::from_millis(100),
+        )
+        .await
+    }
+}
+
+fn same_electoral_log_message(left: &ElectoralLogMessage, right: &ElectoralLogMessage) -> bool {
+    left.created == right.created
+        && left.sender_pk == right.sender_pk
+        && left.statement_timestamp == right.statement_timestamp
+        && left.statement_kind == right.statement_kind
+        && left.message == right.message
+        && left.version == right.version
+        && left.user_id == right.user_id
+        && left.username == right.username
+        && left.election_id == right.election_id
+        && left.area_id == right.area_id
+        && left.ballot_id == right.ballot_id
+}
+
+/// Prepares a signed password-change audit entry using the caller's Hasura
+/// transaction. The caller can therefore commit its document and durable task
+/// state before performing the external Immudb write.
+#[instrument(skip_all, err)]
+pub async fn prepare_voter_password_change(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+    voter_username: Option<String>,
+    admin: &ElectoralLogAdminContext,
+    source: VoterPasswordChangeSource,
+) -> Result<PreparedVoterPasswordChangeLog> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .context("Failed to get election event for the password-change electoral log")?;
+    let board = get_election_event_board(election_event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        hasura_transaction,
+        &board,
+        tenant_id,
+        election_event_id,
+        &admin.user_id,
+        admin.username.clone(),
+        admin.authorized_election_ids.clone(),
+        admin.area_id.clone(),
+    )
+    .await
+    .context("Failed to initialize the admin-signed password-change electoral log")?;
+    let body = voter_password_change_body(voter_id, voter_username.as_deref(), admin, source)?;
+    let message = electoral_log
+        .build_keycloak_event_message(
+            election_event_id.to_string(),
+            source.event_type().to_string(),
+            body,
+            Some(voter_id.to_string()),
+            voter_username,
+            None,
+        )
+        .context("Failed to build the voter password-change electoral-log entry")?;
+
+    Ok(PreparedVoterPasswordChangeLog { board, message })
+}
+
 /// Posts a signed electoral-log entry after an admin-triggered voter password
-/// change succeeds. The voter remains the searchable subject of the entry;
-/// the signed body records both the voter and initiating admin, plus the path
-/// that caused the change. No password or generated credential is accepted by
-/// this API, so it cannot accidentally be persisted in the log.
+/// change succeeds. Callers that already hold a Hasura transaction should use
+/// `prepare_voter_password_change` and post the result only after committing.
 #[instrument(skip_all, err)]
 pub async fn post_voter_password_change(
     tenant_id: &str,
@@ -139,39 +262,24 @@ pub async fn post_voter_password_change(
         .transaction()
         .await
         .context("Failed to start password-change electoral-log transaction")?;
-    let election_event = get_election_event_by_id(&transaction, tenant_id, election_event_id)
-        .await
-        .context("Failed to get election event for the password-change electoral log")?;
-    let board = get_election_event_board(election_event.bulletin_board_reference)
-        .context("Election event is missing its electoral-log board")?;
-    let electoral_log = ElectoralLog::for_admin_user(
+    let prepared = prepare_voter_password_change(
         &transaction,
-        &board,
         tenant_id,
         election_event_id,
-        &admin.user_id,
-        admin.username.clone(),
-        admin.authorized_election_ids.clone(),
-        admin.area_id.clone(),
+        voter_id,
+        voter_username,
+        admin,
+        source,
     )
-    .await
-    .context("Failed to initialize the admin-signed password-change electoral log")?;
-    let body = voter_password_change_body(voter_id, voter_username.as_deref(), admin, source)?;
-    electoral_log
-        .post_keycloak_event(
-            election_event_id.to_string(),
-            source.event_type().to_string(),
-            body,
-            Some(voter_id.to_string()),
-            voter_username,
-        )
-        .await
-        .context("Failed to post the voter password-change electoral-log entry")?;
+    .await?;
     transaction
         .commit()
         .await
         .context("Failed to commit the password-change electoral-log transaction")?;
-    Ok(())
+    prepared
+        .post()
+        .await
+        .context("Failed to post the voter password-change electoral-log entry")
 }
 
 pub struct ElectoralLog {
@@ -1788,6 +1896,23 @@ mod password_change_tests {
         }
     }
 
+    fn prepared_message() -> ElectoralLogMessage {
+        ElectoralLogMessage {
+            id: 0,
+            created: 1_785_700_000,
+            sender_pk: "sender-public-key".to_string(),
+            statement_timestamp: 1_785_700_000,
+            statement_kind: "keycloak_user_event".to_string(),
+            message: vec![1, 2, 3, 4],
+            version: "1".to_string(),
+            user_id: Some("voter-id".to_string()),
+            username: Some("voter-user".to_string()),
+            election_id: None,
+            area_id: None,
+            ballot_id: None,
+        }
+    }
+
     #[test]
     fn password_change_body_identifies_subject_actor_and_source_without_a_credential() {
         let body = voter_password_change_body(
@@ -1827,5 +1952,30 @@ mod password_change_tests {
             VoterPasswordChangeSource::VoterInformationLetter.event_type(),
             "UPDATE_PASSWORD: VOTER_INFORMATION_LETTER"
         );
+    }
+
+    #[test]
+    fn prepared_password_change_log_round_trips_for_durable_task_annotations() {
+        let prepared = PreparedVoterPasswordChangeLog {
+            board: "event-board".to_string(),
+            message: prepared_message(),
+        };
+
+        let serialized = serde_json::to_value(&prepared).unwrap();
+        let restored: PreparedVoterPasswordChangeLog = serde_json::from_value(serialized).unwrap();
+
+        assert_eq!(restored, prepared);
+    }
+
+    #[test]
+    fn duplicate_detection_ignores_immudb_row_id_but_compares_signed_message() {
+        let prepared = prepared_message();
+        let mut inserted = prepared.clone();
+        inserted.id = 42;
+
+        assert!(same_electoral_log_message(&inserted, &prepared));
+
+        inserted.message.push(5);
+        assert!(!same_electoral_log_message(&inserted, &prepared));
     }
 }

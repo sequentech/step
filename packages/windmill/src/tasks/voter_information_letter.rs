@@ -3,15 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::document::get_document;
+use crate::postgres::tasks_execution::{
+    get_task_by_id_with_transaction, merge_task_execution_annotations,
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::document_password::read_password;
 use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::electoral_log::{
-    post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
+    prepare_voter_password_change, ElectoralLogAdminContext, PreparedVoterPasswordChangeLog,
+    VoterPasswordChangeSource,
 };
 use crate::services::pdf_encryption::encrypt_pdf;
 use crate::services::reports::voter_information_letter::VoterInformationLetterTemplate;
-use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
+use crate::services::tasks_execution::{
+    update_complete_with_annotations, update_fail_preserving_annotations,
+};
 use crate::types::error::{Error as TaskWrapError, Result as TaskWrapResult};
 use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
@@ -21,15 +27,75 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 
 const FAILURE_MESSAGE: &str = "Voter Information Letter generation failed";
 
-#[derive(Serialize)]
-struct VoterInformationLetterTaskAnnotations<'a> {
-    document_id: &'a str,
-    voter_id: &'a str,
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+struct VoterInformationLetterTaskAnnotations {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    document_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    voter_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    password_change_audit: Option<VoterPasswordChangeAuditDelivery>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct VoterPasswordChangeAuditDelivery {
+    delivered: bool,
+    log: PreparedVoterPasswordChangeLog,
+}
+
+impl VoterInformationLetterTaskAnnotations {
+    fn pending(document_id: &str, voter_id: &str, log: PreparedVoterPasswordChangeLog) -> Self {
+        Self {
+            document_id: Some(document_id.to_string()),
+            voter_id: Some(voter_id.to_string()),
+            password_change_audit: Some(VoterPasswordChangeAuditDelivery {
+                delivered: false,
+                log,
+            }),
+        }
+    }
+
+    fn validate_for(&self, document_id: &str, voter_id: &str) -> Result<()> {
+        if self.password_change_audit.is_some()
+            && (self.document_id.as_deref() != Some(document_id)
+                || self.voter_id.as_deref() != Some(voter_id))
+        {
+            return Err(anyhow!(
+                "Task audit state does not match the Voter Information Letter document"
+            ));
+        }
+        Ok(())
+    }
+}
+
+async fn deliver_audit_and_complete(
+    task_execution: &TasksExecution,
+    mut annotations: VoterInformationLetterTaskAnnotations,
+) -> Result<()> {
+    let mut annotations_changed = false;
+    if let Some(audit) = annotations.password_change_audit.as_mut() {
+        if !audit.delivered {
+            audit
+                .log
+                .post()
+                .await
+                .context("Voter credential changed, but its electoral-log entry failed")?;
+            audit.delivered = true;
+            annotations_changed = true;
+        }
+    }
+
+    if task_execution.execution_status == "SUCCESS" && !annotations_changed {
+        return Ok(());
+    }
+
+    update_complete_with_annotations(task_execution, serde_json::to_value(annotations)?).await?;
+    Ok(())
 }
 
 #[instrument(skip_all, err)]
@@ -42,11 +108,6 @@ async fn generate(
     password_change_initiator: &ElectoralLogAdminContext,
     task_execution: &TasksExecution,
 ) -> Result<()> {
-    let task_annotations = serde_json::to_value(VoterInformationLetterTaskAnnotations {
-        document_id,
-        voter_id,
-    })?;
-
     let mut hasura_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -56,6 +117,18 @@ async fn generate(
         .transaction()
         .await
         .context("Failed to start Hasura transaction")?;
+    let current_task_execution =
+        get_task_by_id_with_transaction(&hasura_transaction, tenant_id, &task_execution.id)
+            .await
+            .context("Failed to load the current Voter Information Letter task state")?;
+    let current_annotations: VoterInformationLetterTaskAnnotations = current_task_execution
+        .annotations
+        .clone()
+        .map(serde_json::from_value)
+        .transpose()
+        .context("Failed to parse Voter Information Letter task annotations")?
+        .unwrap_or_default();
+    current_annotations.validate_for(document_id, voter_id)?;
 
     if get_document(
         &hasura_transaction,
@@ -67,8 +140,7 @@ async fn generate(
     .is_some()
     {
         hasura_transaction.commit().await?;
-        update_complete_with_annotations(task_execution, task_annotations).await?;
-        return Ok(());
+        return deliver_audit_and_complete(&current_task_execution, current_annotations).await;
     }
 
     let document_password = read_password(
@@ -146,7 +218,8 @@ async fn generate(
         .await
         .context("Failed to assign the generated voter credential")?;
 
-    post_voter_password_change(
+    let prepared_audit = prepare_voter_password_change(
+        &hasura_transaction,
         tenant_id,
         election_event_id,
         voter_id,
@@ -155,14 +228,24 @@ async fn generate(
         VoterPasswordChangeSource::VoterInformationLetter,
     )
     .await
-    .context("Voter credential changed, but its electoral-log entry failed")?;
+    .context("Failed to prepare the voter password-change electoral-log entry")?;
+    let pending_annotations =
+        VoterInformationLetterTaskAnnotations::pending(document_id, voter_id, prepared_audit);
+    let pending_annotations_value = serde_json::to_value(&pending_annotations)?;
+    merge_task_execution_annotations(
+        &hasura_transaction,
+        tenant_id,
+        &task_execution.id,
+        &pending_annotations_value,
+    )
+    .await
+    .context("Failed to persist pending Voter Information Letter audit state")?;
 
     hasura_transaction
         .commit()
         .await
         .context("Failed to commit Voter Information Letter document")?;
-    update_complete_with_annotations(task_execution, task_annotations).await?;
-    Ok(())
+    deliver_audit_and_complete(task_execution, pending_annotations).await
 }
 
 #[instrument(skip_all, err)]
@@ -192,7 +275,9 @@ pub async fn generate_voter_information_letter(
             task_id = %task_execution.id,
             "Voter Information Letter generation failed"
         );
-        update_fail(&task_execution, FAILURE_MESSAGE).await.ok();
+        update_fail_preserving_annotations(&task_execution, FAILURE_MESSAGE)
+            .await
+            .ok();
         return Err(TaskWrapError::from(anyhow!(
             "Voter Information Letter task failed: {generation_error:#}"
         )));
