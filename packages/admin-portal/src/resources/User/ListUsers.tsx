@@ -39,6 +39,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import PasswordIcon from "@mui/icons-material/Password"
+import ArticleIcon from "@mui/icons-material/Article"
 import DeleteIcon from "@mui/icons-material/Delete"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import FilterAlt from "@mui/icons-material/FilterAlt"
@@ -54,6 +55,7 @@ import {
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
+    GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
     UserProfileAttribute,
 } from "@/gql/graphql"
@@ -93,6 +95,7 @@ import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
@@ -153,6 +156,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
+    const [openVoterInformationLetter, setOpenVoterInformationLetter] = useState(false)
+    const [generatingVoterInformationLetter, setGeneratingVoterInformationLetter] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
@@ -167,6 +172,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const [generateVoterInformationLetter] = useMutation<GenerateVoterInformationLetterMutation>(
+        GENERATE_VOTER_INFORMATION_LETTER,
+        {context: {headers: {"x-hasura-role": IPermissions.VOTER_INFORMATION_LETTER}}}
+    )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
     const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
@@ -268,6 +277,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canExportVoters,
         canManuallyVerify,
         canChangePassword,
+        canGenerateVoterInformationLetter,
         showVotersColumns,
         showVotersFilters,
         showVotersLogs,
@@ -284,6 +294,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
+        setOpenVoterInformationLetter(false)
         setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -355,6 +366,62 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenEditPassword(true)
         setRecordIds([id as string])
+    }
+
+    const voterInformationLetterAction = (id: Identifier) => {
+        if (!electionEventId) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendTemplate(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenEditPassword(false)
+        setRecordIds([id])
+        setOpenVoterInformationLetter(true)
+    }
+
+    const confirmVoterInformationLetter = async () => {
+        const voterId = recordIds[0]
+        if (!electionEventId || !voterId) {
+            return
+        }
+
+        setGeneratingVoterInformationLetter(true)
+        try {
+            const {data} = await generateVoterInformationLetter({
+                variables: {
+                    electionEventId,
+                    voterId: String(voterId),
+                },
+            })
+            const taskId = data?.generate_voter_information_letter?.task_execution?.id
+            if (!taskId) {
+                throw new Error("Voter Information Letter task was not returned")
+            }
+
+            const widget = addWidget(ETasksExecution.VOTER_INFORMATION_LETTER, false)
+            setWidgetTaskId(widget.identifier, taskId)
+            notify(t("usersAndRolesScreen.voters.voterInformationLetter.generationStarted"), {
+                type: "success",
+            })
+            setOpenVoterInformationLetter(false)
+            setRecordIds([])
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : ""
+            const isPasswordPolicyMissing =
+                message.includes("PasswordPolicyNotConfigured") ||
+                message.includes("Password Policy is not configured.")
+            const notificationKey = isPasswordPolicyMissing
+                ? "usersAndRolesScreen.voters.voterInformationLetter.policyNotConfigured"
+                : "usersAndRolesScreen.voters.voterInformationLetter.generationError"
+            notify(t(notificationKey), {type: "error"})
+            setOpenVoterInformationLetter(false)
+        } finally {
+            setGeneratingVoterInformationLetter(false)
+        }
     }
 
     const confirmManualVerificationAction = async () => {
@@ -460,6 +527,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
             saveRecordAction: setUserRecord,
         },
+        [UserActionTypes.VOTER_INFORMATION_LETTER]: {
+            icon: <ArticleIcon />,
+            action: voterInformationLetterAction,
+            showAction: () => canGenerateVoterInformationLetter,
+            label: t("usersAndRolesScreen.voters.voterInformationLetter.label"),
+        },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
@@ -485,6 +558,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             UserActionTypes.EDIT,
             UserActionTypes.DELETE,
             UserActionTypes.MANUAL_VERIFICATION,
+            UserActionTypes.VOTER_INFORMATION_LETTER,
             UserActionTypes.PASSWORD,
             UserActionTypes.LOGS,
         ],
@@ -1162,6 +1236,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         !canDeleteVoters &&
                         !canSendTemplates &&
                         !canManuallyVerify &&
+                        !canGenerateVoterInformationLetter &&
                         !canChangePassword &&
                         !showVotersLogs ? null : (
                             <WrapperField source="actions" label="Actions">
@@ -1440,6 +1515,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         />
                     )}
                 </>
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openVoterInformationLetter}
+                ok={String(t("usersAndRolesScreen.voters.voterInformationLetter.generate"))}
+                okEnabled={() => !generatingVoterInformationLetter}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("usersAndRolesScreen.voters.voterInformationLetter.label"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        void confirmVoterInformationLetter()
+                        return
+                    }
+                    setOpenVoterInformationLetter(false)
+                    setRecordIds([])
+                }}
+            >
+                <Typography>
+                    {t("usersAndRolesScreen.voters.voterInformationLetter.confirmation")}
+                </Typography>
+                <FormStyles.ReservedProgressSpace>
+                    {generatingVoterInformationLetter ? <FormStyles.ShowProgress /> : null}
+                </FormStyles.ReservedProgressSpace>
             </Dialog>
 
             {openEditPassword && (

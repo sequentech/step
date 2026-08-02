@@ -222,6 +222,7 @@ const catalanTranslation: TranslationType = {
                 logs: "Registres",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -247,6 +248,19 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
                 PUBLISH_RESULTS_WEBSITE: "Publicar el lloc web de resultats",
+            },
+            documentAccess: {
+                title: "Accés al document",
+                sensitivityNotice:
+                    "Informació sensible. Compartiu aquesta contrasenya només amb el destinatari previst.",
+                passwordLabel: "Contrasenya per obrir el PDF xifrat",
+                showPassword: "Mostra la contrasenya",
+                copyPassword: "Copia la contrasenya",
+                passwordCopied: "Contrasenya copiada",
+                passwordError: "No s'ha pogut recuperar la contrasenya del PDF",
+                copyError: "No s'ha pogut copiar la contrasenya",
+                guidance:
+                    "Baixeu el PDF i introduïu aquesta contrasenya quan el lector de PDF la demani.",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -993,6 +1007,8 @@ const catalanTranslation: TranslationType = {
                 mobileNumber: "Mòbil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "La contrasenya no compleix la Política de contrasenyes d'aquest esdeveniment electoral. Reviseu la política a Dades de l'esdeveniment electoral i introduïu una contrasenya vàlida.",
                 label: "Canviar contrasenya",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1059,6 +1075,16 @@ const catalanTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta d'informació per al votant",
+                    generate: "Genera",
+                    confirmation:
+                        "Voleu generar una Carta d'informació per a aquest votant? S'assignarà una contrasenya nova i s'inclourà en un PDF xifrat.",
+                    generationStarted: "S'ha iniciat la generació de la Carta d'informació",
+                    generationError: "No s'ha pogut generar la Carta d'informació",
+                    policyNotConfigured:
+                        "La Política de contrasenyes no està configurada. Configureu-la a Dades de l'esdeveniment electoral abans de generar una carta.",
+                },
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
                 review: {
@@ -1134,6 +1160,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Genera una Carta d'informació per al votant",
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
                 "application-export": "Exportació d'Aplicacions",

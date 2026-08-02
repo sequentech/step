@@ -277,6 +277,20 @@ const englishTranslation = {
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
+                VOTER_INFORMATION_LETTER: "Voter Information Letter",
+            },
+            documentAccess: {
+                title: "Document access",
+                sensitivityNotice:
+                    "Sensitive information. Share this password only with the intended recipient.",
+                passwordLabel: "Password to open the encrypted PDF",
+                showPassword: "Show password",
+                copyPassword: "Copy password",
+                passwordCopied: "Password copied",
+                passwordError: "The PDF password could not be retrieved",
+                copyError: "The password could not be copied",
+                guidance:
+                    "Download the PDF and enter this password when your PDF reader asks for it.",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -991,6 +1005,8 @@ const englishTranslation = {
                 label: "Change password",
                 temporatyLabel: "Temporary",
                 temporatyInfo: "If enabled, the user must change the password on next login",
+                passwordPolicyViolation:
+                    "The password does not meet the Password Policy for this election event. Review the policy under Election Event Data and enter a compliant password.",
             },
             users: {
                 title: "Users",
@@ -1077,6 +1093,16 @@ const englishTranslation = {
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                     noEmailOrPhone:
                         "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
+                },
+                voterInformationLetter: {
+                    label: "Voter Information Letter",
+                    generate: "Generate",
+                    confirmation:
+                        "Generate a Voter Information Letter for this voter? A new password will be assigned and included in an encrypted PDF.",
+                    generationStarted: "Voter Information Letter generation started",
+                    generationError: "The Voter Information Letter could not be generated",
+                    policyNotConfigured:
+                        "Password Policy is not configured. Set it under Election Event Data before generating a letter.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -1252,6 +1278,7 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "voter-information-letter": "Generate Voter Information Letter",
                 "election-event-localization-selector": "Election Event Localization Selector",
                 "localization-create": "Create Localization",
                 "localization-read": "Read Localization",

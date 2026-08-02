@@ -107,6 +107,10 @@ pub trait TemplateRenderer: Debug {
     fn get_election_event_id(&self) -> String;
     fn get_report_origin(&self) -> ReportOriginatedFrom;
 
+    fn contains_sensitive_data(&self) -> bool {
+        false
+    }
+
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
@@ -339,7 +343,9 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        debug!("user data in template renderer: {user_data_map:#?}");
+        if !self.contains_sensitive_data() {
+            debug!("user data in template renderer: {user_data_map:#?}");
+        }
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
@@ -398,7 +404,9 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        debug!("user data in template renderer: {user_data_map:#?}");
+        if !self.contains_sensitive_data() {
+            debug!("user data in template renderer: {user_data_map:#?}");
+        }
 
         let rendered_user_template =
             reports::render_template_text(user_tpl_document, user_data_map)
@@ -788,7 +796,9 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        debug!("Report generated: {rendered_system_template}");
+        if !self.contains_sensitive_data() {
+            debug!("Report generated: {rendered_system_template}");
+        }
         let extension_suffix = "pdf";
         let content_bytes = pdf::PdfRenderer::render_pdf(
             rendered_system_template.clone(),

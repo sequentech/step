@@ -155,7 +155,14 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
             notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
             refresh()
             handleClose?.()
-        } catch (error) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : ""
+            if (message.includes("PasswordPolicyViolation")) {
+                notify(t("usersAndRolesScreen.editPassword.passwordPolicyViolation"), {
+                    type: "error",
+                })
+                return
+            }
             notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
             handleClose?.()
         }

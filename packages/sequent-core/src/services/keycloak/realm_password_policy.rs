@@ -4,13 +4,16 @@
 
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use anyhow::{anyhow, bail, Result};
+use rand::rngs::OsRng;
+use rand::seq::SliceRandom;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-pub const MIN_PASSWORD_LENGTH: u16 = 1;
-pub const MAX_PASSWORD_LENGTH: u16 = 256;
-pub const DEFAULT_MINIMUM_PASSWORD_LENGTH: u16 = 12;
-pub const DEFAULT_MAXIMUM_PASSWORD_LENGTH: u16 = 72;
+pub const MIN_PASSWORD_LENGTH: i32 = 1;
+pub const MAX_PASSWORD_LENGTH: i32 = 256;
+pub const DEFAULT_MINIMUM_PASSWORD_LENGTH: i32 = 12;
+pub const DEFAULT_MAXIMUM_PASSWORD_LENGTH: i32 = 72;
 
 const POLICY_SEPARATOR: &str = " and ";
 const LENGTH_POLICY: &str = "length";
@@ -19,6 +22,10 @@ const UPPERCASE_POLICY: &str = "upperCase";
 const LOWERCASE_POLICY: &str = "lowerCase";
 const DIGITS_POLICY: &str = "digits";
 const SPECIAL_CHARACTERS_POLICY: &str = "specialChars";
+const UPPERCASE_CHARACTERS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const LOWERCASE_CHARACTERS: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
+const DIGIT_CHARACTERS: &[u8] = b"0123456789";
+const SPECIAL_CHARACTERS: &[u8] = b"!@#$%^&*()-_=+[]{}:,.?";
 const MANAGED_POLICIES: [&str; 6] = [
     LENGTH_POLICY,
     MAX_LENGTH_POLICY,
@@ -31,8 +38,8 @@ const MANAGED_POLICIES: [&str; 6] = [
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct RealmPasswordPolicy {
     pub configured: bool,
-    pub minimum_length: u16,
-    pub maximum_length: u16,
+    pub minimum_length: i32,
+    pub maximum_length: i32,
     pub include_uppercase: bool,
     pub include_lowercase: bool,
     pub include_digits: bool,
@@ -66,7 +73,7 @@ fn policy_rule_value(rule: &str) -> Option<&str> {
 
 fn positive_policy_value(rule: &str) -> bool {
     policy_rule_value(rule)
-        .and_then(|value| value.parse::<u16>().ok())
+        .and_then(|value| value.parse::<i32>().ok())
         .is_some_and(|value| value > 0)
 }
 
@@ -186,6 +193,99 @@ impl RealmPasswordPolicy {
         }
 
         Ok(())
+    }
+
+    pub fn validate_for_generation(&self) -> Result<()> {
+        self.validate()?;
+        if !self.configured {
+            bail!("Password policy is not configured");
+        }
+
+        let required_characters = [
+            self.include_uppercase,
+            self.include_lowercase,
+            self.include_digits,
+            self.include_special_characters,
+        ]
+        .into_iter()
+        .filter(|enabled| *enabled)
+        .count() as i32;
+
+        if required_characters == 0 {
+            bail!("Password policy must include at least one character class");
+        }
+        if required_characters > self.maximum_length {
+            bail!("Maximum password length is too small for the required character classes");
+        }
+
+        Ok(())
+    }
+
+    pub fn validate_password(&self, password: &str) -> Result<()> {
+        self.validate_for_generation()?;
+        let length = password.chars().count() as i32;
+        if length < self.minimum_length || length > self.maximum_length {
+            bail!("Password length does not comply with the realm policy");
+        }
+        if self.include_uppercase
+            && !password.chars().any(|value| value.is_ascii_uppercase())
+        {
+            bail!("Password must contain an uppercase character");
+        }
+        if self.include_lowercase
+            && !password.chars().any(|value| value.is_ascii_lowercase())
+        {
+            bail!("Password must contain a lowercase character");
+        }
+        if self.include_digits
+            && !password.chars().any(|value| value.is_ascii_digit())
+        {
+            bail!("Password must contain a digit");
+        }
+        if self.include_special_characters
+            && !password.chars().any(|value| !value.is_ascii_alphanumeric())
+        {
+            bail!("Password must contain a special character");
+        }
+
+        Ok(())
+    }
+
+    pub fn generate_password(&self) -> Result<String> {
+        self.validate_for_generation()?;
+        let mut rng = OsRng;
+        let mut enabled_sets: Vec<&[u8]> = Vec::new();
+        if self.include_uppercase {
+            enabled_sets.push(UPPERCASE_CHARACTERS);
+        }
+        if self.include_lowercase {
+            enabled_sets.push(LOWERCASE_CHARACTERS);
+        }
+        if self.include_digits {
+            enabled_sets.push(DIGIT_CHARACTERS);
+        }
+        if self.include_special_characters {
+            enabled_sets.push(SPECIAL_CHARACTERS);
+        }
+
+        let target_length =
+            self.minimum_length.max(enabled_sets.len() as i32) as usize;
+        let all_characters = enabled_sets
+            .iter()
+            .flat_map(|characters| characters.iter().copied())
+            .collect::<Vec<_>>();
+        let mut password = enabled_sets
+            .iter()
+            .map(|characters| characters[rng.gen_range(0..characters.len())])
+            .collect::<Vec<_>>();
+
+        while password.len() < target_length {
+            password
+                .push(all_characters[rng.gen_range(0..all_characters.len())]);
+        }
+        password.shuffle(&mut rng);
+
+        String::from_utf8(password).map_err(|error| anyhow!(error))
     }
 }
 
@@ -344,5 +444,58 @@ mod tests {
         policy.minimum_length = 12;
         policy.maximum_length = 257;
         assert!(policy.validate().is_err());
+    }
+
+    #[test]
+    fn validates_and_generates_passwords_for_the_managed_policy() {
+        let policy = RealmPasswordPolicy {
+            configured: true,
+            minimum_length: 24,
+            maximum_length: 32,
+            include_uppercase: true,
+            include_lowercase: true,
+            include_digits: true,
+            include_special_characters: true,
+        };
+
+        for _ in 0..64 {
+            let password = policy.generate_password().unwrap();
+            assert_eq!(24, password.chars().count());
+            policy.validate_password(&password).unwrap();
+        }
+    }
+
+    #[test]
+    fn validates_manually_entered_passwords_against_every_managed_rule() {
+        let policy = RealmPasswordPolicy {
+            configured: true,
+            minimum_length: 8,
+            maximum_length: 16,
+            include_uppercase: true,
+            include_lowercase: true,
+            include_digits: true,
+            include_special_characters: true,
+        };
+
+        policy.validate_password("Abcdef1!").unwrap();
+        assert!(policy.validate_password("Ab1!").is_err());
+        assert!(policy.validate_password("abcdef1!").is_err());
+        assert!(policy.validate_password("ABCDEF1!").is_err());
+        assert!(policy.validate_password("Abcdefg!").is_err());
+        assert!(policy.validate_password("Abcdef12").is_err());
+        assert!(policy.validate_password("Abcdefghijklmnop1!").is_err());
+    }
+
+    #[test]
+    fn generation_requires_a_configured_usable_character_set() {
+        let mut policy = RealmPasswordPolicy::default();
+        assert!(policy.generate_password().is_err());
+
+        policy.configured = true;
+        policy.include_uppercase = false;
+        policy.include_lowercase = false;
+        policy.include_digits = false;
+        policy.include_special_characters = false;
+        assert!(policy.generate_password().is_err());
     }
 }

@@ -27,6 +27,8 @@ import {CancelButton} from "../Tally/styles"
 import {useTasksPermissions} from "./useTasksPermissions"
 import {DownloadDocument} from "../User/DownloadDocument"
 import {DownloaButton} from "@/components/styles/WidgetStyle"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {VoterInformationLetterDocumentAccess} from "./VoterInformationLetterDocumentAccess"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status === ETaskExecutionStatus.STARTED) {
@@ -61,7 +63,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>(undefined)
     const [downloading, setDownloading] = useState<boolean>(false)
 
-    const {showTasksBackButton} = useTasksPermissions()
+    const {showTasksBackButton, canAccessVoterInformationLetter} = useTasksPermissions()
 
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
         variables: {task_id: currTaskId},
@@ -74,6 +76,8 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     if (!task) {
         return <CircularProgress />
     }
+    const isVoterInformationLetter = task.type === ETasksExecution.VOTER_INFORMATION_LETTER
+    const voterInformationLetterDocumentId = task.annotations?.document_id
 
     const Content = (
         <>
@@ -140,6 +144,17 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                 </WizardStyles.AccordionDetails>
             </Accordion>
 
+            {isVoterInformationLetter &&
+            canAccessVoterInformationLetter &&
+            task.execution_status === ETaskExecutionStatus.SUCCESS &&
+            task.election_event_id &&
+            voterInformationLetterDocumentId ? (
+                <VoterInformationLetterDocumentAccess
+                    taskId={String(task.id)}
+                    documentId={String(voterInformationLetterDocumentId)}
+                    electionEventId={String(task.election_event_id)}
+                />
+            ) : null}
             <Logs logs={task?.logs} />
         </>
     )
@@ -174,7 +189,9 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             {t("common.label.back")}
                         </CancelButton>
                     ) : null}
-                    {task?.election_event_id && task?.annotations?.document_id ? (
+                    {task?.election_event_id &&
+                    task?.annotations?.document_id &&
+                    !isVoterInformationLetter ? (
                         <DownloaButton
                             onClick={() => {
                                 setDownloading(true)

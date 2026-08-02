@@ -255,6 +255,7 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
@@ -280,6 +281,19 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
                 PUBLISH_RESULTS_WEBSITE: "Resultatenwebsite publiceren",
+            },
+            documentAccess: {
+                title: "Documenttoegang",
+                sensitivityNotice:
+                    "Gevoelige informatie. Deel dit wachtwoord alleen met de beoogde ontvanger.",
+                passwordLabel: "Wachtwoord om de versleutelde PDF te openen",
+                showPassword: "Wachtwoord tonen",
+                copyPassword: "Wachtwoord kopiëren",
+                passwordCopied: "Wachtwoord gekopieerd",
+                passwordError: "Het PDF-wachtwoord kon niet worden opgehaald",
+                copyError: "Het wachtwoord kon niet worden gekopieerd",
+                guidance:
+                    "Download de PDF en voer dit wachtwoord in wanneer uw PDF-lezer erom vraagt.",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -991,6 +1005,8 @@ const dutchTranslation: TranslationType = {
                 mobileNumber: "Mobiel nummer",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Het wachtwoord voldoet niet aan het Wachtwoordbeleid voor deze verkiezingsgebeurtenis. Controleer het beleid onder Gegevens verkiezingsgebeurtenis en voer een geldig wachtwoord in.",
                 label: "Wachtwoord wijzigen",
                 temporatyLabel: "Tijdelijk",
                 temporatyInfo:
@@ -1057,6 +1073,16 @@ const dutchTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Kiezersinformatiebrief",
+                    generate: "Genereren",
+                    confirmation:
+                        "Een Kiezersinformatiebrief voor deze kiezer genereren? Er wordt een nieuw wachtwoord toegewezen en opgenomen in een versleutelde PDF.",
+                    generationStarted: "Het genereren van de Kiezersinformatiebrief is gestart",
+                    generationError: "De Kiezersinformatiebrief kon niet worden gegenereerd",
+                    policyNotConfigured:
+                        "Het Wachtwoordbeleid is niet geconfigureerd. Stel het in onder Gegevens verkiezingsgebeurtenis voordat u een brief genereert.",
+                },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
                 review: {
@@ -1133,6 +1159,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Kiezersinformatiebrief genereren",
                 "admin-user": "Beheerder Gebruiker",
                 "admin-dashboard-view": "Beheerdersdashboard Bekijken",
                 "application-export": "Applicatie Exporteren",

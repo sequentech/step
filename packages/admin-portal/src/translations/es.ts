@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -279,6 +280,19 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
                 PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
+            },
+            documentAccess: {
+                title: "Acceso al documento",
+                sensitivityNotice:
+                    "Información confidencial. Comparta esta contraseña únicamente con el destinatario previsto.",
+                passwordLabel: "Contraseña para abrir el PDF cifrado",
+                showPassword: "Mostrar contraseña",
+                copyPassword: "Copiar contraseña",
+                passwordCopied: "Contraseña copiada",
+                passwordError: "No se pudo recuperar la contraseña del PDF",
+                copyError: "No se pudo copiar la contraseña",
+                guidance:
+                    "Descargue el PDF e introduzca esta contraseña cuando el lector de PDF la solicite.",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -992,6 +1006,8 @@ const spanishTranslation: TranslationType = {
                 mobileNumber: "Móvil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "La contraseña no cumple la Política de contraseñas de este evento electoral. Revise la política en Datos del evento electoral e introduzca una contraseña válida.",
                 label: "Cambiar contraseña",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1058,6 +1074,16 @@ const spanishTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta de información para el votante",
+                    generate: "Generar",
+                    confirmation:
+                        "¿Generar una Carta de información para este votante? Se asignará una nueva contraseña y se incluirá en un PDF cifrado.",
+                    generationStarted: "Se inició la generación de la Carta de información",
+                    generationError: "No se pudo generar la Carta de información",
+                    policyNotConfigured:
+                        "La Política de contraseñas no está configurada. Configúrela en Datos del evento electoral antes de generar una carta.",
+                },
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
                 review: {
@@ -1133,6 +1159,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Generar Carta de información para el votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "application-export": "Exportación de Aplicaciones",

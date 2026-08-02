@@ -91,6 +91,27 @@ pub async fn update_complete(
     Ok(())
 }
 
+#[instrument(skip_all, err)]
+pub async fn update_complete_with_annotations(
+    task: &TasksExecution,
+    annotations: serde_json::Value,
+) -> Result<(), anyhow::Error> {
+    let new_logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        "Task completed successfully",
+    ))?;
+    update_with_annotations(
+        &task.tenant_id,
+        &task.id,
+        TasksExecutionStatus::SUCCESS,
+        new_logs,
+        annotations,
+    )
+    .await
+    .context("Failed to update task execution record")?;
+    Ok(())
+}
+
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {

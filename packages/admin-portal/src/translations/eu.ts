@@ -255,6 +255,7 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
@@ -280,6 +281,19 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
                 PUBLISH_RESULTS_WEBSITE: "Argitaratu emaitzen webgunea",
+            },
+            documentAccess: {
+                title: "Dokumenturako sarbidea",
+                sensitivityNotice:
+                    "Informazio sentikorra. Partekatu pasahitz hau aurreikusitako hartzailearekin soilik.",
+                passwordLabel: "PDF zifratua irekitzeko pasahitza",
+                showPassword: "Erakutsi pasahitza",
+                copyPassword: "Kopiatu pasahitza",
+                passwordCopied: "Pasahitza kopiatu da",
+                passwordError: "Ezin izan da PDFaren pasahitza eskuratu",
+                copyError: "Ezin izan da pasahitza kopiatu",
+                guidance:
+                    "Deskargatu PDFa eta idatzi pasahitz hau PDF irakurgailuak eskatzen duenean.",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -993,6 +1007,8 @@ const basqueTranslation: TranslationType = {
                 mobileNumber: "Mugikorra",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Pasahitzak ez du betetzen hauteskunde-gertaera honetako Pasahitz-politika. Berrikusi politika Hauteskunde-gertaeraren datuak atalean eta idatzi baliozko pasahitz bat.",
                 label: "Aldatu pasahitza",
                 temporatyLabel: "Behin-behinekoa",
                 temporatyInfo:
@@ -1057,6 +1073,16 @@ const basqueTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Hauteslearen informazio-gutuna",
+                    generate: "Sortu",
+                    confirmation:
+                        "Hautesle honentzako informazio-gutuna sortu? Pasahitz berri bat esleituko da eta PDF zifratu batean sartuko da.",
+                    generationStarted: "Informazio-gutuna sortzen hasi da",
+                    generationError: "Ezin izan da informazio-gutuna sortu",
+                    policyNotConfigured:
+                        "Pasahitz-politika ez dago konfiguratuta. Konfiguratu Hauteskunde-gertaeraren datuak atalean gutuna sortu aurretik.",
+                },
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
                 review: {
@@ -1132,6 +1158,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Hauteslearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
                 "application-export": "Aplikazio Esportazioa",

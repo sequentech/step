@@ -254,6 +254,7 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Carta de información para o votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -279,6 +280,19 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
                 PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
+            },
+            documentAccess: {
+                title: "Acceso ao documento",
+                sensitivityNotice:
+                    "Información sensible. Comparta este contrasinal só co destinatario previsto.",
+                passwordLabel: "Contrasinal para abrir o PDF cifrado",
+                showPassword: "Amosar o contrasinal",
+                copyPassword: "Copiar o contrasinal",
+                passwordCopied: "Contrasinal copiado",
+                passwordError: "Non se puido recuperar o contrasinal do PDF",
+                copyError: "Non se puido copiar o contrasinal",
+                guidance:
+                    "Descargue o PDF e introduza este contrasinal cando o lector de PDF o solicite.",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -991,6 +1005,8 @@ const galegoTranslation: TranslationType = {
                 mobileNumber: "Móbil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "O contrasinal non cumpre a Política de contrasinais deste evento electoral. Revise a política en Datos do evento electoral e introduza un contrasinal válido.",
                 label: "Cambiar contrasinal",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1057,6 +1073,16 @@ const galegoTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta de información para o votante",
+                    generate: "Xerar",
+                    confirmation:
+                        "Xerar unha Carta de información para este votante? Asignarase un novo contrasinal e incluirase nun PDF cifrado.",
+                    generationStarted: "Iniciouse a xeración da Carta de información",
+                    generationError: "Non se puido xerar a Carta de información",
+                    policyNotConfigured:
+                        "A Política de contrasinais non está configurada. Configúrea en Datos do evento electoral antes de xerar unha carta.",
+                },
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
                 review: {
@@ -1132,6 +1158,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "application-export": "Exportación de Aplicaciones",

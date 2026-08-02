@@ -273,6 +273,8 @@ pub enum Permissions {
     VOTER_MANUALLY_VERIFY,
     #[strum(serialize = "voter-change-password")]
     VOTER_CHANGE_PASSWORD,
+    #[strum(serialize = "voter-information-letter")]
+    VOTER_INFORMATION_LETTER,
     #[strum(serialize = "election-event-localization-selector")]
     EE_LOCALIZATION_SELECTOR,
     #[strum(serialize = "localization-create")]

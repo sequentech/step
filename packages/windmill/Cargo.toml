@@ -51,6 +51,7 @@ quick-error = "2.0"
 keycloak = "24.0"
 encoding_rs = "0.8"
 encoding_rs_io = "0.1"
+lopdf = "0.38"
 xz2 = "0.1"
 zip = "2.1"
 

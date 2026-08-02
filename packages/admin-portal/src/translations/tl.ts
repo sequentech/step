@@ -255,6 +255,7 @@ const tagalogTranslation: TranslationType = {
                 logs: "Mga Log",
             },
             tasksExecution: {
+                VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
@@ -281,6 +282,19 @@ const tagalogTranslation: TranslationType = {
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "I-export ang mga awtoridad sa sertipikasyon",
                 PUBLISH_RESULTS_WEBSITE: "I-publish ang website ng mga resulta",
+            },
+            documentAccess: {
+                title: "Pag-access sa dokumento",
+                sensitivityNotice:
+                    "Sensitibong impormasyon. Ibahagi ang password na ito sa nilalayong tatanggap lamang.",
+                passwordLabel: "Password para buksan ang naka-encrypt na PDF",
+                showPassword: "Ipakita ang password",
+                copyPassword: "Kopyahin ang password",
+                passwordCopied: "Nakopya ang password",
+                passwordError: "Hindi nakuha ang password ng PDF",
+                copyError: "Hindi makopya ang password",
+                guidance:
+                    "I-download ang PDF at ilagay ang password na ito kapag hiniling ng PDF reader.",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -992,6 +1006,8 @@ const tagalogTranslation: TranslationType = {
                 mobileNumber: "Mobile",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Hindi sumusunod ang password sa Patakaran sa Password para sa kaganapang ito ng halalan. Suriin ang patakaran sa Data ng Kaganapan ng Halalan at maglagay ng wastong password.",
                 label: "Palitan ang password",
                 temporatyLabel: "Pansamantala",
                 temporatyInfo:
@@ -1059,6 +1075,16 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Liham ng impormasyon para sa botante",
+                    generate: "Bumuo",
+                    confirmation:
+                        "Bumuo ng Liham ng impormasyon para sa botanteng ito? Magtatalaga ng bagong password at isasama ito sa isang naka-encrypt na PDF.",
+                    generationStarted: "Nagsimula na ang pagbuo ng Liham ng impormasyon",
+                    generationError: "Hindi mabuo ang Liham ng impormasyon",
+                    policyNotConfigured:
+                        "Hindi naka-configure ang Patakaran sa Password. I-configure ito sa Data ng Kaganapan ng Halalan bago bumuo ng liham.",
+                },
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
                 review: {
@@ -1134,6 +1160,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Bumuo ng Liham ng impormasyon para sa botante",
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
                 "application-export": "Pag-export ng Aplikasyon",

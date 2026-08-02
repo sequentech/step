@@ -1973,3 +1973,25 @@ type RefreshResultsPublicationIndexOutput {
     election_event_id: String!
     results_enabled: Boolean!
 }
+
+type Mutation {
+    generate_voter_information_letter(
+        election_event_id: String!
+        voter_id: String!
+    ): VoterInformationLetterOutput!
+}
+
+type Query {
+    get_voter_information_letter_password(
+        task_id: String!
+    ): VoterInformationLetterPasswordOutput!
+}
+
+type VoterInformationLetterOutput {
+    document_id: String!
+    task_execution: tasks_execution_type!
+}
+
+type VoterInformationLetterPasswordOutput {
+    pdf_password: String!
+}

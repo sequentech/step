@@ -15,6 +15,11 @@ export function useTasksPermissions() {
      * Permissions
      */
     const canReadTasks = authContext.isAuthorized(true, tenantId, IPermissions.TASKS_READ)
+    const canAccessVoterInformationLetter = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.VOTER_INFORMATION_LETTER
+    )
     const canExportTasks = authContext.isAuthorized(true, tenantId, IPermissions.TASKS_EXPORT)
 
     const showTasksColumns = authContext.isAuthorized(true, tenantId, IPermissions.EE_TASKS_COLUMNS)
@@ -30,6 +35,7 @@ export function useTasksPermissions() {
 
     return {
         canReadTasks,
+        canAccessVoterInformationLetter,
         canExportTasks,
         showTasksColumns,
         showTasksFilters,

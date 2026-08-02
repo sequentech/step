@@ -159,6 +159,8 @@ async fn rocket() -> _ {
                 routes::realm_attributes::update_realm_attributes_route,
                 routes::realm_password_policy::get_realm_password_policy_route,
                 routes::realm_password_policy::update_realm_password_policy_route,
+                routes::voter_information_letter::generate_voter_information_letter,
+                routes::voter_information_letter::get_voter_information_letter_password,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,

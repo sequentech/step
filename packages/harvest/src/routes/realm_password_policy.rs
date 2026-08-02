@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -23,8 +23,8 @@ pub struct GetRealmPasswordPolicyInput {
 #[derive(Deserialize, Debug)]
 pub struct UpdateRealmPasswordPolicyInput {
     pub election_event_id: String,
-    pub minimum_length: u16,
-    pub maximum_length: u16,
+    pub minimum_length: i32,
+    pub maximum_length: i32,
     pub include_uppercase: bool,
     pub include_lowercase: bool,
     pub include_digits: bool,
@@ -41,7 +41,7 @@ pub struct UpdateRealmPasswordPolicyOutput {
 pub async fn get_realm_password_policy_route(
     claims: JwtClaims,
     input: Json<GetRealmPasswordPolicyInput>,
-) -> Result<Json<RealmPasswordPolicy>, (Status, String)> {
+) -> Result<Json<RealmPasswordPolicy>, JsonError> {
     let body = input.into_inner();
 
     authorize(
@@ -52,7 +52,11 @@ pub async fn get_realm_password_policy_route(
     )
     .map_err(|err| {
         error!("Authorization failed: {:?}", err);
-        (Status::Forbidden, "Authorization failed".to_string())
+        ErrorResponse::new(
+            Status::Forbidden,
+            "Authorization failed",
+            ErrorCode::Unauthorized,
+        )
     })?;
 
     let password_policy = get_realm_password_policy(
@@ -62,9 +66,10 @@ pub async fn get_realm_password_policy_route(
     .await
     .map_err(|error| {
         error!("Failed to get realm password policy: {:?}", error);
-        (
+        ErrorResponse::new(
             Status::InternalServerError,
-            "Failed to get realm password policy".to_string(),
+            "Failed to get realm password policy",
+            ErrorCode::InternalServerError,
         )
     })?;
 
@@ -76,7 +81,7 @@ pub async fn get_realm_password_policy_route(
 pub async fn update_realm_password_policy_route(
     claims: JwtClaims,
     input: Json<UpdateRealmPasswordPolicyInput>,
-) -> Result<Json<UpdateRealmPasswordPolicyOutput>, (Status, String)> {
+) -> Result<Json<UpdateRealmPasswordPolicyOutput>, JsonError> {
     let body = input.into_inner();
 
     authorize(
@@ -87,7 +92,11 @@ pub async fn update_realm_password_policy_route(
     )
     .map_err(|err| {
         error!("Authorization failed: {:?}", err);
-        (Status::Forbidden, "Authorization failed".to_string())
+        ErrorResponse::new(
+            Status::Forbidden,
+            "Authorization failed",
+            ErrorCode::Unauthorized,
+        )
     })?;
 
     let password_policy = RealmPasswordPolicy {
@@ -99,9 +108,13 @@ pub async fn update_realm_password_policy_route(
         include_digits: body.include_digits,
         include_special_characters: body.include_special_characters,
     };
-    password_policy
-        .validate()
-        .map_err(|error| (Status::BadRequest, error.to_string()))?;
+    password_policy.validate().map_err(|error| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &error.to_string(),
+            ErrorCode::InvalidPasswordPolicy,
+        )
+    })?;
 
     update_realm_password_policy(
         &claims.hasura_claims.tenant_id,
@@ -111,9 +124,10 @@ pub async fn update_realm_password_policy_route(
     .await
     .map_err(|error| {
         error!("Failed to update realm password policy: {:?}", error);
-        (
+        ErrorResponse::new(
             Status::InternalServerError,
-            "Failed to update realm password policy".to_string(),
+            "Failed to update realm password policy",
+            ErrorCode::InternalServerError,
         )
     })?;
 

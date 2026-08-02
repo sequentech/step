@@ -11,7 +11,9 @@ use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_realm_password_policy, get_tenant_realm,
+};
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
@@ -565,10 +567,21 @@ pub async fn edit_user(
     body: Json<EditUserBody>,
 ) -> Result<Json<EditUserOutput>, (Status, String)> {
     let input = body.into_inner();
+    let password_only = input.election_event_id.is_some()
+        && input.password.is_some()
+        && input.enabled.is_none()
+        && input.attributes.is_none()
+        && input.email.is_none()
+        && input.first_name.is_none()
+        && input.last_name.is_none()
+        && input.username.is_none();
     let mut required_perms = Vec::<Permissions>::new();
     let mut voter_voted_edit = false;
     let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
+        if password_only {
+            required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
+        }
         voter_voted_edit = claims
             .hasura_claims
             .allowed_roles
@@ -582,10 +595,15 @@ pub async fn edit_user(
             .allowed_roles
             .contains(&Permissions::VOTER_WRITE.to_string());
 
-        if voter_write {
-            required_perms.push(Permissions::VOTER_WRITE);
-        } else {
-            required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+        if !password_only {
+            if voter_write {
+                required_perms.push(Permissions::VOTER_WRITE);
+            } else {
+                required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+            }
+            if input.password.is_some() {
+                required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
+            }
         }
     } else {
         required_perms.push(Permissions::USER_WRITE);
@@ -605,6 +623,26 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
+    if let (Some(election_event_id), Some(password)) = (
+        input.election_event_id.as_deref(),
+        input.password.as_deref(),
+    ) {
+        let password_policy =
+            get_realm_password_policy(&input.tenant_id, election_event_id)
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                    "Failed to read election event Password Policy: {error:#}"
+                ),
+                    )
+                })?;
+        password_policy.validate_password(password).map_err(|_| {
+            (Status::BadRequest, "PasswordPolicyViolation".to_string())
+        })?;
+    }
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -710,68 +748,72 @@ pub async fn edit_user(
     // from blocking on the (retried) VoterView round-trip, and the admin portal
     // tracks the outcome in the returned task widget. Non-Datafix edits stay
     // synchronous.
-    if let (Some(election_event_id), Some(_election_event)) =
-        (input.election_event_id.as_deref(), datafix_election_event)
-    {
-        let executer_name = claims
-            .name
-            .clone()
-            .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-
-        let task_execution = post(
-            &input.tenant_id,
-            Some(election_event_id),
-            ETasksExecution::EDIT_USER,
-            &executer_name,
-        )
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Failed to insert task execution record: {error:?}"),
-            )
-        })?;
-
-        let task_body = EditUserTaskBody {
-            tenant_id: input.tenant_id.clone(),
-            user_id: input.user_id.clone(),
-            election_event_id: election_event_id.to_string(),
-            enabled: input.enabled,
-            attributes: new_attributes,
-            email: input.email.clone(),
-            first_name: input.first_name.clone(),
-            last_name: input.last_name.clone(),
-            username: input.username.clone(),
-            password: input.password.clone(),
-            temporary: input.temporary,
-        };
-
-        let celery_app = get_celery_app().await;
-        if let Err(err) = celery_app
-            .send_task(windmill::tasks::edit_user::edit_user::new(
-                task_body,
-                task_execution.clone(),
-            ))
-            .await
+    if !password_only {
+        if let (Some(election_event_id), Some(_election_event)) =
+            (input.election_event_id.as_deref(), datafix_election_event)
         {
-            update_fail(
-                &task_execution,
-                &format!("Failed to send Edit Voter task: {err:?}"),
+            let executer_name = claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+            let task_execution = post(
+                &input.tenant_id,
+                Some(election_event_id),
+                ETasksExecution::EDIT_USER,
+                &executer_name,
             )
             .await
-            .ok();
-            return Err((
-                Status::InternalServerError,
-                format!("Error sending Edit Voter task: {err:?}"),
-            ));
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Failed to insert task execution record: {error:?}"
+                    ),
+                )
+            })?;
+
+            let task_body = EditUserTaskBody {
+                tenant_id: input.tenant_id.clone(),
+                user_id: input.user_id.clone(),
+                election_event_id: election_event_id.to_string(),
+                enabled: input.enabled,
+                attributes: new_attributes,
+                email: input.email.clone(),
+                first_name: input.first_name.clone(),
+                last_name: input.last_name.clone(),
+                username: input.username.clone(),
+                password: input.password.clone(),
+                temporary: input.temporary,
+            };
+
+            let celery_app = get_celery_app().await;
+            if let Err(err) = celery_app
+                .send_task(windmill::tasks::edit_user::edit_user::new(
+                    task_body,
+                    task_execution.clone(),
+                ))
+                .await
+            {
+                update_fail(
+                    &task_execution,
+                    &format!("Failed to send Edit Voter task: {err:?}"),
+                )
+                .await
+                .ok();
+                return Err((
+                    Status::InternalServerError,
+                    format!("Error sending Edit Voter task: {err:?}"),
+                ));
+            }
+
+            info!("Sent EDIT_USER task {}", task_execution.id);
+
+            return Ok(Json(EditUserOutput {
+                user: None,
+                task_execution: Some(task_execution),
+            }));
         }
-
-        info!("Sent EDIT_USER task {}", task_execution.id);
-
-        return Ok(Json(EditUserOutput {
-            user: None,
-            task_execution: Some(task_execution),
-        }));
     }
 
     let client = KeycloakAdminClient::new()
