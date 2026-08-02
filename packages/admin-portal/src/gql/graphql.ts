@@ -864,6 +864,17 @@ export type PublishResultsWebsiteOutput = {
   task_execution_id: Scalars['String']['output'];
 };
 
+export type RealmPasswordPolicy = {
+  __typename?: 'RealmPasswordPolicy';
+  configured: Scalars['Boolean']['output'];
+  include_digits: Scalars['Boolean']['output'];
+  include_lowercase: Scalars['Boolean']['output'];
+  include_special_characters: Scalars['Boolean']['output'];
+  include_uppercase: Scalars['Boolean']['output'];
+  maximum_length: Scalars['Int']['output'];
+  minimum_length: Scalars['Int']['output'];
+};
+
 export type RefreshResultsPublicationIndexOutput = {
   __typename?: 'RefreshResultsPublicationIndexOutput';
   election_event_id: Scalars['String']['output'];
@@ -1083,6 +1094,11 @@ export type UpdateEventVotingStatusOutput = {
 
 export type UpdateRealmAttributesOutput = {
   __typename?: 'UpdateRealmAttributesOutput';
+  updated: Scalars['Boolean']['output'];
+};
+
+export type UpdateRealmPasswordPolicyOutput = {
+  __typename?: 'UpdateRealmPasswordPolicyOutput';
   updated: Scalars['Boolean']['output'];
 };
 
@@ -1699,6 +1715,7 @@ export type Mutation_Root = {
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
   update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>;
   update_realm_attributes?: Maybe<UpdateRealmAttributesOutput>;
+  update_realm_password_policy: UpdateRealmPasswordPolicyOutput;
   /** update data of the table: "sequent_backend.applications" */
   update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>;
   /** update single row of the table: "sequent_backend.applications" */
@@ -3829,6 +3846,18 @@ export type Mutation_RootUpdate_Realm_AttributesArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Realm_Password_PolicyArgs = {
+  election_event_id: Scalars['String']['input'];
+  include_digits: Scalars['Boolean']['input'];
+  include_lowercase: Scalars['Boolean']['input'];
+  include_special_characters: Scalars['Boolean']['input'];
+  include_uppercase: Scalars['Boolean']['input'];
+  maximum_length: Scalars['Int']['input'];
+  minimum_length: Scalars['Int']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_ApplicationsArgs = {
   _append?: InputMaybe<Sequent_Backend_Applications_Append_Input>;
   _delete_at_path?: InputMaybe<Sequent_Backend_Applications_Delete_At_Path_Input>;
@@ -5203,6 +5232,7 @@ export type Query_Root = {
   /** list permissions */
   get_permissions: GetPermissionsOutput;
   get_realm_attributes: GetRealmAttributesOutput;
+  get_realm_password_policy: RealmPasswordPolicy;
   get_roles: GetRolesOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
@@ -5514,6 +5544,11 @@ export type Query_RootGet_PermissionsArgs = {
 
 
 export type Query_RootGet_Realm_AttributesArgs = {
+  election_event_id: Scalars['String']['input'];
+};
+
+
+export type Query_RootGet_Realm_Password_PolicyArgs = {
   election_event_id: Scalars['String']['input'];
 };
 
@@ -25889,6 +25924,26 @@ export type PublishBallotMutationVariables = Exact<{
 
 export type PublishBallotMutation = { __typename?: 'mutation_root', publish_ballot?: { __typename?: 'PublishBallotOutput', ballot_publication_id: any } | null };
 
+export type GetRealmPasswordPolicyQueryVariables = Exact<{
+  election_event_id: Scalars['String']['input'];
+}>;
+
+
+export type GetRealmPasswordPolicyQuery = { __typename?: 'query_root', get_realm_password_policy: { __typename?: 'RealmPasswordPolicy', configured: boolean, minimum_length: number, maximum_length: number, include_uppercase: boolean, include_lowercase: boolean, include_digits: boolean, include_special_characters: boolean } };
+
+export type UpdateRealmPasswordPolicyMutationVariables = Exact<{
+  election_event_id: Scalars['String']['input'];
+  minimum_length: Scalars['Int']['input'];
+  maximum_length: Scalars['Int']['input'];
+  include_uppercase: Scalars['Boolean']['input'];
+  include_lowercase: Scalars['Boolean']['input'];
+  include_digits: Scalars['Boolean']['input'];
+  include_special_characters: Scalars['Boolean']['input'];
+}>;
+
+
+export type UpdateRealmPasswordPolicyMutation = { __typename?: 'mutation_root', update_realm_password_policy: { __typename?: 'UpdateRealmPasswordPolicyOutput', updated: boolean } };
+
 export type RecountTallySessionMutationVariables = Exact<{
   election_event_id: Scalars['uuid']['input'];
   tally_session_id: Scalars['uuid']['input'];
@@ -26262,6 +26317,8 @@ export const ManageElectionDatesDocument = {"kind":"Document","definitions":[{"k
 export const ManualVerificationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ManualVerification"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"voterId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_manual_verification_pdf"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"body"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"voter_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"voterId"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]} as unknown as DocumentNode<ManualVerificationMutation, ManualVerificationMutationVariables>;
 export const PrepareBallotPublicationPreviewDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PrepareBallotPublicationPreview"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"prepare_ballot_publication_preview"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"error_msg"}},{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_execution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}}]}}]}}]} as unknown as DocumentNode<PrepareBallotPublicationPreviewMutation, PrepareBallotPublicationPreviewMutationVariables>;
 export const PublishBallotDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PublishBallot"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publish_ballot"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_publication_id"}}]}}]}}]} as unknown as DocumentNode<PublishBallotMutation, PublishBallotMutationVariables>;
+export const GetRealmPasswordPolicyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetRealmPasswordPolicy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_realm_password_policy"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"configured"}},{"kind":"Field","name":{"kind":"Name","value":"minimum_length"}},{"kind":"Field","name":{"kind":"Name","value":"maximum_length"}},{"kind":"Field","name":{"kind":"Name","value":"include_uppercase"}},{"kind":"Field","name":{"kind":"Name","value":"include_lowercase"}},{"kind":"Field","name":{"kind":"Name","value":"include_digits"}},{"kind":"Field","name":{"kind":"Name","value":"include_special_characters"}}]}}]}}]} as unknown as DocumentNode<GetRealmPasswordPolicyQuery, GetRealmPasswordPolicyQueryVariables>;
+export const UpdateRealmPasswordPolicyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRealmPasswordPolicy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"minimum_length"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"maximum_length"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"include_uppercase"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"include_lowercase"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"include_digits"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"include_special_characters"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_realm_password_policy"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"minimum_length"},"value":{"kind":"Variable","name":{"kind":"Name","value":"minimum_length"}}},{"kind":"Argument","name":{"kind":"Name","value":"maximum_length"},"value":{"kind":"Variable","name":{"kind":"Name","value":"maximum_length"}}},{"kind":"Argument","name":{"kind":"Name","value":"include_uppercase"},"value":{"kind":"Variable","name":{"kind":"Name","value":"include_uppercase"}}},{"kind":"Argument","name":{"kind":"Name","value":"include_lowercase"},"value":{"kind":"Variable","name":{"kind":"Name","value":"include_lowercase"}}},{"kind":"Argument","name":{"kind":"Name","value":"include_digits"},"value":{"kind":"Variable","name":{"kind":"Name","value":"include_digits"}}},{"kind":"Argument","name":{"kind":"Name","value":"include_special_characters"},"value":{"kind":"Variable","name":{"kind":"Name","value":"include_special_characters"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updated"}}]}}]}}]} as unknown as DocumentNode<UpdateRealmPasswordPolicyMutation, UpdateRealmPasswordPolicyMutationVariables>;
 export const RecountTallySessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RecountTallySession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tally_session_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"recount_tally_session"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tally_session_id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tally_session_id"}}]}}]}}]} as unknown as DocumentNode<RecountTallySessionMutation, RecountTallySessionMutationVariables>;
 export const RenderDocumentPdfDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RenderDocumentPdf"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"render_document_pdf"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_execution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}}]}}]}}]} as unknown as DocumentNode<RenderDocumentPdfMutation, RenderDocumentPdfMutationVariables>;
 export const RestorePrivateKeyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RestorePrivateKey"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"restore_private_key"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"private_key_base64"},"value":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"is_valid"}}]}}]}}]} as unknown as DocumentNode<RestorePrivateKeyMutation, RestorePrivateKeyMutationVariables>;

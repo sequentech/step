@@ -47,6 +47,7 @@ pub mod permissions;
 pub mod phone_blacklist;
 pub mod plugins;
 pub mod realm_attributes;
+pub mod realm_password_policy;
 pub mod reports;
 pub mod results_publication;
 pub mod roles;

@@ -467,6 +467,11 @@ const tagalogTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Pag-login",
@@ -491,6 +496,20 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Minimum length",
+                    maximumLength: "Maximum length",
+                    includeUppercase: "Include uppercase letters",
+                    includeLowercase: "Include lowercase letters",
+                    includeDigits: "Include digits",
+                    includeSpecialCharacters: "Include special characters",
+                    notConfigured:
+                        "No password policy is configured. Saving will apply the defaults below.",
+                    errors: {
+                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
+                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                    },
+                },
                 name: "Pangalan",
                 alias: "Alias",
                 description: "Paglalarawan",

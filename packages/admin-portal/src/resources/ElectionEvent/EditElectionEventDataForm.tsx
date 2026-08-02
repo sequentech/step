@@ -110,6 +110,10 @@ import {
 } from "@/queries/UpdateRealmAttributes"
 import {GET_REALM_ATTRIBUTES, GetRealmAttributesQuery} from "@/queries/GetRealmAttributes"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {
+    PasswordPolicyAccordion,
+    PasswordPolicyAccordionHandle,
+} from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -238,11 +242,17 @@ export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
     const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
+    const passwordPolicyRef = useRef<PasswordPolicyAccordionHandle | null>(null)
 
     const canEdit = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
+    )
+    const canReadPasswordPolicy = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_READ
     )
     const canReadRealmAttributes = authContext.isAuthorized(
         true,
@@ -1041,6 +1051,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         checkCustomDateTimeFormatRef.current()
 
         if (canEdit) {
+            const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
+            if (passwordPolicyUpdated === false) {
+                throw new Error("Password policy could not be updated")
+            }
             await handleUpdateCustomUrls(
                 values.presentation as IElectionEventPresentation,
                 recordId
@@ -1533,6 +1547,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </Box>
                     </AccordionDetails>
                 </Accordion>
+
+                {canReadPasswordPolicy && (
+                    <PasswordPolicyAccordion
+                        ref={passwordPolicyRef}
+                        electionEventId={record?.id?.toString()}
+                        canEdit={canEdit}
+                        expanded={expanded === "election-event-data-password-policy"}
+                        onChange={() =>
+                            setExpanded((previous) =>
+                                previous === "election-event-data-password-policy"
+                                    ? ""
+                                    : "election-event-data-password-policy"
+                            )
+                        }
+                        onDirty={() => setActivateSave(true)}
+                    />
+                )}
 
                 <Accordion
                     sx={{width: "100%"}}
