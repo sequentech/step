@@ -509,29 +509,32 @@ const frenchTranslation: TranslationType = {
             },
             field: {
                 passwordPolicy: {
-                    minimumLength: "Minimum length",
-                    maximumLength: "Maximum length",
-                    includeUppercase: "Include uppercase letters",
-                    includeLowercase: "Include lowercase letters",
-                    includeDigits: "Include digits",
-                    includeSpecialCharacters: "Include special characters",
+                    minimumLength: "Longueur minimale",
+                    maximumLength: "Longueur maximale",
+                    includeUppercase: "Inclure des lettres majuscules",
+                    includeLowercase: "Inclure des lettres minuscules",
+                    includeDigits: "Inclure des chiffres",
+                    includeSpecialCharacters: "Inclure des caractères spéciaux",
                     help: {
                         minimumLength:
-                            "The minimum number of characters required for the password.",
-                        maximumLength: "The maximum number of characters allowed for the password.",
+                            "Le nombre minimal de caractères requis pour le mot de passe.",
+                        maximumLength:
+                            "Le nombre maximal de caractères autorisés dans le mot de passe.",
                         includeUppercase:
-                            "Require at least one uppercase character in the password.",
+                            "Le mot de passe doit contenir au moins une lettre majuscule.",
                         includeLowercase:
-                            "Require at least one lowercase character in the password.",
-                        includeDigits: "Require at least one digit in the password.",
+                            "Le mot de passe doit contenir au moins une lettre minuscule.",
+                        includeDigits: "Le mot de passe doit contenir au moins un chiffre.",
                         includeSpecialCharacters:
-                            "Require at least one special character in the password string.",
+                            "Le mot de passe doit contenir au moins un caractère spécial.",
                     },
                     notConfigured:
-                        "No password policy is configured. Saving will apply the defaults below.",
+                        "Aucune politique de mot de passe n'est configurée. L'enregistrement appliquera les valeurs par défaut ci-dessous.",
                     errors: {
-                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
-                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        lengthRange:
+                            "Les longueurs du mot de passe doivent être des nombres entiers compris entre 1 et 256.",
+                        minimumExceedsMaximum:
+                            "La longueur minimale ne peut pas dépasser la longueur maximale.",
                     },
                 },
                 name: "Nom",

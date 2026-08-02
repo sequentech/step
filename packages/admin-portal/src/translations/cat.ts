@@ -509,29 +509,32 @@ const catalanTranslation: TranslationType = {
             },
             field: {
                 passwordPolicy: {
-                    minimumLength: "Minimum length",
-                    maximumLength: "Maximum length",
-                    includeUppercase: "Include uppercase letters",
-                    includeLowercase: "Include lowercase letters",
-                    includeDigits: "Include digits",
-                    includeSpecialCharacters: "Include special characters",
+                    minimumLength: "Longitud mínima",
+                    maximumLength: "Longitud màxima",
+                    includeUppercase: "Incloure lletres majúscules",
+                    includeLowercase: "Incloure lletres minúscules",
+                    includeDigits: "Incloure dígits",
+                    includeSpecialCharacters: "Incloure caràcters especials",
                     help: {
                         minimumLength:
-                            "The minimum number of characters required for the password.",
-                        maximumLength: "The maximum number of characters allowed for the password.",
+                            "El nombre mínim de caràcters necessaris per a la contrasenya.",
+                        maximumLength:
+                            "El nombre màxim de caràcters permesos per a la contrasenya.",
                         includeUppercase:
-                            "Require at least one uppercase character in the password.",
+                            "La contrasenya ha d'incloure almenys una lletra majúscula.",
                         includeLowercase:
-                            "Require at least one lowercase character in the password.",
-                        includeDigits: "Require at least one digit in the password.",
+                            "La contrasenya ha d'incloure almenys una lletra minúscula.",
+                        includeDigits: "La contrasenya ha d'incloure almenys un dígit.",
                         includeSpecialCharacters:
-                            "Require at least one special character in the password string.",
+                            "La contrasenya ha d'incloure almenys un caràcter especial.",
                     },
                     notConfigured:
-                        "No password policy is configured. Saving will apply the defaults below.",
+                        "No hi ha cap política de contrasenyes configurada. En desar, s'aplicaran els valors predeterminats següents.",
                     errors: {
-                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
-                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        lengthRange:
+                            "Les longituds de la contrasenya han de ser nombres enters entre 1 i 256.",
+                        minimumExceedsMaximum:
+                            "La longitud mínima no pot superar la longitud màxima.",
                     },
                 },
                 name: "Nom",

@@ -509,29 +509,32 @@ const galegoTranslation: TranslationType = {
             },
             field: {
                 passwordPolicy: {
-                    minimumLength: "Minimum length",
-                    maximumLength: "Maximum length",
-                    includeUppercase: "Include uppercase letters",
-                    includeLowercase: "Include lowercase letters",
-                    includeDigits: "Include digits",
-                    includeSpecialCharacters: "Include special characters",
+                    minimumLength: "Lonxitude mínima",
+                    maximumLength: "Lonxitude máxima",
+                    includeUppercase: "Incluír letras maiúsculas",
+                    includeLowercase: "Incluír letras minúsculas",
+                    includeDigits: "Incluír díxitos",
+                    includeSpecialCharacters: "Incluír caracteres especiais",
                     help: {
                         minimumLength:
-                            "The minimum number of characters required for the password.",
-                        maximumLength: "The maximum number of characters allowed for the password.",
+                            "O número mínimo de caracteres requiridos para o contrasinal.",
+                        maximumLength:
+                            "O número máximo de caracteres permitidos para o contrasinal.",
                         includeUppercase:
-                            "Require at least one uppercase character in the password.",
+                            "O contrasinal debe incluír polo menos unha letra maiúscula.",
                         includeLowercase:
-                            "Require at least one lowercase character in the password.",
-                        includeDigits: "Require at least one digit in the password.",
+                            "O contrasinal debe incluír polo menos unha letra minúscula.",
+                        includeDigits: "O contrasinal debe incluír polo menos un díxito.",
                         includeSpecialCharacters:
-                            "Require at least one special character in the password string.",
+                            "O contrasinal debe incluír polo menos un carácter especial.",
                     },
                     notConfigured:
-                        "No password policy is configured. Saving will apply the defaults below.",
+                        "Non hai ningunha política de contrasinais configurada. Ao gardar aplicaranse os valores predeterminados que se mostran a continuación.",
                     errors: {
-                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
-                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        lengthRange:
+                            "As lonxitudes do contrasinal deben ser números enteiros entre 1 e 256.",
+                        minimumExceedsMaximum:
+                            "A lonxitude mínima non pode superar a lonxitude máxima.",
                     },
                 },
                 name: "Nome",

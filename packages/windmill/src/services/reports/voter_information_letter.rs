@@ -111,9 +111,10 @@ impl VoterInformationLetterTemplate {
             .await
             .with_context(|| "Failed to render Voter Information Letter template")?;
 
-        pdf::PdfRenderer::render_pdf(
+        pdf::PdfRenderer::render_pdf_with_sensitivity(
             html,
             Some(extra_config.pdf_options.to_print_to_pdf_options()),
+            self.contains_sensitive_data(),
         )
         .await
         .with_context(|| "Failed to render Voter Information Letter PDF")

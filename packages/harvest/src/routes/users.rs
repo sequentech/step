@@ -16,6 +16,7 @@ use rocket::Request;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
+    is_keycloak_bad_request,
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
@@ -887,7 +888,17 @@ pub async fn edit_user(
             input.temporary,
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            if password_only && is_keycloak_bad_request(&error) {
+                EditUserError::password_policy_violation()
+            } else {
+                (
+                    Status::InternalServerError,
+                    format!("Error editing user in Keycloak: {error:?}"),
+                )
+                    .into()
+            }
+        })?;
 
     Ok(Json(EditUserOutput {
         user: Some(user),

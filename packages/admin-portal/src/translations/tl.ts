@@ -511,29 +511,32 @@ const tagalogTranslation: TranslationType = {
             },
             field: {
                 passwordPolicy: {
-                    minimumLength: "Minimum length",
-                    maximumLength: "Maximum length",
-                    includeUppercase: "Include uppercase letters",
-                    includeLowercase: "Include lowercase letters",
-                    includeDigits: "Include digits",
-                    includeSpecialCharacters: "Include special characters",
+                    minimumLength: "Pinakamababang haba",
+                    maximumLength: "Pinakamataas na haba",
+                    includeUppercase: "Magsama ng malalaking titik",
+                    includeLowercase: "Magsama ng maliliit na titik",
+                    includeDigits: "Magsama ng mga numero",
+                    includeSpecialCharacters: "Magsama ng mga espesyal na karakter",
                     help: {
                         minimumLength:
-                            "The minimum number of characters required for the password.",
-                        maximumLength: "The maximum number of characters allowed for the password.",
+                            "Ang pinakamababang bilang ng mga karakter na kailangan para sa password.",
+                        maximumLength:
+                            "Ang pinakamataas na bilang ng mga karakter na pinapayagan para sa password.",
                         includeUppercase:
-                            "Require at least one uppercase character in the password.",
+                            "Kailangan ng hindi bababa sa isang malaking titik sa password.",
                         includeLowercase:
-                            "Require at least one lowercase character in the password.",
-                        includeDigits: "Require at least one digit in the password.",
+                            "Kailangan ng hindi bababa sa isang maliit na titik sa password.",
+                        includeDigits: "Kailangan ng hindi bababa sa isang numero sa password.",
                         includeSpecialCharacters:
-                            "Require at least one special character in the password string.",
+                            "Kailangan ng hindi bababa sa isang espesyal na karakter sa password.",
                     },
                     notConfigured:
-                        "No password policy is configured. Saving will apply the defaults below.",
+                        "Walang naka-configure na patakaran sa password. Kapag nag-save, ilalapat ang mga default na halaga sa ibaba.",
                     errors: {
-                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
-                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        lengthRange:
+                            "Ang mga halaga ng haba ng password ay dapat mga buong numero mula 1 hanggang 256.",
+                        minimumExceedsMaximum:
+                            "Hindi maaaring lumampas ang pinakamababang haba sa pinakamataas na haba.",
                     },
                 },
                 name: "Pangalan",

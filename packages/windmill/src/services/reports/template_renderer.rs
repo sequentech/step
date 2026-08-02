@@ -568,9 +568,10 @@ pub trait TemplateRenderer: Debug {
                         // Render to PDF bytes
                         let pdf_bytes = GLOBAL_RT
                             .block_on(async {
-                                pdf::PdfRenderer::render_pdf(
+                                pdf::PdfRenderer::render_pdf_with_sensitivity(
                                     rendered_system_template,
                                     Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                                    self.contains_sensitive_data(),
                                 )
                                 .await
                             })
@@ -800,9 +801,10 @@ pub trait TemplateRenderer: Debug {
             debug!("Report generated: {rendered_system_template}");
         }
         let extension_suffix = "pdf";
-        let content_bytes = pdf::PdfRenderer::render_pdf(
+        let content_bytes = pdf::PdfRenderer::render_pdf_with_sensitivity(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+            self.contains_sensitive_data(),
         )
         .await
         .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;

@@ -510,29 +510,28 @@ const basqueTranslation: TranslationType = {
             },
             field: {
                 passwordPolicy: {
-                    minimumLength: "Minimum length",
-                    maximumLength: "Maximum length",
-                    includeUppercase: "Include uppercase letters",
-                    includeLowercase: "Include lowercase letters",
-                    includeDigits: "Include digits",
-                    includeSpecialCharacters: "Include special characters",
+                    minimumLength: "Gutxieneko luzera",
+                    maximumLength: "Gehieneko luzera",
+                    includeUppercase: "Sartu letra larriak",
+                    includeLowercase: "Sartu letra xeheak",
+                    includeDigits: "Sartu digituak",
+                    includeSpecialCharacters: "Sartu karaktere bereziak",
                     help: {
-                        minimumLength:
-                            "The minimum number of characters required for the password.",
-                        maximumLength: "The maximum number of characters allowed for the password.",
-                        includeUppercase:
-                            "Require at least one uppercase character in the password.",
-                        includeLowercase:
-                            "Require at least one lowercase character in the password.",
-                        includeDigits: "Require at least one digit in the password.",
+                        minimumLength: "Pasahitzak izan behar duen gutxieneko karaktere kopurua.",
+                        maximumLength: "Pasahitzak izan dezakeen gehieneko karaktere kopurua.",
+                        includeUppercase: "Pasahitzak gutxienez letra larri bat izan behar du.",
+                        includeLowercase: "Pasahitzak gutxienez letra xehe bat izan behar du.",
+                        includeDigits: "Pasahitzak gutxienez digitu bat izan behar du.",
                         includeSpecialCharacters:
-                            "Require at least one special character in the password string.",
+                            "Pasahitzak gutxienez karaktere berezi bat izan behar du.",
                     },
                     notConfigured:
-                        "No password policy is configured. Saving will apply the defaults below.",
+                        "Ez dago pasahitz-politikarik konfiguratuta. Gordetzean, beheko balio lehenetsiak aplikatuko dira.",
                     errors: {
-                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
-                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        lengthRange:
+                            "Pasahitzaren luzera-balioek 1 eta 256 arteko zenbaki osoak izan behar dute.",
+                        minimumExceedsMaximum:
+                            "Gutxieneko luzerak ezin du gehieneko luzera gainditu.",
                     },
                 },
                 name: "Izena",

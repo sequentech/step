@@ -510,29 +510,32 @@ const dutchTranslation: TranslationType = {
             },
             field: {
                 passwordPolicy: {
-                    minimumLength: "Minimum length",
-                    maximumLength: "Maximum length",
-                    includeUppercase: "Include uppercase letters",
-                    includeLowercase: "Include lowercase letters",
-                    includeDigits: "Include digits",
-                    includeSpecialCharacters: "Include special characters",
+                    minimumLength: "Minimale lengte",
+                    maximumLength: "Maximale lengte",
+                    includeUppercase: "Hoofdletters opnemen",
+                    includeLowercase: "Kleine letters opnemen",
+                    includeDigits: "Cijfers opnemen",
+                    includeSpecialCharacters: "Speciale tekens opnemen",
                     help: {
                         minimumLength:
-                            "The minimum number of characters required for the password.",
-                        maximumLength: "The maximum number of characters allowed for the password.",
+                            "Het minimale aantal tekens dat voor het wachtwoord vereist is.",
+                        maximumLength:
+                            "Het maximale aantal tekens dat voor het wachtwoord is toegestaan.",
                         includeUppercase:
-                            "Require at least one uppercase character in the password.",
+                            "Het wachtwoord moet ten minste één hoofdletter bevatten.",
                         includeLowercase:
-                            "Require at least one lowercase character in the password.",
-                        includeDigits: "Require at least one digit in the password.",
+                            "Het wachtwoord moet ten minste één kleine letter bevatten.",
+                        includeDigits: "Het wachtwoord moet ten minste één cijfer bevatten.",
                         includeSpecialCharacters:
-                            "Require at least one special character in the password string.",
+                            "Het wachtwoord moet ten minste één speciaal teken bevatten.",
                     },
                     notConfigured:
-                        "No password policy is configured. Saving will apply the defaults below.",
+                        "Er is geen wachtwoordbeleid geconfigureerd. Bij het opslaan worden de onderstaande standaardwaarden toegepast.",
                     errors: {
-                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
-                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        lengthRange:
+                            "De waarden voor de wachtwoordlengte moeten gehele getallen tussen 1 en 256 zijn.",
+                        minimumExceedsMaximum:
+                            "De minimale lengte mag niet groter zijn dan de maximale lengte.",
                     },
                 },
                 name: "Naam",

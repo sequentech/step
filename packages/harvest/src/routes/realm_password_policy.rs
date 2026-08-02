@@ -73,7 +73,7 @@ pub async fn get_realm_password_policy_route(
         )
     })?;
 
-    Ok(Json(password_policy))
+    Ok(Json(password_policy.to_admin_configuration()))
 }
 
 #[instrument(skip_all)]
