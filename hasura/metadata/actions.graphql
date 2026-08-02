@@ -1989,6 +1989,7 @@ type Query {
 
 type VoterInformationLetterOutput {
     document_id: String!
+    pdf_password: String!
     task_execution: tasks_execution_type!
 }
 
