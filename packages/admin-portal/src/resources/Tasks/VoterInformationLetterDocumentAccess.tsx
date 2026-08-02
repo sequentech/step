@@ -14,6 +14,7 @@ interface VoterInformationLetterDocumentAccessProps {
     pdfPassword?: string
     loading?: boolean
     onReveal: () => void
+    className?: string
 }
 
 export const VoterInformationLetterDocumentAccess = ({
@@ -21,6 +22,7 @@ export const VoterInformationLetterDocumentAccess = ({
     pdfPassword,
     loading = false,
     onReveal,
+    className,
 }: VoterInformationLetterDocumentAccessProps) => {
     const {t} = useTranslation()
     const [expanded, setExpanded] = useState(true)
@@ -37,17 +39,26 @@ export const VoterInformationLetterDocumentAccess = ({
 
     return (
         <Accordion
+            className={["voter-information-letter-document-access", className]
+                .filter(Boolean)
+                .join(" ")}
             sx={{width: "100%"}}
             expanded={expanded}
             onChange={(_, nextExpanded) => setExpanded(nextExpanded)}
         >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <WizardStyles.AccordionTitle>
+            <AccordionSummary
+                className="voter-information-letter-document-access-summary"
+                expandIcon={
+                    <ExpandMoreIcon className="voter-information-letter-document-access-expand-icon" />
+                }
+            >
+                <WizardStyles.AccordionTitle className="voter-information-letter-document-access-title">
                     {t("tasksScreen.documentAccess.title")}
                 </WizardStyles.AccordionTitle>
             </AccordionSummary>
-            <WizardStyles.AccordionDetails>
+            <WizardStyles.AccordionDetails className="voter-information-letter-document-access-details">
                 <VoterInformationLetterPasswordAccess
+                    className="voter-information-letter-document-access-password"
                     pdfPassword={pdfPassword}
                     loading={loading}
                     onReveal={onReveal}

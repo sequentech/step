@@ -21,12 +21,14 @@ interface VoterInformationLetterPasswordAccessProps {
     pdfPassword?: string
     loading?: boolean
     onReveal?: () => void
+    className?: string
 }
 
 export const VoterInformationLetterPasswordAccess = ({
     pdfPassword,
     loading = false,
     onReveal,
+    className,
 }: VoterInformationLetterPasswordAccessProps) => {
     const {t} = useTranslation()
     const notify = useNotify()
@@ -44,17 +46,34 @@ export const VoterInformationLetterPasswordAccess = ({
     }
 
     return (
-        <Stack spacing={2} alignItems="flex-start">
-            <Alert severity="warning" sx={{width: "100%"}}>
+        <Stack
+            className={["voter-information-letter-password-access", className]
+                .filter(Boolean)
+                .join(" ")}
+            spacing={2}
+            alignItems="flex-start"
+        >
+            <Alert
+                className="voter-information-letter-password-access-warning"
+                severity="warning"
+                sx={{width: "100%"}}
+            >
                 {t("tasksScreen.documentAccess.sensitivityNotice")}
             </Alert>
-            <Typography variant="body2" fontWeight={500}>
+            <Typography
+                className="voter-information-letter-password-access-label"
+                variant="body2"
+                fontWeight={500}
+            >
                 {t("tasksScreen.documentAccess.passwordLabel")}:
             </Typography>
             {!pdfPassword ? (
                 <Button
+                    className="voter-information-letter-password-access-show-button"
                     variant="outlined"
-                    startIcon={<VisibilityIcon />}
+                    startIcon={
+                        <VisibilityIcon className="voter-information-letter-password-access-show-icon" />
+                    }
                     onClick={onReveal}
                     disabled={loading || !onReveal}
                     sx={(theme) => ({
@@ -72,11 +91,16 @@ export const VoterInformationLetterPasswordAccess = ({
                     {t("tasksScreen.documentAccess.showPassword")}
                 </Button>
             ) : null}
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+                className="voter-information-letter-password-access-guidance"
+                variant="body2"
+                color="text.secondary"
+            >
                 {t("tasksScreen.documentAccess.guidance")}
             </Typography>
             {pdfPassword ? (
                 <TextField
+                    className="voter-information-letter-password-access-field"
                     fullWidth
                     value={pdfPassword}
                     sx={{
@@ -87,17 +111,23 @@ export const VoterInformationLetterPasswordAccess = ({
                     slotProps={{
                         htmlInput: {
                             "aria-label": t("tasksScreen.documentAccess.passwordLabel"),
+                            "className": "voter-information-letter-password-access-input",
                         },
                         input: {
+                            className: "voter-information-letter-password-access-input-root",
                             readOnly: true,
                             endAdornment: (
-                                <InputAdornment position="end">
+                                <InputAdornment
+                                    className="voter-information-letter-password-access-copy-adornment"
+                                    position="end"
+                                >
                                     <IconButton
+                                        className="voter-information-letter-password-access-copy-button"
                                         onClick={() => void copyPassword()}
                                         edge="end"
                                         aria-label={t("tasksScreen.documentAccess.copyPassword")}
                                     >
-                                        <ContentCopyIcon />
+                                        <ContentCopyIcon className="voter-information-letter-password-access-copy-icon" />
                                     </IconButton>
                                 </InputAdornment>
                             ),

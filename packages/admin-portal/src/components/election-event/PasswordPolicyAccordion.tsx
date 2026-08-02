@@ -79,15 +79,42 @@ interface PasswordPolicyAccordionProps {
 interface PasswordPolicyFieldLabelProps {
     label: string
     information: string
+    className: string
 }
 
-const PasswordPolicyFieldLabel = ({label, information}: PasswordPolicyFieldLabelProps) => (
-    <Box component="span" sx={{display: "inline-flex", alignItems: "center", gap: 0.5}}>
-        <Typography component="span" variant="body2">
+const PasswordPolicyFieldLabel = ({
+    label,
+    information,
+    className,
+}: PasswordPolicyFieldLabelProps) => (
+    <Box
+        component="span"
+        className={`election-event-password-policy-field-label ${className}`}
+        sx={{display: "inline-flex", alignItems: "center", gap: 0.5}}
+    >
+        <Typography
+            component="span"
+            variant="body2"
+            className={`election-event-password-policy-field-label-text ${className}-text`}
+        >
             {label}
         </Typography>
-        <Tooltip title={information} arrow placement="top">
+        <Tooltip
+            className={`election-event-password-policy-tooltip-trigger ${className}-tooltip-trigger`}
+            title={information}
+            arrow
+            placement="top"
+            slotProps={{
+                popper: {
+                    className: `election-event-password-policy-tooltip-popper ${className}-tooltip-popper`,
+                },
+                tooltip: {
+                    className: `election-event-password-policy-tooltip ${className}-tooltip`,
+                },
+            }}
+        >
             <InfoOutlinedIcon
+                className={`election-event-password-policy-information-icon ${className}-information-icon`}
                 color="action"
                 fontSize="small"
                 tabIndex={0}
@@ -241,33 +268,58 @@ export const PasswordPolicyAccordion = forwardRef<
     const inputsDisabled = !canEdit || loading || Boolean(queryError) || !data
 
     return (
-        <Accordion sx={{width: "100%"}} expanded={expanded} onChange={onChange}>
+        <Accordion
+            className="election-event-password-policy-accordion"
+            sx={{width: "100%"}}
+            expanded={expanded}
+            onChange={onChange}
+        >
             <AccordionSummary
-                expandIcon={<ExpandMoreIcon id="election-event-data-password-policy" />}
+                className="election-event-password-policy-summary"
+                expandIcon={
+                    <ExpandMoreIcon
+                        id="election-event-data-password-policy"
+                        className="election-event-password-policy-expand-icon"
+                    />
+                }
             >
-                <ElectionHeaderStyles.Wrapper>
-                    <ElectionHeaderStyles.Title>
+                <ElectionHeaderStyles.Wrapper className="election-event-password-policy-header">
+                    <ElectionHeaderStyles.Title className="election-event-password-policy-title">
                         {t("electionEventScreen.edit.password_policy")}
                     </ElectionHeaderStyles.Title>
                 </ElectionHeaderStyles.Wrapper>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails className="election-event-password-policy-details">
                 {queryError ? (
-                    <Typography color="error">
+                    <Typography className="election-event-password-policy-load-error" color="error">
                         {t("electionEventScreen.edit.password_policy_load_error")}
                     </Typography>
                 ) : loading ? (
-                    <Typography>{t("loading")}</Typography>
+                    <Typography className="election-event-password-policy-loading">
+                        {t("loading")}
+                    </Typography>
                 ) : (
-                    <>
+                    <Box className="election-event-password-policy-content">
                         {!passwordPolicy.configured && (
-                            <Typography color="warning.main" sx={{marginBottom: 2}}>
+                            <Typography
+                                className="election-event-password-policy-not-configured"
+                                color="warning.main"
+                                sx={{marginBottom: 2}}
+                            >
                                 {t("electionEventScreen.field.passwordPolicy.notConfigured")}
                             </Typography>
                         )}
-                        <Grid container spacing={2}>
-                            <Grid size={{xs: 12, sm: 6, md: 3}}>
+                        <Grid
+                            className="election-event-password-policy-length-fields"
+                            container
+                            spacing={2}
+                        >
+                            <Grid
+                                className="election-event-password-policy-minimum-length-field"
+                                size={{xs: 12, sm: 6, md: 3}}
+                            >
                                 <PasswordPolicyFieldLabel
+                                    className="election-event-password-policy-minimum-length-label"
                                     label={String(
                                         t("electionEventScreen.field.passwordPolicy.minimumLength")
                                     )}
@@ -278,6 +330,7 @@ export const PasswordPolicyAccordion = forwardRef<
                                     )}
                                 />
                                 <TextField
+                                    className="election-event-password-policy-minimum-length-input"
                                     fullWidth
                                     type="number"
                                     disabled={inputsDisabled}
@@ -293,12 +346,18 @@ export const PasswordPolicyAccordion = forwardRef<
                                             "aria-label": t(
                                                 "electionEventScreen.field.passwordPolicy.minimumLength"
                                             ),
+                                            "className":
+                                                "election-event-password-policy-minimum-length-native-input",
                                         },
                                     }}
                                 />
                             </Grid>
-                            <Grid size={{xs: 12, sm: 6, md: 3}}>
+                            <Grid
+                                className="election-event-password-policy-maximum-length-field"
+                                size={{xs: 12, sm: 6, md: 3}}
+                            >
                                 <PasswordPolicyFieldLabel
+                                    className="election-event-password-policy-maximum-length-label"
                                     label={String(
                                         t("electionEventScreen.field.passwordPolicy.maximumLength")
                                     )}
@@ -309,6 +368,7 @@ export const PasswordPolicyAccordion = forwardRef<
                                     )}
                                 />
                                 <TextField
+                                    className="election-event-password-policy-maximum-length-input"
                                     fullWidth
                                     type="number"
                                     disabled={inputsDisabled}
@@ -324,12 +384,15 @@ export const PasswordPolicyAccordion = forwardRef<
                                             "aria-label": t(
                                                 "electionEventScreen.field.passwordPolicy.maximumLength"
                                             ),
+                                            "className":
+                                                "election-event-password-policy-maximum-length-native-input",
                                         },
                                     }}
                                 />
                             </Grid>
                         </Grid>
                         <Box
+                            className="election-event-password-policy-character-requirements"
                             sx={{
                                 display: "grid",
                                 gridTemplateColumns: {
@@ -341,8 +404,10 @@ export const PasswordPolicyAccordion = forwardRef<
                             }}
                         >
                             <FormControlLabel
+                                className="election-event-password-policy-include-uppercase-field"
                                 control={
                                     <Checkbox
+                                        className="election-event-password-policy-include-uppercase-checkbox"
                                         disabled={inputsDisabled}
                                         checked={passwordPolicy.include_uppercase}
                                         onChange={(event) =>
@@ -355,6 +420,7 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                                 label={
                                     <PasswordPolicyFieldLabel
+                                        className="election-event-password-policy-include-uppercase-label"
                                         label={String(
                                             t(
                                                 "electionEventScreen.field.passwordPolicy.includeUppercase"
@@ -369,8 +435,10 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                             />
                             <FormControlLabel
+                                className="election-event-password-policy-include-lowercase-field"
                                 control={
                                     <Checkbox
+                                        className="election-event-password-policy-include-lowercase-checkbox"
                                         disabled={inputsDisabled}
                                         checked={passwordPolicy.include_lowercase}
                                         onChange={(event) =>
@@ -383,6 +451,7 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                                 label={
                                     <PasswordPolicyFieldLabel
+                                        className="election-event-password-policy-include-lowercase-label"
                                         label={String(
                                             t(
                                                 "electionEventScreen.field.passwordPolicy.includeLowercase"
@@ -397,8 +466,10 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                             />
                             <FormControlLabel
+                                className="election-event-password-policy-include-digits-field"
                                 control={
                                     <Checkbox
+                                        className="election-event-password-policy-include-digits-checkbox"
                                         disabled={inputsDisabled}
                                         checked={passwordPolicy.include_digits}
                                         onChange={(event) =>
@@ -408,6 +479,7 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                                 label={
                                     <PasswordPolicyFieldLabel
+                                        className="election-event-password-policy-include-digits-label"
                                         label={String(
                                             t(
                                                 "electionEventScreen.field.passwordPolicy.includeDigits"
@@ -422,8 +494,10 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                             />
                             <FormControlLabel
+                                className="election-event-password-policy-include-special-characters-field"
                                 control={
                                     <Checkbox
+                                        className="election-event-password-policy-include-special-characters-checkbox"
                                         disabled={inputsDisabled}
                                         checked={passwordPolicy.include_special_characters}
                                         onChange={(event) =>
@@ -436,6 +510,7 @@ export const PasswordPolicyAccordion = forwardRef<
                                 }
                                 label={
                                     <PasswordPolicyFieldLabel
+                                        className="election-event-password-policy-include-special-characters-label"
                                         label={String(
                                             t(
                                                 "electionEventScreen.field.passwordPolicy.includeSpecialCharacters"
@@ -451,13 +526,17 @@ export const PasswordPolicyAccordion = forwardRef<
                             />
                         </Box>
                         {validationError && (
-                            <Typography color="error" sx={{marginTop: 1}}>
+                            <Typography
+                                className="election-event-password-policy-validation-error"
+                                color="error"
+                                sx={{marginTop: 1}}
+                            >
                                 {t(
                                     `electionEventScreen.field.passwordPolicy.errors.${validationError}`
                                 )}
                             </Typography>
                         )}
-                    </>
+                    </Box>
                 )}
             </AccordionDetails>
         </Accordion>
