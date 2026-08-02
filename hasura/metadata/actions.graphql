@@ -1982,9 +1982,7 @@ type Mutation {
 }
 
 type Query {
-    get_voter_information_letter_password(
-        task_id: String!
-    ): VoterInformationLetterPasswordOutput!
+    get_document_password(document_id: String!): DocumentPasswordOutput!
 }
 
 type VoterInformationLetterOutput {
@@ -1993,6 +1991,6 @@ type VoterInformationLetterOutput {
     task_execution: tasks_execution_type!
 }
 
-type VoterInformationLetterPasswordOutput {
-    pdf_password: String!
+type DocumentPasswordOutput {
+    password: String!
 }
