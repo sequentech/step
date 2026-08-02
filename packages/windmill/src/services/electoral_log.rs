@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
-use crate::services::database::PgConfig;
+use crate::services::database::{get_hasura_pool, PgConfig};
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::insert_cast_vote::hash_voter_id;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
@@ -51,6 +53,126 @@ pub const MAX_ROWS_PER_PAGE: usize = 50;
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
+
+/// Identifies the admin user whose request caused a voter password change.
+/// The password itself must never be added to this context or to the
+/// electoral-log message built from it.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ElectoralLogAdminContext {
+    pub user_id: String,
+    pub username: Option<String>,
+    pub authorized_election_ids: Option<Vec<String>>,
+    pub area_id: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VoterPasswordChangeSource {
+    AdminPortal,
+    VoterInformationLetter,
+}
+
+impl VoterPasswordChangeSource {
+    fn event_type(self) -> &'static str {
+        match self {
+            Self::AdminPortal => "UPDATE_PASSWORD: ADMIN_PORTAL",
+            Self::VoterInformationLetter => "UPDATE_PASSWORD: VOTER_INFORMATION_LETTER",
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct ElectoralLogUser<'a> {
+    user_id: &'a str,
+    username: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct VoterPasswordChangeBody<'a> {
+    action: &'static str,
+    source: VoterPasswordChangeSource,
+    voter: ElectoralLogUser<'a>,
+    initiated_by: ElectoralLogUser<'a>,
+}
+
+fn voter_password_change_body(
+    voter_id: &str,
+    voter_username: Option<&str>,
+    admin: &ElectoralLogAdminContext,
+    source: VoterPasswordChangeSource,
+) -> Result<String> {
+    serde_json::to_string(&VoterPasswordChangeBody {
+        action: "voter_password_changed",
+        source,
+        voter: ElectoralLogUser {
+            user_id: voter_id,
+            username: voter_username,
+        },
+        initiated_by: ElectoralLogUser {
+            user_id: &admin.user_id,
+            username: admin.username.as_deref(),
+        },
+    })
+    .context("Failed to serialize voter password-change electoral-log details")
+}
+
+/// Posts a signed electoral-log entry after an admin-triggered voter password
+/// change succeeds. The voter remains the searchable subject of the entry;
+/// the signed body records both the voter and initiating admin, plus the path
+/// that caused the change. No password or generated credential is accepted by
+/// this API, so it cannot accidentally be persisted in the log.
+#[instrument(skip_all, err)]
+pub async fn post_voter_password_change(
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+    voter_username: Option<String>,
+    admin: &ElectoralLogAdminContext,
+    source: VoterPasswordChangeSource,
+) -> Result<()> {
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get Hasura client for the password-change electoral log")?;
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start password-change electoral-log transaction")?;
+    let election_event = get_election_event_by_id(&transaction, tenant_id, election_event_id)
+        .await
+        .context("Failed to get election event for the password-change electoral log")?;
+    let board = get_election_event_board(election_event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
+        &board,
+        tenant_id,
+        election_event_id,
+        &admin.user_id,
+        admin.username.clone(),
+        admin.authorized_election_ids.clone(),
+        admin.area_id.clone(),
+    )
+    .await
+    .context("Failed to initialize the admin-signed password-change electoral log")?;
+    let body = voter_password_change_body(voter_id, voter_username.as_deref(), admin, source)?;
+    electoral_log
+        .post_keycloak_event(
+            election_event_id.to_string(),
+            source.event_type().to_string(),
+            body,
+            Some(voter_id.to_string()),
+            voter_username,
+        )
+        .await
+        .context("Failed to post the voter password-change electoral-log entry")?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit the password-change electoral-log transaction")?;
+    Ok(())
+}
 
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
@@ -1650,4 +1772,60 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 
     client.close_session().await?;
     Ok(aggregate.count as i64)
+}
+
+#[cfg(test)]
+mod password_change_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn admin() -> ElectoralLogAdminContext {
+        ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin-user".to_string()),
+            authorized_election_ids: Some(vec!["election-id".to_string()]),
+            area_id: Some("area-id".to_string()),
+        }
+    }
+
+    #[test]
+    fn password_change_body_identifies_subject_actor_and_source_without_a_credential() {
+        let body = voter_password_change_body(
+            "voter-id",
+            Some("voter-user"),
+            &admin(),
+            VoterPasswordChangeSource::VoterInformationLetter,
+        )
+        .unwrap();
+        let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+
+        assert_eq!(
+            body,
+            json!({
+                "action": "voter_password_changed",
+                "source": "voter_information_letter",
+                "voter": {
+                    "user_id": "voter-id",
+                    "username": "voter-user",
+                },
+                "initiated_by": {
+                    "user_id": "admin-id",
+                    "username": "admin-user",
+                },
+            })
+        );
+        assert_eq!(body.as_object().unwrap().len(), 4);
+    }
+
+    #[test]
+    fn password_change_event_type_distinguishes_admin_portal_and_vil_changes() {
+        assert_eq!(
+            VoterPasswordChangeSource::AdminPortal.event_type(),
+            "UPDATE_PASSWORD: ADMIN_PORTAL"
+        );
+        assert_eq!(
+            VoterPasswordChangeSource::VoterInformationLetter.event_type(),
+            "UPDATE_PASSWORD: VOTER_INFORMATION_LETTER"
+        );
+    }
 }

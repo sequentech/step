@@ -1231,6 +1231,7 @@ const spanishTranslation: TranslationType = {
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
+                "document-password-read": "Leer contraseñas de documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "tally-sheet-import-create": "Crear importación de actas de recuento",
                 "tally-sheet-import-review": "Revisar importación de actas de recuento",

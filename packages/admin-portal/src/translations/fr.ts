@@ -1234,6 +1234,7 @@ const frenchTranslation: TranslationType = {
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
                 "document-download": "Télécharger Documents",
+                "document-password-read": "Lire les mots de passe des documents",
                 "tally-sheet-create": "Créer Acte de Comptage",
                 "tally-sheet-import-create": "Créer une importation d'actes de comptage",
                 "tally-sheet-import-review": "Examiner une importation d'actes de comptage",

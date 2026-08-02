@@ -1232,6 +1232,7 @@ const tagalogTranslation: TranslationType = {
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
                 "document-download": "I-download ang Mga Dokumento",
+                "document-password-read": "Basahin ang Mga Password ng Dokumento",
                 "tally-sheet-create": "Lumikha ng Tally Sheet",
                 "tally-sheet-import-create": "Lumikha ng Import ng Tally Sheet",
                 "tally-sheet-import-review": "Suriin ang Import ng Tally Sheet",

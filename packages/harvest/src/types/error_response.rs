@@ -36,6 +36,7 @@ pub enum ErrorCode {
     InvalidPasswordPolicy,
     PasswordPolicyNotConfigured,
     PasswordPolicyViolation,
+    DocumentPasswordUnavailable,
     VoterInformationLetterUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
     BallotIdMismatch,

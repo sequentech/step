@@ -1226,6 +1226,7 @@ const basqueTranslation: TranslationType = {
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
                 "document-download": "Deskargatu Dokumentuak",
+                "document-password-read": "Irakurri dokumentuen pasahitzak",
                 "tally-sheet-create": "Sortu Zenbaketa Orria",
                 "tally-sheet-import-create": "Sortu zenbaketa orrien inportazioa",
                 "tally-sheet-import-review": "Berrikusi zenbaketa orrien inportazioa",

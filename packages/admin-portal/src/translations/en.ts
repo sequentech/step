@@ -1222,6 +1222,7 @@ const englishTranslation = {
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "document-password-read": "Read Document Passwords",
                 "tally-sheet-create": "Create Tally Sheet",
                 "tally-sheet-import-create": "Create Tally Sheet Import",
                 "tally-sheet-import-review": "Review Tally Sheet Import",

@@ -97,6 +97,7 @@ import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
 import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
+import {isPasswordPolicyNotConfiguredError} from "./editPasswordError"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
@@ -419,10 +420,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setRecordIds([])
             setVoterInformationLetterPassword(pdfPassword)
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : ""
-            const isPasswordPolicyMissing =
-                message.includes("PasswordPolicyNotConfigured") ||
-                message.includes("Password Policy is not configured.")
+            const isPasswordPolicyMissing = isPasswordPolicyNotConfiguredError(error)
             const notificationKey = isPasswordPolicyMissing
                 ? "usersAndRolesScreen.voters.voterInformationLetter.policyNotConfigured"
                 : "usersAndRolesScreen.voters.voterInformationLetter.generationError"

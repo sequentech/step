@@ -27,11 +27,3 @@ export const GENERATE_VOTER_INFORMATION_LETTER = gql`
         }
     }
 `
-
-export const GET_VOTER_INFORMATION_LETTER_PASSWORD = gql`
-    query GetVoterInformationLetterPassword($taskId: String!) {
-        get_voter_information_letter_password(task_id: $taskId) {
-            pdf_password
-        }
-    }
-`

@@ -10,6 +10,7 @@ pub mod create_ballot_receipt;
 pub mod custom_urls;
 pub mod delete_certificate_authority;
 pub mod delete_election_event;
+pub mod document_password;
 pub mod election_dates;
 pub mod election_event_stats;
 pub mod election_stats;

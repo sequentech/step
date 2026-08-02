@@ -41,11 +41,9 @@ export function useUsersPermissions() {
         tenantId,
         IPermissions.VOTER_CHANGE_PASSWORD
     )
-    const canGenerateVoterInformationLetter = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.VOTER_INFORMATION_LETTER
-    )
+    const canGenerateVoterInformationLetter =
+        authContext.isAuthorized(true, tenantId, IPermissions.VOTER_INFORMATION_LETTER) &&
+        authContext.isAuthorized(true, tenantId, IPermissions.DOCUMENT_PASSWORD_READ)
 
     const showVotersColumns = authContext.isAuthorized(
         true,

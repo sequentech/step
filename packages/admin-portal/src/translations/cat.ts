@@ -1232,6 +1232,7 @@ const catalanTranslation: TranslationType = {
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",
+                "document-password-read": "Llegir contrasenyes de documents",
                 "tally-sheet-create": "Crear Acta de Recompte",
                 "tally-sheet-import-create": "Crear importació d'actes de recompte",
                 "tally-sheet-import-review": "Revisar importació d'actes de recompte",

@@ -1231,6 +1231,7 @@ const dutchTranslation: TranslationType = {
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
                 "document-download": "Documenten Downloaden",
+                "document-password-read": "Documentwachtwoorden Lezen",
                 "tally-sheet-create": "Telblad Aanmaken",
                 "tally-sheet-import-create": "Telformulierimport aanmaken",
                 "tally-sheet-import-review": "Telformulierimport beoordelen",

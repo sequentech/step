@@ -4,7 +4,7 @@
 
 import {
     GetTaskByIdQuery,
-    GetVoterInformationLetterPasswordQuery,
+    GetDocumentPasswordQuery,
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import React, {useContext, useEffect, useState} from "react"
@@ -27,7 +27,7 @@ import {ETaskExecutionStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useLazyQuery, useQuery} from "@apollo/client"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
-import {GET_VOTER_INFORMATION_LETTER_PASSWORD} from "@/queries/VoterInformationLetter"
+import {GET_DOCUMENT_PASSWORD} from "@/queries/DocumentPassword"
 import {CancelButton} from "../Tally/styles"
 import {useTasksPermissions} from "./useTasksPermissions"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -71,19 +71,16 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const [downloading, setDownloading] = useState<boolean>(false)
     const [pdfPassword, setPdfPassword] = useState<string>()
 
-    const {showTasksBackButton, canAccessVoterInformationLetter} = useTasksPermissions()
-    const [getVoterInformationLetterPassword, {loading: passwordLoading}] =
-        useLazyQuery<GetVoterInformationLetterPasswordQuery>(
-            GET_VOTER_INFORMATION_LETTER_PASSWORD,
-            {
-                fetchPolicy: "no-cache",
-                context: {
-                    headers: {
-                        "x-hasura-role": IPermissions.VOTER_INFORMATION_LETTER,
-                    },
+    const {showTasksBackButton, canReadDocumentPassword} = useTasksPermissions()
+    const [getDocumentPassword, {loading: passwordLoading}] =
+        useLazyQuery<GetDocumentPasswordQuery>(GET_DOCUMENT_PASSWORD, {
+            fetchPolicy: "no-cache",
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.DOCUMENT_PASSWORD_READ,
                 },
-            }
-        )
+            },
+        })
 
     useEffect(() => {
         setPdfPassword(undefined)
@@ -106,7 +103,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const voterInformationLetterDocumentId = task.annotations?.document_id
     const canAccessVoterInformationLetterDocument =
         isVoterInformationLetter &&
-        canAccessVoterInformationLetter &&
+        canReadDocumentPassword &&
         task.execution_status === ETaskExecutionStatus.SUCCESS &&
         Boolean(task.election_event_id) &&
         Boolean(voterInformationLetterDocumentId)
@@ -115,12 +112,12 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
         Boolean(voterInformationLetterDocumentId) &&
         (!isVoterInformationLetter || canAccessVoterInformationLetterDocument)
 
-    const revealVoterInformationLetterPassword = async (): Promise<boolean> => {
+    const revealDocumentPassword = async (): Promise<boolean> => {
         try {
-            const {data} = await getVoterInformationLetterPassword({
-                variables: {taskId: String(task.id)},
+            const {data} = await getDocumentPassword({
+                variables: {documentId: String(voterInformationLetterDocumentId)},
             })
-            const password = data?.get_voter_information_letter_password?.pdf_password
+            const password = data?.get_document_password?.password
             if (!password) {
                 throw new Error("PDF password was not returned")
             }
@@ -136,11 +133,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
         if (!canDownloadDocument || !voterInformationLetterDocumentId) {
             return
         }
-        if (
-            isVoterInformationLetter &&
-            !pdfPassword &&
-            !(await revealVoterInformationLetterPassword())
-        ) {
+        if (isVoterInformationLetter && !pdfPassword && !(await revealDocumentPassword())) {
             return
         }
         setDownloading(true)
@@ -217,7 +210,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                     taskId={String(task.id)}
                     pdfPassword={pdfPassword}
                     loading={passwordLoading}
-                    onReveal={() => void revealVoterInformationLetterPassword()}
+                    onReveal={() => void revealDocumentPassword()}
                 />
             ) : null}
             <Logs logs={task?.logs} />

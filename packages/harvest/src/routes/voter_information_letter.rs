@@ -17,13 +17,11 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
-use windmill::postgres::tasks_execution::get_task_by_id;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::document_password::save_password;
+use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::tasks_execution::{post, update_fail};
-use windmill::services::voter_information_letter::{
-    read_secret, save_secret, VoterInformationLetterSecret,
-};
 use windmill::types::tasks::ETasksExecution;
 
 const POLICY_ERROR: &str =
@@ -42,16 +40,6 @@ pub struct GenerateVoterInformationLetterOutput {
     task_execution: TasksExecution,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct GetVoterInformationLetterPasswordInput {
-    task_id: String,
-}
-
-#[derive(Serialize)]
-pub struct GetVoterInformationLetterPasswordOutput {
-    pdf_password: String,
-}
-
 fn internal_error(message: &str) -> JsonError {
     ErrorResponse::new(
         Status::InternalServerError,
@@ -60,12 +48,12 @@ fn internal_error(message: &str) -> JsonError {
     )
 }
 
-async fn store_secret_for_task(
+async fn store_document_password(
     tenant_id: &str,
     election_event_id: &str,
-    task_id: &str,
-    secret: &VoterInformationLetterSecret,
-) -> anyhow::Result<()> {
+    document_id: &str,
+    password: &str,
+) -> anyhow::Result<String> {
     let mut client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -75,13 +63,20 @@ async fn store_secret_for_task(
         .transaction()
         .await
         .context("Failed to start secret transaction")?;
-    save_secret(&transaction, tenant_id, election_event_id, task_id, secret)
-        .await
-        .context("Failed to store Voter Information Letter secret")?;
+    let secret_id = save_password(
+        &transaction,
+        tenant_id,
+        Some(election_event_id),
+        document_id,
+        password,
+    )
+    .await
+    .context("Failed to store document password")?;
     transaction
         .commit()
         .await
-        .context("Failed to commit Voter Information Letter secret")
+        .context("Failed to commit document password secret")?;
+    Ok(secret_id)
 }
 
 #[instrument(skip_all)]
@@ -98,7 +93,10 @@ pub async fn generate_voter_information_letter(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::VOTER_INFORMATION_LETTER],
+        vec![
+            Permissions::VOTER_INFORMATION_LETTER,
+            Permissions::DOCUMENT_PASSWORD_READ,
+        ],
     )
     .map_err(|_| {
         ErrorResponse::new(
@@ -143,16 +141,6 @@ pub async fn generate_voter_information_letter(
             )
         })?;
 
-    let secret = VoterInformationLetterSecret {
-        voter_password: policy.generate_password().map_err(|error| {
-            error!(
-                "Failed to generate a credential from the election event password policy: {error:#}"
-            );
-            internal_error("Failed to generate a voter credential")
-        })?,
-        pdf_password: Uuid::new_v4().simple().to_string(),
-    };
-
     let executer_name = claims
         .name
         .clone()
@@ -169,30 +157,43 @@ pub async fn generate_voter_information_letter(
         internal_error("Failed to create Voter Information Letter task")
     })?;
 
-    if let Err(error) = store_secret_for_task(
+    let document_id = Uuid::new_v4().to_string();
+    let pdf_password = Uuid::new_v4().simple().to_string();
+    let password_secret_id = match store_document_password(
         &tenant_id,
         &input.election_event_id,
-        &task_execution.id,
-        &secret,
+        &document_id,
+        &pdf_password,
     )
     .await
     {
-        error!(
-            task_id = %task_execution.id,
-            "Failed to prepare Voter Information Letter document access: {error:#}"
-        );
-        update_fail(
-            &task_execution,
-            "Failed to prepare Voter Information Letter generation",
-        )
-        .await
-        .ok();
-        return Err(internal_error(
-            "Failed to prepare Voter Information Letter generation",
-        ));
-    }
+        Ok(secret_id) => secret_id,
+        Err(error) => {
+            error!(
+                task_id = %task_execution.id,
+                "Failed to prepare Voter Information Letter document access: {error:#}"
+            );
+            update_fail(
+                &task_execution,
+                "Failed to prepare Voter Information Letter generation",
+            )
+            .await
+            .ok();
+            return Err(internal_error(
+                "Failed to prepare Voter Information Letter generation",
+            ));
+        }
+    };
 
-    let document_id = Uuid::new_v4().to_string();
+    let password_change_initiator = ElectoralLogAdminContext {
+        user_id: claims.hasura_claims.user_id.clone(),
+        username: claims.preferred_username.clone(),
+        authorized_election_ids: claims
+            .hasura_claims
+            .authorized_election_ids
+            .clone(),
+        area_id: claims.hasura_claims.area_id.clone(),
+    };
     let celery_app = get_celery_app().await;
     if let Err(_send_error) = celery_app
         .send_task(
@@ -201,6 +202,8 @@ pub async fn generate_voter_information_letter(
                 input.election_event_id,
                 input.voter_id,
                 document_id.clone(),
+                password_secret_id,
+                password_change_initiator,
                 task_execution.clone(),
             ),
         )
@@ -223,91 +226,7 @@ pub async fn generate_voter_information_letter(
 
     Ok(Json(GenerateVoterInformationLetterOutput {
         document_id,
-        pdf_password: secret.pdf_password,
+        pdf_password,
         task_execution,
-    }))
-}
-
-#[instrument(skip_all)]
-#[post(
-    "/get-voter-information-letter-password",
-    format = "json",
-    data = "<input>"
-)]
-pub async fn get_voter_information_letter_password(
-    claims: JwtClaims,
-    input: Json<GetVoterInformationLetterPasswordInput>,
-) -> Result<Json<GetVoterInformationLetterPasswordOutput>, JsonError> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![
-            Permissions::TASKS_READ,
-            Permissions::VOTER_INFORMATION_LETTER,
-        ],
-    )
-    .map_err(|_| {
-        ErrorResponse::new(
-            Status::Forbidden,
-            "Authorization failed",
-            ErrorCode::Unauthorized,
-        )
-    })?;
-
-    let task = get_task_by_id(&input.task_id).await.map_err(|_| {
-        ErrorResponse::new(
-            Status::NotFound,
-            "Voter Information Letter task not found",
-            ErrorCode::VoterInformationLetterUnavailable,
-        )
-    })?;
-    let expected_type = ETasksExecution::VOTER_INFORMATION_LETTER.to_string();
-    if task.tenant_id != claims.hasura_claims.tenant_id
-        || task.task_type != expected_type
-        || task.execution_status != "SUCCESS"
-    {
-        return Err(ErrorResponse::new(
-            Status::NotFound,
-            "Voter Information Letter password is not available",
-            ErrorCode::VoterInformationLetterUnavailable,
-        ));
-    }
-    let election_event_id =
-        task.election_event_id.as_deref().ok_or_else(|| {
-            ErrorResponse::new(
-                Status::NotFound,
-                "Voter Information Letter password is not available",
-                ErrorCode::VoterInformationLetterUnavailable,
-            )
-        })?;
-
-    let mut client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|_| internal_error("Failed to get database client"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|_| internal_error("Failed to start database transaction"))?;
-    let secret =
-        read_secret(&transaction, &task.tenant_id, election_event_id, &task.id)
-            .await
-            .map_err(|_| internal_error("Failed to retrieve the PDF password"))?
-            .ok_or_else(|| {
-                ErrorResponse::new(
-                    Status::NotFound,
-                    "Voter Information Letter password is not available",
-                    ErrorCode::VoterInformationLetterUnavailable,
-                )
-            })?;
-    transaction
-        .commit()
-        .await
-        .map_err(|_| internal_error("Failed to finish password retrieval"))?;
-
-    Ok(Json(GetVoterInformationLetterPasswordOutput {
-        pdf_password: secret.pdf_password,
     }))
 }

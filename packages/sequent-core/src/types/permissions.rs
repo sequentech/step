@@ -119,6 +119,8 @@ pub enum Permissions {
     DOCUMENT_UPLOAD,
     #[strum(serialize = "document-download")]
     DOCUMENT_DOWNLOAD,
+    #[strum(serialize = "document-password-read")]
+    DOCUMENT_PASSWORD_READ,
     #[strum(serialize = "admin-ceremony")]
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]

@@ -69,6 +69,7 @@ export enum IPermissions {
     TASKS_READ = "tasks-read",
     DOCUMENT_UPLOAD = "document-upload",
     DOCUMENT_DOWNLOAD = "document-download",
+    DOCUMENT_PASSWORD_READ = "document-password-read",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
     CAST_VOTE_READ = "cast-vote-read",
