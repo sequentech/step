@@ -367,3 +367,107 @@ fn a_tampered_verificatum_decryption_proof_is_rejected() {
         );
     }
 }
+
+// -------------------------------------------------------------------------
+// A genuine multi-party Verificatum session
+// -------------------------------------------------------------------------
+
+/// The three-party corpus: `k = 3`, `λ = 2`, produced by VMN's own demo.
+fn multiparty_corpus() -> Option<PathBuf> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/verificatum-3party");
+    dir.join("nizkp").is_dir().then_some(dir)
+}
+
+/// **Cross-implementation verification of a multi-party decryption.**
+///
+/// The single-party corpus cannot exercise the parts of Algorithm 22 that
+/// matter most: with `k = λ = 1` the modified Lagrange coefficients are all `1`,
+/// `α = 1`, and Δ is everything. Here `α = lcm(1,2,3)² = 36`, the coefficients
+/// over Δ are `72` and `−36`, and the seed commits to all three parties'
+/// factors while only two are combined.
+///
+/// # What this does *not* establish
+///
+/// Not the "Δ is the first λ true flags" rule, despite three parties being
+/// marked correct against a threshold of two. All three published *valid*
+/// factors, so any 2-subset interpolates to the same `u^{−x}` — Δ = {2,3} gives
+/// coefficients `108, −72` and reconstructs exactly as well as {1,2} does.
+/// Verified by mutation: selecting the *last* λ instead of the first leaves this
+/// test passing. Δ selection only becomes observable when an excluded party's
+/// factors are absent or all-identity, which needs a corpus generated with
+/// `./sact` restricting the active set.
+///
+/// Nothing here is hardcoded: every session parameter, including `sid`, comes
+/// from this corpus's own `protInfo.xml`. Before the reader existed this proof
+/// could not have been checked at all, because our constants said `braidpoc` and
+/// the demo's say `MyDemo`, and ρ commits to it.
+#[test]
+fn braid_verifies_a_multiparty_verificatum_decryption_proof() {
+    let Some(root) = multiparty_corpus() else {
+        eprintln!("skipping: no three-party corpus");
+        return;
+    };
+    let dir = root.join("nizkp");
+
+    let xml = std::fs::read_to_string(root.join("protInfo.xml")).expect("read protInfo.xml");
+    let info = vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).expect("parse protInfo.xml");
+    assert!(info.is_consistent());
+    assert_eq!(info.parties, 3, "k");
+    assert_eq!(info.threshold, 2, "lambda");
+
+    let auxsid = std::fs::read_to_string(dir.join("auxsid")).expect("read auxsid");
+    let rho = global_prefix(Hashfunction::Sha256, &info.prefix_params(auxsid.trim()));
+
+    // The decryption input is the last mixer's output.
+    let mixers: usize = std::fs::read_to_string(dir.join("proofs/activethreshold"))
+        .expect("read activethreshold")
+        .trim()
+        .parse()
+        .expect("activethreshold is a number");
+    let mixed = encode::tree_to_ciphertexts::<W>(&read_tree(
+        &dir,
+        &format!("proofs/Ciphertexts{mixers:02}.bt"),
+    ))
+    .expect("decode the mixed ciphertexts");
+
+    let gamma = encode::tree_to_elements(&read_tree(&dir, "proofs/PolynomialInExponent.bt"))
+        .expect("decode gamma");
+    let pk_tree = read_tree(&dir, "FullPublicKey.bt");
+    let y = encode::tree_to_element(&pk_tree.as_node_of(2).unwrap()[1]).expect("decode y");
+    assert!(gamma[0].equals(&y), "Gamma_0 must be the joint public key");
+
+    let correct =
+        vsvmn::wire::arithm::bool_array_values(&read_tree(&dir, "proofs/CorrectIndices.bt"))
+            .expect("decode CorrectIndices");
+    assert_eq!(
+        correct.iter().skip(1).filter(|c| **c).count(),
+        3,
+        "VMN marks all three parties correct even though the threshold is two"
+    );
+
+    let contributions: Vec<_> = (1..=info.parties).map(|l| read_contribution(&dir, l)).collect();
+    let contributions: Vec<PartyContribution<W>> = contributions
+        .iter()
+        .map(|(factors, proof)| PartyContribution { factors, proof })
+        .collect();
+
+    let params = SessionParams {
+        rho,
+        hash: Hashfunction::Sha256,
+        n_e: info.n_e as usize,
+        n_v: info.n_v as usize,
+        parties: info.parties,
+        threshold: info.threshold,
+    };
+
+    let plaintexts = verify_decryption(&params, &gamma, &mixed, &contributions, &correct)
+        .expect("the statement must be well formed")
+        .expect("Verificatum's multi-party decryption proof must verify");
+
+    let published = encode::tree_to_component_array::<W>(&read_tree(&dir, "Plaintexts.bt"))
+        .expect("decode the published plaintexts");
+    assert_eq!(
+        plaintexts, published,
+        "the computed plaintexts must match Plaintexts.bt"
+    );
+}
