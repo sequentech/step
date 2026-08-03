@@ -52,7 +52,7 @@ mod common;
 
 // The shipped emitter, so these tests exercise what the tool ships rather
 // than a second copy of it.
-use vsvmn::emit::{mixing, shuffling, shuffling_with_prefix, SessionSpec};
+use vsvmn::emit::{generate, shuffling_with_prefix, Kind, SessionSpec};
 use vsvmn::wire::protinfo::ProtocolInfo;
 
 const W: usize = 2;
@@ -219,10 +219,21 @@ fn spec(parties: usize, threshold: usize) -> SessionSpec {
     spec
 }
 
-/// A single-mixer shuffling proof, through the shipped emitter.
-fn emit(dir: &PathBuf) {
+/// Write a session through `emit::generate` — the entry point `vsvmn generate`
+/// uses, rather than the const-generic function underneath it.
+///
+/// Going in by the same door means the runtime dispatch and the specification
+/// checks are covered by a test that then puts the result in front of `vmnv`,
+/// instead of only the cryptography being covered and the layer the tool
+/// actually calls being reached by nothing.
+fn emit_session(dir: &PathBuf, spec: &SessionSpec, kind: Kind) {
     let _ = std::fs::remove_dir_all(dir);
-    shuffling::<W>(&spec(1, 1), dir).expect("emit a shuffling proof");
+    generate(spec, kind, dir).expect("emit a session");
+}
+
+/// A single-mixer shuffling proof.
+fn emit(dir: &PathBuf) {
+    emit_session(dir, &spec(1, 1), Kind::Shuffling);
 }
 
 /// As [`emit`], but `drift` perturbs the global prefix to stand in for a
@@ -250,8 +261,7 @@ fn emit_chain(dir: &PathBuf, mixers: usize) {
 /// emitter runs one mixer per active party, and lambda_a >= lambda, so
 /// `parties >= mixers`.
 fn emit_chain_with_threshold(dir: &PathBuf, mixers: usize, parties: usize) {
-    let _ = std::fs::remove_dir_all(dir);
-    shuffling::<W>(&spec(parties, mixers), dir).expect("emit a shuffling chain");
+    emit_session(dir, &spec(parties, mixers), Kind::Shuffling);
 }
 
 /// Corrupting any single mixer's proof must sink the whole chain, so a chain is
@@ -435,17 +445,6 @@ fn vmnv_is_silent_about_a_failed_shuffle() {
     );
 }
 
-/// A complete mixing session at `(K, T)`, through the shipped emitter.
-///
-/// `delta` names the 1-based indices of the T parties that decrypt; any party
-/// not listed contributes the all-identity factor array and the identity
-/// commitment and zero reply Verificatum records for an absent contribution.
-fn emit_mixing<const K: usize, const T: usize>(dir: &PathBuf, delta: &[usize]) {
-    let _ = std::fs::remove_dir_all(dir);
-    let mut spec = spec(K, T);
-    spec.active = delta.to_vec();
-    mixing::<W, K, T>(&spec, dir).expect("emit a mixing proof");
-}
 
 
 /// Assert that `vmnv -mix` verified every phase, and say which one failed if not.
@@ -554,22 +553,18 @@ fn vmnv_accepts_a_sweep_of_session_shapes() {
     }
 }
 
-/// Runtime `(k, λ)` to the const-generic emitter.
+/// A complete mixing session at `(k, λ)`, with `delta` naming the 1-based
+/// indices of the λ parties that decrypt.
 ///
-/// `emit_mixing` is generic over both because the DKG's polynomial degree and
-/// participant count are compile-time in vsc, so a sweep needs one arm per
-/// shape. Unsupported combinations panic rather than being silently skipped.
+/// Any party not listed contributes the all-identity factor array and the
+/// identity commitment and zero reply Verificatum records for an absent
+/// contribution. The runtime-to-const-generic dispatch lives in `emit`, so this
+/// hands over the shape and lets the library pick the instantiation -- the same
+/// path `vsvmn generate` takes.
 fn emit_mixing_shape(dir: &PathBuf, parties: usize, threshold: usize, delta: &[usize]) {
-    match (parties, threshold) {
-        (1, 1) => emit_mixing::<1, 1>(dir, delta),
-        (2, 2) => emit_mixing::<2, 2>(dir, delta),
-        (3, 2) => emit_mixing::<3, 2>(dir, delta),
-        (3, 3) => emit_mixing::<3, 3>(dir, delta),
-        (4, 2) => emit_mixing::<4, 2>(dir, delta),
-        (4, 3) => emit_mixing::<4, 3>(dir, delta),
-        (4, 4) => emit_mixing::<4, 4>(dir, delta),
-        (k, t) => panic!("no emitter arm for k={k}, lambda={t}; add one"),
-    }
+    let mut spec = spec(parties, threshold);
+    spec.active = delta.to_vec();
+    emit_session(dir, &spec, Kind::Mixing);
 }
 
 /// **The mixing counterpart of [`vmnv_accepts_a_sweep_of_session_shapes`].**
