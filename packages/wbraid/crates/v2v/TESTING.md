@@ -3,12 +3,12 @@ SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Testing vsvmn
+# Testing v2v
 
 For the tool itself rather than its tests, see [README.md](README.md).
 
 ```text
-cargo test --release -p vsvmn -- --include-ignored
+cargo test --release -p v2v -- --include-ignored
 ```
 
 69 tests, about five minutes. `--release` matters: the DKG, shuffle and
@@ -71,8 +71,8 @@ and which verifies.
 
 | | produced by | verified by |
 | --- | --- | --- |
-| [`we_verify_theirs.rs`](tests/we_verify_theirs.rs) | `vmn` | `vsvmn::session::verify_session` |
-| [`they_verify_ours.rs`](tests/they_verify_ours.rs) | `vsvmn` | `vmnv` |
+| [`we_verify_theirs.rs`](tests/we_verify_theirs.rs) | `vmn` | `v2v::session::verify_session` |
+| [`they_verify_ours.rs`](tests/they_verify_ours.rs) | `v2v` | `vmnv` |
 
 **`we_verify_theirs`** runs Verificatum's demo to produce a complete session,
 then verifies every proof in it with our code. Four shapes: `(k=1, λ=1)` where
@@ -169,19 +169,19 @@ contributor who only touched the wire format, and the wrong one for anyone
 checking interop.
 
 ```powershell
-$env:VSVMN_REQUIRE_VMN = "1"
-cargo test --release -p vsvmn -- --include-ignored
+$env:V2V_REQUIRE_VMN = "1"
+cargo test --release -p v2v -- --include-ignored
 ```
 
 ```sh
-VSVMN_REQUIRE_VMN=1 cargo test --release -p vsvmn -- --include-ignored
+V2V_REQUIRE_VMN=1 cargo test --release -p v2v -- --include-ignored
 ```
 
 turns every skip into a failure naming what was missing. **Use it before
 believing a green run.**
 
 `$env:` assignments persist for the rest of the session, so unset it with
-`$env:VSVMN_REQUIRE_VMN = $null` when you want skipping back.
+`$env:V2V_REQUIRE_VMN = $null` when you want skipping back.
 
 ## Overrides
 

@@ -18,9 +18,9 @@ mod common;
 
 use std::path::{Path, PathBuf};
 
-use vsvmn::wire::arithm;
-use vsvmn::wire::bytetree::ByteTree;
-use vsvmn::wire::marshal;
+use v2v::wire::arithm;
+use v2v::wire::bytetree::ByteTree;
+use v2v::wire::marshal;
 
 /// The generated corpus, shared across this test binary.
 fn corpus_dir() -> Option<PathBuf> {
@@ -29,10 +29,10 @@ fn corpus_dir() -> Option<PathBuf> {
 
 /// The session parameters of the generated corpus, read from its own protocol
 /// info file rather than assumed.
-fn corpus_info() -> Option<vsvmn::wire::protinfo::ProtocolInfo> {
+fn corpus_info() -> Option<v2v::wire::protinfo::ProtocolInfo> {
     let corpus = common::shared()?;
     let xml = std::fs::read_to_string(&corpus.protinfo).ok()?;
-    vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).ok()
+    v2v::wire::protinfo::ProtocolInfo::parse(&xml).ok()
 }
 
 /// What the installed Verificatum computed for the generated session.
@@ -195,8 +195,8 @@ fn shuffle_challenge_matches_vmn() {
     )
     .unwrap();
 
-    let v = vsvmn::wire::crypto::pos_challenge(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let v = v2v::wire::crypto::pos_challenge(
+        v2v::wire::crypto::Hashfunction::Sha256,
         256, // n_v
         &rho,
         &seed,
@@ -257,10 +257,10 @@ fn shuffle_seed_matches_vmn() {
     // The key is WIDENED to omega before entering the query -- not the stored
     // FullPublicKey.bt as VMNV §8.3's "pk in C_kappa" would suggest.
     let wide_pk =
-        vsvmn::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
+        v2v::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
 
-    let seed = vsvmn::wire::crypto::pos_seed(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let seed = v2v::wire::crypto::pos_seed(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &reference_rho(),
         &marshal::p256::generator(),        // g
         &h,                                 // h, the independent generators
@@ -320,14 +320,14 @@ fn decryption_transcript_matches_vmn() {
     // assumed: a k = 1 corpus makes them indistinguishable from "the first
     // mixer" and "the only factor array".
     let info = corpus_info().expect("the corpus ships its protocol info");
-    let meta = vsvmn::session::read_metadata(&dir).expect("read the metadata");
+    let meta = v2v::session::read_metadata(&dir).expect("read the metadata");
     let factors: Vec<ByteTree> = (1..=info.parties)
         .map(|party| read_tree(&format!("proofs/DecryptionFactors{party:02}.bt")))
         .collect();
 
     // `g` enters unwidened.
-    let seed = vsvmn::wire::crypto::dec_seed(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let seed = v2v::wire::crypto::dec_seed(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &rho,
         &marshal::p256::generator(),
         &read_tree(&format!("proofs/Ciphertexts{:02}.bt", meta.active_threshold)),
@@ -340,8 +340,8 @@ fn decryption_transcript_matches_vmn() {
         "decryption batching seed must match vmnv -t Dec.s"
     );
 
-    let v = vsvmn::wire::crypto::dec_challenge(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let v = v2v::wire::crypto::dec_challenge(
+        v2v::wire::crypto::Hashfunction::Sha256,
         256, // n_v
         &rho,
         &seed,
@@ -375,10 +375,10 @@ fn independent_generators_match_vmn() {
     let expected = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
     let count = expected.as_node().unwrap().len();
 
-    let derived = vsvmn::wire::generators::independent_generators(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let derived = v2v::wire::generators::independent_generators(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &reference_rho(),
-        &vsvmn::wire::generators::CurveParams::p256(),
+        &v2v::wire::generators::CurveParams::p256(),
         100, // n_r = statdist
         count,
     )
@@ -410,22 +410,22 @@ fn shuffle_seed_from_fully_derived_inputs() {
     let n = arithm::product_array_rows(&w.as_node_of(2).unwrap()[0]).unwrap().len();
 
     let rho = reference_rho();
-    let h = vsvmn::wire::generators::independent_generators(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let h = v2v::wire::generators::independent_generators(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &rho,
-        &vsvmn::wire::generators::CurveParams::p256(),
+        &v2v::wire::generators::CurveParams::p256(),
         100,
         n,
     )
     .unwrap();
 
-    let seed = vsvmn::wire::crypto::pos_seed(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let seed = v2v::wire::crypto::pos_seed(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &rho,
         &marshal::p256::generator(),
         &h,
         &read_tree("proofs/PermutationCommitment01.bt"),
-        &vsvmn::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap(),
+        &v2v::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap(),
         &w,
         &read_tree("proofs/Ciphertexts01.bt"),
     );
@@ -476,8 +476,8 @@ fn reference_rho() -> Vec<u8> {
         common::shared().expect("a corpus").nizkp.join("auxsid"),
     )
     .expect("read auxsid");
-    vsvmn::wire::crypto::global_prefix(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    v2v::wire::crypto::global_prefix(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &info.prefix_params(auxsid.trim()),
     )
 }

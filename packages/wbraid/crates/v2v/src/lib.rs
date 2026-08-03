@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! # vsvmn — vs <-> vmn interoperability
+//! # v2v — vs <-> vmn interoperability
 //!
 //! Everything about talking to [Verificatum](https://www.verificatum.org) lives
 //! here, so that neither vsc nor braid carries any knowledge of it. The

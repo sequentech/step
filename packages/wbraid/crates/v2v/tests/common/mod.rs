@@ -109,7 +109,7 @@ pub fn generate(shape: &Shape) -> Option<Corpus> {
     let source = vmn_home()?;
     let shell = Shell::detect()?;
 
-    let out_host = std::env::temp_dir().join(format!("vsvmn_corpus_{}", shape.label()));
+    let out_host = std::env::temp_dir().join(format!("v2v_corpus_{}", shape.label()));
     let _ = std::fs::remove_dir_all(&out_host);
     std::fs::create_dir_all(&out_host).ok()?;
 
@@ -118,8 +118,8 @@ pub fn generate(shape: &Shape) -> Option<Corpus> {
     std::fs::write(&script_host, script).ok()?;
 
     let status = shell.run(&format!(
-        "tr -d '\\r' < '{}' > /tmp/vsvmn_gen.sh && chmod +x /tmp/vsvmn_gen.sh && \
-         unshare -U -u --map-root-user bash -c 'hostname localhost; /tmp/vsvmn_gen.sh'",
+        "tr -d '\\r' < '{}' > /tmp/v2v_gen.sh && chmod +x /tmp/v2v_gen.sh && \
+         unshare -U -u --map-root-user bash -c 'hostname localhost; /tmp/v2v_gen.sh'",
         shell.to_unix(&script_host)
     ));
 
@@ -364,7 +364,7 @@ impl Corpus {
             // Unique per call: concurrent vmnv runs sharing a working directory
             // delete each other's scratch space (see they_verify_ours.rs).
             .arg(format!(
-                "vsvmn_tv_{}_{}",
+                "v2v_tv_{}_{}",
                 std::process::id(),
                 NEXT_WD.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             ))
@@ -416,7 +416,7 @@ pub fn random_source() -> Option<&'static (PathBuf, PathBuf)> {
 fn provision_random_source() -> Option<(PathBuf, PathBuf)> {
     // Per process: two test binaries provisioning at once must not collide, and
     // `vog` writes both files non-atomically.
-    let dir = std::env::temp_dir().join(format!("vsvmn_rnd_{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("v2v_rnd_{}", std::process::id()));
     std::fs::create_dir_all(&dir).ok()?;
     let (source, seed) = (dir.join("random_source"), dir.join("random_seed"));
 
@@ -475,7 +475,7 @@ fn vog(source: &Path, seed: &Path, args: &[&str]) -> Option<String> {
 pub fn private_seed() -> Option<PathBuf> {
     let (_, seed) = random_source()?;
     let private = std::env::temp_dir().join(format!(
-        "vsvmn_seed_{}_{}",
+        "v2v_seed_{}_{}",
         std::process::id(),
         NEXT_WD.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
@@ -518,9 +518,9 @@ pub fn shared() -> Option<&'static Corpus> {
 ///
 /// With every test dynamic, a machine without VMN runs the whole suite green
 /// having verified nothing — false comfort of the kind this crate exists to
-/// avoid. Setting `VSVMN_REQUIRE_VMN=1` in CI turns that into a failure.
+/// avoid. Setting `V2V_REQUIRE_VMN=1` in CI turns that into a failure.
 pub fn required() -> bool {
-    matches!(std::env::var("VSVMN_REQUIRE_VMN").as_deref(), Ok("1"))
+    matches!(std::env::var("V2V_REQUIRE_VMN").as_deref(), Ok("1"))
 }
 
 /// Skip, or fail if the toolchain was declared to be present.
@@ -531,7 +531,7 @@ pub fn required() -> bool {
 pub fn skip(why: &str) {
     assert!(
         !required(),
-        "VSVMN_REQUIRE_VMN=1 but the toolchain is unavailable: {why}"
+        "V2V_REQUIRE_VMN=1 but the toolchain is unavailable: {why}"
     );
     eprintln!("skipping: {why}");
 }

@@ -15,8 +15,8 @@
 
 mod common;
 
-use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams, Prg, RandomOracle};
-use vsvmn::wire::protinfo::ProtocolInfo;
+use v2v::wire::crypto::{global_prefix, Hashfunction, PrefixParams, Prg, RandomOracle};
+use v2v::wire::protinfo::ProtocolInfo;
 
 /// The `<pgroup>` value from the reference `protInfo.xml`, verbatim — comment
 /// prefix included, which is what actually goes into ρ.

@@ -14,7 +14,7 @@
 //! HTTP protocol tests that need a live b4. Run with:
 //!
 //! ```text
-//! cargo test -p vsvmn --test they_verify_ours -- --ignored --nocapture
+//! cargo test -p v2v --test they_verify_ours -- --ignored --nocapture
 //! ```
 //!
 //! Nothing needs setting up beyond Verificatum itself: the random source
@@ -52,8 +52,8 @@ mod common;
 
 // The shipped emitter, so these tests exercise what the tool ships rather
 // than a second copy of it.
-use vsvmn::emit::{generate, shuffling_with_prefix, Kind, SessionSpec};
-use vsvmn::wire::protinfo::ProtocolInfo;
+use v2v::emit::{generate, shuffling_with_prefix, Kind, SessionSpec};
+use v2v::wire::protinfo::ProtocolInfo;
 
 const W: usize = 2;
 const N: usize = 8;
@@ -219,7 +219,7 @@ fn spec(parties: usize, threshold: usize) -> SessionSpec {
     spec
 }
 
-/// Write a session through `emit::generate` — the entry point `vsvmn generate`
+/// Write a session through `emit::generate` — the entry point `v2v generate`
 /// uses, rather than the const-generic function underneath it.
 ///
 /// Going in by the same door means the runtime dispatch and the specification
@@ -560,7 +560,7 @@ fn vmnv_accepts_a_sweep_of_session_shapes() {
 /// identity commitment and zero reply Verificatum records for an absent
 /// contribution. The runtime-to-const-generic dispatch lives in `emit`, so this
 /// hands over the shape and lets the library pick the instantiation -- the same
-/// path `vsvmn generate` takes.
+/// path `v2v generate` takes.
 fn emit_mixing_shape(dir: &PathBuf, parties: usize, threshold: usize, delta: &[usize]) {
     let mut spec = spec(parties, threshold);
     spec.active = delta.to_vec();

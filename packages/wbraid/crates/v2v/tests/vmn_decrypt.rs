@@ -12,7 +12,7 @@
 //! the commitments the product is taken over.
 
 
-use vsvmn::decrypt;
+use v2v::decrypt;
 use cryptography::context::{Context, P256Ctx};
 use cryptography::dkgd::dealer::Dealer;
 use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
@@ -93,7 +93,7 @@ fn factor_conversion_is_the_documented_exponent() {
 
     // Undo it: alpha, negated. (x^{-1/a})^{-a} = x.
     let alpha_scalar = {
-        let alpha = vsvmn::wire::lagrange::alpha(k).to_bytes_be();
+        let alpha = v2v::wire::lagrange::alpha(k).to_bytes_be();
         let mut fixed = [0u8; 32];
         fixed[32 - alpha.len()..].copy_from_slice(&alpha);
         cryptography::groups::p256::scalar::P256Scalar::from_bytes_reduced(&fixed)

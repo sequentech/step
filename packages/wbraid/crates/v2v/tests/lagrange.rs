@@ -13,7 +13,7 @@
 use num_bigint::{BigInt, BigUint};
 use num_traits::{One, Signed, Zero};
 
-use vsvmn::wire::lagrange::{
+use v2v::wire::lagrange::{
     alpha, correct_set, lcm_up_to, modified_lagrange_coefficient,
     modified_lagrange_coefficients,
 };

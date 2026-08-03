@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! `vsvmn` — interoperability between braid and Verificatum, from the command
+//! `v2v` — interoperability between braid and Verificatum, from the command
 //! line.
 //!
 //! Two directions, one each way across the boundary:
@@ -18,7 +18,7 @@
 //! `0` only when everything asked for was checked and passed. A rejected proof
 //! and an unreadable one are both non-zero, and are reported differently: this
 //! tool must never let "could not check" be read as "checked and passed", which
-//! is the failure mode documented in [`vsvmn::verify`].
+//! is the failure mode documented in [`v2v::verify`].
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -26,13 +26,13 @@ use std::process::ExitCode;
 use anyhow::{anyhow, bail, Context as _, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-use vsvmn::emit::{self, SessionSpec};
-use vsvmn::session::{self, ProofType};
-use vsvmn::wire::protinfo::ProtocolInfo;
+use v2v::emit::{self, SessionSpec};
+use v2v::session::{self, ProofType};
+use v2v::wire::protinfo::ProtocolInfo;
 
 #[derive(Parser)]
 #[command(
-    name = "vsvmn",
+    name = "v2v",
     about = "Interoperate with Verificatum: generate sessions it can verify, verify sessions it produced",
     version
 )]
@@ -182,7 +182,7 @@ fn generate(args: &Generate) -> Result<bool> {
         nizkp.display()
     );
     println!("or with this tool:");
-    println!("  vsvmn verify {} {}", protinfo.display(), nizkp.display());
+    println!("  v2v verify {} {}", protinfo.display(), nizkp.display());
     if kind == emit::Kind::Shuffling {
         // Worth saying where it is printed rather than in a manual: vmnv's exit
         // status is not a sound accept/reject signal for a shuffling proof.

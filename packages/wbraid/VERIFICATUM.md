@@ -17,15 +17,15 @@ and the `papers/` set — principally `vmnv-3.1.0.md`, the stand-alone verifier 
 
 > **Where the code lives now.** This document records the investigation stage by stage, so it names
 > the crates as they were at the time. Since then everything Verificatum-related has been gathered
-> into a single crate, **`crates/vsvmn`**, and the two braid improvements the investigation produced
+> into a single crate, **`crates/v2v`**, and the two braid improvements the investigation produced
 > — the P-256 backend completion and the batched decryption proof — have been separated onto their
 > own branch, since they stand on their own merits. Read the older sections with this mapping:
 >
 > | then | now |
 > |---|---|
-> | `crates/vcompat` | `vsvmn::wire` (a module; the "must not depend on vsc" rule is unchanged but no longer enforced by cargo) |
-> | `crates/braid/src/vmn` | the rest of `vsvmn` |
-> | `crates/braid/tests/vmn_*.rs` | `crates/vsvmn/tests/` |
+> | `crates/vcompat` | `v2v::wire` (a module; the "must not depend on vsc" rule is unchanged but no longer enforced by cargo) |
+> | `crates/braid/src/vmn` | the rest of `v2v` |
+> | `crates/braid/tests/vmn_*.rs` | `crates/v2v/tests/` |
 >
 > braid itself no longer has any dependency on Verificatum interop code.
 
@@ -587,7 +587,7 @@ decrypting (§2.4). Accepting one in which no mixing occurred means accepting a 
 no privacy, silently, with a zero exit status. §10.1 designates the exit code as *the* accept/reject
 signal, so a conforming integration would be misled.
 
-**Status.** Understood, reproduced, and pinned by two tests in `vsvmn/tests/they_verify_ours.rs`
+**Status.** Understood, reproduced, and pinned by two tests in `v2v/tests/they_verify_ours.rs`
 (`vmnv_exit_code_alone_is_not_sufficient` and `vmnv_is_silent_about_a_failed_shuffle`) that will fail
 if it is ever fixed upstream. **Not yet reported to the Verificatum maintainers** — that is the
 outstanding action.

@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# vsvmn
+# v2v
 
 Interoperability between braid and [Verificatum](https://www.verificatum.org/),
 in both directions:
@@ -22,14 +22,14 @@ refused rather than attempted.
 ## Build
 
 ```text
-cargo build --release -p vsvmn
+cargo build --release -p v2v
 ```
 
 The binary lands in the **cargo workspace's** `target/release`, not this
-crate's directory and not the git root's — `packages/wbraid/target/release/vsvmn`.
+crate's directory and not the git root's — `packages/wbraid/target/release/v2v`.
  It has no runtime dependency on Verificatum; that is the point of `verify`.
 
-Every example below writes `vsvmn` as if it were on `PATH`. Put the target/release directory
+Every example below writes `v2v` as if it were on `PATH`. Put the target/release directory
 on the `PATH`, or call the binary by its path.
 
 ## verify
@@ -37,7 +37,7 @@ on the `PATH`, or call the binary by its path.
 The verify subcommand checks a session Verificatum produced, using vsc cryptography:
 
 ```text
-vsvmn verify <protInfo.xml> <proof-directory>
+v2v verify <protInfo.xml> <proof-directory>
 ```
 
 The argument order mirrors `vmnv`'s own. Everything else — session type,
@@ -46,7 +46,7 @@ there is nothing to get wrong and no flag that could silently check the wrong
 thing.
 
 ```text
-$ vsvmn verify election/protInfo.xml election/nizkp/default
+$ v2v verify election/protInfo.xml election/nizkp/default
 session: mixing, k=3, lambda=2, omega=2, auxsid=default, active threshold=2
   2 mixers verified
   10 ciphertexts in the output
@@ -151,7 +151,7 @@ demo/mydemodir/Party01/protInfo.xml         # the protocol info file
 so, from the directory you copied the demo into:
 
 ```text
-vsvmn verify demo/mydemodir/Party01/protInfo.xml \
+v2v verify demo/mydemodir/Party01/protInfo.xml \
              demo/mydemodir/Party01/dir/nizkp/default
 ```
 
@@ -174,7 +174,7 @@ The generate subcommand generates synthetic session data, produced by `vsc`, in 
 format, for `vmnv` to check:
 
 ```text
-vsvmn generate [OPTIONS] <DIR>
+v2v generate [OPTIONS] <DIR>
 ```
 
 Writes `<DIR>/protInfo.xml` and `<DIR>/nizkp`. Both come from one
@@ -183,7 +183,7 @@ disagree — handing over an info file describing a different session is the one
 way to make a correct proof look wrong.
 
 ```text
-$ vsvmn generate -k 3 -t 2 -w 2 -n 20 --active 1,3 /tmp/session
+$ v2v generate -k 3 -t 2 -w 2 -n 20 --active 1,3 /tmp/session
 wrote a mixing session: k=3, lambda=2, omega=2, N=20, active=[1, 3]
   /tmp/session/protInfo.xml
   /tmp/session/nizkp
@@ -191,7 +191,7 @@ wrote a mixing session: k=3, lambda=2, omega=2, N=20, active=[1, 3]
 Verify it with Verificatum:
   vmnv -v -mix -auxsid default -width 2 /tmp/session/protInfo.xml /tmp/session/nizkp
 or with this tool:
-  vsvmn verify /tmp/session/protInfo.xml /tmp/session/nizkp
+  v2v verify /tmp/session/protInfo.xml /tmp/session/nizkp
 ```
 
 It generates and stops — running the verifier is yours to do — but prints the

@@ -18,7 +18,7 @@
 //! it goes through WSL, and skips if that is unavailable.
 //!
 //! ```text
-//! cargo test -p vsvmn --test we_verify_theirs -- --ignored --nocapture
+//! cargo test -p v2v --test we_verify_theirs -- --ignored --nocapture
 //! ```
 
 mod common;
@@ -26,8 +26,8 @@ mod common;
 use common::Shape;
 use std::path::PathBuf;
 
-use vsvmn::session;
-use vsvmn::wire::protinfo::ProtocolInfo;
+use v2v::session;
+use v2v::wire::protinfo::ProtocolInfo;
 
 /// Generate a corpus for `shape` and verify every proof in it.
 ///
@@ -127,7 +127,7 @@ fn a_tampered_verificatum_proof_is_rejected() {
     use cryptography::groups::p256::element::P256Element;
     use cryptography::groups::p256::scalar::P256Scalar;
     use cryptography::traits::groups::{GroupElement, GroupScalar};
-    use vsvmn::verify::{verify_decryption, PartyContribution, SessionParams};
+    use v2v::verify::{verify_decryption, PartyContribution, SessionParams};
 
     let Some(corpus) = common::shared() else {
         return common::skip("Verificatum is unavailable");
@@ -138,13 +138,13 @@ fn a_tampered_verificatum_proof_is_rejected() {
     let info = ProtocolInfo::parse(&xml).expect("parse protInfo.xml");
     let meta = session::read_metadata(dir).expect("read the metadata");
 
-    let rho = vsvmn::wire::crypto::global_prefix(
-        vsvmn::wire::crypto::Hashfunction::Sha256,
+    let rho = v2v::wire::crypto::global_prefix(
+        v2v::wire::crypto::Hashfunction::Sha256,
         &info.prefix_params(&meta.auxsid),
     );
     let params = SessionParams {
         rho,
-        hash: vsvmn::wire::crypto::Hashfunction::Sha256,
+        hash: v2v::wire::crypto::Hashfunction::Sha256,
         n_e: info.n_e as usize,
         n_v: info.n_v as usize,
         parties: info.parties,
@@ -152,15 +152,15 @@ fn a_tampered_verificatum_proof_is_rejected() {
     };
 
     let read = |name: &str| {
-        vsvmn::wire::bytetree::ByteTree::from_bytes(
+        v2v::wire::bytetree::ByteTree::from_bytes(
             &std::fs::read(dir.join(name)).expect("read a proof file"),
         )
         .expect("parse byte tree")
     };
-    let gamma = vsvmn::encode::tree_to_elements(&read("proofs/PolynomialInExponent.bt")).unwrap();
+    let gamma = v2v::encode::tree_to_elements(&read("proofs/PolynomialInExponent.bt")).unwrap();
     let correct =
-        vsvmn::wire::arithm::bool_array_values(&read("proofs/CorrectIndices.bt")).unwrap();
-    let mixed = vsvmn::encode::tree_to_ciphertexts::<2>(&read(&format!(
+        v2v::wire::arithm::bool_array_values(&read("proofs/CorrectIndices.bt")).unwrap();
+    let mixed = v2v::encode::tree_to_ciphertexts::<2>(&read(&format!(
         "proofs/Ciphertexts{:02}.bt",
         meta.active_threshold
     )))
@@ -218,8 +218,8 @@ fn an_inactive_party_gets_identity_factors_and_a_zero_reply() {
     };
     let dir = &corpus.nizkp;
 
-    let correct = vsvmn::wire::arithm::bool_array_values(
-        &vsvmn::wire::bytetree::ByteTree::from_bytes(
+    let correct = v2v::wire::arithm::bool_array_values(
+        &v2v::wire::bytetree::ByteTree::from_bytes(
             &std::fs::read(dir.join("proofs/CorrectIndices.bt")).unwrap(),
         )
         .unwrap(),
@@ -259,15 +259,15 @@ fn read_party<const W: usize>(
     party: usize,
 ) -> (
     Vec<[cryptography::groups::p256::element::P256Element; W]>,
-    vsvmn::decrypt::BatchedDecryptionProof<W>,
+    v2v::decrypt::BatchedDecryptionProof<W>,
 ) {
     let read = |name: String| {
-        vsvmn::wire::bytetree::ByteTree::from_bytes(
+        v2v::wire::bytetree::ByteTree::from_bytes(
             &std::fs::read(dir.join(name)).expect("read a proof file"),
         )
         .expect("parse byte tree")
     };
-    let factors = vsvmn::encode::tree_to_component_array::<W>(&read(format!(
+    let factors = v2v::encode::tree_to_component_array::<W>(&read(format!(
         "proofs/DecryptionFactors{party:02}.bt"
     )))
     .expect("decode factors");
@@ -275,13 +275,13 @@ fn read_party<const W: usize>(
     let tau = tau.as_node_of(2).expect("node(y', B')");
     (
         factors,
-        vsvmn::decrypt::BatchedDecryptionProof::<W> {
-            y_prime: vsvmn::encode::tree_to_element(&tau[0]).unwrap(),
-            b_prime: vsvmn::encode::tree_to_elements(&tau[1])
+        v2v::decrypt::BatchedDecryptionProof::<W> {
+            y_prime: v2v::encode::tree_to_element(&tau[0]).unwrap(),
+            b_prime: v2v::encode::tree_to_elements(&tau[1])
                 .unwrap()
                 .try_into()
                 .expect("omega components"),
-            k_x: vsvmn::encode::tree_to_scalar(&read(format!(
+            k_x: v2v::encode::tree_to_scalar(&read(format!(
                 "proofs/DecrFactReply{party:02}.bt"
             )))
             .unwrap(),
