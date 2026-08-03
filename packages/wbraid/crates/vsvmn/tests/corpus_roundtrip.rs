@@ -16,9 +16,9 @@
 
 use std::path::{Path, PathBuf};
 
-use vcompat::arithm;
-use vcompat::bytetree::ByteTree;
-use vcompat::marshal;
+use vsvmn::wire::arithm;
+use vsvmn::wire::bytetree::ByteTree;
+use vsvmn::wire::marshal;
 
 /// The reference proof directory: the in-repo corpus by default, overridable
 /// with `VCOMPAT_CORPUS` to point at a freshly generated one.
@@ -193,8 +193,8 @@ fn shuffle_challenge_matches_vmn() {
     )
     .unwrap();
 
-    let v = vcompat::crypto::pos_challenge(
-        vcompat::crypto::Hashfunction::Sha256,
+    let v = vsvmn::wire::crypto::pos_challenge(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         256, // n_v
         &rho,
         &seed,
@@ -260,10 +260,10 @@ fn shuffle_seed_matches_vmn() {
     // The key is WIDENED to omega before entering the query -- not the stored
     // FullPublicKey.bt as VMNV §8.3's "pk in C_kappa" would suggest.
     let wide_pk =
-        vcompat::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
+        vsvmn::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
 
-    let seed = vcompat::crypto::pos_seed(
-        vcompat::crypto::Hashfunction::Sha256,
+    let seed = vsvmn::wire::crypto::pos_seed(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         &reference_rho(),
         &marshal::p256::generator(),        // g
         &h,                                 // h, the independent generators
@@ -318,8 +318,8 @@ fn decryption_transcript_matches_vmn() {
 
     // The list being decrypted is the final shuffled output, not the input; with
     // one mixer that is Ciphertexts01.bt. `g` enters unwidened.
-    let seed = vcompat::crypto::dec_seed(
-        vcompat::crypto::Hashfunction::Sha256,
+    let seed = vsvmn::wire::crypto::dec_seed(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         &rho,
         &marshal::p256::generator(),
         &read_tree("proofs/Ciphertexts01.bt"),
@@ -332,8 +332,8 @@ fn decryption_transcript_matches_vmn() {
         "decryption batching seed must match vmnv -t Dec.s"
     );
 
-    let v = vcompat::crypto::dec_challenge(
-        vcompat::crypto::Hashfunction::Sha256,
+    let v = vsvmn::wire::crypto::dec_challenge(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         256, // n_v
         &rho,
         &seed,
@@ -370,10 +370,10 @@ fn independent_generators_match_vmn() {
     let expected = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
     let count = expected.as_node().unwrap().len();
 
-    let derived = vcompat::generators::independent_generators(
-        vcompat::crypto::Hashfunction::Sha256,
+    let derived = vsvmn::wire::generators::independent_generators(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         &reference_rho(),
-        &vcompat::generators::CurveParams::p256(),
+        &vsvmn::wire::generators::CurveParams::p256(),
         100, // n_r = statdist
         count,
     )
@@ -404,22 +404,22 @@ fn shuffle_seed_from_fully_derived_inputs() {
     let n = arithm::product_array_rows(&w.as_node_of(2).unwrap()[0]).unwrap().len();
 
     let rho = reference_rho();
-    let h = vcompat::generators::independent_generators(
-        vcompat::crypto::Hashfunction::Sha256,
+    let h = vsvmn::wire::generators::independent_generators(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         &rho,
-        &vcompat::generators::CurveParams::p256(),
+        &vsvmn::wire::generators::CurveParams::p256(),
         100,
         n,
     )
     .unwrap();
 
-    let seed = vcompat::crypto::pos_seed(
-        vcompat::crypto::Hashfunction::Sha256,
+    let seed = vsvmn::wire::crypto::pos_seed(
+        vsvmn::wire::crypto::Hashfunction::Sha256,
         &rho,
         &marshal::p256::generator(),
         &h,
         &read_tree("proofs/PermutationCommitment01.bt"),
-        &vcompat::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap(),
+        &vsvmn::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap(),
         &w,
         &read_tree("proofs/Ciphertexts01.bt"),
     );
@@ -461,7 +461,7 @@ fn parse_point_list(text: &str, name: &str) -> Option<ByteTree> {
 /// The reference session's global prefix, recomputed from its protocol info
 /// parameters rather than hardcoded, so this test also re-exercises ρ.
 fn reference_rho() -> Vec<u8> {
-    use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
+    use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
     const PGROUP: &str = "ECqPGroup(P-256)::0000000002010000002\
 0636f6d2e766572696669636174756d2e61726974686d2e4543715047726f757001000000\
 05502d323536";

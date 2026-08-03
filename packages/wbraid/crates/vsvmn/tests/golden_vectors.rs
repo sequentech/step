@@ -13,7 +13,7 @@
 //! whether the Fiat–Shamir transcript can be reproduced exactly. Everything
 //! downstream depends on these bytes.
 
-use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams, Prg, RandomOracle};
+use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams, Prg, RandomOracle};
 
 /// The `<pgroup>` value from the reference `protInfo.xml`, verbatim — comment
 /// prefix included, which is what actually goes into ρ.

@@ -18,7 +18,7 @@
 
 use sha2::Digest;
 
-use crate::bytetree::ByteTree;
+use crate::wire::bytetree::ByteTree;
 
 /// Which SHA-2 variant VMN is configured with (VMNV §5.1). VMN 3.1.0 supports
 /// only these three — notably **not** SHA-3, which is what braid uses natively,
@@ -265,7 +265,7 @@ pub fn oracle_query(
 ///
 /// Using the un-widened key yields a wrong seed and therefore a wrong challenge,
 /// with no diagnostic beyond a failed verification.
-pub fn wide_public_key(pk: &ByteTree, width: usize) -> crate::error::Result<ByteTree> {
+pub fn wide_public_key(pk: &ByteTree, width: usize) -> crate::wire::error::Result<ByteTree> {
     if width == 1 {
         return Ok(pk.clone());
     }

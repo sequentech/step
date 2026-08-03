@@ -11,9 +11,8 @@
 //! completely different code path — the recipient's share verification — than
 //! the commitments the product is taken over.
 
-#![cfg(feature = "native")]
 
-use braid::vmn::decrypt;
+use vsvmn::decrypt;
 use cryptography::context::{Context, P256Ctx};
 use cryptography::dkgd::dealer::Dealer;
 use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
@@ -94,7 +93,7 @@ fn factor_conversion_is_the_documented_exponent() {
 
     // Undo it: alpha, negated. (x^{-1/a})^{-a} = x.
     let alpha_scalar = {
-        let alpha = vcompat::lagrange::alpha(k).to_bytes_be();
+        let alpha = vsvmn::wire::lagrange::alpha(k).to_bytes_be();
         let mut fixed = [0u8; 32];
         fixed[32 - alpha.len()..].copy_from_slice(&alpha);
         cryptography::groups::p256::scalar::P256Scalar::from_bytes_reduced(&fixed)
@@ -133,7 +132,7 @@ fn inactive_factors_are_all_identity() {
 /// equations fail.
 #[test]
 fn combined_batched_proof_satisfies_the_verification_equations() {
-    use braid::vmn::decrypt::{batch, prove_decryption};
+    use vsvmn::decrypt::{batch, prove_decryption};
     use cryptography::groups::p256::scalar::P256Scalar;
 
     const W: usize = 2;
@@ -169,7 +168,7 @@ fn combined_batched_proof_satisfies_the_verification_equations() {
     // Delta = {1, 3}, so the Lagrange coefficients are not trivial.
     let delta = vec![1usize, 3];
     let alpha_c: Vec<P256Scalar> =
-        vcompat::lagrange::p256_modified_lagrange_coefficients(&delta, k)
+        vsvmn::wire::lagrange::p256_modified_lagrange_coefficients(&delta, k)
             .into_iter()
             .map(|(negative, magnitude)| {
                 let s = P256Scalar::from_bytes_reduced(&magnitude);

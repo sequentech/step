@@ -35,11 +35,11 @@ They locate it automatically relative to the crate, so a plain `cargo test` exer
 
 | Test | Uses |
 |---|---|
-| `vcompat/tests/corpus_roundtrip.rs` | byte-tree round-trip, structure, `PoS.s`/`PoS.v`, `bas.h` |
-| `braid/tests/vmn_encode.rs` | vsc ↔ byte-tree conversion against real elements |
-| `braid/tests/vmn_interop.rs` | braid verifying this Verificatum proof |
+| `vsvmn/tests/corpus_roundtrip.rs` | byte-tree round-trip, structure, `PoS.s`/`PoS.v`, `bas.h` |
+| `vsvmn/tests/vmn_encode.rs` | vsc ↔ byte-tree conversion against real elements |
+| `vsvmn/tests/vmn_interop.rs` | verifying this Verificatum proof with vsc's cryptography |
 
-`braid/tests/vmn_verifier.rs` uses `protInfo.xml` but not the proof — it emits a fresh one and hands
+`vsvmn/tests/vmn_verifier.rs` uses `protInfo.xml` but not the proof — it emits a fresh one and hands
 it to `vmnv`.
 
 ## Regenerating
@@ -95,8 +95,8 @@ These are functions of the randomized proof, so any new corpus invalidates them.
 
 | Constant | Where | Recover from |
 |---|---|---|
-| `GOLDEN_POS_S` | `vcompat/tests/corpus_roundtrip.rs` | `PoS.s` in `testvectors.txt` |
-| `GOLDEN_POS_V` | `vcompat/tests/corpus_roundtrip.rs` | `PoS.v` in `testvectors.txt` |
+| `GOLDEN_POS_S` | `vsvmn/tests/corpus_roundtrip.rs` | `PoS.s` in `testvectors.txt` |
+| `GOLDEN_POS_V` | `vsvmn/tests/corpus_roundtrip.rs` | `PoS.v` in `testvectors.txt` |
 
 ### 2. Change only if the session parameters change
 
@@ -106,8 +106,8 @@ the widths or the hash functions and it moves.
 
 | Constant | Where | Recover from |
 |---|---|---|
-| `GOLDEN_RHO` | `vcompat/tests/golden_vectors.rs` | `der.rho` in `testvectors.txt` |
-| `PGROUP` | `vcompat/tests/golden_vectors.rs`, `braid/tests/vmn_interop.rs`, `vmn_emit.rs`, `vmn_verifier.rs` | the `<pgroup>` element of `protInfo.xml`, verbatim including the `ECqPGroup(P-256)::` comment |
+| `GOLDEN_RHO` | `vsvmn/tests/golden_vectors.rs` | `der.rho` in `testvectors.txt` |
+| `PGROUP` | `vsvmn/tests/golden_vectors.rs`, `vsvmn/tests/vmn_interop.rs`, `vmn_emit.rs`, `vmn_verifier.rs` | the `<pgroup>` element of `protInfo.xml`, verbatim including the `ECqPGroup(P-256)::` comment |
 | `SID`, `AUXSID`, `N_R`, `N_E`, `N_V` | the same four files | `<sid>`, `<statdist>`, `<ebitlenro>`, `<vbitlenro>` in `protInfo.xml`; `auxsid` in `nizkp/` |
 
 ### 3. Change only if the shape changes
@@ -115,7 +115,7 @@ the widths or the hash functions and it moves.
 | Assumption | Where | Notes |
 |---|---|---|
 | `W = 2` (ciphertext width ω) | all the interop tests | must equal `<width>`; several tests assert it structurally |
-| `N = 10`, `W = 2` size literals | `vcompat/tests/spec_examples.rs`, `predicted_sizes_match_the_real_corpus` | the seven expected file sizes are computed for this shape. That test is self-contained — it does not read the corpus — so it will keep passing while silently no longer describing it. **Recompute it if N or ω change.** |
+| `N = 10`, `W = 2` size literals | `vsvmn/tests/spec_examples.rs`, `predicted_sizes_match_the_real_corpus` | the seven expected file sizes are computed for this shape. That test is self-contained — it does not read the corpus — so it will keep passing while silently no longer describing it. **Recompute it if N or ω change.** |
 | party count and threshold | `protInfo.xml` vs `protInfo-3party.xml` | the emitter derives `activethreshold` from the number of mixers, so this is a property of the info file the test picks, not of the emitter |
 
 The trap in group 3 is worth restating: everything else fails loudly against a mismatched corpus, but
@@ -157,7 +157,7 @@ you, including creating the random source:
 The rest of this section is what that script automates, for anyone reproducing
 it by hand or on a platform without PowerShell.
 
-`crates/braid/tests/vmn_verifier.rs` shells out to a JVM and is `#[ignore]`d, so
+`crates/vsvmn/tests/vmn_verifier.rs` shells out to a JVM and is `#[ignore]`d, so
 it needs four environment variables. Only `VMNV_RANDOM_SOURCE`/`_SEED` need
 creating; the rest point at things already in the repo.
 
@@ -198,7 +198,7 @@ are throwaway — regenerate them freely.
 Then:
 
 ```
-cargo test -p braid --test vmn_verifier -- --ignored --nocapture
+cargo test -p vsvmn --test vmn_verifier -- --ignored --nocapture
 ```
 
 ### `vmnv` is not safe to run concurrently by default

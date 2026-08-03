@@ -21,8 +21,8 @@
 //! the modulus — so that elements of a given field always serialize to the same
 //! length. [`fixed_width_for_modulus_bits`] computes it.
 
-use crate::bytetree::ByteTree;
-use crate::error::{Error, Result};
+use crate::wire::bytetree::ByteTree;
+use crate::wire::error::{Error, Result};
 
 /// The fixed byte width used for elements of a field/group whose modulus is
 /// `modulus_bits` bits wide, under VMNV's signed encoding: `ceil((bits + 1) / 8)`.

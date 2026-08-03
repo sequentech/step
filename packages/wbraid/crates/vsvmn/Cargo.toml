@@ -1,0 +1,28 @@
+[package]
+name = "vsvmn"
+version = "0.1.0"
+edition = "2021"
+
+# vs <-> vmn interoperability. Everything about talking to Verificatum lives
+# here, so neither vsc nor braid carries any knowledge of it.
+#
+# The crate is layered, and the layering is load-bearing (see src/wire/mod.rs):
+# `wire` is Verificatum's byte format and random oracles, and must not depend on
+# vsc -- that is what keeps it testable against VMN's own golden vectors with no
+# crypto stack involved. The rest of the crate is the adapter onto vsc's types.
+
+[dependencies]
+# The cryptography: groups, ElGamal, the shuffle proof, the DKG.
+vsc = { path = "../vsc" }
+# VMN's random oracles are built from SHA-2 (VMNV 5.1). `wire` needs it directly
+# rather than reaching into vsc for it.
+sha2 = "0.11"
+# Modular arithmetic for deriving independent generators (VMNV 6.8): Legendre
+# symbols and square roots mod p. Correctness is pinned against VMN's own
+# `bas.h` output, and the values derived are public generators.
+num-bigint = "0.4"
+anyhow = "1.0"
+
+[dev-dependencies]
+num-traits = "0.2"
+hex = "0.4"

@@ -46,10 +46,10 @@ use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::groups::p256::element::P256Element;
 use cryptography::zkp::shuffle::ShuffleProof;
 
-use vcompat::bytetree::ByteTree;
+use crate::wire::bytetree::ByteTree;
 
-use super::decrypt::BatchedDecryptionProof;
-use super::{challenges::commitments_to_tree, encode};
+use crate::decrypt::BatchedDecryptionProof;
+use crate::{challenges::commitments_to_tree, encode};
 
 /// One mixer's contribution to the chain: the list it produced and the proof
 /// relating it to the previous one.
@@ -226,7 +226,7 @@ fn write_tree(path: &Path, tree: &ByteTree) -> Result<()> {
 /// Every party in `1..=k` needs one, including those that took no part: the
 /// verifier reads factors, commitments and replies over the full range, and all
 /// of them are hashed into the decryption challenge. A non-participant supplies
-/// an all-identity factor array ([`super::decrypt::inactive_factors`]) and is
+/// an all-identity factor array ([`crate::decrypt::inactive_factors`]) and is
 /// marked `participated = false`, which excludes it from Δ.
 pub struct DecryptingParty<'a, const W: usize> {
     /// This party's decryption factors in Verificatum's convention,
@@ -279,7 +279,7 @@ impl<const W: usize> MixingProof<'_, W> {
         flags.extend(self.parties.iter().map(|p| p.participated));
         write_tree(
             &proofs.join("CorrectIndices.bt"),
-            &vcompat::arithm::bool_array(&flags),
+            &crate::wire::arithm::bool_array(&flags),
         )?;
 
         for (index, party) in self.parties.iter().enumerate() {

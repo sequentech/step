@@ -22,14 +22,11 @@
 
 use anyhow::{anyhow, Result};
 
-use cryptography::context::P256Ctx;
 use cryptography::groups::p256::element::P256Element;
 use cryptography::groups::p256::scalar::P256Scalar;
 use cryptography::traits::groups::{GroupElement, GroupScalar};
 
-use crate::messages::artifact::Shares;
-
-use vcompat::lagrange;
+use crate::wire::lagrange;
 
 /// The joint polynomial in the exponent, `Γ_s = ∏_d C_{d,s}`.
 ///
@@ -142,12 +139,6 @@ pub fn inactive_proof<const W: usize>() -> BatchedDecryptionProof<W> {
         b_prime: std::array::from_fn(|_| P256Element::one()),
         k_x: P256Scalar::zero(),
     }
-}
-
-/// Extract each dealer's coefficient commitments from braid's `Shares` bodies,
-/// in dealer order.
-pub fn dealer_commitments(shares: &[Shares<P256Ctx>]) -> Vec<Vec<P256Element>> {
-    shares.iter().map(|s| s.commitments.clone()).collect()
 }
 
 /// One party's batched proof that its decryption factors are correct.

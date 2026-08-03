@@ -13,16 +13,15 @@
 //! Without it the test still runs, using a temporary directory, so the emitter
 //! is exercised in CI even when no Java is available.
 
-#![cfg(feature = "native")]
 
 use std::path::PathBuf;
 
-use braid::vmn::proof_dir::{MixerStep, ShufflingProof};
-use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators};
+use vsvmn::proof_dir::{MixerStep, ShufflingProof};
+use vsvmn::{challenges::VmnChallenges, generators::vmn_generators};
 use cryptography::context::{Context, P256Ctx};
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
 use cryptography::zkp::shuffle::Shuffler;
-use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
+use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
 
 const W: usize = 2;
 const N: usize = 8;

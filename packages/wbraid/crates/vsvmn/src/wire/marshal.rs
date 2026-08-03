@@ -16,8 +16,8 @@
 //! the `::`. Named elliptic curve groups describe themselves with just their
 //! name, so the whole descriptor is two leaves.
 
-use crate::bytetree::ByteTree;
-use crate::error::{Error, Result};
+use crate::wire::bytetree::ByteTree;
+use crate::wire::error::{Error, Result};
 
 /// Java class name of Verificatum's standard-curve group implementation.
 pub const ECQ_PGROUP_CLASS: &str = "com.verificatum.arithm.ECqPGroup";
@@ -82,10 +82,10 @@ fn from_hex(s: &str) -> Result<Vec<u8>> {
 ///
 /// Both the field prime and the group order are 256-bit with the top bit set,
 /// so [`WIDTH`](p256::WIDTH) is 33 under VMNV's signed encoding — see
-/// [`crate::arithm`].
+/// [`crate::wire::arithm`].
 pub mod p256 {
     use super::*;
-    use crate::arithm::fixed_width_for_modulus_bits;
+    use crate::wire::arithm::fixed_width_for_modulus_bits;
 
     /// VMN's name for this curve.
     pub const NAME: &str = "P-256";
@@ -117,7 +117,7 @@ pub mod p256 {
 
     /// The generator as a byte tree.
     pub fn generator() -> ByteTree {
-        crate::arithm::curve_point(&GENERATOR_X, &GENERATOR_Y, WIDTH)
+        crate::wire::arithm::curve_point(&GENERATOR_X, &GENERATOR_Y, WIDTH)
             .expect("P-256 generator fits in the fixed width")
     }
 }

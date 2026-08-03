@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! # vcompat — Verificatum wire-format compatibility
+//! # `wire` — Verificatum's wire format and random oracles
 //!
-//! An experimental crate supporting the investigation written up in
+//! Supports the investigation written up in
 //! `VERIFICATUM.md`: can Verificatum's `vmnv` be reused, unmodified, as an
 //! independent verifier for braid?
 //!
@@ -21,7 +21,7 @@
 //! at `testdata/verificatum/`.
 //!
 //! The crate stops at the wire format and the transcript; it knows nothing about
-//! vsc's types. The adapter between the two lives in `braid::vmn`, which keeps
+//! vsc's types. The adapter between the two is the rest of this crate, which keeps
 //! the layer whose bytes must match VMN exactly free of the crypto stack.
 //!
 //! ## Module map

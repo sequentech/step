@@ -4,7 +4,7 @@
 
 //! Independent generators, as vsc group elements.
 //!
-//! `vcompat` derives them per VMNV §6.8 and returns byte trees; this turns those
+//! `wire::generators` derives them per VMNV §6.8 and returns byte trees; this turns those
 //! into the `P256Element`s the shuffler needs.
 //!
 //! A shuffle emitted for Verificatum **must** use these rather than vsc's own
@@ -15,10 +15,10 @@ use anyhow::{anyhow, Result};
 
 use cryptography::groups::p256::element::P256Element;
 
-use vcompat::crypto::Hashfunction;
-use vcompat::generators::{independent_generators, CurveParams};
+use crate::wire::crypto::Hashfunction;
+use crate::wire::generators::{independent_generators, CurveParams};
 
-use super::encode;
+use crate::encode;
 
 /// Derive `count` independent generators for P-256, salted with the global
 /// prefix `rho` (VMNV §6.8, §8.2).

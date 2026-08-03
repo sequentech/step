@@ -4,7 +4,7 @@
 
 //! Does braid's own P-256 arithmetic encode to the bytes Verificatum writes?
 //!
-//! `vcompat` is already validated against a real VMN corpus, but only as a
+//! the `wire` layer is already validated against a real VMN corpus, but only as a
 //! format library — it never touched a vsc group element. These tests close that
 //! link: they take elements produced by braid's cryptography and check the
 //! resulting byte trees against VMN's own output.
@@ -12,16 +12,15 @@
 //! Corpus-backed checks use the in-repo reference corpus (`testdata/verificatum/`,
 //! overridable with `VCOMPAT_CORPUS`); the rest are self-contained.
 
-#![cfg(feature = "native")]
 
 use std::path::PathBuf;
 
-use braid::vmn::encode;
+use vsvmn::encode;
 use cryptography::context::{Context, P256Ctx};
 use cryptography::cryptosystem::elgamal::KeyPair;
 use cryptography::groups::p256::element::P256Element;
 use cryptography::traits::groups::{CryptographicGroup, GroupElement};
-use vcompat::bytetree::ByteTree;
+use vsvmn::wire::bytetree::ByteTree;
 
 /// The reference proof directory: the in-repo corpus by default, overridable
 /// with `VCOMPAT_CORPUS`. See `testdata/verificatum/README.md`.
@@ -38,13 +37,13 @@ fn corpus_dir() -> Option<PathBuf> {
 
 #[test]
 fn generator_encodes_to_verificatum_bytes() {
-    // vcompat's hardcoded P-256 generator was checked against VMN's output;
+    // wire::marshal's hardcoded P-256 generator was checked against VMN's output;
     // braid's group arithmetic must agree with it independently.
     let from_vsc = encode::element_to_tree(&P256Element::generator()).unwrap();
-    let from_vcompat = vcompat::marshal::p256::generator();
+    let from_wire = vsvmn::wire::marshal::p256::generator();
     assert_eq!(
-        from_vsc, from_vcompat,
-        "vsc's generator must encode exactly as vcompat's"
+        from_vsc, from_wire,
+        "vsc's generator must encode exactly as the wire layer's"
     );
 }
 

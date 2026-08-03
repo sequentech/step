@@ -15,6 +15,20 @@ and the `papers/` set — principally `vmnv-3.1.0.md`, the stand-alone verifier 
 `vmnum-3.1.0.md`, the user manual). Section references of the form "VMNV §N" point into
 `vmnv-3.1.0.md`.
 
+> **Where the code lives now.** This document records the investigation stage by stage, so it names
+> the crates as they were at the time. Since then everything Verificatum-related has been gathered
+> into a single crate, **`crates/vsvmn`**, and the two braid improvements the investigation produced
+> — the P-256 backend completion and the batched decryption proof — have been separated onto their
+> own branch, since they stand on their own merits. Read the older sections with this mapping:
+>
+> | then | now |
+> |---|---|
+> | `crates/vcompat` | `vsvmn::wire` (a module; the "must not depend on vsc" rule is unchanged but no longer enforced by cargo) |
+> | `crates/braid/src/vmn` | the rest of `vsvmn` |
+> | `crates/braid/tests/vmn_*.rs` | `crates/vsvmn/tests/` |
+>
+> braid itself no longer has any dependency on Verificatum interop code.
+
 ---
 
 ## Verdict

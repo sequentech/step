@@ -21,7 +21,7 @@
 //! because these bytes are hashed into Fiat–Shamir transcripts — a parser that
 //! accepted two encodings of the same value would be a malleability surface.
 
-use crate::error::{Error, Result};
+use crate::wire::error::{Error, Result};
 
 /// Tag byte introducing a leaf.
 const LEAF_TAG: u8 = 0x01;

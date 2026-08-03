@@ -13,7 +13,7 @@
 use num_bigint::{BigInt, BigUint};
 use num_traits::{One, Signed, Zero};
 
-use vcompat::lagrange::{
+use vsvmn::wire::lagrange::{
     alpha, correct_set, lcm_up_to, modified_lagrange_coefficient,
     modified_lagrange_coefficients,
 };
@@ -106,7 +106,7 @@ fn coefficients_reconstruct_a_shared_secret() {
     // alpha * p(0). Uses small integers so the arithmetic is checkable by hand.
     let q = q();
     let k = 3usize;
-    let threshold = 2usize;
+    let _threshold = 2usize;
 
     // p(z) = 7 + 5z, so the secret is 7.
     let p = |z: i64| BigInt::from(7 + 5 * z);

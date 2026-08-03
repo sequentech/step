@@ -133,8 +133,7 @@ $env:VMNV_RANDOM_SEED = $randomSeed
 # debug build turns seconds into minutes.
 $cargoArgs = @(
     "test", "--release",
-    "-p", "braid",
-    "--features", "native",
+    "-p", "vsvmn",
     "--test", "vmn_verifier",
     "--", "--ignored", "--nocapture"
 )

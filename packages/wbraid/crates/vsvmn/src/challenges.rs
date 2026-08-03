@@ -36,10 +36,10 @@ use cryptography::groups::p256::scalar::P256Scalar;
 use cryptography::utils::error::Error;
 use cryptography::zkp::shuffle::{ShuffleChallenges, ShuffleCommitments};
 
-use vcompat::bytetree::ByteTree;
-use vcompat::crypto::{self, Hashfunction};
+use crate::wire::bytetree::ByteTree;
+use crate::wire::crypto::{self, Hashfunction};
 
-use super::encode;
+use crate::encode;
 
 /// Verificatum's challenge derivation for a proof of a shuffle.
 pub struct VmnChallenges {

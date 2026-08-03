@@ -41,18 +41,17 @@
 //! exactly like `-shuffle`, so it is not a safe way to check the mixing phase
 //! alone.
 
-#![cfg(feature = "native")]
 
 use std::path::PathBuf;
 use std::process::Command;
 
-use braid::vmn::proof_dir::{MixerStep, ShufflingProof};
-use braid::vmn::{challenges::VmnChallenges, generators::vmn_generators};
+use vsvmn::proof_dir::{MixerStep, ShufflingProof};
+use vsvmn::{challenges::VmnChallenges, generators::vmn_generators};
 use cryptography::context::{Context, P256Ctx};
 use cryptography::groups::p256::element::P256Element;
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair};
 use cryptography::zkp::shuffle::Shuffler;
-use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
+use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
 
 const W: usize = 2;
 const N: usize = 8;
@@ -638,16 +637,16 @@ fn vmnv_is_silent_about_a_failed_shuffle() {
 /// The chain runs `T` mixers, since `λ_a ≥ λ` and braid mixes with exactly its
 /// selected trustees.
 fn emit_mixing<const K: usize, const T: usize>(dir: &PathBuf, delta: &[usize]) {
-    use braid::vmn::decrypt::{self, batch, inactive_proof, prove_decryption};
-    use braid::vmn::encode;
-    use braid::vmn::proof_dir::{DecryptingParty, MixingProof};
+    use vsvmn::decrypt::{self, batch, inactive_proof, prove_decryption};
+    use vsvmn::encode;
+    use vsvmn::proof_dir::{DecryptingParty, MixingProof};
     use cryptography::cryptosystem::elgamal::PublicKey;
     use cryptography::dkgd::dealer::{Dealer, VerifiableShare};
     use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
     use cryptography::groups::p256::scalar::P256Scalar;
     use cryptography::traits::groups::{GroupElement, GroupScalar};
-    use vcompat::bytetree::ByteTree;
-    use vcompat::crypto::{dec_challenge, dec_seed, Prg};
+    use vsvmn::wire::bytetree::ByteTree;
+    use vsvmn::wire::crypto::{dec_challenge, dec_seed, Prg};
 
     assert_eq!(delta.len(), T, "exactly lambda parties may decrypt");
     let _ = std::fs::remove_dir_all(dir);
@@ -813,7 +812,7 @@ fn emit_mixing<const K: usize, const T: usize>(dir: &PathBuf, delta: &[usize]) {
 
     // --- the plaintexts -----------------------------------------------------
     let alpha_c: Vec<P256Scalar> =
-        vcompat::lagrange::p256_modified_lagrange_coefficients(delta, K)
+        vsvmn::wire::lagrange::p256_modified_lagrange_coefficients(delta, K)
             .into_iter()
             .map(|(negative, magnitude)| {
                 let s = P256Scalar::from_bytes_reduced(&magnitude);
@@ -986,9 +985,9 @@ fn vmnv_accepts_a_mixing_proof_with_an_inactive_party() {
     // on a malformed file, so corrupting bytes would leave the challenge
     // unchanged and prove nothing.
     use cryptography::traits::groups::GroupElement;
-    let generator_commitment = vcompat::bytetree::ByteTree::node(vec![
-        braid::vmn::encode::element_to_tree(&P256Element::generator()).unwrap(),
-        braid::vmn::encode::elements_to_tree(&[P256Element::one(); W]).unwrap(),
+    let generator_commitment = vsvmn::wire::bytetree::ByteTree::node(vec![
+        vsvmn::encode::element_to_tree(&P256Element::generator()).unwrap(),
+        vsvmn::encode::elements_to_tree(&[P256Element::one(); W]).unwrap(),
     ]);
     std::fs::write(
         dir.join("proofs/DecrFactCommitment02.bt"),

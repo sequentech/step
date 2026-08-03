@@ -4,7 +4,7 @@
 
 //! Converting between vsc's P-256 types and Verificatum byte trees.
 //!
-//! This module is the **only** place the two type systems meet. `vcompat` knows
+//! This module is the **only** place the two type systems meet. the `wire` layer knows
 //! Verificatum's wire format and nothing about vsc; vsc knows the cryptography
 //! and nothing about Verificatum. Keeping the adapter here means the layer whose
 //! bytes must match VMN exactly stays free of the crypto stack.
@@ -16,7 +16,7 @@
 //! # Encoding notes
 //!
 //! - A point is `node(leaf(x), leaf(y))` with both coordinates at the **33-byte**
-//!   signed width, not 32 (`vcompat::arithm` explains why).
+//!   signed width, not 32 (`crate::wire::arithm` explains why).
 //! - vsc stores points compressed (SEC1, 33 bytes); VMN wants affine `(x, y)`,
 //!   so we round-trip through the uncompressed SEC1 encoding.
 //! - A width-`W` ciphertext is `node(u-components, v-components)`; an **array**
@@ -31,9 +31,9 @@ use cryptography::groups::p256::element::P256Element;
 use cryptography::groups::p256::scalar::P256Scalar;
 use cryptography::traits::groups::GroupElement;
 
-use vcompat::arithm;
-use vcompat::bytetree::ByteTree;
-use vcompat::marshal::p256::WIDTH;
+use crate::wire::arithm;
+use crate::wire::bytetree::ByteTree;
+use crate::wire::marshal::p256::WIDTH;
 
 /// Encode a P-256 group element as a Verificatum affine point.
 ///

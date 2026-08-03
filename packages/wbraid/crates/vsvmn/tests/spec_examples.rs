@@ -9,9 +9,9 @@
 //! These are self-contained: no corpus needed. The corpus round-trip lives in
 //! `corpus_roundtrip.rs`.
 
-use vcompat::arithm;
-use vcompat::bytetree::ByteTree;
-use vcompat::marshal;
+use vsvmn::wire::arithm;
+use vsvmn::wire::bytetree::ByteTree;
+use vsvmn::wire::marshal;
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()

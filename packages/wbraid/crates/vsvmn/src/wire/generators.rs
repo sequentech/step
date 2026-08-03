@@ -40,9 +40,9 @@
 
 use num_bigint::BigUint;
 
-use crate::bytetree::ByteTree;
-use crate::crypto::{Hashfunction, Prg, RandomOracle};
-use crate::error::Result;
+use crate::wire::bytetree::ByteTree;
+use crate::wire::crypto::{Hashfunction, Prg, RandomOracle};
+use crate::wire::error::Result;
 
 /// Domain string VMN uses when deriving generators
 /// (`IndependentGeneratorsRO("generators", ...)`).
@@ -81,7 +81,7 @@ impl CurveParams {
             a,
             b,
             p_bits: 256,
-            width: crate::marshal::p256::WIDTH,
+            width: crate::wire::marshal::p256::WIDTH,
         }
     }
 
@@ -172,7 +172,7 @@ pub fn independent_generators(
             continue;
         }
         let y = curve.sqrt(&fz);
-        points.push(crate::arithm::curve_point(
+        points.push(crate::wire::arithm::curve_point(
             &z.to_bytes_be(),
             &y.to_bytes_be(),
             curve.width,

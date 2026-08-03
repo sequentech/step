@@ -5,7 +5,7 @@
 //! Cross-implementation verification of a proof of a shuffle.
 //!
 //! braid and Verificatum implement the same Terelius–Wikström proof but derive
-//! their Fiat–Shamir challenges differently. `braid::vmn::challenges` supplies
+//! their Fiat–Shamir challenges differently. `vsvmn::challenges` supplies
 //! Verificatum's derivation to vsc's prover/verifier through the
 //! `ShuffleChallenges` seam. If that is right, then **braid's verifier should
 //! accept a proof Verificatum produced** — algebra, encoding and transcript all
@@ -17,16 +17,15 @@
 //! Runs against the in-repo reference corpus (`testdata/verificatum/`), or set
 //! `VCOMPAT_CORPUS` to point at a freshly generated one.
 
-#![cfg(feature = "native")]
 
 use std::path::PathBuf;
 
-use braid::vmn::{challenges::VmnChallenges, encode, generators::vmn_generators};
+use vsvmn::{challenges::VmnChallenges, encode, generators::vmn_generators};
 use cryptography::context::P256Ctx;
 use cryptography::cryptosystem::elgamal::PublicKey;
 use cryptography::zkp::shuffle::{Responses, ShuffleCommitments, ShuffleProof, Shuffler};
-use vcompat::bytetree::ByteTree;
-use vcompat::crypto::{global_prefix, Hashfunction, PrefixParams};
+use vsvmn::wire::bytetree::ByteTree;
+use vsvmn::wire::crypto::{global_prefix, Hashfunction, PrefixParams};
 
 const W: usize = 2;
 const N_R: usize = 100;
