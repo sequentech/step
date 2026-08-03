@@ -12,6 +12,7 @@ use crate::services::datafix::types::{SoapRequest, SoapRequestResponse, SoapRequ
 use crate::services::datafix::utils::{
     datafix_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
 };
+use crate::services::datafix::voterview_requests::SoapSendError;
 use crate::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
 };
@@ -23,7 +24,6 @@ use crate::services::external::utils::{
     external_voter_lock_key, post_operation_result_to_electoral_log, voted_via_internet,
     voted_via_not_internet_channel, DATAFIX_VOTER_LOCK_SECS,
 };
-use crate::services::datafix::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
