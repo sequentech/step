@@ -96,6 +96,7 @@ export type CastVotesByIp = {
 
 export type CastVotesPerDay = {
   __typename?: 'CastVotesPerDay';
+  channel: Scalars['String']['output'];
   day: Scalars['date']['output'];
   day_count: Scalars['Int']['output'];
 };
@@ -277,6 +278,7 @@ export type ElectionEventStatsOutput = {
   total_distinct_voters: Scalars['Int']['output'];
   total_elections: Scalars['Int']['output'];
   total_eligible_voters: Scalars['Int']['output'];
+  voters_by_channel: Array<VotersByChannel>;
   votes_per_day: Array<Maybe<CastVotesPerDay>>;
 };
 
@@ -292,6 +294,7 @@ export type ElectionStatsOutput = {
   __typename?: 'ElectionStatsOutput';
   total_areas: Scalars['Int']['output'];
   total_distinct_voters: Scalars['Int']['output'];
+  voters_by_channel: Array<VotersByChannel>;
   votes_per_day: Array<Maybe<CastVotesPerDay>>;
 };
 
@@ -434,6 +437,12 @@ export type FetchResultsArtifactOutput = {
   urls: Array<Scalars['String']['output']>;
 };
 
+export type GenerateBallotPublicationOutput = {
+  __typename?: 'GenerateBallotPublicationOutput';
+  ballot_publication_id: Scalars['uuid']['output'];
+  task_execution: Tasks_Execution_Type;
+};
+
 export type GenerateGoogleMeetOutput = {
   __typename?: 'GenerateGoogleMeetOutput';
   meet_link?: Maybe<Scalars['String']['output']>;
@@ -489,6 +498,11 @@ export type GetPrivateKeyInput = {
 export type GetPrivateKeyOutput = {
   __typename?: 'GetPrivateKeyOutput';
   private_key_base64: Scalars['String']['output'];
+};
+
+export type GetRealmAttributesOutput = {
+  __typename?: 'GetRealmAttributesOutput';
+  attributes: Scalars['jsonb']['output'];
 };
 
 export type GetRolesInput = {
@@ -1091,6 +1105,12 @@ export type UserProfileAttribute = {
   validations?: Maybe<Scalars['jsonb']['output']>;
 };
 
+export type VotersByChannel = {
+  __typename?: 'VotersByChannel';
+  channel: Scalars['String']['output'];
+  count: Scalars['Int']['output'];
+};
+
 export type VotesInfo = {
   __typename?: 'VotesInfo';
   election_id: Scalars['String']['output'];
@@ -1453,7 +1473,7 @@ export type Mutation_Root = {
   export_tenant_config?: Maybe<DocumentTaskOutput>;
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
-  generate_ballot_publication?: Maybe<PublishBallotOutput>;
+  generate_ballot_publication?: Maybe<GenerateBallotPublicationOutput>;
   /** generate Google Meet link for election events */
   generate_google_meet?: Maybe<GenerateGoogleMeetOutput>;
   generate_preview_url?: Maybe<GeneratePreviewUrlOutput>;
@@ -5187,6 +5207,7 @@ export type Query_Root = {
   getElectionStats?: Maybe<ElectionStatsOutput>;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
+  get_realm_attributes: GetRealmAttributesOutput;
   get_roles: GetRolesOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
@@ -5494,6 +5515,11 @@ export type Query_RootGetElectionStatsArgs = {
 
 export type Query_RootGet_PermissionsArgs = {
   body: GetPermissionsInput;
+};
+
+
+export type Query_RootGet_Realm_AttributesArgs = {
+  election_event_id: Scalars['String']['input'];
 };
 
 

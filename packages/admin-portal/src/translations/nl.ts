@@ -2289,6 +2289,7 @@ const dutchTranslation: TranslationType = {
                 ko: "Annuleren",
                 error: "Fout bij laden publicatie stembiljet",
                 error_publish: "Fout bij publiceren publicatie stembiljet",
+                error_capacity: "Genereren van stembiljetstijl mislukt: {{message}}",
                 error_status: "Fout bij wijzigen status publicatie stembiljet",
                 error_preview: "Fout bij voorbeeldweergave publicatie",
                 diff: "Het weergeven van alle wijzigingen kan de pagina traag maken. Weet u zeker dat u wilt doorgaan?",
