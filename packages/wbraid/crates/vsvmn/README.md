@@ -25,8 +25,17 @@ refused rather than attempted.
 cargo build --release -p vsvmn
 ```
 
-The binary lands at `target/release/vsvmn`. It has no runtime dependency on
-Verificatum — that is the point of `verify`.
+The binary lands in the **cargo workspace's** `target/release`, not this
+crate's directory and not the git root's — `packages/wbraid/target/release/vsvmn`,
+`vsvmn.exe` on Windows. It has no runtime dependency on Verificatum; that is
+the point of `verify`.
+
+Every example below writes `vsvmn` as if it were on `PATH`. If it is not, call
+it by path, or put it there for the session:
+
+```sh
+export PATH="$(dirname "$(cargo locate-project --workspace --message-format plain)")/target/release:$PATH"
+```
 
 ## verify
 
@@ -162,12 +171,25 @@ demo/mydemodir/Party01/dir/nizkp/default    # the proof directory
 demo/mydemodir/Party01/protInfo.xml         # the protocol info file
 ```
 
-so:
+so, from the directory you copied the demo into:
 
 ```text
 vsvmn verify demo/mydemodir/Party01/protInfo.xml \
              demo/mydemodir/Party01/dir/nizkp/default
 ```
+
+On Windows this crosses a boundary the paths do not show. The demo has to run
+under WSL; `vsvmn` runs wherever you built it. Pick one and stay there:
+
+- **Built under WSL** — the command above works as written.
+- **Built on Windows** — run it from PowerShell against the same files by
+  their Windows path. A demo run under `/mnt/c/work/...` *is* `C:\work\...`;
+  the two are one directory seen from two sides.
+
+Do not hand a `/mnt/c/...` path to the Windows executable. It cannot resolve
+one, and the error will not say so — from Git Bash the path is rewritten
+before the binary ever sees it, so `/mnt/c/tmp/x.xml` is reported missing as
+`C:/Program Files/Git/mnt/c/tmp/x.xml`.
 
 ### If your hostname has capitals in it
 
