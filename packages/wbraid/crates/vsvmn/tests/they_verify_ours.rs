@@ -17,9 +17,11 @@
 //! cargo test -p vsvmn --test they_verify_ours -- --ignored --nocapture
 //! ```
 //!
-//! Nothing else is required: the jars are in the tree, and the random source
-//! `vmnv` insists on is provisioned by `common::random_source`. `VMN_SOURCE`
-//! points at jars elsewhere, `VMN_JAVA` at a different `java`, and
+//! Nothing needs setting up beyond Verificatum itself: the random source
+//! `vmnv` insists on is provisioned by `common::random_source`. Verificatum is
+//! looked for at `crates/braid/verificatum`, which is not part of this
+//! repository — see TESTING.md for what goes in it. `VMN_HOME` points
+//! elsewhere, `VMN_JAVA` at a different `java`, and
 //! `VMN_RANDOM_SOURCE`/`VMN_RANDOM_SEED` at a source initialised by hand.
 //!
 //! The protocol info file is synthesized per session, so its parameters and the

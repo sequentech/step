@@ -106,7 +106,7 @@ pub fn generate(shape: &Shape) -> Option<Corpus> {
     static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _guard = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
 
-    let source = vmn_source()?;
+    let source = vmn_home()?;
     let shell = Shell::detect()?;
 
     let out_host = std::env::temp_dir().join(format!("vsvmn_corpus_{}", shape.label()));
@@ -134,9 +134,16 @@ pub fn generate(shape: &Shape) -> Option<Corpus> {
     Some(corpus)
 }
 
-/// The Verificatum source tree, which holds both the jars and the demo.
-fn vmn_source() -> Option<PathBuf> {
-    let dir = match std::env::var("VMN_SOURCE") {
+/// The directory holding Verificatum, which is `verificatum-vcr` and
+/// `verificatum-vmn` cloned side by side — there is no single repository — plus
+/// the jar each of their builds produces. It is assembled by hand and is not
+/// part of this repository; see TESTING.md.
+///
+/// Validated by looking for the demo rather than a jar: `vmnv` needs only the
+/// jars, but generating a corpus needs `vmn`'s demo scripts, so a tree without
+/// them would fail later and less clearly.
+fn vmn_home() -> Option<PathBuf> {
+    let dir = match std::env::var("VMN_HOME") {
         Ok(d) => PathBuf::from(d),
         Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../braid/verificatum"),
     };
@@ -483,7 +490,7 @@ pub fn java() -> String {
 
 /// The two Verificatum jars, in the form `java -cp` wants.
 pub fn classpath() -> Option<String> {
-    let jars = vmn_source()?;
+    let jars = vmn_home()?;
     let vmn = jars.join("verificatum-vmn/verificatum-vmn-3.1.0.jar");
     let vcr = jars.join("verificatum-vcr/verificatum-vcr-3.1.0.jar");
     if !vmn.is_file() || !vcr.is_file() {

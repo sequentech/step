@@ -9,15 +9,46 @@ SPDX-License-Identifier: AGPL-3.0-only
 cargo test --release -p vsvmn -- --include-ignored
 ```
 
-69 tests, about five minutes, nothing to set up first. `--release` matters:
-the DKG, shuffle and decryption are compute-intensive and a debug build turns
-seconds into minutes.
+69 tests, about five minutes. `--release` matters: the DKG, shuffle and
+decryption are compute-intensive and a debug build turns seconds into minutes.
 
 On Windows this runs from PowerShell as written; only the environment
 variables below differ, since PowerShell has no `VAR=value cmd` prefix.
 
 Without `--include-ignored` you get the 47 tests that need no external tooling
-(under a second). The other 22 run Verificatum and are `#[ignore]`d.
+(under a second). The other 22 run Verificatum, are `#[ignore]`d, and need the
+prerequisites below — without them they skip.
+
+## Prerequisites
+
+A JDK on `PATH`, WSL if you are on Windows, and a directory holding
+Verificatum. The tests look for that last one at `crates/braid/verificatum`,
+which is **not in this repository** — you assemble it, or point `VMN_HOME`
+somewhere else.
+
+There is no single Verificatum repository. It is distributed as separate
+projects, two of which are needed here, cloned side by side:
+
+```sh
+mkdir verificatum && cd verificatum
+git clone https://github.com/verificatum/verificatum-vcr.git
+git clone https://github.com/verificatum/verificatum-vmn.git
+```
+
+Neither ships its jar — both are build products, produced by each project's
+own build and left at the root of its clone. Follow their instructions; nothing
+here builds them for you. What the tests need afterwards is:
+
+```text
+$VMN_HOME/
+  verificatum-vcr/verificatum-vcr-3.1.0.jar
+  verificatum-vmn/verificatum-vmn-3.1.0.jar
+  verificatum-vmn/demo/mixnet/conf        <- what the path is validated against
+```
+
+The demo is checked rather than a jar because it is the harder requirement:
+`vmnv` needs only the two jars, but generating a corpus needs `vmn`'s demo
+scripts, and a tree without them would fail later and less clearly.
 
 ## Nothing is checked in
 
@@ -81,7 +112,9 @@ is a set of shell scripts. On Windows those run inside WSL. Corpus generation
 therefore shells out to `bash`, and the script it runs has to undo several
 things first:
 
-- the launcher scripts are rewritten to point `CLASSPATH` at the jars in-tree;
+- the launcher scripts hardcode `/usr/local/share/java`, so their `CLASSPATH`
+  line is rewritten to the jars under `VMN_HOME` — and only that line, so
+  everything else about how an operator invokes them is preserved;
 - every demo file is stripped of CRLF, which git checkout introduces and
   `bash` chokes on;
 - the demo is run under `unshare -U -u --map-root-user` with the hostname set
@@ -150,27 +183,17 @@ believing a green run.**
 
 ## Overrides
 
-None are required. Each replaces something the tests otherwise work out or
-build for themselves, and each is set the same way as above — `$env:NAME =
-"value"` in PowerShell, `NAME=value` inline in a POSIX shell.
+Only `VMN_HOME` is likely to matter, and only if you keep Verificatum
+somewhere other than `crates/braid/verificatum`. Each is set the same way as
+above — `$env:NAME = "value"` in PowerShell, `NAME=value` inline in a POSIX
+shell.
 
 | | |
 | --- | --- |
-| `VMN_SOURCE` | an unpacked Verificatum tree elsewhere; defaults to `crates/braid/verificatum` |
+| `VMN_HOME` | the directory holding both clones (see [Prerequisites](#prerequisites)) |
 | `VMN_JAVA` | a different `java` |
 | `VMN_RANDOM_SOURCE`, `VMN_RANDOM_SEED` | a source initialised by hand |
 | `VMN_PROTINFO` | a protocol info file from elsewhere, instead of the synthesized one |
-
-`VMN_SOURCE` is the **tree**, not the directory the jars sit in — the level
-holding `verificatum-vmn/` and `verificatum-vcr/`, since the demo is needed as
-well as the jars:
-
-```text
-$VMN_SOURCE/
-  verificatum-vmn/verificatum-vmn-3.1.0.jar
-  verificatum-vmn/demo/mixnet/conf        <- what the path is validated against
-  verificatum-vcr/verificatum-vcr-3.1.0.jar
-```
 
 Windows paths go in as-is; the WSL side converts them (`C:\x` → `/mnt/c/x`)
 when it hands them to the demo.
