@@ -2,29 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {CastVoteChannel, toVotersByChannelRows} from "./votersByChannelData"
+import {TallySheetVotingChannel, VotingStatusChannel} from "@sequentech/ui-core"
+import {toVotersByChannelRows} from "./votersByChannelData"
 
 describe("toVotersByChannelRows", () => {
     it("maps only channels with voters", () => {
         expect(
             toVotersByChannelRows([
-                {channel: "ONLINE", count: 7},
-                {channel: "TELEPHONE", count: 3},
+                {channel: VotingStatusChannel.Online, count: 7},
+                {channel: VotingStatusChannel.Telephone, count: 3},
             ])
         ).toEqual([
-            {channel: CastVoteChannel.ONLINE, count: 7},
-            {channel: CastVoteChannel.TELEPHONE, count: 3},
+            {channel: VotingStatusChannel.Online, count: 7},
+            {channel: VotingStatusChannel.Telephone, count: 3},
         ])
     })
 
     it("does not expose unsupported channels", () => {
         expect(
             toVotersByChannelRows([
-                {channel: "ONLINE", count: 2},
-                {channel: "PAPER", count: 3},
+                {channel: VotingStatusChannel.Online, count: 2},
+                {channel: TallySheetVotingChannel.Paper, count: 3},
                 {channel: "FUTURE_CHANNEL", count: 4},
             ])
-        ).toEqual([{channel: CastVoteChannel.ONLINE, count: 2}])
+        ).toEqual([{channel: VotingStatusChannel.Online, count: 2}])
     })
 
     it("returns no legend rows when no channel has voters", () => {

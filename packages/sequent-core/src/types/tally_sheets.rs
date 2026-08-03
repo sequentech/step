@@ -6,9 +6,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
-use strum_macros::{Display, EnumString};
+use strum_macros::{AsRefStr, Display, EnumString};
 
 #[derive(
+    AsRefStr,
     Display,
     Serialize,
     Deserialize,

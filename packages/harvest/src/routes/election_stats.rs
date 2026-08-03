@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::cast_votes::{
     get_count_distinct_voters_by_channel, get_count_votes_per_day,
-    CastVotesPerDay, VotersByChannel,
+    CastVotesPerDay, VotersByChannel, VotesTimeResolution,
 };
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_statistics::get_count_areas;
@@ -25,6 +25,9 @@ pub struct ElectionStatsInput {
     start_date: String,
     end_date: String,
     user_timezone: String,
+    #[serde(default)]
+    time_resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -103,6 +106,8 @@ pub async fn get_election_stats(
         &input.end_date.as_str(),
         Some(input.election_id),
         &input.user_timezone.as_str(),
+        input.time_resolution,
+        input.bucket_count,
     )
     .await
     .map_err(|err| {

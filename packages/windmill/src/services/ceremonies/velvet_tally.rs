@@ -45,6 +45,7 @@ use sequent_core::types::hasura::core::{
     Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySessionContest,
     TallySheet,
 };
+use sequent_core::types::participation::VotesByChannel;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody};
 pub use sequent_core::util::date_time::get_date_and_time;
@@ -80,6 +81,7 @@ pub struct AreaContestDataType {
     pub eligible_voters: u64,
     pub area: Area,
     pub auditable_votes: u64,
+    pub votes_by_channel: Option<VotesByChannel>,
 }
 
 #[instrument(skip_all)]
@@ -196,6 +198,7 @@ pub fn prepare_tally_for_area_contest(
         election_id: parse_uuid_v4(&election_id)?,
         census: area_contest.eligible_voters as u64,
         auditable_votes: area_contest.auditable_votes as u64,
+        votes_by_channel: area_contest.votes_by_channel.clone(),
         parent_id: area_contest
             .area
             .parent_id

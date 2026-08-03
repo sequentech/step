@@ -11,8 +11,7 @@ use crate::services::datafix::utils::{
 };
 use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
-use chrono::NaiveDate;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
 use sequent_core::ballot::VotingStatusChannel;
@@ -117,11 +116,13 @@ pub async fn find_area_ballots(
     let area_id = escape_sql_literal(area_id);
     let election_id = escape_sql_literal(election_id);
     let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
+    let default_channel = escape_sql_literal(&VotingStatusChannel::ONLINE.to_string());
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
-                        content
+                        content,
+                        COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
@@ -129,7 +130,11 @@ pub async fn find_area_ballots(
                         area_id = '{area_id}' AND
                         election_id = '{election_id}' AND
                         status = '{status}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
+                    ORDER BY
+                        election_id,
+                        voter_id_string,
+                        created_at DESC NULLS LAST,
+                        id DESC
                 "#
     );
 
@@ -264,19 +269,59 @@ impl TryFrom<Row> for ElectionCastVotes {
     }
 }
 
+const MAX_VOTES_TIME_BUCKETS: i32 = 1000;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum VotesTimeResolution {
+    Minute,
+    Hour,
+    #[default]
+    Day,
+}
+
+impl VotesTimeResolution {
+    fn as_sql(self) -> &'static str {
+        match self {
+            Self::Minute => "minute",
+            Self::Hour => "hour",
+            Self::Day => "day",
+        }
+    }
+
+    fn seconds(self) -> i64 {
+        match self {
+            Self::Minute => 60,
+            Self::Hour => 60 * 60,
+            Self::Day => 24 * 60 * 60,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct CastVotesPerDay {
     pub day: String,
-    pub channel: String,
+    pub bucket: String,
+    pub channel: VotingStatusChannel,
     pub day_count: i64,
+}
+
+fn voting_status_channel_from_row(item: &Row) -> Result<VotingStatusChannel> {
+    let channel = item.try_get::<_, String>("channel")?;
+    VotingStatusChannel::from_str(&channel)
+        .map_err(|error| anyhow!("Invalid voting channel {channel}: {error}"))
 }
 
 impl TryFrom<Row> for CastVotesPerDay {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         Ok(CastVotesPerDay {
-            day: item.try_get::<_, chrono::NaiveDate>("day")?.to_string(),
-            channel: item.try_get("channel")?,
+            day: item.try_get::<_, NaiveDate>("day")?.to_string(),
+            bucket: item
+                .try_get::<_, NaiveDateTime>("bucket")?
+                .format("%Y-%m-%dT%H:%M:%S")
+                .to_string(),
+            channel: voting_status_channel_from_row(&item)?,
             day_count: item.try_get::<_, i64>("day_count")?,
         })
     }
@@ -284,7 +329,7 @@ impl TryFrom<Row> for CastVotesPerDay {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotersByChannel {
-    pub channel: String,
+    pub channel: VotingStatusChannel,
     pub count: i64,
 }
 
@@ -293,7 +338,7 @@ impl TryFrom<Row> for VotersByChannel {
 
     fn try_from(item: Row) -> Result<Self> {
         Ok(VotersByChannel {
-            channel: item.try_get("channel")?,
+            channel: voting_status_channel_from_row(&item)?,
             count: item.try_get("count")?,
         })
     }
@@ -411,6 +456,59 @@ pub async fn count_cast_votes_election(
     Ok(count_data)
 }
 
+fn parse_votes_time_boundary(value: &str, end_of_day: bool) -> Result<NaiveDateTime> {
+    for format in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%d %H:%M:%S%.f"] {
+        if let Ok(value) = NaiveDateTime::parse_from_str(value, format) {
+            return Ok(value);
+        }
+    }
+
+    let date = NaiveDate::parse_from_str(value, "%Y-%m-%d")
+        .with_context(|| format!("Error parsing time boundary: {value}"))?;
+    let time = if end_of_day {
+        NaiveTime::from_hms_micro_opt(23, 59, 59, 999_999)
+    } else {
+        NaiveTime::from_hms_opt(0, 0, 0)
+    }
+    .ok_or_else(|| anyhow!("Error building time boundary"))?;
+
+    Ok(date.and_time(time))
+}
+
+fn validate_votes_time_range(
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
+) -> Result<()> {
+    if end < start {
+        return Err(anyhow!("end_date must not be earlier than start_date"));
+    }
+
+    let requested_buckets = match bucket_count {
+        Some(count) if (1..=MAX_VOTES_TIME_BUCKETS).contains(&count) => i64::from(count),
+        Some(_) => {
+            return Err(anyhow!(
+                "bucket_count must be between 1 and {MAX_VOTES_TIME_BUCKETS}"
+            ))
+        }
+        None => end
+            .signed_duration_since(start)
+            .num_seconds()
+            .checked_div(resolution.seconds())
+            .and_then(|count| count.checked_add(1))
+            .ok_or_else(|| anyhow!("Unable to calculate requested time buckets"))?,
+    };
+
+    if requested_buckets > i64::from(MAX_VOTES_TIME_BUCKETS) {
+        return Err(anyhow!(
+            "Requested {requested_buckets} time buckets; maximum is {MAX_VOTES_TIME_BUCKETS}"
+        ));
+    }
+
+    Ok(())
+}
+
 #[instrument(skip(transaction), err)]
 pub async fn get_count_votes_per_day(
     transaction: &Transaction<'_>,
@@ -420,6 +518,8 @@ pub async fn get_count_votes_per_day(
     end_date: &str,
     election_id: Option<String>,
     user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
 ) -> Result<Vec<CastVotesPerDay>> {
     get_count_votes_per_day_from_relation(
         transaction,
@@ -429,6 +529,8 @@ pub async fn get_count_votes_per_day(
         end_date,
         election_id,
         user_timezone,
+        resolution,
+        bucket_count,
         CastVoteRelation::Production,
     )
     .await
@@ -442,18 +544,23 @@ async fn get_count_votes_per_day_from_relation(
     end_date: &str,
     election_id: Option<String>,
     user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
     cast_vote_relation: CastVoteRelation,
 ) -> Result<Vec<CastVotesPerDay>> {
-    let start_date_naive = NaiveDate::parse_from_str(start_date, "%Y-%m-%d")
-        .with_context(|| "Error parsing start_date")?;
-    let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
-        .with_context(|| "Error parsing end_date")?;
+    let start_date_naive =
+        parse_votes_time_boundary(start_date, false).with_context(|| "Error parsing start_date")?;
+    let end_date_naive =
+        parse_votes_time_boundary(end_date, true).with_context(|| "Error parsing end_date")?;
+    validate_votes_time_range(start_date_naive, end_date_naive, resolution, bucket_count)?;
+
     let election_uuid = match election_id {
         Some(ref election_id_r) => Some(parse_uuid_v4(election_id_r.as_str())?),
         None => None,
     };
     let status = CastVoteStatus::Valid.to_string();
     let default_channel = VotingStatusChannel::ONLINE.to_string();
+    let resolution_sql = resolution.as_sql();
     let sql = count_votes_per_day_query(cast_vote_relation);
     let total_areas_statement = transaction.prepare(&sql).await?;
 
@@ -469,6 +576,8 @@ async fn get_count_votes_per_day_from_relation(
                 &election_uuid,
                 &status,
                 &default_channel,
+                &resolution_sql,
+                &bucket_count,
             ],
         )
         .await?;
@@ -912,16 +1021,41 @@ mod tests {
     const ELECTION_EVENT_ID: &str = "10000000-0000-4000-8000-000000000002";
     const ELECTION_ID: &str = "10000000-0000-4000-8000-000000000003";
 
-    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<String, i64> {
+    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<VotingStatusChannel, i64> {
         rows.into_iter()
             .map(|row| (row.channel, row.count))
             .collect()
     }
 
-    fn counts_by_day_and_channel(rows: Vec<CastVotesPerDay>) -> HashMap<(String, String), i64> {
+    fn counts_by_day_and_channel(
+        rows: Vec<CastVotesPerDay>,
+    ) -> HashMap<(String, VotingStatusChannel), i64> {
         rows.into_iter()
             .map(|row| ((row.day, row.channel), row.day_count))
             .collect()
+    }
+
+    #[test]
+    fn accepts_supported_time_resolutions_and_bounded_ranges() {
+        let start = parse_votes_time_boundary("2026-01-01T10:15:00", false).unwrap();
+        let end = parse_votes_time_boundary("2026-01-01T11:14:59", true).unwrap();
+
+        assert!(
+            validate_votes_time_range(start, end, VotesTimeResolution::Minute, Some(60),).is_ok()
+        );
+        assert!(validate_votes_time_range(start, end, VotesTimeResolution::Hour, None,).is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_or_excessive_time_ranges() {
+        let start = parse_votes_time_boundary("2026-01-01", false).unwrap();
+        let end = parse_votes_time_boundary("2026-01-02", true).unwrap();
+
+        assert!(validate_votes_time_range(start, end, VotesTimeResolution::Minute, None).is_err());
+        assert!(validate_votes_time_range(end, start, VotesTimeResolution::Day, Some(2)).is_err());
+        assert!(
+            validate_votes_time_range(start, end, VotesTimeResolution::Day, Some(1001)).is_err()
+        );
     }
 
     #[tokio::test]
@@ -979,9 +1113,9 @@ mod tests {
             .await
             .unwrap(),
         );
-        assert_eq!(event_counts.get("ONLINE"), Some(&2));
-        assert_eq!(event_counts.get("KIOSK"), Some(&1));
-        assert_eq!(event_counts.get("TELEPHONE"), Some(&1));
+        assert_eq!(event_counts.get(&VotingStatusChannel::ONLINE), Some(&2));
+        assert_eq!(event_counts.get(&VotingStatusChannel::KIOSK), Some(&1));
+        assert_eq!(event_counts.get(&VotingStatusChannel::TELEPHONE), Some(&1));
 
         let election_counts = counts_by_channel(
             get_count_distinct_voters_by_channel_from_relation(
@@ -994,9 +1128,12 @@ mod tests {
             .await
             .unwrap(),
         );
-        assert_eq!(election_counts.get("ONLINE"), Some(&1));
-        assert_eq!(election_counts.get("KIOSK"), Some(&1));
-        assert_eq!(election_counts.get("TELEPHONE"), Some(&1));
+        assert_eq!(election_counts.get(&VotingStatusChannel::ONLINE), Some(&1));
+        assert_eq!(election_counts.get(&VotingStatusChannel::KIOSK), Some(&1));
+        assert_eq!(
+            election_counts.get(&VotingStatusChannel::TELEPHONE),
+            Some(&1)
+        );
 
         let votes_per_day = counts_by_day_and_channel(
             get_count_votes_per_day_from_relation(
@@ -1007,25 +1144,27 @@ mod tests {
                 "2026-01-03",
                 Some(ELECTION_ID.to_string()),
                 "UTC",
+                VotesTimeResolution::Day,
+                None,
                 CastVoteRelation::StatisticsTest,
             )
             .await
             .unwrap(),
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-01".to_string(), "ONLINE".to_string())),
+            votes_per_day.get(&("2026-01-01".to_string(), VotingStatusChannel::ONLINE)),
             Some(&2)
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-01".to_string(), "KIOSK".to_string())),
+            votes_per_day.get(&("2026-01-01".to_string(), VotingStatusChannel::KIOSK)),
             Some(&2)
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-02".to_string(), "TELEPHONE".to_string())),
+            votes_per_day.get(&("2026-01-02".to_string(), VotingStatusChannel::TELEPHONE)),
             Some(&1)
         );
         assert_eq!(
-            votes_per_day.get(&("2026-01-03".to_string(), "ONLINE".to_string())),
+            votes_per_day.get(&("2026-01-03".to_string(), VotingStatusChannel::ONLINE)),
             Some(&0)
         );
 
