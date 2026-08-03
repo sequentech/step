@@ -2296,6 +2296,7 @@ const catalanTranslation: TranslationType = {
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
+                error_capacity: "Error en generar l'estil de papereta: {{message}}",
                 error_status: "Error canviant l'estat de la publicació",
                 error_preview: "S'ha produït un error en visualitzar la publicació",
                 diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",

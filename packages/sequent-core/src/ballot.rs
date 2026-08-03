@@ -36,7 +36,7 @@ use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
-pub const TYPES_VERSION: u32 = 1;
+pub const TYPES_VERSION: u32 = 2;
 
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
@@ -2577,6 +2577,35 @@ impl ElectionStatus {
     }
 }
 
+/// How multi-contest ballots lay out each contest's choice slots.
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum MultiContestEncodingMode {
+    /// One slot per `contest.max_votes`.
+    #[strum(serialize = "legacy")]
+    #[serde(rename = "legacy")]
+    #[default]
+    LEGACY,
+    /// One slot per ordinary candidate, to allow over-voting.
+    #[strum(serialize = "expanded-capacity")]
+    #[serde(rename = "expanded-capacity")]
+    EXPANDED_CAPACITY,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -2604,6 +2633,8 @@ pub struct BallotStyle {
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
     pub area_annotations: Option<AreaAnnotations>,
+    /// Absent means `MultiContestEncodingMode::LEGACY`.
+    pub multi_contest_encoding_mode: Option<MultiContestEncodingMode>,
 }
 
 #[derive(

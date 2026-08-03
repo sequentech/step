@@ -344,7 +344,7 @@ type Mutation {
     generate_ballot_publication(
         election_event_id: uuid!
         election_id: uuid
-    ): PublishBallotOutput
+    ): GenerateBallotPublicationOutput
 }
 
 type Mutation {
@@ -1399,6 +1399,11 @@ type StartTallyOutput {
 
 type PublishBallotOutput {
     ballot_publication_id: uuid!
+}
+
+type GenerateBallotPublicationOutput {
+    ballot_publication_id: uuid!
+    task_execution: tasks_execution_type!
 }
 
 type UpdateEventVotingStatusOutput {
