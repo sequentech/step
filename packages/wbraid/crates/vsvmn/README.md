@@ -251,6 +251,53 @@ or with this tool:
 It generates and stops — running the verifier is yours to do — but prints the
 command, since getting `vmnv`'s arguments right is the fiddly part.
 
+### Running the printed command on Windows
+
+**`vmnv` does not need WSL.** Unlike the demo above, it is Java verification
+with nothing Unix-specific about it. What needs a shell is the *launcher*: the
+shipped `vmnv` is a `/bin/sh` script. Running it under WSL then means the
+Windows paths `generate` printed will not resolve there, so it is the wrong way
+round on Windows.
+
+Run the class directly instead. The launcher does very little — it prepends its
+own name and two paths, then hands over the rest:
+
+```sh
+java ... MixNetElGamalVerifyFiatShamirTool "$COMMAND_NAME" \
+     "$VERIFICATUM_RANDOM_SOURCE" "$VERIFICATUM_RANDOM_SEED" "$@"
+```
+
+so from PowerShell, with `$D` the directory `generate` wrote:
+
+```powershell
+$J  = "...\crates\braid\verificatum"
+$CP = "$J\verificatum-vmn\verificatum-vmn-3.1.0.jar;$J\verificatum-vcr\verificatum-vcr-3.1.0.jar"
+
+java -cp $CP com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool `
+     vmnv "$R\random_source" "$R\random_seed" `
+     -mix -v -auxsid default -width 2 "$D\protInfo.xml" "$D\nizkp"
+```
+
+`$R` is a random source, which `vmnv` insists on even though verification
+consumes none. The launcher would default it to `~/.verificatum_random_source`;
+calling the class directly means saying where it is, and it has to have been
+initialised. `vog -rndinit RandomDevice /dev/urandom` is the documented way and
+has no Windows equivalent, so use a seeded PRG instead:
+
+```powershell
+$R = "$env:TEMP\vmn_random"; New-Item -ItemType Directory -Force $R | Out-Null
+$b = [byte[]]::new(512); [System.Security.Cryptography.RandomNumberGenerator]::Fill($b)
+[System.IO.File]::WriteAllBytes("$R\seed_material", $b)
+
+$desc = (java -cp $CP com.verificatum.ui.gen.GeneratorTool vog ":VERIFICATUM_VOG_BUILTIN" `
+         "$R\random_source" "$R\random_seed" -gen HashfunctionHeuristic SHA-256).Trim()
+java -cp $CP com.verificatum.ui.gen.GeneratorTool vog ":VERIFICATUM_VOG_BUILTIN" `
+     "$R\random_source" "$R\random_seed" -seed "$R\seed_material" -rndinit PRGHeuristic $desc
+```
+
+Do that once; `vmnv` rewrites the seed on each run, which is what a seeded PRG
+source does.
+
 | | |
 | --- | --- |
 | `--kind mixing\|shuffling` | whether to include the decryption phase (default `mixing`) |
