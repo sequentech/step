@@ -288,11 +288,19 @@ pub async fn update_election_event_ballot_styles(
         generate_election_event_ballot_styles(tenant_id, election_event_id, ballot_publication_id)
             .await;
 
-    let lock_result = lock.release().await;
-    match result {
-        Err(error) => Err(error),
-        Ok(()) => lock_result,
+    // Release on both paths so the lock does not leak until expiry on error.
+    // A failed release must not mask the outcome of the work itself: the lock
+    // is time-bounded and will expire on its own, whereas reporting a failure
+    // here would mark an already-generated ballot publication as failed.
+    if let Err(release_error) = lock.release().await {
+        event!(
+            Level::ERROR,
+            "Failed to release the ballot style generation lock for election event {}: {:?}",
+            election_event_id,
+            release_error
+        );
     }
+    result
 }
 
 async fn generate_election_event_ballot_styles(

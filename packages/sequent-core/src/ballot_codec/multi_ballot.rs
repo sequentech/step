@@ -2350,7 +2350,10 @@ mod tests {
             style.multi_contest_encoding_mode.unwrap_or_default(),
         )
         .unwrap();
-        assert!(max_bytes <= 30);
+        // `encode_vec_to_array` reserves byte 0 for the length prefix, so the
+        // payload limit is 29, not the 30-byte array size. Asserting against
+        // 30 would let this test pass for a style that cannot encode.
+        assert!(max_bytes <= BallotChoices::MAX_SIZE_BYTES);
 
         println!("max bytes: {:?}", max_bytes);
 

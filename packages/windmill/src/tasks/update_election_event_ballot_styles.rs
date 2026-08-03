@@ -4,7 +4,7 @@
 
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
-use tracing::instrument;
+use tracing::{error, instrument};
 
 use crate::services::ballot_styles::ballot_style;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -27,11 +27,25 @@ pub async fn update_election_event_ballot_styles(
     .await
     {
         Ok(()) => {
-            update_complete(&task_execution, None).await.ok();
+            // The Publish screen polls this record, so a dropped status
+            // update leaves the task pending indefinitely. The generation
+            // itself succeeded and is still reported as such; surface the
+            // bookkeeping failure so it is alertable rather than invisible.
+            if let Err(status_error) = update_complete(&task_execution, None).await {
+                error!(
+                    task_id = %task_execution.id,
+                    "Ballot styles were generated but the task execution could not be marked complete: {status_error:?}"
+                );
+            }
             Ok(())
         }
         Err(error) => {
-            update_fail(&task_execution, &error.to_string()).await.ok();
+            if let Err(status_error) = update_fail(&task_execution, &error.to_string()).await {
+                error!(
+                    task_id = %task_execution.id,
+                    "Ballot style generation failed and the task execution could not be marked failed: {status_error:?}"
+                );
+            }
             Err(Error::Anyhow(error))
         }
     }
