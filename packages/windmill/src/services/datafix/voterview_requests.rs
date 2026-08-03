@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::datafix_types::{
+use super::types::{
     DatafixAnnotations, SoapRequest, SoapRequestData, SoapRequestResponse, SoapRequestResult,
 };
 use crate::postgres::election_event::ElectionEventDatafix;

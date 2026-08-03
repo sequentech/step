@@ -236,6 +236,25 @@ pub async fn insert_cast_vote(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cast_vote_annotations_include_voting_channel() {
+        let annotations = cast_vote_annotations(
+            &Some("203.0.113.1".to_string()),
+            &Some("CO".to_string()),
+            VotingStatusChannel::TELEPHONE,
+        )
+        .unwrap();
+
+        assert_eq!(annotations["ip"], "203.0.113.1");
+        assert_eq!(annotations["country"], "CO");
+        assert_eq!(annotations["voting_channel"], "TELEPHONE");
+    }
+}
+
 /// Atomically moves a cast vote from `expected_status` to `new_status`, scoped
 /// to its tenant and event. Returns `false` without any change when the row is
 /// no longer in `expected_status`, so concurrent workers cannot apply the same

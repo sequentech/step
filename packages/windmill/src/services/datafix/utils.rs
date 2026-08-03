@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::datafix_types::*;
+use super::types::*;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::update_election_event_annotations;
@@ -41,16 +41,12 @@ pub const DATAFIX_LAST_APPLY_HAD_FAILURES_KEY: &str = "datafix:last_apply_had_fa
 /// VoterView round-trip so the lock outlives an in-flight SOAP call.
 pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 
-/// Advisory-lock key that serializes all external-voter-registry work for one
+/// Advisory-lock key that serializes all Datafix work for one
 /// voter within an event — outbound `SetVoted`, disable-release, inbound
 /// mark/unmark, and reconciliation apply all take this same lock, so none of
 /// them can interleave for the same voter.
 #[instrument]
-pub fn external_voter_lock_key(
-    tenant_id: &str,
-    election_event_id: &str,
-    voter_id: &Uuid,
-) -> String {
+pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &Uuid) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 

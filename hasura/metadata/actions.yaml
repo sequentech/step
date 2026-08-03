@@ -1809,6 +1809,7 @@ custom_types:
         - name: CreateKeysCeremonyOutput
         - name: GetPrivateKeyOutput
         - name: CastVotesPerDay
+        - name: VotersByChannel
         - name: ElectionEventStatsOutput
         - name: ElectionStatsOutput
         - name: CheckPrivateKeyOutput

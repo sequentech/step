@@ -9,8 +9,8 @@
 //! a 100k-row file; the caller decides whether accumulated errors should
 //! still block the whole import.
 
-use crate::services::external::datafix_types::ParsedDatafixReconciliationRow;
-use crate::services::external::types::ReconciliationFileMeta;
+use crate::services::datafix::reconciliation::types::ReconciliationFileMeta;
+use crate::services::datafix::types::ParsedDatafixReconciliationRow;
 use ::csv::{ReaderBuilder, StringRecord};
 use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use std::collections::HashSet;

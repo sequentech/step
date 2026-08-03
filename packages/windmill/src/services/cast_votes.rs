@@ -6,10 +6,10 @@ use super::sql_utils::escape_sql_literal;
 use crate::postgres::cast_vote::{
     count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
 };
-use crate::services::electoral_log::ElectoralLog;
-use crate::services::external::utils::{
+use crate::services::datafix::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
+use crate::services::electoral_log::ElectoralLog;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
@@ -1010,4 +1010,164 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::database::generate_hasura_pool;
+
+    const TENANT_ID: &str = "10000000-0000-4000-8000-000000000001";
+    const ELECTION_EVENT_ID: &str = "10000000-0000-4000-8000-000000000002";
+    const ELECTION_ID: &str = "10000000-0000-4000-8000-000000000003";
+
+    fn counts_by_channel(rows: Vec<VotersByChannel>) -> HashMap<VotingStatusChannel, i64> {
+        rows.into_iter()
+            .map(|row| (row.channel, row.count))
+            .collect()
+    }
+
+    fn counts_by_day_and_channel(
+        rows: Vec<CastVotesPerDay>,
+    ) -> HashMap<(String, VotingStatusChannel), i64> {
+        rows.into_iter()
+            .map(|row| ((row.day, row.channel), row.day_count))
+            .collect()
+    }
+
+    #[test]
+    fn accepts_supported_time_resolutions_and_bounded_ranges() {
+        let start = parse_votes_time_boundary("2026-01-01T10:15:00", false).unwrap();
+        let end = parse_votes_time_boundary("2026-01-01T11:14:59", true).unwrap();
+
+        assert!(
+            validate_votes_time_range(start, end, VotesTimeResolution::Minute, Some(60),).is_ok()
+        );
+        assert!(validate_votes_time_range(start, end, VotesTimeResolution::Hour, None,).is_ok());
+    }
+
+    #[test]
+    fn rejects_invalid_or_excessive_time_ranges() {
+        let start = parse_votes_time_boundary("2026-01-01", false).unwrap();
+        let end = parse_votes_time_boundary("2026-01-02", true).unwrap();
+
+        assert!(validate_votes_time_range(start, end, VotesTimeResolution::Minute, None).is_err());
+        assert!(validate_votes_time_range(end, start, VotesTimeResolution::Day, Some(2)).is_err());
+        assert!(
+            validate_votes_time_range(start, end, VotesTimeResolution::Day, Some(1001)).is_err()
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
+    async fn voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote() {
+        let pool = generate_hasura_pool().await.unwrap();
+        let mut client = pool.get().await.unwrap();
+        let transaction = client.transaction().await.unwrap();
+
+        transaction
+            .batch_execute(
+                r#"
+                CREATE TEMP TABLE cast_vote_stats_test (
+                    id UUID PRIMARY KEY,
+                    tenant_id UUID NOT NULL,
+                    election_event_id UUID NOT NULL,
+                    election_id UUID NOT NULL,
+                    voter_id_string TEXT,
+                    status TEXT NOT NULL,
+                    annotations JSONB,
+                    created_at TIMESTAMPTZ
+                );
+
+                INSERT INTO cast_vote_stats_test (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    voter_id_string,
+                    status,
+                    annotations,
+                    created_at
+                ) VALUES
+                    ('10000000-0000-4000-8000-000000000010', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'legacy-voter', 'valid', '{}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'revoting-voter', 'valid', '{"voting_channel":"KIOSK"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000012', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'revoting-voter', 'valid', '{"voting_channel":"TELEPHONE"}', '2026-01-02T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'discarded-revote-voter', 'valid', '{"voting_channel":"KIOSK"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000014', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'discarded-revote-voter', 'discarded', '{"voting_channel":"TELEPHONE"}', '2026-01-02T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000015', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000004', 'second-election-voter', 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000016', '10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', NULL, 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z'),
+                    ('10000000-0000-4000-8000-000000000017', '20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003', 'other-tenant-voter', 'valid', '{"voting_channel":"ONLINE"}', '2026-01-01T00:00:00Z');
+                "#,
+            )
+            .await
+            .unwrap();
+
+        let event_counts = counts_by_channel(
+            get_count_distinct_voters_by_channel_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                None,
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(event_counts.get(&VotingStatusChannel::ONLINE), Some(&2));
+        assert_eq!(event_counts.get(&VotingStatusChannel::KIOSK), Some(&1));
+        assert_eq!(event_counts.get(&VotingStatusChannel::TELEPHONE), Some(&1));
+
+        let election_counts = counts_by_channel(
+            get_count_distinct_voters_by_channel_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                Some(ELECTION_ID),
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(election_counts.get(&VotingStatusChannel::ONLINE), Some(&1));
+        assert_eq!(election_counts.get(&VotingStatusChannel::KIOSK), Some(&1));
+        assert_eq!(
+            election_counts.get(&VotingStatusChannel::TELEPHONE),
+            Some(&1)
+        );
+
+        let votes_per_day = counts_by_day_and_channel(
+            get_count_votes_per_day_from_relation(
+                &transaction,
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                "2026-01-01",
+                "2026-01-03",
+                Some(ELECTION_ID.to_string()),
+                "UTC",
+                VotesTimeResolution::Day,
+                None,
+                CastVoteRelation::StatisticsTest,
+            )
+            .await
+            .unwrap(),
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-01".to_string(), VotingStatusChannel::ONLINE)),
+            Some(&2)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-01".to_string(), VotingStatusChannel::KIOSK)),
+            Some(&2)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-02".to_string(), VotingStatusChannel::TELEPHONE)),
+            Some(&1)
+        );
+        assert_eq!(
+            votes_per_day.get(&("2026-01-03".to_string(), VotingStatusChannel::ONLINE)),
+            Some(&0)
+        );
+
+        transaction.rollback().await.unwrap();
+    }
 }

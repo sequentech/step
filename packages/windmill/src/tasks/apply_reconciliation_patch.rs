@@ -16,14 +16,16 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::datafix::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
+use crate::services::datafix::reconciliation::bulk_create::apply_voters_added_bulk;
+use crate::services::datafix::reconciliation::diff::{DiffItem, ReconciliationApplyEnvelope};
+use crate::services::datafix::reconciliation::patch::DiffItemArrayWriter;
+use crate::services::datafix::reconciliation::types::{
+    ReconciliationChangeCategory, ReconciliationPatchSource,
+};
+use crate::services::datafix::utils::set_datafix_reconciliation_state;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
-use crate::services::external::reconciliation::bulk_create::apply_voters_added_bulk;
-use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationApplyEnvelope};
-use crate::services::external::reconciliation::patch::DiffItemArrayWriter;
-use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
-use crate::services::external::utils::set_datafix_reconciliation_state;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tasks_execution::{update_fail, update_with_annotations};

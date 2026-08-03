@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::external::datafix_types::{
-    channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixReconciliationField,
-    ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
-};
-use crate::services::external::types::{
+use crate::services::datafix::reconciliation::types::{
     ReconciliationChangeCategory, ReconciliationPatchSource, ReconciliationPatchTarget,
     SequentReconciliationField,
+};
+use crate::services::datafix::types::{
+    channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixReconciliationField,
+    ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
 };
 use crate::services::users::VoterSnapshot;
 use sequent_core::types::keycloak::{
@@ -137,7 +137,7 @@ pub fn index_datafix_area_fields(
 }
 
 /// Runs the forward pass for one batch of file rows (see
-/// `services::external::reconciliation::csv::ReconciliationRowBatches`):
+/// `services::datafix::reconciliation::csv::ReconciliationRowBatches`):
 /// classifies each row against its Sequent snapshot, if this batch's
 /// `fetch_realm_voter_snapshots_by_usernames` call found one —
 /// `snapshots_by_username` holds only this batch's matches, not the whole
@@ -734,8 +734,8 @@ fn row_failure(voter_username: &str, reason: &str) -> DiffItem {
 /// one place.
 #[instrument(skip_all)]
 fn composed_area_name(row: &ParsedDatafixReconciliationRow) -> String {
-    use crate::services::external::datafix_types::VoterInformationBody;
-    use crate::services::external::utils::compose_area_name;
+    use crate::services::datafix::types::VoterInformationBody;
+    use crate::services::datafix::utils::compose_area_name;
 
     // The file's own "no value" sentinel (`ATTR_RESET_VALUE`) must not be
     // concatenated into the composed name as a literal segment — translate it

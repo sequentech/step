@@ -27,9 +27,9 @@ use windmill::postgres::election_event::{
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::consolidation::eml_generator::ValidateAnnotations;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::datafix::reconciliation::diff::ReconciliationApplyEnvelope;
+use windmill::services::datafix::reconciliation::types::ReconciliationPatchSource;
 use windmill::services::documents::get_document_as_temp_file;
-use windmill::services::external::reconciliation::diff::ReconciliationApplyEnvelope;
-use windmill::services::external::types::ReconciliationPatchSource;
 use windmill::services::tasks_execution::{
     post as post_task_execution, update_fail,
 };

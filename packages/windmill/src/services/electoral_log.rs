@@ -555,13 +555,13 @@ impl ElectoralLog {
         voter_id: String,
         voter_username: Option<String>,
         area_id: String,
+        voting_channel: String,
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let ip = VoterIpString(voter_ip);
         let country = VoterCountryString(voter_country);
-
-        let message = Message::cast_vote_message(
+        let message = Message::cast_vote_with_channel_message(
             event,
             election,
             pseudonym_h,
@@ -569,13 +569,14 @@ impl ElectoralLog {
             &self.sd,
             ip,
             country,
+            VotingChannelString(voting_channel),
             Some(voter_id.clone()),
             voter_username.clone(),
             area_id,
         )?;
-        let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {
-            "Error converting Message::cast_vote_message into ElectoralLogMessage"
-        })?;
+        let board_message: ElectoralLogMessage = (&message)
+            .try_into()
+            .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
         let input = LogEventInput {
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
@@ -735,7 +736,7 @@ impl ElectoralLog {
 
     /// Posts a third-party voter registry reconciliation run event (patch
     /// generation or applying the Sequent-side diff) — see
-    /// `windmill::services::external::reconciliation`. Named for the general
+    /// `windmill::services::datafix::reconciliation`. Named for the general
     /// capability, not the specific integration (Datafix) that first needed
     /// it. `artifact` carries the JSON of old/new values applied, for a
     /// `ChangesApplied` entry (`None` for `PatchGenerated`, which has nothing

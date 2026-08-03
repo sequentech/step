@@ -32,20 +32,18 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
-use crate::services::electoral_log::ElectoralLog;
-use crate::services::external::reconciliation::csv::{
-    split_meta_and_csv, ReconciliationRowBatches,
-};
-use crate::services::external::reconciliation::diff::{
+use crate::services::datafix::reconciliation::csv::{split_meta_and_csv, ReconciliationRowBatches};
+use crate::services::datafix::reconciliation::diff::{
     diff_file_row_batch, diff_unmatched_sequent_voters, index_datafix_area_fields,
     DatafixAreaFieldsByName, DiffItem,
 };
-use crate::services::external::reconciliation::patch::{
+use crate::services::datafix::reconciliation::patch::{
     is_sequent_apply_stream_item, sha256_hex, DiffItemArrayWriter, DiffItemNdjsonWriter,
     ExternalPatchCsvWriter,
 };
-use crate::services::external::types::ReconciliationPatchSource;
+use crate::services::datafix::reconciliation::types::ReconciliationPatchSource;
+use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tally_sheet_import::hash::hash_bytes;
@@ -530,7 +528,7 @@ fn write_batch_to_all_outputs<EW: Write, SW: Write, CW: Write>(
     sequent_patch_writer: &mut DiffItemNdjsonWriter<SW>,
     external_patch_writer: &mut ExternalPatchCsvWriter<CW>,
     batch_items: &[DiffItem],
-    file_rows: &[crate::services::external::datafix_types::ParsedDatafixReconciliationRow],
+    file_rows: &[crate::services::datafix::types::ParsedDatafixReconciliationRow],
 ) -> std::result::Result<(), String> {
     envelope_items_writer
         .write_batch(batch_items.iter())
@@ -679,11 +677,11 @@ async fn checkpoint(task_execution: &mut TasksExecution, message: &str) {
 #[cfg(test)]
 mod tests {
     use super::{apply_permission_for_sequence, write_envelope_tail};
-    use crate::services::external::reconciliation::diff::{
+    use crate::services::datafix::reconciliation::diff::{
         DiffItem, ReconciliationApplyEnvelope, ReconciliationDiff,
     };
-    use crate::services::external::reconciliation::patch::DiffItemArrayWriter;
-    use crate::services::external::types::{
+    use crate::services::datafix::reconciliation::patch::DiffItemArrayWriter;
+    use crate::services::datafix::reconciliation::types::{
         ReconciliationChangeCategory, ReconciliationPatchTarget, SequentReconciliationField,
     };
     use std::io::Write;

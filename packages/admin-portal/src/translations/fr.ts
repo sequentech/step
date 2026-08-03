@@ -1616,6 +1616,7 @@ const frenchTranslation: TranslationType = {
                 kiosk: "Kiosque",
                 early_voting: "Vote anticipé",
                 telephone: "Vote par téléphone",
+                other: "Autre",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
