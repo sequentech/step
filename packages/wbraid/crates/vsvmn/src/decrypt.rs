@@ -24,7 +24,7 @@ use anyhow::{anyhow, Result};
 
 use cryptography::groups::p256::element::P256Element;
 use cryptography::groups::p256::scalar::P256Scalar;
-use cryptography::traits::groups::{GroupElement, GroupScalar};
+use cryptography::traits::groups::{DistGroupOps, GroupElement, GroupScalar};
 
 use crate::wire::lagrange;
 
@@ -223,22 +223,17 @@ pub fn prove_decryption<const W: usize>(
 ///
 /// Used for both `A` (over the ciphertexts' first components) and `B` (over the
 /// combined decryption factors).
+///
+/// This is vsc's [`DistGroupOps::dist_multi_exp`] — one *base-group* exponent
+/// per element, broadcast across the `W` components, which is exactly what
+/// batching needs since a width-ω ciphertext is raised to a single batching
+/// exponent. It is re-exported rather than reimplemented so that a backend's
+/// specialized multi-exponentiation is inherited; the hand-rolled loop that used
+/// to live here got none of it.
 pub fn batch<const W: usize>(
     elements: &[[P256Element; W]],
     exponents: &[P256Scalar],
 ) -> Result<[P256Element; W]> {
-    if elements.len() != exponents.len() {
-        return Err(anyhow!(
-            "{} elements but {} batching exponents",
-            elements.len(),
-            exponents.len()
-        ));
-    }
-    let mut accumulator: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
-    for (element, exponent) in elements.iter().zip(exponents) {
-        for i in 0..W {
-            accumulator[i] = accumulator[i].mul(&element[i].exp(exponent));
-        }
-    }
-    Ok(accumulator)
+    <[P256Element; W]>::dist_multi_exp(elements, exponents)
+        .map_err(|e| anyhow!("failed to batch: {e:?}"))
 }

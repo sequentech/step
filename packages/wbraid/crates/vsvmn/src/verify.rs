@@ -31,7 +31,7 @@ use cryptography::groups::p256::element::P256Element;
 use cryptography::groups::p256::scalar::P256Scalar;
 use cryptography::traits::groups::{DistGroupOps, GroupElement, GroupScalar};
 
-use crate::decrypt::BatchedDecryptionProof;
+use crate::decrypt::{batch, BatchedDecryptionProof};
 use crate::wire::bytetree::ByteTree;
 use crate::wire::crypto::{dec_challenge, dec_seed, Hashfunction, Prg};
 use crate::wire::lagrange::{correct_set, p256_modified_lagrange_coefficients};
@@ -195,10 +195,8 @@ pub fn verify_decryption<const W: usize>(
 
     // --- batch, and combine the proof pieces -------------------------------
     let bases: Vec<[P256Element; W]> = ciphertexts.iter().map(|c| c.0[0]).collect();
-    let a = <[P256Element; W]>::dist_multi_exp(&bases, &exponents)
-        .map_err(|e| anyhow!("failed to batch the ciphertexts: {e:?}"))?;
-    let b = <[P256Element; W]>::dist_multi_exp(&combined, &exponents)
-        .map_err(|e| anyhow!("failed to batch the combined factors: {e:?}"))?;
+    let a = batch(&bases, &exponents)?;
+    let b = batch(&combined, &exponents)?;
 
     // The same `alpha * c_l` used for the factors, which is what requires each
     // party to have replied over its *scaled* share. See `decrypt::prove_decryption`.
