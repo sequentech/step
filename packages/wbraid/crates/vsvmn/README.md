@@ -70,10 +70,48 @@ In production the input comes from a real Verificatum run. To get a session to
 try `verify` against, use VMN's own demo — the point being that the data is
 produced by Verificatum, not by us.
 
-It needs a Unix host and `vmn`/`vcr` on `PATH`. On Windows, run it under WSL.
+It needs a Unix host — on Windows, run it under WSL — and Verificatum's
+launcher scripts on `PATH`. Those are shell scripts, spread across both
+projects: `vog` comes from VCR, everything named `vmn*` from VMN.
+
+```text
+$VMN_HOME/verificatum-vcr/bin/    vog, vbt, ...
+$VMN_HOME/verificatum-vmn/bin/    vmn, vmni, vmnv, vdemo, ...
+```
+
+**Putting those two directories on `PATH` is not enough by itself.** Each
+launcher hardcodes where the jars were installed:
+
+```sh
+export CLASSPATH=/usr/local/share/java/verificatum-vcr-3.1.0.jar:::${CLASSPATH}
+```
+
+so they work as shipped only after installing Verificatum the way each project
+documents. To run from a built tree without installing, copy the launchers and
+repoint that one line — leaving the rest alone, so how the tools are invoked
+does not change:
+
+```sh
+JARS="$VMN_HOME/verificatum-vmn/verificatum-vmn-3.1.0.jar:$VMN_HOME/verificatum-vcr/verificatum-vcr-3.1.0.jar"
+mkdir -p bin
+for f in "$VMN_HOME"/verificatum-{vmn,vcr}/bin/*; do
+    [ -f "$f" ] && sed "s|^export CLASSPATH=.*|export CLASSPATH=$JARS|" "$f" \
+        | tr -d '\r' > "bin/$(basename "$f")"
+done
+chmod +x bin/*
+export PATH="$PWD/bin:$PATH"
+```
+
+The `tr -d '\r'` matters if the clones are a Windows checkout: git leaves CRLF
+in the scripts, and `/bin/sh` reports that as `./conf: : not found` followed by
+a syntax error at end of file, which says nothing about line endings. On a Unix
+checkout it is a no-op.
+
+Then the demo itself, stripped the same way:
 
 ```sh
 cp -r "$VMN_HOME/verificatum-vmn/demo/mixnet" demo
+find demo -type f -exec sed -i 's|\r$||' {} +
 cd demo
 
 # conf already says three parties, threshold two. Set the width, which ships
