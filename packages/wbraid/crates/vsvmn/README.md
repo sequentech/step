@@ -128,15 +128,9 @@ sed -i 's|^#*WIDTH=.*|WIDTH=2|
 # rename would leave a line unchanged, and the demo says nothing about it until
 # it fails several steps later for an unrelated-looking reason.
 grep -E '^(NO_MIXSERVERS|THRESHOLD|WIDTH|NO_CIPHERTEXTS|TERM|SILENT)=' conf
-
-export VERIFICATUM_RANDOM_SOURCE="$PWD/random_source"
-export VERIFICATUM_RANDOM_SEED="$PWD/random_seed"
-vog -rndinit RandomDevice /dev/urandom
-
-./demo
 ```
 
-which should print
+Stop here and read that `grep`, which should print
 
 ```text
 NO_MIXSERVERS=3
@@ -145,6 +139,20 @@ NO_CIPHERTEXTS=10
 WIDTH=2
 TERM=./vterm
 SILENT=-s
+```
+
+Six lines, none of them commented. Anything missing or still carrying a
+shipped value means an edit did not apply, and the demo will not say so — it
+runs a long way before failing for a reason that looks unrelated.
+
+Then run it:
+
+```sh
+export VERIFICATUM_RANDOM_SOURCE="$PWD/random_source"
+export VERIFICATUM_RANDOM_SEED="$PWD/random_seed"
+vog -rndinit RandomDevice /dev/urandom
+
+./demo
 ```
 
 That leaves a session at:
