@@ -161,7 +161,7 @@ impl RandomOracle {
 
 /// The parameters that go into the global prefix ρ, as read from a protocol
 /// info file (VMNV §7.2) and the proof directory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PrefixParams {
     /// VMN version string, e.g. `"3.1.0"`.
     pub version: String,

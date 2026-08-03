@@ -55,6 +55,7 @@ pub mod error;
 pub mod generators;
 pub mod lagrange;
 pub mod marshal;
+pub mod protinfo;
 
 pub use bytetree::ByteTree;
 pub use error::{Error, Result};

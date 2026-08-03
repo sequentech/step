@@ -29,6 +29,9 @@ pub enum Error {
     ValueTooWide,
     /// A marshalled string was not `comment::hex`, or the hex was malformed.
     BadMarshal(&'static str),
+    /// A protocol info file was missing a field, had it twice, or had a
+    /// value of the wrong kind.
+    BadProtocolInfo(&'static str),
 }
 
 impl fmt::Display for Error {
@@ -47,6 +50,7 @@ impl fmt::Display for Error {
             }
             Error::ValueTooWide => write!(f, "value does not fit the required width"),
             Error::BadMarshal(why) => write!(f, "malformed marshalled value: {why}"),
+            Error::BadProtocolInfo(why) => write!(f, "malformed protocol info: {why}"),
         }
     }
 }

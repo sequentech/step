@@ -165,3 +165,52 @@ fn hashfunction_names_round_trip() {
     // (SHA3-512) cannot be verified as-is.
     assert_eq!(Hashfunction::from_name("SHA3-512"), None);
 }
+
+/// **The point of reading rather than assuming.** Derive rho from the real
+/// `protInfo.xml` on disk and require it to equal `vmnv -t der.rho`.
+///
+/// Every other test in this file builds `PrefixParams` from constants that were
+/// transcribed from that file by hand. This one closes the loop: the constants
+/// are only correct because someone copied them correctly, whereas this would
+/// catch a transcription error — and, more usefully, works for *any* protocol
+/// info file rather than the one the constants were copied from.
+#[test]
+fn rho_derived_from_the_protocol_info_file_matches() {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum/protInfo.xml");
+    let Ok(xml) = std::fs::read_to_string(&path) else {
+        eprintln!("skipping: no protocol info file at {}", path.display());
+        return;
+    };
+
+    let info = vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).expect("parse protInfo.xml");
+    assert!(info.is_consistent(), "the shipped file must be self-consistent");
+
+    // auxsid is the one parameter that is not in the file: it names a session
+    // within the protocol, and lives in the proof directory.
+    let rho = global_prefix(Hashfunction::Sha256, &info.prefix_params("default"));
+
+    assert_eq!(
+        hex::encode(&rho),
+        GOLDEN_RHO,
+        "rho derived from protInfo.xml must equal vmnv -t der.rho"
+    );
+}
+
+/// The parameters read off disk must be the ones the hand-transcribed constants
+/// claim, so that retiring the constants cannot change behaviour silently.
+#[test]
+fn the_file_agrees_with_the_transcribed_constants() {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../testdata/verificatum/protInfo.xml");
+    let Ok(xml) = std::fs::read_to_string(&path) else {
+        return;
+    };
+    let info = vsvmn::wire::protinfo::ProtocolInfo::parse(&xml).unwrap();
+
+    assert_eq!(
+        info.prefix_params("default"),
+        reference_params(),
+        "the file must agree with the hand-transcribed parameters, field for field"
+    );
+}
