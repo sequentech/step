@@ -277,6 +277,20 @@ const englishTranslation = {
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
+                VOTER_INFORMATION_LETTER: "Voter Information Letter",
+            },
+            documentAccess: {
+                title: "Document access",
+                sensitivityNotice:
+                    "Sensitive information. Share this password only with the intended recipient.",
+                passwordLabel: "Password to open the encrypted PDF",
+                showPassword: "Show password",
+                copyPassword: "Copy password",
+                passwordCopied: "Password copied",
+                passwordError: "The PDF password could not be retrieved",
+                copyError: "The password could not be copied",
+                guidance:
+                    "The password is loaded only after you choose Show password. After it loads, a read-only field with copy appears here.",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -462,6 +476,11 @@ const englishTranslation = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -486,6 +505,34 @@ const englishTranslation = {
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Minimum length",
+                    maximumLength: "Maximum length",
+                    includeUppercase: "Include uppercase letters",
+                    includeLowercase: "Include lowercase letters",
+                    includeDigits: "Include digits",
+                    includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
+                    notConfigured:
+                        "No password policy is configured. Saving will apply the defaults below.",
+                    errors: {
+                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
+                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        characterClassRequired:
+                            "Select at least one character class for the password.",
+                    },
+                },
                 name: "Name",
                 alias: "Alias",
                 description: "Description",
@@ -972,6 +1019,16 @@ const englishTranslation = {
                 label: "Change password",
                 temporatyLabel: "Temporary",
                 temporatyInfo: "If enabled, the user must change the password on next login",
+                passwordPolicyViolation:
+                    "The password does not meet the Password Policy for this election event. Review the policy under Election Event Data and enter a compliant password.",
+                passwordPolicyRules: {
+                    minimumLength: "The password minimum length is {{count}}.",
+                    maximumLength: "The password maximum length is {{count}}.",
+                    uppercase: "Required uppercase characters: {{count}}.",
+                    lowercase: "Required lowercase characters: {{count}}.",
+                    digits: "Required digits: {{count}}.",
+                    specialCharacters: "Required special characters: {{count}}.",
+                },
             },
             users: {
                 title: "Users",
@@ -1058,6 +1115,20 @@ const englishTranslation = {
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
                     noEmailOrPhone:
                         "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
+                },
+                voterInformationLetter: {
+                    label: "Voter Information Letter",
+                    generate: "Generate",
+                    confirmation:
+                        "Generate a Voter Information Letter for this voter? A new password will be assigned and included in an encrypted PDF.",
+                    generationStarted: "Voter Information Letter generation started",
+                    generationError: "The Voter Information Letter could not be generated",
+                    policyNotConfigured:
+                        "Password Policy is not configured. Set it under Election Event Data before generating a letter.",
+                    policyMinimumLengthMissing:
+                        "Password Policy must include a minimum length before generating a letter.",
+                    policyCharacterClassMissing:
+                        "Password Policy must include at least one character class before generating a letter.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -1165,6 +1236,7 @@ const englishTranslation = {
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "document-password-read": "Read Document Passwords",
                 "tally-sheet-create": "Create Tally Sheet",
                 "tally-sheet-import-create": "Create Tally Sheet Import",
                 "tally-sheet-import-review": "Review Tally Sheet Import",
@@ -1233,6 +1305,7 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "voter-information-letter": "Generate Voter Information Letter",
                 "election-event-localization-selector": "Election Event Localization Selector",
                 "localization-create": "Create Localization",
                 "localization-read": "Read Localization",
@@ -2213,6 +2286,7 @@ const englishTranslation = {
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
+                error_capacity: "Ballot style generation failed: {{message}}",
                 error_status: "Error change ballot publication status",
                 error_preview: "Error previewing publication",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",

@@ -4,7 +4,7 @@
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use crate::util::convert_vec::convert_map;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use keycloak::{
     types::{
         CredentialRepresentation, GroupRepresentation, UPAttribute, UPConfig,
@@ -41,6 +41,22 @@ async fn error_check(
     }
 
     Ok(response)
+}
+
+/// Return whether an anyhow error chain contains an HTTP 400 returned by
+/// Keycloak. Password-only user edits use this to preserve policy violations as
+/// a structured client error instead of flattening them into a generic 500.
+pub fn is_keycloak_bad_request(error: &anyhow::Error) -> bool {
+    error.chain().any(|source| {
+        source
+            .downcast_ref::<KeycloakError>()
+            .is_some_and(|keycloak_error| {
+                matches!(
+                    keycloak_error,
+                    KeycloakError::HttpFailure { status: 400, .. }
+                )
+            })
+    })
 }
 
 impl User {
@@ -368,7 +384,11 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_with_user_id_put(realm, user_id, current_user.clone())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| {
+                let message =
+                    format!("Failed to edit user in keycloak: {err:?}");
+                anyhow::Error::new(err).context(message)
+            })?;
 
         Ok(current_user.into())
     }
@@ -544,5 +564,35 @@ impl KeycloakAdminClient {
             })
             .collect();
         formatted_attributes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_keycloak_bad_request;
+    use anyhow::Context;
+    use keycloak::KeycloakError;
+
+    #[test]
+    fn detects_a_keycloak_bad_request_through_anyhow_context() {
+        let error = anyhow::Error::new(KeycloakError::HttpFailure {
+            status: 400,
+            body: None,
+            text: "Password policy violation".to_string(),
+        })
+        .context("Failed to edit user");
+
+        assert!(is_keycloak_bad_request(&error));
+    }
+
+    #[test]
+    fn does_not_classify_other_keycloak_failures_as_bad_requests() {
+        let error = anyhow::Error::new(KeycloakError::HttpFailure {
+            status: 500,
+            body: None,
+            text: "Keycloak unavailable".to_string(),
+        });
+
+        assert!(!is_keycloak_bad_request(&error));
     }
 }

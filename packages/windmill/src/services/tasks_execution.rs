@@ -91,6 +91,27 @@ pub async fn update_complete(
     Ok(())
 }
 
+#[instrument(skip_all, err)]
+pub async fn update_complete_with_annotations(
+    task: &TasksExecution,
+    annotations: serde_json::Value,
+) -> Result<(), anyhow::Error> {
+    let new_logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        "Task completed successfully",
+    ))?;
+    update_with_annotations(
+        &task.tenant_id,
+        &task.id,
+        TasksExecutionStatus::SUCCESS,
+        new_logs,
+        annotations,
+    )
+    .await
+    .context("Failed to update task execution record")?;
+    Ok(())
+}
+
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
@@ -114,4 +135,27 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     .context("Failed to update task execution record with failure status")?;
 
     Ok(())
+}
+
+/// Marks a task as failed without overwriting annotations that were committed
+/// as durable retry state by the task's resource transaction.
+#[instrument(skip_all, err)]
+pub async fn update_fail_preserving_annotations(
+    task: &TasksExecution,
+    err_message: &str,
+) -> Result<(), anyhow::Error> {
+    let new_logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        &("Error: ".to_owned() + err_message),
+    ))?;
+
+    update_task_execution_status(
+        &task.tenant_id,
+        &task.id,
+        TasksExecutionStatus::FAILED,
+        Some(new_logs),
+        serde_json::json!({}),
+    )
+    .await
+    .context("Failed to update task execution record with failure status")
 }

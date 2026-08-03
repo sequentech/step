@@ -3,15 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
+use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
+use rocket::Request;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_realm_password_policy, get_tenant_realm,
+    is_keycloak_bad_request, PasswordPolicyViolation,
+};
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
@@ -27,6 +33,10 @@ use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::electoral_log::{
+    post_voter_password_change, ElectoralLogAdminContext,
+    VoterPasswordChangeSource,
+};
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
@@ -515,6 +525,63 @@ pub struct EditUserBody {
 
 const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
 
+pub struct EditUserError(JsonError);
+
+impl std::fmt::Debug for EditUserError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EditUserError")
+            .field("status", &self.0 .0)
+            .field("code", &self.0 .1 .0.extensions.code)
+            .finish()
+    }
+}
+
+impl EditUserError {
+    fn new(status: Status, message: &str, code: ErrorCode) -> Self {
+        Self(ErrorResponse::new(status, message, code))
+    }
+
+    fn password_policy_violation() -> Self {
+        Self::new(
+            Status::BadRequest,
+            "The password does not comply with the election event password policy",
+            ErrorCode::PasswordPolicyViolation,
+        )
+    }
+
+    fn password_policy_violation_with_details(
+        violation: &PasswordPolicyViolation,
+    ) -> Self {
+        Self(ErrorResponse::password_policy_violation(
+            Status::BadRequest,
+            &violation.to_string(),
+            violation.rule.as_str(),
+            violation.required_count,
+        ))
+    }
+}
+
+impl From<(Status, String)> for EditUserError {
+    fn from((status, message): (Status, String)) -> Self {
+        let code =
+            if status == Status::Unauthorized || status == Status::Forbidden {
+                ErrorCode::Unauthorized
+            } else if status == Status::InternalServerError {
+                ErrorCode::InternalServerError
+            } else {
+                ErrorCode::UnknownError
+            };
+        Self::new(status, &message, code)
+    }
+}
+
+impl<'r> Responder<'r, 'static> for EditUserError {
+    fn respond_to(self, request: &'r Request<'_>) -> ResponseResult<'static> {
+        self.0.respond_to(request)
+    }
+}
+
 pub async fn check_edit_email_tlf(
     client: &KeycloakAdminClient,
     input: &EditUserBody,
@@ -563,12 +630,23 @@ pub async fn check_edit_email_tlf(
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
-) -> Result<Json<EditUserOutput>, (Status, String)> {
+) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
+    let password_only = input.election_event_id.is_some()
+        && input.password.is_some()
+        && input.enabled.is_none()
+        && input.attributes.is_none()
+        && input.email.is_none()
+        && input.first_name.is_none()
+        && input.last_name.is_none()
+        && input.username.is_none();
     let mut required_perms = Vec::<Permissions>::new();
     let mut voter_voted_edit = false;
     let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
+        if password_only {
+            required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
+        }
         voter_voted_edit = claims
             .hasura_claims
             .allowed_roles
@@ -582,10 +660,15 @@ pub async fn edit_user(
             .allowed_roles
             .contains(&Permissions::VOTER_WRITE.to_string());
 
-        if voter_write {
-            required_perms.push(Permissions::VOTER_WRITE);
-        } else {
-            required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+        if !password_only {
+            if voter_write {
+                required_perms.push(Permissions::VOTER_WRITE);
+            } else {
+                required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+            }
+            if input.password.is_some() {
+                required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
+            }
         }
     } else {
         required_perms.push(Permissions::USER_WRITE);
@@ -605,6 +688,30 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
+    if let (Some(election_event_id), Some(password)) = (
+        input.election_event_id.as_deref(),
+        input.password.as_deref(),
+    ) {
+        let password_policy =
+            get_realm_password_policy(&input.tenant_id, election_event_id)
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                    "Failed to read election event Password Policy: {error:#}"
+                ),
+                    )
+                })?;
+        password_policy
+            .validate_password(password)
+            .map_err(|violation| {
+                EditUserError::password_policy_violation_with_details(
+                    &violation,
+                )
+            })?;
+    }
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -646,14 +753,16 @@ pub async fn edit_user(
                 return Err((
                     Status::InternalServerError,
                     format!("Error listing voter with vote info"),
-                ));
+                )
+                    .into());
             };
             if let Some(votes_info) = voter.votes_info.clone() {
                 if votes_info.len() > 0 {
                     return Err((
                         Status::Unauthorized,
                         format!("Can't edit a voter that has already cast its ballot"),
-                    ));
+                    )
+                        .into());
                 }
             }
         }
@@ -666,7 +775,8 @@ pub async fn edit_user(
         return Err((
             Status::BadRequest,
             "Cannot change tenant-id attribute".to_string(),
-        ));
+        )
+            .into());
     }
 
     if voter_email_tlf_edit {
@@ -710,68 +820,84 @@ pub async fn edit_user(
     // from blocking on the (retried) VoterView round-trip, and the admin portal
     // tracks the outcome in the returned task widget. Non-Datafix edits stay
     // synchronous.
-    if let (Some(election_event_id), Some(_election_event)) =
-        (input.election_event_id.as_deref(), datafix_election_event)
-    {
-        let executer_name = claims
-            .name
-            .clone()
-            .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-
-        let task_execution = post(
-            &input.tenant_id,
-            Some(election_event_id),
-            ETasksExecution::EDIT_USER,
-            &executer_name,
-        )
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Failed to insert task execution record: {error:?}"),
-            )
-        })?;
-
-        let task_body = EditUserTaskBody {
-            tenant_id: input.tenant_id.clone(),
-            user_id: input.user_id.clone(),
-            election_event_id: election_event_id.to_string(),
-            enabled: input.enabled,
-            attributes: new_attributes,
-            email: input.email.clone(),
-            first_name: input.first_name.clone(),
-            last_name: input.last_name.clone(),
-            username: input.username.clone(),
-            password: input.password.clone(),
-            temporary: input.temporary,
-        };
-
-        let celery_app = get_celery_app().await;
-        if let Err(err) = celery_app
-            .send_task(windmill::tasks::edit_user::edit_user::new(
-                task_body,
-                task_execution.clone(),
-            ))
-            .await
+    if !password_only {
+        if let (Some(election_event_id), Some(_election_event)) =
+            (input.election_event_id.as_deref(), datafix_election_event)
         {
-            update_fail(
-                &task_execution,
-                &format!("Failed to send Edit Voter task: {err:?}"),
+            let executer_name = claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+            let task_execution = post(
+                &input.tenant_id,
+                Some(election_event_id),
+                ETasksExecution::EDIT_USER,
+                &executer_name,
             )
             .await
-            .ok();
-            return Err((
-                Status::InternalServerError,
-                format!("Error sending Edit Voter task: {err:?}"),
-            ));
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Failed to insert task execution record: {error:?}"
+                    ),
+                )
+            })?;
+
+            let task_body = EditUserTaskBody {
+                tenant_id: input.tenant_id.clone(),
+                user_id: input.user_id.clone(),
+                election_event_id: election_event_id.to_string(),
+                enabled: input.enabled,
+                attributes: new_attributes,
+                email: input.email.clone(),
+                first_name: input.first_name.clone(),
+                last_name: input.last_name.clone(),
+                username: input.username.clone(),
+                password: input.password.clone(),
+                temporary: input.temporary,
+                password_change_initiator: input.password.as_ref().map(|_| {
+                    ElectoralLogAdminContext {
+                        user_id: claims.hasura_claims.user_id.clone(),
+                        username: claims.preferred_username.clone(),
+                        authorized_election_ids: claims
+                            .hasura_claims
+                            .authorized_election_ids
+                            .clone(),
+                        area_id: claims.hasura_claims.area_id.clone(),
+                    }
+                }),
+            };
+
+            let celery_app = get_celery_app().await;
+            if let Err(err) = celery_app
+                .send_task(windmill::tasks::edit_user::edit_user::new(
+                    task_body,
+                    task_execution.clone(),
+                ))
+                .await
+            {
+                update_fail(
+                    &task_execution,
+                    &format!("Failed to send Edit Voter task: {err:?}"),
+                )
+                .await
+                .ok();
+                return Err((
+                    Status::InternalServerError,
+                    format!("Error sending Edit Voter task: {err:?}"),
+                )
+                    .into());
+            }
+
+            info!("Sent EDIT_USER task {}", task_execution.id);
+
+            return Ok(Json(EditUserOutput {
+                user: None,
+                task_execution: Some(task_execution),
+            }));
         }
-
-        info!("Sent EDIT_USER task {}", task_execution.id);
-
-        return Ok(Json(EditUserOutput {
-            user: None,
-            task_execution: Some(task_execution),
-        }));
     }
 
     let client = KeycloakAdminClient::new()
@@ -792,7 +918,49 @@ pub async fn edit_user(
             input.temporary,
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            if password_only && is_keycloak_bad_request(&error) {
+                EditUserError::password_policy_violation()
+            } else {
+                (
+                    Status::InternalServerError,
+                    format!("Error editing user in Keycloak: {error:?}"),
+                )
+                    .into()
+            }
+        })?;
+
+    if let (Some(election_event_id), Some(_)) =
+        (input.election_event_id.as_deref(), input.password.as_ref())
+    {
+        let admin = ElectoralLogAdminContext {
+            user_id: claims.hasura_claims.user_id.clone(),
+            username: claims.preferred_username.clone(),
+            authorized_election_ids: claims
+                .hasura_claims
+                .authorized_election_ids
+                .clone(),
+            area_id: claims.hasura_claims.area_id.clone(),
+        };
+        post_voter_password_change(
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+            user.username.clone(),
+            &admin,
+            VoterPasswordChangeSource::AdminPortal,
+        )
+        .await
+        .map_err(|error| -> EditUserError {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Voter password changed, but its electoral-log entry failed: {error:#}"
+                ),
+            )
+                .into()
+        })?;
+    }
 
     Ok(Json(EditUserOutput {
         user: Some(user),
@@ -1094,4 +1262,38 @@ pub async fn get_user_profile_attributes(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(attributes_res))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EditUserError;
+    use rocket::http::Status;
+    use sequent_core::services::keycloak::{
+        PasswordPolicyRule, PasswordPolicyViolation,
+    };
+
+    #[test]
+    fn password_policy_violation_is_a_structured_bad_request() {
+        let response = EditUserError::password_policy_violation_with_details(
+            &PasswordPolicyViolation {
+                rule: PasswordPolicyRule::Digits,
+                required_count: 3,
+            },
+        );
+
+        assert_eq!(response.0 .0, Status::BadRequest);
+        assert_eq!(response.0 .1 .0.extensions.code, "PasswordPolicyViolation");
+        assert_eq!(
+            response.0 .1 .0.extensions.password_policy_rule.as_deref(),
+            Some("digits")
+        );
+        assert_eq!(
+            response.0 .1 .0.extensions.password_policy_required_count,
+            Some(3)
+        );
+        assert_eq!(
+            response.0 .1 .0.message,
+            "Password does not contain enough digits"
+        );
+    }
 }
